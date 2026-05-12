@@ -137,9 +137,9 @@ export default function MemberNOCList() {
                 </tr>
               </thead>
               <tbody>
-                {nocs.map((noc: any) => (
+                {nocs.map((noc: any, index: number) => (
                   <tr
-                    key={noc._id}
+                    key={noc._id || index}
                     className="border-b border-gray-100 dark:border-gray-900 text-gray-900 dark:text-gray-100"
                   >
                     <td className="py-3 pr-4">

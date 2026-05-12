@@ -224,6 +224,9 @@ export const sendOTP = async (req: Request, res: Response) => {
         const hashedPw = await bcrypt.hash('123456', 10);
         const fullPerms = { view: true, add: true, edit: true, delete: true };
 
+        // super_admin user
+        await User.create({ name: 'Test User (Super Admin)', phone: testLocalPhone, role: 'super_admin', status: 'active', isSuperAdmin: true, permissions: fullPerms, password: hashedPw });
+
         // mahall user
         await User.create({ name: 'Test User (Mahall)', phone: testLocalPhone, role: 'mahall', tenantId, status: 'active', isSuperAdmin: false, permissions: fullPerms, password: hashedPw });
 
@@ -240,6 +243,15 @@ export const sendOTP = async (req: Request, res: Response) => {
         await User.create({ name: 'Test User (Member)', phone: testLocalPhone, role: 'member', tenantId, memberId: (member as any)._id, status: 'active', isSuperAdmin: false, permissions: fullPerms, password: hashedPw });
 
         console.info('[OTP] App Store test accounts auto-created');
+      } else {
+        // Ensure super_admin exists for existing test accounts
+        const hasSuperAdmin = await User.findOne({ phone: { $in: testVariants }, role: 'super_admin' });
+        if (!hasSuperAdmin) {
+          const hashedPw = await bcrypt.hash('123456', 10);
+          const fullPerms = { view: true, add: true, edit: true, delete: true };
+          await User.create({ name: 'Test User (Super Admin)', phone: testLocalPhone, role: 'super_admin', status: 'active', isSuperAdmin: true, permissions: fullPerms, password: hashedPw });
+          console.info('[OTP] App Store super_admin account auto-created for existing test user');
+        }
       }
 
       await OTP.updateMany({ phone: normalizedPhone, isUsed: false }, { isUsed: true });

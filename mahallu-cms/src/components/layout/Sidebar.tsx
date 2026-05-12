@@ -239,6 +239,8 @@ export default function Sidebar() {
   const [isSubmenuPanelOpen, setIsSubmenuPanelOpen] = useState(false);
   const location = useLocation();
   const setSubmenuOpen = useLayoutStore((s) => s.setSubmenuOpen);
+  const isMobileSidebarOpen = useLayoutStore((s) => s.isMobileSidebarOpen);
+  const setMobileSidebarOpen = useLayoutStore((s) => s.setMobileSidebarOpen);
 
   // Close submenu panel on route change — route-based highlighting
   // is already handled by `isActive` in MenuItemComponent
@@ -278,7 +280,11 @@ export default function Sidebar() {
   return (
     <>
       {/* Main Sidebar */}
-      <aside className="fixed left-0 top-0 z-50 h-screen w-24 border-r border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
+      <aside className={cn(
+        "fixed left-0 top-0 z-50 h-screen w-24 border-r border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900 transition-transform duration-200 ease-out",
+        "md:translate-x-0",
+        isMobileSidebarOpen ? "translate-x-0" : "-translate-x-full"
+      )}>
         <div className="flex h-full flex-col">
           {/* Logo */}
           <div className="flex h-16 items-center justify-center border-b border-gray-200 dark:border-gray-800 px-2 flex-shrink-0">
