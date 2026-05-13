@@ -15,12 +15,14 @@ import { exportInvoicesToPdf, InvoiceDetails } from '@/utils/invoiceUtils';
 /** Map varisangya payment to transaction-like shape (list shows varisangya, so transactions view must match). */
 function varisangyaToTransaction(v: Varisangya): Transaction {
   const id = (v as any).id ?? (v as any)._id;
+  const familyName = v.familyId && typeof v.familyId === 'object' ? v.familyId.houseName : undefined;
+  const payerInfo = familyName ? ` - ${familyName}` : '';
   return {
     id: id != null ? String(id) : '',
     walletId: '',
     type: 'credit',
     amount: v.amount ?? 0,
-    description: v.remarks || `Varisangya - ${v.receiptNo || 'N/A'}`,
+    description: v.remarks || `Varisangya payment${payerInfo} - ${v.receiptNo || 'N/A'}`,
     referenceId: v.receiptNo,
     referenceType: 'varisangya',
     createdAt: v.paymentDate || v.createdAt || new Date().toISOString(),
@@ -60,30 +62,11 @@ export default function FamilyVarisangyaTransactions() {
       const walletId = walletData && ((walletData as any).id ?? (walletData as any)._id);
       setWallet(walletId ? { ...walletData!, id: String(walletId) } as Wallet : null);
 
-      // Prefer wallet transactions (old behavior / transaction page source). Fallback to varisangya when no wallet or no wallet transactions.
-      if (familyId) {
-        if (walletId) {
-          const transactionsList = await collectibleService.getWalletTransactions(String(walletId));
-          if (transactionsList.length > 0) {
-            setTransactions(transactionsList);
-          } else {
-            const varisangyasResult = await collectibleService.getAllVarisangyas({ familyId, limit: 10000 });
-            const list = varisangyasResult.data || [];
-            const mapped = list.map(varisangyaToTransaction).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-            setTransactions(mapped);
-          }
-        } else {
-          const varisangyasResult = await collectibleService.getAllVarisangyas({ familyId, limit: 10000 });
-          const list = varisangyasResult.data || [];
-          const mapped = list.map(varisangyaToTransaction).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-          setTransactions(mapped);
-        }
-      } else if (walletId) {
-        const transactionsList = await collectibleService.getWalletTransactions(String(walletId));
-        setTransactions(transactionsList);
-      } else {
-        setTransactions([]);
-      }
+      // Always use varisangya records (they have populated family names)
+      const varisangyasResult = await collectibleService.getAllVarisangyas({ familyId: familyId || undefined, limit: 10000 });
+      const list = varisangyasResult.data || [];
+      const mapped = list.map(varisangyaToTransaction).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      setTransactions(mapped);
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to fetch transactions');
       console.error('Error fetching data:', err);
@@ -96,37 +79,13 @@ export default function FamilyVarisangyaTransactions() {
     try {
       setLoading(true);
       setError(null);
-      const familiesResult = await familyService.getAll({ limit: 10000 });
-      const families = familiesResult.data;
-      const allTransactions: Transaction[] = [];
-      for (const fam of families) {
-        try {
-          const fid = (fam as any).id ?? (fam as any)._id;
-          if (!fid) continue;
-          const walletData = await collectibleService.getWallet({ familyId: String(fid) });
-          const walletId = walletData && ((walletData as any).id ?? (walletData as any)._id);
-          if (walletId) {
-            const transactionsData = await collectibleService.getWalletTransactions(String(walletId));
-            allTransactions.push(...transactionsData);
-          }
-        } catch (err) {
-          // Skip if wallet doesn't exist
-        }
-      }
-      // Prefer wallet transactions; if none, show all family varisangya (same source as list)
-      if (allTransactions.length > 0) {
-        setTransactions(allTransactions.sort((a, b) =>
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        ));
-      } else {
-        const varisangyasResult = await collectibleService.getAllVarisangyas({ limit: 10000 });
-        const list = varisangyasResult.data || [];
-        const mapped = list
-          .filter((v) => (v as any).familyId != null)
-          .map(varisangyaToTransaction)
-          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-        setTransactions(mapped);
-      }
+      const varisangyasResult = await collectibleService.getAllVarisangyas({ limit: 10000 });
+      const list = varisangyasResult.data || [];
+      const mapped = list
+        .filter((v) => (v as any).familyId != null)
+        .map(varisangyaToTransaction)
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      setTransactions(mapped);
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to fetch transactions');
       console.error('Error fetching transactions:', err);

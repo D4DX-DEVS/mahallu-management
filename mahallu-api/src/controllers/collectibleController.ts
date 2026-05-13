@@ -1,6 +1,8 @@
 import { Request, Response } from 'express';
 import mongoose from 'mongoose';
 import { Varisangya, Zakat, Wallet, Transaction } from '../models/Collectible';
+import Family from '../models/Family';
+import Member from '../models/Member';
 import { AuthRequest } from '../middleware/authMiddleware';
 import { getPaginationParams, createPaginationResponse } from '../utils/pagination';
 import { postLedgerEntry, reverseLedgerEntry } from '../services/ledgerPostingService';
@@ -168,13 +170,23 @@ export const createVarisangya = async (req: AuthRequest, res: Response) => {
       wallet.lastTransactionDate = varisangya.paymentDate;
       await wallet.save();
 
+      // Build description with payer name
+      let payerInfo = '';
+      if (varisangya.familyId) {
+        const family = await Family.findById(varisangya.familyId).select('houseName').lean();
+        if (family?.houseName) payerInfo = ` - ${family.houseName}`;
+      } else if (varisangya.memberId) {
+        const member = await Member.findById(varisangya.memberId).select('name').lean();
+        if (member?.name) payerInfo = ` - ${member.name}`;
+      }
+
       // Create transaction
       await Transaction.create({
         tenantId: varisangya.tenantId,
         walletId: wallet._id,
         type: 'credit',
         amount: varisangya.amount,
-        description: `Varisangya payment - ${varisangya.receiptNo || 'N/A'}`,
+        description: `Varisangya payment${payerInfo} - ${varisangya.receiptNo || 'N/A'}`,
         referenceId: varisangya._id,
         referenceType: 'varisangya',
       });
