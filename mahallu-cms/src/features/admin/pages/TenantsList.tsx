@@ -134,6 +134,15 @@ export default function TenantsList() {
     },
     { key: 'location', label: 'Location' },
     {
+      key: 'userCount',
+      label: 'Users',
+      render: (count) => (
+        <span className="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200">
+          {count ?? 0}
+        </span>
+      ),
+    },
+    {
       key: 'status',
       label: 'Status',
       render: (status) => (

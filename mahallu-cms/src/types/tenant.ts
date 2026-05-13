@@ -33,6 +33,7 @@ export interface Tenant {
   };
   createdAt: string;
   updatedAt: string;
+  userCount?: number;
 }
 
 export interface TenantStats {

@@ -1,4 +1,4 @@
-import { FiMenu, FiBell, FiSun, FiMoon, FiUser, FiLogOut, FiSearch, FiMail, FiShield, FiCalendar, FiChevronDown, FiChevronRight, FiMapPin, FiAlertTriangle } from 'react-icons/fi';
+import { FiMenu, FiBell, FiSun, FiMoon, FiUser, FiLogOut, FiSearch, FiMail, FiPhone, FiShield, FiCalendar, FiChevronDown, FiChevronRight, FiMapPin, FiAlertTriangle } from 'react-icons/fi';
 import { useThemeStore } from '@/store/themeStore';
 import { useAuthStore } from '@/store/authStore';
 import { useLayoutStore } from '@/store/layoutStore';
@@ -9,7 +9,7 @@ import TenantSwitcher from './TenantSwitcher';
 import CommandPalette from '@/components/ui/CommandPalette';
 import Modal from '@/components/ui/Modal';
 import { tenantService } from '@/services/tenantService';
-import { notificationService } from '@/services/notificationService';
+import { useNotificationStore } from '@/store/notificationStore';
 import { Tenant } from '@/types/tenant';
 import { ROUTES } from '@/constants/routes';
 
@@ -23,7 +23,7 @@ export default function Header() {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [tenantInfo, setTenantInfo] = useState<Tenant | null>(null);
-  const [unreadCount, setUnreadCount] = useState(0);
+  const { unreadCount, fetchUnreadCount } = useNotificationStore();
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   const isViewingAsTenant = isSuperAdmin && currentTenantId;
@@ -34,18 +34,10 @@ export default function Header() {
   }, []);
 
   useEffect(() => {
-    const fetchUnreadCount = async () => {
-      try {
-        const result = await notificationService.getAll({ isRead: false, limit: 1 });
-        setUnreadCount(result.pagination?.total ?? result.data.length);
-      } catch {
-        setUnreadCount(0);
-      }
-    };
     fetchUnreadCount();
     const interval = setInterval(fetchUnreadCount, 60000);
     return () => clearInterval(interval);
-  }, []);
+  }, [fetchUnreadCount]);
 
   useEffect(() => {
     const loadTenantInfo = async () => {
@@ -213,7 +205,23 @@ export default function Header() {
 
               {/* User Info Cards */}
               <div className="p-4 space-y-3">
-                {/* Email Address */}
+                {/* Phone Number */}
+                <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
+                  <div className="flex items-start gap-3">
+                    <div className="p-2 bg-gray-200 dark:bg-gray-600 rounded-lg">
+                      <FiPhone className="h-4 w-4 text-gray-600 dark:text-gray-300" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Phone Number</p>
+                      <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                        {user?.phone || 'N/A'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Email Address (only if available) */}
+                {user?.email && (
                 <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
                   <div className="flex items-start gap-3">
                     <div className="p-2 bg-gray-200 dark:bg-gray-600 rounded-lg">
@@ -222,11 +230,12 @@ export default function Header() {
                     <div className="flex-1">
                       <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Email Address</p>
                       <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                        {user?.email || user?.phone || 'N/A'}
+                        {user.email}
                       </p>
                     </div>
                   </div>
                 </div>
+                )}
 
                 {/* Account Type */}
                 <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">

@@ -21,7 +21,7 @@ const settingsSchema = z.object({
 type SettingsFormData = z.infer<typeof settingsSchema>;
 
 export default function MahallMain() {
-  const { currentTenantId, user } = useAuthStore();
+  const { currentTenantId, user, isSuperAdmin } = useAuthStore();
   const [tenant, setTenant] = useState<Tenant | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -46,7 +46,6 @@ export default function MahallMain() {
     if (tenantId) {
       fetchTenant();
     } else {
-      setError('No tenant assigned to your account');
       setLoading(false);
     }
   }, [tenantId]);
@@ -123,6 +122,45 @@ export default function MahallMain() {
     return (
       <div className="flex justify-center items-center py-12">
         <LoadingSpinner />
+      </div>
+    );
+  }
+
+  if (!tenantId && !tenant) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Mahall Main</h1>
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Manage mahall settings and configuration</p>
+          </div>
+          <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Mahall Main' }]} />
+        </div>
+        <Card>
+          <div className="text-center py-12">
+            {isSuperAdmin ? (
+              <>
+                <div className="mx-auto w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mb-4">
+                  <FiInfo className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                </div>
+                <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">Select a Mahall to Manage</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 max-w-md mx-auto">
+                  As a Super Admin, please select a mahall from the <strong>"Select Tenant"</strong> dropdown in the header to view and manage its settings.
+                </p>
+              </>
+            ) : (
+              <>
+                <div className="mx-auto w-12 h-12 bg-yellow-100 dark:bg-yellow-900/30 rounded-full flex items-center justify-center mb-4">
+                  <FiInfo className="h-6 w-6 text-yellow-600 dark:text-yellow-400" />
+                </div>
+                <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">No Mahall Assigned</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 max-w-md mx-auto">
+                  Your account is not linked to any mahall yet. Please contact your administrator to get assigned to a mahall.
+                </p>
+              </>
+            )}
+          </div>
+        </Card>
       </div>
     );
   }

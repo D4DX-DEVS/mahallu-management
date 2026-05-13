@@ -6,6 +6,7 @@ import { cn } from '@/utils/cn';
 import { useAuthStore } from '@/store/authStore';
 import { BRAND_NAME, LOGO_PATH } from '@/constants/theme';
 import { useLayoutStore } from '@/store/layoutStore';
+import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 
 interface SubMenuPanelProps {
   item: MenuItem | null;
@@ -241,6 +242,7 @@ export default function Sidebar() {
   const setSubmenuOpen = useLayoutStore((s) => s.setSubmenuOpen);
   const isMobileSidebarOpen = useLayoutStore((s) => s.isMobileSidebarOpen);
   const setMobileSidebarOpen = useLayoutStore((s) => s.setMobileSidebarOpen);
+  const isOnline = useOnlineStatus();
 
   // Close submenu panel on route change — route-based highlighting
   // is already handled by `isActive` in MenuItemComponent
@@ -312,8 +314,8 @@ export default function Sidebar() {
           </nav>
 
           {/* Status Indicator */}
-          <div className="border-t border-gray-200 p-3 dark:border-gray-800 flex justify-center flex-shrink-0">
-            <span className="h-2.5 w-2.5 rounded-full bg-green-500 shadow-sm"></span>
+          <div className="border-t border-gray-200 p-3 dark:border-gray-800 flex justify-center flex-shrink-0" title={isOnline ? 'Connected' : 'Disconnected'}>
+            <span className={`h-2.5 w-2.5 rounded-full shadow-sm ${isOnline ? 'bg-green-500' : 'bg-red-500 animate-pulse'}`}></span>
           </div>
         </div>
       </aside>

@@ -25,7 +25,20 @@ export const getAllTenants = async (req: AuthRequest, res: Response) => {
       Tenant.countDocuments(query),
     ]);
 
-    res.json(createPaginationResponse(tenants, total, page, limit));
+    // Get user counts per tenant
+    const tenantIds = tenants.map((t) => t._id);
+    const userCounts = await User.aggregate([
+      { $match: { tenantId: { $in: tenantIds } } },
+      { $group: { _id: '$tenantId', count: { $sum: 1 } } },
+    ]);
+    const userCountMap = new Map(userCounts.map((uc: any) => [uc._id.toString(), uc.count]));
+
+    const tenantsWithCounts = tenants.map((t) => ({
+      ...t.toObject(),
+      userCount: userCountMap.get(t._id.toString()) || 0,
+    }));
+
+    res.json(createPaginationResponse(tenantsWithCounts, total, page, limit));
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
   }

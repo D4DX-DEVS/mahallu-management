@@ -7,6 +7,7 @@ import Select from '@/components/ui/Select';
 import StatCard from '@/components/ui/StatCard';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { notificationService, Notification } from '@/services/notificationService';
+import { useNotificationStore } from '@/store/notificationStore';
 import { formatDate } from '@/utils/format';
 
 export default function NotificationsList() {
@@ -14,6 +15,7 @@ export default function NotificationsList() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { fetchUnreadCount } = useNotificationStore();
 
   useEffect(() => {
     fetchNotifications();
@@ -41,6 +43,7 @@ export default function NotificationsList() {
     try {
       await notificationService.markAsRead(id);
       await fetchNotifications();
+      fetchUnreadCount();
     } catch (err) {
       console.error('Error marking as read:', err);
     }
@@ -50,6 +53,7 @@ export default function NotificationsList() {
     try {
       await notificationService.markAllAsRead();
       await fetchNotifications();
+      fetchUnreadCount();
     } catch (err) {
       console.error('Error marking all as read:', err);
     }

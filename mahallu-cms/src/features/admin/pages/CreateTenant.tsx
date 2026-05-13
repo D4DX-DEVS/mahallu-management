@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -28,7 +29,7 @@ const tenantSchema = z.object({
     plan: z.string().default('basic'),
   }),
   settings: z.object({
-    varisangyaAmount: z.number().default(0),
+    varisangyaAmount: z.number().min(0, 'Varisangya amount cannot be negative').default(0),
   }),
 });
 
@@ -46,6 +47,7 @@ export default function CreateTenant() {
     resolver: zodResolver(tenantSchema),
     defaultValues: {
       type: 'standard',
+      code: '',
       address: {
         state: 'Kerala',
         district: '',
@@ -58,6 +60,17 @@ export default function CreateTenant() {
       },
     },
   });
+
+  // Auto-generate a unique tenant code on mount
+  useEffect(() => {
+    const generateCode = () => {
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+      const prefix = 'TN';
+      const random = Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+      return `${prefix}${random}`;
+    };
+    setValue('code', generateCode());
+  }, [setValue]);
 
   // Watch state changes to update districts
   const selectedState = watch('address.state');
@@ -115,11 +128,11 @@ export default function CreateTenant() {
                 placeholder="Masjidul Ansar Thiruvizhamkunnu"
               />
               <Input
-                label="Code"
+                label="Code (Auto-generated)"
                 {...register('code')}
                 error={errors.code?.message}
                 required
-                placeholder="M357vb2y"
+                placeholder="TN4X8K2M"
               />
               <Select
                 label="Type"
@@ -204,6 +217,7 @@ export default function CreateTenant() {
               <Input
                 label="Varisangya Amount"
                 type="number"
+                min={0}
                 {...register('settings.varisangyaAmount', { valueAsNumber: true })}
                 error={errors.settings?.varisangyaAmount?.message}
                 placeholder="0"
