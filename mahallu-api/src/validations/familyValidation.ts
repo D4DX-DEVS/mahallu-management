@@ -10,7 +10,7 @@ export const createFamilyValidation = [
   body('houseNameMl').optional().trim(),
   body('mahallId').optional().trim(),
   body('varisangyaGrade')
-    .optional()
+    .optional({ values: 'falsy' })
     .isIn(['Grade A', 'Grade B', 'Grade C', 'Grade D'])
     .withMessage('Invalid varisangya grade'),
   body('familyHead').optional().trim(),
@@ -19,7 +19,7 @@ export const createFamilyValidation = [
   body('wardNumber').optional().trim(),
   body('houseNo').optional().trim(),
   body('area')
-    .optional()
+    .optional({ values: 'falsy' })
     .isIn(['Area A', 'Area B', 'Area C', 'Area D'])
     .withMessage('Invalid area'),
   body('areaMl').optional().trim(),

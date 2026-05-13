@@ -879,7 +879,7 @@ function App() {
           element={
             <ProtectedRoute>
               <MainLayout>
-                <NOCList />
+                <CreateNOC />
               </MainLayout>
             </ProtectedRoute>
           }

@@ -173,27 +173,58 @@ export const getFinancialSummary = async (req: AuthRequest, res: Response) => {
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
 
+    // Previous month range
+    const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const prevMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
+
     const monthMatch = {
       ...matchQuery,
       date: { $gte: monthStart, $lte: monthEnd },
     };
 
-    // Monthly totals
-    const monthlyResult = await LedgerItem.aggregate([
-      { $match: monthMatch },
-      { $lookup: { from: 'ledgers', localField: 'ledgerId', foreignField: '_id', as: 'ledger' } },
-      { $unwind: '$ledger' },
-      {
-        $group: {
-          _id: null,
-          totalIncome: { $sum: { $cond: [{ $eq: ['$ledger.type', 'income'] }, '$amount', 0] } },
-          totalExpense: { $sum: { $cond: [{ $eq: ['$ledger.type', 'expense'] }, '$amount', 0] } },
-          transactionCount: { $sum: 1 },
+    const prevMonthMatch = {
+      ...matchQuery,
+      date: { $gte: prevMonthStart, $lte: prevMonthEnd },
+    };
+
+    // Monthly totals (current + previous)
+    const [monthlyResult, prevMonthlyResult] = await Promise.all([
+      LedgerItem.aggregate([
+        { $match: monthMatch },
+        { $lookup: { from: 'ledgers', localField: 'ledgerId', foreignField: '_id', as: 'ledger' } },
+        { $unwind: '$ledger' },
+        {
+          $group: {
+            _id: null,
+            totalIncome: { $sum: { $cond: [{ $eq: ['$ledger.type', 'income'] }, '$amount', 0] } },
+            totalExpense: { $sum: { $cond: [{ $eq: ['$ledger.type', 'expense'] }, '$amount', 0] } },
+            transactionCount: { $sum: 1 },
+          },
         },
-      },
+      ]),
+      LedgerItem.aggregate([
+        { $match: prevMonthMatch },
+        { $lookup: { from: 'ledgers', localField: 'ledgerId', foreignField: '_id', as: 'ledger' } },
+        { $unwind: '$ledger' },
+        {
+          $group: {
+            _id: null,
+            totalIncome: { $sum: { $cond: [{ $eq: ['$ledger.type', 'income'] }, '$amount', 0] } },
+          },
+        },
+      ]),
     ]);
 
     const monthly = monthlyResult[0] || { totalIncome: 0, totalExpense: 0, transactionCount: 0 };
+    const prevMonthly = prevMonthlyResult[0] || { totalIncome: 0 };
+
+    // Calculate month-over-month income growth percentage
+    let incomeGrowthPercent: number | null = null;
+    if (prevMonthly.totalIncome > 0) {
+      incomeGrowthPercent = Math.round(((monthly.totalIncome - prevMonthly.totalIncome) / prevMonthly.totalIncome) * 100);
+    } else if (monthly.totalIncome > 0) {
+      incomeGrowthPercent = 100; // New income with no previous month baseline
+    }
 
     // Bank balance
     const bankQuery: any = { status: 'active' };
@@ -212,6 +243,7 @@ export const getFinancialSummary = async (req: AuthRequest, res: Response) => {
         monthlyIncome: monthly.totalIncome,
         monthlyExpense: monthly.totalExpense,
         monthlyNet: monthly.totalIncome - monthly.totalExpense,
+        incomeGrowthPercent,
         transactionCount: monthly.transactionCount,
         totalBankBalance: bank.totalBalance,
         bankAccountCount: bank.accountCount,

@@ -23,7 +23,7 @@ const memberSchema = z.object({
   nameMl: z.string().optional(),
   familyId: z.string().min(1, 'Family is required'),
   familyName: z.string().min(1, 'Family Name is required'),
-  age: z.number().min(0).max(150).optional().or(z.literal('')),
+  age: z.preprocess((val) => (val === '' || Number.isNaN(val) ? undefined : val), z.number().min(0).max(150).optional()),
   gender: z.enum(['male', 'female']).optional().or(z.literal('')),
   bloodGroup: z
     .enum(['A +ve', 'A -ve', 'B +ve', 'B -ve', 'AB +ve', 'AB -ve', 'O +ve', 'O -ve'])
@@ -36,7 +36,7 @@ const memberSchema = z.object({
   ),
   education: z.string().optional(),
   maritalStatus: z.enum(['single', 'married', 'divorced', 'widowed']).optional().or(z.literal('')),
-  marriageCount: z.number().min(0).optional().or(z.literal('')),
+  marriageCount: z.preprocess((val) => (val === '' || Number.isNaN(val) ? undefined : val), z.number().min(0).optional()),
   isOrphan: z.boolean().optional(),
   isDead: z.boolean().optional(),
 });
@@ -112,14 +112,17 @@ export default function CreateMember() {
   const onSubmit = async (data: MemberFormData) => {
     try {
       setError(null);
-      const memberData = {
-        ...data,
-        age: data.age === '' ? undefined : Number(data.age),
-        gender: data.gender === '' ? undefined : data.gender,
-        bloodGroup: data.bloodGroup === '' ? undefined : data.bloodGroup,
-        maritalStatus: data.maritalStatus === '' ? undefined : data.maritalStatus,
-        marriageCount: data.marriageCount === '' ? undefined : Number(data.marriageCount),
-      };
+      // Clean up empty strings and convert types
+      const memberData = Object.fromEntries(
+        Object.entries({
+          ...data,
+          age: data.age == null || Number.isNaN(data.age) ? undefined : Number(data.age),
+          gender: data.gender === '' ? undefined : data.gender,
+          bloodGroup: data.bloodGroup === '' ? undefined : data.bloodGroup,
+          maritalStatus: data.maritalStatus === '' ? undefined : data.maritalStatus,
+          marriageCount: data.marriageCount == null || Number.isNaN(data.marriageCount) ? undefined : Number(data.marriageCount),
+        }).filter(([_, v]) => v !== '' && v !== undefined && !Number.isNaN(v))
+      );
       await memberService.create(memberData);
       navigate(ROUTES.MEMBERS.LIST);
     } catch (err: any) {

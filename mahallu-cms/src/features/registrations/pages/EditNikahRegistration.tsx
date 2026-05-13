@@ -18,9 +18,9 @@ import { Member } from '@/types';
 
 const nikahSchema = z.object({
   groomName: z.string().min(1, 'Groom name is required'),
-  groomAge: z.number().min(0).max(150).optional().or(z.literal('')),
+  groomAge: z.preprocess((val) => (val === '' || Number.isNaN(val) ? undefined : val), z.number().min(0).max(150).optional()),
   brideName: z.string().min(1, 'Bride name is required'),
-  brideAge: z.number().min(0).max(150).optional().or(z.literal('')),
+  brideAge: z.preprocess((val) => (val === '' || Number.isNaN(val) ? undefined : val), z.number().min(0).max(150).optional()),
   mahallMemberType: z.enum(['groom', 'bride']).optional().or(z.literal('')),
   mahallMemberId: z.string().optional(),
   nikahDate: z.string().min(1, 'Nikah date is required'),
@@ -28,7 +28,7 @@ const nikahSchema = z.object({
   waliName: z.string().optional(),
   witness1: z.string().optional(),
   witness2: z.string().optional(),
-  mahrAmount: z.number().min(0).optional().or(z.literal('')),
+  mahrAmount: z.preprocess((val) => (val === '' || Number.isNaN(val) ? undefined : val), z.number().min(0).optional()),
   mahrDescription: z.string().optional(),
   status: z.enum(['pending', 'approved', 'rejected']).optional(),
   remarks: z.string().optional(),

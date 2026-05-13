@@ -130,7 +130,7 @@ export default function SalarySummary() {
                   {summary.map((item, idx) => (
                     <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-800">
                       <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
-                        {item._id.month ? `${getMonthName(item._id.month)} ${item._id.year}` : item.instituteName || '-'}
+                        {item._id?.month ? `${getMonthName(item._id.month)} ${item._id.year}` : item.instituteName || '-'}
                       </td>
                       <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-gray-100">{item.totalPayments}</td>
                       <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-gray-100">₹{item.totalBaseSalary.toLocaleString()}</td>

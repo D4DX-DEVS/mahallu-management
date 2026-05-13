@@ -1,12 +1,15 @@
-import { FiMenu, FiBell, FiSun, FiMoon, FiUser, FiLogOut, FiSearch, FiMail, FiShield, FiCalendar, FiChevronDown, FiChevronRight, FiMapPin } from 'react-icons/fi';
+import { FiMenu, FiBell, FiSun, FiMoon, FiUser, FiLogOut, FiSearch, FiMail, FiShield, FiCalendar, FiChevronDown, FiChevronRight, FiMapPin, FiAlertTriangle } from 'react-icons/fi';
 import { useThemeStore } from '@/store/themeStore';
 import { useAuthStore } from '@/store/authStore';
+import { useLayoutStore } from '@/store/layoutStore';
 import { applyTheme } from '@/utils/theme';
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import TenantSwitcher from './TenantSwitcher';
 import CommandPalette from '@/components/ui/CommandPalette';
+import Modal from '@/components/ui/Modal';
 import { tenantService } from '@/services/tenantService';
+import { notificationService } from '@/services/notificationService';
 import { Tenant } from '@/types/tenant';
 import { ROUTES } from '@/constants/routes';
 
@@ -14,10 +17,13 @@ export default function Header() {
   const navigate = useNavigate();
   const { theme, toggleTheme } = useThemeStore();
   const { user, logout, isSuperAdmin, currentTenantId } = useAuthStore();
+  const { isMobileSidebarOpen, setMobileSidebarOpen } = useLayoutStore();
   const [mounted, setMounted] = useState(false);
   const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [tenantInfo, setTenantInfo] = useState<Tenant | null>(null);
+  const [unreadCount, setUnreadCount] = useState(0);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   const isViewingAsTenant = isSuperAdmin && currentTenantId;
@@ -25,6 +31,20 @@ export default function Header() {
   useEffect(() => {
     setMounted(true);
     applyTheme();
+  }, []);
+
+  useEffect(() => {
+    const fetchUnreadCount = async () => {
+      try {
+        const result = await notificationService.getAll({ isRead: false, limit: 1 });
+        setUnreadCount(result.pagination?.total ?? result.data.length);
+      } catch {
+        setUnreadCount(0);
+      }
+    };
+    fetchUnreadCount();
+    const interval = setInterval(fetchUnreadCount, 60000);
+    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
@@ -107,6 +127,7 @@ export default function Header() {
     if (user?.role === 'mahall') return 'Mahall Admin';
     if (user?.role === 'survey') return 'Survey Admin';
     if (user?.role === 'institute') return 'Institute Admin';
+    if (user?.role === 'member') return 'Member';
     return 'User';
   };
 
@@ -124,8 +145,15 @@ export default function Header() {
         </div>
       )}
       
-      <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-gray-200/50 bg-white/80 backdrop-blur-md px-6 dark:border-gray-800/50 dark:bg-gray-900/80">
-        <div className="flex items-center gap-4">
+      <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-gray-200/50 bg-white/80 backdrop-blur-md px-4 md:px-6 dark:border-gray-800/50 dark:bg-gray-900/80">
+        <div className="flex items-center gap-2 md:gap-4">
+          {/* Mobile hamburger */}
+          <button
+            onClick={() => setMobileSidebarOpen(!isMobileSidebarOpen)}
+            className="md:hidden p-2 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+          >
+            <FiMenu className="h-5 w-5" />
+          </button>
           {/* Search / Command Palette Trigger */}
           {user?.role !== 'member' && (
             <button
@@ -265,7 +293,9 @@ export default function Header() {
                   <div className="flex items-center gap-3">
                     <div className="relative">
                       <FiBell className="h-4 w-4 text-gray-600 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-gray-100" />
-                      <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white dark:ring-gray-800"></span>
+                      {unreadCount > 0 && (
+                        <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white dark:ring-gray-800"></span>
+                      )}
                     </div>
                     <span className="text-sm font-medium text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-gray-100">
                       Notifications
@@ -299,7 +329,7 @@ export default function Header() {
                 <button
                   onClick={() => {
                     setShowUserMenu(false);
-                    handleLogout();
+                    setShowLogoutConfirm(true);
                   }}
                   className="w-full flex items-center justify-between px-4 py-3 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors group"
                 >
@@ -317,6 +347,42 @@ export default function Header() {
         </div>
         </div>
       </header>
+
+      {/* Logout Confirmation Modal */}
+      <Modal
+        isOpen={showLogoutConfirm}
+        onClose={() => setShowLogoutConfirm(false)}
+        title="Confirm Sign Out"
+        size="sm"
+        footer={
+          <>
+            <button
+              onClick={() => setShowLogoutConfirm(false)}
+              className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => {
+                setShowLogoutConfirm(false);
+                handleLogout();
+              }}
+              className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
+            >
+              Sign Out
+            </button>
+          </>
+        }
+      >
+        <div className="flex flex-col items-center text-center gap-4">
+          <div className="flex items-center justify-center w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30">
+            <FiAlertTriangle className="h-6 w-6 text-red-600 dark:text-red-400" />
+          </div>
+          <p className="text-gray-600 dark:text-gray-400">
+            Are you sure you want to sign out? You will need to log in again to access your account.
+          </p>
+        </div>
+      </Modal>
     </>
   );
 }

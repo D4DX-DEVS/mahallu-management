@@ -40,14 +40,16 @@ export const useAuthStore = create<AuthState>()(
       },
       setCurrentTenant: (tenantId) => set({ currentTenantId: tenantId }),
       setCurrentInstitute: (instituteId) => set({ currentInstituteId: instituteId }),
-      logout: () =>
+      logout: () => {
+        localStorage.removeItem('token');
         set({
           user: null,
           token: null,
           currentTenantId: null,
           currentInstituteId: null,
           isSuperAdmin: false,
-        }),
+        });
+      },
     }),
     {
       name: 'auth-storage',

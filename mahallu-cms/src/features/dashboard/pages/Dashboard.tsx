@@ -86,8 +86,8 @@ export default function Dashboard() {
           title: 'Monthly Income',
           value: `₹${(financialSummary?.monthlyIncome || 0).toLocaleString()}`,
           icon: <FiDollarSign className="h-5 w-5" />,
-          trend: financialSummary?.monthlyNet !== undefined
-            ? { value: Math.abs(financialSummary.monthlyNet), isPositive: financialSummary.monthlyNet >= 0 }
+          trend: financialSummary?.incomeGrowthPercent != null
+            ? { value: Math.abs(financialSummary.incomeGrowthPercent), isPositive: financialSummary.incomeGrowthPercent >= 0 }
             : undefined,
         },
         {

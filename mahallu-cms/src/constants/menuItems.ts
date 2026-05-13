@@ -59,7 +59,7 @@ export const menuItems: MenuItem[] = [
   {
     id: 'dashboard',
     label: 'Dashboard',
-    icon: FiHome,
+    icon: FiGrid,
     path: '/dashboard',
     allowedRoles: ['super_admin', 'mahall', 'survey', 'institute'],
   },
