@@ -76,7 +76,11 @@ export default function CreateFamily() {
   const onSubmit = async (data: FamilyFormData) => {
     try {
       setError(null);
-      await familyService.create(data);
+      // Strip empty strings from optional select fields to avoid enum validation errors
+      const cleanedData = Object.fromEntries(
+        Object.entries(data).filter(([_, v]) => v !== '' && v !== undefined)
+      );
+      await familyService.create(cleanedData);
       navigate(ROUTES.FAMILIES.LIST);
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to create family. Please try again.');
@@ -167,6 +171,7 @@ export default function CreateFamily() {
               error={errors.wardNumber?.message}
               placeholder="Ward Number"
               type="number"
+              min={1}
             />
             <Input
               label="House No."

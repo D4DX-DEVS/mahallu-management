@@ -113,7 +113,10 @@ export default function EditFamily() {
     if (!id) return;
     try {
       setError(null);
-      await familyService.update(id, data);
+      const cleanedData = Object.fromEntries(
+        Object.entries(data).filter(([_, v]) => v !== '' && v !== undefined)
+      );
+      await familyService.update(id, cleanedData);
       navigate(ROUTES.FAMILIES.LIST);
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to update family. Please try again.');
@@ -225,6 +228,7 @@ export default function EditFamily() {
               error={errors.wardNumber?.message}
               placeholder="Ward Number"
               type="number"
+              min={1}
             />
             <Input
               label="House No."

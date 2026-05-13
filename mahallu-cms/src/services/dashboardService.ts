@@ -37,6 +37,7 @@ export interface FinancialSummary {
   monthlyIncome: number;
   monthlyExpense: number;
   monthlyNet: number;
+  incomeGrowthPercent: number | null;
   transactionCount: number;
   totalBankBalance: number;
   bankAccountCount: number;
