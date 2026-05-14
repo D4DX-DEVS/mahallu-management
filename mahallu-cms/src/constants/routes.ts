@@ -137,6 +137,27 @@ export const ROUTES = {
     LEDGERS: '/master-accounts/ledgers',
     LEDGER_ITEMS: '/master-accounts/ledger-items',
   },
+
+  // Mahallu Finance
+  MAHALLU_FINANCE: {
+    ACCOUNTS: '/mahallu-finance/accounts',
+    ACCOUNTS_CREATE: '/mahallu-finance/accounts/create',
+    ACCOUNTS_EDIT: (id: string) => `/mahallu-finance/accounts/${id}/edit`,
+    LEDGERS: '/mahallu-finance/ledgers',
+    LEDGERS_CREATE: '/mahallu-finance/ledgers/create',
+    LEDGERS_EDIT: (id: string) => `/mahallu-finance/ledgers/${id}/edit`,
+    LEDGER_ITEMS: '/mahallu-finance/ledger-items',
+    LEDGER_ITEMS_CREATE: '/mahallu-finance/ledger-items/create',
+    CATEGORIES: '/mahallu-finance/categories',
+    CATEGORIES_CREATE: '/mahallu-finance/categories/create',
+    CATEGORIES_EDIT: (id: string) => `/mahallu-finance/categories/${id}/edit`,
+    DAY_BOOK: '/mahallu-finance/day-book',
+    TRIAL_BALANCE: '/mahallu-finance/trial-balance',
+    BALANCE_SHEET: '/mahallu-finance/balance-sheet',
+    LEDGER_REPORT: '/mahallu-finance/ledger-report',
+    INCOME_EXPENDITURE: '/mahallu-finance/income-expenditure',
+    COMBINED: '/mahallu-finance/combined',
+  },
   
   // Notifications
   NOTIFICATIONS: {

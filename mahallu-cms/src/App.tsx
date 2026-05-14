@@ -114,6 +114,23 @@ import MemberNOCRequest from './features/member-portal/pages/MemberNOCRequest';
 import MemberNOCList from './features/member-portal/pages/MemberNOCList';
 import MemberPayments from './features/member-portal/pages/MemberPayments';
 import { useAuthStore } from './store/authStore';
+import MahalluAccountsList from './features/mahallu-finance/pages/MahalluAccountsList';
+import CreateMahalluAccount from './features/mahallu-finance/pages/CreateMahalluAccount';
+import EditMahalluAccount from './features/mahallu-finance/pages/EditMahalluAccount';
+import MahalluLedgersList from './features/mahallu-finance/pages/MahalluLedgersList';
+import CreateMahalluLedger from './features/mahallu-finance/pages/CreateMahalluLedger';
+import EditMahalluLedger from './features/mahallu-finance/pages/EditMahalluLedger';
+import MahalluCategoriesList from './features/mahallu-finance/pages/MahalluCategoriesList';
+import CreateMahalluCategory from './features/mahallu-finance/pages/CreateMahalluCategory';
+import EditMahalluCategory from './features/mahallu-finance/pages/EditMahalluCategory';
+import MahalluLedgerItemsList from './features/mahallu-finance/pages/MahalluLedgerItemsList';
+import CreateMahalluLedgerItem from './features/mahallu-finance/pages/CreateMahalluLedgerItem';
+import MahalluDayBook from './features/mahallu-finance/pages/MahalluDayBook';
+import MahalluTrialBalance from './features/mahallu-finance/pages/MahalluTrialBalance';
+import MahalluBalanceSheet from './features/mahallu-finance/pages/MahalluBalanceSheet';
+import MahalluLedgerReport from './features/mahallu-finance/pages/MahalluLedgerReport';
+import MahalluIncomeExpenditure from './features/mahallu-finance/pages/MahalluIncomeExpenditure';
+import MahalluCombinedReport from './features/mahallu-finance/pages/MahalluCombinedReport';
 
 function App() {
   const { theme } = useThemeStore();
@@ -1306,6 +1323,177 @@ function App() {
             <ProtectedRoute>
               <MainLayout>
                 <UnapprovedFamiliesList />
+              </MainLayout>
+            </ProtectedRoute>
+          }
+        />
+        {/* Mahallu Finance Routes */}
+        <Route
+          path={ROUTES.MAHALLU_FINANCE.ACCOUNTS}
+          element={
+            <ProtectedRoute allowedRoles={['super_admin', 'mahall']}>
+              <MainLayout>
+                <MahalluAccountsList />
+              </MainLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path={ROUTES.MAHALLU_FINANCE.ACCOUNTS_CREATE}
+          element={
+            <ProtectedRoute allowedRoles={['super_admin', 'mahall']}>
+              <MainLayout>
+                <CreateMahalluAccount />
+              </MainLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/mahallu-finance/accounts/:id/edit"
+          element={
+            <ProtectedRoute allowedRoles={['super_admin', 'mahall']}>
+              <MainLayout>
+                <EditMahalluAccount />
+              </MainLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path={ROUTES.MAHALLU_FINANCE.LEDGERS}
+          element={
+            <ProtectedRoute allowedRoles={['super_admin', 'mahall']}>
+              <MainLayout>
+                <MahalluLedgersList />
+              </MainLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path={ROUTES.MAHALLU_FINANCE.LEDGERS_CREATE}
+          element={
+            <ProtectedRoute allowedRoles={['super_admin', 'mahall']}>
+              <MainLayout>
+                <CreateMahalluLedger />
+              </MainLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/mahallu-finance/ledgers/:id/edit"
+          element={
+            <ProtectedRoute allowedRoles={['super_admin', 'mahall']}>
+              <MainLayout>
+                <EditMahalluLedger />
+              </MainLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path={ROUTES.MAHALLU_FINANCE.CATEGORIES}
+          element={
+            <ProtectedRoute allowedRoles={['super_admin', 'mahall']}>
+              <MainLayout>
+                <MahalluCategoriesList />
+              </MainLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path={ROUTES.MAHALLU_FINANCE.CATEGORIES_CREATE}
+          element={
+            <ProtectedRoute allowedRoles={['super_admin', 'mahall']}>
+              <MainLayout>
+                <CreateMahalluCategory />
+              </MainLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/mahallu-finance/categories/:id/edit"
+          element={
+            <ProtectedRoute allowedRoles={['super_admin', 'mahall']}>
+              <MainLayout>
+                <EditMahalluCategory />
+              </MainLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path={ROUTES.MAHALLU_FINANCE.LEDGER_ITEMS}
+          element={
+            <ProtectedRoute allowedRoles={['super_admin', 'mahall']}>
+              <MainLayout>
+                <MahalluLedgerItemsList />
+              </MainLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path={ROUTES.MAHALLU_FINANCE.LEDGER_ITEMS_CREATE}
+          element={
+            <ProtectedRoute allowedRoles={['super_admin', 'mahall']}>
+              <MainLayout>
+                <CreateMahalluLedgerItem />
+              </MainLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path={ROUTES.MAHALLU_FINANCE.DAY_BOOK}
+          element={
+            <ProtectedRoute allowedRoles={['super_admin', 'mahall']}>
+              <MainLayout>
+                <MahalluDayBook />
+              </MainLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path={ROUTES.MAHALLU_FINANCE.TRIAL_BALANCE}
+          element={
+            <ProtectedRoute allowedRoles={['super_admin', 'mahall']}>
+              <MainLayout>
+                <MahalluTrialBalance />
+              </MainLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path={ROUTES.MAHALLU_FINANCE.BALANCE_SHEET}
+          element={
+            <ProtectedRoute allowedRoles={['super_admin', 'mahall']}>
+              <MainLayout>
+                <MahalluBalanceSheet />
+              </MainLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path={ROUTES.MAHALLU_FINANCE.LEDGER_REPORT}
+          element={
+            <ProtectedRoute allowedRoles={['super_admin', 'mahall']}>
+              <MainLayout>
+                <MahalluLedgerReport />
+              </MainLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path={ROUTES.MAHALLU_FINANCE.INCOME_EXPENDITURE}
+          element={
+            <ProtectedRoute allowedRoles={['super_admin', 'mahall']}>
+              <MainLayout>
+                <MahalluIncomeExpenditure />
+              </MainLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path={ROUTES.MAHALLU_FINANCE.COMBINED}
+          element={
+            <ProtectedRoute allowedRoles={['super_admin', 'mahall']}>
+              <MainLayout>
+                <MahalluCombinedReport />
               </MainLayout>
             </ProtectedRoute>
           }

@@ -1,23 +1,86 @@
 import { Response } from 'express';
-import { LedgerItem, Ledger, Category, InstituteAccount } from '../models/MasterAccount';
+import { LedgerItem, Ledger, Category, InstituteAccount, MahalluAccount } from '../models/MasterAccount';
 import { AuthRequest } from '../middleware/authMiddleware';
 import mongoose from 'mongoose';
+
+/**
+ * Build a MongoDB filter for LedgerItems based on scope/instituteId/includeEntities.
+ *
+ * scope='mahallu'    → { instituteId: null }
+ * scope='institute'  → { instituteId: <id> }  (requires instituteId param)
+ * scope='combined'   → { $or: [{instituteId: null}, {instituteId: {$in: [...]}}] }
+ *                       where includeEntities is comma-separated "mahallu,id1,id2,..."
+ * (default / no scope) → existing behaviour: filter by instituteId if provided
+ */
+function buildScopeFilter(scope: string | undefined, instituteId: string | undefined, includeEntities: string | undefined): any {
+  if (scope === 'mahallu') {
+    return { instituteId: null };
+  }
+  if (scope === 'combined' && includeEntities) {
+    const parts = includeEntities.split(',').map(s => s.trim()).filter(Boolean);
+    const hasMahallu = parts.includes('mahallu');
+    const ids = parts.filter(p => p !== 'mahallu').map(p => new mongoose.Types.ObjectId(p));
+    if (hasMahallu && ids.length > 0) {
+      return { $or: [{ instituteId: null }, { instituteId: { $in: ids } }] };
+    }
+    if (hasMahallu) return { instituteId: null };
+    if (ids.length > 0) return { instituteId: { $in: ids } };
+  }
+  // Default: institute scope (existing behaviour)
+  if (instituteId) return { instituteId: new mongoose.Types.ObjectId(instituteId) };
+  return {};
+}
+
+/**
+ * Build an account query for bank accounts based on scope.
+ * Returns a query object to pass to InstituteAccount / MahalluAccount.
+ */
+async function getBankAccounts(
+  tenantId: mongoose.Types.ObjectId,
+  scope: string | undefined,
+  instituteId: string | undefined,
+  includeEntities: string | undefined
+) {
+  if (scope === 'mahallu') {
+    return MahalluAccount.find({ tenantId, status: 'active' }).select('accountName bankName balance');
+  }
+  if (scope === 'combined' && includeEntities) {
+    const parts = includeEntities.split(',').map(s => s.trim()).filter(Boolean);
+    const hasMahallu = parts.includes('mahallu');
+    const ids = parts.filter(p => p !== 'mahallu').map(p => new mongoose.Types.ObjectId(p));
+    const results: any[] = [];
+    if (hasMahallu) {
+      const ma = await MahalluAccount.find({ tenantId, status: 'active' }).select('accountName bankName balance');
+      results.push(...ma.map((a: any) => ({ accountName: a.accountName, bankName: a.bankName, balance: a.balance, entity: 'Mahallu' })));
+    }
+    if (ids.length > 0) {
+      const ia = await InstituteAccount.find({ tenantId, instituteId: { $in: ids }, status: 'active' })
+        .populate('instituteId', 'name')
+        .select('accountName bankName balance instituteId');
+      results.push(...ia.map((a: any) => ({ accountName: a.accountName, bankName: a.bankName, balance: a.balance, entity: (a.instituteId as any)?.name || 'Institute' })));
+    }
+    return results;
+  }
+  // Default: institute scope
+  const query: any = { tenantId, status: 'active' };
+  if (instituteId) query.instituteId = new mongoose.Types.ObjectId(instituteId);
+  return InstituteAccount.find(query).populate('instituteId', 'name').select('accountName bankName balance instituteId');
+}
 
 /**
  * Day Book: Chronological list of all transactions for an institute within a date range
  */
 export const getDayBook = async (req: AuthRequest, res: Response) => {
   try {
-    const { instituteId, startDate, endDate } = req.query;
+    const { instituteId, startDate, endDate, scope, includeEntities } = req.query;
     const query: any = {};
 
     if (req.tenantId) {
       query.tenantId = new mongoose.Types.ObjectId(req.tenantId);
     }
 
-    if (instituteId) {
-      query.instituteId = new mongoose.Types.ObjectId(instituteId as string);
-    }
+    const scopeFilter = buildScopeFilter(scope as string, instituteId as string, includeEntities as string);
+    Object.assign(query, scopeFilter);
 
     if (startDate || endDate) {
       query.date = {};
@@ -79,16 +142,15 @@ export const getDayBook = async (req: AuthRequest, res: Response) => {
  */
 export const getTrialBalance = async (req: AuthRequest, res: Response) => {
   try {
-    const { instituteId, startDate, endDate } = req.query;
+    const { instituteId, startDate, endDate, scope, includeEntities } = req.query;
     const matchQuery: any = {};
 
     if (req.tenantId) {
       matchQuery.tenantId = new mongoose.Types.ObjectId(req.tenantId);
     }
 
-    if (instituteId) {
-      matchQuery.instituteId = new mongoose.Types.ObjectId(instituteId as string);
-    }
+    const scopeFilter = buildScopeFilter(scope as string, instituteId as string, includeEntities as string);
+    Object.assign(matchQuery, scopeFilter);
 
     if (startDate || endDate) {
       matchQuery.date = {};
@@ -161,17 +223,15 @@ export const getTrialBalance = async (req: AuthRequest, res: Response) => {
  */
 export const getBalanceSheet = async (req: AuthRequest, res: Response) => {
   try {
-    const { instituteId, startDate, endDate } = req.query;
+    const { instituteId, startDate, endDate, scope, includeEntities } = req.query;
     const tenantFilter: any = {};
 
     if (req.tenantId) {
       tenantFilter.tenantId = new mongoose.Types.ObjectId(req.tenantId);
     }
 
-    const instituteFilter: any = { ...tenantFilter };
-    if (instituteId) {
-      instituteFilter.instituteId = new mongoose.Types.ObjectId(instituteId as string);
-    }
+    const scopeFilter = buildScopeFilter(scope as string, instituteId as string, includeEntities as string);
+    const instituteFilter: any = { ...tenantFilter, ...scopeFilter };
 
     const dateFilter: any = {};
     if (startDate || endDate) {
@@ -180,15 +240,18 @@ export const getBalanceSheet = async (req: AuthRequest, res: Response) => {
       if (endDate) dateFilter.date.$lte = new Date(endDate as string);
     }
 
-    // 1. Get bank account balances (assets)
-    const accountQuery: any = { ...tenantFilter };
-    if (instituteId) accountQuery.instituteId = new mongoose.Types.ObjectId(instituteId as string);
-    accountQuery.status = 'active';
+    // 1. Get bank account balances (assets) — scope-aware
+    const tenantObjId = req.tenantId ? new mongoose.Types.ObjectId(req.tenantId) : undefined;
+    const bankAccountDocs = tenantObjId
+      ? await getBankAccounts(tenantObjId, scope as string, instituteId as string, includeEntities as string)
+      : [];
 
-    const bankAccounts = await InstituteAccount.find(accountQuery)
-      .populate('instituteId', 'name')
-      .select('accountName bankName balance instituteId');
-
+    const bankAccounts = (bankAccountDocs as any[]).map((acc: any) => ({
+      accountName: acc.accountName,
+      bankName: acc.bankName,
+      balance: acc.balance,
+      entity: acc.entity || acc.instituteId?.name,
+    }));
     const totalBankBalance = bankAccounts.reduce((sum: number, acc: any) => sum + acc.balance, 0);
 
     // 2. Get income summary
@@ -267,7 +330,7 @@ export const getBalanceSheet = async (req: AuthRequest, res: Response) => {
             accountName: acc.accountName,
             bankName: acc.bankName,
             balance: acc.balance,
-            institute: acc.instituteId?.name,
+            entity: acc.entity,
           })),
           totalBankBalance,
         },
@@ -297,7 +360,7 @@ export const getBalanceSheet = async (req: AuthRequest, res: Response) => {
  */
 export const getLedgerReport = async (req: AuthRequest, res: Response) => {
   try {
-    const { ledgerId, instituteId, startDate, endDate } = req.query;
+    const { ledgerId, instituteId, startDate, endDate, scope, includeEntities } = req.query;
 
     if (!ledgerId) {
       return res.status(400).json({ success: false, message: 'ledgerId is required' });
@@ -308,14 +371,13 @@ export const getLedgerReport = async (req: AuthRequest, res: Response) => {
       tenantMatch.tenantId = new mongoose.Types.ObjectId(req.tenantId);
     }
 
+    const scopeFilter = buildScopeFilter(scope as string, instituteId as string, includeEntities as string);
+
     const baseMatch: any = {
       ...tenantMatch,
+      ...scopeFilter,
       ledgerId: new mongoose.Types.ObjectId(ledgerId as string),
     };
-
-    if (instituteId) {
-      baseMatch.instituteId = new mongoose.Types.ObjectId(instituteId as string);
-    }
 
     // Opening balance: sum of all entries before startDate
     let openingBalance = 0;
@@ -402,15 +464,16 @@ export const getLedgerReport = async (req: AuthRequest, res: Response) => {
  */
 export const getIncomeExpenditure = async (req: AuthRequest, res: Response) => {
   try {
-    const { instituteId, startDate, endDate } = req.query;
+    const { instituteId, startDate, endDate, scope, includeEntities } = req.query;
     const matchQuery: any = {};
 
     if (req.tenantId) {
       matchQuery.tenantId = new mongoose.Types.ObjectId(req.tenantId);
     }
-    if (instituteId) {
-      matchQuery.instituteId = new mongoose.Types.ObjectId(instituteId as string);
-    }
+
+    const scopeFilter = buildScopeFilter(scope as string, instituteId as string, includeEntities as string);
+    Object.assign(matchQuery, scopeFilter);
+
     if (startDate || endDate) {
       matchQuery.date = {};
       if (startDate) matchQuery.date.$gte = new Date(startDate as string);
@@ -598,14 +661,53 @@ export const getConsolidatedReport = async (req: AuthRequest, res: Response) => 
       bankBalance: bankMap[String(r.instituteId)] || 0,
     }));
 
-    const grandTotalIncome = institutes.reduce((s: number, i: any) => s + i.totalIncome, 0);
-    const grandTotalExpense = institutes.reduce((s: number, i: any) => s + i.totalExpense, 0);
-    const grandBankBalance = institutes.reduce((s: number, i: any) => s + i.bankBalance, 0);
+    // Add Mahallu's own financials as the first entry (instituteId=null rows)
+    const mahalluMatch: any = { instituteId: null };
+    if (req.tenantId) mahalluMatch.tenantId = new mongoose.Types.ObjectId(req.tenantId);
+    if (matchQuery.date) mahalluMatch.date = matchQuery.date;
+
+    const mahalluLedgerResult = await LedgerItem.aggregate([
+      { $match: mahalluMatch },
+      { $lookup: { from: 'ledgers', localField: 'ledgerId', foreignField: '_id', as: 'ledger' } },
+      { $unwind: '$ledger' },
+      {
+        $group: {
+          _id: null,
+          totalIncome: { $sum: { $cond: [{ $eq: ['$ledger.type', 'income'] }, '$amount', 0] } },
+          totalExpense: { $sum: { $cond: [{ $eq: ['$ledger.type', 'expense'] }, '$amount', 0] } },
+          transactionCount: { $sum: 1 },
+        },
+      },
+    ]);
+
+    const mahalluBankBalance = await MahalluAccount.aggregate([
+      { $match: { tenantId: req.tenantId ? new mongoose.Types.ObjectId(req.tenantId) : undefined, status: 'active' } },
+      { $group: { _id: null, total: { $sum: '$balance' } } },
+    ]);
+
+    const mahalluRow = mahalluLedgerResult[0] || { totalIncome: 0, totalExpense: 0, transactionCount: 0 };
+    const mahalluBankBal = mahalluBankBalance[0]?.total || 0;
+
+    const mahalluEntry = {
+      instituteId: null,
+      instituteName: 'Mahallu (Main)',
+      totalIncome: mahalluRow.totalIncome,
+      totalExpense: mahalluRow.totalExpense,
+      netBalance: mahalluRow.totalIncome - mahalluRow.totalExpense,
+      transactionCount: mahalluRow.transactionCount,
+      bankBalance: mahalluBankBal,
+    };
+
+    const allEntries = [mahalluEntry, ...institutes];
+
+    const grandTotalIncome = allEntries.reduce((s: number, i: any) => s + i.totalIncome, 0);
+    const grandTotalExpense = allEntries.reduce((s: number, i: any) => s + i.totalExpense, 0);
+    const grandBankBalance = allEntries.reduce((s: number, i: any) => s + i.bankBalance, 0);
 
     res.json({
       success: true,
       data: {
-        institutes,
+        institutes: allEntries,
         grandTotals: {
           totalIncome: grandTotalIncome,
           totalExpense: grandTotalExpense,

@@ -11,6 +11,11 @@ export const familyService = {
     return { data: response.data.data, pagination: null };
   },
 
+  getStats: async () => {
+    const response = await api.get<{ success: boolean; data: { totalMembers: number; maleCount: number; femaleCount: number } }>('/families/stats');
+    return response.data.data;
+  },
+
   getById: async (id: string) => {
     const response = await api.get<{ success: boolean; data: Family }>(`/families/${id}`);
     return response.data.data;

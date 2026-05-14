@@ -4,6 +4,10 @@ import {
   createInstituteAccount,
   updateInstituteAccount,
   deleteInstituteAccount,
+  getAllMahalluAccounts,
+  createMahalluAccount,
+  updateMahalluAccount,
+  deleteMahalluAccount,
   getAllCategories,
   createCategory,
   updateCategory,
@@ -1012,6 +1016,12 @@ router.delete('/categories/:id', idParamValidation, validationHandler, deleteCat
 router.delete('/wallets/:id', idParamValidation, validationHandler, deleteWallet);
 router.delete('/ledgers/:id', idParamValidation, validationHandler, deleteLedger);
 router.delete('/ledger-items/:id', idParamValidation, validationHandler, deleteLedgerItem);
+
+// Mahallu Accounts (tenant-level, no instituteId)
+router.get('/mahallu-accounts', getAllMahalluAccounts);
+router.post('/mahallu-accounts', createMahalluAccount);
+router.put('/mahallu-accounts/:id', idParamValidation, validationHandler, updateMahalluAccount);
+router.delete('/mahallu-accounts/:id', idParamValidation, validationHandler, deleteMahalluAccount);
 
 export default router;
 

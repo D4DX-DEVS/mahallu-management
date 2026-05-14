@@ -1,5 +1,5 @@
 import { SelectHTMLAttributes, forwardRef, useState, useRef, useEffect } from 'react';
-import { FiChevronDown, FiSearch, FiX } from 'react-icons/fi';
+import { FiChevronDown, FiSearch, FiX, FiPlus } from 'react-icons/fi';
 import { cn } from '@/utils/cn';
 
 export interface SelectProps extends Omit<SelectHTMLAttributes<HTMLSelectElement>, 'onChange'> {
@@ -8,10 +8,12 @@ export interface SelectProps extends Omit<SelectHTMLAttributes<HTMLSelectElement
   helperText?: string;
   options: { value: string; label: string }[];
   onChange?: (e: React.ChangeEvent<HTMLSelectElement>) => void;
+  onAddNew?: () => void;
+  addNewLabel?: string;
 }
 
 const Select = forwardRef<HTMLSelectElement, SelectProps>(
-  ({ className, label, error, helperText, options = [], value, onChange, disabled, ...props }, ref) => {
+  ({ className, label, error, helperText, options = [], value, onChange, disabled, onAddNew, addNewLabel = 'Add New', ...props }, ref) => {
     const [isOpen, setIsOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [focusedIndex, setFocusedIndex] = useState(-1);
@@ -245,7 +247,7 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
                         internalValue === option.value && 'bg-primary-50 text-primary-700 dark:bg-primary-900/20 dark:text-primary-400',
                         index === focusedIndex && 'bg-gray-50 dark:bg-gray-800',
                         index === 0 && 'rounded-t-lg',
-                        index === filteredOptions.length - 1 && 'rounded-b-lg'
+                        index === filteredOptions.length - 1 && !onAddNew && 'rounded-b-lg'
                       )}
                       onMouseEnter={() => setFocusedIndex(index)}
                     >
@@ -254,6 +256,25 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
                   ))
                 )}
               </div>
+
+              {onAddNew && (
+                <div className="border-t border-gray-200 dark:border-gray-700">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsOpen(false);
+                      setSearchQuery('');
+                      setFocusedIndex(-1);
+                      onAddNew();
+                    }}
+                    className="w-full px-3.5 py-2.5 text-left text-sm text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 flex items-center gap-2 rounded-b-xl"
+                  >
+                    <FiPlus className="h-4 w-4 flex-shrink-0" />
+                    {addNewLabel}
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>

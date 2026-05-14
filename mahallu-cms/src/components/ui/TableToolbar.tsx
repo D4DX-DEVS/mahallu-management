@@ -77,35 +77,35 @@ export default function TableToolbar({
   ];
 
   return (
-    <div className={cn('flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between mb-6', className)}>
-      <div className="flex items-center gap-2 flex-1">
+    <div className={cn('mb-4 flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center', className)}>
+      <div className="flex flex-1 items-center gap-1.5">
         {/* Filter Toggle - Only show if filters exist */}
         {hasFilters && onFilterClick && (
           <Button
             variant={isFilterVisible ? 'primary' : 'outline'}
-            size="md"
+            size="sm"
             onClick={onFilterClick}
-            className="flex items-center gap-2"
+            className="flex items-center gap-1.5"
           >
-            <FiFilter className="h-4 w-4" />
+            <FiFilter className="h-3.5 w-3.5" />
             Filter
           </Button>
         )}
 
         {/* Refresh Button */}
         {onRefresh && (
-          <Button variant="outline" size="md" onClick={onRefresh} className="px-3">
-            <FiRefreshCw className="h-4 w-4" />
+          <Button variant="outline" size="sm" onClick={onRefresh} className="px-2.5">
+            <FiRefreshCw className="h-3.5 w-3.5" />
           </Button>
         )}
 
         {/* Search */}
         <div className={cn(
-          "relative flex items-center transition-all duration-300 ease-in-out overflow-hidden h-10 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800",
-          isSearchExpanded ? "w-64" : "w-10 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50"
+          "relative flex h-9 items-center overflow-hidden rounded-lg border border-gray-200 bg-white transition-all duration-300 ease-in-out dark:border-gray-700 dark:bg-gray-800",
+          isSearchExpanded ? "w-56" : "w-9 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50"
         )} onClick={!isSearchExpanded ? handleSearchClick : undefined}>
-          <div className="flex-shrink-0 w-10 h-full flex items-center justify-center text-gray-500 dark:text-gray-400">
-            <FiSearch className="h-4 w-4" />
+          <div className="flex h-full w-9 flex-shrink-0 items-center justify-center text-gray-500 dark:text-gray-400">
+            <FiSearch className="h-3.5 w-3.5" />
           </div>
           
           <input
@@ -116,7 +116,7 @@ export default function TableToolbar({
             onBlur={handleSearchBlur}
             placeholder="Search"
             className={cn(
-              "w-full h-full bg-transparent border-none focus:ring-0 text-sm focus:outline-none text-gray-900 dark:text-gray-100 placeholder-gray-500 pr-8",
+              "h-full w-full border-none bg-transparent pr-8 text-[0.82rem] text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-0 dark:text-gray-100",
               !isSearchExpanded && "pointer-events-none opacity-0"
             )}
             tabIndex={isSearchExpanded ? 0 : -1}
@@ -136,13 +136,13 @@ export default function TableToolbar({
         </div>
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5">
          {/* Export Dropdown */}
         {onExport && (
           <Dropdown
             trigger={
-              <Button variant="outline" size="md" isLoading={isExporting}>
-                {!isExporting && <FiDownload className="h-4 w-4 sm:mr-2" />}
+              <Button variant="outline" size="sm" isLoading={isExporting}>
+                {!isExporting && <FiDownload className="h-3.5 w-3.5 sm:mr-1.5" />}
                 <span className="hidden sm:inline">Export</span>
               </Button>
             }

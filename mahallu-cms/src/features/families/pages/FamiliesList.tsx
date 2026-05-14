@@ -29,12 +29,17 @@ export default function FamiliesList() {
   const [itemsPerPage] = useState(10);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [memberStats, setMemberStats] = useState({ totalMembers: 0, maleCount: 0, femaleCount: 0 });
   
   const debouncedSearch = useDebounce(searchQuery, 500);
 
   useEffect(() => {
     fetchFamilies();
   }, [debouncedSearch, sortBy, currentPage]);
+
+  useEffect(() => {
+    familyService.getStats().then(setMemberStats).catch(console.error);
+  }, []);
 
   const fetchFamilies = async () => {
     try {
@@ -87,25 +92,7 @@ export default function FamiliesList() {
     }
   };
 
-  // Calculate stats
-  const totalMembers = families.reduce((sum, f) => sum + (f.members?.length || 0), 0);
-  
-  // Calculate male and female counts from all members
-  const genderCounts = families.reduce(
-    (acc, family) => {
-      if (family.members) {
-        family.members.forEach((member) => {
-          if (member.gender === 'male') {
-            acc.male++;
-          } else if (member.gender === 'female') {
-            acc.female++;
-          }
-        });
-      }
-      return acc;
-    },
-    { male: 0, female: 0 }
-  );
+  const { totalMembers, maleCount, femaleCount } = memberStats;
   
 
   const columns: TableColumn<Family>[] = [
@@ -170,21 +157,21 @@ export default function FamiliesList() {
     },
     {
       title: 'Male - Female',
-      value: `${genderCounts.male} - ${genderCounts.female}`,
+      value: `${maleCount} - ${femaleCount}`,
       icon: <FiUser className="h-5 w-5" />,
       onClick: () => {},
     },
   ];
 
   return (
-    <div className="space-y-4">
-      <div className="space-y-3">
+    <div className="space-y-3">
+      <div className="space-y-2.5">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">
+            <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">
               All Families
             </h1>
-            <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
+            <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
               Manage families and their members
             </p>
           </div>
@@ -192,7 +179,7 @@ export default function FamiliesList() {
         </div>
 
         {/* Statistics Cards */}
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
           {stats.map((stat, index) => (
             <StatCard key={index} {...stat} />
           ))}
@@ -201,7 +188,7 @@ export default function FamiliesList() {
 
       {/* Actions and Filters */}
       <Card>
-        <div className="flex flex-col gap-4 mb-6">
+        <div className="mb-4 flex flex-col gap-3">
           <TableToolbar
             searchQuery={searchQuery}
             onSearchChange={setSearchQuery}
@@ -219,7 +206,7 @@ export default function FamiliesList() {
           />
 
           {isFilterVisible && (
-            <div className="relative flex flex-wrap items-center gap-4 mb-6 p-4 border border-gray-200 rounded-lg bg-white dark:bg-gray-800 dark:border-gray-700">
+            <div className="relative mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-800">
               <button
                 onClick={() => setIsFilterVisible(false)}
                 className="absolute right-4 top-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"

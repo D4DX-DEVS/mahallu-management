@@ -136,9 +136,9 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 tracking-tight">
+    <div className="space-y-4 animate-in fade-in duration-500">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <h1 className="text-xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
           Dashboard
         </h1>
         <div className="hidden sm:block">
@@ -147,24 +147,24 @@ export default function Dashboard() {
       </div>
 
       {/* Statistics Cards */}
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {statCards.map((stat, index) => (
           <StatCard key={index} {...stat} />
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
         {/* Main Chart Area */}
         <Card className="lg:col-span-2 h-full">
-            <div className="mb-6 flex items-center justify-between">
+            <div className="mb-4 flex items-center justify-between">
                 <div>
-                    <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">
+                    <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">
                         Attendance Timeline
                     </h2>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Weekly overview</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Weekly overview</p>
                 </div>
             </div>
-            <div className="h-[300px] w-full">
+            <div className="h-[250px] w-full">
                  <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={activityTimeline}>
                         <defs>
@@ -209,28 +209,28 @@ export default function Dashboard() {
 
         {/* Latest Registrations / List */}
         <Card className="h-full">
-            <div className="mb-6">
-                <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">
+          <div className="mb-4">
+            <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">
                     Latest Registrations
                 </h2>
-                 <p className="text-sm text-gray-500 dark:text-gray-400">Recent family entries</p>
+             <p className="text-xs text-gray-500 dark:text-gray-400">Recent family entries</p>
             </div>
-            <div className="space-y-4">
+          <div className="space-y-2.5">
                 {recentFamilies.length > 0 ? (
                   recentFamilies.map((family) => (
                     <div 
                       key={family.id} 
-                      className="flex items-center gap-4 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors cursor-pointer border border-transparent hover:border-gray-100 dark:hover:border-gray-800"
+                className="flex cursor-pointer items-center gap-3 rounded-lg border border-transparent p-2.5 transition-colors hover:border-gray-100 hover:bg-gray-50 dark:hover:border-gray-800 dark:hover:bg-gray-800/50"
                       onClick={() => navigate(`/families/${family.id}`)}
                     >
-                        <div className="h-10 w-10 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center text-primary-600 dark:text-primary-400 font-bold text-sm">
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary-100 text-xs font-bold text-primary-600 dark:bg-primary-900/30 dark:text-primary-400">
                             {getInitials(family.familyName)}
                         </div>
                         <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">
+                  <p className="truncate text-[0.82rem] font-semibold text-gray-900 dark:text-white">
                                 {family.familyName}
                             </p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                  <p className="truncate text-[0.72rem] text-gray-500 dark:text-gray-400">
                                 {getTimeAgo(family.createdAt)}
                             </p>
                         </div>
@@ -246,16 +246,16 @@ export default function Dashboard() {
       </div>
 
       {/* Secondary Charts Section */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         <Card className="h-full">
-          <div className="mb-6">
-            <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">
+          <div className="mb-4">
+            <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">
               Gender Distribution
             </h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Overview of member demographics</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">Overview of member demographics</p>
           </div>
           {genderData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={300}>
+            <ResponsiveContainer width="100%" height={250}>
               <PieChart>
                 <Pie
                   data={genderData}
@@ -288,14 +288,14 @@ export default function Dashboard() {
           )}
         </Card>
         <Card className="h-full">
-          <div className="mb-6">
-            <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">
+          <div className="mb-4">
+            <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">
               Family Status
             </h2>
-             <p className="text-sm text-gray-500 dark:text-gray-400">Registration status overview</p>
+             <p className="text-xs text-gray-500 dark:text-gray-400">Registration status overview</p>
           </div>
           {familyStatusData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={300}>
+            <ResponsiveContainer width="100%" height={250}>
               <BarChart data={familyStatusData}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
                 <XAxis 

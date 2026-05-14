@@ -17,7 +17,7 @@ export default function Header() {
   const navigate = useNavigate();
   const { theme, toggleTheme } = useThemeStore();
   const { user, logout, isSuperAdmin, currentTenantId } = useAuthStore();
-  const { isMobileSidebarOpen, setMobileSidebarOpen } = useLayoutStore();
+  const { isMobileSidebarOpen, setMobileSidebarOpen, toggleDesktopSidebarCollapsed } = useLayoutStore();
   const [mounted, setMounted] = useState(false);
   const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -143,6 +143,13 @@ export default function Header() {
           <button
             onClick={() => setMobileSidebarOpen(!isMobileSidebarOpen)}
             className="md:hidden p-2 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+          >
+            <FiMenu className="h-5 w-5" />
+          </button>
+          <button
+            onClick={toggleDesktopSidebarCollapsed}
+            className="hidden md:inline-flex p-2 rounded-xl text-slate-600 hover:bg-slate-100 transition-colors"
+            aria-label="Toggle sidebar"
           >
             <FiMenu className="h-5 w-5" />
           </button>

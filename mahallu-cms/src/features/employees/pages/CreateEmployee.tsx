@@ -9,6 +9,7 @@ import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
+import QuickAddInstitute from '@/components/quick-add/QuickAddInstitute';
 import { ROUTES } from '@/constants/routes';
 import { employeeService } from '@/services/employeeService';
 import { instituteService } from '@/services/instituteService';
@@ -39,10 +40,13 @@ export default function CreateEmployee() {
   const { currentInstituteId: userInstituteId } = useAuthStore();
   const [error, setError] = useState<string | null>(null);
   const [institutes, setInstitutes] = useState<{ id: string; name: string }[]>([]);
+  const [addInstituteOpen, setAddInstituteOpen] = useState(false);
 
   const {
     register,
     handleSubmit,
+    watch,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<EmployeeFormData>({
     resolver: zodResolver(employeeSchema),
@@ -128,6 +132,9 @@ export default function CreateEmployee() {
                   { value: '', label: 'Select Institute...' },
                   ...institutes.map(i => ({ value: i.id, label: i.name })),
                 ]}
+                value={watch('instituteId') || ''}
+                onAddNew={() => setAddInstituteOpen(true)}
+                addNewLabel="Add Institute"
                 {...register('instituteId')}
                 error={errors.instituteId?.message}
                 required
@@ -175,6 +182,17 @@ export default function CreateEmployee() {
           </div>
         </Card>
       </form>
+
+      {!userInstituteId && (
+        <QuickAddInstitute
+          open={addInstituteOpen}
+          onClose={() => setAddInstituteOpen(false)}
+          onCreated={(newInstitute) => {
+            setInstitutes((prev) => [...prev, { id: newInstitute.id, name: newInstitute.label }]);
+            setValue('instituteId', newInstitute.id, { shouldValidate: true });
+          }}
+        />
+      )}
     </div>
   );
 }

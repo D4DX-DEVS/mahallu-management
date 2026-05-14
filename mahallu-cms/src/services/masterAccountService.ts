@@ -13,6 +13,18 @@ export interface InstituteAccount {
   createdAt: string;
 }
 
+export interface MahalluAccount {
+  id: string;
+  tenantId?: string;
+  accountName: string;
+  accountNumber?: string;
+  bankName?: string;
+  ifscCode?: string;
+  balance?: number;
+  status?: 'active' | 'inactive';
+  createdAt: string;
+}
+
 export interface Category {
   id: string;
   tenantId?: string;
@@ -85,7 +97,7 @@ export const masterAccountService = {
   },
 
   // Categories
-  getAllCategories: async (params?: { type?: string; instituteId?: string; page?: number; limit?: number }) => {
+  getAllCategories: async (params?: { type?: string; instituteId?: string; scope?: string; page?: number; limit?: number }) => {
     const response = await api.get<{ success: boolean; data: Category[]; pagination?: any }>('/master-accounts/categories', { params });
     // Handle both paginated and non-paginated responses
     if (response.data.pagination) {
@@ -135,7 +147,7 @@ export const masterAccountService = {
   },
 
   // Ledgers
-  getAllLedgers: async (params?: { type?: string; instituteId?: string; page?: number; limit?: number }) => {
+  getAllLedgers: async (params?: { type?: string; instituteId?: string; scope?: string; page?: number; limit?: number }) => {
     const response = await api.get<{ success: boolean; data: Ledger[]; pagination?: any }>('/master-accounts/ledgers', { params });
     // Handle both paginated and non-paginated responses
     if (response.data.pagination) {
@@ -160,7 +172,7 @@ export const masterAccountService = {
   },
 
   // Ledger Items
-  getLedgerItems: async (params?: { ledgerId?: string; instituteId?: string; startDate?: string; endDate?: string; page?: number; limit?: number }) => {
+  getLedgerItems: async (params?: { ledgerId?: string; instituteId?: string; scope?: string; startDate?: string; endDate?: string; page?: number; limit?: number }) => {
     const response = await api.get<{ success: boolean; data: LedgerItem[]; pagination?: any }>('/master-accounts/ledger-items', {
       params,
     });
@@ -183,6 +195,30 @@ export const masterAccountService = {
 
   deleteLedgerItem: async (id: string) => {
     const response = await api.delete<{ success: boolean; message: string }>(`/master-accounts/ledger-items/${id}`);
+    return response.data;
+  },
+
+  // Mahallu Accounts (tenant-level, no instituteId)
+  getAllMahalluAccounts: async (params?: { page?: number; limit?: number }) => {
+    const response = await api.get<{ success: boolean; data: MahalluAccount[]; pagination?: any }>('/master-accounts/mahallu-accounts', { params });
+    if (response.data.pagination) {
+      return { data: response.data.data, pagination: response.data.pagination };
+    }
+    return { data: response.data.data, pagination: null };
+  },
+
+  createMahalluAccount: async (data: Partial<MahalluAccount>) => {
+    const response = await api.post<{ success: boolean; data: MahalluAccount }>('/master-accounts/mahallu-accounts', data);
+    return response.data.data;
+  },
+
+  updateMahalluAccount: async (id: string, data: Partial<MahalluAccount>) => {
+    const response = await api.put<{ success: boolean; data: MahalluAccount }>(`/master-accounts/mahallu-accounts/${id}`, data);
+    return response.data.data;
+  },
+
+  deleteMahalluAccount: async (id: string) => {
+    const response = await api.delete<{ success: boolean; message: string }>(`/master-accounts/mahallu-accounts/${id}`);
     return response.data;
   },
 };

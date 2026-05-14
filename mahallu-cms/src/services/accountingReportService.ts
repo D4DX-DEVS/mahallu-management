@@ -32,7 +32,7 @@ export interface BalanceSheetData {
 }
 
 export const accountingReportService = {
-  getDayBook: async (params: { instituteId?: string; startDate: string; endDate: string }) => {
+  getDayBook: async (params: { instituteId?: string; startDate: string; endDate: string; scope?: string; includeEntities?: string }) => {
     const response = await api.get<{ success: boolean; data: any }>('/accounting-reports/day-book', { params });
     const raw = response.data.data;
     // API returns { entries, summary } — extract and normalize entries
@@ -49,7 +49,7 @@ export const accountingReportService = {
     return entries;
   },
 
-  getTrialBalance: async (params: { instituteId?: string; startDate?: string; endDate?: string }) => {
+  getTrialBalance: async (params: { instituteId?: string; startDate?: string; endDate?: string; scope?: string; includeEntities?: string }) => {
     const response = await api.get<{ success: boolean; data: any }>('/accounting-reports/trial-balance', { params });
     const raw = response.data.data;
     // API returns { ledgers: [...], totals: {...} } — extract ledgers array and normalize
@@ -66,7 +66,7 @@ export const accountingReportService = {
     return entries;
   },
 
-  getBalanceSheet: async (params: { instituteId?: string; startDate?: string; endDate?: string }) => {
+  getBalanceSheet: async (params: { instituteId?: string; startDate?: string; endDate?: string; scope?: string; includeEntities?: string }) => {
     const response = await api.get<{ success: boolean; data: any }>('/accounting-reports/balance-sheet', { params });
     const raw = response.data.data;
     // API returns nested structure — normalize to flat BalanceSheetData
@@ -102,12 +102,12 @@ export const accountingReportService = {
     } as BalanceSheetData;
   },
 
-  getLedgerReport: async (params: { ledgerId: string; instituteId?: string; startDate?: string; endDate?: string }) => {
+  getLedgerReport: async (params: { ledgerId: string; instituteId?: string; startDate?: string; endDate?: string; scope?: string; includeEntities?: string }) => {
     const response = await api.get<{ success: boolean; data: any }>('/accounting-reports/ledger-report', { params });
     return response.data.data;
   },
 
-  getIncomeExpenditure: async (params: { instituteId?: string; startDate?: string; endDate?: string }) => {
+  getIncomeExpenditure: async (params: { instituteId?: string; startDate?: string; endDate?: string; scope?: string; includeEntities?: string }) => {
     const response = await api.get<{ success: boolean; data: any }>('/accounting-reports/income-expenditure', { params });
     return response.data.data;
   },

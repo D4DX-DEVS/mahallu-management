@@ -35,22 +35,22 @@ export default function StatCard({
     >
       <div className="flex items-center justify-between overflow-hidden">
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+          <p className="text-[0.72rem] font-medium uppercase tracking-[0.16em] text-gray-500 dark:text-gray-400">
             {title}
           </p>
-          <p className="mt-2 text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100 tracking-tight truncate">
+          <p className="mt-1.5 text-xl sm:text-[1.75rem] font-bold text-gray-900 dark:text-gray-100 tracking-tight truncate leading-none">
             {value}
           </p>
           {trend && (
-            <div className="mt-2 flex items-center">
+            <div className="mt-1.5 flex items-center">
               {trend.isPositive ? (
-                <FiTrendingUp className="h-4 w-4 text-green-500" />
+                <FiTrendingUp className="h-3.5 w-3.5 text-green-500" />
               ) : (
-                <FiTrendingDown className="h-4 w-4 text-red-500" />
+                <FiTrendingDown className="h-3.5 w-3.5 text-red-500" />
               )}
               <span
                 className={cn(
-                  'ml-1 text-sm font-medium',
+                  'ml-1 text-xs font-medium',
                   trend.isPositive ? 'text-green-600' : 'text-red-600'
                 )}
               >
@@ -60,8 +60,8 @@ export default function StatCard({
           )}
         </div>
         {icon && (
-          <div className="flex-shrink-0 ml-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary-50 dark:bg-primary-900/50 text-primary-600 dark:text-primary-400 ring-1 ring-primary-100 dark:ring-primary-800">
+          <div className="ml-3 flex-shrink-0">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary-50 dark:bg-primary-900/50 text-primary-600 dark:text-primary-400 ring-1 ring-primary-100 dark:ring-primary-800">
               {icon}
             </div>
           </div>
