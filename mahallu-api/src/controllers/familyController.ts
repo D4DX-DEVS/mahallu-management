@@ -1,7 +1,6 @@
 import { Request, Response } from 'express';
 import Family from '../models/Family';
-// Ensure Member model is loaded before using virtual populate
-import '../models/Member';
+import Member from '../models/Member';
 import { AuthRequest } from '../middleware/authMiddleware';
 import { getPaginationParams, createPaginationResponse } from '../utils/pagination';
 
@@ -129,6 +128,29 @@ export const deleteFamily = async (req: Request, res: Response) => {
       return res.status(404).json({ success: false, message: 'Family not found' });
     }
     res.json({ success: true, message: 'Family deleted successfully' });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const getFamilyStats = async (req: AuthRequest, res: Response) => {
+  try {
+    const { tenantId: queryTenantId } = req.query;
+    const query: any = { status: { $ne: 'deleted' } };
+
+    if (req.tenantId) {
+      query.tenantId = req.tenantId;
+    } else if (queryTenantId && req.isSuperAdmin) {
+      query.tenantId = queryTenantId;
+    }
+
+    const [totalMembers, maleCount, femaleCount] = await Promise.all([
+      Member.countDocuments(query),
+      Member.countDocuments({ ...query, gender: 'male' }),
+      Member.countDocuments({ ...query, gender: 'female' }),
+    ]);
+
+    res.json({ success: true, data: { totalMembers, maleCount, femaleCount } });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
   }

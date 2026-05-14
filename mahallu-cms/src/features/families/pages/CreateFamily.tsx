@@ -10,6 +10,8 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import QuickAddTenantSetting from '@/components/quick-add/QuickAddTenantSetting';
+import QuickAddVarisangyaGrade from '@/components/quick-add/QuickAddVarisangyaGrade';
 import { ROUTES } from '@/constants/routes';
 import { familyService } from '@/services/familyService';
 import { tenantService } from '@/services/tenantService';
@@ -45,6 +47,8 @@ export default function CreateFamily() {
   const [error, setError] = useState<string | null>(null);
   const [grades, setGrades] = useState<Array<{ name: string; amount: number }>>([]);
   const [areaOptions, setAreaOptions] = useState<string[]>([]);
+  const [addGradeOpen, setAddGradeOpen] = useState(false);
+  const [addAreaOpen, setAddAreaOpen] = useState(false);
 
   const tenantId = getTenantId(user, currentTenantId);
 
@@ -133,6 +137,9 @@ export default function CreateFamily() {
             <Select
               label="Varisangya Grade"
               options={gradeOptions}
+              value={watch('varisangyaGrade') || ''}
+              onAddNew={tenantId ? () => setAddGradeOpen(true) : undefined}
+              addNewLabel="Add Grade"
               {...register('varisangyaGrade')}
             />
             <Input
@@ -181,6 +188,9 @@ export default function CreateFamily() {
             <Select
               label="Area"
               options={areaSelectOptions}
+              value={watch('area') || ''}
+              onAddNew={tenantId ? () => setAddAreaOpen(true) : undefined}
+              addNewLabel="Add Area"
               {...register('area')}
             />
             <Input
@@ -218,6 +228,32 @@ export default function CreateFamily() {
           </div>
         </form>
       </Card>
+
+      {tenantId && (
+        <>
+          <QuickAddVarisangyaGrade
+            open={addGradeOpen}
+            onClose={() => setAddGradeOpen(false)}
+            tenantId={tenantId}
+            onCreated={(grade) => {
+              setGrades((prev) => [...prev, grade]);
+              setValue('varisangyaGrade', grade.name);
+            }}
+          />
+          <QuickAddTenantSetting
+            open={addAreaOpen}
+            onClose={() => setAddAreaOpen(false)}
+            settingKey="areaOptions"
+            label="Area"
+            placeholder="e.g. North Area, South Area"
+            tenantId={tenantId}
+            onCreated={(area) => {
+              setAreaOptions((prev) => [...prev, area]);
+              setValue('area', area);
+            }}
+          />
+        </>
+      )}
     </div>
   );
 }

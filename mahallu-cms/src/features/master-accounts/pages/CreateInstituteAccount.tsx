@@ -9,6 +9,7 @@ import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
+import QuickAddInstitute from '@/components/quick-add/QuickAddInstitute';
 import { ROUTES } from '@/constants/routes';
 import { masterAccountService } from '@/services/masterAccountService';
 import { instituteService } from '@/services/instituteService';
@@ -31,9 +32,12 @@ export default function CreateInstituteAccount() {
   const [error, setError] = useState<string | null>(null);
   const [institutes, setInstitutes] = useState<Institute[]>([]);
   const [loadingInstitutes, setLoadingInstitutes] = useState(false);
+  const [addInstituteOpen, setAddInstituteOpen] = useState(false);
   const {
     register,
     handleSubmit,
+    watch,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<InstituteAccountFormData>({
     resolver: zodResolver(instituteAccountSchema),
@@ -111,6 +115,9 @@ export default function CreateInstituteAccount() {
               <Select
                 label="Institute"
                 {...register('instituteId')}
+                value={watch('instituteId') || ''}
+                onAddNew={() => setAddInstituteOpen(true)}
+                addNewLabel="Add Institute"
                 error={errors.instituteId?.message}
                 disabled={loadingInstitutes}
                 options={[
@@ -189,6 +196,15 @@ export default function CreateInstituteAccount() {
           </div>
         </Card>
       </form>
+
+      <QuickAddInstitute
+        open={addInstituteOpen}
+        onClose={() => setAddInstituteOpen(false)}
+        onCreated={(newInstitute) => {
+          setInstitutes((prev) => [...prev, { id: newInstitute.id, name: newInstitute.label } as Institute]);
+          setValue('instituteId', newInstitute.id, { shouldValidate: true });
+        }}
+      />
     </div>
   );
 }

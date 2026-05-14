@@ -9,14 +9,11 @@ interface MainLayoutProps {
 }
 
 export default function MainLayout({ children }: MainLayoutProps) {
-  const isSubmenuOpen = useLayoutStore((s) => s.isSubmenuOpen);
   const isMobileSidebarOpen = useLayoutStore((s) => s.isMobileSidebarOpen);
+  const isDesktopSidebarCollapsed = useLayoutStore((s) => s.isDesktopSidebarCollapsed);
   const setMobileSidebarOpen = useLayoutStore((s) => s.setMobileSidebarOpen);
   const location = useLocation();
   const [contentVisible, setContentVisible] = useState(true);
-
-  // Left sidebar is 96px (w-24). Submenu is 192px (w-48). Total when open: 288px.
-  const contentMarginLeftClass = isSubmenuOpen ? 'md:ml-[288px]' : 'md:ml-24';
 
   // Fade content on route changes
   useEffect(() => {
@@ -31,10 +28,9 @@ export default function MainLayout({ children }: MainLayoutProps) {
   }, [location.pathname, setMobileSidebarOpen]);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-50 dark:bg-gray-950">
-      {/* Background decoration */}
+    <div className="flex h-screen overflow-hidden bg-slate-100 text-slate-950 dark:bg-slate-950 dark:text-slate-50">
       <div className="fixed inset-0 z-0 pointer-events-none">
-        <div className="absolute top-0 left-0 w-full h-96 bg-gradient-to-b from-primary-50/50 to-transparent dark:from-primary-950/20" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(20,184,166,0.14),transparent_28%),radial-gradient(circle_at_right,rgba(245,158,11,0.14),transparent_24%),linear-gradient(180deg,rgba(255,255,255,0.98),rgba(241,245,249,0.95))] dark:bg-[radial-gradient(circle_at_top_left,rgba(20,184,166,0.12),transparent_26%),radial-gradient(circle_at_right,rgba(245,158,11,0.08),transparent_22%),linear-gradient(180deg,rgba(2,6,23,0.98),rgba(15,23,42,0.98))]" />
       </div>
 
       {/* Mobile overlay */}
@@ -48,19 +44,20 @@ export default function MainLayout({ children }: MainLayoutProps) {
       <Sidebar />
       <div
         className={
-          'relative flex flex-1 flex-col overflow-hidden z-30 ml-0 ' +
-          contentMarginLeftClass +
-          ' transition-[margin-left] duration-200 ease-out'
+          'relative z-30 ml-0 flex flex-1 flex-col overflow-hidden transition-[margin-left] duration-200 ease-out ' +
+          (isDesktopSidebarCollapsed ? 'md:ml-[4.75rem]' : 'md:ml-[16rem]')
         }
       >
         <Header />
         <main
           className={
-            'flex-1 overflow-y-auto p-4 md:p-6 scroll-smooth transition-opacity duration-150 ease-out ' +
+            'flex-1 overflow-y-auto scroll-smooth px-2.5 pb-3 pt-2.5 transition-opacity duration-150 ease-out sm:px-3 sm:pb-4 md:px-4 md:pb-5 md:pt-3 lg:px-5 ' +
             (contentVisible ? 'opacity-100' : 'opacity-0')
           }
         >
-          {children}
+          <div className="mx-auto min-h-full w-full max-w-[1680px] rounded-[24px] border border-white/60 bg-white/72 p-2.5 shadow-[0_20px_60px_rgba(15,23,42,0.06)] backdrop-blur-xl dark:border-white/8 dark:bg-slate-900/62 sm:p-3 md:p-4 lg:p-4.5">
+            {children}
+          </div>
         </main>
       </div>
     </div>

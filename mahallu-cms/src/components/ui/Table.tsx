@@ -86,10 +86,10 @@ function Table<T extends Record<string, any>>({
   }
 
   return (
-    <div className={cn('space-y-4', className)}>
+    <div className={cn('space-y-3', className)}>
       {showExport && data.length > 0 && (
-        <div className="flex items-center justify-end gap-2 pb-2 border-b border-gray-200 dark:border-gray-700">
-          <span className="text-sm text-gray-600 dark:text-gray-400 mr-2">Export:</span>
+        <div className="flex items-center justify-end gap-2 border-b border-gray-200 pb-2 dark:border-gray-700">
+          <span className="mr-2 text-xs text-gray-600 dark:text-gray-400">Export:</span>
           <Button
             variant="outline"
             size="sm"
@@ -132,7 +132,7 @@ function Table<T extends Record<string, any>>({
               {columns.map((column) => (
                 <th
                   key={column.key}
-                  className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-400"
+                  className="px-3 py-2.5 text-left text-[0.64rem] font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400"
                 >
                   <div className="flex items-center gap-2">
                     {column.label}
@@ -157,7 +157,7 @@ function Table<T extends Record<string, any>>({
                 {columns.map((column) => (
                   <td
                     key={column.key}
-                    className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100"
+                    className="px-3 py-2.5 text-[0.82rem] text-gray-900 dark:text-gray-100"
                   >
                     {column.render
                       ? column.render(row[column.key], row, rowIndex)

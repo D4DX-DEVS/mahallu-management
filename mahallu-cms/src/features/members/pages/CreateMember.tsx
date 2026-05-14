@@ -10,6 +10,8 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import RadioCardGroup from '@/components/ui/RadioCardGroup';
+import QuickAddFamily from '@/components/quick-add/QuickAddFamily';
+import QuickAddTenantSetting from '@/components/quick-add/QuickAddTenantSetting';
 import { ROUTES } from '@/constants/routes';
 import { memberService } from '@/services/memberService';
 import { familyService } from '@/services/familyService';
@@ -49,6 +51,9 @@ export default function CreateMember() {
   const [families, setFamilies] = useState<Family[]>([]);
   const [loadingFamilies, setLoadingFamilies] = useState(true);
   const [educationOptions, setEducationOptions] = useState<string[]>([]);
+  const [tenantId, setTenantId] = useState<string | null>(null);
+  const [addFamilyOpen, setAddFamilyOpen] = useState(false);
+  const [addEducationOpen, setAddEducationOpen] = useState(false);
 
   const {
     register,
@@ -83,10 +88,11 @@ export default function CreateMember() {
 
       // Fetch education options from tenant settings
       const { currentTenantId, user } = useAuthStore.getState();
-      const tenantId = extractTenantId(user, currentTenantId);
-      if (tenantId) {
+      const tid = extractTenantId(user, currentTenantId);
+      setTenantId(tid);
+      if (tid) {
         try {
-          const tenantData = await tenantService.getById(tenantId);
+          const tenantData = await tenantService.getById(tid);
           setEducationOptions(tenantData.settings?.educationOptions || [
             'Below SSLC',
             'SSLC',
@@ -210,6 +216,9 @@ export default function CreateMember() {
               <Select
                 label="Family"
                 options={familyOptions}
+                value={watch('familyId') || ''}
+                onAddNew={() => setAddFamilyOpen(true)}
+                addNewLabel="Add Family"
                 {...register('familyId')}
                 error={errors.familyId?.message}
                 required
@@ -294,6 +303,9 @@ export default function CreateMember() {
               <Select
                 label="Education"
                 {...register('education')}
+                value={watch('education') || ''}
+                onAddNew={tenantId ? () => setAddEducationOpen(true) : undefined}
+                addNewLabel="Add Education"
                 options={[
                   { value: '', label: 'Select Education' },
                   ...educationOptions.map(opt => ({ value: opt, label: opt }))
@@ -342,6 +354,31 @@ export default function CreateMember() {
           </div>
         </Card>
       </form>
+
+      <QuickAddFamily
+        open={addFamilyOpen}
+        onClose={() => setAddFamilyOpen(false)}
+        onCreated={(newFamily) => {
+          setFamilies((prev) => [...prev, { id: newFamily.id, houseName: newFamily.label } as Family]);
+          setValue('familyId', newFamily.id, { shouldValidate: true });
+          setValue('familyName', newFamily.label);
+        }}
+      />
+
+      {tenantId && (
+        <QuickAddTenantSetting
+          open={addEducationOpen}
+          onClose={() => setAddEducationOpen(false)}
+          settingKey="educationOptions"
+          label="Education"
+          placeholder="e.g. B.Tech, M.A."
+          tenantId={tenantId}
+          onCreated={(edu) => {
+            setEducationOptions((prev) => [...prev, edu]);
+            setValue('education', edu);
+          }}
+        />
+      )}
     </div>
   );
 }

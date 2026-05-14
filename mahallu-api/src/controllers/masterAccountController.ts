@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { InstituteAccount, Category, MasterWallet, Ledger, LedgerItem } from '../models/MasterAccount';
+import { InstituteAccount, MahalluAccount, Category, MasterWallet, Ledger, LedgerItem } from '../models/MasterAccount';
 import { AuthRequest } from '../middleware/authMiddleware';
 import { getPaginationParams, createPaginationResponse } from '../utils/pagination';
 import { verifyTenantOwnership } from '../utils/tenantCheck';
@@ -61,7 +61,7 @@ export const createInstituteAccount = async (req: AuthRequest, res: Response) =>
 // Categories
 export const getAllCategories = async (req: AuthRequest, res: Response) => {
   try {
-    const { type, instituteId, tenantId } = req.query;
+    const { type, instituteId, tenantId, scope } = req.query;
     const { page, limit, skip } = getPaginationParams(req);
     const query: any = {};
 
@@ -73,7 +73,11 @@ export const getAllCategories = async (req: AuthRequest, res: Response) => {
     }
 
     if (type) query.type = type;
-    if (instituteId) query.instituteId = instituteId;
+    if (scope === 'mahallu') {
+      query.instituteId = null;
+    } else if (instituteId) {
+      query.instituteId = instituteId;
+    }
 
     const [categories, total] = await Promise.all([
       Category.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit),
@@ -160,7 +164,7 @@ export const createWallet = async (req: AuthRequest, res: Response) => {
 // Ledgers
 export const getAllLedgers = async (req: AuthRequest, res: Response) => {
   try {
-    const { type, instituteId, tenantId } = req.query;
+    const { type, instituteId, tenantId, scope } = req.query;
     const { page, limit, skip } = getPaginationParams(req);
     const query: any = {};
 
@@ -172,7 +176,11 @@ export const getAllLedgers = async (req: AuthRequest, res: Response) => {
     }
 
     if (type) query.type = type;
-    if (instituteId) query.instituteId = instituteId;
+    if (scope === 'mahallu') {
+      query.instituteId = null;
+    } else if (instituteId) {
+      query.instituteId = instituteId;
+    }
 
     const [ledgers, total] = await Promise.all([
       Ledger.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit),
@@ -210,7 +218,7 @@ export const createLedger = async (req: AuthRequest, res: Response) => {
 // Ledger Items
 export const getLedgerItems = async (req: AuthRequest, res: Response) => {
   try {
-    const { ledgerId, instituteId, tenantId, startDate, endDate } = req.query;
+    const { ledgerId, instituteId, tenantId, startDate, endDate, scope } = req.query;
     const { page, limit, skip } = getPaginationParams(req);
     const query: any = {};
 
@@ -222,7 +230,11 @@ export const getLedgerItems = async (req: AuthRequest, res: Response) => {
     }
 
     if (ledgerId) query.ledgerId = ledgerId;
-    if (instituteId) query.instituteId = instituteId;
+    if (scope === 'mahallu') {
+      query.instituteId = null;
+    } else if (instituteId) {
+      query.instituteId = instituteId;
+    }
     if (startDate || endDate) {
       query.date = {};
       if (startDate) query.date.$gte = new Date(startDate as string);
@@ -456,6 +468,85 @@ export const deleteLedgerItem = async (req: AuthRequest, res: Response) => {
 
     await LedgerItem.findByIdAndDelete(req.params.id);
     res.json({ success: true, message: 'Ledger item deleted successfully' });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Mahallu Accounts (tenant-level bank accounts — no instituteId)
+// ──────────────────────────────────────────────────────────────────────────────
+
+export const getAllMahalluAccounts = async (req: AuthRequest, res: Response) => {
+  try {
+    const { tenantId } = req.query;
+    const { page, limit, skip } = getPaginationParams(req);
+    const query: any = {};
+
+    if (req.tenantId) {
+      query.tenantId = req.tenantId;
+    } else if (tenantId && req.isSuperAdmin) {
+      query.tenantId = tenantId;
+    }
+
+    const [accounts, total] = await Promise.all([
+      MahalluAccount.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit),
+      MahalluAccount.countDocuments(query),
+    ]);
+
+    res.json(createPaginationResponse(accounts, total, page, limit));
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const createMahalluAccount = async (req: AuthRequest, res: Response) => {
+  try {
+    const accountData = {
+      ...req.body,
+      tenantId: req.tenantId || req.body.tenantId,
+    };
+
+    if (!accountData.tenantId && !req.isSuperAdmin) {
+      return res.status(400).json({ success: false, message: 'Tenant ID is required' });
+    }
+
+    const account = new MahalluAccount(accountData);
+    await account.save();
+    res.status(201).json({ success: true, data: account });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const updateMahalluAccount = async (req: AuthRequest, res: Response) => {
+  try {
+    const existing = await MahalluAccount.findById(req.params.id);
+    if (!existing) {
+      return res.status(404).json({ success: false, message: 'Mahallu account not found' });
+    }
+    if (!verifyTenantOwnership(req, res, existing.tenantId, 'MahalluAccount')) return;
+
+    const updated = await MahalluAccount.findByIdAndUpdate(req.params.id, req.body, {
+      new: true,
+      runValidators: true,
+    });
+    res.json({ success: true, data: updated });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const deleteMahalluAccount = async (req: AuthRequest, res: Response) => {
+  try {
+    const existing = await MahalluAccount.findById(req.params.id);
+    if (!existing) {
+      return res.status(404).json({ success: false, message: 'Mahallu account not found' });
+    }
+    if (!verifyTenantOwnership(req, res, existing.tenantId, 'MahalluAccount')) return;
+
+    await MahalluAccount.findByIdAndDelete(req.params.id);
+    res.json({ success: true, message: 'Mahallu account deleted successfully' });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
   }

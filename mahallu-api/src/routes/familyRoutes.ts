@@ -5,6 +5,7 @@ import {
   createFamily,
   updateFamily,
   deleteFamily,
+  getFamilyStats,
 } from '../controllers/familyController';
 import { authMiddleware, allowRoles } from '../middleware/authMiddleware';
 import { tenantMiddleware, tenantFilter } from '../middleware/tenantMiddleware';
@@ -53,6 +54,7 @@ router.use(allowRoles(['super_admin', 'mahall', 'survey', 'institute']));
  *         description: List of families
  */
 router.get('/', getAllFamilies);
+router.get('/stats', getFamilyStats);
 
 /**
  * @swagger

@@ -9,6 +9,7 @@ import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
+import QuickAddCommittee from '@/components/quick-add/QuickAddCommittee';
 import { ROUTES } from '@/constants/routes';
 import { committeeService } from '@/services/committeeService';
 import { meetingService } from '@/services/meetingService';
@@ -33,6 +34,7 @@ export default function CreateMeeting() {
   const [committeeMembers, setCommitteeMembers] = useState<Member[]>([]);
   const [loadingMembers, setLoadingMembers] = useState(false);
   const [memberSearch, setMemberSearch] = useState('');
+  const [addCommitteeOpen, setAddCommitteeOpen] = useState(false);
 
   const {
     register,
@@ -150,6 +152,9 @@ export default function CreateMeeting() {
                 { value: '', label: 'Select committee...' },
                 ...committees.map((committee) => ({ value: committee.id, label: committee.name })),
               ]}
+              value={watch('committeeId') || ''}
+              onAddNew={() => setAddCommitteeOpen(true)}
+              addNewLabel="Add Committee"
               {...register('committeeId')}
               error={errors.committeeId?.message}
               required
@@ -244,6 +249,15 @@ export default function CreateMeeting() {
           </div>
         </Card>
       </form>
+
+      <QuickAddCommittee
+        open={addCommitteeOpen}
+        onClose={() => setAddCommitteeOpen(false)}
+        onCreated={(newCommittee) => {
+          setCommittees((prev) => [...prev, { id: newCommittee.id, name: newCommittee.label } as Committee]);
+          setValue('committeeId', newCommittee.id, { shouldValidate: true });
+        }}
+      />
     </div>
   );
 }

@@ -1,5 +1,17 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
+export interface IMahalluAccount extends Document {
+  tenantId: mongoose.Types.ObjectId;
+  accountName: string;
+  accountNumber?: string;
+  bankName?: string;
+  ifscCode?: string;
+  balance: number;
+  status: 'active' | 'inactive';
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface IInstituteAccount extends Document {
   tenantId: mongoose.Types.ObjectId;
   instituteId: mongoose.Types.ObjectId;
@@ -196,7 +208,30 @@ const LedgerItemSchema = new Schema<ILedgerItem>(
   { timestamps: true }
 );
 
+const MahalluAccountSchema = new Schema<IMahalluAccount>(
+  {
+    tenantId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Tenant',
+      required: true,
+      index: true,
+    },
+    accountName: { type: String, required: true, trim: true },
+    accountNumber: String,
+    bankName: String,
+    ifscCode: String,
+    balance: { type: Number, default: 0 },
+    status: {
+      type: String,
+      enum: ['active', 'inactive'],
+      default: 'active',
+    },
+  },
+  { timestamps: true }
+);
+
 export const InstituteAccount = mongoose.model<IInstituteAccount>('InstituteAccount', InstituteAccountSchema);
+export const MahalluAccount = mongoose.model<IMahalluAccount>('MahalluAccount', MahalluAccountSchema);
 export const Category = mongoose.model<ICategory>('Category', CategorySchema);
 export const MasterWallet = mongoose.model<IMasterWallet>('MasterWallet', MasterWalletSchema);
 export const Ledger = mongoose.model<ILedger>('Ledger', LedgerSchema);

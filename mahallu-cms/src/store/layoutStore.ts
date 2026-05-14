@@ -5,6 +5,8 @@ interface LayoutState {
   setSubmenuOpen: (open: boolean) => void;
   isMobileSidebarOpen: boolean;
   setMobileSidebarOpen: (open: boolean) => void;
+  isDesktopSidebarCollapsed: boolean;
+  toggleDesktopSidebarCollapsed: () => void;
 }
 
 export const useLayoutStore = create<LayoutState>((set) => ({
@@ -12,4 +14,6 @@ export const useLayoutStore = create<LayoutState>((set) => ({
   setSubmenuOpen: (open) => set({ isSubmenuOpen: open }),
   isMobileSidebarOpen: false,
   setMobileSidebarOpen: (open) => set({ isMobileSidebarOpen: open }),
+  isDesktopSidebarCollapsed: false,
+  toggleDesktopSidebarCollapsed: () => set((state) => ({ isDesktopSidebarCollapsed: !state.isDesktopSidebarCollapsed })),
 }));

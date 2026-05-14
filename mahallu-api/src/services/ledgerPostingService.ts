@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { LedgerItem, Ledger, InstituteAccount } from '../models/MasterAccount';
+import { LedgerItem, Ledger, InstituteAccount, MahalluAccount } from '../models/MasterAccount';
 
 interface PostLedgerEntryParams {
   tenantId: string | mongoose.Types.ObjectId;
@@ -79,6 +79,13 @@ export async function postLedgerEntry(params: PostLedgerEntryParams): Promise<vo
     if (account) {
       await InstituteAccount.findByIdAndUpdate(account._id, { $inc: { balance: balanceChange } });
     }
+  } else {
+    // Mahallu-level entry: update MahalluAccount balance
+    const balanceChange = params.ledgerType === 'income' ? params.amount : -params.amount;
+    const account = await MahalluAccount.findOne({ tenantId, status: 'active' }).sort({ createdAt: 1 });
+    if (account) {
+      await MahalluAccount.findByIdAndUpdate(account._id, { $inc: { balance: balanceChange } });
+    }
   }
 }
 
@@ -100,6 +107,13 @@ export async function reverseLedgerEntry(
       ).sort({ createdAt: 1 });
       if (account) {
         await InstituteAccount.findByIdAndUpdate(account._id, { $inc: { balance: reverseChange } });
+      }
+    } else {
+      // Mahallu-level: reverse MahalluAccount balance
+      const reverseChange = entry.type === 'income' ? -entry.amount : entry.amount;
+      const account = await MahalluAccount.findOne({ tenantId: entry.tenantId, status: 'active' }).sort({ createdAt: 1 });
+      if (account) {
+        await MahalluAccount.findByIdAndUpdate(account._id, { $inc: { balance: reverseChange } });
       }
     }
   }

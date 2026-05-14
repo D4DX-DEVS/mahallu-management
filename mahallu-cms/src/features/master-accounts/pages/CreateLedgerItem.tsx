@@ -9,6 +9,8 @@ import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
+import QuickAddLedger from '@/components/quick-add/QuickAddLedger';
+import QuickAddCategory from '@/components/quick-add/QuickAddCategory';
 import { ROUTES } from '@/constants/routes';
 import { masterAccountService, Ledger, Category } from '@/services/masterAccountService';
 
@@ -31,10 +33,13 @@ export default function CreateLedgerItem() {
   const [ledgers, setLedgers] = useState<Ledger[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loadingData, setLoadingData] = useState(false);
+  const [addLedgerOpen, setAddLedgerOpen] = useState(false);
+  const [addCategoryOpen, setAddCategoryOpen] = useState(false);
   const {
     register,
     handleSubmit,
     watch,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<LedgerItemFormData>({
     resolver: zodResolver(ledgerItemSchema),
@@ -127,6 +132,9 @@ export default function CreateLedgerItem() {
             <Select
               label="Ledger"
               {...register('ledgerId')}
+              value={watch('ledgerId') || ''}
+              onAddNew={() => setAddLedgerOpen(true)}
+              addNewLabel="Add Ledger"
               error={errors.ledgerId?.message}
               disabled={loadingData}
               options={[
@@ -151,6 +159,9 @@ export default function CreateLedgerItem() {
             <Select
               label="Category (Optional)"
               {...register('categoryId')}
+              value={watch('categoryId') || ''}
+              onAddNew={() => setAddCategoryOpen(true)}
+              addNewLabel="Add Category"
               error={errors.categoryId?.message}
               options={[
                 { value: '', label: 'Select a category' },
@@ -195,6 +206,25 @@ export default function CreateLedgerItem() {
           </div>
         </Card>
       </form>
+
+      <QuickAddLedger
+        open={addLedgerOpen}
+        onClose={() => setAddLedgerOpen(false)}
+        onCreated={(newLedger) => {
+          setLedgers((prev) => [...prev, { id: newLedger.id, name: newLedger.label, type: newLedger.type, createdAt: '' } as Ledger]);
+          setValue('ledgerId', newLedger.id, { shouldValidate: true });
+        }}
+      />
+
+      <QuickAddCategory
+        open={addCategoryOpen}
+        onClose={() => setAddCategoryOpen(false)}
+        defaultType={selectedType}
+        onCreated={(newCategory) => {
+          setCategories((prev) => [...prev, { id: newCategory.id, name: newCategory.label, type: newCategory.type, createdAt: '' } as Category]);
+          setValue('categoryId', newCategory.id);
+        }}
+      />
     </div>
   );
 }
