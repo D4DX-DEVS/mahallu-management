@@ -132,24 +132,28 @@ export default function CreateCommittee() {
               placeholder="Committee Name"
               className="md:col-span-2"
             />
+            <div className="hidden">
             <Input
               label="Name (Malayalam)"
               {...register('nameMl')}
               placeholder="കമ്മിറ്റിയുടെ പേര്"
               className="md:col-span-2 font-malayalam"
             />
+            </div>
             <Input
               label="Description"
               {...register('description')}
               placeholder="Description"
               className="md:col-span-2"
             />
+            <div className="hidden">
             <Input
               label="Description (Malayalam)"
               {...register('descriptionMl')}
               placeholder="വിവരണം"
               className="md:col-span-2 font-malayalam"
             />
+            </div>
             <Select
               label="Status"
               options={[

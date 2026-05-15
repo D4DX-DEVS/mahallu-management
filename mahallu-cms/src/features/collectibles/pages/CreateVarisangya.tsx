@@ -366,12 +366,14 @@ export default function CreateVarisangya() {
               placeholder="Remarks"
               className="md:col-span-2"
             />
+            <div className="hidden">
             <Input
               label="Remarks (Malayalam)"
               {...register('remarksMl')}
               placeholder="കുറിപ്പ്"
               className="md:col-span-2 font-malayalam"
             />
+            </div>
           </div>
 
           <div className="flex justify-end gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">

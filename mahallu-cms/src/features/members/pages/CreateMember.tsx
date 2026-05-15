@@ -41,6 +41,7 @@ const memberSchema = z.object({
   marriageCount: z.preprocess((val) => (val === '' || Number.isNaN(val) ? undefined : val), z.number().min(0).optional()),
   isOrphan: z.boolean().optional(),
   isDead: z.boolean().optional(),
+  isFamilyHead: z.boolean().optional(),
 });
 
 type MemberFormData = z.infer<typeof memberSchema>;
@@ -66,6 +67,8 @@ export default function CreateMember() {
   });
 
   const selectedFamilyId = watch('familyId');
+
+  const selectedFamily = families.find((f) => f.id === selectedFamilyId);
 
   useEffect(() => {
     fetchFamilies();
@@ -225,6 +228,24 @@ export default function CreateMember() {
                 disabled={loadingFamilies}
                 className="md:col-span-2"
               />
+              {selectedFamilyId && (
+                <div className="md:col-span-2">
+                  <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      {...register('isFamilyHead')}
+                      disabled={!!(selectedFamily?.familyHead)}
+                      className="rounded border-gray-300 text-primary-600"
+                    />
+                    Is Family Head
+                  </label>
+                  {selectedFamily?.familyHead && (
+                    <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
+                      This family already has a head: <strong>{selectedFamily.familyHead}</strong>. Cannot assign another.
+                    </p>
+                  )}
+                </div>
+              )}
               <Input
                 label="Family Name"
                 {...register('familyName')}
@@ -240,12 +261,14 @@ export default function CreateMember() {
                 required
                 placeholder="Full Name"
               />
+              <div className="hidden">
               <Input
                 label="Member Name (Malayalam)"
                 {...register('nameMl')}
                 placeholder="പേര്"
                 className="font-malayalam"
               />
+              </div>
               <Input
                 label="Age"
                 type="number"
@@ -358,6 +381,7 @@ export default function CreateMember() {
       <QuickAddFamily
         open={addFamilyOpen}
         onClose={() => setAddFamilyOpen(false)}
+        tenantId={tenantId}
         onCreated={(newFamily) => {
           setFamilies((prev) => [...prev, { id: newFamily.id, houseName: newFamily.label } as Family]);
           setValue('familyId', newFamily.id, { shouldValidate: true });

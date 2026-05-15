@@ -143,9 +143,9 @@ export default function CreateEmployee() {
               <input type="hidden" {...register('instituteId')} />
             )}
             <Input label="Name" {...register('name')} error={errors.name?.message} required placeholder="Full Name" className={userInstituteId ? 'md:col-span-2' : ''} />
-            <Input label="Name (Malayalam)" {...register('nameMl')} placeholder="പേര്" className="font-malayalam" />
+            <div className="hidden"><Input label="Name (Malayalam)" {...register('nameMl')} placeholder="പേര്" className="font-malayalam" /></div>
             <Input label="Designation" {...register('designation')} error={errors.designation?.message} required placeholder="e.g. Teacher, Manager" />
-            <Input label="Designation (Malayalam)" {...register('designationMl')} placeholder="സ്ഥാനപ്പേര്" className="font-malayalam" />
+            <div className="hidden"><Input label="Designation (Malayalam)" {...register('designationMl')} placeholder="സ്ഥാനപ്പേര്" className="font-malayalam" /></div>
             <Input label="Department" {...register('department')} placeholder="e.g. Education, Admin" />
             <Input label="Phone" type="tel" {...register('phone')} placeholder="Phone Number" />
             <Input label="Email" type="email" {...register('email')} error={errors.email?.message} placeholder="Email (Optional)" />

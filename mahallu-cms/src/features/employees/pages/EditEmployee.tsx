@@ -165,9 +165,9 @@ export default function EditEmployee() {
               <input type="hidden" {...register('instituteId')} />
             )}
             <Input label="Name" {...register('name')} error={errors.name?.message} required className={userInstituteId ? 'md:col-span-2' : ''} />
-            <Input label="Name (Malayalam)" {...register('nameMl')} placeholder="പേര്" className="font-malayalam" />
+            <div className="hidden"><Input label="Name (Malayalam)" {...register('nameMl')} placeholder="പേര്" className="font-malayalam" /></div>
             <Input label="Designation" {...register('designation')} error={errors.designation?.message} required />
-            <Input label="Designation (Malayalam)" {...register('designationMl')} placeholder="സ്ഥാനപ്പേര്" className="font-malayalam" />
+            <div className="hidden"><Input label="Designation (Malayalam)" {...register('designationMl')} placeholder="സ്ഥാനപ്പേര്" className="font-malayalam" /></div>
             <Input label="Department" {...register('department')} />
             <Input label="Phone" type="tel" {...register('phone')} />
             <Input label="Email" type="email" {...register('email')} error={errors.email?.message} />

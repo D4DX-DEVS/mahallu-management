@@ -103,12 +103,14 @@ export default function CreateAsset() {
               placeholder="e.g. Projector, Generator, Chairs"
               className="md:col-span-2"
             />
+            <div className="hidden">
             <Input
               label="Asset Name (Malayalam)"
               {...register('nameMl')}
               placeholder="അസറ്റിന്റെ പേര്"
               className="md:col-span-2 font-malayalam"
             />
+            </div>
             <Input
               label="Purchase Date"
               type="date"
@@ -159,12 +161,14 @@ export default function CreateAsset() {
               placeholder="e.g. Meeting Hall, Office Room"
               className="md:col-span-2"
             />
+            <div className="hidden">
             <Input
               label="Location (Malayalam)"
               {...register('locationMl')}
               placeholder="സ്ഥലം"
               className="md:col-span-2 font-malayalam"
             />
+            </div>
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
               <textarea

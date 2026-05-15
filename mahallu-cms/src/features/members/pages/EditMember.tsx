@@ -262,12 +262,14 @@ export default function EditMember() {
               required
               placeholder="Full Name"
             />
+            <div className="hidden">
             <Input
               label="Member Name (Malayalam)"
               {...register('nameMl')}
               placeholder="പേര്"
               className="font-malayalam"
             />
+            </div>
             <Input
               label="Member ID (Auto-generated)"
               {...register('mahallId')}

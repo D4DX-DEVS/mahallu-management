@@ -181,6 +181,7 @@ export default function EditTenant() {
                 required
               />
 
+              <div className="hidden">
               <Input
                 label="Tenant Name (Malayalam)"
                 value={formData.nameMl}
@@ -188,6 +189,7 @@ export default function EditTenant() {
                 placeholder="മഹല്ലിന്റെ പേര്"
                 className="font-malayalam"
               />
+              </div>
 
               <Input
                 label="Tenant Code"
@@ -205,6 +207,7 @@ export default function EditTenant() {
                 required
               />
 
+              <div className="hidden">
               <Input
                 label="Location (Malayalam)"
                 value={formData.locationMl}
@@ -212,6 +215,7 @@ export default function EditTenant() {
                 placeholder="സ്ഥലം"
                 className="font-malayalam"
               />
+              </div>
 
               <Select
                 label="Type"

@@ -78,7 +78,7 @@ export default function CreateCategory() {
             <div className="md:col-span-2">
               <Input label="Category Name" {...register('name')} error={errors.name?.message} placeholder="e.g., Donations, Salaries" />
             </div>
-            <div className="md:col-span-2">
+            <div className="md:col-span-2 hidden">
               <Input label="Category Name (Malayalam)" {...register('nameMl')} placeholder="വിഭാഗം നാമം" className="font-malayalam" />
             </div>
 

@@ -149,21 +149,27 @@ export default function CreateFamily() {
               required
               placeholder="House Name"
             />
+            <div className="hidden">
             <Input
               label="House Name (Malayalam)"
               {...register('houseNameMl')}
               placeholder="വീട് പേര്"              className="font-malayalam"            />
+            </div>
+            <div className="hidden">
             <Input
               label="Family Head"
               {...register('familyHead')}
               placeholder="Family Head Name"
             />
+            </div>
+            <div className="hidden">
             <Input
               label="Family Head (Malayalam)"
               {...register('familyHeadMl')}
               placeholder="കുടുംബ നാഥൻ"
               className="font-malayalam"
             />
+            </div>
             <Input
               label="Contact No."
               type="tel"
@@ -193,23 +199,27 @@ export default function CreateFamily() {
               addNewLabel="Add Area"
               {...register('area')}
             />
+            <div className="hidden">
             <Input
               label="Area (Malayalam)"
               {...register('areaMl')}
               placeholder="പ്രദേശം"
               className="font-malayalam"
             />
+            </div>
             <Input
               label="Place"
               {...register('place')}
               placeholder="Place"
             />
+            <div className="hidden">
             <Input
               label="Place (Malayalam)"
               {...register('placeMl')}
               placeholder="സ്ഥലം"
               className="font-malayalam"
             />
+            </div>
           </div>
 
           <div className="flex justify-end gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">

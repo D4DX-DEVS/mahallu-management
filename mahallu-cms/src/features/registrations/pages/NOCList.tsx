@@ -420,12 +420,14 @@ export default function NOCList() {
                   required
                   placeholder="Applicant Name"
                 />
+                <div className="hidden">
                 <Input
                   label="Applicant Name (Malayalam)"
                   {...register('applicantNameMl')}
                   placeholder="അപേക്ഷകന്റെ പേര്"
                   className="font-malayalam"
                 />
+                </div>
                 <Input
                   label="Applicant Phone"
                   type="tel"
@@ -440,12 +442,14 @@ export default function NOCList() {
                   placeholder="Purpose Title"
                   className="md:col-span-2"
                 />
+                <div className="hidden">
                 <Input
                   label="Purpose Title (Malayalam)"
                   {...register('purposeTitleMl')}
                   placeholder="ഉദ്ദേശ്യം"
                   className="md:col-span-2 font-malayalam"
                 />
+                </div>
                 <Select
                   label="NOC Type"
                   options={[

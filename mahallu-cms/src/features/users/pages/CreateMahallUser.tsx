@@ -161,12 +161,14 @@ export default function CreateMahallUser() {
                 required
                 placeholder="Full Name"
               />
+              <div className="hidden">
               <Input
                 label="Full Name (Malayalam)"
                 {...register('nameMl')}
                 placeholder="പേര്‍"
                 className="font-malayalam"
               />
+              </div>
               <Input
                 label="Phone Number"
                 type="tel"

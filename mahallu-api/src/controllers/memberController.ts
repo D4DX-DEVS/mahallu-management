@@ -119,6 +119,21 @@ export const createMember = async (req: AuthRequest, res: Response) => {
       if (!familyName) {
         memberData.familyName = family.houseName;
       }
+
+      // Restrict: a family can only have one family head
+      if (memberData.isFamilyHead) {
+        const existingHead = await Member.findOne({
+          familyId: family._id,
+          isFamilyHead: true,
+          status: { $ne: 'deleted' },
+        });
+        if (existingHead) {
+          return res.status(400).json({
+            success: false,
+            message: `This family already has a family head (${existingHead.name}). A family can only have one head.`,
+          });
+        }
+      }
     }
 
     if (!familyName) {
@@ -159,6 +174,11 @@ export const createMember = async (req: AuthRequest, res: Response) => {
     });
 
     await member.save();
+
+    // If this member is the family head, update the family's familyHead field
+    if (memberData.isFamilyHead && family) {
+      await Family.findByIdAndUpdate(family._id, { familyHead: member.name });
+    }
 
     let memberUserCreated = false;
     let memberUserMessage = 'Member user not created because phone number is missing.';

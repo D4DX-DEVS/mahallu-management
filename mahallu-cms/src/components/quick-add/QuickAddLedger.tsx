@@ -1,8 +1,22 @@
 import { useState } from 'react';
-import QuickAddModal from '@/components/ui/QuickAddModal';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { FiSave, FiX } from 'react-icons/fi';
+import Modal from '@/components/ui/Modal';
+import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import { masterAccountService, Ledger } from '@/services/masterAccountService';
+
+const ledgerSchema = z.object({
+  name: z.string().min(1, 'Name is required'),
+  nameMl: z.string().optional(),
+  type: z.enum(['income', 'expense'], { required_error: 'Type is required' }),
+  description: z.string().optional(),
+});
+
+type LedgerFormData = z.infer<typeof ledgerSchema>;
 
 interface Props {
   open: boolean;
@@ -10,74 +24,90 @@ interface Props {
   onCreated: (ledger: { id: string; label: string; type: string }) => void;
 }
 
-const typeOptions = [
-  { value: 'income', label: 'Income' },
-  { value: 'expense', label: 'Expense' },
-];
-
 export default function QuickAddLedger({ open, onClose, onCreated }: Props) {
-  const [name, setName] = useState('');
-  const [type, setType] = useState('income');
-  const [errors, setErrors] = useState<{ name?: string; general?: string }>({});
-  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleConfirm = async () => {
-    const trimmed = name.trim();
-    if (!trimmed) {
-      setErrors({ name: 'Ledger name is required' });
-      return;
-    }
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<LedgerFormData>({
+    resolver: zodResolver(ledgerSchema),
+    defaultValues: { type: 'income' },
+  });
+
+  const onSubmit = async (data: LedgerFormData) => {
     try {
-      setIsLoading(true);
-      setErrors({});
-      const created: Ledger = await masterAccountService.createLedger({ name: trimmed, type });
-      onCreated({ id: created.id, label: `${created.name} (${created.type})`, type: created.type || type });
-      setName('');
-      setType('income');
+      setError(null);
+      const created: Ledger = await masterAccountService.createLedger({
+        name: data.name,
+        nameMl: data.nameMl,
+        type: data.type,
+        description: data.description,
+      });
+      onCreated({ id: created.id, label: `${created.name} (${created.type})`, type: created.type || data.type });
       onClose();
     } catch (err: any) {
-      setErrors({ general: err.response?.data?.message || 'Failed to create ledger. Please try again.' });
-    } finally {
-      setIsLoading(false);
+      setError(err.response?.data?.message || 'Failed to create ledger. Please try again.');
     }
-  };
-
-  const handleClose = () => {
-    setName('');
-    setType('income');
-    setErrors({});
-    onClose();
   };
 
   return (
-    <QuickAddModal
-      open={open}
-      onClose={handleClose}
-      title="Add New Ledger"
-      onConfirm={handleConfirm}
-      isLoading={isLoading}
-      confirmLabel="Create Ledger"
-    >
-      <div className="space-y-4">
-        {errors.general && (
-          <p className="text-sm text-red-600 dark:text-red-400">{errors.general}</p>
+    <Modal isOpen={open} onClose={onClose} title="Add New Ledger" size="md">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        {error && (
+          <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm dark:bg-red-900 dark:border-red-700 dark:text-red-200">
+            {error}
+          </div>
         )}
-        <Input
-          label="Ledger Name"
-          value={name}
-          onChange={(e) => { setName(e.target.value); setErrors((p) => ({ ...p, name: undefined })); }}
-          placeholder="Enter ledger name"
-          error={errors.name}
-          required
-          autoFocus
-        />
-        <Select
-          label="Type"
-          value={type}
-          options={typeOptions}
-          onChange={(e) => setType(e.target.value)}
-        />
-      </div>
-    </QuickAddModal>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="md:col-span-2">
+            <Input
+              label="Ledger Name"
+              {...register('name')}
+              error={errors.name?.message}
+              placeholder="e.g., Monthly Income, Operating Expenses"
+              required
+            />
+          </div>
+          <div className="md:col-span-2 hidden">
+            <Input
+              label="Ledger Name (Malayalam)"
+              {...register('nameMl')}
+              placeholder="ലെഡ്ജർ നാമം"
+              className="font-malayalam"
+            />
+          </div>
+          <Select
+            label="Type"
+            {...register('type')}
+            error={errors.type?.message}
+            options={[
+              { value: 'income', label: 'Income' },
+              { value: 'expense', label: 'Expense' },
+            ]}
+          />
+          <div className="md:col-span-2">
+            <Input
+              label="Description"
+              {...register('description')}
+              placeholder="Optional description"
+            />
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+          <Button type="button" variant="outline" onClick={onClose}>
+            <FiX className="h-4 w-4 mr-2" />
+            Cancel
+          </Button>
+          <Button type="submit" isLoading={isSubmitting}>
+            <FiSave className="h-4 w-4 mr-2" />
+            Create Ledger
+          </Button>
+        </div>
+      </form>
+    </Modal>
   );
 }

@@ -168,12 +168,14 @@ export default function CreateMeeting() {
               placeholder="Meeting Title"
               className="md:col-span-2"
             />
+            <div className="hidden">
             <Input
               label="Meeting Title (Malayalam)"
               {...register('titleMl')}
               placeholder="യോഗ തലക്കെട്ട്"
               className="md:col-span-2 font-malayalam"
             />
+            </div>
             <Input
               label="Meeting Date & Time"
               type="datetime-local"
@@ -187,12 +189,14 @@ export default function CreateMeeting() {
               placeholder="Meeting agenda"
               className="md:col-span-2"
             />
+            <div className="hidden">
             <Input
               label="Agenda (Malayalam)"
               {...register('agendaMl')}
-              placeholder="അജണ്ഡ"
+              placeholder="അജണ്ട"
               className="md:col-span-2 font-malayalam"
             />
+            </div>
           </div>
 
           <div className="md:col-span-2">
