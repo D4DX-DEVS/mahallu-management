@@ -140,9 +140,9 @@ export default function EditProgram() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input label="Name" {...register('name')} error={errors.name?.message} required />
-            <Input label="Name (Malayalam)" {...register('nameMl')} placeholder="പ്രോഗ്രാമിന്റെ പേര്" className="font-malayalam" />
+            <div className="hidden"><Input label="Name (Malayalam)" {...register('nameMl')} placeholder="പ്രോഗ്രാമിന്റെ പേര്" className="font-malayalam" /></div>
             <Input label="Place" {...register('place')} error={errors.place?.message} required />
-            <Input label="Place (Malayalam)" {...register('placeMl')} placeholder="സ്ഥലം" className="font-malayalam" />
+            <div className="hidden"><Input label="Place (Malayalam)" {...register('placeMl')} placeholder="സ്ഥലം" className="font-malayalam" /></div>
             <Input label="Join Date" type="date" {...register('joinDate')} error={errors.joinDate?.message} />
             <Input label="Contact No" {...register('contactNo')} error={errors.contactNo?.message} />
             <Input label="Email" type="email" {...register('email')} error={errors.email?.message} />

@@ -106,12 +106,14 @@ export default function EditMahalluLedger() {
               placeholder="e.g. Zakat Collection"
               required
             />
+            <div className="hidden">
             <Input
               label="Name (Malayalam)"
               value={form.nameMl}
               onChange={e => setForm(f => ({ ...f, nameMl: e.target.value }))}
-              placeholder="മലയാളത്തിൽ"
+              placeholder="മലയാളത്തില്"
             />
+            </div>
             <Select
               label="Type *"
               options={[{ value: 'income', label: 'Income' }, { value: 'expense', label: 'Expense' }]}

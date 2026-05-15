@@ -208,12 +208,14 @@ export default function CreateNikahRegistration() {
               required
               placeholder="Groom Name"
             />
+            <div className="hidden">
             <Input
               label="Groom Name (Malayalam)"
               {...register('groomNameMl')}
               placeholder="വരന്റെ പേര്"
               className="font-malayalam"
             />
+            </div>
             <Input
               label="Groom Age"
               type="number"
@@ -229,12 +231,14 @@ export default function CreateNikahRegistration() {
               required
               placeholder="Bride Name"
             />
+            <div className="hidden">
             <Input
               label="Bride Name (Malayalam)"
               {...register('brideNameMl')}
               placeholder="വധുവിന്റെ പേര്"
               className="font-malayalam"
             />
+            </div>
             <Input
               label="Bride Age"
               type="number"

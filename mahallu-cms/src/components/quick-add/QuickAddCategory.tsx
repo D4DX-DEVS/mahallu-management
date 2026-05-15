@@ -1,8 +1,22 @@
 import { useState } from 'react';
-import QuickAddModal from '@/components/ui/QuickAddModal';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { FiSave, FiX } from 'react-icons/fi';
+import Modal from '@/components/ui/Modal';
+import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import { masterAccountService, Category } from '@/services/masterAccountService';
+
+const categorySchema = z.object({
+  name: z.string().min(1, 'Name is required'),
+  nameMl: z.string().optional(),
+  type: z.enum(['income', 'expense'], { required_error: 'Type is required' }),
+  description: z.string().optional(),
+});
+
+type CategoryFormData = z.infer<typeof categorySchema>;
 
 interface Props {
   open: boolean;
@@ -11,74 +25,90 @@ interface Props {
   onCreated: (category: { id: string; label: string; type: string }) => void;
 }
 
-const typeOptions = [
-  { value: 'income', label: 'Income' },
-  { value: 'expense', label: 'Expense' },
-];
-
 export default function QuickAddCategory({ open, onClose, defaultType = 'income', onCreated }: Props) {
-  const [name, setName] = useState('');
-  const [type, setType] = useState(defaultType);
-  const [errors, setErrors] = useState<{ name?: string; general?: string }>({});
-  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleConfirm = async () => {
-    const trimmed = name.trim();
-    if (!trimmed) {
-      setErrors({ name: 'Category name is required' });
-      return;
-    }
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<CategoryFormData>({
+    resolver: zodResolver(categorySchema),
+    defaultValues: { type: defaultType },
+  });
+
+  const onSubmit = async (data: CategoryFormData) => {
     try {
-      setIsLoading(true);
-      setErrors({});
-      const created: Category = await masterAccountService.createCategory({ name: trimmed, type });
-      onCreated({ id: created.id, label: created.name, type: created.type || type });
-      setName('');
-      setType(defaultType);
+      setError(null);
+      const created: Category = await masterAccountService.createCategory({
+        name: data.name,
+        nameMl: data.nameMl,
+        type: data.type,
+        description: data.description,
+      });
+      onCreated({ id: created.id, label: created.name, type: created.type || data.type });
       onClose();
     } catch (err: any) {
-      setErrors({ general: err.response?.data?.message || 'Failed to create category. Please try again.' });
-    } finally {
-      setIsLoading(false);
+      setError(err.response?.data?.message || 'Failed to create category. Please try again.');
     }
-  };
-
-  const handleClose = () => {
-    setName('');
-    setType(defaultType);
-    setErrors({});
-    onClose();
   };
 
   return (
-    <QuickAddModal
-      open={open}
-      onClose={handleClose}
-      title="Add New Category"
-      onConfirm={handleConfirm}
-      isLoading={isLoading}
-      confirmLabel="Create Category"
-    >
-      <div className="space-y-4">
-        {errors.general && (
-          <p className="text-sm text-red-600 dark:text-red-400">{errors.general}</p>
+    <Modal isOpen={open} onClose={onClose} title="Add New Category" size="md">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        {error && (
+          <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm dark:bg-red-900 dark:border-red-700 dark:text-red-200">
+            {error}
+          </div>
         )}
-        <Input
-          label="Category Name"
-          value={name}
-          onChange={(e) => { setName(e.target.value); setErrors((p) => ({ ...p, name: undefined })); }}
-          placeholder="Enter category name"
-          error={errors.name}
-          required
-          autoFocus
-        />
-        <Select
-          label="Type"
-          value={type}
-          options={typeOptions}
-          onChange={(e) => setType(e.target.value as 'income' | 'expense')}
-        />
-      </div>
-    </QuickAddModal>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="md:col-span-2">
+            <Input
+              label="Category Name"
+              {...register('name')}
+              error={errors.name?.message}
+              placeholder="e.g., Donations, Salaries"
+              required
+            />
+          </div>
+          <div className="md:col-span-2 hidden">
+            <Input
+              label="Category Name (Malayalam)"
+              {...register('nameMl')}
+              placeholder="വിഭാഗം നാമം"
+              className="font-malayalam"
+            />
+          </div>
+          <Select
+            label="Type"
+            {...register('type')}
+            error={errors.type?.message}
+            options={[
+              { value: 'income', label: 'Income' },
+              { value: 'expense', label: 'Expense' },
+            ]}
+          />
+          <div className="md:col-span-2">
+            <Input
+              label="Description"
+              {...register('description')}
+              placeholder="Optional description"
+            />
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+          <Button type="button" variant="outline" onClick={onClose}>
+            <FiX className="h-4 w-4 mr-2" />
+            Cancel
+          </Button>
+          <Button type="submit" isLoading={isSubmitting}>
+            <FiSave className="h-4 w-4 mr-2" />
+            Create Category
+          </Button>
+        </div>
+      </form>
+    </Modal>
   );
 }

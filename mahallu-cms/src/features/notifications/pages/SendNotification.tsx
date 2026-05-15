@@ -127,6 +127,7 @@ export default function SendNotification() {
             required
             icon={<FiBell className="h-4 w-4" />}
           />
+          <div className="hidden">
           <Input
             label="Title (Malayalam)"
             value={titleMl}
@@ -134,6 +135,7 @@ export default function SendNotification() {
             placeholder="തലക്കെട്ട്"
             className="font-malayalam"
           />
+          </div>
 
           {/* Message */}
           <div>

@@ -17,6 +17,7 @@ export interface IMember extends Document {
   marriageCount?: number;
   isOrphan?: boolean;
   isDead?: boolean;
+  isFamilyHead?: boolean;
   status: 'active' | 'inactive' | 'deleted';
   createdAt: Date;
   updatedAt: Date;
@@ -91,6 +92,11 @@ const MemberSchema = new Schema<IMember>(
       default: false,
     },
     isDead: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    isFamilyHead: {
       type: Boolean,
       default: false,
       index: true,

@@ -111,12 +111,14 @@ export default function CreateProgram() {
               placeholder="Program Name"
               className="md:col-span-2"
             />
+            <div className="hidden">
             <Input
               label="Name (Malayalam)"
               {...register('nameMl')}
               placeholder="പ്രോഗ്രാമിന്റെ പേര്"
               className="md:col-span-2 font-malayalam"
             />
+            </div>
             <Input
               label="Place"
               {...register('place')}
@@ -124,12 +126,14 @@ export default function CreateProgram() {
               required
               placeholder="Place"
             />
+            <div className="hidden">
             <Input
               label="Place (Malayalam)"
               {...register('placeMl')}
               placeholder="സ്ഥലം"
               className="font-malayalam"
             />
+            </div>
             <Input
               label="Join Date"
               type="date"

@@ -79,7 +79,7 @@ export default function CreateLedger() {
             <div className="md:col-span-2">
               <Input label="Ledger Name" {...register('name')} error={errors.name?.message} placeholder="e.g., Monthly Income, Operating Expenses" />
             </div>
-            <div className="md:col-span-2">
+            <div className="md:col-span-2 hidden">
               <Input label="Ledger Name (Malayalam)" {...register('nameMl')} placeholder="ലെഡ്ജർ നാമം" className="font-malayalam" />
             </div>
 

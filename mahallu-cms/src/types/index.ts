@@ -70,6 +70,7 @@ export interface Member {
   marriageCount?: number;
   isOrphan?: boolean;
   isDead?: boolean;
+  isFamilyHead?: boolean;
   createdAt: string;
 }
 

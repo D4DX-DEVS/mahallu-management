@@ -159,12 +159,14 @@ export default function CreateDeathRegistration() {
               placeholder="Deceased Name"
               className="md:col-span-2"
             />
+            <div className="hidden">
             <Input
               label="Deceased Name (Malayalam)"
               {...register('deceasedNameMl')}
               placeholder="മരിച്ചവരുടെ പേര്"
               className="md:col-span-2 font-malayalam"
             />
+            </div>
             <Input
               label="Death Date"
               type="date"
