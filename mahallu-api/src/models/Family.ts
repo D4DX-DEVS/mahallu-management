@@ -34,7 +34,6 @@ const FamilySchema = new Schema<IFamily>(
     },
     varisangyaGrade: {
       type: String,
-      enum: ['Grade A', 'Grade B', 'Grade C', 'Grade D'],
     },
     houseName: {
       type: String,
@@ -67,7 +66,6 @@ const FamilySchema = new Schema<IFamily>(
     },
     area: {
       type: String,
-      enum: ['Area A', 'Area B', 'Area C', 'Area D'],
     },
     areaMl: {
       type: String,
