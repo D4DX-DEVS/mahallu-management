@@ -11,8 +11,7 @@ export const createFamilyValidation = [
   body('mahallId').optional().trim(),
   body('varisangyaGrade')
     .optional({ values: 'falsy' })
-    .isIn(['Grade A', 'Grade B', 'Grade C', 'Grade D'])
-    .withMessage('Invalid varisangya grade'),
+    .trim(),
   body('familyHead').optional().trim(),
   body('familyHeadMl').optional().trim(),
   body('contactNo').optional().trim(),
@@ -20,8 +19,7 @@ export const createFamilyValidation = [
   body('houseNo').optional().trim(),
   body('area')
     .optional({ values: 'falsy' })
-    .isIn(['Area A', 'Area B', 'Area C', 'Area D'])
-    .withMessage('Invalid area'),
+    .trim(),
   body('areaMl').optional().trim(),
   body('place').optional().trim(),
   body('placeMl').optional().trim(),
@@ -41,8 +39,7 @@ export const updateFamilyValidation = [
   body('houseNameMl').optional().trim(),
   body('varisangyaGrade')
     .optional()
-    .isIn(['Grade A', 'Grade B', 'Grade C', 'Grade D'])
-    .withMessage('Invalid varisangya grade'),
+    .trim(),
   body('status')
     .optional()
     .isIn(['approved', 'unapproved', 'pending'])
