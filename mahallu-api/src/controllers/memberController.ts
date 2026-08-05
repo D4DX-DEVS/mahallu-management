@@ -301,7 +301,7 @@ export const updateMemberStatus = async (req: AuthRequest, res: Response) => {
 
     // If status is set to deleted or inactive, also update linked user account status
     if (status === 'deleted' || status === 'inactive') {
-      const User = (await import('../models/User')).default;
+      
       const memberUser = await User.findOne({ memberId: member._id, role: 'member' });
       if (memberUser) {
         memberUser.status = 'inactive';
@@ -309,7 +309,7 @@ export const updateMemberStatus = async (req: AuthRequest, res: Response) => {
       }
     } else if (status === 'active') {
       // If activating member, also activate linked user account
-      const User = (await import('../models/User')).default;
+      
       const memberUser = await User.findOne({ memberId: member._id, role: 'member' });
       if (memberUser) {
         memberUser.status = 'active';
@@ -348,7 +348,7 @@ export const deleteMember = async (req: AuthRequest, res: Response) => {
     await member.save();
 
     // Also deactivate linked user account
-    const User = (await import('../models/User')).default;
+    
     const memberUser = await User.findOne({ memberId: member._id, role: 'member' });
     if (memberUser) {
       memberUser.status = 'inactive';

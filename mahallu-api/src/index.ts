@@ -29,6 +29,7 @@ import memberUserRoutes from './routes/memberUserRoutes';
 import assetRoutes from './routes/assetRoutes';
 import pettyCashRoutes from './routes/pettyCashRoutes';
 import uploadRoutes from './routes/uploadRoutes';
+import { startVarisangyaReminderScheduler } from './services/varisangyaNotificationService';
 import path from 'path';
 
 // Load environment variables from the correct path
@@ -135,6 +136,9 @@ app.use(errorHandler);
 
 // Connect to database
 connectDatabase();
+
+// Monthly varisangya WhatsApp reminders
+startVarisangyaReminderScheduler();
 
 // Start server
 app.listen(PORT, () => {

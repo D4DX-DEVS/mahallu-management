@@ -1,35 +1,37 @@
 export interface Tenant {
   id: string;
   name: string;
+  nameMl?: string;
   code: string;
   type: 'standard' | 'premium' | 'enterprise';
   since: string;
   location: string;
+  locationMl?: string;
   address: {
-    state: string;
-    district: string;
+    state?: string;
+    district?: string;
     pinCode?: string;
     postOffice?: string;
-    lsgName: string;
-    village: string;
+    lsgName?: string;
+    village?: string;
   };
   logo?: string;
   status: 'active' | 'suspended' | 'inactive';
   subscription: {
-    plan: string;
-    startDate: string;
+    plan?: string;
+    startDate?: string;
     endDate?: string;
-    isActive: boolean;
+    isActive?: boolean;
   };
   settings: {
-    varisangyaAmount: number;
+    varisangyaAmount?: number;
     varisangyaGrades?: Array<{
       name: string;
       amount: number;
     }>;
     educationOptions?: string[];
     areaOptions?: string[];
-    features: Record<string, boolean>;
+    features?: Record<string, boolean>;
   };
   createdAt: string;
   updatedAt: string;

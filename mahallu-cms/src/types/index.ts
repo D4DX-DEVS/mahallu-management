@@ -15,6 +15,7 @@ export interface User {
   lastLogin?: string;
   permissions?: Permission;
   isSuperAdmin?: boolean;
+  tenant?: { id?: string; name: string };
 }
 
 export interface Permission {
@@ -78,7 +79,9 @@ export interface Institute {
   id: string;
   tenantId?: string;
   name: string;
+  nameMl?: string;
   place: string;
+  placeMl?: string;
   joinDate: string;
   type: 'institute' | 'madrasa' | 'orphanage' | 'hospital' | 'other';
   description?: string;
@@ -95,9 +98,11 @@ export interface Employee {
   instituteName?: string;
   instituteType?: string;
   name: string;
+  nameMl?: string;
   phone?: string;
   email?: string;
   designation: string;
+  designationMl?: string;
   department?: string;
   joinDate: string;
   salary: number;
@@ -138,7 +143,9 @@ export interface Committee {
   id: string;
   tenantId?: string;
   name: string;
+  nameMl?: string;
   description?: string;
+  descriptionMl?: string;
   members?: Member[] | string[];
   status?: 'active' | 'inactive';
   createdAt: string;
@@ -150,11 +157,13 @@ export interface Meeting {
   committeeId: string;
   committeeName?: string;
   title: string;
+  titleMl?: string;
   meetingDate: string;
   attendance?: Member[] | string[];
   totalMembers?: number;
   attendancePercent: number;
   agenda?: string;
+  agendaMl?: string;
   minutes?: string;
   status?: 'scheduled' | 'completed' | 'cancelled';
   createdAt: string;
@@ -190,12 +199,15 @@ export interface Asset {
   id: string;
   tenantId?: string;
   name: string;
+  nameMl?: string;
   description?: string;
+  descriptionMl?: string;
   purchaseDate: string;
   estimatedValue: number;
   category: 'furniture' | 'electronics' | 'vehicle' | 'building' | 'land' | 'equipment' | 'other';
   status: 'active' | 'in_use' | 'under_maintenance' | 'disposed' | 'damaged';
   location?: string;
+  locationMl?: string;
   createdAt: string;
   updatedAt?: string;
 }

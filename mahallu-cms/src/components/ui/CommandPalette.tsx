@@ -13,7 +13,7 @@ interface FlatMenuItem {
   id: string;
   label: string;
   path: string;
-  icon: React.ComponentType;
+  icon: React.ComponentType<{ className?: string }>;
   breadcrumb: string[];
 }
 

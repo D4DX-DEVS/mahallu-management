@@ -1,6 +1,7 @@
 import express from 'express';
 import {
   getAllVarisangyas,
+  getFamilyDues,
   getNextReceiptNumber,
   createVarisangya,
   updateVarisangya,
@@ -106,6 +107,7 @@ router.use(allowRoles(['super_admin', 'mahall', 'institute']));
  */
 router.get('/varisangya', getAllVarisangyas);
 router.get('/receipt-next', getNextReceiptNumber);
+router.get('/dues', getFamilyDues);
 
 /**
  * @swagger

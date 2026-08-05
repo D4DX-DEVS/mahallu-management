@@ -57,7 +57,7 @@ function extractCellValue<T>(
 ): string {
   if (column.render) {
     try {
-      const rendered = column.render(value, row);
+      const rendered = column.render(value, row, 0);
       
       // Handle primitive types directly
       if (typeof rendered === 'string' || typeof rendered === 'number') {

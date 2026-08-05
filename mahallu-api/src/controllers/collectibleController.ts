@@ -6,6 +6,11 @@ import Member from '../models/Member';
 import { AuthRequest } from '../middleware/authMiddleware';
 import { getPaginationParams, createPaginationResponse } from '../utils/pagination';
 import { postLedgerEntry, reverseLedgerEntry } from '../services/ledgerPostingService';
+import {
+  computeFamilyDues,
+  sendVarisangyaReceipt,
+  sendZakatReceipt,
+} from '../services/varisangyaNotificationService';
 
 const toObjectId = (id: string) =>
   mongoose.Types.ObjectId.isValid(id) ? new mongoose.Types.ObjectId(id) : id;
@@ -128,6 +133,43 @@ export const getNextReceiptNumber = async (req: AuthRequest, res: Response) => {
   }
 };
 
+// Live dues: expected (grade amount x months elapsed this year) vs paid, per family
+export const getFamilyDues = async (req: AuthRequest, res: Response) => {
+  try {
+    const tenantId = req.tenantId || (req.isSuperAdmin ? (req.query.tenantId as string) : undefined);
+    if (!tenantId) {
+      return res.status(400).json({ success: false, message: 'Tenant ID is required' });
+    }
+
+    let dues = await computeFamilyDues(tenantId);
+
+    const search = (req.query.search as string | undefined)?.trim().toLowerCase();
+    if (search) {
+      dues = dues.filter(
+        (d) =>
+          d.houseName?.toLowerCase().includes(search) ||
+          d.familyHead?.toLowerCase().includes(search)
+      );
+    }
+    if (req.query.onlyPending === 'true') {
+      dues = dues.filter((d) => d.dueAmount > 0);
+    }
+    dues.sort((a, b) => b.dueAmount - a.dueAmount);
+
+    const summary = {
+      totalFamilies: dues.length,
+      familiesWithDues: dues.filter((d) => d.dueAmount > 0).length,
+      totalExpected: dues.reduce((s, d) => s + d.expectedAmount, 0),
+      totalPaid: dues.reduce((s, d) => s + d.paidAmount, 0),
+      totalDue: dues.reduce((s, d) => s + d.dueAmount, 0),
+    };
+
+    res.json({ success: true, data: { dues, summary } });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 export const createVarisangya = async (req: AuthRequest, res: Response) => {
   try {
     const varisangyaData = {
@@ -209,6 +251,9 @@ export const createVarisangya = async (req: AuthRequest, res: Response) => {
     } catch (ledgerError) {
       console.error('Failed to auto-post varisangya to ledger:', ledgerError);
     }
+
+    // WhatsApp digital receipt (fire-and-forget)
+    void sendVarisangyaReceipt(varisangya);
 
     res.status(201).json({ success: true, data: varisangya });
   } catch (error: any) {
@@ -399,6 +444,9 @@ export const createZakat = async (req: AuthRequest, res: Response) => {
     } catch (ledgerError) {
       console.error('Failed to auto-post zakat to ledger:', ledgerError);
     }
+
+    // WhatsApp digital receipt (fire-and-forget)
+    void sendZakatReceipt(zakat);
 
     res.status(201).json({ success: true, data: zakat });
   } catch (error: any) {

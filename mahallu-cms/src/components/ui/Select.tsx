@@ -7,6 +7,7 @@ export interface SelectProps extends Omit<SelectHTMLAttributes<HTMLSelectElement
   error?: string;
   helperText?: string;
   options: { value: string; label: string }[];
+  placeholder?: string;
   onChange?: (e: React.ChangeEvent<HTMLSelectElement>) => void;
   onAddNew?: () => void;
   addNewLabel?: string;

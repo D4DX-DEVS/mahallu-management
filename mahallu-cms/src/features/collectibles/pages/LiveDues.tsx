@@ -1,0 +1,135 @@
+import { useState, useEffect } from 'react';
+import { FiAlertCircle, FiCheckCircle, FiDollarSign, FiHome } from 'react-icons/fi';
+import Card from '@/components/ui/Card';
+import StatCard from '@/components/ui/StatCard';
+import Table from '@/components/ui/Table';
+import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import TableToolbar from '@/components/ui/TableToolbar';
+import { TableColumn } from '@/types';
+import { collectibleService, FamilyDue } from '@/services/collectibleService';
+import { useDebounce } from '@/hooks/useDebounce';
+import { exportToCSV } from '@/utils/exportUtils';
+
+export default function LiveDues() {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [onlyPending, setOnlyPending] = useState(true);
+  const [dues, setDues] = useState<FamilyDue[]>([]);
+  const [summary, setSummary] = useState<{
+    totalFamilies: number;
+    familiesWithDues: number;
+    totalExpected: number;
+    totalPaid: number;
+    totalDue: number;
+  } | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const debouncedSearch = useDebounce(searchQuery, 500);
+
+  useEffect(() => {
+    const fetchDues = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const result = await collectibleService.getFamilyDues({
+          search: debouncedSearch || undefined,
+          onlyPending,
+        });
+        setDues(result.dues);
+        setSummary(result.summary);
+      } catch (err: any) {
+        setError(err.response?.data?.message || 'Failed to load dues');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchDues();
+  }, [debouncedSearch, onlyPending]);
+
+  const columns: TableColumn<FamilyDue>[] = [
+    { key: 'familyId', label: 'No.', render: (_, __, index) => index + 1 },
+    { key: 'houseName', label: 'House Name' },
+    { key: 'familyHead', label: 'Family Head', render: (v) => v || '-' },
+    { key: 'varisangyaGrade', label: 'Grade', render: (v) => v || '-' },
+    { key: 'monthlyAmount', label: 'Monthly', render: (v) => `₹${(v || 0).toLocaleString()}` },
+    { key: 'expectedAmount', label: 'Expected (YTD)', render: (v) => `₹${(v || 0).toLocaleString()}` },
+    { key: 'paidAmount', label: 'Paid', render: (v) => `₹${(v || 0).toLocaleString()}` },
+    {
+      key: 'dueAmount',
+      label: 'Due',
+      render: (v) =>
+        v > 0 ? (
+          <span className="font-semibold text-red-600 dark:text-red-400">₹{v.toLocaleString()}</span>
+        ) : (
+          <span className="font-medium text-green-600 dark:text-green-400">Paid up</span>
+        ),
+    },
+  ];
+
+  const exportColumns: TableColumn<FamilyDue>[] = [
+    { key: 'houseName', label: 'House Name' },
+    { key: 'familyHead', label: 'Family Head' },
+    { key: 'varisangyaGrade', label: 'Grade' },
+    { key: 'monthlyAmount', label: 'Monthly' },
+    { key: 'expectedAmount', label: 'Expected (YTD)' },
+    { key: 'paidAmount', label: 'Paid' },
+    { key: 'dueAmount', label: 'Due' },
+  ];
+
+  const handleExport = (_type?: 'csv' | 'json' | 'pdf') => {
+    exportToCSV(exportColumns, dues, 'varisangya-dues');
+  };
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Live Dues</h1>
+        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+          Varisangya expected vs paid for the current year
+        </p>
+      </div>
+
+      {summary && (
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <StatCard title="Families" value={summary.totalFamilies} icon={<FiHome className="h-5 w-5" />} />
+          <StatCard title="With Dues" value={summary.familiesWithDues} icon={<FiAlertCircle className="h-5 w-5" />} />
+          <StatCard title="Total Collected" value={`₹${summary.totalPaid.toLocaleString()}`} icon={<FiCheckCircle className="h-5 w-5" />} />
+          <StatCard title="Total Due" value={`₹${summary.totalDue.toLocaleString()}`} icon={<FiDollarSign className="h-5 w-5" />} />
+        </div>
+      )}
+
+      <Card>
+        <TableToolbar
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          onExport={handleExport}
+        />
+
+        <div className="mb-4 flex items-center gap-2 px-1">
+          <input
+            id="only-pending"
+            type="checkbox"
+            checked={onlyPending}
+            onChange={(e) => setOnlyPending(e.target.checked)}
+            className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+          />
+          <label htmlFor="only-pending" className="text-sm text-gray-600 dark:text-gray-300">
+            Show only families with pending dues
+          </label>
+        </div>
+
+        {error && (
+          <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-200">
+            {error}
+          </div>
+        )}
+
+        {loading ? (
+          <LoadingSpinner />
+        ) : (
+          <Table columns={columns} data={dues} emptyMessage="No dues found" showExport={false} />
+        )}
+      </Card>
+    </div>
+  );
+}

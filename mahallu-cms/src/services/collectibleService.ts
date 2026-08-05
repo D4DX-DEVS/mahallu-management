@@ -49,7 +49,35 @@ export interface Transaction {
   createdAt: string;
 }
 
+export interface FamilyDue {
+  familyId: string;
+  houseName: string;
+  familyHead?: string;
+  contactNo?: string;
+  varisangyaGrade?: string;
+  monthlyAmount: number;
+  expectedAmount: number;
+  paidAmount: number;
+  dueAmount: number;
+}
+
+export interface DuesSummary {
+  totalFamilies: number;
+  familiesWithDues: number;
+  totalExpected: number;
+  totalPaid: number;
+  totalDue: number;
+}
+
 export const collectibleService = {
+  getFamilyDues: async (params?: { search?: string; onlyPending?: boolean }) => {
+    const response = await api.get<{ success: boolean; data: { dues: FamilyDue[]; summary: DuesSummary } }>(
+      '/collectibles/dues',
+      { params: { ...params, onlyPending: params?.onlyPending ? 'true' : undefined } }
+    );
+    return response.data.data;
+  },
+
   // Varisangya
   getAllVarisangyas: async (params?: { familyId?: string; memberId?: string; page?: number; limit?: number; dateFrom?: string; dateTo?: string }) => {
     const response = await api.get<{ success: boolean; data: Varisangya[]; pagination?: any }>('/collectibles/varisangya', { params });

@@ -4,7 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useNavigate } from 'react-router-dom';
 import { FiLock, FiPhone, FiRefreshCw, FiUser, FiHome, FiBookOpen, FiClipboard, FiChevronRight } from 'react-icons/fi';
-import { authService, AccountOption } from '@/services/authService';
+import { authService, AccountOption, AuthResponse } from '@/services/authService';
 import { initAndSubscribe } from '@/services/oneSignalService';
 import { useAuthStore } from '@/store/authStore';
 import Button from '@/components/ui/Button';
@@ -96,11 +96,12 @@ export default function Login() {
         return;
       }
 
-      setUser(response.user);
-      setToken(response.token);
+      const auth = response as AuthResponse;
+      setUser(auth.user);
+      setToken(auth.token);
 
       // Subscribe this browser to OneSignal push (fire-and-forget, non-blocking)
-      if (response.user.role !== 'member') {
+      if (auth.user.role !== 'member') {
         initAndSubscribe()
           .then((playerId) => {
             if (playerId) {
@@ -110,7 +111,7 @@ export default function Login() {
           .catch(() => {});
       }
 
-      navigate(response.user.role === 'member' ? ROUTES.MEMBER.OVERVIEW : ROUTES.DASHBOARD);
+      navigate(auth.user.role === 'member' ? ROUTES.MEMBER.OVERVIEW : ROUTES.DASHBOARD);
     } catch (err: any) {
       setError(err.response?.data?.message || 'Invalid OTP. Please try again.');
     } finally {
@@ -176,15 +177,15 @@ export default function Login() {
   };
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-slate-950 px-4 py-6 sm:px-6 lg:px-8">
+    <div className="relative min-h-screen overflow-hidden bg-slate-950 px-0 py-0 sm:px-6 sm:py-6 lg:px-8">
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(20,184,166,0.24),transparent_30%),radial-gradient(circle_at_bottom_right,rgba(245,158,11,0.14),transparent_26%),linear-gradient(180deg,#f8fafc_0%,#e2e8f0_45%,#cbd5e1_100%)] dark:bg-[radial-gradient(circle_at_top_left,rgba(20,184,166,0.22),transparent_32%),radial-gradient(circle_at_bottom_right,rgba(245,158,11,0.1),transparent_22%),linear-gradient(180deg,#020617_0%,#0f172a_48%,#111827_100%)]" />
         <div className="absolute left-[8%] top-[12%] h-44 w-44 rounded-full border border-white/40 bg-white/20 blur-3xl dark:border-white/10 dark:bg-white/5" />
         <div className="absolute bottom-[10%] right-[8%] h-60 w-60 rounded-full bg-primary-300/20 blur-3xl dark:bg-primary-500/10" />
       </div>
 
-      <div className="relative z-10 mx-auto flex min-h-[calc(100vh-3rem)] w-full max-w-7xl items-center">
-        <div className="grid w-full overflow-hidden rounded-[32px] border border-white/50 bg-white/72 shadow-[0_32px_120px_rgba(15,23,42,0.18)] backdrop-blur-2xl dark:border-white/10 dark:bg-slate-950/72 lg:grid-cols-[1.08fr,0.92fr]">
+      <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-7xl items-stretch sm:min-h-[calc(100vh-3rem)] sm:items-center">
+        <div className="grid w-full overflow-hidden rounded-none border-0 bg-white/72 shadow-none backdrop-blur-2xl dark:bg-slate-950/72 sm:rounded-[32px] sm:border sm:border-white/50 sm:shadow-[0_32px_120px_rgba(15,23,42,0.18)] sm:dark:border-white/10 lg:grid-cols-[1.08fr,0.92fr]">
           <section className="relative hidden overflow-hidden lg:flex lg:min-h-[760px] lg:flex-col lg:justify-start lg:p-10 xl:p-12">
             <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(15,23,42,0.94),rgba(15,23,42,0.86)),radial-gradient(circle_at_top,rgba(20,184,166,0.22),transparent_34%)]" />
             <div className="relative flex h-full flex-col">
@@ -209,17 +210,17 @@ export default function Login() {
             </div>
           </section>
 
-          <section className="flex items-center justify-center px-5 py-8 sm:px-8 sm:py-10 lg:px-10 lg:py-12">
+          <section className="flex flex-1 items-center justify-center px-4 py-8 sm:px-8 sm:py-10 lg:px-10 lg:py-12">
             <div className="w-full max-w-md">
-              <div className="mb-8 text-center lg:text-left">
-                <div className="mx-auto mb-5 flex h-18 w-18 items-center justify-center rounded-[1.75rem] border border-primary-100 bg-white/80 shadow-lg shadow-primary-500/10 dark:border-white/10 dark:bg-white/5 lg:mx-0">
-                  <img src={LOGO_PATH} alt={BRAND_NAME} className="h-11 w-11 object-contain" />
+              <div className="mb-6 text-center sm:mb-8 lg:text-left">
+                <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-primary-100 bg-white/80 shadow-lg shadow-primary-500/10 dark:border-white/10 dark:bg-white/5 sm:mb-5 sm:h-18 sm:w-18 sm:rounded-[1.75rem] lg:mx-0">
+                  <img src={LOGO_PATH} alt={BRAND_NAME} className="h-9 w-9 object-contain sm:h-11 sm:w-11" />
                 </div>
                 <p className="text-xs font-semibold uppercase tracking-[0.32em] text-primary-600 dark:text-primary-400">Welcome back</p>
-                <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 dark:text-white sm:text-4xl">
+                <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950 dark:text-white sm:mt-3 sm:text-3xl lg:text-4xl">
                   Sign in to continue.
                 </h2>
-                <p className="mt-3 text-sm leading-6 text-slate-500 dark:text-slate-400">
+                <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400 sm:mt-3">
                   Use your phone number to receive a one-time passcode and access the admin workspace.
                 </p>
               </div>
@@ -230,7 +231,7 @@ export default function Login() {
                 </div>
               )}
 
-              <div className="rounded-[28px] border border-white/60 bg-white/78 p-5 shadow-[0_20px_50px_rgba(15,23,42,0.08)] backdrop-blur-sm dark:border-white/10 dark:bg-slate-900/72 sm:p-6">
+              <div className="rounded-2xl border border-white/60 bg-white/78 p-4 shadow-[0_20px_50px_rgba(15,23,42,0.08)] backdrop-blur-sm dark:border-white/10 dark:bg-slate-900/72 sm:rounded-[28px] sm:p-6">
                 {step === 'phone' ? (
                   <form onSubmit={phoneForm.handleSubmit(handleSendOTP)} className="space-y-5 animate-in fade-in slide-in-from-right-4 duration-300">
                     <Input
@@ -268,18 +269,18 @@ export default function Login() {
                         type="button"
                         onClick={() => handleSelectAccount(account.userId)}
                         disabled={isLoading}
-                        className="group w-full rounded-2xl border border-slate-200 bg-white/70 p-4 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-primary-300 hover:bg-primary-50/70 hover:shadow-md dark:border-white/10 dark:bg-white/5 dark:hover:border-primary-500 dark:hover:bg-primary-950/25 disabled:cursor-not-allowed disabled:opacity-50"
+                        className="group w-full rounded-xl border border-slate-200 bg-white/70 p-3 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-primary-300 hover:bg-primary-50/70 hover:shadow-md dark:border-white/10 dark:bg-white/5 dark:hover:border-primary-500 dark:hover:bg-primary-950/25 disabled:cursor-not-allowed disabled:opacity-50 sm:rounded-2xl sm:p-4"
                       >
-                        <div className="flex items-center gap-4">
-                          <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-primary-100 transition-colors group-hover:bg-primary-200 dark:bg-primary-900/40 dark:group-hover:bg-primary-900/60">
+                        <div className="flex flex-row items-center gap-3 sm:gap-4">
+                          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-primary-100 transition-colors group-hover:bg-primary-200 dark:bg-primary-900/40 dark:group-hover:bg-primary-900/60 sm:h-12 sm:w-12 sm:rounded-2xl">
                             {getRoleIcon(account.role)}
                           </div>
                           <div className="min-w-0 flex-1">
-                            <p className="font-semibold text-slate-950 dark:text-white">
+                            <p className="truncate text-sm font-semibold text-slate-950 dark:text-white sm:text-base">
                               {getRoleLabel(account.role, account.instituteName)}
                             </p>
                             {account.tenantName && (
-                              <p className="mt-0.5 truncate text-sm text-slate-500 dark:text-slate-400">
+                              <p className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400 sm:text-sm">
                                 {account.tenantName}
                               </p>
                             )}

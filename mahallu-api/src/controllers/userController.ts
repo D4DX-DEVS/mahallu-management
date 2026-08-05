@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import User from '../models/User';
+import Member from '../models/Member';
 import bcrypt from 'bcryptjs';
 import { AuthRequest } from '../middleware/authMiddleware';
 import { getPaginationParams, createPaginationResponse } from '../utils/pagination';
@@ -114,7 +115,7 @@ export const createUser = async (req: AuthRequest, res: Response) => {
         });
       }
 
-      const Member = (await import('../models/Member')).default;
+      
       const member = await Member.findById(memberId);
       
       if (!member) {
@@ -277,7 +278,7 @@ export const updateUserStatus = async (req: Request, res: Response) => {
 
     // If it's a member user, also update the linked member status
     if (user.role === 'member' && user.memberId) {
-      const Member = (await import('../models/Member')).default;
+      
       const member = await Member.findById(user.memberId);
       if (member) {
         if (status === 'inactive') {
@@ -317,7 +318,7 @@ export const deleteUser = async (req: Request, res: Response) => {
 
     // If it's a member user, also update the linked member status to deleted
     if (user.role === 'member' && user.memberId) {
-      const Member = (await import('../models/Member')).default;
+      
       const member = await Member.findById(user.memberId);
       if (member) {
         member.status = 'deleted';

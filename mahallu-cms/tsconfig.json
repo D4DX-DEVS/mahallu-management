@@ -4,6 +4,7 @@
     "useDefineForClassFields": true,
     "lib": ["ES2020", "DOM", "DOM.Iterable"],
     "module": "ESNext",
+    "types": ["vite/client"],
     "skipLibCheck": true,
 
     /* Bundler mode */
@@ -20,10 +21,8 @@
     "noUnusedParameters": false,
     "noFallthroughCasesInSwitch": false,
     "noImplicitAny": false,
-    "ignoreDeprecations": "6.0",
 
     /* Path aliases */
-    "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]
     }

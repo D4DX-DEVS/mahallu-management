@@ -176,6 +176,7 @@ export const menuItems: MenuItem[] = [
           { id: 'family-varisangya', label: 'Family Varisangya', icon: FiHome, path: '/collectibles/family-varisangya', allowedRoles: ['super_admin', 'mahall'] },
           { id: 'member-varisangya', label: 'Member Varisangya', icon: FiUser, path: '/collectibles/member-varisangya', allowedRoles: ['super_admin', 'mahall'] },
           { id: 'zakat', label: 'Zakat', icon: FiGift, path: '/collectibles/zakat', allowedRoles: ['super_admin', 'mahall'] },
+          { id: 'live-dues', label: 'Live Dues', icon: FiDollarSign, path: '/collectibles/dues', allowedRoles: ['super_admin', 'mahall'] },
           { id: 'all-collections', label: 'All Collections', icon: FiDollarSign, path: '/collections', allowedRoles: ['super_admin', 'mahall'] },
         ],
       },

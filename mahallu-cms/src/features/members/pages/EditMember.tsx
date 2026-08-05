@@ -100,14 +100,14 @@ export default function EditMember() {
       setValue('familyId', member.familyId);
       setValue('familyName', member.familyName);
       setValue('mahallId', member.mahallId || '');
-      setValue('age', member.age || '');
+      setValue('age', (member.age || '') as any);
       setValue('gender', (member.gender || '') as any);
       setValue('bloodGroup', (member.bloodGroup || '') as any);
       setValue('healthStatus', member.healthStatus || '');
       setValue('phone', member.phone || '');
       setValue('education', member.education || '');
       setValue('maritalStatus', (member.maritalStatus || '') as any);
-      setValue('marriageCount', member.marriageCount ?? '');
+      setValue('marriageCount', (member.marriageCount ?? '') as any);
       setValue('isOrphan', Boolean(member.isOrphan));
       setValue('isDead', Boolean(member.isDead));
 

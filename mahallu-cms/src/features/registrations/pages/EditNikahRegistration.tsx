@@ -65,9 +65,9 @@ export default function EditNikahRegistration() {
         const data = await registrationService.getNikahById(id!);
         reset({
           groomName: data.groomName || '',
-          groomAge: data.groomAge || '',
+          groomAge: (data.groomAge || '') as any,
           brideName: data.brideName || '',
-          brideAge: data.brideAge || '',
+          brideAge: (data.brideAge || '') as any,
           mahallMemberType: data.mahallMemberType || '',
           mahallMemberId: data.groomId || data.brideId || '',
           nikahDate: data.nikahDate ? new Date(data.nikahDate).toISOString().split('T')[0] : '',
@@ -75,7 +75,7 @@ export default function EditNikahRegistration() {
           waliName: data.waliName || '',
           witness1: data.witness1 || '',
           witness2: data.witness2 || '',
-          mahrAmount: data.mahrAmount || '',
+          mahrAmount: (data.mahrAmount || '') as any,
           mahrDescription: data.mahrDescription || '',
           status: data.status || 'pending',
           remarks: data.remarks || '',

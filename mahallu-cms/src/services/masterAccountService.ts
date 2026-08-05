@@ -29,8 +29,10 @@ export interface Category {
   id: string;
   tenantId?: string;
   name: string;
+  nameMl?: string;
   type?: string;
   description?: string;
+  descriptionMl?: string;
   createdAt: string;
 }
 
@@ -47,8 +49,10 @@ export interface Ledger {
   id: string;
   tenantId?: string;
   name: string;
+  nameMl?: string;
   type?: string;
   description?: string;
+  descriptionMl?: string;
   createdAt: string;
 }
 

@@ -116,6 +116,7 @@ export const ROUTES = {
       WALLET: '/collectibles/member-varisangya',
     },
     ZAKAT: '/collectibles/zakat',
+    DUES: '/collectibles/dues',
   },
   
   // Social

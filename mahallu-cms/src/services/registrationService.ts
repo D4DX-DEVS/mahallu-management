@@ -4,9 +4,11 @@ export interface NikahRegistration {
   id: string;
   tenantId?: string;
   groomName: string;
+  groomNameMl?: string;
   groomAge?: number;
   groomId?: string;
   brideName: string;
+  brideNameMl?: string;
   brideAge?: number;
   brideId?: string;
   mahallMemberType?: 'groom' | 'bride';
@@ -26,6 +28,7 @@ export interface DeathRegistration {
   id: string;
   tenantId?: string;
   deceasedName: string;
+  deceasedNameMl?: string;
   deceasedId?: string;
   deathDate: string;
   placeOfDeath?: string;
@@ -45,9 +48,11 @@ export interface NOC {
   tenantId?: string | { _id: string; name: string };
   mahalluName?: string;
   applicantName: string;
+  applicantNameMl?: string;
   applicantId?: string;
   applicantPhone?: string;
   purposeTitle?: string;
+  purposeTitleMl?: string;
   purposeDescription?: string;
   purpose?: string;
   type: 'common' | 'nikah';

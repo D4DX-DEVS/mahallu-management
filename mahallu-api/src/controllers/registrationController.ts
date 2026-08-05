@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { NikahRegistration, DeathRegistration, NOC } from '../models/Registration';
+import Member from '../models/Member';
 import { AuthRequest } from '../middleware/authMiddleware';
 import { getPaginationParams, createPaginationResponse } from '../utils/pagination';
 
@@ -195,7 +196,7 @@ export const createDeathRegistration = async (req: AuthRequest, res: Response) =
     await registration.save();
 
     if (registration.deceasedId) {
-      const Member = (await import('../models/Member')).default;
+      
       await Member.findByIdAndUpdate(registration.deceasedId, {
         isDead: true,
         status: 'inactive',

@@ -66,6 +66,7 @@ import CreateVarisangya from './features/collectibles/pages/CreateVarisangya';
 import FamilyVarisangyaPage from './features/collectibles/familyVarisangya/FamilyVarisangyaPage';
 import MemberVarisangyaPage from './features/collectibles/memberVarisangya/MemberVarisangyaPage';
 import ZakatList from './features/collectibles/pages/ZakatList';
+import LiveDues from './features/collectibles/pages/LiveDues';
 import CreateZakat from './features/collectibles/pages/CreateZakat';
 import AreaReport from './features/reports/pages/AreaReport';
 import BloodBankReport from './features/reports/pages/BloodBankReport';
@@ -948,6 +949,16 @@ function App() {
             <ProtectedRoute>
               <MainLayout>
                 <CreateVarisangya />
+              </MainLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path={ROUTES.COLLECTIBLES.DUES}
+          element={
+            <ProtectedRoute>
+              <MainLayout>
+                <LiveDues />
               </MainLayout>
             </ProtectedRoute>
           }
