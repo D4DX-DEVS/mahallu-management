@@ -215,7 +215,7 @@ export default function MeetingsList() {
           <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Meetings' }]} />
         </div>
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {stats.map((stat, index) => (
             <StatCard key={index} {...stat} />
           ))}

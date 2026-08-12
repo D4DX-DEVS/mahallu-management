@@ -2,7 +2,7 @@ import api from './api';
 import { Committee } from '@/types';
 
 export const committeeService = {
-  getAll: async (params?: { status?: string; search?: string; page?: number; limit?: number }) => {
+  getAll: async (params?: { status?: string; search?: string; page?: number; limit?: number; expiring?: string }) => {
     const response = await api.get<{ success: boolean; data: Committee[]; pagination?: any }>('/committees', { params });
     // Handle both paginated and non-paginated responses
     if (response.data.pagination) {

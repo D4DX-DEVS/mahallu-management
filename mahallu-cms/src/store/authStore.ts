@@ -8,6 +8,9 @@ interface AuthState {
   currentTenantId: string | null;
   currentInstituteId: string | null;
   isSuperAdmin: boolean;
+  /** tenant.settings.features — null until the tenant is loaded (treated as "all enabled") */
+  tenantFeatures: Record<string, boolean> | null;
+  setTenantFeatures: (features: Record<string, boolean> | null) => void;
   setUser: (user: User | null) => void;
   setToken: (token: string | null) => void;
   setCurrentTenant: (tenantId: string | null) => void;
@@ -23,6 +26,8 @@ export const useAuthStore = create<AuthState>()(
       currentTenantId: null,
       currentInstituteId: null,
       isSuperAdmin: false,
+      tenantFeatures: null,
+      setTenantFeatures: (tenantFeatures) => set({ tenantFeatures }),
       setUser: (user) =>
         set({
           user,
@@ -48,6 +53,7 @@ export const useAuthStore = create<AuthState>()(
           currentTenantId: null,
           currentInstituteId: null,
           isSuperAdmin: false,
+          tenantFeatures: null,
         });
       },
     }),

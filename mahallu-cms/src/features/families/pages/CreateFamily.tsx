@@ -14,6 +14,7 @@ import QuickAddTenantSetting from '@/components/quick-add/QuickAddTenantSetting'
 import QuickAddVarisangyaGrade from '@/components/quick-add/QuickAddVarisangyaGrade';
 import { ROUTES } from '@/constants/routes';
 import { familyService } from '@/services/familyService';
+import WelfareSection from '../components/WelfareSection';
 import { tenantService } from '@/services/tenantService';
 import { useAuthStore } from '@/store/authStore';
 import { getTenantId } from '@/utils/tenantHelper';
@@ -37,6 +38,10 @@ const familySchema = z.object({
   areaMl: z.string().optional(),
   place: z.string().optional(),
   placeMl: z.string().optional(),
+  economicStatus: z.enum(['stable', 'struggling', 'needs_assistance']).optional().or(z.literal('')),
+  welfareStatus: z.enum(['none', 'receiving', 'applied', 'needs_review']).optional().or(z.literal('')),
+  housingType: z.enum(['own', 'rented', 'shared', 'none']).optional().or(z.literal('')),
+  specialRequirements: z.string().optional(),
 });
 
 type FamilyFormData = z.infer<typeof familySchema>;
@@ -220,6 +225,10 @@ export default function CreateFamily() {
               className="font-malayalam"
             />
             </div>
+          </div>
+
+          <div className="pt-4">
+            <WelfareSection register={register} />
           </div>
 
           <div className="flex justify-end gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">

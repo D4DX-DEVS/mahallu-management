@@ -12,6 +12,7 @@ import Select from '@/components/ui/Select';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { ROUTES } from '@/constants/routes';
 import { familyService } from '@/services/familyService';
+import WelfareSection from '../components/WelfareSection';
 import { tenantService } from '@/services/tenantService';
 import { useAuthStore } from '@/store/authStore';
 import { Family } from '@/types';
@@ -38,6 +39,10 @@ const familySchema = z.object({
   place: z.string().optional(),
   placeMl: z.string().optional(),
   status: z.enum(['approved', 'unapproved', 'pending']).optional(),
+  economicStatus: z.enum(['stable', 'struggling', 'needs_assistance']).optional().or(z.literal('')),
+  welfareStatus: z.enum(['none', 'receiving', 'applied', 'needs_review']).optional().or(z.literal('')),
+  housingType: z.enum(['own', 'rented', 'shared', 'none']).optional().or(z.literal('')),
+  specialRequirements: z.string().optional(),
 });
 
 type FamilyFormData = z.infer<typeof familySchema>;
@@ -102,6 +107,10 @@ export default function EditFamily() {
       setValue('place', family.place || '');
       setValue('placeMl', family.placeMl || '');
       setValue('status', family.status || 'pending');
+      setValue('economicStatus', ((family as any).economicStatus || '') as any);
+      setValue('welfareStatus', ((family as any).welfareStatus || '') as any);
+      setValue('housingType', ((family as any).housingType || '') as any);
+      setValue('specialRequirements', (family as any).specialRequirements || '');
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to load family');
     } finally {
@@ -271,6 +280,10 @@ export default function EditFamily() {
               {...register('status')}
               className="md:col-span-2"
             />
+          </div>
+
+          <div className="pt-4">
+            <WelfareSection register={register} />
           </div>
 
           <div className="flex justify-end gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">

@@ -123,6 +123,27 @@ export default function CommitteesList() {
       render: (members) => (Array.isArray(members) ? members.length : 0),
     },
     {
+      key: 'termEndDate',
+      label: 'Term Ends',
+      render: (value) => {
+        if (!value) return '-';
+        const endsOn = new Date(value);
+        // Red once the term is inside the 60-day warning window used by the API sweep
+        const daysLeft = Math.ceil((endsOn.getTime() - Date.now()) / (24 * 60 * 60 * 1000));
+        const urgent = daysLeft <= 60;
+        return (
+          <span
+            className={`whitespace-nowrap text-xs font-medium ${
+              urgent ? 'text-red-600 dark:text-red-400' : 'text-gray-600 dark:text-gray-300'
+            }`}
+          >
+            {endsOn.toLocaleDateString()}
+            {urgent ? (daysLeft < 0 ? ' (expired)' : ` (${daysLeft}d)`) : ''}
+          </span>
+        );
+      },
+    },
+    {
       key: 'status',
       label: 'Status',
       render: (status) => (
@@ -218,7 +239,7 @@ export default function CommitteesList() {
           <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Committees' }]} />
         </div>
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {stats.map((stat, index) => (
             <StatCard key={index} {...stat} />
           ))}

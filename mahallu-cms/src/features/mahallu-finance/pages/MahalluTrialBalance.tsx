@@ -54,7 +54,7 @@ export default function MahalluTrialBalance() {
           <p className="text-center py-12 text-gray-500">Select a date range and click "Generate"</p>
         ) : (
           <>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-6">
               <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg">
                 <p className="text-sm text-red-600">Total Debit (Expense)</p>
                 <p className="text-xl font-bold text-red-700">₹{totalDebit.toLocaleString()}</p>

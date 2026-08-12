@@ -184,5 +184,12 @@ export const ROUTES = {
     DETAIL: (id: string) => `/assets/${id}`,
     EDIT: (id: string) => `/assets/${id}/edit`,
   },
+
+  // Religious Services
+  RELIGIOUS: {
+    KHUTBAHS: '/religious/khutbahs',
+    KHUTBAHS_CREATE: '/religious/khutbahs/create',
+    KHATEEBS: '/religious/khateebs',
+  },
 } as const;
 

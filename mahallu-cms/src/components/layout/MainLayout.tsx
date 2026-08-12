@@ -1,5 +1,6 @@
 import { ReactNode, useEffect, useState } from 'react';
 import Sidebar from './Sidebar';
+import { useTenant } from '@/hooks/useTenant';
 import Header from './Header';
 import { useLayoutStore } from '@/store/layoutStore';
 import { useLocation } from 'react-router-dom';
@@ -9,6 +10,8 @@ interface MainLayoutProps {
 }
 
 export default function MainLayout({ children }: MainLayoutProps) {
+  // Keeps authStore.tenantFeatures fresh so module gating works on every page.
+  useTenant();
   const isMobileSidebarOpen = useLayoutStore((s) => s.isMobileSidebarOpen);
   const isDesktopSidebarCollapsed = useLayoutStore((s) => s.isDesktopSidebarCollapsed);
   const setMobileSidebarOpen = useLayoutStore((s) => s.setMobileSidebarOpen);

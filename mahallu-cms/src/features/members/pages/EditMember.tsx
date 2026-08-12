@@ -12,6 +12,12 @@ import Select from '@/components/ui/Select';
 import RadioCardGroup from '@/components/ui/RadioCardGroup';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { ROUTES } from '@/constants/routes';
+import SocioEconomicSection from '../components/SocioEconomicSection';
+import {
+  socioEconomicSchemaFields,
+  normalizeSocioEconomic,
+  socioEconomicDefaults,
+} from '../socioEconomicFields';
 import { memberService } from '@/services/memberService';
 import { familyService } from '@/services/familyService';
 import { tenantService } from '@/services/tenantService';
@@ -41,6 +47,7 @@ const memberSchema = z.object({
   marriageCount: z.preprocess((val) => (val === '' || Number.isNaN(val) ? undefined : val), z.number().min(0).optional()),
   isOrphan: z.boolean().optional(),
   isDead: z.boolean().optional(),
+  ...socioEconomicSchemaFields,
 });
 
 type MemberFormData = z.infer<typeof memberSchema>;
@@ -110,6 +117,9 @@ export default function EditMember() {
       setValue('marriageCount', (member.marriageCount ?? '') as any);
       setValue('isOrphan', Boolean(member.isOrphan));
       setValue('isDead', Boolean(member.isDead));
+      Object.entries(socioEconomicDefaults(member as any)).forEach(([field, value]) => {
+        setValue(field as any, value as any);
+      });
 
       // Fetch education options from tenant settings
       const { currentTenantId, user } = useAuthStore.getState();
@@ -150,7 +160,8 @@ export default function EditMember() {
           bloodGroup: data.bloodGroup === '' ? undefined : data.bloodGroup,
           maritalStatus: data.maritalStatus === '' ? undefined : data.maritalStatus,
           marriageCount: data.marriageCount == null || Number.isNaN(data.marriageCount) ? undefined : Number(data.marriageCount),
-        }).filter(([_, v]) => v !== '' && v !== undefined && !Number.isNaN(v))
+          ...normalizeSocioEconomic(data),
+        }).filter(([_, v]) => v !== '' && v !== undefined && !(typeof v === 'number' && Number.isNaN(v)))
       );
       await memberService.update(id, memberData);
       navigate(ROUTES.MEMBERS.LIST);
@@ -356,6 +367,10 @@ export default function EditMember() {
                 Is Deceased
               </label>
             </div>
+          </div>
+
+          <div className="pt-4">
+            <SocioEconomicSection register={register} />
           </div>
 
           <div className="flex justify-end gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">

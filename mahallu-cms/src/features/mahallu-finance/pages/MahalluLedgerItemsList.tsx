@@ -113,7 +113,7 @@ export default function MahalluLedgerItemsList() {
         <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Mahallu Finance', path: '/mahallu-finance/accounts' }, { label: 'Ledger Items' }]} />
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
         <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
           <p className="text-sm text-green-600">Total Income</p>
           <p className="text-2xl font-bold text-green-700">₹{totalIncome.toLocaleString()}</p>

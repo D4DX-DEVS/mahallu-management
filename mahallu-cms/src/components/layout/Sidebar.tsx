@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { menuItems, MenuItem } from '@/constants/menuItems';
+import type { ModuleKey } from '@/constants/modules';
+import { useModuleAccess } from '@/hooks/useModuleAccess';
 import { FiChevronDown, FiChevronRight, FiSearch } from 'react-icons/fi';
 import { cn } from '@/utils/cn';
 import { useAuthStore } from '@/store/authStore';
@@ -23,16 +25,24 @@ function hasActiveDescendant(item: MenuItem, pathname: string): boolean {
   return item.children?.some((child) => hasActiveDescendant(child, pathname)) ?? false;
 }
 
-function filterMenuTree(items: MenuItem[], searchQuery: string, userRole: UserRole | null, isSuperAdmin: boolean): MenuItem[] {
+function filterMenuTree(
+  items: MenuItem[],
+  searchQuery: string,
+  userRole: UserRole | null,
+  isSuperAdmin: boolean,
+  isModuleEnabled: (moduleKey?: ModuleKey) => boolean
+): MenuItem[] {
   return items.reduce<MenuItem[]>((result, item) => {
     if (!isAccessible(item, userRole, isSuperAdmin)) return result;
+    // Module gating from the Mahallu classification / tenant feature toggles
+    if (!isModuleEnabled(item.moduleKey)) return result;
 
     const accessibleChildren = item.children
-      ? filterMenuTree(item.children, '', userRole, isSuperAdmin)
+      ? filterMenuTree(item.children, '', userRole, isSuperAdmin, isModuleEnabled)
       : undefined;
     const matchesSearch = item.label.toLowerCase().includes(searchQuery.toLowerCase());
     const filteredChildren = item.children
-      ? filterMenuTree(item.children, searchQuery, userRole, isSuperAdmin)
+      ? filterMenuTree(item.children, searchQuery, userRole, isSuperAdmin, isModuleEnabled)
       : undefined;
 
     if (!searchQuery.trim()) {
@@ -215,7 +225,8 @@ export default function Sidebar() {
   const isOnline = useOnlineStatus();
   const { isSuperAdmin, user } = useAuthStore();
   const userRole = (user?.role || (isSuperAdmin ? 'super_admin' : null)) as UserRole | null;
-  const filteredMenuItems = filterMenuTree(menuItems, searchQuery, userRole, isSuperAdmin);
+  const { isModuleEnabled } = useModuleAccess();
+  const filteredMenuItems = filterMenuTree(menuItems, searchQuery, userRole, isSuperAdmin, isModuleEnabled);
 
   useEffect(() => {
     setSubmenuOpen(false);

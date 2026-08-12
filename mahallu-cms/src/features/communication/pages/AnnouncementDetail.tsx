@@ -1,0 +1,147 @@
+import { useState, useEffect } from 'react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import Breadcrumb from '@/components/layout/Breadcrumb';
+import Card from '@/components/ui/Card';
+import Button from '@/components/ui/Button';
+import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { announcementService, Announcement } from '@/services/announcementService';
+
+const formatDate = (value?: string) => (value ? new Date(value).toLocaleString() : '-');
+
+export default function AnnouncementDetail() {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const [announcement, setAnnouncement] = useState<Announcement | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
+
+  useEffect(() => {
+    if (!id) return;
+    announcementService
+      .getById(id)
+      .then(setAnnouncement)
+      .catch(() => setAnnouncement(null))
+      .finally(() => setLoading(false));
+  }, [id]);
+
+  const handleSend = async () => {
+    if (!id || !confirm('Send this announcement now?')) return;
+    try {
+      setSending(true);
+      const updated = await announcementService.send(id);
+      setAnnouncement(updated);
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to send announcement');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!id || !confirm('Delete this announcement?')) return;
+    try {
+      await announcementService.remove(id);
+      navigate('/announcements');
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to delete announcement');
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <LoadingSpinner />
+      </div>
+    );
+  }
+
+  if (!announcement) {
+    return (
+      <Card>
+        <p className="text-red-600 dark:text-red-400">Announcement not found</p>
+        <Link to="/announcements">
+          <Button variant="outline" className="mt-4">
+            Back to announcements
+          </Button>
+        </Link>
+      </Card>
+    );
+  }
+
+  const infoCards = [
+    { label: 'Category', value: announcement.category },
+    { label: 'Audience', value: announcement.audience },
+    { label: 'Status', value: announcement.status },
+    { label: 'Sent At', value: announcement.sentAt ? formatDate(announcement.sentAt) : '-' },
+  ];
+
+  const deliveryRows = Object.entries(announcement.deliveryResults || {});
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">{announcement.title}</h1>
+          {announcement.titleMl && (
+            <p className="mt-0.5 font-malayalam text-xs text-gray-500 dark:text-gray-400">
+              {announcement.titleMl}
+            </p>
+          )}
+        </div>
+        <Breadcrumb
+          items={[
+            { label: 'Dashboard', path: '/dashboard' },
+            { label: 'Announcements', path: '/announcements' },
+            { label: announcement.title },
+          ]}
+        />
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {infoCards.map((card) => (
+          <Card key={card.label} className="p-3 sm:p-4">
+            <p className="text-xs font-medium text-gray-500 dark:text-gray-400 sm:text-sm">{card.label}</p>
+            <p className="mt-1 break-words text-sm font-semibold text-gray-900 dark:text-gray-100 sm:text-base">
+              {card.value}
+            </p>
+          </Card>
+        ))}
+      </div>
+
+      <Card className="p-3 sm:p-4">
+        <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Message</h2>
+        <p className="mt-1 whitespace-pre-wrap text-sm text-gray-600 dark:text-gray-300">
+          {announcement.body}
+        </p>
+      </Card>
+
+      <Card className="p-3 sm:p-4">
+        <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Channels</h2>
+        <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {announcement.channels.map((channel) => (
+            <div
+              key={channel}
+              className="rounded-xl border border-gray-200 px-2.5 py-2 text-xs dark:border-gray-700 sm:text-sm"
+            >
+              <span className="block font-medium capitalize">{channel}</span>
+              <span className="block text-gray-500 dark:text-gray-400">
+                {deliveryRows.find(([key]) => key === channel)?.[1] || 'not sent'}
+              </span>
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+        <Button variant="outline" onClick={handleDelete}>
+          Delete
+        </Button>
+        {announcement.status === 'draft' && (
+          <Button onClick={handleSend} disabled={sending}>
+            {sending ? 'Sending...' : 'Send Now'}
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+}

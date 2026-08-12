@@ -8,6 +8,8 @@ import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import { Tenant } from '@/types/tenant';
 import { tenantService } from '@/services/tenantService';
+import { CLASSIFICATION_OPTIONS, TenantClassification } from '@/constants/modules';
+import ModuleFeatureToggles from '../components/ModuleFeatureToggles';
 
 export default function EditTenant() {
   const { id } = useParams<{ id: string }>();
@@ -22,6 +24,8 @@ export default function EditTenant() {
     location: '',
     locationMl: '',
     type: 'standard' as 'standard' | 'premium' | 'enterprise',
+    classification: 'fully_functional' as TenantClassification,
+    features: {} as Record<string, boolean>,
     status: 'active' as 'active' | 'suspended' | 'inactive',
     address: {
       state: '',
@@ -51,6 +55,8 @@ export default function EditTenant() {
         location: tenant.location || '',
         locationMl: tenant.locationMl || '',
         type: tenant.type || 'standard',
+        classification: ((tenant as any).classification || 'fully_functional') as TenantClassification,
+        features: ((tenant as any).settings?.features || {}) as Record<string, boolean>,
         status: tenant.status || 'active',
         address: {
           state: tenant.address?.state || '',
@@ -75,7 +81,8 @@ export default function EditTenant() {
     try {
       setIsSaving(true);
       setError(null);
-      await tenantService.update(id!, formData);
+      const { features, ...rest } = formData;
+      await tenantService.update(id!, { ...rest, settings: { features } } as any);
       navigate(`/admin/tenants/${id}`);
     } catch (error: any) {
       console.error('Error updating tenant:', error);
@@ -230,6 +237,14 @@ export default function EditTenant() {
               />
 
               <Select
+                label="Mahallu Classification"
+                value={formData.classification}
+                onChange={(e) => handleChange('classification', e.target.value)}
+                options={[...CLASSIFICATION_OPTIONS]}
+                required
+              />
+
+              <Select
                 label="Status"
                 value={formData.status}
                 onChange={(e) => handleChange('status', e.target.value)}
@@ -239,6 +254,13 @@ export default function EditTenant() {
                   { value: 'inactive', label: 'Inactive' },
                 ]}
                 required
+              />
+            </div>
+
+            <div className="pt-4">
+              <ModuleFeatureToggles
+                value={formData.features}
+                onChange={(features) => setFormData((prev) => ({ ...prev, features }))}
               />
             </div>
 

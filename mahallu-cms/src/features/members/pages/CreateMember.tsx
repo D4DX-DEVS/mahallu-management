@@ -13,6 +13,8 @@ import RadioCardGroup from '@/components/ui/RadioCardGroup';
 import QuickAddFamily from '@/components/quick-add/QuickAddFamily';
 import QuickAddTenantSetting from '@/components/quick-add/QuickAddTenantSetting';
 import { ROUTES } from '@/constants/routes';
+import SocioEconomicSection from '../components/SocioEconomicSection';
+import { socioEconomicSchemaFields, normalizeSocioEconomic } from '../socioEconomicFields';
 import { memberService } from '@/services/memberService';
 import { familyService } from '@/services/familyService';
 import { tenantService } from '@/services/tenantService';
@@ -42,6 +44,7 @@ const memberSchema = z.object({
   isOrphan: z.boolean().optional(),
   isDead: z.boolean().optional(),
   isFamilyHead: z.boolean().optional(),
+  ...socioEconomicSchemaFields,
 });
 
 type MemberFormData = z.infer<typeof memberSchema>;
@@ -130,7 +133,8 @@ export default function CreateMember() {
           bloodGroup: data.bloodGroup === '' ? undefined : data.bloodGroup,
           maritalStatus: data.maritalStatus === '' ? undefined : data.maritalStatus,
           marriageCount: data.marriageCount == null || Number.isNaN(data.marriageCount) ? undefined : Number(data.marriageCount),
-        }).filter(([_, v]) => v !== '' && v !== undefined && !Number.isNaN(v))
+          ...normalizeSocioEconomic(data),
+        }).filter(([_, v]) => v !== '' && v !== undefined && !(typeof v === 'number' && Number.isNaN(v)))
       );
       await memberService.create(memberData);
       navigate(ROUTES.MEMBERS.LIST);
@@ -358,6 +362,10 @@ export default function CreateMember() {
                 </label>
               </div>
             </div>
+          </div>
+
+          <div className="pt-4">
+            <SocioEconomicSection register={register} />
           </div>
 
           {/* Form Actions */}

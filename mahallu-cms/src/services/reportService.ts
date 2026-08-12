@@ -52,5 +52,31 @@ export const reportService = {
     const response = await api.get<{ success: boolean; data: OrphansReport }>('/reports/orphans');
     return response.data.data;
   },
+
+  getEducationReport: async () => {
+    const response = await api.get<{ success: boolean; data: any }>('/reports/education');
+    return response.data.data;
+  },
 };
 
+export interface DemographicsBucket {
+  label: string;
+  count: number;
+}
+
+export interface DemographicsReport {
+  ageGroups: DemographicsBucket[];
+  gender: { male: number; female: number };
+  education: DemographicsBucket[];
+  employment: DemographicsBucket[];
+  welfare: DemographicsBucket[];
+}
+
+export const demographicsReportService = {
+  get: async () => {
+    const response = await api.get<{ success: boolean; data: DemographicsReport }>(
+      '/reports/demographics'
+    );
+    return response.data.data;
+  },
+};

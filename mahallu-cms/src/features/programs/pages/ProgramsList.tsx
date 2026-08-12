@@ -32,12 +32,14 @@ export default function ProgramsList() {
   const [itemsPerPage] = useState(10);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [selectedAudience, setSelectedAudience] = useState<string>('');
+  const [selectedProgramType, setSelectedProgramType] = useState<string>('');
 
   const debouncedSearch = useDebounce(searchQuery, 500);
 
   useEffect(() => {
     fetchPrograms();
-  }, [debouncedSearch, currentPage]);
+  }, [debouncedSearch, currentPage, selectedAudience, selectedProgramType]);
 
   const fetchPrograms = async () => {
     try {
@@ -49,6 +51,12 @@ export default function ProgramsList() {
       };
       if (debouncedSearch) {
         params.search = debouncedSearch;
+      }
+      if (selectedAudience) {
+        params.audience = selectedAudience;
+      }
+      if (selectedProgramType) {
+        params.programType = selectedProgramType;
       }
       const result = await programService.getAll(params);
       setPrograms(result.data);
@@ -118,6 +126,20 @@ export default function ProgramsList() {
     { key: 'id', label: 'No.', render: (_, __, index) => index + 1 },
     { key: 'name', label: 'Name', sortable: true },
     { key: 'place', label: 'Place' },
+    {
+      key: 'audience',
+      label: 'Audience',
+      render: (audience) => (
+        <span className="text-sm">{audience ? audience.charAt(0).toUpperCase() + audience.slice(1) : '—'}</span>
+      ),
+    },
+    {
+      key: 'programType',
+      label: 'Type',
+      render: (type) => (
+        <span className="text-sm">{type ? type.replace(/_/g, ' ').split(' ').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') : '—'}</span>
+      ),
+    },
     {
       key: 'joinDate',
       label: 'Join Date',
@@ -217,7 +239,7 @@ export default function ProgramsList() {
           onSearchChange={setSearchQuery}
           onFilterClick={() => setIsFilterVisible(!isFilterVisible)}
           isFilterVisible={isFilterVisible}
-          hasFilters={false}
+          hasFilters={!!selectedAudience || !!selectedProgramType}
           onRefresh={fetchPrograms}
           onExport={handleExport}
           isExporting={isExporting}
@@ -229,6 +251,41 @@ export default function ProgramsList() {
             </Link>
           }
         />
+
+        {isFilterVisible && (
+          <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 space-y-3">
+            <div className="flex flex-wrap gap-2">
+              {['all', 'men', 'women', 'youth', 'children', 'families'].map((audience) => (
+                <button
+                  key={audience}
+                  onClick={() => setSelectedAudience(selectedAudience === audience ? '' : audience)}
+                  className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
+                    selectedAudience === audience
+                      ? 'bg-blue-600 text-white dark:bg-blue-500'
+                      : 'bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+                  }`}
+                >
+                  {audience.charAt(0).toUpperCase() + audience.slice(1)}
+                </button>
+              ))}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {['quran_class', 'hadith', 'fiqh', 'lecture', 'family', 'other'].map((type) => (
+                <button
+                  key={type}
+                  onClick={() => setSelectedProgramType(selectedProgramType === type ? '' : type)}
+                  className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
+                    selectedProgramType === type
+                      ? 'bg-green-600 text-white dark:bg-green-500'
+                      : 'bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+                  }`}
+                >
+                  {type.replace(/_/g, ' ').split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {loading ? (
           <div className="flex justify-center items-center py-12">

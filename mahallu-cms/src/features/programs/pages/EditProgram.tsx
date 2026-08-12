@@ -27,6 +27,8 @@ const programSchema = z.object({
   'address.pinCode': z.string().optional(),
   'address.postOffice': z.string().optional(),
   status: z.enum(['active', 'inactive']).optional(),
+  audience: z.enum(['all', 'men', 'women', 'youth', 'children', 'families']).optional(),
+  programType: z.enum(['quran_class', 'hadith', 'fiqh', 'lecture', 'family', 'other']).optional(),
 });
 
 type ProgramFormData = z.infer<typeof programSchema>;
@@ -65,7 +67,9 @@ export default function EditProgram() {
       setValue('email', program.email || '');
       setValue('nameMl', program.nameMl || '');
       setValue('placeMl', program.placeMl || '');
-      setValue('status', program.status || 'active');
+      setValue('status', (program.status || 'active') as 'active' | 'inactive');
+      if (program.audience) setValue('audience', program.audience as 'all' | 'men' | 'women' | 'youth' | 'children' | 'families');
+      if (program.programType) setValue('programType', program.programType as 'quran_class' | 'hadith' | 'fiqh' | 'lecture' | 'family' | 'other');
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to load program');
     } finally {
@@ -87,6 +91,8 @@ export default function EditProgram() {
         contactNo: data.contactNo,
         email: data.email || undefined,
         status: data.status || 'active',
+        audience: data.audience,
+        programType: data.programType,
       };
 
       if (data['address.state'] || data['address.district']) {
@@ -153,6 +159,32 @@ export default function EditProgram() {
               options={[
                 { value: 'active', label: 'Active' },
                 { value: 'inactive', label: 'Inactive' },
+              ]}
+            />
+            <Select
+              label="Audience"
+              {...register('audience')}
+              error={errors.audience?.message}
+              options={[
+                { value: 'all', label: 'All' },
+                { value: 'men', label: 'Men' },
+                { value: 'women', label: 'Women' },
+                { value: 'youth', label: 'Youth' },
+                { value: 'children', label: 'Children' },
+                { value: 'families', label: 'Families' },
+              ]}
+            />
+            <Select
+              label="Program Type"
+              {...register('programType')}
+              error={errors.programType?.message}
+              options={[
+                { value: 'quran_class', label: 'Quran Class' },
+                { value: 'hadith', label: 'Hadith' },
+                { value: 'fiqh', label: 'Fiqh' },
+                { value: 'lecture', label: 'Lecture' },
+                { value: 'family', label: 'Family' },
+                { value: 'other', label: 'Other' },
               ]}
             />
             <div className="md:col-span-2">

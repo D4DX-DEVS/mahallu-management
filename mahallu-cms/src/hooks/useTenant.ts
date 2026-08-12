@@ -4,15 +4,17 @@ import { tenantService } from '@/services/tenantService';
 import { Tenant } from '@/types/tenant';
 
 export function useTenant() {
-  const { currentTenantId, isSuperAdmin } = useAuthStore();
+  const { currentTenantId } = useAuthStore();
+  const setTenantFeatures = useAuthStore((state) => state.setTenantFeatures);
   const [tenant, setTenant] = useState<Tenant | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
+  // Loads for every role: module gating needs settings.features, not just super admins.
   useEffect(() => {
-    if (currentTenantId && isSuperAdmin) {
+    if (currentTenantId) {
       loadTenant();
     }
-  }, [currentTenantId, isSuperAdmin]);
+  }, [currentTenantId]);
 
   const loadTenant = async () => {
     if (!currentTenantId) return;
@@ -20,6 +22,7 @@ export function useTenant() {
       setIsLoading(true);
       const data = await tenantService.getById(currentTenantId);
       setTenant(data);
+      setTenantFeatures((data as any)?.settings?.features ?? null);
     } catch (error) {
       console.error('Error loading tenant:', error);
     } finally {

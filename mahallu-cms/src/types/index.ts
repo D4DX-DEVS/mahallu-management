@@ -83,11 +83,13 @@ export interface Institute {
   place: string;
   placeMl?: string;
   joinDate: string;
-  type: 'institute' | 'madrasa' | 'orphanage' | 'hospital' | 'other';
+  type: 'institute' | 'madrasa' | 'orphanage' | 'hospital' | 'other' | 'program' | 'mosque';
   description?: string;
   contactNo?: string;
   email?: string;
   status?: 'active' | 'inactive';
+  audience?: 'all' | 'men' | 'women' | 'youth' | 'children' | 'families';
+  programType?: 'quran_class' | 'hadith' | 'fiqh' | 'lecture' | 'family' | 'other';
   createdAt: string;
 }
 
@@ -148,6 +150,9 @@ export interface Committee {
   descriptionMl?: string;
   members?: Member[] | string[];
   status?: 'active' | 'inactive';
+  termStartDate?: string;
+  termEndDate?: string;
+  maxTermYears?: number;
   createdAt: string;
 }
 

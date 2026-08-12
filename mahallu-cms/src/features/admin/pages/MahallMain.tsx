@@ -9,6 +9,8 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { tenantService } from '@/services/tenantService';
+import { CLASSIFICATION_LABELS, TenantClassification } from '@/constants/modules';
+import StringListEditor from '../components/StringListEditor';
 import { useAuthStore } from '@/store/authStore';
 import { Tenant } from '@/types/tenant';
 import { formatDate } from '@/utils/format';
@@ -193,6 +195,12 @@ export default function MahallMain() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Mahall Main</h1>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Manage mahall settings and configuration</p>
+          {(tenant as any)?.classification && (
+            <span className="mt-2 inline-block rounded-full bg-primary-50 px-2.5 py-1 text-xs font-medium text-primary-800">
+              {CLASSIFICATION_LABELS[(tenant as any).classification as TenantClassification] ||
+                (tenant as any).classification}
+            </span>
+          )}
         </div>
         <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Mahall Main' }]} />
       </div>
@@ -401,105 +409,23 @@ export default function MahallMain() {
                 </div>
               </div>
 
-              {/* Education Options */}
-              <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
-                <h3 className="text-md font-semibold text-gray-900 dark:text-gray-100 mb-4">
-                  Education Options
-                </h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-                  Configure education qualification options for member profiles
-                </p>
-                
-                <div className="space-y-3">
-                  {educationOptions.map((option, index) => (
-                    <div key={index} className="flex items-center gap-4">
-                      <div className="flex-1">
-                        <Input
-                          value={option}
-                          onChange={(e) => {
-                            const newOptions = [...educationOptions];
-                            newOptions[index] = e.target.value;
-                            setEducationOptions(newOptions);
-                          }}
-                          placeholder="Education option (e.g., SSLC)"
-                        />
-                      </div>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => {
-                          const newOptions = educationOptions.filter((_, i) => i !== index);
-                          setEducationOptions(newOptions);
-                        }}
-                        className="whitespace-nowrap"
-                      >
-                        Remove
-                      </Button>
-                    </div>
-                  ))}
-                  
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => {
-                      setEducationOptions([...educationOptions, '']);
-                    }}
-                    className="w-full mt-2"
-                  >
-                    + Add Education Option
-                  </Button>
-                </div>
-              </div>
+              <StringListEditor
+                title="Education Options"
+                description="Configure education qualification options for member profiles"
+                values={educationOptions}
+                onChange={setEducationOptions}
+                placeholder="Education option (e.g., SSLC)"
+                addLabel="+ Add Education Option"
+              />
 
-              {/* Area Options */}
-              <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
-                <h3 className="text-md font-semibold text-gray-900 dark:text-gray-100 mb-4">
-                  Area Options
-                </h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-                  Configure area/locality options for family addresses
-                </p>
-                
-                <div className="space-y-3">
-                  {areaOptions.map((option, index) => (
-                    <div key={index} className="flex items-center gap-4">
-                      <div className="flex-1">
-                        <Input
-                          value={option}
-                          onChange={(e) => {
-                            const newOptions = [...areaOptions];
-                            newOptions[index] = e.target.value;
-                            setAreaOptions(newOptions);
-                          }}
-                          placeholder="Area option (e.g., Area A)"
-                        />
-                      </div>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => {
-                          const newOptions = areaOptions.filter((_, i) => i !== index);
-                          setAreaOptions(newOptions);
-                        }}
-                        className="whitespace-nowrap"
-                      >
-                        Remove
-                      </Button>
-                    </div>
-                  ))}
-                  
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => {
-                      setAreaOptions([...areaOptions, '']);
-                    }}
-                    className="w-full mt-2"
-                  >
-                    + Add Area Option
-                  </Button>
-                </div>
-              </div>
+              <StringListEditor
+                title="Area Options"
+                description="Configure area/locality options for family addresses"
+                values={areaOptions}
+                onChange={setAreaOptions}
+                placeholder="Area option (e.g., Area A)"
+                addLabel="+ Add Area Option"
+              />
             </div>
 
             <div className="mt-6 flex justify-end">

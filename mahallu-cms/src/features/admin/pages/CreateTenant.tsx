@@ -10,12 +10,14 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import { tenantService } from '@/services/tenantService';
+import { CLASSIFICATION_OPTIONS, TENANT_CLASSIFICATIONS } from '@/constants/modules';
 import { STATES, getDistrictsByState } from '@/constants/locations';
 
 const tenantSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   code: z.string().min(1, 'Code is required').toUpperCase(),
   type: z.enum(['standard', 'premium', 'enterprise']),
+  classification: z.enum(TENANT_CLASSIFICATIONS),
   location: z.string().min(1, 'Location is required'),
   address: z.object({
     state: z.string().min(1, 'State is required'),
@@ -47,6 +49,7 @@ export default function CreateTenant() {
     resolver: zodResolver(tenantSchema),
     defaultValues: {
       type: 'standard',
+      classification: 'fully_functional',
       code: '',
       address: {
         state: 'Kerala',
@@ -143,6 +146,13 @@ export default function CreateTenant() {
                 ]}
                 {...register('type')}
                 error={errors.type?.message}
+                required
+              />
+              <Select
+                label="Mahallu Classification"
+                options={[...CLASSIFICATION_OPTIONS]}
+                {...register('classification')}
+                error={errors.classification?.message}
                 required
               />
               <Input

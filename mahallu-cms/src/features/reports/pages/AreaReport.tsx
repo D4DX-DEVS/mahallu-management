@@ -128,7 +128,7 @@ export default function AreaReportPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card>
           <div className="text-sm text-gray-500 dark:text-gray-400">Total Families</div>
           <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{report.totalFamilies}</div>

@@ -5,6 +5,7 @@ import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Toolti
 import StatCard from '@/components/ui/StatCard';
 import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
+import PhaseAInsights from '../components/PhaseAInsights';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { dashboardService, DashboardStats, RecentFamily, ActivityTimelineData, FinancialSummary } from '@/services/dashboardService';
 import { ROUTES } from '@/constants/routes';
@@ -145,6 +146,8 @@ export default function Dashboard() {
             {/* Action buttons could go here */}
         </div>
       </div>
+
+      <PhaseAInsights />
 
       {/* Statistics Cards */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">

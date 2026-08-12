@@ -26,6 +26,8 @@ const programSchema = z.object({
   'address.pinCode': z.string().optional(),
   'address.postOffice': z.string().optional(),
   status: z.enum(['active', 'inactive']).optional(),
+  audience: z.enum(['all', 'men', 'women', 'youth', 'children', 'families']).optional(),
+  programType: z.enum(['quran_class', 'hadith', 'fiqh', 'lecture', 'family', 'other']).optional(),
 });
 
 type ProgramFormData = z.infer<typeof programSchema>;
@@ -59,6 +61,8 @@ export default function CreateProgram() {
         contactNo: data.contactNo,
         email: data.email || undefined,
         status: data.status || 'active',
+        audience: data.audience,
+        programType: data.programType,
       };
 
       if (data['address.state'] || data['address.district']) {
@@ -171,7 +175,30 @@ export default function CreateProgram() {
                 { value: 'inactive', label: 'Inactive' },
               ]}
               {...register('status')}
-              className="md:col-span-2"
+            />
+            <Select
+              label="Audience"
+              options={[
+                { value: 'all', label: 'All' },
+                { value: 'men', label: 'Men' },
+                { value: 'women', label: 'Women' },
+                { value: 'youth', label: 'Youth' },
+                { value: 'children', label: 'Children' },
+                { value: 'families', label: 'Families' },
+              ]}
+              {...register('audience')}
+            />
+            <Select
+              label="Program Type"
+              options={[
+                { value: 'quran_class', label: 'Quran Class' },
+                { value: 'hadith', label: 'Hadith' },
+                { value: 'fiqh', label: 'Fiqh' },
+                { value: 'lecture', label: 'Lecture' },
+                { value: 'family', label: 'Family' },
+                { value: 'other', label: 'Other' },
+              ]}
+              {...register('programType')}
             />
           </div>
 

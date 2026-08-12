@@ -115,7 +115,7 @@ export default function PettyCashDetail() {
       </div>
 
       {/* Fund Summary */}
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <Card>
           <p className="text-sm text-gray-500 dark:text-gray-400">Float Amount</p>
           <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">₹{fund.floatAmount.toLocaleString()}</p>

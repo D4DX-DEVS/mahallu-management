@@ -77,7 +77,7 @@ export default function ConsolidatedReport() {
           <>
             {/* Grand Totals */}
             {grandTotals && (
-              <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
                 <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
                   <p className="text-sm text-green-600 dark:text-green-400">Total Income</p>
                   <p className="text-xl font-bold text-green-700 dark:text-green-300">₹{grandTotals.totalIncome.toLocaleString()}</p>

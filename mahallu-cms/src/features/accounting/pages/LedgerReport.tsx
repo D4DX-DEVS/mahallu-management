@@ -128,7 +128,7 @@ export default function LedgerReport() {
         ) : (
           <>
             {/* Summary Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
               <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
                 <p className="text-sm text-gray-600 dark:text-gray-400">Ledger</p>
                 <p className="text-lg font-bold text-gray-900 dark:text-gray-100">{reportData.ledger?.name || '-'}</p>

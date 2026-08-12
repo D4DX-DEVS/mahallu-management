@@ -54,7 +54,7 @@ export default function MahalluDayBook() {
           <p className="text-center py-12 text-gray-500">Select a date range and click "Generate"</p>
         ) : (
           <>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-6">
               <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
                 <p className="text-sm text-green-600">Total Income</p>
                 <p className="text-xl font-bold text-green-700">₹{totalIncome.toLocaleString()}</p>

@@ -22,6 +22,12 @@ const committeeSchema = z.object({
   descriptionMl: z.string().optional(),
   members: z.array(z.string()).optional(),
   status: z.enum(['active', 'inactive']).optional(),
+  termStartDate: z.string().optional(),
+  termEndDate: z.string().optional(),
+  maxTermYears: z.preprocess(
+    (val) => (val === '' || Number.isNaN(val) ? undefined : val),
+    z.number().min(1).optional()
+  ),
 });
 
 type CommitteeFormData = z.infer<typeof committeeSchema>;
@@ -68,6 +74,10 @@ export default function EditCommittee() {
       setValue('nameMl', data.nameMl || '');
       setValue('descriptionMl', data.descriptionMl || '');
       setValue('status', data.status || 'active');
+      const term = data as any;
+      setValue('termStartDate', term.termStartDate ? String(term.termStartDate).slice(0, 10) : '');
+      setValue('termEndDate', term.termEndDate ? String(term.termEndDate).slice(0, 10) : '');
+      setValue('maxTermYears', (term.maxTermYears ?? '') as any);
       if (Array.isArray(data.members)) {
         const memberIds = data.members.map((m: any) => (typeof m === 'string' ? m : m.id));
         setValue('members', memberIds);
@@ -241,6 +251,19 @@ export default function EditCommittee() {
                 )}
               </div>
             )}
+          </div>
+
+          <div className="pt-4">
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Term</h3>
+            <div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-3">
+              <Input label="Term Start Date" type="date" {...register('termStartDate')} />
+              <Input label="Term End Date" type="date" {...register('termEndDate')} />
+              <Input
+                label="Max Term (years)"
+                type="number"
+                {...register('maxTermYears', { valueAsNumber: true })}
+              />
+            </div>
           </div>
 
           <div className="flex justify-end gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">

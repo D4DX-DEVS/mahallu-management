@@ -13,6 +13,12 @@ import TableToolbar from '@/components/ui/TableToolbar';
 import Modal from '@/components/ui/Modal';
 import { TableColumn, Pagination as PaginationType } from '@/types';
 import { collectibleService, Varisangya } from '@/services/collectibleService';
+import {
+  buildVarisangyaColumns,
+  getPayerName,
+  getFamilyName,
+} from '../varisangyaColumns';
+import { filterByDateRange } from '../varisangyaFilters';
 import { formatDate } from '@/utils/format';
 import { exportToCSV, exportToJSON } from '@/utils/exportUtils';
 import { exportInvoicesToPdf, downloadInvoicePdf, InvoiceDetails } from '@/utils/invoiceUtils';
@@ -36,31 +42,6 @@ export default function VarisangyaList() {
   const [savingEdit, setSavingEdit] = useState(false);
   const [editForm, setEditForm] = useState({ amount: 0, paymentDate: '', paymentMethod: '', remarks: '' });
 
-  const parseYMD = (s: string): { y: number; m: number; d: number } | null => {
-    const parts = s.trim().split('-').map(Number);
-    if (parts.length !== 3 || parts.some((n) => isNaN(n))) return null;
-    const [a, b, c] = parts;
-    if (a > 31 || a >= 1000) return { y: a, m: b, d: c };
-    if (c > 31 || c >= 1000) return { y: c, m: b, d: a };
-    return null;
-  };
-
-  const filterByDateRange = (rows: Varisangya[], from?: string, to?: string): Varisangya[] => {
-    if (!from && !to) return rows;
-    const fromParsed = from ? parseYMD(from) : null;
-    const toParsed = to ? parseYMD(to) : null;
-    if (!fromParsed && !toParsed) return rows;
-    const startMs = fromParsed
-      ? Date.UTC(fromParsed.y, fromParsed.m - 1, fromParsed.d, 0, 0, 0, 0)
-      : 0;
-    const endMs = toParsed
-      ? Date.UTC(toParsed.y, toParsed.m - 1, toParsed.d, 23, 59, 59, 999)
-      : Number.MAX_SAFE_INTEGER;
-    return rows.filter((row) => {
-      const t = row.paymentDate ? new Date(row.paymentDate).getTime() : 0;
-      return t >= startMs && t <= endMs;
-    });
-  };
 
   useEffect(() => {
     fetchVarisangyas();
@@ -277,74 +258,7 @@ export default function VarisangyaList() {
     }
   };
 
-  const getPayerName = (row: Varisangya): string => {
-    const m = row.memberId;
-    const f = row.familyId;
-    if (m && typeof m === 'object' && m.name) return m.name;
-    if (f && typeof f === 'object' && f.houseName) return f.houseName;
-    return '-';
-  };
-
-  const getFamilyName = (row: Varisangya): string => {
-    const f = row.familyId;
-    const m = row.memberId;
-    if (f && typeof f === 'object' && f.houseName) return f.houseName;
-    const member = m && typeof m === 'object' ? (m as Record<string, unknown>) : null;
-    if (member?.familyName && typeof member.familyName === 'string') return member.familyName as string;
-    const memberFamily = member?.familyId as { houseName?: string } | undefined;
-    if (memberFamily?.houseName) return memberFamily.houseName;
-    return '-';
-  };
-
-  const columns: TableColumn<Varisangya>[] = [
-    { key: 'id', label: 'No.', render: (_, __, index) => index + 1 },
-    { key: 'name', label: 'Name', render: (_, row) => getPayerName(row) },
-    { key: 'familyName', label: 'Family name', render: (_, row) => getFamilyName(row) },
-    {
-      key: 'amount',
-      label: 'Amount',
-      render: (amount) => `₹${amount?.toLocaleString() || 0}`,
-    },
-    {
-      key: 'paymentDate',
-      label: 'Payment Date',
-      render: (date) => formatDate(date),
-    },
-    { key: 'paymentMethod', label: 'Payment Method' },
-    {
-      key: 'receiptNo',
-      label: 'Receipt No.',
-      render: (receiptNo) => receiptNo || '-',
-    },
-    {
-      key: 'actions',
-      label: 'Actions',
-      render: (_, row) => (
-        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              openEdit(row);
-            }}
-            className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
-            title="Edit payment"
-          >
-            <FiEdit2 className="h-4 w-4" />
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              handleViewPdf(row);
-            }}
-            className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
-            title="View/Download PDF"
-          >
-            <FiDownload className="h-4 w-4" />
-          </button>
-        </div>
-      ),
-    },
-  ];
+  const columns = buildVarisangyaColumns({ openEdit, handleViewPdf });
 
   const totalAmount = varisangyas.reduce((sum, v) => sum + (v.amount || 0), 0);
 
