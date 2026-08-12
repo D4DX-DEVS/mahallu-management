@@ -1,10 +1,12 @@
 import mongoose, { Schema, Document } from 'mongoose';
+import { TENANT_CLASSIFICATIONS, TenantClassification } from '../config/moduleFeatures';
 
 export interface ITenant extends Document {
   name: string;
   nameMl?: string;
   code: string;
   type: 'standard' | 'premium' | 'enterprise';
+  classification: TenantClassification;
   since: Date;
   location: string;
   locationMl?: string;
@@ -62,6 +64,11 @@ const TenantSchema = new Schema<ITenant>(
       type: String,
       enum: ['standard', 'premium', 'enterprise'],
       default: 'standard',
+    },
+    classification: {
+      type: String,
+      enum: TENANT_CLASSIFICATIONS,
+      default: 'fully_functional',
     },
     since: {
       type: Date,

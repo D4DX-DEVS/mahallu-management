@@ -5,7 +5,7 @@ import { getPaginationParams, createPaginationResponse } from '../utils/paginati
 
 export const getAllPrograms = async (req: AuthRequest, res: Response) => {
   try {
-    const { status, search, tenantId } = req.query;
+    const { status, search, tenantId, audience, programType } = req.query;
     const { page, limit, skip } = getPaginationParams(req);
     const query: any = { type: 'program' };
 
@@ -17,6 +17,8 @@ export const getAllPrograms = async (req: AuthRequest, res: Response) => {
     }
 
     if (status) query.status = status;
+    if (audience) query.audience = audience;
+    if (programType) query.programType = programType;
     if (search) {
       query.$or = [
         { name: { $regex: search, $options: 'i' } },

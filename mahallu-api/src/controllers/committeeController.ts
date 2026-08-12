@@ -3,10 +3,11 @@ import Committee from '../models/Committee';
 import Meeting from '../models/Meeting';
 import { AuthRequest } from '../middleware/authMiddleware';
 import { getPaginationParams, createPaginationResponse } from '../utils/pagination';
+import { termWarningCutoff } from '../services/committeeTermService';
 
 export const getAllCommittees = async (req: AuthRequest, res: Response) => {
   try {
-    const { status, search, tenantId } = req.query;
+    const { status, search, tenantId, expiring } = req.query;
     const { page, limit, skip } = getPaginationParams(req);
     const query: any = {};
 
@@ -20,6 +21,10 @@ export const getAllCommittees = async (req: AuthRequest, res: Response) => {
     if (status) query.status = status;
     if (search) {
       query.name = { $regex: search, $options: 'i' };
+    }
+    // Committees whose term ends within the warning window (spec 29)
+    if (expiring === 'true') {
+      query.termEndDate = { $ne: null, $lte: termWarningCutoff() };
     }
 
     const [committees, total] = await Promise.all([

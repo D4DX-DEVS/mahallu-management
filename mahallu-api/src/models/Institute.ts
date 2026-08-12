@@ -6,12 +6,14 @@ export interface IInstitute extends Document {
   nameMl?: string;
   place: string;
   placeMl?: string;
-  type: 'institute' | 'madrasa' | 'orphanage' | 'hospital' | 'other' | 'program';
+  type: 'institute' | 'madrasa' | 'orphanage' | 'hospital' | 'other' | 'program' | 'mosque';
   joinDate: Date;
   description?: string;
   contactNo?: string;
   email?: string;
   status: 'active' | 'inactive';
+  audience?: 'all' | 'men' | 'women' | 'youth' | 'children' | 'families';
+  programType?: 'quran_class' | 'hadith' | 'fiqh' | 'lecture' | 'family' | 'other';
   createdAt: Date;
   updatedAt: Date;
 }
@@ -44,7 +46,7 @@ const InstituteSchema = new Schema<IInstitute>(
     },
     type: {
       type: String,
-      enum: ['institute', 'madrasa', 'orphanage', 'hospital', 'other', 'program'],
+      enum: ['institute', 'madrasa', 'orphanage', 'hospital', 'other', 'program', 'mosque'],
       required: true,
     },
     joinDate: {
@@ -68,6 +70,14 @@ const InstituteSchema = new Schema<IInstitute>(
       type: String,
       enum: ['active', 'inactive'],
       default: 'active',
+    },
+    audience: {
+      type: String,
+      enum: ['all', 'men', 'women', 'youth', 'children', 'families'],
+    },
+    programType: {
+      type: String,
+      enum: ['quran_class', 'hadith', 'fiqh', 'lecture', 'family', 'other'],
     },
   },
   {

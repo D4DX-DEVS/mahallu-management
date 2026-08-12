@@ -17,6 +17,7 @@ export interface IUser extends Document {
     add: boolean;
     edit: boolean;
     delete: boolean;
+    sensitiveModules?: ('counselling' | 'maslahat' | 'inheritance' | 'health' | 'welfare')[];
   };
   password: string;
   isSuperAdmin: boolean;
@@ -83,6 +84,11 @@ const UserSchema = new Schema<IUser>(
       add: { type: Boolean, default: false },
       edit: { type: Boolean, default: false },
       delete: { type: Boolean, default: false },
+      sensitiveModules: {
+        type: [String],
+        enum: ['counselling', 'maslahat', 'inheritance', 'health', 'welfare'],
+        default: undefined,
+      },
     },
     password: {
       type: String,

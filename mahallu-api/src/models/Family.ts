@@ -15,6 +15,12 @@ export interface IFamily extends Document {
   areaMl?: string;
   place?: string;
   placeMl?: string;
+  // Welfare / socio-economic profile (spec 7.6) - optional, older documents stay valid
+  economicStatus?: 'stable' | 'struggling' | 'needs_assistance';
+  welfareStatus?: 'none' | 'receiving' | 'applied' | 'needs_review';
+  specialRequirements?: string;
+  housingType?: 'own' | 'rented' | 'shared' | 'none';
+  clusterId?: mongoose.Types.ObjectId;
   status: 'approved' | 'unapproved' | 'pending';
   createdAt: Date;
   updatedAt: Date;
@@ -79,6 +85,27 @@ const FamilySchema = new Schema<IFamily>(
       type: String,
       trim: true,
     },
+    economicStatus: {
+      type: String,
+      enum: ['stable', 'struggling', 'needs_assistance'],
+    },
+    welfareStatus: {
+      type: String,
+      enum: ['none', 'receiving', 'applied', 'needs_review'],
+    },
+    specialRequirements: {
+      type: String,
+      trim: true,
+    },
+    housingType: {
+      type: String,
+      enum: ['own', 'rented', 'shared', 'none'],
+    },
+    clusterId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Cluster',
+      index: true,
+    },
     status: {
       type: String,
       enum: ['approved', 'unapproved', 'pending'],
@@ -98,6 +125,9 @@ FamilySchema.virtual('members', {
   localField: '_id',
   foreignField: 'familyId',
 });
+
+FamilySchema.index({ tenantId: 1, status: 1 });
+FamilySchema.index({ tenantId: 1, welfareStatus: 1 });
 
 export default mongoose.model<IFamily>('Family', FamilySchema);
 

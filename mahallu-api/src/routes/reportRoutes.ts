@@ -3,6 +3,8 @@ import {
   getAreaReport,
   getBloodBankReport,
   getOrphansReport,
+  getDemographicsReport,
+  getEducationReport,
 } from '../controllers/reportController';
 import { authMiddleware } from '../middleware/authMiddleware';
 import { tenantMiddleware, tenantFilter } from '../middleware/tenantMiddleware';
@@ -259,6 +261,89 @@ router.get('/blood-bank', getBloodBankReportValidation, validationHandler, getBl
  *         $ref: '#/components/responses/Unauthorized'
  */
 router.get('/orphans', getOrphansReportValidation, validationHandler, getOrphansReport);
+
+/**
+ * @swagger
+ * /reports/demographics:
+ *   get:
+ *     summary: Demographic report
+ *     tags: [Reports]
+ *     description: |
+ *       Age band, gender, education, employment and welfare aggregates.
+ *       **Access:** Super Admin, Mahall Admin, Survey
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Demographic aggregates
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ */
+router.get('/demographics', getDemographicsReport);
+
+/**
+ * @swagger
+ * /reports/education:
+ *   get:
+ *     summary: Education report
+ *     tags: [Reports, Education]
+ *     description: |
+ *       Comprehensive education statistics: students count, active classes, attendance %,
+ *       exams count, scholarship totals and status breakdown, academic support cases by type and status.
+ *       **Access:** Super Admin, Mahall Admin
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: tenantId
+ *         schema:
+ *           type: string
+ *         description: Tenant ID (Super Admin only, optional)
+ *     responses:
+ *       200:
+ *         description: Education report retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     studentsCount:
+ *                       type: number
+ *                     activeClassesCount:
+ *                       type: number
+ *                     attendancePercentThisMonth:
+ *                       type: number
+ *                     examsCount:
+ *                       type: number
+ *                     scholarships:
+ *                       type: object
+ *                       properties:
+ *                         activeScholarships:
+ *                           type: number
+ *                         totalAwardedAmount:
+ *                           type: number
+ *                         totalAwards:
+ *                           type: number
+ *                         awardsByStatus:
+ *                           type: object
+ *                     supportCases:
+ *                       type: object
+ *                       properties:
+ *                         total:
+ *                           type: number
+ *                         byType:
+ *                           type: object
+ *                         byStatus:
+ *                           type: object
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ */
+router.get('/education', getEducationReport);
 
 export default router;
 

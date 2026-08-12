@@ -67,7 +67,7 @@ export interface ILedgerItem extends Document {
   categoryId?: mongoose.Types.ObjectId;
   paymentMethod?: string;
   referenceNo?: string;
-  source?: 'manual' | 'salary' | 'varisangya' | 'zakat' | 'petty_cash';
+  source?: 'manual' | 'salary' | 'varisangya' | 'zakat' | 'petty_cash' | 'welfare' | 'zakat_distribution';
   sourceId?: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
@@ -200,7 +200,7 @@ const LedgerItemSchema = new Schema<ILedgerItem>(
     referenceNo: String,
     source: {
       type: String,
-      enum: ['manual', 'salary', 'varisangya', 'zakat', 'petty_cash'],
+      enum: ['manual', 'salary', 'varisangya', 'zakat', 'petty_cash', 'welfare', 'zakat_distribution'],
       default: 'manual',
     },
     sourceId: { type: Schema.Types.ObjectId },

@@ -3,6 +3,7 @@ import Tenant from '../models/Tenant';
 import User from '../models/User';
 import { AuthRequest } from '../middleware/authMiddleware';
 import { getPaginationParams, createPaginationResponse } from '../utils/pagination';
+import { defaultFeaturesFor } from '../config/moduleFeatures';
 
 export const getAllTenants = async (req: AuthRequest, res: Response) => {
   try {
@@ -72,8 +73,15 @@ export const createTenant = async (req: AuthRequest, res: Response) => {
       });
     }
 
+    // Classification seeds the default module feature set (spec 3); admins can toggle after.
+    const settings = { ...(tenantData.settings || {}) };
+    if (!settings.features || Object.keys(settings.features).length === 0) {
+      settings.features = defaultFeaturesFor(tenantData.classification);
+    }
+
     const tenant = new Tenant({
       ...tenantData,
+      settings,
       code: tenantData.code.toUpperCase(),
     });
     await tenant.save();
@@ -91,7 +99,19 @@ export const updateTenant = async (req: AuthRequest, res: Response) => {
     }
     // Handle nested settings update properly
     const updateData = { ...req.body };
-    
+
+    // Changing classification re-seeds the default feature set, unless the caller
+    // sent an explicit features map in the same request.
+    if (updateData.classification && !updateData.settings?.features) {
+      const current = await Tenant.findById(req.params.id).select('classification settings');
+      if (current && current.classification !== updateData.classification) {
+        updateData.settings = {
+          ...(updateData.settings || {}),
+          features: defaultFeaturesFor(updateData.classification),
+        };
+      }
+    }
+
     // If settings is being updated, ensure it's merged correctly
     if (updateData.settings) {
       const existingTenant = await Tenant.findById(req.params.id);

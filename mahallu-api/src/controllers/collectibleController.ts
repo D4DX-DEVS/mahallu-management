@@ -6,6 +6,7 @@ import Member from '../models/Member';
 import { AuthRequest } from '../middleware/authMiddleware';
 import { getPaginationParams, createPaginationResponse } from '../utils/pagination';
 import { postLedgerEntry, reverseLedgerEntry } from '../services/ledgerPostingService';
+import { stripImmutable } from '../utils/sanitizeUpdate';
 import {
   computeFamilyDues,
   sendVarisangyaReceipt,
@@ -471,7 +472,7 @@ export const updateZakat = async (req: AuthRequest, res: Response) => {
 
     const amountChanged = req.body.amount && req.body.amount !== existing.amount;
 
-    Object.assign(existing, req.body);
+    Object.assign(existing, stripImmutable(req.body));
     await existing.save();
 
     // Re-post ledger entry if amount changed

@@ -29,7 +29,27 @@ import memberUserRoutes from './routes/memberUserRoutes';
 import assetRoutes from './routes/assetRoutes';
 import pettyCashRoutes from './routes/pettyCashRoutes';
 import uploadRoutes from './routes/uploadRoutes';
+import registerRoutes from './routes/registerRoutes';
+import surveyRoutes from './routes/surveyRoutes';
+import localityFacilityRoutes from './routes/localityFacilityRoutes';
+import clusterRoutes from './routes/clusterRoutes';
+import clusterVisitRoutes from './routes/clusterVisitRoutes';
+import welfareRoutes from './routes/welfareRoutes';
+import mosqueRoutes from './routes/mosqueRoutes';
+import announcementRoutes from './routes/announcementRoutes';
+import zakatDistributionRoutes from './routes/zakatDistributionRoutes';
+import qardRoutes from './routes/qardRoutes';
+import reliefRoutes from './routes/reliefRoutes';
+import madrasaRoutes from './routes/madrasaRoutes';
+import attendanceRoutes from './routes/attendanceRoutes';
+import examRoutes from './routes/examRoutes';
+import { scholarshipsRouter, awardsRouter, supportRouter } from './routes/scholarshipRoutes';
+import { employersRouter, vacanciesRouter, trainingsRouter, summaryRouter } from './routes/employmentRoutes';
+import { volunteersRouter, assignmentsRouter } from './routes/volunteerRoutes';
+import healthRoutes from './routes/healthRoutes';
+import khutbahRoutes from './routes/khutbahRoutes';
 import { startVarisangyaReminderScheduler } from './services/varisangyaNotificationService';
+import { startCommitteeTermScheduler } from './services/committeeTermService';
 import path from 'path';
 
 // Load environment variables from the correct path
@@ -130,6 +150,32 @@ app.use('/api/member-user', memberUserRoutes);
 app.use('/api/assets', assetRoutes);
 app.use('/api/petty-cash', pettyCashRoutes);
 app.use('/api/upload', uploadRoutes);
+app.use('/api/registers', registerRoutes);
+app.use('/api/surveys', surveyRoutes);
+app.use('/api/locality-facilities', localityFacilityRoutes);
+app.use('/api/clusters', clusterRoutes);
+app.use('/api/cluster-visits', clusterVisitRoutes);
+app.use('/api/welfare', welfareRoutes);
+app.use('/api/mosque-profile', mosqueRoutes);
+app.use('/api/announcements', announcementRoutes);
+app.use('/api/zakat', zakatDistributionRoutes);
+app.use('/api/qard', qardRoutes);
+app.use('/api/relief', reliefRoutes);
+app.use('/api/madrasa', madrasaRoutes);
+app.use('/api/class-attendance', attendanceRoutes);
+app.use('/api/exams', examRoutes);
+app.use('/api/scholarships', scholarshipsRouter);
+app.use('/api/scholarship-awards', awardsRouter);
+app.use('/api/academic-support', supportRouter);
+app.use('/api/employers', employersRouter);
+app.use('/api/job-vacancies', vacanciesRouter);
+app.use('/api/skill-trainings', trainingsRouter);
+app.use('/api/employment', summaryRouter);
+app.use('/api/volunteers', volunteersRouter);
+app.use('/api/volunteer-assignments', assignmentsRouter);
+// healthRoutes defines its own '/health-resources/...' and '/medical-camps/...' paths.
+app.use('/api', healthRoutes);
+app.use('/api', khutbahRoutes);
 
 // Error handling middleware (must be last)
 app.use(errorHandler);
@@ -139,6 +185,9 @@ connectDatabase();
 
 // Monthly varisangya WhatsApp reminders
 startVarisangyaReminderScheduler();
+
+// Daily committee term-expiry notifications
+startCommitteeTermScheduler();
 
 // Start server
 app.listen(PORT, () => {

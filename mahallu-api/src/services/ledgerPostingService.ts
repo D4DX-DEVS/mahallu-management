@@ -9,7 +9,7 @@ interface PostLedgerEntryParams {
   amount: number;
   description: string;
   date: Date;
-  source: 'salary' | 'varisangya' | 'zakat' | 'petty_cash' | 'manual';
+  source: 'salary' | 'varisangya' | 'zakat' | 'petty_cash' | 'manual' | 'welfare' | 'zakat_distribution';
   sourceId: mongoose.Types.ObjectId;
   paymentMethod?: string;
   referenceNo?: string;

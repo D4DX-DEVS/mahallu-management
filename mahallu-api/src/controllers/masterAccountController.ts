@@ -3,6 +3,7 @@ import { InstituteAccount, MahalluAccount, Category, MasterWallet, Ledger, Ledge
 import { AuthRequest } from '../middleware/authMiddleware';
 import { getPaginationParams, createPaginationResponse } from '../utils/pagination';
 import { verifyTenantOwnership } from '../utils/tenantCheck';
+import { stripImmutable } from '../utils/sanitizeUpdate';
 
 // Institute Accounts
 export const getAllInstituteAccounts = async (req: AuthRequest, res: Response) => {
@@ -292,7 +293,7 @@ export const updateInstituteAccount = async (req: AuthRequest, res: Response) =>
     }
     if (!verifyTenantOwnership(req, res, existing.tenantId, 'InstituteAccount')) return;
 
-    const account = await InstituteAccount.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true })
+    const account = await InstituteAccount.findByIdAndUpdate(req.params.id, stripImmutable(req.body), { new: true, runValidators: true })
       .populate('instituteId', 'name');
     res.json({ success: true, data: account });
   } catch (error: any) {
@@ -308,7 +309,7 @@ export const updateCategory = async (req: AuthRequest, res: Response) => {
     }
     if (!verifyTenantOwnership(req, res, existing.tenantId, 'Category')) return;
 
-    const category = await Category.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
+    const category = await Category.findByIdAndUpdate(req.params.id, stripImmutable(req.body), { new: true, runValidators: true });
     res.json({ success: true, data: category });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
@@ -323,7 +324,7 @@ export const updateWallet = async (req: AuthRequest, res: Response) => {
     }
     if (!verifyTenantOwnership(req, res, existing.tenantId, 'MasterWallet')) return;
 
-    const wallet = await MasterWallet.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
+    const wallet = await MasterWallet.findByIdAndUpdate(req.params.id, stripImmutable(req.body), { new: true, runValidators: true });
     res.json({ success: true, data: wallet });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
@@ -338,7 +339,7 @@ export const updateLedger = async (req: AuthRequest, res: Response) => {
     }
     if (!verifyTenantOwnership(req, res, existing.tenantId, 'Ledger')) return;
 
-    const ledger = await Ledger.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
+    const ledger = await Ledger.findByIdAndUpdate(req.params.id, stripImmutable(req.body), { new: true, runValidators: true });
     res.json({ success: true, data: ledger });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
@@ -361,7 +362,7 @@ export const updateLedgerItem = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    const item = await LedgerItem.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true })
+    const item = await LedgerItem.findByIdAndUpdate(req.params.id, stripImmutable(req.body), { new: true, runValidators: true })
       .populate('ledgerId', 'name')
       .populate('categoryId', 'name');
     res.json({ success: true, data: item });
@@ -527,7 +528,7 @@ export const updateMahalluAccount = async (req: AuthRequest, res: Response) => {
     }
     if (!verifyTenantOwnership(req, res, existing.tenantId, 'MahalluAccount')) return;
 
-    const updated = await MahalluAccount.findByIdAndUpdate(req.params.id, req.body, {
+    const updated = await MahalluAccount.findByIdAndUpdate(req.params.id, stripImmutable(req.body), {
       new: true,
       runValidators: true,
     });
