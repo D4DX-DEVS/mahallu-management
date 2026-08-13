@@ -17,6 +17,7 @@ import { formatDate } from '@/utils/format';
 import { ROUTES } from '@/constants/routes';
 import { exportToCSV, exportToJSON } from '@/utils/exportUtils';
 import { exportInvoicesToPdf, InvoiceDetails } from '@/utils/invoiceUtils';
+import { toast } from '@/store/toastStore';
 
 interface MemberVarisangyaData extends Member {
   totalVarisangya?: number;
@@ -103,7 +104,7 @@ export default function MemberVarisangyaList() {
         };
       });
       if (dataToExport.length === 0) {
-        alert('No data to export');
+        toast.info('No member varisangya data to export');
         return;
       }
       switch (type) {
@@ -137,7 +138,7 @@ export default function MemberVarisangyaList() {
       }
     } catch (error: any) {
       console.error('Export error:', error);
-      alert(error?.message || 'Failed to export data');
+      toast.error(error?.message || 'Failed to export member varisangya data');
     } finally {
       setIsExporting(false);
     }
@@ -160,7 +161,7 @@ export default function MemberVarisangyaList() {
             const varisangyasResult = await collectibleService.getAllVarisangyas({ memberId: row.id });
             const memberVarisangyas = varisangyasResult.data || [];
             if (memberVarisangyas.length === 0) {
-              alert('No payment records to export for this member');
+              toast.info('No payment records to export for this member');
               return;
             }
             const invoices: InvoiceDetails[] = memberVarisangyas.map((entry: any) => ({
@@ -179,7 +180,7 @@ export default function MemberVarisangyaList() {
       }
     } catch (error: any) {
       console.error('Row export error:', error);
-      alert(error?.message || 'Failed to export');
+      toast.error(error?.message || 'Failed to export member varisangya records');
     } finally {
       setExportingRowId(null);
     }

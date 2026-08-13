@@ -4,6 +4,8 @@ import { employmentService, type JobVacancy, type EmploymentSummary } from '@/se
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import Pagination from '@/components/ui/Pagination';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import { toast } from '@/store/toastStore';
 
 export default function VacanciesList() {
   const navigate = useNavigate();
@@ -16,6 +18,9 @@ export default function VacanciesList() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   // Debounce search
   useEffect(() => {
@@ -50,16 +55,27 @@ export default function VacanciesList() {
     fetchData();
   }, [currentPage, itemsPerPage, debouncedSearch, statusFilter]);
 
-  const handleDelete = useCallback(async (id: string) => {
-    if (confirm('Delete this job vacancy?')) {
-      try {
-        await employmentService.deleteVacancy(id);
-        setVacancies((prev) => prev.filter((v) => v._id !== id));
-      } catch (error) {
-        console.error('Failed to delete vacancy:', error);
-      }
+  const handleDeleteClick = (id: string) => {
+    setDeleteId(id);
+    setShowDeleteConfirm(true);
+  };
+
+  const handleConfirmDelete = useCallback(async () => {
+    if (!deleteId) return;
+    try {
+      setDeleting(true);
+      await employmentService.deleteVacancy(deleteId);
+      setVacancies((prev) => prev.filter((v) => v._id !== deleteId));
+      toast.success('Job vacancy deleted successfully');
+      setShowDeleteConfirm(false);
+      setDeleteId(null);
+    } catch (error) {
+      toast.error('Failed to delete job vacancy');
+      console.error('Failed to delete vacancy:', error);
+    } finally {
+      setDeleting(false);
     }
-  }, []);
+  }, [deleteId]);
 
   const employerName = (vacancy: JobVacancy): string => {
     if (vacancy.employerId && typeof vacancy.employerId === 'object') {
@@ -202,7 +218,7 @@ export default function VacanciesList() {
                         Edit
                       </button>
                       <button
-                        onClick={() => handleDelete(vacancy._id)}
+                        onClick={() => handleDeleteClick(vacancy._id)}
                         className="text-red-600 hover:text-red-900 px-2 py-1 text-xs hover:bg-red-50 rounded"
                         title="Delete"
                       >
@@ -224,6 +240,22 @@ export default function VacanciesList() {
           />
         </>
       )}
+
+      <ConfirmDialog
+        isOpen={showDeleteConfirm}
+        title="Delete Job Vacancy"
+        message="Are you sure you want to delete this job vacancy?"
+        consequence="The vacancy posting will be permanently removed and no longer visible to job seekers."
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        variant="danger"
+        isLoading={deleting}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => {
+          setShowDeleteConfirm(false);
+          setDeleteId(null);
+        }}
+      />
     </div>
   );
 }

@@ -17,6 +17,7 @@ import { assetService } from '@/services/assetService';
 import { useDebounce } from '@/hooks/useDebounce';
 import { formatDate } from '@/utils/format';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
+import { toast } from '@/store/toastStore';
 
 const categoryLabels: Record<string, string> = {
   furniture: 'Furniture',
@@ -106,7 +107,7 @@ export default function AssetsList() {
       const dataToExport = result.data;
 
       if (dataToExport.length === 0) {
-        alert('No data to export');
+        toast.info('No assets to export');
         return;
       }
 
@@ -126,7 +127,7 @@ export default function AssetsList() {
       }
     } catch (error: any) {
       console.error('Export error:', error);
-      alert(error?.message || 'Failed to export data');
+      toast.error(error?.response?.data?.message || 'Failed to export data');
     } finally {
       setIsExporting(false);
     }

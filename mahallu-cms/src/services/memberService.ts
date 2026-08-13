@@ -44,5 +44,13 @@ export const memberService = {
     const response = await api.delete<{ success: boolean; message: string }>(`/members/${id}`);
     return response.data;
   },
+
+  bulkImportMembers: async (familyId: string, members: Array<Record<string, any>>) => {
+    const response = await api.post<{ success: boolean; data: { imported: number } }>(
+      '/members/bulk-import',
+      { familyId, members }
+    );
+    return response.data.data;
+  },
 };
 

@@ -3,6 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { employmentService, type Employer } from '@/services/employmentService';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import { toast } from '@/store/toastStore';
 
 export default function EmployerEdit() {
   const { id } = useParams<{ id: string }>();
@@ -11,6 +13,8 @@ export default function EmployerEdit() {
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState<Partial<Employer>>({});
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     const fetchEmployer = async () => {
@@ -52,9 +56,37 @@ export default function EmployerEdit() {
 
       setEmployer(updated);
       setIsEditing(false);
+      toast.success('Employer updated successfully');
     } catch (error) {
+      const message = error instanceof Error && 'response' in error
+        ? (error.response as any)?.data?.message || 'Failed to update employer'
+        : 'Failed to update employer';
+      toast.error(message);
       console.error('Failed to update employer:', error);
     }
+  };
+
+  const handleDeleteClick = () => {
+    setDeleteConfirm(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!employer) return;
+
+    setIsDeleting(true);
+    try {
+      await employmentService.deleteEmployer(employer._id);
+      toast.success('Employer deleted successfully');
+      navigate('/employment/employers');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to delete employer';
+      toast.error(message);
+      setIsDeleting(false);
+    }
+  };
+
+  const handleCancelDelete = () => {
+    setDeleteConfirm(false);
   };
 
   if (loading) {
@@ -85,11 +117,7 @@ export default function EmployerEdit() {
                 Edit
               </Button>
               <Button
-                onClick={() => {
-                  if (confirm('Delete this employer?')) {
-                    employmentService.deleteEmployer(employer._id).then(() => navigate('/employment/employers'));
-                  }
-                }}
+                onClick={handleDeleteClick}
                 className="bg-red-600 text-white"
               >
                 Delete
@@ -237,6 +265,19 @@ export default function EmployerEdit() {
           </div>
         )}
       </Card>
+
+      <ConfirmDialog
+        isOpen={deleteConfirm}
+        title="Delete Employer"
+        message={employer ? `Delete employer "${employer.name}"?` : 'Delete this employer?'}
+        consequence="This action cannot be undone."
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        isLoading={isDeleting}
+        variant="danger"
+        onConfirm={handleConfirmDelete}
+        onCancel={handleCancelDelete}
+      />
     </div>
   );
 }

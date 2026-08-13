@@ -6,11 +6,13 @@ import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import Modal from '@/components/ui/Modal';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import Table from '@/components/ui/Table';
 import { Asset, AssetMaintenance, TableColumn } from '@/types';
 import { ROUTES } from '@/constants/routes';
 import { assetService } from '@/services/assetService';
 import { formatDate } from '@/utils/format';
+import { toast } from '@/store/toastStore';
 import {
   categoryLabels,
   statusLabels,
@@ -133,7 +135,7 @@ export default function AssetDetail() {
       await fetchMaintenanceRecords();
     } catch (err: any) {
       console.error('Error saving maintenance record:', err);
-      alert(err.response?.data?.message || 'Failed to save maintenance record');
+      toast.error(err.response?.data?.message || 'Failed to save maintenance record');
     } finally {
       setMaintenanceSubmitting(false);
     }
@@ -144,11 +146,12 @@ export default function AssetDetail() {
     try {
       setDeletingMaintenance(true);
       await assetService.deleteMaintenance(id, selectedMaintenance.id);
+      toast.success('Maintenance record deleted');
       setShowDeleteMaintenanceModal(false);
       setSelectedMaintenance(null);
       await fetchMaintenanceRecords();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to delete maintenance record');
+      toast.error(err.response?.data?.message || 'Failed to delete maintenance record');
     } finally {
       setDeletingMaintenance(false);
     }

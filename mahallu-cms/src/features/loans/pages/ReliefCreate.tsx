@@ -6,6 +6,7 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import SearchableSelect from '@/components/ui/SearchableSelect';
+import { toast } from '@/store/toastStore';
 import { reliefService, RELIEF_URGENCY_OPTIONS } from '@/services/qardService';
 import { familyService } from '@/services/familyService';
 
@@ -49,6 +50,7 @@ export default function ReliefCreate() {
         urgency: form.urgency,
         followUpDate: form.followUpDate || undefined,
       });
+      toast.success('Case reported successfully');
       navigate(`/relief/${created._id}`);
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to report the case');

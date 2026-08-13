@@ -3,6 +3,7 @@ import Family from '../models/Family';
 import Member from '../models/Member';
 import { AuthRequest } from '../middleware/authMiddleware';
 import { getPaginationParams, createPaginationResponse } from '../utils/pagination';
+import mongoose from 'mongoose';
 
 export const getAllFamilies = async (req: AuthRequest, res: Response) => {
   try {
@@ -153,6 +154,68 @@ export const getFamilyStats = async (req: AuthRequest, res: Response) => {
     res.json({ success: true, data: { totalMembers, maleCount, femaleCount } });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/** Bulk import families (CSV parsed client-side into a JSON array). Max 500 rows. */
+export const bulkImportFamilies = async (req: AuthRequest, res: Response) => {
+  try {
+    const { families } = req.body;
+    if (!Array.isArray(families) || families.length === 0) {
+      return res.status(400).json({ success: false, message: 'families array is required' });
+    }
+    if (families.length > 500) {
+      return res.status(400).json({ success: false, message: 'Maximum 500 families per import' });
+    }
+
+    const errors: { row: number; message: string }[] = [];
+    const docs: any[] = [];
+
+    // Get highest existing mahallId to auto-generate new ones
+    const lastFamily = await Family.findOne({ tenantId: req.tenantId })
+      .sort({ createdAt: -1 })
+      .select('mahallId')
+      .lean();
+
+    let nextNumber = 1;
+    if (lastFamily && lastFamily.mahallId) {
+      const match = lastFamily.mahallId.match(/FID(\d+)/);
+      if (match) {
+        nextNumber = parseInt(match[1]) + 1;
+      }
+    }
+
+    families.forEach((f: any, i: number) => {
+      if (!f.houseName || typeof f.houseName !== 'string' || !f.houseName.trim()) {
+        errors.push({ row: i + 1, message: 'houseName is required' });
+        return;
+      }
+
+      docs.push({
+        houseName: f.houseName.trim(),
+        houseNameMl: f.houseNameMl || f.house_name_ml || undefined,
+        familyHead: f.familyHead || f.family_head || undefined,
+        familyHeadMl: f.familyHeadMl || f.family_head_ml || undefined,
+        contactNo: f.contactNo || f.contact_no || undefined,
+        area: f.area || undefined,
+        areaMl: f.areaMl || f.area_ml || undefined,
+        place: f.place || undefined,
+        placeMl: f.placeMl || f.place_ml || undefined,
+        varisangyaGrade: f.varisangyaGrade || f.varisangyaGrade_grade || undefined,
+        tenantId: req.tenantId,
+        status: 'approved',
+        mahallId: `FID${nextNumber + docs.length}`,
+      });
+    });
+
+    if (errors.length) {
+      return res.status(400).json({ success: false, message: 'Validation failed', errors });
+    }
+
+    const created = await Family.insertMany(docs);
+    res.status(201).json({ success: true, data: { imported: created.length } });
+  } catch (error: any) {
+    res.status(400).json({ success: false, message: error.message });
   }
 };
 

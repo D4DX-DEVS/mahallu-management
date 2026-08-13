@@ -38,7 +38,7 @@ export default function RegistersOverview() {
           <LoadingSpinner />
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
+        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3 lg:grid-cols-4 xl:grid-cols-6">
           {REGISTER_CONFIGS.map((config) => (
             <Link key={config.key} to={`/registers/${config.key}`}>
               <Card className="h-full p-3 transition-shadow hover:shadow-md sm:p-4">

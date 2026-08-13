@@ -3,6 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { employmentService, type JobVacancy } from '@/services/employmentService';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import { toast } from '@/store/toastStore';
 
 export default function VacancyDetail() {
   const { id } = useParams<{ id: string }>();
@@ -11,6 +13,8 @@ export default function VacancyDetail() {
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState<Partial<JobVacancy>>({});
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     const fetchVacancy = async () => {
@@ -53,8 +57,25 @@ export default function VacancyDetail() {
 
       setVacancy(updated);
       setIsEditing(false);
+      toast.success('Vacancy updated successfully');
     } catch (error) {
+      toast.error('Failed to update vacancy');
       console.error('Failed to update vacancy:', error);
+    }
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!vacancy) return;
+    try {
+      setDeleting(true);
+      await employmentService.deleteVacancy(vacancy._id);
+      toast.success('Vacancy deleted successfully');
+      navigate('/employment/vacancies');
+    } catch (error) {
+      toast.error('Failed to delete vacancy');
+      console.error('Failed to delete vacancy:', error);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -91,11 +112,7 @@ export default function VacancyDetail() {
                 Edit
               </Button>
               <Button
-                onClick={() => {
-                  if (confirm('Delete this vacancy?')) {
-                    employmentService.deleteVacancy(vacancy._id).then(() => navigate('/employment/vacancies'));
-                  }
-                }}
+                onClick={() => setShowDeleteConfirm(true)}
                 className="bg-red-600 text-white"
               >
                 Delete
@@ -233,6 +250,19 @@ export default function VacancyDetail() {
           </div>
         )}
       </Card>
+
+      <ConfirmDialog
+        isOpen={showDeleteConfirm}
+        title="Delete Job Vacancy"
+        message="Are you sure you want to delete this job vacancy?"
+        consequence="All vacancy details and associated data will be permanently removed."
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        variant="danger"
+        isLoading={deleting}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
     </div>
   );
 }

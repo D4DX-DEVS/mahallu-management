@@ -17,6 +17,7 @@ import { formatDate } from '@/utils/format';
 import { ROUTES } from '@/constants/routes';
 import { exportToCSV, exportToJSON } from '@/utils/exportUtils';
 import { exportInvoicesToPdf, InvoiceDetails } from '@/utils/invoiceUtils';
+import { toast } from '@/store/toastStore';
 
 interface FamilyVarisangyaData extends Family {
   totalVarisangya?: number;
@@ -124,7 +125,7 @@ export default function FamilyVarisangyaList() {
         };
       });
       if (dataToExport.length === 0) {
-        alert('No data to export');
+        toast.info('No family varisangya data to export');
         return;
       }
       switch (type) {
@@ -160,7 +161,7 @@ export default function FamilyVarisangyaList() {
       }
     } catch (error: any) {
       console.error('Export error:', error);
-      alert(error?.message || 'Failed to export data');
+      toast.error(error?.message || 'Failed to export family varisangya data');
     } finally {
       setIsExporting(false);
     }
@@ -184,7 +185,7 @@ export default function FamilyVarisangyaList() {
             const varisangyasResult = await collectibleService.getAllVarisangyas({ familyId: row.id });
             const familyVarisangyas = varisangyasResult.data || [];
             if (familyVarisangyas.length === 0) {
-              alert('No payment records to export for this family');
+              toast.info('No payment records to export for this family');
               return;
             }
             const invoices: InvoiceDetails[] = familyVarisangyas.map((entry: any) => ({
@@ -203,7 +204,7 @@ export default function FamilyVarisangyaList() {
       }
     } catch (error: any) {
       console.error('Row export error:', error);
-      alert(error?.message || 'Failed to export');
+      toast.error(error?.message || 'Failed to export family varisangya records');
     } finally {
       setExportingRowId(null);
     }

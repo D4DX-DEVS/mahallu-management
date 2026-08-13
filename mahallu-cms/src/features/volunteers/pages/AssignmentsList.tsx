@@ -4,6 +4,8 @@ import { volunteerService, type VolunteerAssignment, SERVICE_TYPE_OPTIONS, ASSIG
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import Pagination from '@/components/ui/Pagination';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import { toast } from '@/store/toastStore';
 
 export default function AssignmentsList() {
   const navigate = useNavigate();
@@ -13,6 +15,8 @@ export default function AssignmentsList() {
   const [itemsPerPage] = useState(10);
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [totalPages, setTotalPages] = useState(1);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; date: string } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     const fetchAssignments = async () => {
@@ -35,15 +39,29 @@ export default function AssignmentsList() {
     fetchAssignments();
   }, [currentPage, itemsPerPage, statusFilter]);
 
-  const handleDelete = useCallback(async (id: string) => {
-    if (confirm('Delete this assignment?')) {
-      try {
-        await volunteerService.deleteAssignment(id);
-        setAssignments((prev) => prev.filter((a) => a._id !== id));
-      } catch (error) {
-        console.error('Failed to delete assignment:', error);
-      }
+  const handleDeleteClick = useCallback((id: string, date: string) => {
+    setDeleteConfirm({ id, date });
+  }, []);
+
+  const handleConfirmDelete = useCallback(async () => {
+    if (!deleteConfirm) return;
+
+    setIsDeleting(true);
+    try {
+      await volunteerService.deleteAssignment(deleteConfirm.id);
+      setAssignments((prev) => prev.filter((a) => a._id !== deleteConfirm.id));
+      toast.success('Assignment deleted successfully');
+      setDeleteConfirm(null);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to delete assignment';
+      toast.error(message);
+    } finally {
+      setIsDeleting(false);
     }
+  }, [deleteConfirm]);
+
+  const handleCancelDelete = useCallback(() => {
+    setDeleteConfirm(null);
   }, []);
 
   const statusColor = (status: string) => {
@@ -154,7 +172,7 @@ export default function AssignmentsList() {
                         Edit
                       </button>
                       <button
-                        onClick={() => handleDelete(assignment._id)}
+                        onClick={() => handleDeleteClick(assignment._id, new Date(assignment.date).toLocaleDateString())}
                         className="text-red-600 hover:text-red-800"
                       >
                         Delete
@@ -175,6 +193,19 @@ export default function AssignmentsList() {
           />
         </>
       )}
+
+      <ConfirmDialog
+        isOpen={deleteConfirm !== null}
+        title="Delete Assignment"
+        message={deleteConfirm ? `Delete assignment from ${deleteConfirm.date}?` : ''}
+        consequence="This action cannot be undone."
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        isLoading={isDeleting}
+        variant="danger"
+        onConfirm={handleConfirmDelete}
+        onCancel={handleCancelDelete}
+      />
     </div>
   );
 }

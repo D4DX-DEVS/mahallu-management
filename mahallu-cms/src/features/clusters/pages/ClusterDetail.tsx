@@ -9,6 +9,8 @@ import Table from '@/components/ui/Table';
 import Checkbox from '@/components/ui/Checkbox';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import Pagination from '@/components/ui/Pagination';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import { toast } from '@/store/toastStore';
 import { Pagination as PaginationType, TableColumn } from '@/types';
 import { clusterService, clusterVisitService, Cluster, ClusterVisit } from '@/services/clusterService';
 import { familyService } from '@/services/familyService';
@@ -40,6 +42,8 @@ export default function ClusterDetail() {
 
   const [isVisitOpen, setVisitOpen] = useState(false);
   const [visitForm, setVisitForm] = useState(emptyVisit);
+  const [confirmUnassign, setConfirmUnassign] = useState(false);
+  const [unassignFamilyId, setUnassignFamilyId] = useState<string | null>(null);
 
   const debouncedAssignSearch = useDebounce(assignSearch, 500);
 
@@ -98,21 +102,27 @@ export default function ClusterDetail() {
       await clusterService.assignFamilies(id, selectedIds);
       setAssignOpen(false);
       setSelectedIds([]);
+      toast.success('Families assigned successfully');
       await reloadFamilies();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to assign families');
+      toast.error(err.response?.data?.message || 'Failed to assign families');
     } finally {
       setSaving(false);
     }
   };
 
-  const handleUnassign = async (familyId: string) => {
-    if (!id || !confirm('Remove this family from the cluster?')) return;
+  const handleUnassign = async () => {
+    if (!id || !unassignFamilyId) return;
     try {
-      await clusterService.unassignFamily(id, familyId);
+      await clusterService.unassignFamily(id, unassignFamilyId);
+      toast.success('Family removed from cluster');
+      setConfirmUnassign(false);
+      setUnassignFamilyId(null);
       await reloadFamilies();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to remove family');
+      toast.error(err.response?.data?.message || 'Failed to remove family');
+      setConfirmUnassign(false);
+      setUnassignFamilyId(null);
     }
   };
 
@@ -135,8 +145,9 @@ export default function ClusterDetail() {
       setVisits(result.data);
       setVisitPagination(result.pagination);
       setVisitPage(1);
+      toast.success('Visit recorded successfully');
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to record visit');
+      toast.error(err.response?.data?.message || 'Failed to record visit');
     } finally {
       setSaving(false);
     }
@@ -150,7 +161,13 @@ export default function ClusterDetail() {
       key: 'actions',
       label: '',
       render: (_v, row) => (
-        <button className="text-red-600 hover:underline" onClick={() => handleUnassign(row._id || row.id)}>
+        <button
+          className="text-red-600 hover:underline"
+          onClick={() => {
+            setUnassignFamilyId(row._id || row.id);
+            setConfirmUnassign(true);
+          }}
+        >
           Remove
         </button>
       ),
@@ -379,6 +396,20 @@ export default function ClusterDetail() {
           </Button>
         </div>
       </Modal>
+
+      <ConfirmDialog
+        isOpen={confirmUnassign}
+        title="Remove Family"
+        message="Remove this family from the cluster?"
+        confirmLabel="Remove"
+        cancelLabel="Cancel"
+        variant="danger"
+        onConfirm={handleUnassign}
+        onCancel={() => {
+          setConfirmUnassign(false);
+          setUnassignFamilyId(null);
+        }}
+      />
     </div>
   );
 }

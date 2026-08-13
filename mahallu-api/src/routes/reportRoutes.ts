@@ -5,7 +5,10 @@ import {
   getOrphansReport,
   getDemographicsReport,
   getEducationReport,
+  getWelfareReport,
+  getCommunityReport,
 } from '../controllers/reportController';
+import { getAnnualReport } from '../controllers/annualReportController';
 import { authMiddleware } from '../middleware/authMiddleware';
 import { tenantMiddleware, tenantFilter } from '../middleware/tenantMiddleware';
 import { validationHandler } from '../middleware/validationHandler';
@@ -344,6 +347,77 @@ router.get('/demographics', getDemographicsReport);
  *         $ref: '#/components/responses/Unauthorized'
  */
 router.get('/education', getEducationReport);
+
+/**
+ * @swagger
+ * /reports/welfare:
+ *   get:
+ *     summary: Welfare report
+ *     tags: [Reports]
+ *     description: |
+ *       Get welfare report: beneficiaries count, applications by status,
+ *       total requested vs approved vs disbursed amounts, zakat beneficiaries verified count,
+ *       distributions total, relief cases by status.
+ *       **Access:** Super Admin (all tenants), Mahall Admin (own tenant)
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Welfare report retrieved successfully
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ */
+router.get('/welfare', getWelfareReport);
+
+/**
+ * @swagger
+ * /reports/community:
+ *   get:
+ *     summary: Community report
+ *     tags: [Reports]
+ *     description: |
+ *       Get community report: programs count, volunteers active count + by wing,
+ *       development projects by status + total estimated cost + average progress,
+ *       announcements sent count.
+ *       **Access:** Super Admin (all tenants), Mahall Admin (own tenant)
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Community report retrieved successfully
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ */
+router.get('/community', getCommunityReport);
+
+/**
+ * @swagger
+ * /reports/annual:
+ *   get:
+ *     summary: Annual "State of the Mahallu" report
+ *     tags: [Reports]
+ *     description: |
+ *       Single aggregation for a calendar year combining demographics (live counts +
+ *       latest survey snapshot), finance (ledger income/expense/balance), welfare,
+ *       zakat (collected vs distributed), education, employment, programs and projects.
+ *       **Access:** Super Admin (all tenants), Mahall Admin (own tenant)
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: year
+ *         schema:
+ *           type: integer
+ *         description: Calendar year (defaults to current year)
+ *     responses:
+ *       200:
+ *         description: Annual report retrieved successfully
+ *       400:
+ *         description: Invalid year or missing tenant
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ */
+router.get('/annual', getAnnualReport);
 
 export default router;
 

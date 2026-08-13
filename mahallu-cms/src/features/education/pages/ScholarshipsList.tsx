@@ -3,6 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import Pagination from '@/components/ui/Pagination';
+import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import EmptyState from '@/components/ui/EmptyState';
+import { toast } from '@/store/toastStore';
 import {
   scholarshipService,
   Scholarship,
@@ -18,6 +22,8 @@ export default function ScholarshipsList() {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
   const [loading, setLoading] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const fetchScholarships = useCallback(async () => {
     setLoading(true);
@@ -45,13 +51,18 @@ export default function ScholarshipsList() {
     fetchScholarships();
   }, [fetchScholarships]);
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure?')) return;
+  const handleDelete = async () => {
+    if (!deleteConfirm) return;
     try {
-      await scholarshipService.deleteScholarship(id);
+      setDeleting(true);
+      await scholarshipService.deleteScholarship(deleteConfirm.id);
+      setDeleteConfirm(null);
+      toast.success(`"${deleteConfirm.name}" deleted`);
       await fetchScholarships();
-    } catch (error) {
-      console.error('Failed to delete:', error);
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to delete scholarship');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -90,9 +101,15 @@ export default function ScholarshipsList() {
           </div>
 
           {loading ? (
-            <div className="text-center py-8">Loading...</div>
+            <div className="flex justify-center py-8">
+              <LoadingSpinner />
+            </div>
           ) : scholarships.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">No scholarships found</div>
+            <EmptyState
+              title="No scholarships found"
+              description={search || status ? "Try adjusting your search or filters" : "Create your first scholarship to get started"}
+              action={!search && !status ? { label: 'New Scholarship', onClick: () => navigate('/education/scholarships/create') } : undefined}
+            />
           ) : (
             <>
               <div className="overflow-x-auto">
@@ -135,7 +152,7 @@ export default function ScholarshipsList() {
                               View
                             </button>
                             <button
-                              onClick={() => handleDelete(s._id)}
+                              onClick={() => setDeleteConfirm({ id: s._id, name: s.name })}
                               className="text-xs text-red-600 hover:underline"
                             >
                               Delete
@@ -163,6 +180,18 @@ export default function ScholarshipsList() {
           )}
         </div>
       </Card>
+
+      <ConfirmDialog
+        isOpen={deleteConfirm !== null}
+        title="Delete Scholarship"
+        message={deleteConfirm ? `Are you sure you want to delete "${deleteConfirm.name}"?` : ''}
+        consequence="This action cannot be undone."
+        isLoading={deleting}
+        variant="danger"
+        confirmLabel="Delete"
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteConfirm(null)}
+      />
     </div>
   );
 }

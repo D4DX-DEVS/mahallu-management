@@ -3,6 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import Pagination from '@/components/ui/Pagination';
+import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import EmptyState from '@/components/ui/EmptyState';
+import { toast } from '@/store/toastStore';
 import {
   scholarshipService,
   AcademicSupportCase,
@@ -22,6 +26,8 @@ export default function AcademicSupportList() {
   const [status, setStatus] = useState('');
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const fetchCases = useCallback(async () => {
     setLoading(true);
@@ -50,13 +56,18 @@ export default function AcademicSupportList() {
     fetchCases();
   }, [fetchCases]);
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure?')) return;
+  const handleDelete = async () => {
+    if (!deleteConfirm) return;
     try {
-      await scholarshipService.deleteSupportCase(id);
+      setDeleting(true);
+      await scholarshipService.deleteSupportCase(deleteConfirm.id);
+      setDeleteConfirm(null);
+      toast.success('Support case deleted');
       await fetchCases();
-    } catch (error) {
-      console.error('Failed to delete:', error);
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to delete');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -107,9 +118,15 @@ export default function AcademicSupportList() {
           </div>
 
           {loading ? (
-            <div className="text-center py-8">Loading...</div>
+            <div className="flex justify-center py-8">
+              <LoadingSpinner />
+            </div>
           ) : cases.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">No cases found</div>
+            <EmptyState
+              title="No support cases found"
+              description={search || type || status ? "Try adjusting your search or filters" : "Create your first support case to get started"}
+              action={!search && !type && !status ? { label: 'New Case', onClick: () => navigate('/education/support/create') } : undefined}
+            />
           ) : (
             <>
               <div className="overflow-x-auto">
@@ -154,7 +171,7 @@ export default function AcademicSupportList() {
                               View
                             </button>
                             <button
-                              onClick={() => handleDelete(c._id)}
+                              onClick={() => setDeleteConfirm({ id: c._id, name: memberName(c.memberId) })}
                               className="text-xs text-red-600 hover:underline"
                             >
                               Delete
@@ -182,6 +199,18 @@ export default function AcademicSupportList() {
           )}
         </div>
       </Card>
+
+      <ConfirmDialog
+        isOpen={deleteConfirm !== null}
+        title="Delete Support Case"
+        message={deleteConfirm ? `Delete the support case for ${deleteConfirm.name}?` : ''}
+        consequence="This action cannot be undone."
+        isLoading={deleting}
+        variant="danger"
+        confirmLabel="Delete"
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteConfirm(null)}
+      />
     </div>
   );
 }

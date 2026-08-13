@@ -4,6 +4,7 @@ import { useThemeStore } from './store/themeStore';
 import { useAuthStore } from './store/authStore';
 import { applyTheme } from './utils/theme';
 import ProtectedRoute from './components/ui/ProtectedRoute';
+import Toaster from './components/ui/Toaster';
 import Login from './features/auth/pages/Login';
 import { ROUTES } from './constants/routes';
 import { appRoutes } from './routes';
@@ -35,6 +36,7 @@ function App() {
         />
         {appRoutes}
       </Routes>
+      <Toaster />
     </BrowserRouter>
   );
 }

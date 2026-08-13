@@ -257,6 +257,7 @@ Largest new module — split into 3 sub-tasks, each independently shippable.
 
 **API:** `LibraryBook`: tenantId, title, title_ml, author, category (enum: quran|hadith|fiqh|history|children|women|youth|general), **resourceType (enum: `physical|digital`, default physical), resourceUrl (required when digital — S3 upload or external link)**, isbn, copies, availableCopies (both n/a for digital), status. Digital resources skip the issue/return flow — always available. `BookIssue`: tenantId, bookId, memberId, issueDate, dueDate, returnDate, status (issued|returned|overdue). Issue decrements availableCopies (reject if 0); return increments. Paginated CRUD; `GET /api/library/issues?status=overdue`.
 **CMS:** feature `src/features/library/`: BooksList (category filter, availability badge), BookCreate/Edit, IssuesList (overdue tab), IssueCreate modal (book + member pickers), reading history via member filter on issues. Menu: "Services → Library".
+**B11.1 Bulk import (implemented):** `POST /api/library-books/bulk-import` accepts `{ books: [...] }` (max 500 rows); CMS "Import CSV" button on BooksList opens BulkImportBooks modal — CSV parsed client-side (columns: title, author, category, copies, isbn; only title required, unknown category → general), template download included.
 
 ### Task B12 — Community development projects (§22)
 

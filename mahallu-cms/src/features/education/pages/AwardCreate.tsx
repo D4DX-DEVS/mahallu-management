@@ -1,17 +1,22 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
+import SearchableSelect from '@/components/ui/SearchableSelect';
+import { toast } from '@/store/toastStore';
 import {
   scholarshipService,
   AWARD_STATUS_OPTIONS,
 } from '@/services/scholarshipService';
+import { memberService } from '@/services/memberService';
 
 export default function AwardCreate() {
   const navigate = useNavigate();
   const { scholarshipId } = useParams<{ scholarshipId: string }>();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [members, setMembers] = useState<any[]>([]);
+  const [loadingMembers, setLoadingMembers] = useState(true);
   const [formData, setFormData] = useState({
     memberId: '',
     amount: '',
@@ -19,6 +24,14 @@ export default function AwardCreate() {
     status: 'applied',
     remarks: '',
   });
+
+  useEffect(() => {
+    memberService
+      .getAll({ page: 1, limit: 200 } as any)
+      .then((result: any) => setMembers(result.data || []))
+      .catch(() => setMembers([]))
+      .finally(() => setLoadingMembers(false));
+  }, []);
 
   const handleChange = (
     e: React.ChangeEvent<
@@ -42,9 +55,12 @@ export default function AwardCreate() {
         status: formData.status,
         remarks: formData.remarks || undefined,
       });
+      const member = members.find((m) => m._id === formData.memberId);
+      toast.success(`Award created for ${member?.name || 'student'}`);
       navigate(`/education/scholarships/${scholarshipId}/awards`);
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to create award');
+      toast.error(err.response?.data?.message || 'Failed to create award');
     } finally {
       setLoading(false);
     }
@@ -63,16 +79,19 @@ export default function AwardCreate() {
           )}
 
           <div>
-            <label className="block text-sm font-medium mb-2">
-              Student Member ID *
-            </label>
-            <input
-              name="memberId"
-              placeholder="Member ID"
+            <SearchableSelect
+              label="Student *"
               value={formData.memberId}
-              onChange={handleChange}
+              onChange={(value) =>
+                setFormData((prev) => ({ ...prev, memberId: value }))
+              }
+              options={members.map((member: any) => ({
+                value: member._id || member.id,
+                label: `${member.name}${member.familyName ? ` - ${member.familyName}` : ''}`,
+              }))}
+              placeholder="Search members..."
+              isLoading={loadingMembers}
               required
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700"
             />
           </div>
 

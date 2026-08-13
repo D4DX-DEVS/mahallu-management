@@ -139,7 +139,7 @@ export default function VolunteerDetail() {
               {/* Service Types */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-3">Service Types</label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                   {SERVICE_TYPE_OPTIONS.map((st) => (
                     <label key={st.value} className="flex items-center gap-2 cursor-pointer">
                       <input

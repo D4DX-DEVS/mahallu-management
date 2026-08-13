@@ -16,6 +16,7 @@ import { useAuthStore } from '@/store/authStore';
 import { formatDate } from '@/utils/format';
 import { useDebounce } from '@/hooks/useDebounce';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
+import { toast } from '@/store/toastStore';
 
 export default function TenantsList() {
   const { isSuperAdmin } = useAuthStore();
@@ -62,7 +63,7 @@ export default function TenantsList() {
       if (debouncedSearch) params.search = debouncedSearch;
       const response = await tenantService.getAll(params);
       const dataToExport = response.data || [];
-      if (dataToExport.length === 0) { alert('No data to export'); return; }
+      if (dataToExport.length === 0) { toast.info('No data to export'); return; }
       const filename = 'tenants';
       const title = 'All Tenants';
       switch (type) {
@@ -72,7 +73,7 @@ export default function TenantsList() {
       }
     } catch (error: any) {
       console.error('Export error:', error);
-      alert(error?.message || 'Failed to export data');
+      toast.error(error?.response?.data?.message || 'Failed to export data');
     } finally {
       setIsExporting(false);
     }
@@ -86,13 +87,15 @@ export default function TenantsList() {
 
   const handleSuspend = async () => {
     if (selectedTenant) {
+      const name = selectedTenant.name;
       try {
         await tenantService.suspend(selectedTenant.id);
         await loadTenants();
         setShowSuspendModal(false);
         setSelectedTenant(null);
-      } catch (error) {
-        console.error('Error suspending tenant:', error);
+        toast.success(`${name} suspended`);
+      } catch (error: any) {
+        toast.error(error.response?.data?.message || `Failed to suspend ${name}`);
       }
     }
   };
@@ -101,20 +104,23 @@ export default function TenantsList() {
     try {
       await tenantService.activate(tenant.id);
       await loadTenants();
-    } catch (error) {
-      console.error('Error activating tenant:', error);
+      toast.success(`${tenant.name} activated`);
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || `Failed to activate ${tenant.name}`);
     }
   };
 
   const handleDelete = async () => {
     if (selectedTenant) {
+      const name = selectedTenant.name;
       try {
         await tenantService.delete(selectedTenant.id);
         await loadTenants();
         setShowDeleteModal(false);
         setSelectedTenant(null);
-      } catch (error) {
-        console.error('Error deleting tenant:', error);
+        toast.success(`${name} deleted`);
+      } catch (error: any) {
+        toast.error(error.response?.data?.message || `Failed to delete ${name}`);
       }
     }
   };

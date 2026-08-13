@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { FiPlus } from 'react-icons/fi';
 import { volunteerService, SERVICE_TYPE_OPTIONS, VOLUNTEER_WINGS, AVAILABILITY_OPTIONS } from '@/services/volunteerService';
 import { memberService } from '@/services/memberService';
+import QuickAddMember from '@/components/quick-add/QuickAddMember';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import SearchableSelect from '@/components/ui/SearchableSelect';
@@ -19,6 +21,7 @@ export default function VolunteerCreate() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loadingMembers, setLoadingMembers] = useState(true);
+  const [addMemberOpen, setAddMemberOpen] = useState(false);
 
   useEffect(() => {
     const fetchMembers = async () => {
@@ -81,17 +84,30 @@ export default function VolunteerCreate() {
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Member Picker */}
             <div>
-              <SearchableSelect
-                label="Member *"
-                value={formData.memberId}
-                onChange={(v) => setFormData((prev) => ({ ...prev, memberId: v }))}
-                options={members.map((m) => ({
-                  value: m._id,
-                  label: `${m.name}${m.familyName ? ` (${m.familyName})` : ''}`,
-                }))}
-                placeholder={loadingMembers ? 'Loading members...' : 'Search and select member'}
-                disabled={loadingMembers}
-              />
+              <div className="flex items-end gap-2">
+                <div className="flex-1">
+                  <SearchableSelect
+                    label="Member *"
+                    value={formData.memberId}
+                    onChange={(v) => setFormData((prev) => ({ ...prev, memberId: v }))}
+                    options={members.map((m) => ({
+                      value: m._id,
+                      label: `${m.name}${m.familyName ? ` (${m.familyName})` : ''}`,
+                    }))}
+                    placeholder={loadingMembers ? 'Loading members...' : 'Search and select member'}
+                    disabled={loadingMembers}
+                  />
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setAddMemberOpen(true)}
+                  title="Add a new member"
+                >
+                  <FiPlus className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
 
             {/* Wings Selection */}
@@ -115,7 +131,7 @@ export default function VolunteerCreate() {
             {/* Service Types Selection */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-3">Service Types *</label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {SERVICE_TYPE_OPTIONS.map((st) => (
                   <label key={st.value} className="flex items-center gap-2 cursor-pointer">
                     <input
@@ -128,6 +144,9 @@ export default function VolunteerCreate() {
                   </label>
                 ))}
               </div>
+              {error && error.includes('service type') && (
+                <p className="mt-2 text-xs text-red-600">{error}</p>
+              )}
             </div>
 
             {/* Availability */}
@@ -177,6 +196,15 @@ export default function VolunteerCreate() {
           </form>
         </div>
       </Card>
+
+      <QuickAddMember
+        open={addMemberOpen}
+        onClose={() => setAddMemberOpen(false)}
+        onCreated={(newMember) => {
+          setMembers((prev) => [...prev, newMember]);
+          setFormData({ ...formData, memberId: newMember.id });
+        }}
+      />
     </div>
   );
 }

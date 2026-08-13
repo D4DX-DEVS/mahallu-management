@@ -4,6 +4,8 @@ import { employmentService, type Employer } from '@/services/employmentService';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import Pagination from '@/components/ui/Pagination';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import { toast } from '@/store/toastStore';
 
 export default function EmployersList() {
   const navigate = useNavigate();
@@ -15,6 +17,9 @@ export default function EmployersList() {
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [totalPages, setTotalPages] = useState(1);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   // Debounce search
   useEffect(() => {
@@ -45,16 +50,27 @@ export default function EmployersList() {
     fetchData();
   }, [currentPage, itemsPerPage, debouncedSearch, statusFilter]);
 
-  const handleDelete = useCallback(async (id: string) => {
-    if (confirm('Delete this employer?')) {
-      try {
-        await employmentService.deleteEmployer(id);
-        setEmployers((prev) => prev.filter((e) => e._id !== id));
-      } catch (error) {
-        console.error('Failed to delete employer:', error);
-      }
+  const handleDeleteClick = (id: string) => {
+    setDeleteId(id);
+    setShowDeleteConfirm(true);
+  };
+
+  const handleConfirmDelete = useCallback(async () => {
+    if (!deleteId) return;
+    try {
+      setDeleting(true);
+      await employmentService.deleteEmployer(deleteId);
+      setEmployers((prev) => prev.filter((e) => e._id !== deleteId));
+      toast.success('Employer deleted successfully');
+      setShowDeleteConfirm(false);
+      setDeleteId(null);
+    } catch (error) {
+      toast.error('Failed to delete employer');
+      console.error('Failed to delete employer:', error);
+    } finally {
+      setDeleting(false);
     }
-  }, []);
+  }, [deleteId]);
 
   const statusColor = (status: string) => {
     switch (status) {
@@ -162,7 +178,7 @@ export default function EmployersList() {
                         Edit
                       </button>
                       <button
-                        onClick={() => handleDelete(employer._id)}
+                        onClick={() => handleDeleteClick(employer._id)}
                         className="text-red-600 hover:text-red-900 px-2 py-1 text-xs hover:bg-red-50 rounded"
                         title="Delete"
                       >
@@ -184,6 +200,22 @@ export default function EmployersList() {
           />
         </>
       )}
+
+      <ConfirmDialog
+        isOpen={showDeleteConfirm}
+        title="Delete Employer"
+        message="Are you sure you want to delete this employer?"
+        consequence="The employer record and associated job vacancies will be removed."
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        variant="danger"
+        isLoading={deleting}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => {
+          setShowDeleteConfirm(false);
+          setDeleteId(null);
+        }}
+      />
     </div>
   );
 }

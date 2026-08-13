@@ -29,6 +29,8 @@ const programSchema = z.object({
   status: z.enum(['active', 'inactive']).optional(),
   audience: z.enum(['all', 'men', 'women', 'youth', 'children', 'families']).optional(),
   programType: z.enum(['quran_class', 'hadith', 'fiqh', 'lecture', 'family', 'other']).optional(),
+  eventDate: z.string().optional(),
+  awards: z.string().optional(),
 });
 
 type ProgramFormData = z.infer<typeof programSchema>;
@@ -70,6 +72,8 @@ export default function EditProgram() {
       setValue('status', (program.status || 'active') as 'active' | 'inactive');
       if (program.audience) setValue('audience', program.audience as 'all' | 'men' | 'women' | 'youth' | 'children' | 'families');
       if (program.programType) setValue('programType', program.programType as 'quran_class' | 'hadith' | 'fiqh' | 'lecture' | 'family' | 'other');
+      setValue('eventDate', program.eventDate ? new Date(program.eventDate).toISOString().split('T')[0] : '');
+      setValue('awards', program.awards || '');
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to load program');
     } finally {
@@ -93,6 +97,8 @@ export default function EditProgram() {
         status: data.status || 'active',
         audience: data.audience,
         programType: data.programType,
+        eventDate: data.eventDate || undefined,
+        awards: data.awards || undefined,
       };
 
       if (data['address.state'] || data['address.district']) {
@@ -152,6 +158,8 @@ export default function EditProgram() {
             <Input label="Join Date" type="date" {...register('joinDate')} error={errors.joinDate?.message} />
             <Input label="Contact No" {...register('contactNo')} error={errors.contactNo?.message} />
             <Input label="Email" type="email" {...register('email')} error={errors.email?.message} />
+            <Input label="Event Date" type="date" {...register('eventDate')} error={errors.eventDate?.message} />
+            <Input label="Awards" {...register('awards')} error={errors.awards?.message} placeholder="e.g. Best participation trophy" />
             <Select
               label="Status"
               {...register('status')}

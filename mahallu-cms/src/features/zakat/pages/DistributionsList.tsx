@@ -9,6 +9,8 @@ import Modal from '@/components/ui/Modal';
 import Checkbox from '@/components/ui/Checkbox';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import Pagination from '@/components/ui/Pagination';
+import EmptyState from '@/components/ui/EmptyState';
+import { toast } from '@/store/toastStore';
 import { Pagination as PaginationType, TableColumn } from '@/types';
 import {
   zakatDistributionService,
@@ -76,21 +78,23 @@ export default function DistributionsList() {
 
   const handleSave = async () => {
     if (!form.beneficiaryId || !form.amount) {
-      alert('Beneficiary and amount are required');
+      toast.error('Beneficiary and amount are required');
       return;
     }
     try {
       setSaving(true);
+      const amount = Number(form.amount);
       await zakatDistributionService.createDistribution({
         ...form,
-        amount: Number(form.amount),
+        amount,
         distributionDate: form.distributionDate || undefined,
       });
+      toast.success(`Distribution recorded`);
       setFormOpen(false);
       setForm(emptyForm);
       fetchRows();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to record distribution');
+      toast.error(err.response?.data?.message || 'Failed to record distribution');
     } finally {
       setSaving(false);
     }
@@ -154,9 +158,15 @@ export default function DistributionsList() {
               Retry
             </Button>
           </div>
+        ) : rows.length === 0 ? (
+          <EmptyState
+            title="No distributions yet"
+            description="Record a distribution to a verified beneficiary"
+            action={{ label: '+ Record Distribution', onClick: () => setFormOpen(true) }}
+          />
         ) : (
           <div className="overflow-x-auto">
-            <Table columns={columns} data={rows} emptyMessage="No distributions yet" showExport={false} />
+            <Table columns={columns} data={rows} showExport={false} />
           </div>
         )}
 

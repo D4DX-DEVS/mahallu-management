@@ -11,6 +11,7 @@ import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import Modal from '@/components/ui/Modal';
 import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
+import { toast } from '@/store/toastStore';
 import { TableColumn, Pagination as PaginationType } from '@/types';
 import { Institute } from '@/types';
 import { ROUTES } from '@/constants/routes';
@@ -76,7 +77,7 @@ export default function InstitutesList() {
       if (typeFilter && typeFilter !== 'all') params.type = typeFilter;
       const result = await instituteService.getAll(params);
       const dataToExport = result.data;
-      if (dataToExport.length === 0) { alert('No data to export'); return; }
+      if (dataToExport.length === 0) { toast.info('No institutes to export'); return; }
       const filename = 'institutes';
       const title = 'All Institutes';
       switch (type) {
@@ -86,7 +87,7 @@ export default function InstitutesList() {
       }
     } catch (error: any) {
       console.error('Export error:', error);
-      alert(error?.message || 'Failed to export data');
+      toast.error(error?.message || 'Failed to export institutes');
     } finally {
       setIsExporting(false);
     }

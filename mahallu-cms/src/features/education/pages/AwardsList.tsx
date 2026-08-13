@@ -3,6 +3,10 @@ import { useNavigate, useParams } from 'react-router-dom';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import Pagination from '@/components/ui/Pagination';
+import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import EmptyState from '@/components/ui/EmptyState';
+import { toast } from '@/store/toastStore';
 import {
   scholarshipService,
   ScholarshipAward,
@@ -20,6 +24,8 @@ export default function AwardsList() {
   const [status, setStatus] = useState('');
   const [loading, setLoading] = useState(false);
   const [scholarship, setScholarship] = useState<any>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const fetchAwards = useCallback(async () => {
     if (!scholarshipId) return;
@@ -51,13 +57,18 @@ export default function AwardsList() {
     fetchAwards();
   }, [fetchAwards]);
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure?')) return;
+  const handleDelete = async () => {
+    if (!deleteConfirm) return;
     try {
-      await scholarshipService.deleteAward(id);
+      setDeleting(true);
+      await scholarshipService.deleteAward(deleteConfirm.id);
+      setDeleteConfirm(null);
+      toast.success(`Award for ${deleteConfirm.name} deleted`);
       await fetchAwards();
-    } catch (error) {
-      console.error('Failed to delete:', error);
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to delete award');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -96,9 +107,15 @@ export default function AwardsList() {
           </div>
 
           {loading ? (
-            <div className="text-center py-8">Loading...</div>
+            <div className="flex justify-center py-8">
+              <LoadingSpinner />
+            </div>
           ) : awards.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">No awards found</div>
+            <EmptyState
+              title="No awards found"
+              description={status ? "Try adjusting your filters" : "Create your first award to get started"}
+              action={!status ? { label: 'New Award', onClick: () => navigate(`/education/scholarships/${scholarshipId}/awards/create`) } : undefined}
+            />
           ) : (
             <>
               <div className="overflow-x-auto">
@@ -128,7 +145,7 @@ export default function AwardsList() {
                         <td className="py-2">
                           <div className="flex gap-2">
                             <button
-                              onClick={() => handleDelete(award._id)}
+                              onClick={() => setDeleteConfirm({ id: award._id, name: memberName(award.memberId) })}
                               className="text-xs text-red-600 hover:underline"
                             >
                               Delete
@@ -156,6 +173,18 @@ export default function AwardsList() {
           )}
         </div>
       </Card>
+
+      <ConfirmDialog
+        isOpen={deleteConfirm !== null}
+        title="Delete Award"
+        message={deleteConfirm ? `Delete the award for ${deleteConfirm.name}?` : ''}
+        consequence="This action cannot be undone."
+        isLoading={deleting}
+        variant="danger"
+        confirmLabel="Delete"
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteConfirm(null)}
+      />
     </div>
   );
 }

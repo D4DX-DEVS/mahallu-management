@@ -15,6 +15,7 @@ import { familyService } from '@/services/familyService';
 import { useDebounce } from '@/hooks/useDebounce';
 import { formatDate } from '@/utils/format';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
+import { toast } from '@/store/toastStore';
 
 export default function UnapprovedFamiliesList() {
   const navigate = useNavigate();
@@ -56,7 +57,10 @@ export default function UnapprovedFamiliesList() {
       if (debouncedSearch) params.search = debouncedSearch;
       const result = await familyService.getAll(params);
       const dataToExport = result.data || [];
-      if (dataToExport.length === 0) { alert('No data to export'); return; }
+      if (dataToExport.length === 0) {
+        toast.info('No unapproved families to export');
+        return;
+      }
       const filename = 'unapproved-families';
       const title = 'Unapproved Families';
       switch (type) {
@@ -66,7 +70,7 @@ export default function UnapprovedFamiliesList() {
       }
     } catch (error: any) {
       console.error('Export error:', error);
-      alert(error?.message || 'Failed to export data');
+      toast.error(error?.response?.data?.message || 'Failed to export data');
     } finally {
       setIsExporting(false);
     }

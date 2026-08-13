@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { FiSend } from 'react-icons/fi';
 import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
@@ -7,6 +8,9 @@ import Table from '@/components/ui/Table';
 import SearchInput from '@/components/ui/SearchInput';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import Pagination from '@/components/ui/Pagination';
+import EmptyState from '@/components/ui/EmptyState';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import { toast } from '@/store/toastStore';
 import { Pagination as PaginationType, TableColumn } from '@/types';
 import {
   zakatDistributionService,
@@ -29,6 +33,7 @@ const beneficiaryName = (row: ZakatBeneficiary) => {
 };
 
 export default function BeneficiariesList() {
+  const navigate = useNavigate();
   const [rows, setRows] = useState<ZakatBeneficiary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -37,6 +42,8 @@ export default function BeneficiariesList() {
   const [currentPage, setCurrentPage] = useState(1);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [rejectConfirm, setRejectConfirm] = useState<ZakatBeneficiary | null>(null);
+  const [rejectLoading, setRejectLoading] = useState(false);
 
   const debouncedSearch = useDebounce(searchQuery, 500);
 
@@ -65,11 +72,27 @@ export default function BeneficiariesList() {
     try {
       setBusyId(row._id);
       await zakatDistributionService.verifyBeneficiary(row._id, { verificationStatus });
+      if (verificationStatus === 'verified') {
+        toast.success('Beneficiary verified');
+      } else if (verificationStatus === 'rejected') {
+        toast.success('Beneficiary rejected');
+      }
       fetchRows();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to update verification');
+      toast.error(err.response?.data?.message || 'Failed to update verification');
     } finally {
       setBusyId(null);
+    }
+  };
+
+  const handleRejectConfirm = async () => {
+    if (!rejectConfirm) return;
+    try {
+      setRejectLoading(true);
+      await setVerification(rejectConfirm, 'rejected');
+      setRejectConfirm(null);
+    } finally {
+      setRejectLoading(false);
     }
   };
 
@@ -87,22 +110,32 @@ export default function BeneficiariesList() {
       label: '',
       render: (_v, row) => (
         <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+          {row.verificationStatus === 'verified' && (
+            <button
+              className="text-blue-600 hover:text-blue-800 disabled:opacity-50"
+              disabled={busyId === row._id}
+              onClick={() => navigate('/zakat/distributions/create', { state: { beneficiaryId: row._id } })}
+              title="Record a distribution for this beneficiary"
+            >
+              <FiSend size={16} />
+            </button>
+          )}
           {row.verificationStatus !== 'verified' && (
             <button
               className="text-emerald-600 hover:underline disabled:opacity-50"
               disabled={busyId === row._id}
               onClick={() => setVerification(row, 'verified')}
             >
-              Verify
+              {busyId === row._id ? 'Working...' : 'Verify'}
             </button>
           )}
           {row.verificationStatus === 'pending' && (
             <button
               className="text-red-600 hover:underline disabled:opacity-50"
               disabled={busyId === row._id}
-              onClick={() => setVerification(row, 'rejected')}
+              onClick={() => setRejectConfirm(row)}
             >
-              Reject
+              {busyId === row._id ? 'Working...' : 'Reject'}
             </button>
           )}
         </div>
@@ -175,9 +208,15 @@ export default function BeneficiariesList() {
               Retry
             </Button>
           </div>
+        ) : rows.length === 0 ? (
+          <EmptyState
+            title="No beneficiaries yet"
+            description="Start by registering a beneficiary"
+            action={{ label: '+ New Beneficiary', onClick: () => navigate('/zakat/beneficiaries/create') }}
+          />
         ) : (
           <div className="overflow-x-auto">
-            <Table columns={columns} data={rows} emptyMessage="No beneficiaries yet" showExport={false} />
+            <Table columns={columns} data={rows} showExport={false} />
           </div>
         )}
 
@@ -193,6 +232,19 @@ export default function BeneficiariesList() {
           </div>
         )}
       </Card>
+
+      <ConfirmDialog
+        isOpen={!!rejectConfirm}
+        title="Reject beneficiary?"
+        message={`Reject ${rejectConfirm ? beneficiaryName(rejectConfirm) : 'this beneficiary'}? They will not be able to receive distributions.`}
+        consequence="This action cannot be undone."
+        confirmLabel="Reject"
+        cancelLabel="Cancel"
+        variant="danger"
+        isLoading={rejectLoading}
+        onConfirm={handleRejectConfirm}
+        onCancel={() => setRejectConfirm(null)}
+      />
     </div>
   );
 }

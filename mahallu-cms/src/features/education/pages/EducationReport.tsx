@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { FiUsers, FiBook, FiPercent, FiFileText, FiGift } from 'react-icons/fi';
 import Card from '@/components/ui/Card';
 import StatCard from '@/components/ui/StatCard';
+import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { reportService } from '@/services/reportService';
 
 interface EducationData {
@@ -42,7 +43,11 @@ export default function EducationReport() {
   }, []);
 
   if (loading) {
-    return <div className="text-center py-8">Loading...</div>;
+    return (
+      <div className="flex justify-center py-12">
+        <LoadingSpinner />
+      </div>
+    );
   }
 
   if (error || !data) {

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FiEye, FiEdit2, FiX, FiHome, FiUsers, FiUser } from 'react-icons/fi';
+import { FiEye, FiEdit2, FiX, FiHome, FiUsers, FiUser, FiUpload } from 'react-icons/fi';
 import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
@@ -10,12 +10,29 @@ import Table from '@/components/ui/Table';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
+import BulkImportCsv, { ColumnSpec } from '@/components/BulkImportCsv';
 import { TableColumn, Pagination as PaginationType } from '@/types';
 import { Family } from '@/types';
 import { ROUTES } from '@/constants/routes';
 import { familyService } from '@/services/familyService';
 import { useDebounce } from '@/hooks/useDebounce';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
+import { toast } from '@/store/toastStore';
+
+const FAMILY_COLUMNS: ColumnSpec[] = [
+  { key: 'houseName', label: 'House Name', required: true },
+  { key: 'houseNameMl', label: 'House Name (Malayalam)' },
+  { key: 'familyHead', label: 'Family Head' },
+  { key: 'familyHeadMl', label: 'Family Head (Malayalam)' },
+  { key: 'contactNo', label: 'Contact Number' },
+  { key: 'area', label: 'Area' },
+  { key: 'areaMl', label: 'Area (Malayalam)' },
+  { key: 'place', label: 'Place' },
+  { key: 'placeMl', label: 'Place (Malayalam)' },
+  { key: 'varisangyaGrade', label: 'Varisangya Grade' },
+];
+
+const FAMILY_TEMPLATE = 'houseName,houseNameMl,familyHead,familyHeadMl,contactNo,area,areaMl,place,placeMl,varisangyaGrade\nAl-Hamd House,അൽ-ഹാമ്ദ് വീട്,Ahmed Ali,അഹമ്മദ് അലി,9876543210,Area A,ഏരിയ എ,Calicut,കാലിക്കറ്റ്,Grade A\n';
 
 export default function FamiliesList() {
   const navigate = useNavigate();
@@ -30,7 +47,8 @@ export default function FamiliesList() {
   const [pagination, setPagination] = useState<PaginationType | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [memberStats, setMemberStats] = useState({ totalMembers: 0, maleCount: 0, femaleCount: 0 });
-  
+  const [isImportOpen, setIsImportOpen] = useState(false);
+
   const debouncedSearch = useDebounce(searchQuery, 500);
 
   useEffect(() => {
@@ -76,7 +94,10 @@ export default function FamiliesList() {
       if (sortBy) params.sortBy = sortBy === 'mahallId' ? 'mahallId' : 'date';
       const result = await familyService.getAll(params);
       const dataToExport = result.data;
-      if (dataToExport.length === 0) { alert('No data to export'); return; }
+      if (dataToExport.length === 0) {
+        toast.info('No families to export');
+        return;
+      }
       const filename = 'families';
       const title = 'All Families';
       switch (type) {
@@ -86,10 +107,14 @@ export default function FamiliesList() {
       }
     } catch (error: any) {
       console.error('Export error:', error);
-      alert(error?.message || 'Failed to export data');
+      toast.error(error?.response?.data?.message || 'Failed to export data');
     } finally {
       setIsExporting(false);
     }
+  };
+
+  const handleBulkImport = async (rows: any[]) => {
+    return familyService.bulkImportFamilies(rows);
   };
 
   const { totalMembers, maleCount, femaleCount } = memberStats;
@@ -199,9 +224,19 @@ export default function FamiliesList() {
             onExport={handleExport}
             isExporting={isExporting}
             actionButtons={
-              <Link to={ROUTES.FAMILIES.CREATE}>
-                <Button size="md">+ New Family</Button>
-              </Link>
+              <div className="flex gap-2">
+                <Button
+                  size="md"
+                  variant="outline"
+                  onClick={() => setIsImportOpen(true)}
+                >
+                  <FiUpload className="mr-2 h-4 w-4" />
+                  Import CSV
+                </Button>
+                <Link to={ROUTES.FAMILIES.CREATE}>
+                  <Button size="md">+ New Family</Button>
+                </Link>
+              </div>
             }
           />
 
@@ -279,6 +314,16 @@ export default function FamiliesList() {
           </div>
         )}
       </Card>
+
+      <BulkImportCsv
+        title="Import Families from CSV"
+        columnSpec={FAMILY_COLUMNS}
+        templateCsv={FAMILY_TEMPLATE}
+        onImport={handleBulkImport}
+        isOpen={isImportOpen}
+        onClose={() => setIsImportOpen(false)}
+        onImported={fetchFamilies}
+      />
     </div>
   );
 }

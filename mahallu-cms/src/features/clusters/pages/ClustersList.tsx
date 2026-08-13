@@ -11,6 +11,7 @@ import Pagination from '@/components/ui/Pagination';
 import { Pagination as PaginationType } from '@/types';
 import { clusterService, Cluster } from '@/services/clusterService';
 import { useDebounce } from '@/hooks/useDebounce';
+import { toast } from '@/store/toastStore';
 
 const emptyForm = { name: '', nameMl: '', code: '', notes: '' };
 
@@ -23,6 +24,7 @@ export default function ClustersList() {
   const [rows, setRows] = useState<Cluster[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [nameError, setNameError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
@@ -54,7 +56,7 @@ export default function ClustersList() {
 
   const handleCreate = async () => {
     if (!form.name.trim()) {
-      alert('Cluster name is required');
+      setNameError('Cluster name is required');
       return;
     }
     try {
@@ -62,9 +64,11 @@ export default function ClustersList() {
       await clusterService.create(form);
       setFormOpen(false);
       setForm(emptyForm);
+      setNameError(null);
       fetchRows();
+      toast.success('Cluster created');
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to create cluster');
+      toast.error(err.response?.data?.message || 'Failed to create cluster');
     } finally {
       setSaving(false);
     }
@@ -159,7 +163,11 @@ export default function ClustersList() {
           <Input
             label="Cluster Name"
             value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
+            onChange={(e) => {
+              setForm({ ...form, name: e.target.value });
+              if (nameError) setNameError(null);
+            }}
+            error={nameError ?? undefined}
             required
           />
           <Input

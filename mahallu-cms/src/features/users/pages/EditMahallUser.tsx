@@ -11,7 +11,11 @@ import Input from '@/components/ui/Input';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { ROUTES } from '@/constants/routes';
 import { userService } from '@/services/userService';
-import { User } from '@/types';
+import {
+  SENSITIVE_MODULE_KEYS,
+  SENSITIVE_MODULE_LABELS,
+  SensitiveModuleKey,
+} from '@/constants/modules';
 
 const userSchema = z.object({
   name: z.string().min(1, 'Full Name is required'),
@@ -24,6 +28,7 @@ const userSchema = z.object({
     add: z.boolean().default(false),
     edit: z.boolean().default(false),
     delete: z.boolean().default(false),
+    sensitiveModules: z.array(z.enum(SENSITIVE_MODULE_KEYS)).default([]),
   }),
 });
 
@@ -47,6 +52,7 @@ export default function EditMahallUser() {
   });
 
   const permissions = watch('permissions');
+  const sensitiveModules = watch('permissions.sensitiveModules') ?? [];
 
   const fetchUser = useCallback(async () => {
     if (!id) return;
@@ -59,11 +65,12 @@ export default function EditMahallUser() {
       setValue('phone', user.phone);
       setValue('email', user.email || '');
       setValue('status', user.status);
-      setValue('permissions', user.permissions || {
-        view: false,
-        add: false,
-        edit: false,
-        delete: false,
+      setValue('permissions', {
+        view: user.permissions?.view ?? false,
+        add: user.permissions?.add ?? false,
+        edit: user.permissions?.edit ?? false,
+        delete: user.permissions?.delete ?? false,
+        sensitiveModules: user.permissions?.sensitiveModules ?? [],
       });
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to load user');
@@ -237,6 +244,40 @@ export default function EditMahallUser() {
                   />
                   <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                     {permission.label}
+                  </span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {/* Sensitive modules */}
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
+              Sensitive Module Access
+            </h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+              Confidential records. Grant only to staff who handle these cases — without a tick the module
+              stays hidden and the API refuses access.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {SENSITIVE_MODULE_KEYS.map((key) => (
+                <label
+                  key={key}
+                  className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800"
+                >
+                  <input
+                    type="checkbox"
+                    checked={sensitiveModules.includes(key)}
+                    onChange={(e) => {
+                      const next = e.target.checked
+                        ? [...sensitiveModules, key]
+                        : sensitiveModules.filter((m: SensitiveModuleKey) => m !== key);
+                      setValue('permissions.sensitiveModules', next, { shouldDirty: true });
+                    }}
+                    className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded dark:bg-gray-700 dark:border-gray-600"
+                  />
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {SENSITIVE_MODULE_LABELS[key]}
                   </span>
                 </label>
               ))}

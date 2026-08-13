@@ -15,6 +15,7 @@ import Table from '@/components/ui/Table';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
+import { toast } from '@/store/toastStore';
 import { TableColumn, Pagination as PaginationType } from '@/types';
 import { registrationService, NOC } from '@/services/registrationService';
 import { memberService } from '@/services/memberService';
@@ -177,7 +178,7 @@ export default function NOCList() {
       const dataToExport = result.data;
 
       if (dataToExport.length === 0) {
-        alert('No data to export');
+        toast.info('No NOCs to export');
         return;
       }
 
@@ -197,7 +198,7 @@ export default function NOCList() {
       }
     } catch (error: any) {
       console.error('Export error:', error);
-      alert(error?.message || 'Failed to export data');
+      toast.error(error?.message || 'Failed to export NOCs');
     } finally {
       setIsExporting(false);
     }

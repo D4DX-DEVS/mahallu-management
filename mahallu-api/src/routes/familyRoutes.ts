@@ -6,6 +6,7 @@ import {
   updateFamily,
   deleteFamily,
   getFamilyStats,
+  bulkImportFamilies,
 } from '../controllers/familyController';
 import { authMiddleware, allowRoles } from '../middleware/authMiddleware';
 import { tenantMiddleware, tenantFilter } from '../middleware/tenantMiddleware';
@@ -55,6 +56,60 @@ router.use(allowRoles(['super_admin', 'mahall', 'survey', 'institute']));
  */
 router.get('/', getAllFamilies);
 router.get('/stats', getFamilyStats);
+
+/**
+ * @swagger
+ * /families/bulk-import:
+ *   post:
+ *     summary: Bulk import families
+ *     tags: [Families]
+ *     description: |
+ *       Import up to 500 families at once (CSV parsed client-side into JSON rows).
+ *       **Access:** Super Admin, Mahall Admin
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [families]
+ *             properties:
+ *               families:
+ *                 type: array
+ *                 maxItems: 500
+ *                 items:
+ *                   type: object
+ *                   required: [houseName]
+ *                   properties:
+ *                     houseName:
+ *                       type: string
+ *                     houseNameMl:
+ *                       type: string
+ *                     familyHead:
+ *                       type: string
+ *                     familyHeadMl:
+ *                       type: string
+ *                     contactNo:
+ *                       type: string
+ *                     area:
+ *                       type: string
+ *                     areaMl:
+ *                       type: string
+ *                     place:
+ *                       type: string
+ *                     placeMl:
+ *                       type: string
+ *                     varisangyaGrade:
+ *                       type: string
+ *     responses:
+ *       201:
+ *         description: Number of families imported
+ *       400:
+ *         description: Validation errors with row numbers
+ */
+router.post('/bulk-import', allowRoles(['mahall', 'super_admin']), bulkImportFamilies);
 
 /**
  * @swagger

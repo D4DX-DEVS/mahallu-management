@@ -7,7 +7,9 @@ import Table from '@/components/ui/Table';
 import Pagination from '@/components/ui/Pagination';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import EmptyState from '@/components/ui/EmptyState';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import Select from '@/components/ui/Select';
+import { toast } from '@/store/toastStore';
 import { Pagination as PaginationType, TableColumn } from '@/types';
 import { formatDate } from '@/utils/format';
 import { examService, Exam, ExamStatus } from '@/services/attendanceService';
@@ -30,7 +32,8 @@ export default function ExamsList() {
   const [currentPage, setCurrentPage] = useState(1);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
   const [statusFilter, setStatusFilter] = useState('');
-  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (classId) {
@@ -67,19 +70,21 @@ export default function ExamsList() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Delete this exam?')) return;
+  const handleDelete = async () => {
+    if (!deleteConfirm) return;
 
     try {
-      setDeleteId(id);
-      await examService.deleteExam(id);
+      setDeleting(true);
+      await examService.deleteExam(deleteConfirm.id);
+      setDeleteConfirm(null);
+      toast.success(`Exam "${deleteConfirm.name}" deleted`);
       if (classId) {
         fetchExams(classId);
       }
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to delete exam');
+      toast.error(err.response?.data?.message || 'Failed to delete exam');
     } finally {
-      setDeleteId(null);
+      setDeleting(false);
     }
   };
 
@@ -115,8 +120,8 @@ export default function ExamsList() {
             View
           </button>
           <button
-            onClick={() => handleDelete(row._id)}
-            disabled={deleteId === row._id}
+            onClick={() => setDeleteConfirm({ id: row._id, name: row.name })}
+            disabled={deleting}
             className="text-xs font-medium text-red-600 hover:underline disabled:opacity-50 dark:text-red-400"
           >
             Delete
@@ -183,6 +188,18 @@ export default function ExamsList() {
           )}
         </Card>
       )}
+
+      <ConfirmDialog
+        isOpen={deleteConfirm !== null}
+        title="Delete Exam"
+        message={deleteConfirm ? `Delete the exam "${deleteConfirm.name}"?` : ''}
+        consequence="This action cannot be undone."
+        isLoading={deleting}
+        variant="danger"
+        confirmLabel="Delete"
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteConfirm(null)}
+      />
     </div>
   );
 }

@@ -14,6 +14,11 @@ export interface IInstitute extends Document {
   status: 'active' | 'inactive';
   audience?: 'all' | 'men' | 'women' | 'youth' | 'children' | 'families';
   programType?: 'quran_class' | 'hadith' | 'fiqh' | 'lecture' | 'family' | 'other';
+  /** Event fields (Task C3) — used when a program is run as a gathering/event. */
+  eventDate?: Date;
+  registrations?: { memberId: mongoose.Types.ObjectId; attended: boolean }[];
+  competitions?: { name: string; winners: string[] }[];
+  awards?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -78,6 +83,28 @@ const InstituteSchema = new Schema<IInstitute>(
     programType: {
       type: String,
       enum: ['quran_class', 'hadith', 'fiqh', 'lecture', 'family', 'other'],
+    },
+    // Task C3 — event extension. All optional: existing programs stay valid.
+    eventDate: {
+      type: Date,
+    },
+    registrations: [
+      {
+        _id: false,
+        memberId: { type: Schema.Types.ObjectId, ref: 'Member', required: true },
+        attended: { type: Boolean, default: false },
+      },
+    ],
+    competitions: [
+      {
+        _id: false,
+        name: { type: String, required: true, trim: true },
+        winners: [{ type: String, trim: true }],
+      },
+    ],
+    awards: {
+      type: String,
+      trim: true,
     },
   },
   {

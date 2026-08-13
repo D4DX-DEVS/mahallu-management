@@ -15,6 +15,7 @@ export interface User {
   lastLogin?: string;
   permissions?: Permission;
   isSuperAdmin?: boolean;
+  twoFactorEnabled?: boolean;
   tenant?: { id?: string; name: string };
 }
 
@@ -23,6 +24,8 @@ export interface Permission {
   add?: boolean;
   edit?: boolean;
   delete?: boolean;
+  /** Per-user grants for restricted modules (counselling, maslahat, inheritance, health, welfare) */
+  sensitiveModules?: import('@/constants/modules').SensitiveModuleKey[];
 }
 
 export interface Family {
@@ -90,6 +93,10 @@ export interface Institute {
   status?: 'active' | 'inactive';
   audience?: 'all' | 'men' | 'women' | 'youth' | 'children' | 'families';
   programType?: 'quran_class' | 'hadith' | 'fiqh' | 'lecture' | 'family' | 'other';
+  /** Event fields (Task C3) — present when a program is run as a gathering. */
+  eventDate?: string;
+  competitions?: { name: string; winners: string[] }[];
+  awards?: string;
   createdAt: string;
 }
 

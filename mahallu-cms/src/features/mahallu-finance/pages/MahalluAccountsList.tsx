@@ -14,6 +14,7 @@ import { masterAccountService, MahalluAccount } from '@/services/masterAccountSe
 import { formatDate } from '@/utils/format';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
 import { ROUTES } from '@/constants/routes';
+import { toast } from '@/store/toastStore';
 
 export default function MahalluAccountsList() {
   const navigate = useNavigate();
@@ -53,8 +54,9 @@ export default function MahalluAccountsList() {
       await masterAccountService.deleteMahalluAccount(selectedAccount.id);
       setShowDeleteModal(false);
       fetchAccounts();
+      toast.success('Account deleted');
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to delete account');
+      toast.error(err.response?.data?.message || 'Failed to delete account');
     } finally {
       setDeleting(false);
     }
@@ -65,13 +67,13 @@ export default function MahalluAccountsList() {
       setIsExporting(true);
       const result = await masterAccountService.getAllMahalluAccounts({ limit: 10000 });
       const data = Array.isArray(result.data) ? result.data : [];
-      if (!data.length) { alert('No data to export'); return; }
+      if (!data.length) { toast.info('No accounts to export'); return; }
       const filename = 'mahallu-accounts';
       if (type === 'csv') exportToCSV(columns, data, filename);
       else if (type === 'json') exportToJSON(columns, data, filename);
       else exportToPDF(columns, data, filename, 'Mahallu Accounts');
     } catch (err: any) {
-      alert(err?.message || 'Export failed');
+      toast.error(err?.message || 'Failed to export accounts');
     } finally {
       setIsExporting(false);
     }

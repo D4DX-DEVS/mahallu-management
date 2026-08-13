@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
+import { FiPlus } from 'react-icons/fi';
 import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import SearchableSelect from '@/components/ui/SearchableSelect';
+import QuickAddMember from '@/components/quick-add/QuickAddMember';
 import { madrasaService } from '@/services/madrasaService';
 import { memberService } from '@/services/memberService';
 
@@ -27,6 +29,7 @@ export default function EnrollStudentModal({
   const [enrollDate, setEnrollDate] = useState(today());
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [addMemberOpen, setAddMemberOpen] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -76,16 +79,29 @@ export default function EnrollStudentModal({
       }
     >
       <div className="space-y-3">
-        <SearchableSelect
-          label="Student"
-          value={memberId}
-          onChange={setMemberId}
-          options={members.map((member: any) => ({
-            value: member._id || member.id,
-            label: `${member.name}${member.familyName ? ` - ${member.familyName}` : ''}`,
-          }))}
-          placeholder="Search members..."
-        />
+        <div className="flex items-end gap-2">
+          <div className="flex-1">
+            <SearchableSelect
+              label="Student"
+              value={memberId}
+              onChange={setMemberId}
+              options={members.map((member: any) => ({
+                value: member._id || member.id,
+                label: `${member.name}${member.familyName ? ` - ${member.familyName}` : ''}`,
+              }))}
+              placeholder="Search members..."
+            />
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setAddMemberOpen(true)}
+            title="Add a new member"
+          >
+            <FiPlus className="h-4 w-4" />
+          </Button>
+        </div>
 
         <Input
           label="Roll number"
@@ -107,6 +123,15 @@ export default function EnrollStudentModal({
           </div>
         )}
       </div>
+
+      <QuickAddMember
+        open={addMemberOpen}
+        onClose={() => setAddMemberOpen(false)}
+        onCreated={(newMember) => {
+          setMembers((prev) => [...prev, newMember]);
+          setMemberId(newMember.id);
+        }}
+      />
     </Modal>
   );
 }

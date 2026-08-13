@@ -4,6 +4,8 @@ import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import { toast } from '@/store/toastStore';
 import { announcementService, Announcement } from '@/services/announcementService';
 
 const formatDate = (value?: string) => (value ? new Date(value).toLocaleString() : '-');
@@ -14,6 +16,8 @@ export default function AnnouncementDetail() {
   const [announcement, setAnnouncement] = useState<Announcement | null>(null);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [confirmSend, setConfirmSend] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -25,25 +29,30 @@ export default function AnnouncementDetail() {
   }, [id]);
 
   const handleSend = async () => {
-    if (!id || !confirm('Send this announcement now?')) return;
+    if (!id) return;
     try {
       setSending(true);
       const updated = await announcementService.send(id);
       setAnnouncement(updated);
+      toast.success('Announcement sent');
+      setConfirmSend(false);
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to send announcement');
+      toast.error(err.response?.data?.message || 'Failed to send announcement');
+      setConfirmSend(false);
     } finally {
       setSending(false);
     }
   };
 
   const handleDelete = async () => {
-    if (!id || !confirm('Delete this announcement?')) return;
+    if (!id) return;
     try {
       await announcementService.remove(id);
+      toast.success('Announcement deleted');
       navigate('/announcements');
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to delete announcement');
+      toast.error(err.response?.data?.message || 'Failed to delete announcement');
+      setConfirmDelete(false);
     }
   };
 
@@ -133,15 +142,37 @@ export default function AnnouncementDetail() {
       </Card>
 
       <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
-        <Button variant="outline" onClick={handleDelete}>
+        <Button variant="outline" onClick={() => setConfirmDelete(true)}>
           Delete
         </Button>
         {announcement.status === 'draft' && (
-          <Button onClick={handleSend} disabled={sending}>
+          <Button onClick={() => setConfirmSend(true)} disabled={sending}>
             {sending ? 'Sending...' : 'Send Now'}
           </Button>
         )}
       </div>
+
+      <ConfirmDialog
+        isOpen={confirmSend}
+        title="Send Announcement"
+        message="Send this announcement now to all recipients?"
+        confirmLabel="Send"
+        cancelLabel="Cancel"
+        isLoading={sending}
+        onConfirm={handleSend}
+        onCancel={() => setConfirmSend(false)}
+      />
+
+      <ConfirmDialog
+        isOpen={confirmDelete}
+        title="Delete Announcement"
+        message="Delete this announcement? This action cannot be undone."
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        variant="danger"
+        onConfirm={handleDelete}
+        onCancel={() => setConfirmDelete(false)}
+      />
     </div>
   );
 }

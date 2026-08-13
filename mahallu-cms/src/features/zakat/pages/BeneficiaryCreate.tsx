@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { FiPlus } from 'react-icons/fi';
 import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import SearchableSelect from '@/components/ui/SearchableSelect';
+import QuickAddMember from '@/components/quick-add/QuickAddMember';
+import { toast } from '@/store/toastStore';
 import {
   zakatDistributionService,
   ZAKAT_CATEGORY_OPTIONS,
@@ -17,6 +20,8 @@ export default function BeneficiaryCreate() {
   const navigate = useNavigate();
   const [members, setMembers] = useState<any[]>([]);
   const [saving, setSaving] = useState(false);
+  const [addMemberOpen, setAddMemberOpen] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [form, setForm] = useState({
     memberId: '',
     name: '',
@@ -35,10 +40,17 @@ export default function BeneficiaryCreate() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const newErrors: Record<string, string> = {};
+
     if (!form.memberId && !form.name.trim()) {
-      alert('Pick a member or enter a name');
+      newErrors.name = 'Pick a member or enter a name';
+    }
+
+    setErrors(newErrors);
+    if (Object.keys(newErrors).length > 0) {
       return;
     }
+
     try {
       setSaving(true);
       await zakatDistributionService.createBeneficiary({
@@ -48,9 +60,10 @@ export default function BeneficiaryCreate() {
         priorityArea: form.priorityArea || undefined,
         notes: form.notes || undefined,
       });
+      toast.success('Beneficiary registered successfully');
       navigate('/zakat/beneficiaries');
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to create beneficiary');
+      toast.error(err.response?.data?.message || 'Failed to create beneficiary');
     } finally {
       setSaving(false);
     }
@@ -77,23 +90,42 @@ export default function BeneficiaryCreate() {
       <form onSubmit={handleSubmit}>
         <Card className="p-3 sm:p-4">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <SearchableSelect
-              label="Member"
-              value={form.memberId}
-              onChange={(value) => setForm({ ...form, memberId: value })}
-              options={members.map((member: any) => ({
-                value: member._id || member.id,
-                label: `${member.name}${member.familyName ? ` - ${member.familyName}` : ''}`,
-              }))}
-              placeholder="Search zakat-eligible members..."
-              helperText="Leave blank for a non-member beneficiary"
-            />
+            <div>
+              <div className="flex items-end gap-2">
+                <div className="flex-1">
+                  <SearchableSelect
+                    label="Member"
+                    value={form.memberId}
+                    onChange={(value) => setForm({ ...form, memberId: value })}
+                    options={members.map((member: any) => ({
+                      value: member._id || member.id,
+                      label: `${member.name}${member.familyName ? ` - ${member.familyName}` : ''}`,
+                    }))}
+                    placeholder="Search zakat-eligible members..."
+                    helperText="Leave blank for a non-member beneficiary"
+                  />
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setAddMemberOpen(true)}
+                  title="Add a new member"
+                >
+                  <FiPlus className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
 
             <Input
               label="Name (non-member)"
               value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              onChange={(e) => {
+                setForm({ ...form, name: e.target.value });
+                if (errors.name) setErrors({ ...errors, name: '' });
+              }}
               placeholder="Required when no member is selected"
+              error={errors.name}
             />
 
             <Select
@@ -130,6 +162,15 @@ export default function BeneficiaryCreate() {
           </div>
         </Card>
       </form>
+
+      <QuickAddMember
+        open={addMemberOpen}
+        onClose={() => setAddMemberOpen(false)}
+        onCreated={(newMember) => {
+          setMembers((prev) => [...prev, newMember]);
+          setForm({ ...form, memberId: newMember.id });
+        }}
+      />
     </div>
   );
 }

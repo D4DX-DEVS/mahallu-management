@@ -11,6 +11,7 @@ import { memberService } from '@/services/memberService';
 import { formatDate } from '@/utils/format';
 import { exportToCSV, exportToJSON } from '@/utils/exportUtils';
 import { exportInvoicesToPdf, InvoiceDetails } from '@/utils/invoiceUtils';
+import { toast } from '@/store/toastStore';
 
 /** Map varisangya payment to transaction-like shape for the table (list shows varisangya, so transactions view must match). */
 function varisangyaToTransaction(v: Varisangya): Transaction {
@@ -98,7 +99,7 @@ export default function MemberVarisangyaTransactions() {
     try {
       setIsExporting(true);
       if (transactions.length === 0) {
-        alert('No data to export');
+        toast.info('No transaction data to export');
         return;
       }
       const filename = `member-varisangya-transactions${memberId ? `-${memberId}` : ''}`;
@@ -129,7 +130,7 @@ export default function MemberVarisangyaTransactions() {
       }
     } catch (error: any) {
       console.error('Export error:', error);
-      alert(error?.message || 'Failed to export data');
+      toast.error(error?.message || 'Failed to export transactions');
     } finally {
       setIsExporting(false);
     }

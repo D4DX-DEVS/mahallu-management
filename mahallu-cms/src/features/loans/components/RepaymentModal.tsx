@@ -3,6 +3,7 @@ import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import { formatCurrency } from '@/utils/format';
+import { toast } from '@/store/toastStore';
 import { qardService } from '@/services/qardService';
 
 interface RepaymentModalProps {
@@ -54,11 +55,14 @@ export default function RepaymentModal({
         receiptNo: receiptNo || undefined,
         remarks: remarks || undefined,
       });
+      toast.success(`Repayment of ${formatCurrency(value)} applied`);
       reset();
       onRecorded();
       onClose();
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to record the repayment');
+      const errorMsg = err.response?.data?.message || 'Failed to record the repayment';
+      setError(errorMsg);
+      toast.error(errorMsg);
     } finally {
       setSaving(false);
     }

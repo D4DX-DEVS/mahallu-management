@@ -5,7 +5,9 @@ import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { pettyCashService, PettyCashFund, PettyCashTransaction } from '@/services/pettyCashService';
+import { toast } from '@/store/toastStore';
 
 export default function PettyCashDetail() {
   const { id } = useParams<{ id: string }>();
@@ -17,6 +19,7 @@ export default function PettyCashDetail() {
   const [expenseForm, setExpenseForm] = useState({ amount: '', description: '', receiptNo: '', date: new Date().toISOString().split('T')[0] });
   const [saving, setSaving] = useState(false);
   const [replenishing, setReplenishing] = useState(false);
+  const [showReplenishDialog, setShowReplenishDialog] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -56,28 +59,32 @@ export default function PettyCashDetail() {
         receiptNo: expenseForm.receiptNo || undefined,
         date: expenseForm.date,
       });
+      toast.success('Expense recorded');
       setShowExpense(false);
       setExpenseForm({ amount: '', description: '', receiptNo: '', date: new Date().toISOString().split('T')[0] });
       fetchFund();
       fetchTransactions();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to record expense');
+      toast.error(err.response?.data?.message || 'Failed to record expense');
     } finally {
       setSaving(false);
     }
   };
 
-  const handleReplenish = async () => {
-    if (!confirm('Replenish petty cash? This will post all expenses to the accounting ledger and restore balance to the float amount.')) return;
+  const handleReplenish = () => {
+    setShowReplenishDialog(true);
+  };
+
+  const confirmReplenish = async () => {
     try {
       setReplenishing(true);
       const result = await pettyCashService.replenish(id!);
-      alert(result.message || 'Replenished successfully');
+      toast.success(result.message || 'Petty cash replenished');
+      setShowReplenishDialog(false);
       fetchFund();
       fetchTransactions();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to replenish');
-    } finally {
+      toast.error(err.response?.data?.message || 'Failed to replenish petty cash');
       setReplenishing(false);
     }
   };
@@ -214,6 +221,19 @@ export default function PettyCashDetail() {
           </div>
         )}
       </Card>
+
+      <ConfirmDialog
+        isOpen={showReplenishDialog}
+        title="Replenish Petty Cash"
+        message="This will post all expenses to the accounting ledger and restore the balance to the float amount."
+        consequence="All pending expenses will be settled and a new fund cycle will begin."
+        confirmLabel="Replenish"
+        cancelLabel="Cancel"
+        variant="primary"
+        isLoading={replenishing}
+        onConfirm={confirmReplenish}
+        onCancel={() => setShowReplenishDialog(false)}
+      />
     </div>
   );
 }

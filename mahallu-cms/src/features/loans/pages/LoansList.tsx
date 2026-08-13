@@ -7,6 +7,7 @@ import Table from '@/components/ui/Table';
 import StatCard from '@/components/ui/StatCard';
 import SearchInput from '@/components/ui/SearchInput';
 import Pagination from '@/components/ui/Pagination';
+import EmptyState from '@/components/ui/EmptyState';
 import { Pagination as PaginationType, TableColumn } from '@/types';
 import { useDebounce } from '@/hooks/useDebounce';
 import { formatCurrency, formatDate } from '@/utils/format';
@@ -143,13 +144,20 @@ export default function LoansList() {
           </div>
         )}
 
-        <Table
-          columns={columns}
-          data={rows}
-          isLoading={loading}
-          emptyMessage="No loan applications yet"
-          onRowClick={(row) => navigate(`/loans/${row._id}`)}
-        />
+        {!loading && rows.length === 0 ? (
+          <EmptyState
+            title="No loan applications yet"
+            description="Start by creating a new application"
+            action={{ label: 'New application', onClick: () => navigate('/loans/create') }}
+          />
+        ) : (
+          <Table
+            columns={columns}
+            data={rows}
+            isLoading={loading}
+            onRowClick={(row) => navigate(`/loans/${row._id}`)}
+          />
+        )}
 
         {pagination && pagination.totalPages > 1 && (
           <Pagination

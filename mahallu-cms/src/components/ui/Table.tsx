@@ -5,6 +5,7 @@ import LoadingSpinner from './LoadingSpinner';
 import EmptyState from './EmptyState';
 import Button from './Button';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
+import { toast } from '@/store/toastStore';
 import { FiFileText, FiFile, FiDownload } from 'react-icons/fi';
 
 export interface TableProps<T = any> {
@@ -49,7 +50,7 @@ function Table<T extends Record<string, any>>({
       const dataToExport = onExportAll ? await onExportAll() : data;
       
       if (dataToExport.length === 0) {
-        alert('No data to export');
+        toast.info('Nothing to export — this list is empty');
         return;
       }
 
@@ -66,7 +67,7 @@ function Table<T extends Record<string, any>>({
       }
     } catch (error: any) {
       console.error('Export error:', error);
-      alert(error?.message || 'Failed to export data. Please try again.');
+      toast.error(error?.message || 'Failed to export data. Please try again.');
     } finally {
       setExporting(false);
       setExportType(null);

@@ -7,9 +7,11 @@ import Select from '@/components/ui/Select';
 import Table from '@/components/ui/Table';
 import Modal from '@/components/ui/Modal';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import EmptyState from '@/components/ui/EmptyState';
 import Pagination from '@/components/ui/Pagination';
 import { Pagination as PaginationType, TableColumn } from '@/types';
 import { welfareService, WelfareScheme } from '@/services/welfareService';
+import { toast } from '@/store/toastStore';
 
 export const WELFARE_CATEGORY_OPTIONS = [
   { value: 'medical', label: 'Medical' },
@@ -34,6 +36,7 @@ export default function SchemesList() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     fetchRows();
@@ -66,23 +69,30 @@ export default function SchemesList() {
   };
 
   const handleSave = async () => {
+    const newErrors: Record<string, string> = {};
     if (!form.name.trim()) {
-      alert('Scheme name is required');
+      newErrors.name = 'Scheme name is required';
+    }
+    if (Object.keys(newErrors).length > 0) {
+      setFieldErrors(newErrors);
       return;
     }
     try {
       setSaving(true);
       if (editingId) {
         await welfareService.updateScheme(editingId, form);
+        toast.success('Scheme updated');
       } else {
         await welfareService.createScheme(form);
+        toast.success('Scheme created');
       }
       setFormOpen(false);
       setEditingId(null);
       setForm(emptyForm);
+      setFieldErrors({});
       fetchRows();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to save scheme');
+      toast.error(err.response?.data?.message || 'Failed to save scheme');
     } finally {
       setSaving(false);
     }
@@ -152,6 +162,19 @@ export default function SchemesList() {
               Retry
             </Button>
           </div>
+        ) : rows.length === 0 ? (
+          <EmptyState
+            title="No schemes yet"
+            description="Create a welfare scheme to begin accepting applications"
+            action={{
+              label: 'Create First Scheme',
+              onClick: () => {
+                setEditingId(null);
+                setForm(emptyForm);
+                setFormOpen(true);
+              },
+            }}
+          />
         ) : (
           <div className="overflow-x-auto">
             <Table columns={columns} data={rows} emptyMessage="No schemes yet" showExport={false} />
@@ -177,18 +200,27 @@ export default function SchemesList() {
         title={editingId ? 'Edit Scheme' : 'New Scheme'}
       >
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-          <Input
-            label="Scheme Name"
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-            required
-          />
+          <div>
+            <Input
+              label="Scheme Name"
+              value={form.name}
+              onChange={(e) => {
+                setForm({ ...form, name: e.target.value });
+                if (fieldErrors.name) {
+                  setFieldErrors({ ...fieldErrors, name: '' });
+                }
+              }}
+              required
+            />
+            {fieldErrors.name && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{fieldErrors.name}</p>}
+          </div>
           <Input
             label="Name (Malayalam)"
             value={form.nameMl}
             onChange={(e) => setForm({ ...form, nameMl: e.target.value })}
             className="font-malayalam"
           />
+
           <Select
             label="Category"
             options={WELFARE_CATEGORY_OPTIONS}

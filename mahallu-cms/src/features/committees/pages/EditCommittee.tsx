@@ -129,6 +129,9 @@ export default function EditCommittee() {
         descriptionMl: data.descriptionMl,
         members: data.members || [],
         status: data.status || 'active',
+        termStartDate: data.termStartDate || undefined,
+        termEndDate: data.termEndDate || undefined,
+        maxTermYears: data.maxTermYears,
       });
       navigate(ROUTES.COMMITTEES.LIST);
     } catch (err: any) {

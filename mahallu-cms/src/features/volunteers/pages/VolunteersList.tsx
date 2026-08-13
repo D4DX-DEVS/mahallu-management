@@ -4,6 +4,8 @@ import { volunteerService, type VolunteerProfile, VOLUNTEER_WINGS } from '@/serv
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import Pagination from '@/components/ui/Pagination';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import { toast } from '@/store/toastStore';
 
 export default function VolunteersList() {
   const navigate = useNavigate();
@@ -14,6 +16,9 @@ export default function VolunteersList() {
   const [wingFilter, setWingFilter] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [totalPages, setTotalPages] = useState(1);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     const fetchVolunteers = async () => {
@@ -37,16 +42,27 @@ export default function VolunteersList() {
     fetchVolunteers();
   }, [currentPage, itemsPerPage, wingFilter, statusFilter]);
 
-  const handleDelete = useCallback(async (id: string) => {
-    if (confirm('Delete this volunteer?')) {
-      try {
-        await volunteerService.deleteVolunteer(id);
-        setVolunteers((prev) => prev.filter((v) => v._id !== id));
-      } catch (error) {
-        console.error('Failed to delete volunteer:', error);
-      }
+  const handleDeleteClick = (id: string) => {
+    setDeleteId(id);
+    setShowDeleteConfirm(true);
+  };
+
+  const handleConfirmDelete = useCallback(async () => {
+    if (!deleteId) return;
+    try {
+      setDeleting(true);
+      await volunteerService.deleteVolunteer(deleteId);
+      setVolunteers((prev) => prev.filter((v) => v._id !== deleteId));
+      toast.success('Volunteer deleted successfully');
+      setShowDeleteConfirm(false);
+      setDeleteId(null);
+    } catch (error) {
+      toast.error('Failed to delete volunteer');
+      console.error('Failed to delete volunteer:', error);
+    } finally {
+      setDeleting(false);
     }
-  }, []);
+  }, [deleteId]);
 
   const statusColor = (status: string) => {
     return status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800';
@@ -158,7 +174,7 @@ export default function VolunteersList() {
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleDelete(volunteer._id);
+                        handleDeleteClick(volunteer._id);
                       }}
                       className="flex-1 px-2 py-1 text-xs bg-red-50 text-red-600 rounded hover:bg-red-100"
                     >
@@ -179,6 +195,22 @@ export default function VolunteersList() {
           />
         </>
       )}
+
+      <ConfirmDialog
+        isOpen={showDeleteConfirm}
+        title="Delete Volunteer"
+        message="Are you sure you want to delete this volunteer? This action cannot be undone."
+        consequence="The volunteer record will be permanently removed from the system."
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        variant="danger"
+        isLoading={deleting}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => {
+          setShowDeleteConfirm(false);
+          setDeleteId(null);
+        }}
+      />
     </div>
   );
 }

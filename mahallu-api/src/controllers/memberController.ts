@@ -6,6 +6,7 @@ import bcrypt from 'bcryptjs';
 import { AuthRequest } from '../middleware/authMiddleware';
 import { getPaginationParams, createPaginationResponse } from '../utils/pagination';
 import { verifyTenantOwnership } from '../utils/tenantCheck';
+import { refBelongsToTenant } from '../utils/sanitizeUpdate';
 
 export const getAllMembers = async (req: AuthRequest, res: Response) => {
   try {
@@ -368,9 +369,9 @@ export const getMembersByFamily = async (req: Request, res: Response) => {
   try {
     const { familyId } = req.params;
     const { status } = req.query;
-    
+
     const query: any = { familyId };
-    
+
     // Filter by status - default to active only, unless explicitly requested
     if (status) {
       query.status = status;
@@ -381,13 +382,82 @@ export const getMembersByFamily = async (req: Request, res: Response) => {
 
     // Exclude deceased members by default
     query.isDead = { $ne: true };
-    
+
     const members = await Member.find(query)
       .populate('familyId', 'houseName mahallId')
       .sort({ createdAt: -1 });
     res.json({ success: true, data: members });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/** Bulk import members to a family (CSV parsed client-side into a JSON array). Max 500 rows. */
+export const bulkImportMembers = async (req: AuthRequest, res: Response) => {
+  try {
+    const { familyId, members } = req.body;
+
+    if (!familyId) {
+      return res.status(400).json({ success: false, message: 'familyId is required' });
+    }
+
+    if (!Array.isArray(members) || members.length === 0) {
+      return res.status(400).json({ success: false, message: 'members array is required' });
+    }
+
+    if (members.length > 500) {
+      return res.status(400).json({ success: false, message: 'Maximum 500 members per import' });
+    }
+
+    // Verify family exists and belongs to tenant
+    const familyBelongs = await refBelongsToTenant(Family, familyId, req.tenantId);
+    if (!familyBelongs) {
+      return res.status(403).json({ success: false, message: 'Family does not belong to this tenant or does not exist' });
+    }
+
+    const family = await Family.findById(familyId).select('houseName mahallId').lean();
+    if (!family) {
+      return res.status(404).json({ success: false, message: 'Family not found' });
+    }
+
+    const errors: { row: number; message: string }[] = [];
+    const docs: any[] = [];
+
+    // Get existing member count for this family to generate mahallId
+    const memberCount = await Member.countDocuments({ familyId });
+
+    members.forEach((m: any, i: number) => {
+      if (!m.name || typeof m.name !== 'string' || !m.name.trim()) {
+        errors.push({ row: i + 1, message: 'name is required' });
+        return;
+      }
+
+      docs.push({
+        name: m.name.trim(),
+        nameMl: m.nameMl || m.name_ml || undefined,
+        familyId,
+        familyName: family.houseName,
+        gender: ['male', 'female'].includes(m.gender) ? m.gender : undefined,
+        age: m.age && Number(m.age) > 0 ? Number(m.age) : undefined,
+        maritalStatus: ['single', 'married', 'divorced', 'widowed'].includes(m.maritalStatus)
+          ? m.maritalStatus
+          : undefined,
+        education: m.education || undefined,
+        occupation: m.occupation || undefined,
+        tenantId: req.tenantId,
+        status: 'active',
+        mahallId: `${family.mahallId}-${memberCount + docs.length + 1}`,
+      });
+    });
+
+    if (errors.length) {
+      return res.status(400).json({ success: false, message: 'Validation failed', errors });
+    }
+
+    const created = await Member.insertMany(docs);
+    res.status(201).json({ success: true, data: { imported: created.length } });
+  } catch (error: any) {
+    res.status(400).json({ success: false, message: error.message });
   }
 };
 

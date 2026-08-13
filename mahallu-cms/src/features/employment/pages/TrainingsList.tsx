@@ -1,13 +1,16 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { employmentService, type SkillTraining } from '@/services/employmentService';
+import { employmentService, type SkillTraining, type EmploymentSummary } from '@/services/employmentService';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import Pagination from '@/components/ui/Pagination';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import { toast } from '@/store/toastStore';
 
 export default function TrainingsList() {
   const navigate = useNavigate();
   const [trainings, setTrainings] = useState<SkillTraining[]>([]);
+  const [summary, setSummary] = useState<EmploymentSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
@@ -15,6 +18,9 @@ export default function TrainingsList() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   // Debounce search
   useEffect(() => {
@@ -27,14 +33,18 @@ export default function TrainingsList() {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const result = await employmentService.getTrainings({
-          page: currentPage,
-          limit: itemsPerPage,
-          search: debouncedSearch,
-          status: statusFilter || undefined,
-        });
-        setTrainings(result.data);
-        setTotalPages(result.pagination?.totalPages || 1);
+        const [trainResult, sumResult] = await Promise.all([
+          employmentService.getTrainings({
+            page: currentPage,
+            limit: itemsPerPage,
+            search: debouncedSearch,
+            status: statusFilter || undefined,
+          }),
+          employmentService.getSummary(),
+        ]);
+        setTrainings(trainResult.data);
+        setSummary(sumResult);
+        setTotalPages(trainResult.pagination?.totalPages || 1);
       } catch (error) {
         console.error('Failed to fetch trainings:', error);
       } finally {
@@ -45,16 +55,27 @@ export default function TrainingsList() {
     fetchData();
   }, [currentPage, itemsPerPage, debouncedSearch, statusFilter]);
 
-  const handleDelete = useCallback(async (id: string) => {
-    if (confirm('Delete this skill training?')) {
-      try {
-        await employmentService.deleteTraining(id);
-        setTrainings((prev) => prev.filter((t) => t._id !== id));
-      } catch (error) {
-        console.error('Failed to delete training:', error);
-      }
+  const handleDeleteClick = (id: string) => {
+    setDeleteId(id);
+    setShowDeleteConfirm(true);
+  };
+
+  const handleConfirmDelete = useCallback(async () => {
+    if (!deleteId) return;
+    try {
+      setDeleting(true);
+      await employmentService.deleteTraining(deleteId);
+      setTrainings((prev) => prev.filter((t) => t._id !== deleteId));
+      toast.success('Training deleted successfully');
+      setShowDeleteConfirm(false);
+      setDeleteId(null);
+    } catch (error) {
+      toast.error('Failed to delete training');
+      console.error('Failed to delete training:', error);
+    } finally {
+      setDeleting(false);
     }
-  }, []);
+  }, [deleteId]);
 
   const statusColor = (status: string) => {
     switch (status) {
@@ -112,6 +133,36 @@ export default function TrainingsList() {
         </Button>
       </div>
 
+      {/* Summary Cards */}
+      {summary && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <Card>
+            <div className="p-4 text-center">
+              <div className="text-2xl font-bold text-blue-600">{summary.trainingsCount}</div>
+              <div className="text-xs sm:text-sm text-gray-600">Total Trainings</div>
+            </div>
+          </Card>
+          <Card>
+            <div className="p-4 text-center">
+              <div className="text-2xl font-bold text-green-600">{summary.skilledWorkers}</div>
+              <div className="text-xs sm:text-sm text-gray-600">Skilled Workers</div>
+            </div>
+          </Card>
+          <Card>
+            <div className="p-4 text-center">
+              <div className="text-2xl font-bold text-purple-600">{summary.registeredJobSeekers}</div>
+              <div className="text-xs sm:text-sm text-gray-600">Job Seekers</div>
+            </div>
+          </Card>
+          <Card>
+            <div className="p-4 text-center">
+              <div className="text-2xl font-bold text-orange-600">{summary.employersCount}</div>
+              <div className="text-xs sm:text-sm text-gray-600">Employers</div>
+            </div>
+          </Card>
+        </div>
+      )}
+
       {loading ? (
         <Card>
           <div className="p-8 text-center">Loading trainings...</div>
@@ -167,7 +218,7 @@ export default function TrainingsList() {
                         Edit
                       </button>
                       <button
-                        onClick={() => handleDelete(training._id)}
+                        onClick={() => handleDeleteClick(training._id)}
                         className="text-red-600 hover:text-red-900 px-2 py-1 text-xs hover:bg-red-50 rounded"
                         title="Delete"
                       >
@@ -189,6 +240,22 @@ export default function TrainingsList() {
           />
         </>
       )}
+
+      <ConfirmDialog
+        isOpen={showDeleteConfirm}
+        title="Delete Training"
+        message="Are you sure you want to delete this skill training?"
+        consequence="The training record and participant list will be permanently removed."
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        variant="danger"
+        isLoading={deleting}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => {
+          setShowDeleteConfirm(false);
+          setDeleteId(null);
+        }}
+      />
     </div>
   );
 }

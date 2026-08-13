@@ -6,6 +6,7 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import Checkbox from '@/components/ui/Checkbox';
+import { toast } from '@/store/toastStore';
 import {
   announcementService,
   ANNOUNCEMENT_CATEGORY_OPTIONS,
@@ -37,7 +38,7 @@ export default function AnnouncementCreate() {
   const handleSubmit = async (e: React.FormEvent, sendNow: boolean) => {
     e.preventDefault();
     if (!form.title.trim() || !form.body.trim()) {
-      alert('Title and message are required');
+      toast.error('Title and message are required');
       return;
     }
     try {
@@ -45,10 +46,13 @@ export default function AnnouncementCreate() {
       const created = await announcementService.create(form as any);
       if (sendNow) {
         await announcementService.send(created._id);
+        toast.success('Announcement sent');
+      } else {
+        toast.success('Announcement saved as draft');
       }
       navigate(`/announcements/${created._id}`);
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to save announcement');
+      toast.error(err.response?.data?.message || 'Failed to save announcement');
     } finally {
       setSaving(false);
     }

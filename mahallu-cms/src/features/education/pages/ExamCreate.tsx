@@ -4,6 +4,7 @@ import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { toast } from '@/store/toastStore';
 import { examService } from '@/services/attendanceService';
 import { madrasaService, MadrasaClass } from '@/services/madrasaService';
 
@@ -33,7 +34,7 @@ export default function ExamCreate() {
       const result = await madrasaService.getClasses({ limit: 100 });
       setClasses(result.data);
     } catch (err: any) {
-      alert('Failed to load classes');
+      toast.error('Failed to load classes');
     } finally {
       setLoading(false);
     }
@@ -51,16 +52,17 @@ export default function ExamCreate() {
     e.preventDefault();
 
     if (!formData.classId || !formData.name || !formData.examDate) {
-      alert('Please fill in all required fields');
+      toast.error('Please fill in all required fields');
       return;
     }
 
     try {
       setSubmitting(true);
       const exam = await examService.createExam(formData);
+      toast.success(`Exam "${formData.name}" created`);
       navigate(`/education/exams/${exam._id}`);
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to create exam');
+      toast.error(err.response?.data?.message || 'Failed to create exam');
     } finally {
       setSubmitting(false);
     }

@@ -7,9 +7,11 @@ import Select from '@/components/ui/Select';
 import Table from '@/components/ui/Table';
 import Modal from '@/components/ui/Modal';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import EmptyState from '@/components/ui/EmptyState';
 import Pagination from '@/components/ui/Pagination';
 import { Pagination as PaginationType, TableColumn } from '@/types';
 import { surveyService, SurveySnapshot } from '@/services/surveyService';
+import { toast } from '@/store/toastStore';
 
 const formatDate = (value?: string) => (value ? new Date(value).toLocaleDateString() : '—');
 
@@ -52,9 +54,10 @@ export default function SurveyList() {
       setGenerating(true);
       const snapshot = await surveyService.generate({ type: generateType });
       setGenerateOpen(false);
+      toast.success('Survey generated successfully');
       navigate(`/survey/${snapshot._id}`);
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to generate survey');
+      toast.error(err.response?.data?.message || 'Failed to generate survey');
     } finally {
       setGenerating(false);
     }
@@ -110,6 +113,15 @@ export default function SurveyList() {
               Retry
             </Button>
           </div>
+        ) : rows.length === 0 ? (
+          <EmptyState
+            title="No survey snapshots yet"
+            description="Generate a survey snapshot to capture the current state of the Mahallu population"
+            action={{
+              label: 'Generate First Survey',
+              onClick: () => setGenerateOpen(true),
+            }}
+          />
         ) : (
           <div className="overflow-x-auto">
             <Table

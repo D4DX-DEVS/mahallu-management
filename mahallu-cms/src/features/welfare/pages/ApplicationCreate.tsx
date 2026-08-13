@@ -8,12 +8,14 @@ import Select from '@/components/ui/Select';
 import SearchableSelect from '@/components/ui/SearchableSelect';
 import { welfareService, WelfareScheme } from '@/services/welfareService';
 import { familyService } from '@/services/familyService';
+import { toast } from '@/store/toastStore';
 
 export default function ApplicationCreate() {
   const navigate = useNavigate();
   const [schemes, setSchemes] = useState<WelfareScheme[]>([]);
   const [families, setFamilies] = useState<any[]>([]);
   const [saving, setSaving] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [form, setForm] = useState({
     schemeId: '',
     familyId: '',
@@ -35,8 +37,15 @@ export default function ApplicationCreate() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.schemeId || !form.requestedAmount) {
-      alert('Scheme and requested amount are required');
+    const newErrors: Record<string, string> = {};
+    if (!form.schemeId) {
+      newErrors.schemeId = 'Scheme is required';
+    }
+    if (!form.requestedAmount) {
+      newErrors.requestedAmount = 'Requested amount is required';
+    }
+    if (Object.keys(newErrors).length > 0) {
+      setFieldErrors(newErrors);
       return;
     }
     try {
@@ -48,9 +57,10 @@ export default function ApplicationCreate() {
         priority: form.priority,
         reason: form.reason,
       });
+      toast.success('Application created');
       navigate(`/welfare/applications/${application._id}`);
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to create application');
+      toast.error(err.response?.data?.message || 'Failed to create application');
     } finally {
       setSaving(false);
     }
@@ -77,16 +87,24 @@ export default function ApplicationCreate() {
       <form onSubmit={handleSubmit}>
         <Card className="p-3 sm:p-4">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <Select
-              label="Scheme"
-              value={form.schemeId}
-              onChange={(e) => setForm({ ...form, schemeId: e.target.value })}
-              options={[
-                { value: '', label: 'Select a scheme' },
-                ...schemes.map((scheme) => ({ value: scheme._id, label: scheme.name })),
-              ]}
-              required
-            />
+            <div>
+              <Select
+                label="Scheme"
+                value={form.schemeId}
+                onChange={(e) => {
+                  setForm({ ...form, schemeId: e.target.value });
+                  if (fieldErrors.schemeId) {
+                    setFieldErrors({ ...fieldErrors, schemeId: '' });
+                  }
+                }}
+                options={[
+                  { value: '', label: 'Select a scheme' },
+                  ...schemes.map((scheme) => ({ value: scheme._id, label: scheme.name })),
+                ]}
+                required
+              />
+              {fieldErrors.schemeId && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{fieldErrors.schemeId}</p>}
+            </div>
 
             <SearchableSelect
               label="Family"
@@ -99,13 +117,21 @@ export default function ApplicationCreate() {
               placeholder="Search family..."
             />
 
-            <Input
-              label="Requested Amount"
-              type="number"
-              value={form.requestedAmount}
-              onChange={(e) => setForm({ ...form, requestedAmount: e.target.value })}
-              required
-            />
+            <div>
+              <Input
+                label="Requested Amount"
+                type="number"
+                value={form.requestedAmount}
+                onChange={(e) => {
+                  setForm({ ...form, requestedAmount: e.target.value });
+                  if (fieldErrors.requestedAmount) {
+                    setFieldErrors({ ...fieldErrors, requestedAmount: '' });
+                  }
+                }}
+                required
+              />
+              {fieldErrors.requestedAmount && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{fieldErrors.requestedAmount}</p>}
+            </div>
 
             <Select
               label="Priority"

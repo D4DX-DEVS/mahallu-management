@@ -5,6 +5,7 @@ import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { toast } from '@/store/toastStore';
 import { ROUTES } from '@/constants/routes';
 import { mosqueService, MOSQUE_FACILITY_OPTIONS, MosqueProfile } from '@/services/mosqueService';
 
@@ -52,8 +53,9 @@ export default function MosqueProfilePage() {
       const saved = await mosqueService.save(profile);
       setProfile({ ...emptyProfile, ...saved, facilities: saved.facilities || [] });
       setEditing(false);
+      toast.success('Mosque profile saved');
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to save mosque profile');
+      toast.error(err.response?.data?.message || 'Failed to save mosque profile');
     } finally {
       setSaving(false);
     }

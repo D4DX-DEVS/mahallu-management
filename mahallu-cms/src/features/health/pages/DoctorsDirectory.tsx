@@ -3,8 +3,10 @@ import { FiPlus, FiSearch, FiEdit2, FiTrash2, FiPhone } from 'react-icons/fi';
 import { getHealthResources, deleteHealthResource, IHealthResource } from '@/services/healthService';
 import Pagination from '@/components/ui/Pagination';
 import Button from '@/components/ui/Button';
-import Modal from '@/components/ui/Modal';
 import Input from '@/components/ui/Input';
+import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import { toast } from '@/store/toastStore';
 import { useNavigate } from 'react-router-dom';
 
 export default function DoctorsDirectory() {
@@ -17,6 +19,7 @@ export default function DoctorsDirectory() {
   const [search, setSearch] = useState('');
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const itemsPerPage = 10;
 
@@ -42,12 +45,17 @@ export default function DoctorsDirectory() {
   const handleDelete = async () => {
     if (!deleteId) return;
     try {
+      setDeleting(true);
       await deleteHealthResource(deleteId);
       setConfirmDelete(false);
       setDeleteId(null);
       fetchDoctors(currentPage, search);
+      toast.success('Doctor deleted successfully');
     } catch (error) {
+      toast.error('Failed to delete doctor');
       console.error('Failed to delete doctor:', error);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -56,7 +64,7 @@ export default function DoctorsDirectory() {
   };
 
   if (loading) {
-    return <div className="p-4">Loading...</div>;
+    return <LoadingSpinner />;
   }
 
   return (
@@ -148,21 +156,21 @@ export default function DoctorsDirectory() {
         )}
       </div>
 
-      <Modal
+      <ConfirmDialog
         isOpen={confirmDelete}
         title="Delete Doctor"
-        onClose={() => setConfirmDelete(false)}
-      >
-        <p className="text-gray-700 mb-6">Are you sure you want to delete this doctor?</p>
-        <div className="flex gap-3 justify-end">
-          <Button variant="secondary" onClick={() => setConfirmDelete(false)}>
-            Cancel
-          </Button>
-          <Button variant="danger" onClick={handleDelete}>
-            Delete
-          </Button>
-        </div>
-      </Modal>
+        message="Are you sure you want to delete this doctor?"
+        consequence="The doctor record will be permanently removed from the doctors directory."
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        variant="danger"
+        isLoading={deleting}
+        onConfirm={handleDelete}
+        onCancel={() => {
+          setConfirmDelete(false);
+          setDeleteId(null);
+        }}
+      />
     </div>
   );
 }

@@ -8,10 +8,13 @@ import Table from '@/components/ui/Table';
 import Modal from '@/components/ui/Modal';
 import SearchInput from '@/components/ui/SearchInput';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import EmptyState from '@/components/ui/EmptyState';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import Pagination from '@/components/ui/Pagination';
 import { Pagination as PaginationType, TableColumn } from '@/types';
 import { facilityService, LocalityFacility } from '@/services/surveyService';
 import { useDebounce } from '@/hooks/useDebounce';
+import { toast } from '@/store/toastStore';
 
 const TYPE_OPTIONS = [
   { value: 'school', label: 'School' },
@@ -47,6 +50,10 @@ export default function FacilitiesList() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [isConfirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deletingName, setDeletingName] = useState<string>('');
 
   const debouncedSearch = useDebounce(searchQuery, 500);
 
@@ -91,33 +98,50 @@ export default function FacilitiesList() {
   };
 
   const handleSave = async () => {
+    const newErrors: Record<string, string> = {};
     if (!form.name.trim()) {
-      alert('Name is required');
+      newErrors.name = 'Name is required';
+    }
+    if (Object.keys(newErrors).length > 0) {
+      setFieldErrors(newErrors);
       return;
     }
     try {
       setSaving(true);
       if (editingId) {
         await facilityService.update(editingId, form);
+        toast.success('Facility updated');
       } else {
         await facilityService.create(form);
+        toast.success('Facility created');
       }
       setFormOpen(false);
+      setFieldErrors({});
       fetchRows();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to save facility');
+      toast.error(err.response?.data?.message || 'Failed to save facility');
     } finally {
       setSaving(false);
     }
   };
 
-  const handleDelete = async (facility: LocalityFacility) => {
-    if (!confirm(`Delete ${facility.name}?`)) return;
+  const openDeleteConfirm = (facility: LocalityFacility) => {
+    setDeletingId(facility._id);
+    setDeletingName(facility.name);
+    setConfirmDeleteOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!deletingId) return;
     try {
-      await facilityService.remove(facility._id);
+      await facilityService.remove(deletingId);
+      toast.success('Facility deleted');
+      setConfirmDeleteOpen(false);
+      setDeletingId(null);
+      setDeletingName('');
       fetchRows();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to delete facility');
+      toast.error(err.response?.data?.message || 'Failed to delete facility');
     }
   };
 
@@ -138,7 +162,7 @@ export default function FacilitiesList() {
           <button className="text-primary-600 hover:underline" onClick={() => openEdit(row)}>
             Edit
           </button>
-          <button className="text-red-600 hover:underline" onClick={() => handleDelete(row)}>
+          <button className="text-red-600 hover:underline" onClick={() => openDeleteConfirm(row)}>
             Delete
           </button>
         </div>
@@ -198,6 +222,15 @@ export default function FacilitiesList() {
               Retry
             </Button>
           </div>
+        ) : rows.length === 0 ? (
+          <EmptyState
+            title="No facilities recorded"
+            description="Add locality facilities like schools, hospitals, and institutions"
+            action={{
+              label: 'Add First Facility',
+              onClick: openCreate,
+            }}
+          />
         ) : (
           <div className="overflow-x-auto">
             <Table columns={columns} data={rows} emptyMessage="No facilities recorded" showExport={false} />
@@ -219,16 +252,27 @@ export default function FacilitiesList() {
 
       <Modal
         isOpen={isFormOpen}
-        onClose={() => setFormOpen(false)}
+        onClose={() => {
+          setFormOpen(false);
+          setFieldErrors({});
+        }}
         title={editingId ? 'Edit Facility' : 'New Facility'}
       >
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-          <Input
-            label="Name"
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-            required
-          />
+          <div>
+            <Input
+              label="Name"
+              value={form.name}
+              onChange={(e) => {
+                setForm({ ...form, name: e.target.value });
+                if (fieldErrors.name) {
+                  setFieldErrors({ ...fieldErrors, name: '' });
+                }
+              }}
+              required
+            />
+            {fieldErrors.name && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{fieldErrors.name}</p>}
+          </div>
           <Input
             label="Name (Malayalam)"
             value={form.nameMl}
@@ -263,7 +307,14 @@ export default function FacilitiesList() {
         </div>
 
         <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-end">
-          <Button variant="outline" onClick={() => setFormOpen(false)} disabled={saving}>
+          <Button
+            variant="outline"
+            onClick={() => {
+              setFormOpen(false);
+              setFieldErrors({});
+            }}
+            disabled={saving}
+          >
             Cancel
           </Button>
           <Button onClick={handleSave} disabled={saving}>
@@ -271,6 +322,20 @@ export default function FacilitiesList() {
           </Button>
         </div>
       </Modal>
+
+      <ConfirmDialog
+        isOpen={isConfirmDeleteOpen}
+        title="Delete Facility"
+        message={`Delete the facility "${deletingName}"?`}
+        variant="danger"
+        confirmLabel="Delete"
+        onConfirm={confirmDelete}
+        onCancel={() => {
+          setConfirmDeleteOpen(false);
+          setDeletingId(null);
+          setDeletingName('');
+        }}
+      />
     </div>
   );
 }

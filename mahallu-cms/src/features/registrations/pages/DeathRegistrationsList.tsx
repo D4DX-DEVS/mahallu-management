@@ -10,6 +10,7 @@ import Table from '@/components/ui/Table';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
+import { toast } from '@/store/toastStore';
 import { TableColumn, Pagination as PaginationType } from '@/types';
 import { registrationService, DeathRegistration } from '@/services/registrationService';
 import { useDebounce } from '@/hooks/useDebounce';
@@ -74,7 +75,7 @@ export default function DeathRegistrationsList() {
       const dataToExport = result.data;
 
       if (dataToExport.length === 0) {
-        alert('No data to export');
+        toast.info('No death registrations to export');
         return;
       }
 
@@ -94,7 +95,7 @@ export default function DeathRegistrationsList() {
       }
     } catch (error: any) {
       console.error('Export error:', error);
-      alert(error?.message || 'Failed to export data');
+      toast.error(error?.message || 'Failed to export death registrations');
     } finally {
       setIsExporting(false);
     }

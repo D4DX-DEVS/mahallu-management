@@ -24,6 +24,7 @@ import { exportToCSV, exportToJSON } from '@/utils/exportUtils';
 import { exportInvoicesToPdf, downloadInvoicePdf, InvoiceDetails } from '@/utils/invoiceUtils';
 import { familyService } from '@/services/familyService';
 import { memberService } from '@/services/memberService';
+import { toast } from '@/store/toastStore';
 
 export default function VarisangyaList() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -116,7 +117,7 @@ export default function VarisangyaList() {
       }
 
       if (dataToExport.length === 0) {
-        alert('No data to export');
+        toast.info('No varisangya data to export');
         return;
       }
 
@@ -178,7 +179,7 @@ export default function VarisangyaList() {
       }
     } catch (error: any) {
       console.error('Export error:', error);
-      alert(error?.message || 'Failed to export data');
+      toast.error(error?.message || 'Failed to export varisangya data');
     } finally {
       setIsExporting(false);
     }
@@ -225,7 +226,7 @@ export default function VarisangyaList() {
       await downloadInvoicePdf(invoiceDetails);
     } catch (error: any) {
       console.error('Error generating PDF:', error);
-      alert(error?.message || 'Failed to generate PDF');
+      toast.error(error?.message || 'Failed to generate PDF');
     }
   };
 
@@ -251,8 +252,9 @@ export default function VarisangyaList() {
       });
       setEditingRow(null);
       await fetchVarisangyas();
+      toast.success('Varisangya payment updated');
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to update payment');
+      toast.error(err.response?.data?.message || 'Failed to update varisangya payment');
     } finally {
       setSavingEdit(false);
     }

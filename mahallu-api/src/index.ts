@@ -48,6 +48,13 @@ import { employersRouter, vacanciesRouter, trainingsRouter, summaryRouter } from
 import { volunteersRouter, assignmentsRouter } from './routes/volunteerRoutes';
 import healthRoutes from './routes/healthRoutes';
 import khutbahRoutes from './routes/khutbahRoutes';
+import { counsellingRouter, disputeRouter, inheritanceRouter } from './routes/counsellingRoutes';
+import marriageAssistanceRoutes from './routes/marriageAssistanceRoutes';
+import { cemeteriesRouter, gravesRouter } from './routes/cemeteryRoutes';
+import { booksRouter, issuesRouter } from './routes/libraryRoutes';
+import developmentRoutes from './routes/developmentRoutes';
+import developmentIndexRoutes from './routes/developmentIndexRoutes';
+import assistantRoutes from './routes/assistantRoutes';
 import { startVarisangyaReminderScheduler } from './services/varisangyaNotificationService';
 import { startCommitteeTermScheduler } from './services/committeeTermService';
 import path from 'path';
@@ -176,6 +183,18 @@ app.use('/api/volunteer-assignments', assignmentsRouter);
 // healthRoutes defines its own '/health-resources/...' and '/medical-camps/...' paths.
 app.use('/api', healthRoutes);
 app.use('/api', khutbahRoutes);
+// counsellingRoutes with sensitiveAccess middleware
+app.use('/api', counsellingRouter);
+app.use('/api', disputeRouter);
+app.use('/api', inheritanceRouter);
+app.use('/api/marriage-assistance', marriageAssistanceRoutes);
+app.use('/api/cemeteries', cemeteriesRouter);
+app.use('/api/grave-records', gravesRouter);
+app.use('/api/library-books', booksRouter);
+app.use('/api/book-issues', issuesRouter);
+app.use('/api/development-projects', developmentRoutes);
+app.use('/api/development-index', developmentIndexRoutes);
+app.use('/api/assistant', assistantRoutes);
 
 // Error handling middleware (must be last)
 app.use(errorHandler);

@@ -1,17 +1,22 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
+import SearchableSelect from '@/components/ui/SearchableSelect';
+import { toast } from '@/store/toastStore';
 import {
   scholarshipService,
   SUPPORT_CASE_TYPE_OPTIONS,
   SUPPORT_CASE_STATUS_OPTIONS,
 } from '@/services/scholarshipService';
+import { memberService } from '@/services/memberService';
 
 export default function AcademicSupportCreate() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [members, setMembers] = useState<any[]>([]);
+  const [loadingMembers, setLoadingMembers] = useState(true);
   const [formData, setFormData] = useState({
     memberId: '',
     type: 'career_guidance',
@@ -22,6 +27,14 @@ export default function AcademicSupportCreate() {
     outcome: '',
     notes: '',
   });
+
+  useEffect(() => {
+    memberService
+      .getAll({ page: 1, limit: 200 } as any)
+      .then((result: any) => setMembers(result.data || []))
+      .catch(() => setMembers([]))
+      .finally(() => setLoadingMembers(false));
+  }, []);
 
   const handleChange = (
     e: React.ChangeEvent<
@@ -41,9 +54,12 @@ export default function AcademicSupportCreate() {
         ...formData,
         startDate: new Date(formData.startDate).toISOString(),
       });
+      const member = members.find((m) => m._id === formData.memberId);
+      toast.success(`Support case created for ${member?.name || 'student'}`);
       navigate('/education/support');
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to create');
+      setError(err.response?.data?.message || 'Failed to create case');
+      toast.error(err.response?.data?.message || 'Failed to create case');
     } finally {
       setLoading(false);
     }
@@ -62,16 +78,19 @@ export default function AcademicSupportCreate() {
           )}
 
           <div>
-            <label className="block text-sm font-medium mb-2">
-              Student Member ID *
-            </label>
-            <input
-              name="memberId"
-              placeholder="Member ID"
+            <SearchableSelect
+              label="Student *"
               value={formData.memberId}
-              onChange={handleChange}
+              onChange={(value) =>
+                setFormData((prev) => ({ ...prev, memberId: value }))
+              }
+              options={members.map((member: any) => ({
+                value: member._id || member.id,
+                label: `${member.name}${member.familyName ? ` - ${member.familyName}` : ''}`,
+              }))}
+              placeholder="Search members..."
+              isLoading={loadingMembers}
               required
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700"
             />
           </div>
 

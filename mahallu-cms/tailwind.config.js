@@ -34,8 +34,14 @@ export default {
         },
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
+        // Noto Sans Malayalam sits behind Inter so Malayalam glyphs render
+        // properly everywhere without changing Latin text.
+        sans: ['Inter', 'Noto Sans Malayalam', 'system-ui', 'sans-serif'],
         malayalam: ['Noto Sans Malayalam', 'sans-serif'],
+        // Poppins carries no Malayalam glyphs, so mixed text falls through to
+        // Noto Sans Malayalam per-glyph — English in Poppins, Malayalam in Noto.
+        body: ['Poppins', 'Noto Sans Malayalam', 'system-ui', 'sans-serif'],
+        title: ['Anek Malayalam', 'Poppins', 'system-ui', 'sans-serif'],
       },
     },
   },

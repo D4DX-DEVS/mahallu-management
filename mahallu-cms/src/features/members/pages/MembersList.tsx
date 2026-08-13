@@ -16,6 +16,7 @@ import { memberService } from '@/services/memberService';
 import { useDebounce } from '@/hooks/useDebounce';
 import { ROUTES } from '@/constants/routes';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
+import { toast } from '@/store/toastStore';
 
 export default function MembersList() {
   const navigate = useNavigate();
@@ -71,7 +72,10 @@ export default function MembersList() {
       if (sortBy) params.sortBy = sortBy === 'mahallId' ? 'mahallId' : 'date';
       const result = await memberService.getAll(params);
       const dataToExport = result.data;
-      if (dataToExport.length === 0) { alert('No data to export'); return; }
+      if (dataToExport.length === 0) {
+        toast.info('No members to export');
+        return;
+      }
       const filename = 'members';
       const title = 'All Members';
       switch (type) {
@@ -81,7 +85,7 @@ export default function MembersList() {
       }
     } catch (error: any) {
       console.error('Export error:', error);
-      alert(error?.message || 'Failed to export data');
+      toast.error(error?.response?.data?.message || 'Failed to export data');
     } finally {
       setIsExporting(false);
     }

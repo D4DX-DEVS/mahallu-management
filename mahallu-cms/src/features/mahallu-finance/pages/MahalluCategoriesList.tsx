@@ -14,6 +14,7 @@ import { masterAccountService, Category } from '@/services/masterAccountService'
 import { formatDate } from '@/utils/format';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
 import { ROUTES } from '@/constants/routes';
+import { toast } from '@/store/toastStore';
 
 export default function MahalluCategoriesList() {
   const navigate = useNavigate();
@@ -53,8 +54,9 @@ export default function MahalluCategoriesList() {
       await masterAccountService.deleteCategory(selected.id);
       setShowDeleteModal(false);
       fetchCategories();
+      toast.success('Category deleted');
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to delete category');
+      toast.error(err.response?.data?.message || 'Failed to delete category');
     } finally {
       setDeleting(false);
     }
@@ -65,11 +67,11 @@ export default function MahalluCategoriesList() {
       setIsExporting(true);
       const result = await masterAccountService.getAllCategories({ limit: 10000, scope: 'mahallu' });
       const data = Array.isArray(result.data) ? result.data : [];
-      if (!data.length) { alert('No data to export'); return; }
+      if (!data.length) { toast.info('No categories to export'); return; }
       if (type === 'csv') exportToCSV(columns, data, 'mahallu-categories');
       else if (type === 'json') exportToJSON(columns, data, 'mahallu-categories');
       else exportToPDF(columns, data, 'mahallu-categories', 'Mahallu Categories');
-    } catch (err: any) { alert(err?.message || 'Export failed'); }
+    } catch (err: any) { toast.error(err?.message || 'Failed to export categories'); }
     finally { setIsExporting(false); }
   };
 

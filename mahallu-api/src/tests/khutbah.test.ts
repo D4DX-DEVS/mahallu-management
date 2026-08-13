@@ -7,6 +7,8 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 import Khateeb, { KHATEEB_STATUSES, IKhateeb } from '../models/Khateeb';
 import Khutbah, { KHUTBAH_STATUSES, IKhutbah } from '../models/Khutbah';
@@ -52,4 +54,26 @@ test('Institute supports audience and programType optional fields for Islamic pr
   const paths = Institute.schema.paths;
   assert.ok(paths.audience, 'Institute missing audience field');
   assert.ok(paths.programType, 'Institute missing programType field');
+});
+
+test('khateeb and khutbah writes validate every tenant-scoped reference', () => {
+  // Regression guard: updateKhateeb once validated khateebId (a Khutbah field) and
+  // never checked memberId, letting a khateeb point at another tenant's member.
+  const source = readFileSync(
+    join(__dirname, '..', 'controllers', 'khutbahController.ts'),
+    'utf8'
+  );
+  const helper = source.slice(
+    source.indexOf('const validateKhutbahRefs'),
+    source.indexOf('/** Get or create the Mosque institute')
+  );
+  assert.match(helper, /refBelongsToTenant\(Khateeb, khateebId/);
+  assert.match(helper, /refBelongsToTenant\(Member, memberId/);
+
+  for (const handler of ['createKhateeb', 'updateKhateeb', 'createKhutbah', 'updateKhutbah']) {
+    const start = source.indexOf(`export const ${handler} =`);
+    assert.ok(start > -1, `${handler} not found`);
+    const body = source.slice(start, start + 400);
+    assert.match(body, /validateKhutbahRefs\(req\)/, `${handler} skips reference validation`);
+  }
 });

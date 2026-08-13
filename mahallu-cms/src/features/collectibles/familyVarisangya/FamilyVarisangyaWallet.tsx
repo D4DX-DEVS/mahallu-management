@@ -14,6 +14,7 @@ import { formatDate } from '@/utils/format';
 import { ROUTES } from '@/constants/routes';
 import { exportToCSV, exportToJSON } from '@/utils/exportUtils';
 import { exportInvoicesToPdf, InvoiceDetails } from '@/utils/invoiceUtils';
+import { toast } from '@/store/toastStore';
 
 const FAMILY_BASE = ROUTES.COLLECTIBLES.FAMILY_VARISANGYA.BASE;
 
@@ -68,7 +69,7 @@ export default function FamilyVarisangyaWallet() {
     try {
       setIsExporting(true);
       if (wallets.length === 0) {
-        alert('No data to export');
+        toast.info('No wallet data to export');
         return;
       }
       const filename = `family-varisangya-wallets${familyId ? `-${familyId}` : ''}`;
@@ -102,7 +103,7 @@ export default function FamilyVarisangyaWallet() {
       }
     } catch (error: any) {
       console.error('Export error:', error);
-      alert(error?.message || 'Failed to export data');
+      toast.error(error?.message || 'Failed to export wallet data');
     } finally {
       setIsExporting(false);
     }

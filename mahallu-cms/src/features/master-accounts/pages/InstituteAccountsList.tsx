@@ -18,6 +18,7 @@ import { instituteService } from '@/services/instituteService';
 import { useAuthStore } from '@/store/authStore';
 import { formatDate } from '@/utils/format';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
+import { toast } from '@/store/toastStore';
 
 export default function InstituteAccountsList() {
   const { currentInstituteId: userInstituteId } = useAuthStore();
@@ -77,7 +78,7 @@ export default function InstituteAccountsList() {
       const params = { limit: 10000 };
       const result = await masterAccountService.getAllInstituteAccounts(params);
       const dataToExport = Array.isArray(result.data) ? result.data : [];
-      if (dataToExport.length === 0) { alert('No data to export'); return; }
+      if (dataToExport.length === 0) { toast.info('No institute accounts to export'); return; }
       const filename = 'institute-accounts';
       const title = 'Institute Accounts';
       switch (type) {
@@ -87,7 +88,7 @@ export default function InstituteAccountsList() {
       }
     } catch (error: any) {
       console.error('Export error:', error);
-      alert(error?.message || 'Failed to export data');
+      toast.error(error?.message || 'Failed to export institute accounts');
     } finally {
       setIsExporting(false);
     }

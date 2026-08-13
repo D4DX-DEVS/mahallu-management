@@ -4,6 +4,7 @@ import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { toast } from '@/store/toastStore';
 import { examService, Exam } from '@/services/attendanceService';
 import { madrasaService } from '@/services/madrasaService';
 import { formatDate } from '@/utils/format';
@@ -81,10 +82,11 @@ export default function ExamDetail() {
       }));
 
       await examService.updateExamResults(exam._id, results);
+      toast.success('Results saved successfully');
       setIsEditingResults(false);
       if (id) fetchExam(id);
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to save results');
+      toast.error(err.response?.data?.message || 'Failed to save results');
     } finally {
       setSaving(false);
     }

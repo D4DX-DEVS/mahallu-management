@@ -4,6 +4,7 @@ import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { toast } from '@/store/toastStore';
 import { madrasaService } from '@/services/madrasaService';
 import { attendanceService, AttendanceRecord } from '@/services/attendanceService';
 import { StudentEnrollment } from '@/services/madrasaService';
@@ -117,9 +118,13 @@ export default function AttendanceSheet() {
       }));
 
       await attendanceService.upsertAttendance(classId, selectedDate, records);
-      alert('Attendance saved successfully');
+      const dateStr = new Date(selectedDate).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+      });
+      toast.success(`Attendance saved for ${dateStr}`);
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to save attendance');
+      toast.error(err.response?.data?.message || 'Failed to save attendance');
     } finally {
       setSaving(false);
     }

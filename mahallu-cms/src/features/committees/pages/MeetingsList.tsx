@@ -11,6 +11,7 @@ import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import Modal from '@/components/ui/Modal';
 import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
+import { toast } from '@/store/toastStore';
 import { TableColumn, Pagination as PaginationType } from '@/types';
 import { Meeting, Committee } from '@/types';
 import { meetingService } from '@/services/meetingService';
@@ -85,7 +86,7 @@ export default function MeetingsList() {
       const dataToExport = result.data;
 
       if (dataToExport.length === 0) {
-        alert('No data to export');
+        toast.info('No meetings to export');
         return;
       }
 
@@ -105,7 +106,7 @@ export default function MeetingsList() {
       }
     } catch (error: any) {
       console.error('Export error:', error);
-      alert(error?.message || 'Failed to export data');
+      toast.error(error?.message || 'Failed to export meetings');
     } finally {
       setIsExporting(false);
     }

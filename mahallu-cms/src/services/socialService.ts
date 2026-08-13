@@ -126,7 +126,13 @@ export const socialService = {
   },
 
   // Activity Logs
-  getActivityLogs: async (params?: { entityType?: string; entityId?: string; page?: number; limit?: number }) => {
+  getActivityLogs: async (params?: {
+    entityType?: string;
+    entityId?: string;
+    userId?: string;
+    page?: number;
+    limit?: number;
+  }) => {
     const response = await api.get<{ success: boolean; data: ActivityLog[]; pagination?: any }>('/social/activity-logs', { params });
     // Handle both paginated and non-paginated responses
     if (response.data.pagination) {

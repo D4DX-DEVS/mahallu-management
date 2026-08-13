@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
+import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import { toast } from '@/store/toastStore';
 import {
   scholarshipService,
   AcademicSupportCase,
@@ -17,6 +20,8 @@ export default function AcademicSupportDetail() {
   const [supportCase, setSupportCase] = useState<AcademicSupportCase | null>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [formData, setFormData] = useState({
     status: 'open',
     outcome: '',
@@ -64,23 +69,33 @@ export default function AcademicSupportDetail() {
         } : null
       );
       setEditing(false);
-    } catch (error) {
-      console.error('Failed to update:', error);
+      toast.success('Case updated');
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to update case');
     }
   };
 
   const handleDelete = async () => {
-    if (!confirm('Are you sure?') || !supportCase) return;
+    if (!supportCase) return;
     try {
+      setDeleting(true);
       await scholarshipService.deleteSupportCase(supportCase._id);
+      setShowDeleteConfirm(false);
+      toast.success('Support case deleted');
       navigate('/education/support');
-    } catch (error) {
-      console.error('Failed to delete:', error);
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to delete support case');
+    } finally {
+      setDeleting(false);
     }
   };
 
   if (loading) {
-    return <div className="text-center py-8">Loading...</div>;
+    return (
+      <div className="flex justify-center py-12">
+        <LoadingSpinner />
+      </div>
+    );
   }
 
   if (!supportCase) {
@@ -95,7 +110,7 @@ export default function AcademicSupportDetail() {
           {!editing && (
             <>
               <Button onClick={() => setEditing(true)}>Edit</Button>
-              <Button variant="danger" onClick={handleDelete}>
+              <Button variant="danger" onClick={() => setShowDeleteConfirm(true)} disabled={deleting}>
                 Delete
               </Button>
             </>
@@ -214,6 +229,18 @@ export default function AcademicSupportDetail() {
           </div>
         )}
       </Card>
+
+      <ConfirmDialog
+        isOpen={showDeleteConfirm}
+        title="Delete Support Case"
+        message={supportCase ? `Delete the support case for ${memberName(supportCase.memberId)}?` : ''}
+        consequence="This action cannot be undone."
+        isLoading={deleting}
+        variant="danger"
+        confirmLabel="Delete"
+        onConfirm={handleDelete}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
     </div>
   );
 }

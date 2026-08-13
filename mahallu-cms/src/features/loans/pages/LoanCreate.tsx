@@ -6,14 +6,19 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import SearchableSelect from '@/components/ui/SearchableSelect';
+import QuickAddMember from '@/components/quick-add/QuickAddMember';
+import { toast } from '@/store/toastStore';
 import { qardService, LOAN_PURPOSE_OPTIONS } from '@/services/qardService';
 import { memberService } from '@/services/memberService';
+import { Member } from '@/types';
+import { FiPlus } from 'react-icons/fi';
 
 export default function LoanCreate() {
   const navigate = useNavigate();
   const [members, setMembers] = useState<any[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [addMemberOpen, setAddMemberOpen] = useState(false);
   const [form, setForm] = useState({
     applicantMemberId: '',
     applicantName: '',
@@ -59,6 +64,7 @@ export default function LoanCreate() {
         repaymentMonths: Number(form.repaymentMonths),
         notes: form.notes || undefined,
       });
+      toast.success('Loan application created');
       navigate(`/loans/${loan._id}`);
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to create the application');
@@ -90,17 +96,32 @@ export default function LoanCreate() {
       <form onSubmit={handleSubmit}>
         <Card className="p-3 sm:p-4">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <SearchableSelect
-              label="Member"
-              value={form.applicantMemberId}
-              onChange={(value) => setForm({ ...form, applicantMemberId: value })}
-              options={members.map((member: any) => ({
-                value: member._id || member.id,
-                label: `${member.name}${member.familyName ? ` - ${member.familyName}` : ''}`,
-              }))}
-              placeholder="Search members..."
-              helperText="Leave blank for a non-member applicant"
-            />
+            <div>
+              <div className="flex items-end gap-2">
+                <div className="flex-1">
+                  <SearchableSelect
+                    label="Member"
+                    value={form.applicantMemberId}
+                    onChange={(value) => setForm({ ...form, applicantMemberId: value })}
+                    options={members.map((member: any) => ({
+                      value: member._id || member.id,
+                      label: `${member.name}${member.familyName ? ` - ${member.familyName}` : ''}`,
+                    }))}
+                    placeholder="Search members..."
+                    helperText="Leave blank for a non-member applicant"
+                  />
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setAddMemberOpen(true)}
+                  title="Add a new member"
+                >
+                  <FiPlus className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
 
             <Input
               label="Applicant name (non-member)"
@@ -169,6 +190,15 @@ export default function LoanCreate() {
           </div>
         </Card>
       </form>
+
+      <QuickAddMember
+        open={addMemberOpen}
+        onClose={() => setAddMemberOpen(false)}
+        onCreated={(newMember) => {
+          setMembers((prev) => [...prev, newMember]);
+          setForm({ ...form, applicantMemberId: newMember.id });
+        }}
+      />
     </div>
   );
 }

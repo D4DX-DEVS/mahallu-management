@@ -3,8 +3,10 @@ import { FiPlus, FiSearch, FiEdit2, FiTrash2, FiCalendar, FiMapPin } from 'react
 import { getMedicalCamps, deleteMedicalCamp, IMedicalCamp } from '@/services/healthService';
 import Pagination from '@/components/ui/Pagination';
 import Button from '@/components/ui/Button';
-import Modal from '@/components/ui/Modal';
 import Input from '@/components/ui/Input';
+import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import { toast } from '@/store/toastStore';
 import { useNavigate } from 'react-router-dom';
 
 export default function CampsList() {
@@ -15,15 +17,17 @@ export default function CampsList() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const itemsPerPage = 10;
 
-  const fetchCamps = async (page: number, searchTerm: string = '') => {
+  const fetchCamps = async (page: number, searchTerm: string = '', status: string = '') => {
     try {
       setLoading(true);
-      const response = await getMedicalCamps(page, itemsPerPage, '', searchTerm);
+      const response = await getMedicalCamps(page, itemsPerPage, status || undefined, searchTerm);
       setCamps(response.data);
       setTotalPages(response.pagination.totalPages);
       setTotalItems(response.pagination.total);
@@ -36,23 +40,28 @@ export default function CampsList() {
   };
 
   useEffect(() => {
-    fetchCamps(1, search);
-  }, [search]);
+    fetchCamps(1, search, statusFilter);
+  }, [search, statusFilter]);
 
   const handleDelete = async () => {
     if (!deleteId) return;
     try {
+      setDeleting(true);
       await deleteMedicalCamp(deleteId);
       setConfirmDelete(false);
       setDeleteId(null);
-      fetchCamps(currentPage, search);
+      fetchCamps(currentPage, search, statusFilter);
+      toast.success('Medical camp deleted successfully');
     } catch (error) {
+      toast.error('Failed to delete medical camp');
       console.error('Failed to delete camp:', error);
+    } finally {
+      setDeleting(false);
     }
   };
 
   const handlePageChange = (page: number) => {
-    fetchCamps(page, search);
+    fetchCamps(page, search, statusFilter);
   };
 
   const formatDate = (dateString: string) => {
@@ -64,7 +73,7 @@ export default function CampsList() {
   };
 
   if (loading) {
-    return <div className="p-4">Loading...</div>;
+    return <LoadingSpinner />;
   }
 
   return (
@@ -83,7 +92,7 @@ export default function CampsList() {
           </Button>
         </div>
 
-        <div className="mb-6">
+        <div className="mb-6 space-y-3">
           <div className="flex items-center gap-2 bg-white border border-gray-300 rounded-lg px-3 py-2">
             <FiSearch className="text-gray-400" />
             <Input
@@ -93,6 +102,21 @@ export default function CampsList() {
               onChange={(e) => setSearch(e.target.value)}
               className="flex-1 border-none focus:ring-0"
             />
+          </div>
+          <div className="flex gap-2 flex-wrap">
+            {['', 'planned', 'completed', 'cancelled'].map((status) => (
+              <button
+                key={status}
+                onClick={() => setStatusFilter(status)}
+                className={`px-3 py-1 text-xs rounded-full transition-colors ${
+                  statusFilter === status
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                {status || 'All Status'}
+              </button>
+            ))}
           </div>
         </div>
 
@@ -163,21 +187,21 @@ export default function CampsList() {
         )}
       </div>
 
-      <Modal
+      <ConfirmDialog
         isOpen={confirmDelete}
         title="Delete Medical Camp"
-        onClose={() => setConfirmDelete(false)}
-      >
-        <p className="text-gray-700 mb-6">Are you sure you want to delete this medical camp?</p>
-        <div className="flex gap-3 justify-end">
-          <Button variant="secondary" onClick={() => setConfirmDelete(false)}>
-            Cancel
-          </Button>
-          <Button variant="danger" onClick={handleDelete}>
-            Delete
-          </Button>
-        </div>
-      </Modal>
+        message="Are you sure you want to delete this medical camp?"
+        consequence="All camp details and associated records will be permanently removed."
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        variant="danger"
+        isLoading={deleting}
+        onConfirm={handleDelete}
+        onCancel={() => {
+          setConfirmDelete(false);
+          setDeleteId(null);
+        }}
+      />
     </div>
   );
 }

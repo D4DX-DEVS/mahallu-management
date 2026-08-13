@@ -5,6 +5,10 @@ import {
   createProgram,
   updateProgram,
   deleteProgram,
+  getProgramRegistrations,
+  registerMemberForProgram,
+  setProgramAttendance,
+  removeProgramRegistration,
 } from '../controllers/programController';
 import { authMiddleware } from '../middleware/authMiddleware';
 import { tenantMiddleware, tenantFilter } from '../middleware/tenantMiddleware';
@@ -260,6 +264,125 @@ router.put('/:id', updateProgramValidation, validationHandler, updateProgram);
  *         $ref: '#/components/responses/NotFound'
  */
 router.delete('/:id', deleteProgramValidation, validationHandler, deleteProgram);
+
+/**
+ * @swagger
+ * /programs/{id}/registrations:
+ *   get:
+ *     summary: List event registrations for a program (paginated)
+ *     tags: [Programs]
+ *     description: |
+ *       Registrations recorded against a program run as an event (Task C3).
+ *       **Access:** Super Admin, Mahall Admin
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Registrations retrieved successfully
+ *       404:
+ *         $ref: '#/components/responses/NotFound'
+ *   post:
+ *     summary: Register a member for a program event
+ *     tags: [Programs]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [memberId]
+ *             properties:
+ *               memberId:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Member registered
+ *       409:
+ *         description: Member is already registered
+ */
+router.get('/:id/registrations', getProgramRegistrations);
+router.post('/:id/registrations', registerMemberForProgram);
+
+/**
+ * @swagger
+ * /programs/{id}/registrations/{memberId}:
+ *   put:
+ *     summary: Mark a registered member present or absent
+ *     tags: [Programs]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: path
+ *         name: memberId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [attended]
+ *             properties:
+ *               attended:
+ *                 type: boolean
+ *     responses:
+ *       200:
+ *         description: Attendance updated
+ *       404:
+ *         $ref: '#/components/responses/NotFound'
+ *   delete:
+ *     summary: Remove a registration
+ *     tags: [Programs]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: path
+ *         name: memberId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Registration removed
+ *       404:
+ *         $ref: '#/components/responses/NotFound'
+ */
+router.put('/:id/registrations/:memberId', setProgramAttendance);
+router.delete('/:id/registrations/:memberId', removeProgramRegistration);
 
 export default router;
 

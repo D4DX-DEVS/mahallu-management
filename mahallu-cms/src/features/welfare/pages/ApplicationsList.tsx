@@ -3,11 +3,13 @@ import { Link, useNavigate } from 'react-router-dom';
 import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
+import Select from '@/components/ui/Select';
 import Table from '@/components/ui/Table';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import EmptyState from '@/components/ui/EmptyState';
 import Pagination from '@/components/ui/Pagination';
 import { Pagination as PaginationType, TableColumn } from '@/types';
-import { welfareService, WelfareApplication, WelfareSummary } from '@/services/welfareService';
+import { welfareService, WelfareApplication, WelfareSummary, WelfareScheme } from '@/services/welfareService';
 
 const STATUS_TABS = [
   { value: '', label: 'All' },
@@ -24,18 +26,23 @@ export default function ApplicationsList() {
   const navigate = useNavigate();
   const [rows, setRows] = useState<WelfareApplication[]>([]);
   const [summary, setSummary] = useState<WelfareSummary | null>(null);
+  const [schemes, setSchemes] = useState<WelfareScheme[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState('');
+  const [schemeFilter, setSchemeFilter] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
 
   useEffect(() => {
     fetchRows();
-  }, [statusFilter, currentPage]);
+  }, [statusFilter, schemeFilter, currentPage]);
 
   useEffect(() => {
     welfareService.getSummary().then(setSummary).catch(() => setSummary(null));
+    welfareService.getSchemes({ page: 1, limit: 100, status: 'active' })
+      .then((result) => setSchemes(result.data))
+      .catch(() => setSchemes([]));
   }, []);
 
   const fetchRows = async () => {
@@ -44,6 +51,7 @@ export default function ApplicationsList() {
       setError(null);
       const params: Record<string, any> = { page: currentPage, limit: 10 };
       if (statusFilter) params.status = statusFilter;
+      if (schemeFilter) params.schemeId = schemeFilter;
       const result = await welfareService.getApplications(params);
       setRows(result.data);
       setPagination(result.pagination);
@@ -95,7 +103,7 @@ export default function ApplicationsList() {
 
       <Card>
         <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div className="grid grid-cols-3 gap-1.5 sm:flex sm:flex-wrap">
+          <div className="grid grid-cols-3 gap-1.5 sm:flex sm:flex-wrap sm:items-center">
             {STATUS_TABS.map((tab) => (
               <button
                 key={tab.value || 'all'}
@@ -113,6 +121,18 @@ export default function ApplicationsList() {
                 {tab.label}
               </button>
             ))}
+            <Select
+              options={[
+                { value: '', label: 'All schemes' },
+                ...schemes.map((s) => ({ value: s._id, label: s.name })),
+              ]}
+              value={schemeFilter}
+              onChange={(e) => {
+                setSchemeFilter(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="text-xs"
+            />
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
             <Link to="/welfare/schemes">
@@ -139,6 +159,15 @@ export default function ApplicationsList() {
               Retry
             </Button>
           </div>
+        ) : rows.length === 0 ? (
+          <EmptyState
+            title="No applications found"
+            description="Create a welfare application to get started"
+            action={{
+              label: 'Create Application',
+              onClick: () => navigate('/welfare/applications/create'),
+            }}
+          />
         ) : (
           <div className="overflow-x-auto">
             <Table

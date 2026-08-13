@@ -18,6 +18,7 @@ import { instituteService } from '@/services/instituteService';
 import { useAuthStore } from '@/store/authStore';
 import { formatDate } from '@/utils/format';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
+import { toast } from '@/store/toastStore';
 
 export default function LedgerItemsList() {
   const { currentInstituteId: userInstituteId } = useAuthStore();
@@ -93,15 +94,15 @@ export default function LedgerItemsList() {
   const handleExport = async (type: 'csv' | 'json' | 'pdf') => {
     try {
       setIsExporting(true);
-      
+
       const params: any = { limit: 10000 };
       if (ledgerFilter !== 'all') params.ledgerId = ledgerFilter;
-      
+
       const result = await masterAccountService.getLedgerItems(params);
       const dataToExport = Array.isArray(result.data) ? result.data : [];
 
       if (dataToExport.length === 0) {
-        alert('No data to export');
+        toast.info('No ledger items to export');
         return;
       }
 
@@ -121,7 +122,7 @@ export default function LedgerItemsList() {
       }
     } catch (error: any) {
       console.error('Export error:', error);
-      alert(error?.message || 'Failed to export data');
+      toast.error(error?.message || 'Failed to export ledger items');
     } finally {
       setIsExporting(false);
     }

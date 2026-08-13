@@ -14,6 +14,7 @@ import { masterAccountService, Ledger } from '@/services/masterAccountService';
 import { formatDate } from '@/utils/format';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
 import { ROUTES } from '@/constants/routes';
+import { toast } from '@/store/toastStore';
 
 export default function MahalluLedgersList() {
   const navigate = useNavigate();
@@ -54,8 +55,9 @@ export default function MahalluLedgersList() {
       await masterAccountService.deleteLedger(selected.id);
       setShowDeleteModal(false);
       fetchLedgers();
+      toast.success('Ledger deleted');
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to delete ledger');
+      toast.error(err.response?.data?.message || 'Failed to delete ledger');
     } finally {
       setDeleting(false);
     }
@@ -66,11 +68,11 @@ export default function MahalluLedgersList() {
       setIsExporting(true);
       const result = await masterAccountService.getAllLedgers({ limit: 10000, scope: 'mahallu' });
       const data = Array.isArray(result.data) ? result.data : [];
-      if (!data.length) { alert('No data to export'); return; }
+      if (!data.length) { toast.info('No ledgers to export'); return; }
       if (type === 'csv') exportToCSV(columns, data, 'mahallu-ledgers');
       else if (type === 'json') exportToJSON(columns, data, 'mahallu-ledgers');
       else exportToPDF(columns, data, 'mahallu-ledgers', 'Mahallu Ledgers');
-    } catch (err: any) { alert(err?.message || 'Export failed'); }
+    } catch (err: any) { toast.error(err?.message || 'Failed to export ledgers'); }
     finally { setIsExporting(false); }
   };
 

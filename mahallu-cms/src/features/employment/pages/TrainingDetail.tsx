@@ -4,6 +4,8 @@ import { employmentService, type SkillTraining, type TrainingParticipant, EMPLOY
 import { memberService } from '@/services/memberService';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import { toast } from '@/store/toastStore';
 
 export default function TrainingDetail() {
   const { id } = useParams<{ id: string }>();
@@ -17,6 +19,9 @@ export default function TrainingDetail() {
   const [selectedMemberId, setSelectedMemberId] = useState('');
   const [editingParticipantId, setEditingParticipantId] = useState<string | null>(null);
   const [editingOutcome, setEditingOutcome] = useState('none');
+  const [deleteParticipantId, setDeleteParticipantId] = useState<string | null>(null);
+  const [showDeleteParticipantConfirm, setShowDeleteParticipantConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -60,7 +65,12 @@ export default function TrainingDetail() {
 
       setTraining(updated);
       setIsEditing(false);
+      toast.success('Training updated successfully');
     } catch (error) {
+      const message = error instanceof Error && 'response' in error
+        ? (error.response as any)?.data?.message || 'Failed to update training'
+        : 'Failed to update training';
+      toast.error(message);
       console.error('Failed to update training:', error);
     }
   };
@@ -73,7 +83,12 @@ export default function TrainingDetail() {
       setTraining(updated);
       setSelectedMemberId('');
       setShowAddParticipant(false);
+      toast.success('Participant added successfully');
     } catch (error) {
+      const message = error instanceof Error && 'response' in error
+        ? (error.response as any)?.data?.message || 'Failed to add participant'
+        : 'Failed to add participant';
+      toast.error(message);
       console.error('Failed to add participant:', error);
     }
   };
@@ -88,21 +103,36 @@ export default function TrainingDetail() {
 
       setTraining(updated);
       setEditingParticipantId(null);
+      toast.success('Outcome recorded successfully');
     } catch (error) {
+      const message = error instanceof Error && 'response' in error
+        ? (error.response as any)?.data?.message || 'Failed to update participant'
+        : 'Failed to update participant';
+      toast.error(message);
       console.error('Failed to update participant:', error);
     }
   };
 
-  const handleRemoveParticipant = async (memberId: string) => {
-    if (!id) return;
+  const handleRemoveParticipantClick = (memberId: string) => {
+    setDeleteParticipantId(memberId);
+    setShowDeleteParticipantConfirm(true);
+  };
 
-    if (!confirm('Remove this participant?')) return;
+  const handleConfirmRemoveParticipant = async () => {
+    if (!id || !deleteParticipantId) return;
 
     try {
-      const updated = await employmentService.removeParticipant(id, memberId);
+      setDeleting(true);
+      const updated = await employmentService.removeParticipant(id, deleteParticipantId);
       setTraining(updated);
+      toast.success('Participant removed successfully');
+      setShowDeleteParticipantConfirm(false);
+      setDeleteParticipantId(null);
     } catch (error) {
+      toast.error('Failed to remove participant');
       console.error('Failed to remove participant:', error);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -366,7 +396,7 @@ export default function TrainingDetail() {
                               Edit
                             </button>
                             <button
-                              onClick={() => handleRemoveParticipant(getMemberId(participant))}
+                              onClick={() => handleRemoveParticipantClick(getMemberId(participant))}
                               className="text-red-600 hover:text-red-900 px-2 py-1 text-xs hover:bg-red-50 rounded"
                               title="Remove"
                             >
@@ -387,6 +417,22 @@ export default function TrainingDetail() {
           )}
         </div>
       </Card>
+
+      <ConfirmDialog
+        isOpen={showDeleteParticipantConfirm}
+        title="Remove Participant"
+        message="Are you sure you want to remove this participant from the training?"
+        consequence="The participant's enrollment and employment outcome records will be cleared."
+        confirmLabel="Remove"
+        cancelLabel="Cancel"
+        variant="danger"
+        isLoading={deleting}
+        onConfirm={handleConfirmRemoveParticipant}
+        onCancel={() => {
+          setShowDeleteParticipantConfirm(false);
+          setDeleteParticipantId(null);
+        }}
+      />
     </div>
   );
 }

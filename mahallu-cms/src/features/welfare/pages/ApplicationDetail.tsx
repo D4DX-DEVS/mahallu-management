@@ -7,7 +7,9 @@ import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import Modal from '@/components/ui/Modal';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { welfareService, WelfareApplication, WelfareStatus } from '@/services/welfareService';
+import { toast } from '@/store/toastStore';
 
 /** Mirrors WELFARE_TRANSITIONS on the API - the server is still the authority. */
 const NEXT_STATUSES: Record<WelfareStatus, WelfareStatus[]> = {
@@ -40,6 +42,7 @@ export default function ApplicationDetail() {
   const [note, setNote] = useState('');
   const [disbursedVia, setDisbursedVia] = useState('cash');
   const [saving, setSaving] = useState(false);
+  const [isConfirmOpen, setConfirmOpen] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -61,9 +64,11 @@ export default function ApplicationDetail() {
       const updated = await welfareService.updateStatus(id, payload);
       setApplication(updated);
       setTarget(null);
+      setConfirmOpen(false);
       setNote('');
+      toast.success(`Application moved to ${STATUS_LABELS[target]}`);
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Status change rejected');
+      toast.error(err.response?.data?.message || 'Status change rejected');
     } finally {
       setSaving(false);
     }
@@ -181,9 +186,25 @@ export default function ApplicationDetail() {
         </ol>
       </Card>
 
+      <ConfirmDialog
+        isOpen={isConfirmOpen}
+        title={target ? `Move to ${STATUS_LABELS[target]}` : ''}
+        message={target ? `Change status to ${STATUS_LABELS[target]}?` : ''}
+        onConfirm={applyStatus}
+        onCancel={() => {
+          setConfirmOpen(false);
+          setTarget(null);
+          setNote('');
+        }}
+        isLoading={saving}
+      />
+
       <Modal
-        isOpen={target !== null}
-        onClose={() => setTarget(null)}
+        isOpen={target !== null && !isConfirmOpen}
+        onClose={() => {
+          setTarget(null);
+          setNote('');
+        }}
         title={target ? `Move to ${STATUS_LABELS[target]}` : ''}
       >
         <div className="space-y-3">
@@ -216,7 +237,7 @@ export default function ApplicationDetail() {
             <Button variant="outline" onClick={() => setTarget(null)} disabled={saving}>
               Cancel
             </Button>
-            <Button onClick={applyStatus} disabled={saving}>
+            <Button onClick={() => setConfirmOpen(true)} disabled={saving}>
               {saving ? 'Saving...' : 'Confirm'}
             </Button>
           </div>

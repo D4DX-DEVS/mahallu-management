@@ -38,6 +38,7 @@ export interface IDeathRegistration extends Document {
   informantName?: string;
   informantRelation?: string;
   informantPhone?: string;
+  graveRecordId?: mongoose.Types.ObjectId; // Link to GraveRecord (backward compatible)
   status: 'pending' | 'approved' | 'rejected';
   remarks?: string;
   createdAt: Date;
@@ -122,6 +123,7 @@ const DeathRegistrationSchema = new Schema<IDeathRegistration>(
     informantName: String,
     informantRelation: String,
     informantPhone: String,
+    graveRecordId: { type: Schema.Types.ObjectId, ref: 'GraveRecord' },
     status: {
       type: String,
       enum: ['pending', 'approved', 'rejected'],

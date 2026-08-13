@@ -100,3 +100,110 @@ export const deleteProgram = async (req: Request, res: Response) => {
   }
 };
 
+
+/**
+ * Task C3 — event registrations on a program.
+ * ponytail: registrations live as a subdocument array on the program, not a
+ * separate collection. Gatherings are tens-to-hundreds of rows; split it out
+ * only if a single event ever outgrows one document.
+ */
+const findProgram = async (req: AuthRequest) => {
+  const query: any = { _id: req.params.id, type: 'program' };
+  if (req.tenantId) query.tenantId = req.tenantId;
+  return Institute.findOne(query);
+};
+
+export const getProgramRegistrations = async (req: AuthRequest, res: Response) => {
+  try {
+    const { page, limit, skip } = getPaginationParams(req);
+    const program = await findProgram(req);
+    if (!program) {
+      return res.status(404).json({ success: false, message: 'Program not found' });
+    }
+
+    const all = program.registrations || [];
+    const populated = await Institute.populate(all, { path: 'memberId', select: 'name nameMl phone age gender' });
+    const pageItems = populated.slice(skip, skip + limit);
+
+    res.json(createPaginationResponse(pageItems, all.length, page, limit));
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const registerMemberForProgram = async (req: AuthRequest, res: Response) => {
+  try {
+    const { memberId } = req.body;
+    if (!memberId) {
+      return res.status(400).json({ success: false, message: 'memberId is required' });
+    }
+
+    const program = await findProgram(req);
+    if (!program) {
+      return res.status(404).json({ success: false, message: 'Program not found' });
+    }
+
+    const already = (program.registrations || []).some((r) => r.memberId.toString() === memberId);
+    if (already) {
+      return res.status(409).json({ success: false, message: 'Member is already registered' });
+    }
+
+    program.registrations = [...(program.registrations || []), { memberId, attended: false }];
+    await program.save();
+
+    res.status(201).json({ success: true, data: program.registrations });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const setProgramAttendance = async (req: AuthRequest, res: Response) => {
+  try {
+    const { attended } = req.body;
+    if (typeof attended !== 'boolean') {
+      return res.status(400).json({ success: false, message: 'attended must be a boolean' });
+    }
+
+    const program = await findProgram(req);
+    if (!program) {
+      return res.status(404).json({ success: false, message: 'Program not found' });
+    }
+
+    const registration = (program.registrations || []).find(
+      (r) => r.memberId.toString() === req.params.memberId
+    );
+    if (!registration) {
+      return res.status(404).json({ success: false, message: 'Registration not found' });
+    }
+
+    registration.attended = attended;
+    program.markModified('registrations');
+    await program.save();
+
+    res.json({ success: true, data: registration });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const removeProgramRegistration = async (req: AuthRequest, res: Response) => {
+  try {
+    const program = await findProgram(req);
+    if (!program) {
+      return res.status(404).json({ success: false, message: 'Program not found' });
+    }
+
+    const before = (program.registrations || []).length;
+    program.registrations = (program.registrations || []).filter(
+      (r) => r.memberId.toString() !== req.params.memberId
+    );
+    if (program.registrations.length === before) {
+      return res.status(404).json({ success: false, message: 'Registration not found' });
+    }
+
+    await program.save();
+    res.json({ success: true, message: 'Registration removed' });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};

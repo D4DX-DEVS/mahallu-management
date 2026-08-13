@@ -35,5 +35,13 @@ export const familyService = {
     const response = await api.delete<{ success: boolean; message: string }>(`/families/${id}`);
     return response.data;
   },
+
+  bulkImportFamilies: async (families: Array<Record<string, any>>) => {
+    const response = await api.post<{ success: boolean; data: { imported: number } }>(
+      '/families/bulk-import',
+      { families }
+    );
+    return response.data.data;
+  },
 };
 

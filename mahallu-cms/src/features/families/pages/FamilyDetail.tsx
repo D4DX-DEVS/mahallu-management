@@ -1,18 +1,33 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { FiEdit2, FiArrowLeft, FiTrash2, FiPlus, FiEye } from 'react-icons/fi';
+import { FiEdit2, FiArrowLeft, FiTrash2, FiPlus, FiEye, FiUpload } from 'react-icons/fi';
 import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import Modal from '@/components/ui/Modal';
 import Table from '@/components/ui/Table';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import BulkImportCsv, { ColumnSpec } from '@/components/BulkImportCsv';
 import { TableColumn } from '@/types';
 import { ROUTES } from '@/constants/routes';
 import { familyService } from '@/services/familyService';
 import { memberService } from '@/services/memberService';
 import { Family, Member } from '@/types';
 import { formatDate } from '@/utils/format';
+import { toast } from '@/store/toastStore';
+
+const MEMBER_COLUMNS: ColumnSpec[] = [
+  { key: 'name', label: 'Name', required: true },
+  { key: 'nameMl', label: 'Name (Malayalam)' },
+  { key: 'gender', label: 'Gender' },
+  { key: 'age', label: 'Age' },
+  { key: 'maritalStatus', label: 'Marital Status' },
+  { key: 'education', label: 'Education' },
+  { key: 'occupation', label: 'Occupation' },
+];
+
+const MEMBER_TEMPLATE = 'name,nameMl,gender,age,maritalStatus,education,occupation\nAhmed Ali,അഹമ്മദ് അലി,male,30,married,Bachelor,Engineer\nFatima Ahmed,ഫാറ്റിമ അഹമ്മദ്,female,28,married,Bachelor,Homemaker\n';
 
 export default function FamilyDetail() {
   const { id } = useParams<{ id: string }>();
@@ -23,6 +38,10 @@ export default function FamilyDetail() {
   const [error, setError] = useState<string | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [isImportOpen, setIsImportOpen] = useState(false);
+  const [showDeleteMemberDialog, setShowDeleteMemberDialog] = useState(false);
+  const [selectedMemberToDelete, setSelectedMemberToDelete] = useState<{ id: string; name: string } | null>(null);
+  const [deletingMember, setDeletingMember] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -83,15 +102,28 @@ export default function FamilyDetail() {
     );
   }
 
-  const handleDeleteMember = async (memberId: string, memberName: string) => {
-    const confirmed = window.confirm(`Delete ${memberName}? This action cannot be undone.`);
-    if (!confirmed) return;
+  const handleDeleteMember = (memberId: string, memberName: string) => {
+    setSelectedMemberToDelete({ id: memberId, name: memberName });
+    setShowDeleteMemberDialog(true);
+  };
+
+  const confirmDeleteMember = async () => {
+    if (!selectedMemberToDelete) return;
     try {
-      await memberService.delete(memberId);
+      setDeletingMember(true);
+      await memberService.delete(selectedMemberToDelete.id);
       await fetchMembers();
-    } catch (err) {
-      console.error('Error deleting member:', err);
+      toast.success(`${selectedMemberToDelete.name} removed from family`);
+      setShowDeleteMemberDialog(false);
+      setSelectedMemberToDelete(null);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || `Failed to remove ${selectedMemberToDelete.name}`);
+      setDeletingMember(false);
     }
+  };
+
+  const handleBulkImportMembers = async (rows: any[]) => {
+    return memberService.bulkImportMembers(id!, rows);
   };
 
   const memberColumns: TableColumn<Member>[] = [
@@ -276,12 +308,18 @@ export default function FamilyDetail() {
             <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
               Family Members ({members.length})
             </h2>
-            <Link to={ROUTES.MEMBERS.CREATE}>
-              <Button size="sm">
-                <FiPlus className="h-4 w-4 mr-2" />
-                Add Member
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" onClick={() => setIsImportOpen(true)}>
+                <FiUpload className="h-4 w-4 mr-2" />
+                Import Members
               </Button>
-            </Link>
+              <Link to={ROUTES.MEMBERS.CREATE}>
+                <Button size="sm">
+                  <FiPlus className="h-4 w-4 mr-2" />
+                  Add Member
+                </Button>
+              </Link>
+            </div>
           </div>
           {members.length > 0 ? (
             <Table columns={memberColumns} data={members} />
@@ -312,6 +350,32 @@ export default function FamilyDetail() {
           Are you sure you want to delete <strong>{family.houseName}</strong>? This will also delete all associated members. This action cannot be undone.
         </p>
       </Modal>
+
+      <BulkImportCsv
+        title="Import Members to Family"
+        columnSpec={MEMBER_COLUMNS}
+        templateCsv={MEMBER_TEMPLATE}
+        onImport={handleBulkImportMembers}
+        isOpen={isImportOpen}
+        onClose={() => setIsImportOpen(false)}
+        onImported={fetchMembers}
+      />
+
+      <ConfirmDialog
+        isOpen={showDeleteMemberDialog}
+        title="Remove Member"
+        message={`Remove ${selectedMemberToDelete?.name} from this family?`}
+        consequence="The member will be removed from the family roll. This action cannot be undone."
+        confirmLabel="Remove"
+        cancelLabel="Cancel"
+        variant="danger"
+        isLoading={deletingMember}
+        onConfirm={confirmDeleteMember}
+        onCancel={() => {
+          setShowDeleteMemberDialog(false);
+          setSelectedMemberToDelete(null);
+        }}
+      />
     </div>
   );
 }

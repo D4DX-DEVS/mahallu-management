@@ -182,7 +182,7 @@ export const createFeed = async (req: AuthRequest, res: Response) => {
 // Activity Logs
 export const getActivityLogs = async (req: AuthRequest, res: Response) => {
   try {
-    const { entityType, entityId, tenantId } = req.query;
+    const { entityType, entityId, tenantId, userId } = req.query;
     const query: any = {};
 
     // Convert tenantId string to ObjectId for query
@@ -207,6 +207,14 @@ export const getActivityLogs = async (req: AuthRequest, res: Response) => {
     }
 
     if (entityType) query.entityType = entityType;
+    // Task C5 — access history: who did what, filtered to one user.
+    if (userId) {
+      try {
+        query.userId = new mongoose.Types.ObjectId(userId as string);
+      } catch (err) {
+        return res.status(400).json({ success: false, message: 'Invalid user ID format' });
+      }
+    }
     if (entityId) {
       try {
         query.entityId = new mongoose.Types.ObjectId(entityId as string);

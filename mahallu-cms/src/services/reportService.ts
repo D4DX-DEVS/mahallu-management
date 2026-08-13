@@ -57,7 +57,64 @@ export const reportService = {
     const response = await api.get<{ success: boolean; data: any }>('/reports/education');
     return response.data.data;
   },
+
+  getWelfareReport: async () => {
+    const response = await api.get<{ success: boolean; data: any }>('/reports/welfare');
+    return response.data.data;
+  },
+
+  getCommunityReport: async () => {
+    const response = await api.get<{ success: boolean; data: any }>('/reports/community');
+    return response.data.data;
+  },
+
+  getAnnualReport: async (year?: number) => {
+    const response = await api.get<{ success: boolean; data: AnnualReport }>('/reports/annual', {
+      params: year ? { year } : undefined,
+    });
+    return response.data.data;
+  },
+
+  getDevelopmentIndex: async () => {
+    const response = await api.get<{ success: boolean; data: DevelopmentIndex }>('/development-index');
+    return response.data.data;
+  },
 };
+
+export interface IndexDimension {
+  key: string;
+  label: string;
+  score: number;
+  indicators: Record<string, number>;
+}
+
+export interface DevelopmentIndex {
+  dimensions: IndexDimension[];
+  totalScore: number;
+  weakest: string[];
+  generatedAt: string;
+}
+
+export interface AnnualReport {
+  year: number;
+  demographics: {
+    totalFamilies: number;
+    totalMembers: number;
+    latestSurvey: { surveyDate: string; type: string; stats: Record<string, number> } | null;
+  };
+  finance: { income: number; expense: number; balance: number };
+  welfare: { applications: number; disbursedAmount: number };
+  zakat: { collected: number; distributed: number; balance: number };
+  education: { activeClasses: number; activeStudents: number; exams: number };
+  employment: {
+    vacanciesPosted: number;
+    trainings: number;
+    trainedParticipants: number;
+    employedOutcomes: number;
+  };
+  programs: { total: number };
+  projects: { total: number; completed: number; inProgress: number; totalEstimatedCost: number };
+}
 
 export interface DemographicsBucket {
   label: string;

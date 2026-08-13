@@ -7,6 +7,7 @@ import Select from '@/components/ui/Select';
 import Table from '@/components/ui/Table';
 import SearchInput from '@/components/ui/SearchInput';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import EmptyState from '@/components/ui/EmptyState';
 import Pagination from '@/components/ui/Pagination';
 import { Pagination as PaginationType } from '@/types';
 import { registerService } from '@/services/registerService';
@@ -136,6 +137,27 @@ export default function RegisterList() {
               Retry
             </Button>
           </div>
+        ) : rows.length === 0 ? (
+          <EmptyState
+            title="No records found"
+            description={
+              searchQuery || Object.values(filterValues).some((v) => v)
+                ? "Try adjusting your search or filters"
+                : "No records in this register yet"
+            }
+            action={
+              searchQuery || Object.values(filterValues).some((v) => v)
+                ? {
+                    label: 'Clear filters',
+                    onClick: () => {
+                      setSearchQuery('');
+                      setFilterValues({});
+                      setCurrentPage(1);
+                    },
+                  }
+                : undefined
+            }
+          />
         ) : (
           <div className="overflow-x-auto">
             <Table

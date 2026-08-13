@@ -10,11 +10,18 @@ import { stripImmutable, refBelongsToTenant } from '../utils/sanitizeUpdate';
 const tenantScope = (req: AuthRequest): Record<string, any> =>
   req.tenantId ? { tenantId: req.tenantId } : {};
 
-/** Confirm khateebId belongs to this tenant. */
+/**
+ * Confirm every tenant-scoped reference in the body belongs to this tenant.
+ * Used by both khateeb and khutbah writes so no create/update path can attach a
+ * foreign-tenant record.
+ */
 const validateKhutbahRefs = async (req: AuthRequest): Promise<string | null> => {
-  const { khateebId } = req.body;
+  const { khateebId, memberId } = req.body;
   if (khateebId && !(await refBelongsToTenant(Khateeb, khateebId, req.tenantId))) {
     return 'Khateeb does not belong to this Mahallu';
+  }
+  if (memberId && !(await refBelongsToTenant(Member, memberId, req.tenantId))) {
+    return 'Member does not belong to this Mahallu';
   }
   return null;
 };
@@ -109,10 +116,8 @@ export const getKhateebById = async (req: AuthRequest, res: Response) => {
 
 export const createKhateeb = async (req: AuthRequest, res: Response) => {
   try {
-    const { memberId } = req.body;
-    if (memberId && !(await refBelongsToTenant(Member, memberId, req.tenantId))) {
-      return res.status(400).json({ success: false, message: 'Member does not belong to this Mahallu' });
-    }
+    const refError = await validateKhutbahRefs(req);
+    if (refError) return res.status(400).json({ success: false, message: refError });
 
     const khateeb = new Khateeb({
       ...req.body,

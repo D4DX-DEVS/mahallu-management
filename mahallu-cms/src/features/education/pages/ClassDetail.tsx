@@ -7,6 +7,8 @@ import Table from '@/components/ui/Table';
 import Select from '@/components/ui/Select';
 import Pagination from '@/components/ui/Pagination';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import { toast } from '@/store/toastStore';
 import { Pagination as PaginationType, TableColumn } from '@/types';
 import { formatDate } from '@/utils/format';
 import {
@@ -46,6 +48,8 @@ export default function ClassDetail() {
   const [pagination, setPagination] = useState<PaginationType | null>(null);
   const [enrollOpen, setEnrollOpen] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [removeConfirm, setRemoveConfirm] = useState<{ id: string; name: string } | null>(null);
+  const [removing, setRemoving] = useState(false);
 
   useEffect(() => {
     if (id) fetchClass(id);
@@ -109,24 +113,27 @@ export default function ClassDetail() {
     try {
       setBusyId(row._id);
       await madrasaService.updateEnrollment(row._id, { status });
+      toast.success('Enrollment updated');
       refresh();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to update the enrollment');
+      toast.error(err.response?.data?.message || 'Failed to update enrollment');
     } finally {
       setBusyId(null);
     }
   };
 
-  const removeStudent = async (row: StudentEnrollment) => {
-    if (!confirm(`Remove ${studentName(row)} from this class?`)) return;
+  const handleRemoveStudent = async () => {
+    if (!removeConfirm) return;
     try {
-      setBusyId(row._id);
-      await madrasaService.deleteEnrollment(row._id);
+      setRemoving(true);
+      await madrasaService.deleteEnrollment(removeConfirm.id);
+      setRemoveConfirm(null);
+      toast.success(`${removeConfirm.name} removed from class`);
       refresh();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to remove the student');
+      toast.error(err.response?.data?.message || 'Failed to remove student');
     } finally {
-      setBusyId(null);
+      setRemoving(false);
     }
   };
 
@@ -159,8 +166,8 @@ export default function ClassDetail() {
             </button>
           )}
           <button
-            onClick={() => removeStudent(row)}
-            disabled={busyId === row._id}
+            onClick={() => setRemoveConfirm({ id: row._id, name: studentName(row) })}
+            disabled={removing || busyId === row._id}
             className="text-xs font-medium text-red-600 hover:underline disabled:opacity-50 dark:text-red-400"
           >
             Remove
@@ -341,6 +348,18 @@ export default function ClassDetail() {
         onClose={() => setEnrollOpen(false)}
         classId={cls._id}
         onEnrolled={refresh}
+      />
+
+      <ConfirmDialog
+        isOpen={removeConfirm !== null}
+        title="Remove Student"
+        message={removeConfirm ? `Remove ${removeConfirm.name} from this class?` : ''}
+        consequence="The student can be re-enrolled later."
+        isLoading={removing}
+        variant="danger"
+        confirmLabel="Remove"
+        onConfirm={handleRemoveStudent}
+        onCancel={() => setRemoveConfirm(null)}
       />
     </div>
   );

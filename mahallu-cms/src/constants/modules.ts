@@ -24,6 +24,12 @@ export const MODULE_KEYS = [
   'volunteers',
   'health',
   'religious',
+  'counselling',
+  'maslahat',
+  'inheritance',
+  'cemetery',
+  'library',
+  'development',
 ] as const;
 
 export type ModuleKey = (typeof MODULE_KEYS)[number];
@@ -50,6 +56,31 @@ export const MODULE_LABELS: Record<ModuleKey, string> = {
   volunteers: 'Volunteer Wing',
   health: 'Health & Medical',
   religious: 'Religious Services',
+  counselling: 'Counselling',
+  maslahat: 'Maslahat',
+  inheritance: 'Inheritance',
+  cemetery: 'Cemetery',
+  library: 'Library',
+  development: 'Community Development Projects',
+};
+
+/** Per-user restricted modules. Mirrors mahallu-api User.permissions.sensitiveModules enum. */
+export const SENSITIVE_MODULE_KEYS = [
+  'counselling',
+  'maslahat',
+  'inheritance',
+  'health',
+  'welfare',
+] as const;
+
+export type SensitiveModuleKey = (typeof SENSITIVE_MODULE_KEYS)[number];
+
+export const SENSITIVE_MODULE_LABELS: Record<SensitiveModuleKey, string> = {
+  counselling: 'Counselling cases',
+  maslahat: 'Maslahat / dispute cases',
+  inheritance: 'Inheritance cases',
+  health: 'Palliative & patient support',
+  welfare: 'Welfare applications',
 };
 
 export const TENANT_CLASSIFICATIONS = [

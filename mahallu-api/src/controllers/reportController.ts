@@ -3,6 +3,13 @@ import mongoose from 'mongoose';
 import Family from '../models/Family';
 import Member from '../models/Member';
 import { AuthRequest } from '../middleware/authMiddleware';
+import { WelfareApplication } from '../models/Welfare';
+import { ZakatDistribution, ZakatBeneficiary } from '../models/Zakat';
+import ReliefCase from '../models/ReliefCase';
+import { DevelopmentProject } from '../models/DevelopmentProject';
+import { VolunteerProfile } from '../models/VolunteerProfile';
+import Institute from '../models/Institute';
+import Announcement from '../models/Announcement';
 
 export const getAreaReport = async (req: AuthRequest, res: Response) => {
   try {
@@ -272,3 +279,154 @@ export const getDemographicsReport = async (req: AuthRequest, res: Response) => 
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+/**
+ * Welfare report (spec 34.2): beneficiaries, assistance totals, pending applications.
+ */
+export const getWelfareReport = async (req: AuthRequest, res: Response) => {
+  try {
+    const tenantId = req.tenantId || (req.isSuperAdmin ? (req.query.tenantId as string) : undefined);
+    if (!tenantId) {
+      return res.status(400).json({ success: false, message: 'Tenant ID is required' });
+    }
+
+    const tenantObjectId = new mongoose.Types.ObjectId(tenantId as string);
+    const query = { tenantId: tenantObjectId };
+
+    const [applications, zakatBeneficiaries, zakatDistributions, reliefCases] = await Promise.all([
+      WelfareApplication.find(query),
+      ZakatBeneficiary.find(query),
+      ZakatDistribution.find(query),
+      ReliefCase.find(query),
+    ]);
+
+    // Welfare application stats
+    const appsByStatus = {
+      pending: applications.filter((a: any) => a.status === 'pending').length,
+      verified: applications.filter((a: any) => a.status === 'verified').length,
+      approved: applications.filter((a: any) => a.status === 'approved').length,
+      disbursed: applications.filter((a: any) => a.status === 'disbursed').length,
+      rejected: applications.filter((a: any) => a.status === 'rejected').length,
+      closed: applications.filter((a: any) => a.status === 'closed').length,
+    };
+
+    const requestedTotal = applications.reduce((sum: number, a: any) => sum + (a.requestedAmount || 0), 0);
+    const approvedTotal = applications.reduce((sum: number, a: any) => sum + (a.approvedAmount || 0), 0);
+    const disbursedTotal = applications.filter((a: any) => a.status === 'disbursed').reduce((sum: number, a: any) => sum + (a.approvedAmount || 0), 0);
+
+    // Zakat beneficiary stats
+    const zakatVerified = zakatBeneficiaries.filter((b: any) => b.verificationStatus === 'verified').length;
+    const zakatDistributionTotal = zakatDistributions.reduce((sum: number, d: any) => sum + (d.amount || 0), 0);
+
+    // Relief case stats
+    const reliefByStatus = {
+      reported: reliefCases.filter((r: any) => r.status === 'reported').length,
+      verified: reliefCases.filter((r: any) => r.status === 'verified').length,
+      approved: reliefCases.filter((r: any) => r.status === 'approved').length,
+      assisted: reliefCases.filter((r: any) => r.status === 'assisted').length,
+      closed: reliefCases.filter((r: any) => r.status === 'closed').length,
+    };
+
+    res.json({
+      success: true,
+      data: {
+        welfare: {
+          applications: {
+            total: applications.length,
+            byStatus: appsByStatus,
+          },
+          requested: requestedTotal,
+          approved: approvedTotal,
+          disbursed: disbursedTotal,
+        },
+        zakat: {
+          beneficiaries: {
+            total: zakatBeneficiaries.length,
+            verified: zakatVerified,
+          },
+          distributions: {
+            total: zakatDistributions.length,
+            totalAmount: zakatDistributionTotal,
+          },
+        },
+        relief: {
+          cases: {
+            total: reliefCases.length,
+            byStatus: reliefByStatus,
+          },
+        },
+      },
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * Community report (spec 34.2): programs, volunteers, projects
+ */
+export const getCommunityReport = async (req: AuthRequest, res: Response) => {
+  try {
+    const tenantId = req.tenantId || (req.isSuperAdmin ? (req.query.tenantId as string) : undefined);
+    if (!tenantId) {
+      return res.status(400).json({ success: false, message: 'Tenant ID is required' });
+    }
+
+    const tenantObjectId = new mongoose.Types.ObjectId(tenantId as string);
+    const query = { tenantId: tenantObjectId };
+
+    const [programs, volunteers, projects, announcements] = await Promise.all([
+      Institute.find({ ...query, type: 'program' }),
+      VolunteerProfile.find(query),
+      DevelopmentProject.find(query),
+      Announcement.find(query),
+    ]);
+
+    // Project stats
+    const projectsByStatus = {
+      proposed: projects.filter((p: any) => p.status === 'proposed').length,
+      approved: projects.filter((p: any) => p.status === 'approved').length,
+      in_progress: projects.filter((p: any) => p.status === 'in_progress').length,
+      completed: projects.filter((p: any) => p.status === 'completed').length,
+      dropped: projects.filter((p: any) => p.status === 'dropped').length,
+    };
+
+    const totalEstimatedCost = projects.reduce((sum: number, p: any) => sum + (p.estimatedCost || 0), 0);
+    const avgProgress = projects.length > 0 ? Math.round(projects.reduce((sum: number, p: any) => sum + (p.progressPercent || 0), 0) / projects.length) : 0;
+
+    // Volunteer stats
+    const volunteersByWing = {
+      youth: volunteers.filter((v: any) => v.wings && v.wings.includes('youth')).length,
+      women: volunteers.filter((v: any) => v.wings && v.wings.includes('women')).length,
+      general: volunteers.filter((v: any) => v.wings && v.wings.includes('general')).length,
+    };
+
+    // Announcement stats
+    const announcementsSent = announcements.filter((a: any) => a.status === 'sent').length;
+
+    res.json({
+      success: true,
+      data: {
+        programs: {
+          total: programs.length,
+        },
+        volunteers: {
+          total: volunteers.length,
+          byWing: volunteersByWing,
+        },
+        projects: {
+          total: projects.length,
+          byStatus: projectsByStatus,
+          totalEstimatedCost,
+          averageProgress: avgProgress,
+        },
+        announcements: {
+          sent: announcementsSent,
+        },
+      },
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+

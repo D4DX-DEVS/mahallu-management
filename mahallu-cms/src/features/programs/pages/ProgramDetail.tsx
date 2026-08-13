@@ -9,6 +9,7 @@ import { Institute } from '@/types';
 import { ROUTES } from '@/constants/routes';
 import { programService } from '@/services/programService';
 import { formatDate } from '@/utils/format';
+import ProgramRegistrations from '../components/ProgramRegistrations';
 
 export default function ProgramDetail() {
   const { id } = useParams<{ id: string }>();
@@ -145,6 +146,39 @@ export default function ProgramDetail() {
             <p className="text-gray-700 dark:text-gray-300">{program.description}</p>
           </Card>
         )}
+
+        {/* Event details (Task C3) — only meaningful once a program is run as an event */}
+        {(program.eventDate || program.competitions?.length || program.awards) && (
+          <Card className="md:col-span-2">
+            <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">Event</h2>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              <div>
+                <label className="text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400">Event Date</label>
+                <p className="mt-1 text-gray-900 dark:text-gray-100">
+                  {program.eventDate ? formatDate(program.eventDate) : '—'}
+                </p>
+              </div>
+              <div>
+                <label className="text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400">Awards</label>
+                <p className="mt-1 text-gray-900 dark:text-gray-100">{program.awards || '—'}</p>
+              </div>
+              <div className="col-span-2 md:col-span-1">
+                <label className="text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400">Competitions</label>
+                <p className="mt-1 text-gray-900 dark:text-gray-100">
+                  {program.competitions?.length
+                    ? program.competitions
+                        .map((c) => `${c.name}${c.winners?.length ? ` (${c.winners.join(', ')})` : ''}`)
+                        .join('; ')
+                    : '—'}
+                </p>
+              </div>
+            </div>
+          </Card>
+        )}
+
+        <div className="md:col-span-2">
+          <ProgramRegistrations programId={program.id} />
+        </div>
       </div>
     </div>
   );

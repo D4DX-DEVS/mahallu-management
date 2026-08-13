@@ -15,6 +15,7 @@ import { useDebounce } from '@/hooks/useDebounce';
 import { formatDate } from '@/utils/format';
 import { exportToCSV, exportToJSON } from '@/utils/exportUtils';
 import { exportInvoicesToPdf, InvoiceDetails } from '@/utils/invoiceUtils';
+import { toast } from '@/store/toastStore';
 
 export default function ZakatList() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -68,7 +69,7 @@ export default function ZakatList() {
       const dataToExport = result.data;
 
       if (dataToExport.length === 0) {
-        alert('No data to export');
+        toast.info('No zakat data to export');
         return;
       }
 
@@ -100,7 +101,7 @@ export default function ZakatList() {
       }
     } catch (error: any) {
       console.error('Export error:', error);
-      alert(error?.message || 'Failed to export data');
+      toast.error(error?.message || 'Failed to export zakat data');
     } finally {
       setIsExporting(false);
     }

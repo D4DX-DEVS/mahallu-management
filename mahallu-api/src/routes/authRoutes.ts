@@ -1,5 +1,6 @@
 import express from 'express';
-import { login, getCurrentUser, changePassword, sendOTP, verifyOTP, registerDevice, selectAccount } from '../controllers/authController';
+import { login, getCurrentUser, changePassword, registerDevice, setTwoFactor, selectAccount } from '../controllers/authController';
+import { sendOTP, verifyOTP } from '../controllers/otpController';
 import { authMiddleware } from '../middleware/authMiddleware';
 import { verifyOtpRateLimiter } from '../middleware/rateLimit';
 import { validationHandler } from '../middleware/validationHandler';
@@ -290,6 +291,39 @@ router.get('/me', authMiddleware, getCurrentUser);
 router.post('/change-password', authMiddleware, changePasswordValidation, validationHandler, changePassword);
 
 router.put('/register-device', authMiddleware, registerDevice);
+
+/**
+ * @swagger
+ * /auth/two-factor:
+ *   put:
+ *     summary: Turn two-factor (OTP) login on or off for your own account
+ *     tags: [Auth]
+ *     description: |
+ *       When enabled, `POST /auth/login` stops after the password check and
+ *       returns `{ requiresOtp: true }` — the client must then call
+ *       `/auth/send-otp` and `/auth/verify-otp` to receive a token.
+ *       **Access:** any authenticated user, own account only
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [enabled]
+ *             properties:
+ *               enabled:
+ *                 type: boolean
+ *     responses:
+ *       200:
+ *         description: Updated
+ *       400:
+ *         description: enabled must be a boolean
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ */
+router.put('/two-factor', authMiddleware, setTwoFactor);
 
 router.post('/select-account', selectAccount);
 

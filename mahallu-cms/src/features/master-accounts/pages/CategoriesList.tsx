@@ -18,6 +18,7 @@ import { instituteService } from '@/services/instituteService';
 import { useAuthStore } from '@/store/authStore';
 import { formatDate } from '@/utils/format';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
+import { toast } from '@/store/toastStore';
 
 export default function CategoriesList() {
   const { currentInstituteId: userInstituteId } = useAuthStore();
@@ -78,7 +79,7 @@ export default function CategoriesList() {
       const result = await masterAccountService.getAllCategories(params);
       const dataToExport = Array.isArray(result.data) ? result.data : [];
       if (dataToExport.length === 0) {
-        alert('No data to export');
+        toast.info('No categories to export');
         return;
       }
       const filename = 'categories';
@@ -90,7 +91,7 @@ export default function CategoriesList() {
       }
     } catch (error: any) {
       console.error('Export error:', error);
-      alert(error?.message || 'Failed to export data');
+      toast.error(error?.message || 'Failed to export categories');
     } finally {
       setIsExporting(false);
     }

@@ -30,5 +30,51 @@ export const programService = {
     const response = await api.delete<{ success: boolean; message: string }>(`/programs/${id}`);
     return response.data;
   },
+
+  // Event registrations (Task C3)
+  getRegistrations: async (id: string, params?: { page?: number; limit?: number }) => {
+    const response = await api.get<{ success: boolean; data: ProgramRegistration[]; pagination?: any }>(
+      `/programs/${id}/registrations`,
+      { params }
+    );
+    return { data: response.data.data, pagination: response.data.pagination ?? null };
+  },
+
+  register: async (id: string, memberId: string) => {
+    const response = await api.post<{ success: boolean; data: ProgramRegistration[] }>(
+      `/programs/${id}/registrations`,
+      { memberId }
+    );
+    return response.data.data;
+  },
+
+  setAttendance: async (id: string, memberId: string, attended: boolean) => {
+    const response = await api.put<{ success: boolean; data: ProgramRegistration }>(
+      `/programs/${id}/registrations/${memberId}`,
+      { attended }
+    );
+    return response.data.data;
+  },
+
+  removeRegistration: async (id: string, memberId: string) => {
+    const response = await api.delete<{ success: boolean; message: string }>(
+      `/programs/${id}/registrations/${memberId}`
+    );
+    return response.data;
+  },
 };
+
+export interface RegisteredMember {
+  _id: string;
+  name?: string;
+  nameMl?: string;
+  phone?: string;
+  age?: number;
+  gender?: string;
+}
+
+export interface ProgramRegistration {
+  memberId: RegisteredMember | string;
+  attended: boolean;
+}
 

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { menuItems, MenuItem } from '@/constants/menuItems';
-import type { ModuleKey } from '@/constants/modules';
+import type { ModuleKey, SensitiveModuleKey } from '@/constants/modules';
 import { useModuleAccess } from '@/hooks/useModuleAccess';
 import { FiChevronDown, FiChevronRight, FiSearch } from 'react-icons/fi';
 import { cn } from '@/utils/cn';
@@ -12,8 +12,15 @@ import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 
 type UserRole = 'super_admin' | 'mahall' | 'survey' | 'institute' | 'member';
 
-function isAccessible(item: MenuItem, userRole: UserRole | null, isSuperAdmin: boolean) {
+function isAccessible(
+  item: MenuItem,
+  userRole: UserRole | null,
+  isSuperAdmin: boolean,
+  sensitiveModules: SensitiveModuleKey[]
+) {
   if (item.superAdminOnly && !isSuperAdmin) return false;
+  // Restricted modules need an explicit per-user grant — the API returns 403 without it
+  if (item.sensitiveKey && !isSuperAdmin && !sensitiveModules.includes(item.sensitiveKey)) return false;
   if (item.allowedRoles && userRole) {
     return item.allowedRoles.includes(userRole);
   }
@@ -30,20 +37,24 @@ function filterMenuTree(
   searchQuery: string,
   userRole: UserRole | null,
   isSuperAdmin: boolean,
-  isModuleEnabled: (moduleKey?: ModuleKey) => boolean
+  isModuleEnabled: (moduleKey?: ModuleKey) => boolean,
+  sensitiveModules: SensitiveModuleKey[]
 ): MenuItem[] {
   return items.reduce<MenuItem[]>((result, item) => {
-    if (!isAccessible(item, userRole, isSuperAdmin)) return result;
+    if (!isAccessible(item, userRole, isSuperAdmin, sensitiveModules)) return result;
     // Module gating from the Mahallu classification / tenant feature toggles
     if (!isModuleEnabled(item.moduleKey)) return result;
 
     const accessibleChildren = item.children
-      ? filterMenuTree(item.children, '', userRole, isSuperAdmin, isModuleEnabled)
+      ? filterMenuTree(item.children, '', userRole, isSuperAdmin, isModuleEnabled, sensitiveModules)
       : undefined;
     const matchesSearch = item.label.toLowerCase().includes(searchQuery.toLowerCase());
     const filteredChildren = item.children
-      ? filterMenuTree(item.children, searchQuery, userRole, isSuperAdmin, isModuleEnabled)
+      ? filterMenuTree(item.children, searchQuery, userRole, isSuperAdmin, isModuleEnabled, sensitiveModules)
       : undefined;
+
+    // A group whose children are all filtered out for this role/tenant is noise — drop it entirely
+    if (item.children && (!accessibleChildren || accessibleChildren.length === 0)) return result;
 
     if (!searchQuery.trim()) {
       result.push({ ...item, children: accessibleChildren });
@@ -119,25 +130,19 @@ function MenuNode({ item, depth, pathname, openSections, onToggle, onNavigate, f
           className={cn(
             'group flex w-full items-center gap-2 rounded-xl py-1.5 text-left transition-all duration-200',
             isCollapsed && depth === 0 ? 'justify-center px-1.5' : depthClass,
-            depth === 0
-              ? isBranchActive
-                ? 'bg-primary-50 text-primary-900 shadow-sm ring-1 ring-primary-100'
-                : 'text-slate-600 hover:bg-slate-100 hover:text-slate-950'
-              : isBranchActive
-                ? 'bg-primary-50 text-primary-900'
-                : 'text-slate-600 hover:bg-slate-100 hover:text-slate-950'
+            isBranchActive
+              ? 'text-primary-800 hover:bg-slate-100'
+              : 'text-slate-600 hover:bg-slate-100 hover:text-slate-950'
           )}
           title={isCollapsed && depth === 0 ? item.label : undefined}
         >
           <span
             className={cn(
               'flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md transition-colors',
-              depth === 0
-                ? isBranchActive
-                  ? 'bg-primary-600 text-white'
-                  : 'bg-slate-100 text-slate-600'
-                : isBranchActive
-                  ? 'bg-primary-600 text-white'
+              isBranchActive
+                ? 'bg-primary-100 text-primary-700'
+                : depth === 0
+                  ? 'bg-slate-100 text-slate-600'
                   : 'bg-slate-100 text-slate-500'
             )}
           >
@@ -226,7 +231,15 @@ export default function Sidebar() {
   const { isSuperAdmin, user } = useAuthStore();
   const userRole = (user?.role || (isSuperAdmin ? 'super_admin' : null)) as UserRole | null;
   const { isModuleEnabled } = useModuleAccess();
-  const filteredMenuItems = filterMenuTree(menuItems, searchQuery, userRole, isSuperAdmin, isModuleEnabled);
+  const sensitiveModules = user?.permissions?.sensitiveModules ?? [];
+  const filteredMenuItems = filterMenuTree(
+    menuItems,
+    searchQuery,
+    userRole,
+    isSuperAdmin,
+    isModuleEnabled,
+    sensitiveModules
+  );
 
   useEffect(() => {
     setSubmenuOpen(false);

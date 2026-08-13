@@ -5,6 +5,7 @@ import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import Checkbox from '@/components/ui/Checkbox';
 import { formatCurrency } from '@/utils/format';
+import { toast } from '@/store/toastStore';
 import { qardService, QardLoan, LoanStatus, LOAN_TRANSITIONS } from '@/services/qardService';
 
 interface LoanStatusModalProps {
@@ -46,10 +47,13 @@ export default function LoanStatusModal({ isOpen, onClose, loan, onUpdated }: Lo
       if (notes) payload.notes = notes;
 
       await qardService.updateLoanStatus(loan._id, payload);
+      toast.success(`Loan status updated to ${label(status)}`);
       onUpdated();
       onClose();
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to update the loan');
+      const errorMsg = err.response?.data?.message || 'Failed to update the loan';
+      setError(errorMsg);
+      toast.error(errorMsg);
     } finally {
       setSaving(false);
     }

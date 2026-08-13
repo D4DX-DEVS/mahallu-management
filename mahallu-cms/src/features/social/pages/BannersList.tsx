@@ -14,6 +14,7 @@ import { TableColumn, Pagination as PaginationType } from '@/types';
 import { socialService, Banner } from '@/services/socialService';
 import { formatDate } from '@/utils/format';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
+import { toast } from '@/store/toastStore';
 
 export default function BannersList() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -63,7 +64,7 @@ export default function BannersList() {
       const dataToExport = result.data;
 
       if (dataToExport.length === 0) {
-        alert('No data to export');
+        toast.info('No data to export');
         return;
       }
 
@@ -83,7 +84,7 @@ export default function BannersList() {
       }
     } catch (error: any) {
       console.error('Export error:', error);
-      alert(error?.message || 'Failed to export data');
+      toast.error(error?.response?.data?.message || 'Failed to export data');
     } finally {
       setIsExporting(false);
     }

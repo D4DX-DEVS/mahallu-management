@@ -6,6 +6,7 @@ import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import Input from '@/components/ui/Input';
 import { useNavigate } from 'react-router-dom';
+import { toast } from '@/store/toastStore';
 
 export default function BloodDonors() {
   const navigate = useNavigate();
@@ -48,7 +49,12 @@ export default function BloodDonors() {
       setConfirmDelete(false);
       setDeleteId(null);
       fetchDonors(currentPage, search, selectedBloodGroup);
+      toast.success('Donor removed successfully');
     } catch (error) {
+      const message = error instanceof Error && 'response' in error
+        ? (error.response as any)?.data?.message || 'Failed to remove donor'
+        : 'Failed to remove donor';
+      toast.error(message);
       console.error('Failed to delete blood donor:', error);
     }
   };

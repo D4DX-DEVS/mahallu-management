@@ -21,6 +21,8 @@ export interface IUser extends Document {
   };
   password: string;
   isSuperAdmin: boolean;
+  /** Task C5 — when on, password login stops at an OTP step instead of issuing a token. */
+  twoFactorEnabled: boolean;
   oneSignalPlayerId?: string;
   createdAt: Date;
   updatedAt: Date;
@@ -96,6 +98,10 @@ const UserSchema = new Schema<IUser>(
       select: false,
     },
     isSuperAdmin: {
+      type: Boolean,
+      default: false,
+    },
+    twoFactorEnabled: {
       type: Boolean,
       default: false,
     },
