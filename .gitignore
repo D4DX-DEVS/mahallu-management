@@ -33,3 +33,23 @@ logs/
 tmp/
 temp/
 bash.exe.stackdump
+
+# Test / review artifacts
+playwright-report/
+test-results/
+.playwright/
+coverage/
+
+# AI scratch reports (keep real docs in docs/)
+*_FIX*.md
+*_SUMMARY.md
+*_CHECKLIST.md
+*_ANALYSIS*.md
+ENDPOINT_VERIFICATION.md
+TEST_USER_CREATION.md
+QUICK_*.md
+DEBUG_*.md
+WORKFLOW_AUDIT.md
+
+# Claude
+.claude/
