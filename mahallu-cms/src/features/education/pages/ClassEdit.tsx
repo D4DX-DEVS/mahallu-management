@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
-import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { PageSkeleton } from '@/components/ui/Skeleton';
 import { madrasaService, MadrasaClass } from '@/services/madrasaService';
 import ClassForm from '../components/ClassForm';
 
@@ -22,7 +22,7 @@ export default function ClassEdit() {
       .finally(() => setLoading(false));
   }, [id]);
 
-  if (loading) return <LoadingSpinner />;
+  if (loading) return <PageSkeleton />;
 
   if (error || !cls) {
     return (

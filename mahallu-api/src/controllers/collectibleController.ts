@@ -60,6 +60,11 @@ export const getAllVarisangyas = async (req: AuthRequest, res: Response) => {
     if (familyId) query.familyId = familyId;
     if (memberId) query.memberId = memberId;
 
+    // Presence filters — let the DB drop non-matching rows so paging stays correct.
+    // Filtering client-side after a page is fetched yields short/uneven pages.
+    if (!familyId && req.query.hasFamily === 'true') query.familyId = { $ne: null };
+    if (!memberId && req.query.hasMember === 'true') query.memberId = { $ne: null };
+
     const fromStr = (Array.isArray(dateFrom) ? dateFrom[0] : dateFrom) as string | undefined;
     const toStr = (Array.isArray(dateTo) ? dateTo[0] : dateTo) as string | undefined;
 
@@ -157,6 +162,7 @@ export const getFamilyDues = async (req: AuthRequest, res: Response) => {
     }
     dues.sort((a, b) => b.dueAmount - a.dueAmount);
 
+    // Summary covers the whole filtered set, so it is computed before paging
     const summary = {
       totalFamilies: dues.length,
       familiesWithDues: dues.filter((d) => d.dueAmount > 0).length,
@@ -165,11 +171,84 @@ export const getFamilyDues = async (req: AuthRequest, res: Response) => {
       totalDue: dues.reduce((s, d) => s + d.dueAmount, 0),
     };
 
-    res.json({ success: true, data: { dues, summary } });
+    // ponytail: dues are computed in memory, so paging is a slice, not a DB skip/limit
+    const total = dues.length;
+    const limit = Math.min(Math.max(parseInt(req.query.limit as string) || 20, 1), 10000);
+    const totalPages = Math.max(Math.ceil(total / limit), 1);
+    const page = Math.min(Math.max(parseInt(req.query.page as string) || 1, 1), totalPages);
+    const pagedDues = dues.slice((page - 1) * limit, page * limit);
+
+    res.json({
+      success: true,
+      data: { dues: pagedDues, summary },
+      pagination: { page, limit, total, totalPages },
+    });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+// Wallet credit + transaction + ledger + WhatsApp receipt — runs when a payment becomes effective
+async function applyVarisangyaSideEffects(varisangya: any): Promise<void> {
+  if (varisangya.familyId || varisangya.memberId) {
+    let wallet = await Wallet.findOne({
+      tenantId: varisangya.tenantId,
+      familyId: varisangya.familyId,
+      memberId: varisangya.memberId,
+    });
+
+    if (!wallet) {
+      wallet = new Wallet({
+        tenantId: varisangya.tenantId,
+        familyId: varisangya.familyId,
+        memberId: varisangya.memberId,
+        balance: 0,
+      });
+    }
+
+    wallet.balance += varisangya.amount;
+    wallet.lastTransactionDate = varisangya.paymentDate;
+    await wallet.save();
+
+    let payerInfo = '';
+    if (varisangya.familyId) {
+      const family = await Family.findById(varisangya.familyId).select('houseName').lean();
+      if (family?.houseName) payerInfo = ` - ${family.houseName}`;
+    } else if (varisangya.memberId) {
+      const member = await Member.findById(varisangya.memberId).select('name').lean();
+      if (member?.name) payerInfo = ` - ${member.name}`;
+    }
+
+    await Transaction.create({
+      tenantId: varisangya.tenantId,
+      walletId: wallet._id,
+      type: 'credit',
+      amount: varisangya.amount,
+      description: `Varisangya payment${payerInfo} - ${varisangya.receiptNo || 'N/A'}`,
+      referenceId: varisangya._id,
+      referenceType: 'varisangya',
+    });
+  }
+
+  try {
+    await postLedgerEntry({
+      tenantId: varisangya.tenantId,
+      ledgerName: 'Varisangya Collections',
+      ledgerType: 'income',
+      amount: varisangya.amount,
+      description: `Varisangya payment - Receipt ${varisangya.receiptNo || 'N/A'}`,
+      date: varisangya.paymentDate,
+      source: 'varisangya',
+      sourceId: varisangya._id as any,
+      paymentMethod: varisangya.paymentMethod,
+      referenceNo: varisangya.receiptNo,
+    });
+  } catch (ledgerError) {
+    console.error('Failed to auto-post varisangya to ledger:', ledgerError);
+  }
+
+  void sendVarisangyaReceipt(varisangya);
+}
 
 export const createVarisangya = async (req: AuthRequest, res: Response) => {
   try {
@@ -192,69 +271,7 @@ export const createVarisangya = async (req: AuthRequest, res: Response) => {
     const varisangya = new Varisangya(varisangyaData);
     await varisangya.save();
 
-    // Update wallet if familyId or memberId exists
-    if (varisangya.familyId || varisangya.memberId) {
-      let wallet = await Wallet.findOne({
-        tenantId: varisangya.tenantId,
-        familyId: varisangya.familyId,
-        memberId: varisangya.memberId,
-      });
-
-      if (!wallet) {
-        wallet = new Wallet({
-          tenantId: varisangya.tenantId,
-          familyId: varisangya.familyId,
-          memberId: varisangya.memberId,
-          balance: 0,
-        });
-      }
-
-      wallet.balance += varisangya.amount;
-      wallet.lastTransactionDate = varisangya.paymentDate;
-      await wallet.save();
-
-      // Build description with payer name
-      let payerInfo = '';
-      if (varisangya.familyId) {
-        const family = await Family.findById(varisangya.familyId).select('houseName').lean();
-        if (family?.houseName) payerInfo = ` - ${family.houseName}`;
-      } else if (varisangya.memberId) {
-        const member = await Member.findById(varisangya.memberId).select('name').lean();
-        if (member?.name) payerInfo = ` - ${member.name}`;
-      }
-
-      // Create transaction
-      await Transaction.create({
-        tenantId: varisangya.tenantId,
-        walletId: wallet._id,
-        type: 'credit',
-        amount: varisangya.amount,
-        description: `Varisangya payment${payerInfo} - ${varisangya.receiptNo || 'N/A'}`,
-        referenceId: varisangya._id,
-        referenceType: 'varisangya',
-      });
-    }
-
-    // Auto-post to accounting ledger
-    try {
-      await postLedgerEntry({
-        tenantId: varisangya.tenantId,
-        ledgerName: 'Varisangya Collections',
-        ledgerType: 'income',
-        amount: varisangya.amount,
-        description: `Varisangya payment - Receipt ${varisangya.receiptNo || 'N/A'}`,
-        date: varisangya.paymentDate,
-        source: 'varisangya',
-        sourceId: varisangya._id as any,
-        paymentMethod: varisangya.paymentMethod,
-        referenceNo: varisangya.receiptNo,
-      });
-    } catch (ledgerError) {
-      console.error('Failed to auto-post varisangya to ledger:', ledgerError);
-    }
-
-    // WhatsApp digital receipt (fire-and-forget)
-    void sendVarisangyaReceipt(varisangya);
+    await applyVarisangyaSideEffects(varisangya);
 
     res.status(201).json({ success: true, data: varisangya });
   } catch (error: any) {
@@ -407,6 +424,78 @@ export const getAllZakats = async (req: AuthRequest, res: Response) => {
   }
 };
 
+async function applyZakatSideEffects(zakat: any): Promise<void> {
+  try {
+    await postLedgerEntry({
+      tenantId: zakat.tenantId,
+      ledgerName: 'Zakat Collections',
+      ledgerType: 'income',
+      amount: zakat.amount,
+      description: `Zakat payment from ${zakat.payerName} - Receipt ${zakat.receiptNo || 'N/A'}`,
+      date: zakat.paymentDate,
+      source: 'zakat',
+      sourceId: zakat._id as any,
+      paymentMethod: zakat.paymentMethod,
+      referenceNo: zakat.receiptNo,
+    });
+  } catch (ledgerError) {
+    console.error('Failed to auto-post zakat to ledger:', ledgerError);
+  }
+
+  void sendZakatReceipt(zakat);
+}
+
+// PUT /collectibles/varisangya/:id/verify — admin confirms a member-submitted payment;
+// wallet/ledger/receipt effects run only now
+export const verifyVarisangya = async (req: AuthRequest, res: Response) => {
+  try {
+    const query: any = { _id: req.params.id, status: 'pending' };
+    if (req.tenantId) query.tenantId = req.tenantId;
+
+    const varisangya = await Varisangya.findOne(query);
+    if (!varisangya) {
+      return res.status(404).json({ success: false, message: 'Pending varisangya payment not found' });
+    }
+
+    if (!varisangya.receiptNo) {
+      varisangya.receiptNo = await getNextReceiptNo(Varisangya, String(varisangya.tenantId));
+    }
+    varisangya.status = 'verified';
+    await varisangya.save();
+
+    await applyVarisangyaSideEffects(varisangya);
+
+    res.json({ success: true, data: varisangya, message: 'Payment verified' });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// PUT /collectibles/zakat/:id/verify
+export const verifyZakat = async (req: AuthRequest, res: Response) => {
+  try {
+    const query: any = { _id: req.params.id, status: 'pending' };
+    if (req.tenantId) query.tenantId = req.tenantId;
+
+    const zakat = await Zakat.findOne(query);
+    if (!zakat) {
+      return res.status(404).json({ success: false, message: 'Pending zakat payment not found' });
+    }
+
+    if (!zakat.receiptNo) {
+      zakat.receiptNo = await getNextReceiptNo(Zakat, String(zakat.tenantId));
+    }
+    zakat.status = 'verified';
+    await zakat.save();
+
+    await applyZakatSideEffects(zakat);
+
+    res.json({ success: true, data: zakat, message: 'Payment verified' });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 export const createZakat = async (req: AuthRequest, res: Response) => {
   try {
     const zakatData = {
@@ -428,26 +517,7 @@ export const createZakat = async (req: AuthRequest, res: Response) => {
     const zakat = new Zakat(zakatData);
     await zakat.save();
 
-    // Auto-post to accounting ledger
-    try {
-      await postLedgerEntry({
-        tenantId: zakat.tenantId,
-        ledgerName: 'Zakat Collections',
-        ledgerType: 'income',
-        amount: zakat.amount,
-        description: `Zakat payment from ${zakat.payerName} - Receipt ${zakat.receiptNo || 'N/A'}`,
-        date: zakat.paymentDate,
-        source: 'zakat',
-        sourceId: zakat._id as any,
-        paymentMethod: zakat.paymentMethod,
-        referenceNo: zakat.receiptNo,
-      });
-    } catch (ledgerError) {
-      console.error('Failed to auto-post zakat to ledger:', ledgerError);
-    }
-
-    // WhatsApp digital receipt (fire-and-forget)
-    void sendZakatReceipt(zakat);
+    await applyZakatSideEffects(zakat);
 
     res.status(201).json({ success: true, data: zakat });
   } catch (error: any) {

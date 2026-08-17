@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { TableColumn } from '@/types';
 import { cn } from '@/utils/cn';
-import LoadingSpinner from './LoadingSpinner';
+import { TableSkeleton } from './Skeleton';
 import EmptyState from './EmptyState';
 import Button from './Button';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
@@ -79,7 +79,21 @@ function Table<T extends Record<string, any>>({
   const handleExportPDF = () => handleExport('pdf');
 
   if (isLoading) {
-    return <LoadingSpinner size="lg" className="py-12" />;
+    return (
+      <div className={cn('space-y-3', className)}>
+        <div className="flex gap-3 border-b border-gray-200 px-3 pb-2.5 dark:border-gray-700">
+          {columns.map((column) => (
+            <span
+              key={column.key}
+              className="flex-1 text-[0.64rem] font-semibold uppercase tracking-[0.18em] text-gray-400 dark:text-gray-500"
+            >
+              {column.label}
+            </span>
+          ))}
+        </div>
+        <TableSkeleton columns={columns.length} />
+      </div>
+    );
   }
 
   if (data.length === 0) {

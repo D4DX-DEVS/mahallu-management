@@ -4,7 +4,7 @@ import { FiEdit2, FiArrowLeft, FiDollarSign } from 'react-icons/fi';
 import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
-import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { PageSkeleton } from '@/components/ui/Skeleton';
 import { Employee } from '@/types';
 import { ROUTES } from '@/constants/routes';
 import { employeeService } from '@/services/employeeService';
@@ -35,7 +35,7 @@ export default function EmployeeDetail() {
     }
   };
 
-  if (loading) return <div className="flex justify-center items-center h-64"><LoadingSpinner /></div>;
+  if (loading) return <PageSkeleton />;
 
   if (error || !employee) {
     return (

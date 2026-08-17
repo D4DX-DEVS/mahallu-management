@@ -9,6 +9,53 @@ import { Banner, Feed } from '../models/Social';
 import { AuthRequest } from '../middleware/authMiddleware';
 import { getPaginationParams, createPaginationResponse } from '../utils/pagination';
 import User from '../models/User';
+import DocumentFile from '../models/DocumentFile';
+
+/**
+ * Validates that the given document ids were uploaded by this member,
+ * links them to the registration, and returns the valid ids.
+ */
+// Per-type required document checklist (spec B4) — configurable later if a tenant needs it
+const REQUIRED_DOCS: Record<'nikah' | 'death', string[]> = {
+  nikah: ['id_proof', 'age_proof', 'photo'],
+  death: ['id_proof', 'death_proof'],
+};
+
+/** Returns the required documentTypes missing from the member's submitted document ids. */
+const findMissingRequiredDocs = async (
+  docIds: unknown,
+  member: { _id: unknown; tenantId: unknown },
+  type: 'nikah' | 'death'
+): Promise<string[]> => {
+  const ids = Array.isArray(docIds) ? docIds : [];
+  const docs = ids.length
+    ? await DocumentFile.find({
+        _id: { $in: ids },
+        tenantId: member.tenantId,
+        uploadedByMemberId: member._id,
+      }).select('documentType')
+    : [];
+  return REQUIRED_DOCS[type].filter((t) => !docs.some((d) => d.documentType === t));
+};
+
+const attachOwnDocuments = async (
+  docIds: unknown,
+  member: { _id: unknown; tenantId: unknown },
+  ownerType: 'nikah' | 'death' | 'noc',
+  ownerId: unknown
+): Promise<unknown[]> => {
+  if (!Array.isArray(docIds) || docIds.length === 0) return [];
+  const docs = await DocumentFile.find({
+    _id: { $in: docIds },
+    tenantId: member.tenantId,
+    uploadedByMemberId: member._id,
+  }).select('_id');
+  const validIds = docs.map((d) => d._id);
+  if (validIds.length > 0) {
+    await DocumentFile.updateMany({ _id: { $in: validIds } }, { ownerType, ownerId });
+  }
+  return validIds;
+};
 
 // Get own profile
 export const getOwnProfile = async (req: AuthRequest, res: Response) => {
@@ -79,6 +126,7 @@ export const getOwnOverview = async (req: AuthRequest, res: Response) => {
         {
           $match: {
             tenantId: member.tenantId,
+            status: { $ne: 'pending' },
             ...(familyId ? { familyId } : { memberId: member._id }),
           },
         },
@@ -95,6 +143,7 @@ export const getOwnOverview = async (req: AuthRequest, res: Response) => {
           $match: {
             tenantId: member.tenantId,
             payerId: member._id,
+            status: { $ne: 'pending' },
           },
         },
         {
@@ -127,6 +176,7 @@ export const getOwnOverview = async (req: AuthRequest, res: Response) => {
 
     const data = {
       member,
+      isFamilyHead: member.isFamilyHead === true,
       family: {
         details: familyDetails,
         members: familyMembers,
@@ -476,6 +526,9 @@ export const requestVarisangyaPayment = async (req: AuthRequest, res: Response) 
       tenantId: member.tenantId,
       memberId: member._id,
       familyId: member.familyId,
+      receiptNo: undefined, // assigned when the admin verifies
+      status: 'pending',
+      source: 'member',
     };
 
     const varisangya = new Varisangya(varisangyaData);
@@ -514,6 +567,9 @@ export const requestZakatPayment = async (req: AuthRequest, res: Response) => {
       tenantId: member.tenantId,
       payerId: member._id,
       payerName: member.name,
+      receiptNo: undefined, // assigned when the admin verifies
+      status: 'pending',
+      source: 'member',
     };
 
     const zakat = new Zakat(zakatData);
@@ -553,37 +609,55 @@ export const getOwnRegistrations = async (req: AuthRequest, res: Response) => {
     const registrations: any = {};
 
     if (!type || type === 'nikah') {
-      const nikahRegs = await NikahRegistration.find({
+      const nikahQuery = {
         tenantId: member.tenantId,
         $or: [
           { groomId: member._id },
           { brideId: member._id },
+          { submittedByMemberId: member._id },
         ],
-      })
+      };
+      const nikahRegs = await NikahRegistration.find(nikahQuery)
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(Number(limit) || 10);
 
+      if (type === 'nikah') {
+        const total = await NikahRegistration.countDocuments(nikahQuery);
+        return res.json(createPaginationResponse(nikahRegs, total, page, limit));
+      }
       registrations.nikah = nikahRegs;
     }
 
     if (!type || type === 'death') {
-      const deathRegs = await DeathRegistration.find({
+      const deathQuery = {
         tenantId: member.tenantId,
-        deceasedId: member._id,
-      })
+        $or: [
+          { deceasedId: member._id },
+          { submittedByMemberId: member._id },
+        ],
+      };
+      const deathRegs = await DeathRegistration.find(deathQuery)
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(Number(limit) || 10);
 
+      if (type === 'death') {
+        const total = await DeathRegistration.countDocuments(deathQuery);
+        return res.json(createPaginationResponse(deathRegs, total, page, limit));
+      }
       registrations.death = deathRegs;
     }
 
     if (!type || type === 'noc') {
-      const nocs = await NOC.find({
+      const nocQuery = {
         tenantId: member.tenantId,
-        applicantId: member._id,
-      })
+        $or: [
+          { applicantId: member._id },
+          { submittedByMemberId: member._id },
+        ],
+      };
+      const nocs = await NOC.find(nocQuery)
         .populate('nikahRegistrationId')
         .populate('tenantId', 'name')
         .sort({ createdAt: -1 })
@@ -604,6 +678,10 @@ export const getOwnRegistrations = async (req: AuthRequest, res: Response) => {
         }
       }
 
+      if (type === 'noc') {
+        const total = await NOC.countDocuments(nocQuery);
+        return res.json(createPaginationResponse(nocObjects, total, page, limit));
+      }
       registrations.noc = nocObjects;
     }
 
@@ -631,16 +709,70 @@ export const requestNikahRegistration = async (req: AuthRequest, res: Response) 
       });
     }
 
+    // Family head may apply on behalf of another active member of their own family
+    const { subjectMemberId, mahallMemberType } = req.body;
+    let subject = member;
+    if (subjectMemberId && String(subjectMemberId) !== String(member._id)) {
+      if (member.isFamilyHead !== true) {
+        return res.status(403).json({
+          success: false,
+          message: 'Only the family head can apply for another family member',
+        });
+      }
+      const found = await Member.findOne({
+        _id: subjectMemberId,
+        familyId: member.familyId,
+        tenantId: member.tenantId,
+        status: 'active',
+      });
+      if (!found) {
+        return res.status(404).json({
+          success: false,
+          message: 'Selected member not found in your family',
+        });
+      }
+      subject = found;
+    }
+
+    // The mahallu member can be on either side of the nikah (groom or bride)
+    const side: 'groom' | 'bride' = mahallMemberType === 'bride' ? 'bride' : 'groom';
+    const otherSideName = side === 'groom' ? req.body.brideName : req.body.groomName;
+    if (!otherSideName) {
+      return res.status(400).json({
+        success: false,
+        message: side === 'groom' ? 'brideName is required' : 'groomName is required',
+      });
+    }
+
+    const missingDocs = await findMissingRequiredDocs(req.body.documents, member, 'nikah');
+    if (missingDocs.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: `Missing required documents: ${missingDocs.join(', ')}`,
+        code: 'DOCUMENTS_REQUIRED',
+        missing: missingDocs,
+      });
+    }
+
     const nikahData = {
       ...req.body,
       tenantId: member.tenantId,
-      groomId: member._id,
-      groomName: member.name,
+      mahallMemberType: side,
+      submittedByMemberId: member._id,
+      ...(side === 'groom'
+        ? { groomId: subject._id, groomName: subject.name, groomAge: req.body.groomAge ?? subject.age }
+        : { brideId: subject._id, brideName: subject.name, brideAge: req.body.brideAge ?? subject.age }),
       status: 'pending',
     };
 
     const nikah = new NikahRegistration(nikahData);
     await nikah.save();
+
+    const attachedDocs = await attachOwnDocuments(req.body.documents, member, 'nikah', nikah._id);
+    if (attachedDocs.length > 0) {
+      nikah.documents = attachedDocs as any;
+      await nikah.save();
+    }
 
     res.status(201).json({
       success: true,
@@ -670,17 +802,55 @@ export const requestDeathRegistration = async (req: AuthRequest, res: Response) 
       });
     }
 
+    // Any member can report a death within their own family (they are the informant)
+    const { deceasedMemberId } = req.body;
+    let deceased = member;
+    if (deceasedMemberId && String(deceasedMemberId) !== String(member._id)) {
+      const found = await Member.findOne({
+        _id: deceasedMemberId,
+        familyId: member.familyId,
+        tenantId: member.tenantId,
+        status: { $ne: 'deleted' },
+      });
+      if (!found) {
+        return res.status(404).json({
+          success: false,
+          message: 'Selected member not found in your family',
+        });
+      }
+      deceased = found;
+    }
+
+    const missingDeathDocs = await findMissingRequiredDocs(req.body.documents, member, 'death');
+    if (missingDeathDocs.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: `Missing required documents: ${missingDeathDocs.join(', ')}`,
+        code: 'DOCUMENTS_REQUIRED',
+        missing: missingDeathDocs,
+      });
+    }
+
     const deathData = {
       ...req.body,
       tenantId: member.tenantId,
-      deceasedId: member._id,
-      deceasedName: member.name,
+      deceasedId: deceased._id,
+      deceasedName: deceased.name,
       familyId: member.familyId,
+      informantName: req.body.informantName || member.name,
+      informantPhone: req.body.informantPhone || member.phone,
+      submittedByMemberId: member._id,
       status: 'pending',
     };
 
     const death = new DeathRegistration(deathData);
     await death.save();
+
+    const attachedDeathDocs = await attachOwnDocuments(req.body.documents, member, 'death', death._id);
+    if (attachedDeathDocs.length > 0) {
+      death.documents = attachedDeathDocs as any;
+      await death.save();
+    }
 
     res.status(201).json({
       success: true,
@@ -732,6 +902,7 @@ export const requestNOC = async (req: AuthRequest, res: Response) => {
         nikahDate,
         venue,
         mahallMemberType: 'groom',
+        submittedByMemberId: member._id,
         status: 'pending',
       });
       await nikahReg.save();
@@ -747,6 +918,7 @@ export const requestNOC = async (req: AuthRequest, res: Response) => {
       purposeTitle,
       purposeDescription,
       remarks,
+      submittedByMemberId: member._id,
       status: 'pending',
     };
 
@@ -757,6 +929,12 @@ export const requestNOC = async (req: AuthRequest, res: Response) => {
     const noc = new NOC(nocData);
     await noc.save();
 
+    const attachedNocDocs = await attachOwnDocuments(req.body.documents, member, 'noc', noc._id);
+    if (attachedNocDocs.length > 0) {
+      noc.documents = attachedNocDocs as any;
+      await noc.save();
+    }
+
     const populated = await NOC.findById(noc._id).populate('nikahRegistrationId');
 
     res.status(201).json({
@@ -764,6 +942,74 @@ export const requestNOC = async (req: AuthRequest, res: Response) => {
       data: populated,
       message: 'NOC request submitted successfully',
     });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Resubmit / edit an own registration while it is pending or needs correction
+export const resubmitRegistration = async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.user?.memberId) {
+      return res.status(404).json({
+        success: false,
+        message: 'Member profile not linked to user account',
+      });
+    }
+
+    const member = await Member.findById(req.user.memberId);
+    if (!member) {
+      return res.status(404).json({ success: false, message: 'Member not found' });
+    }
+
+    const { type, id } = req.params;
+    const models: Record<string, any> = {
+      nikah: NikahRegistration,
+      death: DeathRegistration,
+      noc: NOC,
+    };
+    const Model = models[type];
+    if (!Model) {
+      return res.status(400).json({ success: false, message: 'type must be nikah, death or noc' });
+    }
+
+    const reg = await Model.findOne({
+      _id: id,
+      tenantId: member.tenantId,
+      status: { $in: ['pending', 'correction_required'] },
+      $or: [
+        { submittedByMemberId: member._id },
+        ...(type === 'nikah' ? [{ groomId: member._id }, { brideId: member._id }] : []),
+        ...(type === 'death' ? [{ deceasedId: member._id }] : []),
+        ...(type === 'noc' ? [{ applicantId: member._id }] : []),
+      ],
+    });
+
+    if (!reg) {
+      return res.status(404).json({ success: false, message: 'Editable registration not found' });
+    }
+
+    // Allowlist per type — members may edit details, never workflow/identity/linkage fields
+    const editableFields: Record<string, string[]> = {
+      nikah: ['groomName', 'groomNameMl', 'groomAge', 'brideName', 'brideNameMl', 'brideAge', 'nikahDate', 'venue', 'waliName', 'witness1', 'witness2', 'mahrAmount', 'mahrDescription'],
+      death: ['deathDate', 'placeOfDeath', 'causeOfDeath', 'informantName', 'informantRelation', 'informantPhone'],
+      noc: ['purposeTitle', 'purposeTitleMl', 'purposeDescription', 'purpose', 'applicantPhone'],
+    };
+    editableFields[type].forEach((key) => {
+      if (req.body[key] !== undefined) {
+        (reg as any)[key] = req.body[key];
+      }
+    });
+
+    const attachedDocs = await attachOwnDocuments(req.body.documents, member, type as any, reg._id);
+    if (attachedDocs.length > 0) {
+      reg.documents = [...new Set([...(reg.documents || []).map(String), ...attachedDocs.map(String)])];
+    }
+
+    reg.status = 'pending'; // corrections go back into the review queue
+    await reg.save();
+
+    res.json({ success: true, data: reg, message: 'Registration resubmitted' });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
   }

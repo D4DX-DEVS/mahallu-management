@@ -4,7 +4,7 @@ import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
-import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { PageSkeleton } from '@/components/ui/Skeleton';
 import { accountingReportService } from '@/services/accountingReportService';
 import { masterAccountService, Ledger } from '@/services/masterAccountService';
 
@@ -61,7 +61,7 @@ export default function MahalluLedgerReport() {
         </div>
 
         {loading ? (
-          <div className="flex justify-center py-12"><LoadingSpinner /></div>
+          <PageSkeleton variant="section" />
         ) : error ? (
           <p className="text-center py-8 text-red-600">{error}</p>
         ) : !reportData ? (

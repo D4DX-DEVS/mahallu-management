@@ -6,9 +6,9 @@ import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
-import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
-import { TableColumn } from '@/types';
+import { TableColumn, Pagination as PaginationType } from '@/types';
 import { Family } from '@/types';
 import { ROUTES } from '@/constants/routes';
 import { familyService } from '@/services/familyService';
@@ -25,23 +25,32 @@ export default function UnapprovedFamiliesList() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [pagination, setPagination] = useState<PaginationType | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   const debouncedSearch = useDebounce(searchQuery, 500);
 
+  // A new search invalidates the current page offset
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearch]);
+
   useEffect(() => {
     fetchFamilies();
-  }, [debouncedSearch]);
+  }, [debouncedSearch, currentPage, itemsPerPage]);
 
   const fetchFamilies = async () => {
     try {
       setLoading(true);
       setError(null);
-      const params: any = { status: 'unapproved' };
+      const params: any = { status: 'unapproved', page: currentPage, limit: itemsPerPage };
       if (debouncedSearch) {
         params.search = debouncedSearch;
       }
       const result = await familyService.getAll(params);
       setFamilies(result.data || []);
+      setPagination(result.pagination);
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to fetch unapproved families');
       console.error('Error fetching families:', err);
@@ -146,7 +155,8 @@ export default function UnapprovedFamiliesList() {
   ];
 
   const stats = [
-    { title: 'Unapproved Families', value: families.length, icon: <FiHome className="h-5 w-5" /> },
+    // ponytail: total from server; the members stat still sums the current page
+    { title: 'Unapproved Families', value: pagination?.total ?? families.length, icon: <FiHome className="h-5 w-5" /> },
     {
       title: 'Total Members',
       value: families.reduce((sum, f) => sum + (f.members?.length || 0), 0),
@@ -165,7 +175,7 @@ export default function UnapprovedFamiliesList() {
           <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Unapproved Families' }]} />
         </div>
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-2">
           {stats.map((stat, index) => (
             <StatCard key={index} {...stat} />
           ))}
@@ -184,11 +194,7 @@ export default function UnapprovedFamiliesList() {
           isExporting={isExporting}
         />
 
-        {loading ? (
-          <div className="flex justify-center items-center py-12">
-            <LoadingSpinner />
-          </div>
-        ) : error ? (
+        {error ? (
           <div className="text-center py-12">
             <p className="text-red-600 dark:text-red-400">{error}</p>
             <Button onClick={fetchFamilies} className="mt-4" variant="outline">
@@ -196,13 +202,31 @@ export default function UnapprovedFamiliesList() {
             </Button>
           </div>
         ) : (
-          <Table
-            columns={columns}
-            data={families}
-            emptyMessage="No unapproved families found"
-            showExport={false}
-            onRowClick={(row) => navigate(ROUTES.FAMILIES.DETAIL(row.id))}
-          />
+          <>
+            <Table
+              columns={columns}
+              data={families}
+              isLoading={loading}
+              emptyMessage="No unapproved families found"
+              showExport={false}
+              onRowClick={(row) => navigate(ROUTES.FAMILIES.DETAIL(row.id))}
+            />
+            {pagination && pagination.totalPages > 1 && (
+              <div className="mt-4">
+                <Pagination
+                  currentPage={pagination.page}
+                  totalPages={pagination.totalPages}
+                  totalItems={pagination.total}
+                  itemsPerPage={pagination.limit}
+                  onPageChange={setCurrentPage}
+                  onItemsPerPageChange={(items) => {
+                    setItemsPerPage(items);
+                    setCurrentPage(1);
+                  }}
+                />
+              </div>
+            )}
+          </>
         )}
       </Card>
     </div>

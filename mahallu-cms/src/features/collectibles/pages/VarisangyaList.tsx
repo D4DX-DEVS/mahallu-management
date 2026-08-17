@@ -7,7 +7,7 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
-import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { PageSkeleton } from '@/components/ui/Skeleton';
 import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
 import Modal from '@/components/ui/Modal';
@@ -260,7 +260,17 @@ export default function VarisangyaList() {
     }
   };
 
-  const columns = buildVarisangyaColumns({ openEdit, handleViewPdf });
+  const handleVerify = async (row: Varisangya) => {
+    try {
+      await collectibleService.verifyVarisangya(row.id);
+      toast.success('Varisangya verified successfully');
+      await fetchVarisangyas();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to verify varisangya');
+    }
+  };
+
+  const columns = buildVarisangyaColumns({ openEdit, handleViewPdf, onVerify: handleVerify });
 
   const totalAmount = varisangyas.reduce((sum, v) => sum + (v.amount || 0), 0);
 
@@ -280,7 +290,7 @@ export default function VarisangyaList() {
           <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Varisangyas' }]} />
         </div>
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-2">
           {stats.map((stat, index) => (
             <StatCard key={index} {...stat} />
           ))}
@@ -395,9 +405,7 @@ export default function VarisangyaList() {
         )}
 
         {loading ? (
-          <div className="flex justify-center items-center py-12">
-            <LoadingSpinner />
-          </div>
+          <PageSkeleton variant="section" />
         ) : error ? (
           <div className="text-center py-12">
             <p className="text-red-600 dark:text-red-400">{error}</p>

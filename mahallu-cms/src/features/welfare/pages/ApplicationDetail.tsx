@@ -6,7 +6,7 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import Modal from '@/components/ui/Modal';
-import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { PageSkeleton } from '@/components/ui/Skeleton';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { welfareService, WelfareApplication, WelfareStatus } from '@/services/welfareService';
 import { toast } from '@/store/toastStore';
@@ -76,9 +76,7 @@ export default function ApplicationDetail() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <LoadingSpinner />
-      </div>
+      <PageSkeleton variant="section" />
     );
   }
 

@@ -5,7 +5,7 @@ import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Table from '@/components/ui/Table';
 import StatCard from '@/components/ui/StatCard';
-import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { PageSkeleton } from '@/components/ui/Skeleton';
 import { TableColumn } from '@/types';
 import { formatCurrency, formatDate } from '@/utils/format';
 import {
@@ -72,7 +72,7 @@ export default function LoanDetail() {
     { key: 'remarks', label: 'Remarks', render: (v) => v || '-' },
   ];
 
-  if (loading) return <LoadingSpinner />;
+  if (loading) return <PageSkeleton />;
 
   if (error || !loan) {
     return (

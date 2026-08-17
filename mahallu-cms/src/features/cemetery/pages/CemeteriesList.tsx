@@ -5,7 +5,7 @@ import Button from '../../../components/ui/Button';
 import Card from '../../../components/ui/Card';
 import Input from '../../../components/ui/Input';
 import Pagination from '../../../components/ui/Pagination';
-import LoadingSpinner from '../../../components/ui/LoadingSpinner';
+import { PageSkeleton } from '@/components/ui/Skeleton';
 import ConfirmDialog from '../../../components/ui/ConfirmDialog';
 import { toast } from '@/store/toastStore';
 import { FiPlus, FiEdit2, FiTrash2 } from 'react-icons/fi';
@@ -105,7 +105,7 @@ export function CemeteriesList() {
       )}
 
       {loading ? (
-        <LoadingSpinner />
+        <PageSkeleton variant="section" />
       ) : cemeteries.length === 0 ? (
         <div className="text-center py-12">
           <div className="text-gray-500">No cemeteries found</div>

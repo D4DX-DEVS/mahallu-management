@@ -18,6 +18,8 @@ import { socioEconomicSchemaFields, normalizeSocioEconomic } from '../socioEcono
 import { memberService } from '@/services/memberService';
 import { familyService } from '@/services/familyService';
 import { tenantService } from '@/services/tenantService';
+import { instituteService } from '@/services/instituteService';
+import { facilityService } from '@/services/surveyService';
 import { Family } from '@/types';
 import { useAuthStore } from '@/store/authStore';
 import { getTenantId as extractTenantId } from '@/utils/tenantHelper';
@@ -44,6 +46,9 @@ const memberSchema = z.object({
   isOrphan: z.boolean().optional(),
   isDead: z.boolean().optional(),
   isFamilyHead: z.boolean().optional(),
+  relationship: z.enum(['head', 'spouse', 'son', 'daughter', 'father', 'mother', 'other']).optional().or(z.literal('')),
+  educationInstitutionId: z.string().optional(),
+  localityFacilityId: z.string().optional(),
   ...socioEconomicSchemaFields,
 });
 
@@ -55,6 +60,8 @@ export default function CreateMember() {
   const [families, setFamilies] = useState<Family[]>([]);
   const [loadingFamilies, setLoadingFamilies] = useState(true);
   const [educationOptions, setEducationOptions] = useState<string[]>([]);
+  const [institutes, setInstitutes] = useState<any[]>([]);
+  const [facilities, setFacilities] = useState<any[]>([]);
   const [tenantId, setTenantId] = useState<string | null>(null);
   const [addFamilyOpen, setAddFamilyOpen] = useState(false);
   const [addEducationOpen, setAddEducationOpen] = useState(false);
@@ -89,8 +96,14 @@ export default function CreateMember() {
   const fetchFamilies = async () => {
     try {
       setLoadingFamilies(true);
-      const result = await familyService.getAll();
-      setFamilies(result.data || []);
+      const [familyResult, instituteResult, facilityResult] = await Promise.all([
+        familyService.getAll(),
+        instituteService.getAll(),
+        facilityService.getAll(),
+      ]);
+      setFamilies(familyResult.data || []);
+      setInstitutes(instituteResult.data || []);
+      setFacilities(facilityResult.data || []);
 
       // Fetch education options from tenant settings
       const { currentTenantId, user } = useAuthStore.getState();
@@ -322,10 +335,23 @@ export default function CreateMember() {
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Select
+                label="Relationship"
+                {...register('relationship')}
+                options={[
+                  { value: '', label: 'Select Relationship' },
+                  { value: 'head', label: 'Head' },
+                  { value: 'spouse', label: 'Spouse' },
+                  { value: 'son', label: 'Son' },
+                  { value: 'daughter', label: 'Daughter' },
+                  { value: 'father', label: 'Father' },
+                  { value: 'mother', label: 'Mother' },
+                  { value: 'other', label: 'Other' },
+                ]}
+              />
+              <Select
                 label="Health Status"
                 {...register('healthStatus')}
                 options={healthStatusOptions}
-                className="md:col-span-2"
               />
               <Select
                 label="Education"
@@ -337,7 +363,22 @@ export default function CreateMember() {
                   { value: '', label: 'Select Education' },
                   ...educationOptions.map(opt => ({ value: opt, label: opt }))
                 ]}
-                className="md:col-span-2"
+              />
+              <Select
+                label="Studying at (Mahallu Institute)"
+                {...register('educationInstitutionId')}
+                options={[
+                  { value: '', label: 'Select Institute' },
+                  ...institutes.map(inst => ({ value: inst.id || inst._id, label: inst.name }))
+                ]}
+              />
+              <Select
+                label="Studying at (External School/College)"
+                {...register('localityFacilityId')}
+                options={[
+                  { value: '', label: 'Select Facility' },
+                  ...facilities.map(fac => ({ value: fac._id, label: fac.name }))
+                ]}
               />
               <Select
                 label="Marital Status"
@@ -351,6 +392,16 @@ export default function CreateMember() {
                 {...register('marriageCount', { valueAsNumber: true })}
                 placeholder="0"
               />
+              <div className="flex items-center gap-4 md:col-span-2">
+                <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                  <input type="checkbox" {...register('isOrphan')} className="rounded border-gray-300 text-primary-600" />
+                  Is Orphan
+                </label>
+                <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                  <input type="checkbox" {...register('isDead')} className="rounded border-gray-300 text-primary-600" />
+                  Is Deceased
+                </label>
+              </div>
               <div className="flex items-center gap-4 md:col-span-2">
                 <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
                   <input type="checkbox" {...register('isOrphan')} className="rounded border-gray-300 text-primary-600" />

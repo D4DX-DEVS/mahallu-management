@@ -19,7 +19,9 @@ export interface INikahRegistration extends Document {
   witness2?: string;
   mahrAmount?: number;
   mahrDescription?: string;
-  status: 'pending' | 'approved' | 'rejected';
+  submittedByMemberId?: mongoose.Types.ObjectId; // Member who submitted (self or family head)
+  documents?: mongoose.Types.ObjectId[]; // Supporting DocumentFile ids
+  status: 'pending' | 'correction_required' | 'approved' | 'rejected';
   remarks?: string;
   createdAt: Date;
   updatedAt: Date;
@@ -39,7 +41,9 @@ export interface IDeathRegistration extends Document {
   informantRelation?: string;
   informantPhone?: string;
   graveRecordId?: mongoose.Types.ObjectId; // Link to GraveRecord (backward compatible)
-  status: 'pending' | 'approved' | 'rejected';
+  submittedByMemberId?: mongoose.Types.ObjectId; // Member who reported (informant side)
+  documents?: mongoose.Types.ObjectId[];
+  status: 'pending' | 'correction_required' | 'approved' | 'rejected';
   remarks?: string;
   createdAt: Date;
   updatedAt: Date;
@@ -57,7 +61,9 @@ export interface INOC extends Document {
   purpose?: string;
   type: 'common' | 'nikah';
   nikahRegistrationId?: mongoose.Types.ObjectId; // For nikah NOC
-  status: 'pending' | 'approved' | 'rejected';
+  submittedByMemberId?: mongoose.Types.ObjectId;
+  documents?: mongoose.Types.ObjectId[];
+  status: 'pending' | 'correction_required' | 'approved' | 'rejected';
   approvedBy?: string;
   issuedDate?: Date;
   expiryDate?: Date;
@@ -94,9 +100,11 @@ const NikahRegistrationSchema = new Schema<INikahRegistration>(
     witness2: String,
     mahrAmount: Number,
     mahrDescription: String,
+    submittedByMemberId: { type: Schema.Types.ObjectId, ref: 'Member' },
+    documents: [{ type: Schema.Types.ObjectId, ref: 'DocumentFile' }],
     status: {
       type: String,
-      enum: ['pending', 'approved', 'rejected'],
+      enum: ['pending', 'correction_required', 'approved', 'rejected'],
       default: 'pending',
     },
     remarks: String,
@@ -124,9 +132,11 @@ const DeathRegistrationSchema = new Schema<IDeathRegistration>(
     informantRelation: String,
     informantPhone: String,
     graveRecordId: { type: Schema.Types.ObjectId, ref: 'GraveRecord' },
+    submittedByMemberId: { type: Schema.Types.ObjectId, ref: 'Member' },
+    documents: [{ type: Schema.Types.ObjectId, ref: 'DocumentFile' }],
     status: {
       type: String,
-      enum: ['pending', 'approved', 'rejected'],
+      enum: ['pending', 'correction_required', 'approved', 'rejected'],
       default: 'pending',
     },
     remarks: String,
@@ -156,9 +166,11 @@ const NOCSchema = new Schema<INOC>(
       required: true,
     },
     nikahRegistrationId: { type: Schema.Types.ObjectId, ref: 'NikahRegistration' },
+    submittedByMemberId: { type: Schema.Types.ObjectId, ref: 'Member' },
+    documents: [{ type: Schema.Types.ObjectId, ref: 'DocumentFile' }],
     status: {
       type: String,
-      enum: ['pending', 'approved', 'rejected'],
+      enum: ['pending', 'correction_required', 'approved', 'rejected'],
       default: 'approved',
     },
     issuedDate: Date,

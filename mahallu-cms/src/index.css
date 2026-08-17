@@ -28,26 +28,31 @@
     --radius: 1rem;
   }
 
+  /*
+   * Dark palette is aligned to the Tailwind gray ramp the components already
+   * use (dark:bg-gray-900 / gray-800 / gray-700). Pure-black grounds make
+   * elevated panels float; gray-900 as the page ground keeps surfaces stacked.
+   */
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 173 74% 42%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --secondary: 214 32% 16%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 214 32% 16%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 36 100% 18%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 215 28% 19%;
-    --input: 215 28% 19%;
-    --ring: 173 74% 42%;
+    --background: 221 39% 11%;        /* gray-900  #111827 */
+    --foreground: 210 20% 98%;        /* gray-50   */
+    --card: 215 28% 17%;              /* gray-800  #1f2937 */
+    --card-foreground: 210 20% 98%;
+    --popover: 215 28% 17%;
+    --popover-foreground: 210 20% 98%;
+    --primary: 142 69% 48%;
+    --primary-foreground: 221 39% 11%;
+    --secondary: 215 28% 17%;
+    --secondary-foreground: 210 20% 98%;
+    --muted: 215 28% 17%;
+    --muted-foreground: 218 11% 65%;  /* gray-400  */
+    --accent: 217 19% 27%;            /* gray-700  */
+    --accent-foreground: 210 20% 98%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 210 20% 98%;
+    --border: 217 19% 27%;            /* gray-700  */
+    --input: 217 19% 27%;
+    --ring: 142 69% 48%;
   }
 }
 
@@ -120,4 +125,15 @@
   .no-scrollbar::-webkit-scrollbar {
     display: none;
   }
+}
+
+/* Number inputs: no spinner arrows, app-wide */
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type='number'] {
+  -moz-appearance: textfield;
+  appearance: textfield;
 }

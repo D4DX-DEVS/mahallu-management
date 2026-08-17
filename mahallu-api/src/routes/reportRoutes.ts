@@ -8,6 +8,7 @@ import {
   getWelfareReport,
   getCommunityReport,
 } from '../controllers/reportController';
+import { getDataQualityReport, getDuplicatesReport } from '../controllers/reportController';
 import { getAnnualReport } from '../controllers/annualReportController';
 import { authMiddleware } from '../middleware/authMiddleware';
 import { tenantMiddleware, tenantFilter } from '../middleware/tenantMiddleware';
@@ -418,6 +419,8 @@ router.get('/community', getCommunityReport);
  *         $ref: '#/components/responses/Unauthorized'
  */
 router.get('/annual', getAnnualReport);
+router.get('/data-quality', getDataQualityReport);
+router.get('/duplicates', getDuplicatesReport);
 
 export default router;
 

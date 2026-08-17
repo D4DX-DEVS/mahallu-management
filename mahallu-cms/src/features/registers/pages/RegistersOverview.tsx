@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
-import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { PageSkeleton } from '@/components/ui/Skeleton';
 import { registerService, RegisterSummaryRow } from '@/services/registerService';
 import { REGISTER_CONFIGS } from '../registerConfigs';
 
@@ -34,9 +34,7 @@ export default function RegistersOverview() {
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center py-12">
-          <LoadingSpinner />
-        </div>
+        <PageSkeleton variant="section" />
       ) : (
         <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3 lg:grid-cols-4 xl:grid-cols-6">
           {REGISTER_CONFIGS.map((config) => (

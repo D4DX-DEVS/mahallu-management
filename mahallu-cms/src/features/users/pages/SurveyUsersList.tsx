@@ -6,9 +6,9 @@ import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
-import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
-import { TableColumn } from '@/types';
+import { TableColumn, Pagination as PaginationType } from '@/types';
 import { User } from '@/types';
 import { userService } from '@/services/userService';
 import { useDebounce } from '@/hooks/useDebounce';
@@ -24,23 +24,32 @@ export default function SurveyUsersList() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [pagination, setPagination] = useState<PaginationType | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   const debouncedSearch = useDebounce(searchQuery, 500);
 
+  // A new search invalidates the current page offset
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearch]);
+
   useEffect(() => {
     fetchUsers();
-  }, [debouncedSearch]);
+  }, [debouncedSearch, currentPage, itemsPerPage]);
 
   const fetchUsers = async () => {
     try {
       setLoading(true);
       setError(null);
-      const params: any = { role: 'survey' };
+      const params: any = { role: 'survey', page: currentPage, limit: itemsPerPage };
       if (debouncedSearch) {
         params.search = debouncedSearch;
       }
       const result = await userService.getAll(params);
       setUsers(result.data || []);
+      setPagination(result.pagination);
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to fetch survey users');
       console.error('Error fetching users:', err);
@@ -142,7 +151,8 @@ export default function SurveyUsersList() {
   ];
 
   const stats = [
-    { title: 'Total Survey Users', value: users.length, icon: <FiUsers className="h-5 w-5" /> },
+    // ponytail: total comes from the server; Active/Inactive still count the current page
+    { title: 'Total Survey Users', value: pagination?.total ?? users.length, icon: <FiUsers className="h-5 w-5" /> },
     {
       title: 'Active',
       value: users.filter((u) => u.status === 'active' || !u.status).length,
@@ -166,7 +176,7 @@ export default function SurveyUsersList() {
           <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Survey Users' }]} />
         </div>
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {stats.map((stat, index) => (
             <StatCard key={index} {...stat} />
           ))}
@@ -192,11 +202,7 @@ export default function SurveyUsersList() {
           }
         />
 
-        {loading ? (
-          <div className="flex justify-center items-center py-12">
-            <LoadingSpinner />
-          </div>
-        ) : error ? (
+        {error ? (
           <div className="text-center py-12">
             <p className="text-red-600 dark:text-red-400">{error}</p>
             <Button onClick={fetchUsers} className="mt-4" variant="outline">
@@ -204,13 +210,31 @@ export default function SurveyUsersList() {
             </Button>
           </div>
         ) : (
-          <Table
-            columns={columns}
-            data={users}
-            emptyMessage="No survey users found"
-            showExport={false}
-            onRowClick={(row) => navigate(`/users/survey/${row.id}`)}
-          />
+          <>
+            <Table
+              columns={columns}
+              data={users}
+              isLoading={loading}
+              emptyMessage="No survey users found"
+              showExport={false}
+              onRowClick={(row) => navigate(`/users/survey/${row.id}`)}
+            />
+            {pagination && pagination.totalPages > 1 && (
+              <div className="mt-4">
+                <Pagination
+                  currentPage={pagination.page}
+                  totalPages={pagination.totalPages}
+                  totalItems={pagination.total}
+                  itemsPerPage={pagination.limit}
+                  onPageChange={setCurrentPage}
+                  onItemsPerPageChange={(items) => {
+                    setItemsPerPage(items);
+                    setCurrentPage(1);
+                  }}
+                />
+              </div>
+            )}
+          </>
         )}
       </Card>
     </div>

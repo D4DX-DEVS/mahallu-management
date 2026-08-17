@@ -4,7 +4,7 @@ import { FiPlus, FiEye, FiEdit2, FiTrash2, FiLock, FiAlertCircle } from 'react-i
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import Pagination from '@/components/ui/Pagination';
-import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { PageSkeleton } from '@/components/ui/Skeleton';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { toast } from '@/store/toastStore';
 import { getCounsellingCases, deleteCounsellingCase, ICounsellingCase } from '@/services/counsellingService';
@@ -79,9 +79,7 @@ export default function CounsellingList() {
 
   if (loading) {
     return (
-      <div className="flex-1 flex items-center justify-center">
-        <LoadingSpinner />
-      </div>
+      <PageSkeleton />
     );
   }
 
@@ -124,7 +122,7 @@ export default function CounsellingList() {
         </div>
 
         {/* Filters */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-6">
           <input
             type="text"
             placeholder="Search cases..."

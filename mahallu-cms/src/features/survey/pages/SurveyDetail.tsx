@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
-import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { PageSkeleton } from '@/components/ui/Skeleton';
 import { surveyService, SurveySnapshot, SurveyStats } from '@/services/surveyService';
 
 const STAT_LABELS: Array<{ key: keyof SurveyStats; label: string }> = [
@@ -48,9 +48,7 @@ export default function SurveyDetail() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <LoadingSpinner />
-      </div>
+      <PageSkeleton variant="section" />
     );
   }
 

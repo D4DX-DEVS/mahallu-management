@@ -4,7 +4,8 @@ import { memberPortalService } from '@/services/memberPortalService';
 import { downloadNocPdf } from '@/utils/nocPdf';
 import { ROUTES } from '@/constants/routes';
 import Card from '@/components/ui/Card';
-import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { PageSkeleton } from '@/components/ui/Skeleton';
+import { FiHeart, FiFileText } from 'react-icons/fi';
 
 const statusColors: Record<string, string> = {
   pending: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
@@ -76,9 +77,7 @@ export default function MemberNOCList() {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-[calc(100vh-140px)]">
-        <LoadingSpinner />
-      </div>
+      <PageSkeleton />
     );
   }
 
@@ -91,7 +90,7 @@ export default function MemberNOCList() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-4xl w-full mx-auto">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">My NOCs</h1>
         <div className="flex items-center gap-3">
@@ -143,7 +142,11 @@ export default function MemberNOCList() {
                     className="border-b border-gray-100 dark:border-gray-900 text-gray-900 dark:text-gray-100"
                   >
                     <td className="py-3 pr-4">
-                      {noc.type === 'nikah' ? '💍 Nikah' : '📄 Common'}
+                      {noc.type === 'nikah' ? (
+                        <span className="inline-flex items-center gap-1.5"><FiHeart className="h-3.5 w-3.5 text-primary-500" /> Nikah</span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5"><FiFileText className="h-3.5 w-3.5 text-gray-400" /> Common</span>
+                      )}
                     </td>
                     <td className="py-3 pr-4 max-w-xs truncate">
                       {noc.purposeTitle ||

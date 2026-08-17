@@ -10,6 +10,8 @@ export interface IVarisangya extends Document {
   receiptNo?: string;
   remarks?: string;
   remarksMl?: string;
+  status?: 'pending' | 'verified'; // member submissions start pending; admin entries are verified
+  source?: 'admin' | 'member';
   createdAt: Date;
   updatedAt: Date;
 }
@@ -25,6 +27,8 @@ export interface IZakat extends Document {
   category?: string;
   remarks?: string;
   remarksMl?: string;
+  status?: 'pending' | 'verified';
+  source?: 'admin' | 'member';
   createdAt: Date;
   updatedAt: Date;
 }
@@ -66,6 +70,8 @@ const VarisangyaSchema = new Schema<IVarisangya>(
     receiptNo: String,
     remarks: String,
     remarksMl: String,
+    status: { type: String, enum: ['pending', 'verified'], default: 'verified', index: true },
+    source: { type: String, enum: ['admin', 'member'], default: 'admin' },
   },
   { timestamps: true }
 );
@@ -87,6 +93,8 @@ const ZakatSchema = new Schema<IZakat>(
     category: String,
     remarks: String,
     remarksMl: String,
+    status: { type: String, enum: ['pending', 'verified'], default: 'verified', index: true },
+    source: { type: String, enum: ['admin', 'member'], default: 'admin' },
   },
   { timestamps: true }
 );

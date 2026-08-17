@@ -5,7 +5,7 @@ import Button from '../../../components/ui/Button';
 import Card from '../../../components/ui/Card';
 import Input from '../../../components/ui/Input';
 import Pagination from '../../../components/ui/Pagination';
-import LoadingSpinner from '../../../components/ui/LoadingSpinner';
+import { PageSkeleton } from '@/components/ui/Skeleton';
 import ConfirmDialog from '../../../components/ui/ConfirmDialog';
 import { toast } from '@/store/toastStore';
 import { FiPlus, FiEdit2, FiTrash2, FiArrowLeft } from 'react-icons/fi';
@@ -75,7 +75,7 @@ export function CemeteryDetail() {
   };
 
   if (loading && !cemetery) {
-    return <LoadingSpinner />;
+    return <PageSkeleton />;
   }
 
   if (!cemetery) {

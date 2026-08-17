@@ -7,7 +7,7 @@ import cemeteryService, { GraveRecord, Cemetery } from '../../../services/cemete
 import Button from '../../../components/ui/Button';
 import Card from '../../../components/ui/Card';
 import Input from '../../../components/ui/Input';
-import LoadingSpinner from '../../../components/ui/LoadingSpinner';
+import { PageSkeleton } from '@/components/ui/Skeleton';
 import { FiArrowLeft } from 'react-icons/fi';
 
 const graveSchema = z.object({
@@ -99,7 +99,7 @@ export function GraveForm() {
   };
 
   if (!cemetery) {
-    return <LoadingSpinner />;
+    return <PageSkeleton />;
   }
 
   return (

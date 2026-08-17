@@ -430,3 +430,95 @@ export const getCommunityReport = async (req: AuthRequest, res: Response) => {
   }
 };
 
+
+// GET /reports/data-quality — admin dashboard metrics for data hygiene
+export const getDataQualityReport = async (req: AuthRequest, res: Response) => {
+  try {
+    const tenantId = req.tenantId;
+    if (!tenantId) {
+      return res.status(400).json({ success: false, message: 'Tenant context required' });
+    }
+    const tid = new mongoose.Types.ObjectId(tenantId);
+
+    const [
+      totalFamilies,
+      pendingFamilies,
+      headFamilyIds,
+      totalMembers,
+      membersMissingPhone,
+      membersMissingAge,
+      unenrolledStudents,
+      duplicatePhoneGroups,
+    ] = await Promise.all([
+      Family.countDocuments({ tenantId: tid }),
+      Family.countDocuments({ tenantId: tid, status: { $ne: 'approved' } }),
+      Member.distinct('familyId', { tenantId: tid, isFamilyHead: true, status: 'active' }),
+      Member.countDocuments({ tenantId: tid, status: 'active' }),
+      Member.countDocuments({ tenantId: tid, status: 'active', $or: [{ phone: { $exists: false } }, { phone: '' }, { phone: null }] }),
+      Member.countDocuments({ tenantId: tid, status: 'active', $or: [{ age: { $exists: false } }, { age: null }] }),
+      Member.countDocuments({
+        tenantId: tid,
+        status: 'active',
+        occupationSector: 'student',
+        educationInstitutionId: { $exists: false },
+        localityFacilityId: { $exists: false },
+      }),
+      Member.aggregate([
+        { $match: { tenantId: tid, status: 'active', phone: { $nin: [null, ''] } } },
+        { $group: { _id: '$phone', count: { $sum: 1 } } },
+        { $match: { count: { $gt: 1 } } },
+        { $count: 'groups' },
+      ]),
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        families: {
+          total: totalFamilies,
+          pendingApproval: pendingFamilies,
+          withoutHead: totalFamilies - headFamilyIds.length,
+        },
+        members: {
+          total: totalMembers,
+          missingPhone: membersMissingPhone,
+          missingAge: membersMissingAge,
+          unenrolledStudents,
+        },
+        suspectedDuplicatePhoneGroups: duplicatePhoneGroups[0]?.groups || 0,
+      },
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// GET /reports/duplicates — suspected duplicate members (shared phone, or same name+age)
+export const getDuplicatesReport = async (req: AuthRequest, res: Response) => {
+  try {
+    const tenantId = req.tenantId;
+    if (!tenantId) {
+      return res.status(400).json({ success: false, message: 'Tenant context required' });
+    }
+    const tid = new mongoose.Types.ObjectId(tenantId);
+
+    const [byPhone, byNameAge] = await Promise.all([
+      Member.aggregate([
+        { $match: { tenantId: tid, status: 'active', phone: { $nin: [null, ''] } } },
+        { $group: { _id: '$phone', count: { $sum: 1 }, members: { $push: { id: '$_id', name: '$name', familyName: '$familyName' } } } },
+        { $match: { count: { $gt: 1 } } },
+        { $limit: 50 },
+      ]),
+      Member.aggregate([
+        { $match: { tenantId: tid, status: 'active', age: { $ne: null } } },
+        { $group: { _id: { name: { $toLower: '$name' }, age: '$age' }, count: { $sum: 1 }, members: { $push: { id: '$_id', name: '$name', familyName: '$familyName', phone: '$phone' } } } },
+        { $match: { count: { $gt: 1 } } },
+        { $limit: 50 },
+      ]),
+    ]);
+
+    res.json({ success: true, data: { byPhone, byNameAge } });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};

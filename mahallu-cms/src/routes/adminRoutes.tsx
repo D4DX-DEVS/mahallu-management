@@ -16,6 +16,9 @@ import CreateInstituteUser from '@/features/users/pages/CreateInstituteUser';
 import EditInstituteUser from '@/features/users/pages/EditInstituteUser';
 import AllUsersList from '@/features/users/pages/AllUsersList';
 import SelectUserType from '@/features/users/pages/SelectUserType';
+import CertificatesList from '@/features/certificates/pages/CertificatesList';
+import ChangeRequestsList from '@/features/admin/pages/ChangeRequestsList';
+import DataQualityPage from '@/features/admin/pages/DataQualityPage';
 import { route, superAdminRoute } from './routeHelpers';
 
 export const adminRoutes = [
@@ -51,4 +54,13 @@ export const adminRoutes = [
   superAdminRoute('/admin/users/create', <SelectUserType />),
   superAdminRoute('/admin/users/:id', <UserDetail />),
   superAdminRoute('/admin/users/:id/edit', <EditMahallUser />),
+
+  // Certificates
+  route(ROUTES.CERTIFICATES.LIST, <CertificatesList />),
+
+  // Change Requests
+  route(ROUTES.CHANGE_REQUESTS, <ChangeRequestsList />),
+
+  // Data Quality
+  route('/admin/data-quality', <DataQualityPage />),
 ];

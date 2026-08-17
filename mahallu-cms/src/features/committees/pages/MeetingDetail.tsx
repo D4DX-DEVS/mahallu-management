@@ -4,7 +4,7 @@ import { FiArrowLeft } from 'react-icons/fi';
 import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
-import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { PageSkeleton } from '@/components/ui/Skeleton';
 import { meetingService } from '@/services/meetingService';
 import { Meeting } from '@/types';
 import { formatDateTime } from '@/utils/format';
@@ -34,9 +34,7 @@ export default function MeetingDetail() {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <LoadingSpinner />
-      </div>
+      <PageSkeleton />
     );
   }
 

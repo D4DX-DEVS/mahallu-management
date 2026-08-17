@@ -10,7 +10,7 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import RadioCardGroup from '@/components/ui/RadioCardGroup';
-import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { PageSkeleton } from '@/components/ui/Skeleton';
 import { ROUTES } from '@/constants/routes';
 import SocioEconomicSection from '../components/SocioEconomicSection';
 import {
@@ -21,6 +21,8 @@ import {
 import { memberService } from '@/services/memberService';
 import { familyService } from '@/services/familyService';
 import { tenantService } from '@/services/tenantService';
+import { instituteService } from '@/services/instituteService';
+import { facilityService } from '@/services/surveyService';
 import { Family } from '@/types';
 import { useAuthStore } from '@/store/authStore';
 import { getTenantId as extractTenantId } from '@/utils/tenantHelper';
@@ -47,6 +49,9 @@ const memberSchema = z.object({
   marriageCount: z.preprocess((val) => (val === '' || Number.isNaN(val) ? undefined : val), z.number().min(0).optional()),
   isOrphan: z.boolean().optional(),
   isDead: z.boolean().optional(),
+  relationship: z.enum(['head', 'spouse', 'son', 'daughter', 'father', 'mother', 'other']).optional().or(z.literal('')),
+  educationInstitutionId: z.string().optional(),
+  localityFacilityId: z.string().optional(),
   ...socioEconomicSchemaFields,
 });
 
@@ -59,6 +64,8 @@ export default function EditMember() {
   const [loading, setLoading] = useState(true);
   const [educationOptions, setEducationOptions] = useState<string[]>([]);
   const [families, setFamilies] = useState<Family[]>([]);
+  const [institutes, setInstitutes] = useState<any[]>([]);
+  const [facilities, setFacilities] = useState<any[]>([]);
 
   const {
     register,
@@ -90,8 +97,14 @@ export default function EditMember() {
 
   const fetchFamilies = async () => {
     try {
-      const result = await familyService.getAll();
-      setFamilies(result.data || []);
+      const [familyResult, instituteResult, facilityResult] = await Promise.all([
+        familyService.getAll(),
+        instituteService.getAll(),
+        facilityService.getAll(),
+      ]);
+      setFamilies(familyResult.data || []);
+      setInstitutes(instituteResult.data || []);
+      setFacilities(facilityResult.data || []);
     } catch (err) {
       console.error('Error fetching families:', err);
       setFamilies([]);
@@ -117,6 +130,9 @@ export default function EditMember() {
       setValue('marriageCount', (member.marriageCount ?? '') as any);
       setValue('isOrphan', Boolean(member.isOrphan));
       setValue('isDead', Boolean(member.isDead));
+      setValue('relationship', (member.relationship || '') as any);
+      setValue('educationInstitutionId', member.educationInstitutionId || '');
+      setValue('localityFacilityId', member.localityFacilityId || '');
       Object.entries(socioEconomicDefaults(member as any)).forEach(([field, value]) => {
         setValue(field as any, value as any);
       });
@@ -173,9 +189,7 @@ export default function EditMember() {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <LoadingSpinner />
-      </div>
+      <PageSkeleton />
     );
   }
 
@@ -297,6 +311,20 @@ export default function EditMember() {
               min={0}
               max={150}
             />
+            <Select
+              label="Relationship"
+              {...register('relationship')}
+              options={[
+                { value: '', label: 'Select Relationship' },
+                { value: 'head', label: 'Head' },
+                { value: 'spouse', label: 'Spouse' },
+                { value: 'son', label: 'Son' },
+                { value: 'daughter', label: 'Daughter' },
+                { value: 'father', label: 'Father' },
+                { value: 'mother', label: 'Mother' },
+                { value: 'other', label: 'Other' },
+              ]}
+            />
           </div>
           
           <div className="md:col-span-2">
@@ -343,7 +371,22 @@ export default function EditMember() {
                 { value: '', label: 'Select Education' },
                 ...educationOptions.map(opt => ({ value: opt, label: opt }))
               ]}
-              className="md:col-span-2"
+            />
+            <Select
+              label="Studying at (Mahallu Institute)"
+              {...register('educationInstitutionId')}
+              options={[
+                { value: '', label: 'Select Institute' },
+                ...institutes.map(inst => ({ value: inst.id || inst._id, label: inst.name }))
+              ]}
+            />
+            <Select
+              label="Studying at (External School/College)"
+              {...register('localityFacilityId')}
+              options={[
+                { value: '', label: 'Select Facility' },
+                ...facilities.map(fac => ({ value: fac._id, label: fac.name }))
+              ]}
             />
             <Select
               label="Marital Status"

@@ -9,7 +9,8 @@ import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
 import Modal from '@/components/ui/Modal';
 import TableToolbar from '@/components/ui/TableToolbar';
-import { TableColumn } from '@/types';
+import Pagination from '@/components/ui/Pagination';
+import { TableColumn, Pagination as PaginationType } from '@/types';
 import { Tenant } from '@/types/tenant';
 import { tenantService } from '@/services/tenantService';
 import { useAuthStore } from '@/store/authStore';
@@ -30,26 +31,36 @@ export default function TenantsList() {
   const [showSuspendModal, setShowSuspendModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [pagination, setPagination] = useState<PaginationType | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   const debouncedSearch = useDebounce(searchQuery, 500);
+
+  // A new search/filter invalidates the current page offset
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearch, statusFilter]);
 
   useEffect(() => {
     if (isSuperAdmin) {
       loadTenants();
     }
-  }, [isSuperAdmin, statusFilter, debouncedSearch]);
+  }, [isSuperAdmin, statusFilter, debouncedSearch, currentPage, itemsPerPage]);
 
   const loadTenants = async () => {
     try {
       setIsLoading(true);
-      const params: any = {};
+      const params: any = { page: currentPage, limit: itemsPerPage };
       if (statusFilter !== 'all') params.status = statusFilter;
       if (debouncedSearch) params.search = debouncedSearch;
       const response = await tenantService.getAll(params);
       setTenants(response.data || []);
+      setPagination(response.pagination);
     } catch (error) {
       console.error('Error loading tenants:', error);
       setTenants([]);
+      setPagination(null);
     } finally {
       setIsLoading(false);
     }
@@ -79,11 +90,8 @@ export default function TenantsList() {
     }
   };
 
-  const filteredTenants = tenants.filter((tenant) =>
-    tenant.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    tenant.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    tenant.location?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Search is applied server-side via the `search` param — filtering again here
+  // would drop rows the server already matched on other fields.
 
   const handleSuspend = async () => {
     if (selectedTenant) {
@@ -228,7 +236,8 @@ export default function TenantsList() {
   const stats = [
     {
       title: 'Total Tenants',
-      value: tenants.length,
+      // ponytail: total from server; Active/Suspended still count the current page
+      value: pagination?.total ?? tenants.length,
       icon: <FiGlobe className="h-5 w-5" />,
     },
     {
@@ -269,7 +278,7 @@ export default function TenantsList() {
         </div>
 
         {/* Statistics Cards */}
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {stats.map((stat, index) => (
             <StatCard key={index} {...stat} />
           ))}
@@ -319,11 +328,26 @@ export default function TenantsList() {
 
         <Table
           columns={columns}
-          data={filteredTenants}
+          data={tenants}
           isLoading={isLoading}
           emptyMessage="No tenants found"
           showExport={false}
         />
+        {pagination && pagination.totalPages > 1 && (
+          <div className="mt-4">
+            <Pagination
+              currentPage={pagination.page}
+              totalPages={pagination.totalPages}
+              totalItems={pagination.total}
+              itemsPerPage={pagination.limit}
+              onPageChange={setCurrentPage}
+              onItemsPerPageChange={(items) => {
+                setItemsPerPage(items);
+                setCurrentPage(1);
+              }}
+            />
+          </div>
+        )}
       </Card>
 
       {/* Suspend Modal */}

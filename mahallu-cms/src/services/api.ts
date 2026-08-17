@@ -18,6 +18,12 @@ api.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
 
+    // FormData must not inherit the JSON default — the browser sets multipart/form-data with boundary
+    if (config.data instanceof FormData) {
+      config.headers.delete?.('Content-Type');
+      delete (config.headers as Record<string, unknown>)['Content-Type'];
+    }
+
     // Add tenant ID header for tenant-based data filtering
     const { currentTenantId, isSuperAdmin, user, currentInstituteId } = useAuthStore.getState();
     

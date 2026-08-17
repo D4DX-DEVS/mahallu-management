@@ -6,6 +6,7 @@ import { applyTheme } from './utils/theme';
 import ProtectedRoute from './components/ui/ProtectedRoute';
 import Toaster from './components/ui/Toaster';
 import Login from './features/auth/pages/Login';
+import VerifyCertificate from './features/certificates/pages/VerifyCertificate';
 import { ROUTES } from './constants/routes';
 import { appRoutes } from './routes';
 
@@ -26,6 +27,7 @@ function App() {
     >
       <Routes>
         <Route path={ROUTES.LOGIN} element={<Login />} />
+        <Route path="/verify/:certificateNo" element={<VerifyCertificate />} />
         <Route
           path="/"
           element={

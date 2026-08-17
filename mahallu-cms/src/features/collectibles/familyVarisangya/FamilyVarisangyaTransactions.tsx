@@ -3,9 +3,9 @@ import { useSearchParams } from 'react-router-dom';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Table from '@/components/ui/Table';
-import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
-import { TableColumn } from '@/types';
+import { TableColumn, Pagination as PaginationType } from '@/types';
 import { collectibleService, Transaction, Wallet, Varisangya } from '@/services/collectibleService';
 import { familyService } from '@/services/familyService';
 import { formatDate } from '@/utils/format';
@@ -42,6 +42,14 @@ export default function FamilyVarisangyaTransactions() {
   const [isExporting, setIsExporting] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isFilterVisible, setIsFilterVisible] = useState(false);
+  const [pagination, setPagination] = useState<PaginationType | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(20);
+
+  // Switching family invalidates the current page offset
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [familyId]);
 
   useEffect(() => {
     if (familyId) {
@@ -49,7 +57,7 @@ export default function FamilyVarisangyaTransactions() {
     } else {
       fetchAllTransactions();
     }
-  }, [familyId]);
+  }, [familyId, currentPage, itemsPerPage]);
 
   const fetchData = async () => {
     try {
@@ -63,11 +71,15 @@ export default function FamilyVarisangyaTransactions() {
       const walletId = walletData && ((walletData as any).id ?? (walletData as any)._id);
       setWallet(walletId ? { ...walletData!, id: String(walletId) } as Wallet : null);
 
-      // Always use varisangya records (they have populated family names)
-      const varisangyasResult = await collectibleService.getAllVarisangyas({ familyId: familyId || undefined, limit: 10000 });
-      const list = varisangyasResult.data || [];
-      const mapped = list.map(varisangyaToTransaction).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-      setTransactions(mapped);
+      // Always use varisangya records (they have populated family names).
+      // The API already sorts by paymentDate desc, so no client-side re-sort.
+      const varisangyasResult = await collectibleService.getAllVarisangyas({
+        familyId: familyId || undefined,
+        page: currentPage,
+        limit: itemsPerPage,
+      });
+      setTransactions((varisangyasResult.data || []).map(varisangyaToTransaction));
+      setPagination(varisangyasResult.pagination);
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to fetch transactions');
       console.error('Error fetching data:', err);
@@ -80,13 +92,14 @@ export default function FamilyVarisangyaTransactions() {
     try {
       setLoading(true);
       setError(null);
-      const varisangyasResult = await collectibleService.getAllVarisangyas({ limit: 10000 });
-      const list = varisangyasResult.data || [];
-      const mapped = list
-        .filter((v) => (v as any).familyId != null)
-        .map(varisangyaToTransaction)
-        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-      setTransactions(mapped);
+      // hasFamily filters server-side; filtering after paging would short the page
+      const varisangyasResult = await collectibleService.getAllVarisangyas({
+        hasFamily: true,
+        page: currentPage,
+        limit: itemsPerPage,
+      });
+      setTransactions((varisangyasResult.data || []).map(varisangyaToTransaction));
+      setPagination(varisangyasResult.pagination);
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to fetch transactions');
       console.error('Error fetching transactions:', err);
@@ -98,6 +111,13 @@ export default function FamilyVarisangyaTransactions() {
   const handleExport = async (type: 'csv' | 'json' | 'pdf') => {
     try {
       setIsExporting(true);
+      // Export the whole result set, not just the page on screen
+      const allResult = await collectibleService.getAllVarisangyas({
+        familyId: familyId || undefined,
+        hasFamily: familyId ? undefined : true,
+        limit: 10000,
+      });
+      const transactions = (allResult.data || []).map(varisangyaToTransaction);
       if (transactions.length === 0) {
         toast.info('No transaction data to export');
         return;
@@ -137,7 +157,7 @@ export default function FamilyVarisangyaTransactions() {
   };
 
   const columns: TableColumn<Transaction>[] = [
-    { key: 'id', label: 'No.', render: (_, __, index) => index + 1 },
+    { key: 'id', label: 'No.', render: (_, __, index) => (currentPage - 1) * itemsPerPage + index + 1 },
     {
       key: 'type',
       label: 'Type',
@@ -215,11 +235,7 @@ export default function FamilyVarisangyaTransactions() {
           onExport={handleExport}
           isExporting={isExporting}
         />
-        {loading ? (
-          <div className="flex justify-center items-center py-12">
-            <LoadingSpinner />
-          </div>
-        ) : error ? (
+        {error ? (
           <div className="text-center py-12">
             <p className="text-red-600 dark:text-red-400">{error}</p>
             <Button onClick={familyId ? fetchData : fetchAllTransactions} className="mt-4" variant="outline">
@@ -227,7 +243,24 @@ export default function FamilyVarisangyaTransactions() {
             </Button>
           </div>
         ) : (
-          <Table columns={columns} data={transactions} emptyMessage="No transactions found" showExport={false} />
+          <>
+            <Table columns={columns} data={transactions} isLoading={loading} emptyMessage="No transactions found" showExport={false} />
+            {pagination && pagination.totalPages > 1 && (
+              <div className="mt-4">
+                <Pagination
+                  currentPage={pagination.page}
+                  totalPages={pagination.totalPages}
+                  totalItems={pagination.total}
+                  itemsPerPage={pagination.limit}
+                  onPageChange={setCurrentPage}
+                  onItemsPerPageChange={(items) => {
+                    setItemsPerPage(items);
+                    setCurrentPage(1);
+                  }}
+                />
+              </div>
+            )}
+          </>
         )}
       </Card>
     </div>

@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { FiDollarSign, FiCreditCard } from 'react-icons/fi';
+import { FiDollarSign, FiCreditCard, FiCheckCircle } from 'react-icons/fi';
 import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
-import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { PageSkeleton } from '@/components/ui/Skeleton';
 import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
 import { TableColumn, Pagination as PaginationType } from '@/types';
@@ -107,6 +107,16 @@ export default function ZakatList() {
     }
   };
 
+  const handleVerify = async (row: Zakat) => {
+    try {
+      await collectibleService.verifyZakat(row.id);
+      toast.success('Zakat verified successfully');
+      await fetchZakats();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to verify zakat');
+    }
+  };
+
   const columns: TableColumn<Zakat>[] = [
     { key: 'id', label: 'No.', render: (_, __, index) => index + 1 },
     { key: 'payerName', label: 'Payer Name', sortable: true },
@@ -125,6 +135,41 @@ export default function ZakatList() {
       key: 'receiptNo',
       label: 'Receipt No.',
       render: (receiptNo) => receiptNo || '-',
+    },
+    {
+      key: 'status',
+      label: 'Status',
+      render: (status) => (
+        <span
+          className={`inline-block px-2 py-1 rounded text-xs font-semibold ${
+            status === 'pending'
+              ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+              : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+          }`}
+        >
+          {status === 'pending' ? 'Pending' : 'Verified'}
+        </span>
+      ),
+    },
+    {
+      key: 'actions',
+      label: 'Actions',
+      render: (_, row) => (
+        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+          {row.status === 'pending' && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleVerify(row);
+              }}
+              className="p-1.5 rounded-md hover:bg-green-100 dark:hover:bg-green-900 text-green-600 dark:text-green-400 transition-colors"
+              title="Verify payment"
+            >
+              <FiCheckCircle className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+      ),
     },
   ];
 
@@ -146,7 +191,7 @@ export default function ZakatList() {
           <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Zakat' }]} />
         </div>
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-2">
           {stats.map((stat, index) => (
             <StatCard key={index} {...stat} />
           ))}
@@ -173,9 +218,7 @@ export default function ZakatList() {
         />
 
         {loading ? (
-          <div className="flex justify-center items-center py-12">
-            <LoadingSpinner />
-          </div>
+          <PageSkeleton variant="section" />
         ) : error ? (
           <div className="text-center py-12">
             <p className="text-red-600 dark:text-red-400">{error}</p>

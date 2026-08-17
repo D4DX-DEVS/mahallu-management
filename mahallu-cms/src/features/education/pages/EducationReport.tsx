@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { FiUsers, FiBook, FiPercent, FiFileText, FiGift } from 'react-icons/fi';
 import Card from '@/components/ui/Card';
 import StatCard from '@/components/ui/StatCard';
-import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { PageSkeleton } from '@/components/ui/Skeleton';
 import { reportService } from '@/services/reportService';
 
 interface EducationData {
@@ -44,9 +44,7 @@ export default function EducationReport() {
 
   if (loading) {
     return (
-      <div className="flex justify-center py-12">
-        <LoadingSpinner />
-      </div>
+      <PageSkeleton variant="section" />
     );
   }
 

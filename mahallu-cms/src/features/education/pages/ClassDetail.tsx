@@ -6,7 +6,7 @@ import Button from '@/components/ui/Button';
 import Table from '@/components/ui/Table';
 import Select from '@/components/ui/Select';
 import Pagination from '@/components/ui/Pagination';
-import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { PageSkeleton } from '@/components/ui/Skeleton';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { toast } from '@/store/toastStore';
 import { Pagination as PaginationType, TableColumn } from '@/types';
@@ -177,7 +177,7 @@ export default function ClassDetail() {
     },
   ];
 
-  if (loading) return <LoadingSpinner />;
+  if (loading) return <PageSkeleton />;
 
   if (error || !cls) {
     return (
@@ -248,9 +248,7 @@ export default function ClassDetail() {
       </Card>
 
       {progressLoading ? (
-        <Card className="mb-4">
-          <LoadingSpinner />
-        </Card>
+        <Card className="mb-4"><PageSkeleton variant="section" /></Card>
       ) : progress ? (
         <Card className="mb-4">
           <h2 className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100">Progress</h2>

@@ -4,7 +4,7 @@ import { FiEdit2, FiArrowLeft, FiTrash2 } from 'react-icons/fi';
 import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
-import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { PageSkeleton } from '@/components/ui/Skeleton';
 import Modal from '@/components/ui/Modal';
 import { ROUTES } from '@/constants/routes';
 import { userService } from '@/services/userService';
@@ -52,9 +52,7 @@ export default function UserDetail() {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <LoadingSpinner />
-      </div>
+      <PageSkeleton />
     );
   }
 

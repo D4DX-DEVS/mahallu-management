@@ -3,7 +3,7 @@ import { FiDownload, FiPrinter } from 'react-icons/fi';
 import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
-import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { PageSkeleton } from '@/components/ui/Skeleton';
 import { reportService, OrphansReport } from '@/services/reportService';
 import { exportToPDF } from '@/utils/exportUtils';
 
@@ -85,9 +85,7 @@ export default function OrphansReportPage() {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <LoadingSpinner />
-      </div>
+      <PageSkeleton />
     );
   }
 

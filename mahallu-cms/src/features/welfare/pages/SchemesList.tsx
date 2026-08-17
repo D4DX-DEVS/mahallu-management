@@ -6,7 +6,7 @@ import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import Table from '@/components/ui/Table';
 import Modal from '@/components/ui/Modal';
-import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { PageSkeleton } from '@/components/ui/Skeleton';
 import EmptyState from '@/components/ui/EmptyState';
 import Pagination from '@/components/ui/Pagination';
 import { Pagination as PaginationType, TableColumn } from '@/types';
@@ -152,9 +152,7 @@ export default function SchemesList() {
         </div>
 
         {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <LoadingSpinner />
-          </div>
+          <PageSkeleton variant="section" />
         ) : error ? (
           <div className="py-12 text-center">
             <p className="text-red-600 dark:text-red-400">{error}</p>

@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
-import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { PageSkeleton } from '@/components/ui/Skeleton';
 import { toast } from '@/store/toastStore';
 import { madrasaService } from '@/services/madrasaService';
 import { attendanceService, AttendanceRecord } from '@/services/attendanceService';
@@ -133,7 +133,7 @@ export default function AttendanceSheet() {
   const presentCount = Object.values(attendance).filter((p) => p).length;
   const totalCount = students.length;
 
-  if (loading) return <LoadingSpinner />;
+  if (loading) return <PageSkeleton />;
 
   return (
     <div>
@@ -183,9 +183,7 @@ export default function AttendanceSheet() {
 
       <Card>
         {loadingAttendance ? (
-          <div className="flex justify-center py-8">
-            <LoadingSpinner />
-          </div>
+          <PageSkeleton variant="section" />
         ) : students.length === 0 ? (
           <p className="text-center text-sm text-gray-500 dark:text-gray-400">
             No active students enrolled in this class

@@ -5,7 +5,7 @@ import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
-import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { PageSkeleton } from '@/components/ui/Skeleton';
 import { pettyCashService, PettyCashFund } from '@/services/pettyCashService';
 import { instituteService } from '@/services/instituteService';
 import { useAuthStore } from '@/store/authStore';
@@ -126,7 +126,7 @@ export default function PettyCashList() {
         )}
 
         {loading ? (
-          <div className="flex justify-center py-12"><LoadingSpinner /></div>
+          <PageSkeleton variant="section" />
         ) : funds.length === 0 ? (
           <div className="text-center py-12 text-gray-500 dark:text-gray-400">No petty cash funds found. Create one to get started.</div>
         ) : (

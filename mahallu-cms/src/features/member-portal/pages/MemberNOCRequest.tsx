@@ -4,6 +4,7 @@ import { useAuthStore } from '@/store/authStore';
 import { memberPortalService } from '@/services/memberPortalService';
 import { ROUTES } from '@/constants/routes';
 import Card from '@/components/ui/Card';
+import { FiHeart, FiFileText } from 'react-icons/fi';
 
 type NOCType = 'nikah' | 'common' | null;
 
@@ -121,7 +122,7 @@ export default function MemberNOCRequest() {
               onClick={() => setSelectedType('nikah')}
               className="block w-full text-left p-5 rounded-xl border-2 border-gray-200 dark:border-gray-700 hover:border-primary-500 dark:hover:border-primary-500 transition-colors bg-white dark:bg-gray-900 shadow-sm"
             >
-              <div className="text-2xl mb-2">💍</div>
+              <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-xl bg-primary-50 text-primary-600 dark:bg-primary-500/10 dark:text-primary-300"><FiHeart className="h-5 w-5" /></div>
               <h3 className="font-semibold text-gray-900 dark:text-gray-100">Nikah (Marriage) NOC</h3>
               <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">For marriage (nikah) ceremony</p>
             </button>
@@ -129,7 +130,7 @@ export default function MemberNOCRequest() {
               onClick={() => setSelectedType('common')}
               className="block w-full text-left p-5 rounded-xl border-2 border-gray-200 dark:border-gray-700 hover:border-primary-500 dark:hover:border-primary-500 transition-colors bg-white dark:bg-gray-900 shadow-sm"
             >
-              <div className="text-2xl mb-2">📄</div>
+              <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-xl bg-primary-50 text-primary-600 dark:bg-primary-500/10 dark:text-primary-300"><FiFileText className="h-5 w-5" /></div>
               <h3 className="font-semibold text-gray-900 dark:text-gray-100">Common NOC</h3>
               <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">For general or other purposes</p>
             </button>
@@ -141,7 +142,7 @@ export default function MemberNOCRequest() {
       {selectedType === 'nikah' && (
         <Card>
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">💍 Nikah NOC Details</h2>
+            <h2 className="flex items-center gap-2 text-lg font-semibold text-gray-900 dark:text-gray-100"><FiHeart className="h-4 w-4 text-primary-600 dark:text-primary-400" /> Nikah NOC Details</h2>
             <button onClick={() => setSelectedType(null)} className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
               Change type
             </button>
@@ -242,7 +243,7 @@ export default function MemberNOCRequest() {
       {selectedType === 'common' && (
         <Card>
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">📄 Common NOC Details</h2>
+            <h2 className="flex items-center gap-2 text-lg font-semibold text-gray-900 dark:text-gray-100"><FiFileText className="h-4 w-4 text-primary-600 dark:text-primary-400" /> Common NOC Details</h2>
             <button onClick={() => setSelectedType(null)} className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
               Change type
             </button>

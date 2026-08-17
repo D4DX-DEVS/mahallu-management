@@ -8,7 +8,7 @@ import StatCard from '@/components/ui/StatCard';
 import SearchInput from '@/components/ui/SearchInput';
 import Select from '@/components/ui/Select';
 import Pagination from '@/components/ui/Pagination';
-import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { PageSkeleton } from '@/components/ui/Skeleton';
 import EmptyState from '@/components/ui/EmptyState';
 import { Pagination as PaginationType } from '@/types';
 import { useDebounce } from '@/hooks/useDebounce';
@@ -130,7 +130,7 @@ export default function ClassesList() {
       )}
 
       {loading ? (
-        <LoadingSpinner />
+        <PageSkeleton variant="section" />
       ) : rows.length === 0 ? (
         <Card>
           <EmptyState

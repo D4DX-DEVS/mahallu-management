@@ -75,6 +75,9 @@ export interface Member {
   isOrphan?: boolean;
   isDead?: boolean;
   isFamilyHead?: boolean;
+  relationship?: 'head' | 'spouse' | 'son' | 'daughter' | 'father' | 'mother' | 'other';
+  educationInstitutionId?: string;
+  localityFacilityId?: string;
   createdAt: string;
 }
 

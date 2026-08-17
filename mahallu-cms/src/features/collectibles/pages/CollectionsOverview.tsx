@@ -4,7 +4,7 @@ import { FiDollarSign, FiArrowRight } from 'react-icons/fi';
 import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import StatCard from '@/components/ui/StatCard';
-import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { PageSkeleton } from '@/components/ui/Skeleton';
 import { collectibleService } from '@/services/collectibleService';
 import { ROUTES } from '@/constants/routes';
 
@@ -80,15 +80,13 @@ export default function CollectionsOverview() {
       </div>
 
       {/* Summary Stats */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-2">
         <StatCard title="Total Payments" value={totalPayments} />
         <StatCard title="Total Amount" value={`₹${totalAmount.toLocaleString()}`} />
       </div>
 
       {loading ? (
-        <div className="flex justify-center items-center py-12">
-          <LoadingSpinner />
-        </div>
+        <PageSkeleton variant="section" />
       ) : (
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
           {collectibleTypes.map((type) => (

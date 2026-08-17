@@ -2,6 +2,7 @@ import { ReactNode, useEffect, useState } from 'react';
 import Sidebar from './Sidebar';
 import { useTenant } from '@/hooks/useTenant';
 import Header from './Header';
+import MobileFooterNav from './MobileFooterNav';
 import { useLayoutStore } from '@/store/layoutStore';
 import { useLocation } from 'react-router-dom';
 
@@ -54,14 +55,15 @@ export default function MainLayout({ children }: MainLayoutProps) {
         <Header />
         <main
           className={
-            'flex-1 overflow-y-auto scroll-smooth px-2.5 pb-3 pt-2.5 transition-opacity duration-150 ease-out sm:px-3 sm:pb-4 md:px-4 md:pb-5 md:pt-3 lg:px-5 ' +
+            'flex-1 overflow-y-auto scroll-smooth transition-opacity duration-150 ease-out px-0 pb-20 pt-0 sm:px-3 sm:pb-20 sm:pt-3 md:px-4 md:pb-5 md:pt-3 lg:px-5 ' +
             (contentVisible ? 'opacity-100' : 'opacity-0')
           }
         >
-          <div className="mx-auto min-h-full w-full max-w-[1680px] rounded-[24px] border border-white/60 bg-white/72 p-2.5 shadow-[0_20px_60px_rgba(15,23,42,0.06)] backdrop-blur-xl dark:border-white/8 dark:bg-slate-900/62 sm:p-3 md:p-4 lg:p-4.5">
+          <div className="mx-auto min-h-full w-full max-w-[1680px] sm:rounded-[24px] sm:border sm:border-white/60 bg-white/72 p-2.5 sm:p-3 sm:shadow-[0_20px_60px_rgba(15,23,42,0.06)] sm:backdrop-blur-xl dark:bg-slate-950 dark:sm:bg-slate-900/62 dark:sm:border-white/8 md:p-4 lg:p-4.5">
             {children}
           </div>
         </main>
+        <MobileFooterNav />
       </div>
     </div>
   );

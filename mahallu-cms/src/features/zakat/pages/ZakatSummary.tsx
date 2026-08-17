@@ -4,7 +4,7 @@ import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
-import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { PageSkeleton } from '@/components/ui/Skeleton';
 import {
   zakatDistributionService,
   ZakatSummary as SummaryData,
@@ -70,9 +70,7 @@ export default function ZakatSummary() {
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center py-12">
-          <LoadingSpinner />
-        </div>
+        <PageSkeleton variant="section" />
       ) : error ? (
         <Card>
           <p className="text-red-600 dark:text-red-400">{error}</p>

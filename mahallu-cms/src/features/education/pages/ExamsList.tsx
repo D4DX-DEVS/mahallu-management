@@ -5,7 +5,7 @@ import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Table from '@/components/ui/Table';
 import Pagination from '@/components/ui/Pagination';
-import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { PageSkeleton } from '@/components/ui/Skeleton';
 import EmptyState from '@/components/ui/EmptyState';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import Select from '@/components/ui/Select';
@@ -169,7 +169,7 @@ export default function ExamsList() {
       </Card>
 
       {loading ? (
-        <LoadingSpinner />
+        <PageSkeleton variant="section" />
       ) : exams.length === 0 ? (
         <Card>
           <EmptyState title="No exams yet" description="Create an exam to start recording results." />

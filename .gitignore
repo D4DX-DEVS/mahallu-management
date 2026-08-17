@@ -55,3 +55,6 @@ WORKFLOW_AUDIT.md
 
 # Claude
 .claude/
+
+# Playwright MCP browser artifacts
+.playwright-mcp/

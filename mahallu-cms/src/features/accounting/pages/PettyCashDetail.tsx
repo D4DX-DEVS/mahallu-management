@@ -4,7 +4,7 @@ import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
-import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { PageSkeleton } from '@/components/ui/Skeleton';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { pettyCashService, PettyCashFund, PettyCashTransaction } from '@/services/pettyCashService';
 import { toast } from '@/store/toastStore';
@@ -90,7 +90,7 @@ export default function PettyCashDetail() {
   };
 
   if (loading) {
-    return <div className="flex justify-center py-12"><LoadingSpinner /></div>;
+    return <PageSkeleton variant="section" />;
   }
 
   if (!fund) {

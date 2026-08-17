@@ -7,7 +7,7 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import Card from '@/components/ui/Card';
-import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { PageSkeleton } from '@/components/ui/Skeleton';
 import { libraryService, LibraryBook } from '@/services/libraryService';
 import { toast } from '@/store/toastStore';
 import { FiArrowLeft } from 'react-icons/fi';
@@ -113,7 +113,7 @@ export default function BookForm({ isEdit = false }: BookFormProps) {
     }
   };
 
-  if (loading) return <LoadingSpinner />;
+  if (loading) return <PageSkeleton />;
 
   return (
     <div className="space-y-4">

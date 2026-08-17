@@ -13,6 +13,7 @@ import {
   requestNikahRegistration,
   requestDeathRegistration,
   requestNOC,
+  resubmitRegistration,
   getOwnNotifications,
   getCommunityPrograms,
   getPublicFeeds,
@@ -399,6 +400,9 @@ router.post('/registrations/death', requestDeathRegistration);
  *         description: NOC request submitted successfully
  */
 router.post('/registrations/noc', requestNOC);
+
+// Edit + resubmit an own registration while status is pending / correction_required
+router.put('/registrations/:type/:id', resubmitRegistration);
 
 /**
  * @swagger

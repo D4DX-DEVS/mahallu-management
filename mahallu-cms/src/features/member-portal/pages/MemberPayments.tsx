@@ -3,7 +3,7 @@ import { memberPortalService, PaymentRecord } from '@/services/memberPortalServi
 import { downloadPaymentReceiptPdf } from '@/utils/paymentReceiptPdf';
 import { useAuthStore } from '@/store/authStore';
 import Card from '@/components/ui/Card';
-import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { PageSkeleton } from '@/components/ui/Skeleton';
 
 type TabType = 'all' | 'varisangya' | 'zakat';
 
@@ -57,9 +57,7 @@ export default function MemberPayments() {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-[calc(100vh-140px)]">
-        <LoadingSpinner />
-      </div>
+      <PageSkeleton />
     );
   }
 
@@ -72,13 +70,13 @@ export default function MemberPayments() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-4xl w-full mx-auto">
       <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
         My Payments &amp; Receipts
       </h1>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-2 gap-4">
         <Card>
           <p className="text-sm text-gray-500 dark:text-gray-400">Total Varisangya Paid</p>
           <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100 mt-1">

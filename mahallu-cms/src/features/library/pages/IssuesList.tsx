@@ -4,7 +4,7 @@ import Button from '@/components/ui/Button';
 import Table from '@/components/ui/Table';
 import Pagination from '@/components/ui/Pagination';
 import Badge from '@/components/ui/Badge';
-import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { PageSkeleton } from '@/components/ui/Skeleton';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { libraryService, BookIssue } from '@/services/libraryService';
 import { toast } from '@/store/toastStore';
@@ -168,7 +168,7 @@ export default function IssuesList() {
 
       {/* Issues Table */}
       {loading ? (
-        <LoadingSpinner />
+        <PageSkeleton variant="section" />
       ) : (
         <>
           <Table columns={columns} data={issues} />

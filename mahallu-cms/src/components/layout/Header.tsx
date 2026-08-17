@@ -1,4 +1,4 @@
-import { FiMenu, FiBell, FiSun, FiMoon, FiUser, FiLogOut, FiSearch, FiMail, FiPhone, FiShield, FiCalendar, FiChevronDown, FiChevronRight, FiMapPin, FiAlertTriangle } from 'react-icons/fi';
+import { FiMenu, FiBell, FiSun, FiMoon, FiUser, FiLogOut, FiSearch, FiMail, FiPhone, FiShield, FiCalendar, FiChevronDown, FiMapPin, FiAlertTriangle } from 'react-icons/fi';
 import { useThemeStore } from '@/store/themeStore';
 import { useAuthStore } from '@/store/authStore';
 import { useLayoutStore } from '@/store/layoutStore';
@@ -17,7 +17,7 @@ export default function Header() {
   const navigate = useNavigate();
   const { theme, toggleTheme } = useThemeStore();
   const { user, logout, isSuperAdmin, currentTenantId } = useAuthStore();
-  const { isMobileSidebarOpen, setMobileSidebarOpen, toggleDesktopSidebarCollapsed } = useLayoutStore();
+  const { toggleDesktopSidebarCollapsed } = useLayoutStore();
   const [mounted, setMounted] = useState(false);
   const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -137,18 +137,12 @@ export default function Header() {
         </div>
       )}
       
-      <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-gray-200/50 bg-white/80 backdrop-blur-md px-4 md:px-6 dark:border-gray-800/50 dark:bg-gray-900/80">
+      <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-gray-200/50 bg-white/80 backdrop-blur-md px-4 md:px-6 shadow-[0_4px_16px_rgba(15,23,42,0.06)] dark:border-gray-800/50 dark:bg-gray-900/80 dark:shadow-[0_4px_16px_rgba(0,0,0,0.35)]">
         <div className="flex items-center gap-2 md:gap-4">
-          {/* Mobile hamburger */}
-          <button
-            onClick={() => setMobileSidebarOpen(!isMobileSidebarOpen)}
-            className="md:hidden p-2 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-          >
-            <FiMenu className="h-5 w-5" />
-          </button>
+          {/* Mobile: no header buttons — footer nav "Menu" opens the sidebar */}
           <button
             onClick={toggleDesktopSidebarCollapsed}
-            className="hidden md:inline-flex p-2 rounded-xl text-slate-600 hover:bg-slate-100 transition-colors"
+            className="hidden md:inline-flex p-2 rounded-xl text-slate-600 hover:bg-slate-100 transition-colors dark:text-gray-400 dark:hover:bg-gray-800"
             aria-label="Toggle sidebar"
           >
             <FiMenu className="h-5 w-5" />
@@ -157,7 +151,7 @@ export default function Header() {
           {user?.role !== 'member' && (
             <button
               onClick={() => setShowCommandPalette(true)}
-              className="flex items-center gap-2 px-3 py-2 text-sm text-gray-500 bg-gray-100/80 rounded-lg hover:bg-gray-200/80 dark:bg-gray-800/80 dark:hover:bg-gray-700/80 dark:text-gray-400 transition-colors"
+              className="hidden md:flex items-center gap-2 px-3 py-2 text-sm text-gray-500 bg-gray-100/80 rounded-lg hover:bg-gray-200/80 dark:bg-gray-800/80 dark:hover:bg-gray-700/80 dark:text-gray-400 transition-colors"
             >
               <FiSearch className="h-4 w-4" />
               <span className="hidden md:inline">Search menu...</span>
@@ -195,167 +189,118 @@ export default function Header() {
 
           {/* User Dropdown Menu */}
           {showUserMenu && (
-            <div className="absolute right-0 top-full mt-2 w-80 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden z-50">
-              {/* Blue Banner */}
-              <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4">
-                <div className="flex items-center gap-3">
-                  <div className="h-12 w-12 rounded-lg bg-white/20 backdrop-blur-sm flex items-center justify-center relative">
-                    <FiUser className="h-6 w-6 text-white" />
-                    <span className="absolute bottom-0 right-0 h-3 w-3 bg-green-400 rounded-full border-2 border-blue-600"></span>
-                  </div>
-                  <div>
-                    <p className="text-white/90 text-sm">Welcome back,</p>
-                    <p className="text-white font-semibold text-lg">{user?.name || 'User'}</p>
-                  </div>
+            <div className="absolute right-0 top-full mt-2 w-72 origin-top-right rounded-2xl border border-gray-200/70 bg-white/95 backdrop-blur-xl shadow-2xl shadow-gray-900/10 ring-1 ring-black/5 overflow-hidden z-50 dark:border-gray-700/60 dark:bg-gray-900/95 dark:shadow-black/40">
+              {/* Identity */}
+              <div className="flex items-center gap-3 px-4 pt-4 pb-3">
+                <div className="relative h-11 w-11 shrink-0 rounded-full bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center text-white font-semibold">
+                  {(user?.name || 'U').charAt(0).toUpperCase()}
+                  <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-green-500 ring-2 ring-white dark:ring-gray-900" />
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-gray-900 dark:text-gray-100">
+                    {user?.name || 'User'}
+                  </p>
+                  <p className="truncate text-xs text-gray-500 dark:text-gray-400">
+                    {user?.email || user?.phone || '—'}
+                  </p>
                 </div>
               </div>
 
-              {/* User Info Cards */}
-              <div className="p-4 space-y-3">
-                {/* Phone Number */}
-                <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
-                  <div className="flex items-start gap-3">
-                    <div className="p-2 bg-gray-200 dark:bg-gray-600 rounded-lg">
-                      <FiPhone className="h-4 w-4 text-gray-600 dark:text-gray-300" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Phone Number</p>
-                      <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                        {user?.phone || 'N/A'}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Email Address (only if available) */}
-                {user?.email && (
-                <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
-                  <div className="flex items-start gap-3">
-                    <div className="p-2 bg-gray-200 dark:bg-gray-600 rounded-lg">
-                      <FiMail className="h-4 w-4 text-gray-600 dark:text-gray-300" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Email Address</p>
-                      <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                        {user.email}
-                      </p>
-                    </div>
-                  </div>
-                </div>
+              {/* Badges */}
+              <div className="flex flex-wrap gap-1.5 px-4 pb-3">
+                <span className="inline-flex items-center gap-1 rounded-full bg-primary-50 px-2 py-0.5 text-[0.68rem] font-medium text-primary-700 dark:bg-primary-900/30 dark:text-primary-300">
+                  <FiShield className="h-3 w-3" />
+                  {getAccountTypeLabel()}
+                </span>
+                {user?.joiningDate && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-[0.68rem] font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-400">
+                    <FiCalendar className="h-3 w-3" />
+                    Since {formatMemberSince(user.joiningDate)}
+                  </span>
                 )}
+              </div>
 
-                {/* Account Type */}
-                <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
-                  <div className="flex items-start gap-3">
-                    <div className="p-2 bg-gray-200 dark:bg-gray-600 rounded-lg">
-                      <FiShield className="h-4 w-4 text-gray-600 dark:text-gray-300" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Account Type</p>
-                      <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                        {getAccountTypeLabel()}
-                      </p>
-                    </div>
+              {/* Details */}
+              <div className="border-t border-gray-100 px-4 py-2.5 text-xs dark:border-gray-800">
+                {user?.phone && (
+                  <div className="flex items-center gap-2 py-1 text-gray-600 dark:text-gray-400">
+                    <FiPhone className="h-3.5 w-3.5 shrink-0" />
+                    <span className="truncate">{user.phone}</span>
                   </div>
-                </div>
-
-                {/* Member Since */}
-                <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
-                  <div className="flex items-start gap-3">
-                    <div className="p-2 bg-gray-200 dark:bg-gray-600 rounded-lg">
-                      <FiCalendar className="h-4 w-4 text-gray-600 dark:text-gray-300" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Member Since</p>
-                      <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                        {user?.joiningDate ? formatMemberSince(user.joiningDate) : '-'}
-                      </p>
-                    </div>
+                )}
+                {user?.email && (
+                  <div className="flex items-center gap-2 py-1 text-gray-600 dark:text-gray-400">
+                    <FiMail className="h-3.5 w-3.5 shrink-0" />
+                    <span className="truncate">{user.email}</span>
                   </div>
-                </div>
-
-                {/* Mahallu Info */}
+                )}
                 {tenantInfo && (
-                  <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
-                    <div className="flex items-start gap-3">
-                      <div className="p-2 bg-gray-200 dark:bg-gray-600 rounded-lg">
-                        <FiMapPin className="h-4 w-4 text-gray-600 dark:text-gray-300" />
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">
-                          Mahallu
-                        </p>
-                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                          {tenantInfo.name}
-                        </p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">
-                          {tenantInfo.code}
-                          {tenantInfo.location ? ` • ${tenantInfo.location}` : ''}
-                        </p>
-                      </div>
-                    </div>
+                  <div className="flex items-start gap-2 py-1 text-gray-600 dark:text-gray-400">
+                    <FiMapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                    <span className="truncate">
+                      {tenantInfo.name}
+                      <span className="text-gray-400 dark:text-gray-500">
+                        {' · '}
+                        {tenantInfo.code}
+                        {tenantInfo.location ? ` · ${tenantInfo.location}` : ''}
+                      </span>
+                    </span>
                   </div>
                 )}
               </div>
 
               {/* Actions */}
-              <div className="border-t border-gray-200 dark:border-gray-700 p-2 space-y-1">
-                {/* Notifications */}
+              <div className="border-t border-gray-100 p-1.5 dark:border-gray-800">
                 <button
                   onClick={handleNotificationsClick}
                   aria-label="View notifications"
-                  className="w-full flex items-center justify-between px-4 py-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors group relative"
+                  className="group flex w-full items-center justify-between rounded-xl px-3 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="relative">
-                      <FiBell className="h-4 w-4 text-gray-600 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-gray-100" />
-                      {unreadCount > 0 && (
-                        <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white dark:ring-gray-800"></span>
-                      )}
-                    </div>
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-gray-100">
-                      Notifications
+                  <span className="flex items-center gap-2.5">
+                    <FiBell className="h-4 w-4 text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-200" />
+                    Notifications
+                  </span>
+                  {unreadCount > 0 && (
+                    <span className="min-w-[1.25rem] rounded-full bg-red-500 px-1.5 text-center text-[0.65rem] font-semibold leading-5 text-white">
+                      {unreadCount > 99 ? '99+' : unreadCount}
                     </span>
-                  </div>
-                  <FiChevronRight className="h-4 w-4 text-gray-400 dark:text-gray-500" />
+                  )}
                 </button>
 
-                {/* Theme Toggle */}
                 <button
-                  onClick={() => {
-                    handleThemeToggle();
-                    // Keep menu open after toggle
-                  }}
-                  className="w-full flex items-center justify-between px-4 py-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors group"
+                  onClick={handleThemeToggle}
+                  className="group flex w-full items-center justify-between rounded-xl px-3 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
                 >
-                  <div className="flex items-center gap-3">
+                  <span className="flex items-center gap-2.5">
                     {mounted && theme === 'dark' ? (
-                      <FiSun className="h-4 w-4 text-gray-600 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-gray-100" />
+                      <FiSun className="h-4 w-4 text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-200" />
                     ) : (
-                      <FiMoon className="h-4 w-4 text-gray-600 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-gray-100" />
+                      <FiMoon className="h-4 w-4 text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-200" />
                     )}
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-gray-100">
-                      {mounted && theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
-                    </span>
-                  </div>
-                  <FiChevronRight className="h-4 w-4 text-gray-400 dark:text-gray-500" />
+                    {mounted && theme === 'dark' ? 'Light mode' : 'Dark mode'}
+                  </span>
+                  <span
+                    className={`h-4 w-7 rounded-full p-0.5 transition-colors ${
+                      mounted && theme === 'dark' ? 'bg-primary-600' : 'bg-gray-300 dark:bg-gray-600'
+                    }`}
+                  >
+                    <span
+                      className={`block h-3 w-3 rounded-full bg-white transition-transform ${
+                        mounted && theme === 'dark' ? 'translate-x-3' : ''
+                      }`}
+                    />
+                  </span>
                 </button>
 
-                {/* Sign Out */}
                 <button
                   onClick={() => {
                     setShowUserMenu(false);
                     setShowLogoutConfirm(true);
                   }}
-                  className="w-full flex items-center justify-between px-4 py-3 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors group"
+                  className="group flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
                 >
-                  <div className="flex items-center gap-3">
-                    <FiLogOut className="h-4 w-4 text-red-600 dark:text-red-400" />
-                    <span className="text-sm font-medium text-red-600 dark:text-red-400">
-                      Sign out
-                    </span>
-                  </div>
-                  <FiChevronRight className="h-4 w-4 text-red-400 dark:text-red-500" />
+                  <FiLogOut className="h-4 w-4" />
+                  Sign out
                 </button>
               </div>
             </div>

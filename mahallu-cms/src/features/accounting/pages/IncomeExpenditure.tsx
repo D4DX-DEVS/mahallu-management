@@ -4,7 +4,7 @@ import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
-import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { PageSkeleton } from '@/components/ui/Skeleton';
 import { accountingReportService } from '@/services/accountingReportService';
 import { instituteService } from '@/services/instituteService';
 import { useAuthStore } from '@/store/authStore';
@@ -125,7 +125,7 @@ export default function IncomeExpenditure() {
         </div>
 
         {loading ? (
-          <div className="flex justify-center items-center py-12"><LoadingSpinner /></div>
+          <PageSkeleton variant="section" />
         ) : error ? (
           <div className="text-center py-12"><p className="text-red-600 dark:text-red-400">{error}</p></div>
         ) : !reportData ? (

@@ -9,6 +9,7 @@ import { useAuthStore } from '@/store/authStore';
 import { BRAND_NAME, LOGO_PATH } from '@/constants/theme';
 import { useLayoutStore } from '@/store/layoutStore';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
+import { footerNavByRole, useIsMobile } from './MobileFooterNav';
 
 type UserRole = 'super_admin' | 'mahall' | 'survey' | 'institute' | 'member';
 
@@ -74,6 +75,17 @@ function filterMenuTree(
   }, []);
 }
 
+// On mobile the footer nav owns these paths — drop them from the side menu so nothing repeats
+function pruneFooterItems(items: MenuItem[], paths: Set<string>): MenuItem[] {
+  return items.reduce<MenuItem[]>((acc, item) => {
+    if (item.path && paths.has(item.path)) return acc;
+    const children = item.children ? pruneFooterItems(item.children, paths) : undefined;
+    if (item.children && (!children || children.length === 0)) return acc;
+    acc.push({ ...item, children });
+    return acc;
+  }, []);
+}
+
 function collectAncestorIds(items: MenuItem[], pathname: string, trail: string[] = []): string[] {
   for (const item of items) {
     const nextTrail = [...trail, item.id];
@@ -131,8 +143,8 @@ function MenuNode({ item, depth, pathname, openSections, onToggle, onNavigate, f
             'group flex w-full items-center gap-2 rounded-xl py-1.5 text-left transition-all duration-200',
             isCollapsed && depth === 0 ? 'justify-center px-1.5' : depthClass,
             isBranchActive
-              ? 'text-primary-800 hover:bg-slate-100'
-              : 'text-slate-600 hover:bg-slate-100 hover:text-slate-950'
+              ? 'text-primary-800 hover:bg-slate-100 dark:text-primary-300 dark:hover:bg-gray-800'
+              : 'text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-100'
           )}
           title={isCollapsed && depth === 0 ? item.label : undefined}
         >
@@ -140,10 +152,10 @@ function MenuNode({ item, depth, pathname, openSections, onToggle, onNavigate, f
             className={cn(
               'flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md transition-colors',
               isBranchActive
-                ? 'bg-primary-100 text-primary-700'
+                ? 'bg-primary-100 text-primary-700 dark:bg-primary-500/15 dark:text-primary-300'
                 : depth === 0
-                  ? 'bg-slate-100 text-slate-600'
-                  : 'bg-slate-100 text-slate-500'
+                  ? 'bg-slate-100 text-slate-600 dark:bg-gray-800 dark:text-gray-400'
+                  : 'bg-slate-100 text-slate-500 dark:bg-gray-800 dark:text-gray-500'
             )}
           >
             <Icon className="h-3 w-3" />
@@ -154,7 +166,7 @@ function MenuNode({ item, depth, pathname, openSections, onToggle, onNavigate, f
                 <p className={cn('break-words font-semibold leading-tight', depth === 0 ? 'text-[0.72rem]' : 'text-[0.68rem]')}>  
                   {item.label}
                 </p>
-                {depth === 0 && <p className="mt-0.5 text-[0.60rem] text-slate-400">Grouped access</p>}
+                {depth === 0 && <p className="mt-0.5 text-[0.60rem] text-slate-400 dark:text-gray-500">Grouped access</p>}
               </div>
               {isOpen ? <FiChevronDown className="h-3.5 w-3.5 flex-shrink-0" /> : <FiChevronRight className="h-3.5 w-3.5 flex-shrink-0" />}
             </>
@@ -189,13 +201,11 @@ function MenuNode({ item, depth, pathname, openSections, onToggle, onNavigate, f
       className={cn(
         'group flex items-center gap-2 rounded-xl py-1.5 transition-all duration-200',
         isCollapsed && depth === 0 ? 'justify-center px-1.5' : depthClass,
-        depth === 1
-          ? isActive
-            ? 'bg-primary-50 text-primary-900 shadow-sm ring-1 ring-primary-100'
-            : 'text-slate-600 hover:bg-slate-100 hover:text-slate-950'
-          : isActive
-            ? 'bg-primary-50 text-primary-900 shadow-sm ring-1 ring-primary-100'
-            : 'text-slate-500 hover:bg-slate-100 hover:text-slate-950'
+        isActive
+          ? 'bg-primary-50 text-primary-900 shadow-sm ring-1 ring-primary-100 dark:bg-primary-500/10 dark:text-primary-200 dark:ring-primary-500/25 dark:shadow-none'
+          : depth === 1
+            ? 'text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-100'
+            : 'text-slate-500 hover:bg-slate-100 hover:text-slate-950 dark:text-gray-500 dark:hover:bg-gray-800 dark:hover:text-gray-100'
       )}
       title={isCollapsed && depth === 0 ? item.label : undefined}
     >
@@ -204,7 +214,7 @@ function MenuNode({ item, depth, pathname, openSections, onToggle, onNavigate, f
           'flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md transition-colors',
           isActive
             ? 'bg-primary-600 text-white'
-            : 'bg-slate-100 text-slate-500'
+            : 'bg-slate-100 text-slate-500 dark:bg-gray-800 dark:text-gray-400'
         )}
       >
         <Icon className="h-3 w-3" />
@@ -232,7 +242,8 @@ export default function Sidebar() {
   const userRole = (user?.role || (isSuperAdmin ? 'super_admin' : null)) as UserRole | null;
   const { isModuleEnabled } = useModuleAccess();
   const sensitiveModules = user?.permissions?.sensitiveModules ?? [];
-  const filteredMenuItems = filterMenuTree(
+  const isMobile = useIsMobile();
+  const roleFiltered = filterMenuTree(
     menuItems,
     searchQuery,
     userRole,
@@ -240,6 +251,10 @@ export default function Sidebar() {
     isModuleEnabled,
     sensitiveModules
   );
+  const footerPaths = new Set(
+    (userRole ? footerNavByRole[userRole] ?? [] : []).map((i) => i.path)
+  );
+  const filteredMenuItems = isMobile ? pruneFooterItems(roleFiltered, footerPaths) : roleFiltered;
 
   useEffect(() => {
     setSubmenuOpen(false);
@@ -288,35 +303,36 @@ export default function Sidebar() {
     <aside
       className={cn(
         'fixed left-0 top-0 z-50 h-screen border-r border-slate-200 bg-white text-slate-900 shadow-[0_24px_80px_rgba(15,23,42,0.12)] transition-[width,transform] duration-200 ease-out',
+        'dark:border-gray-800 dark:bg-gray-900 dark:text-gray-100 dark:shadow-none',
         isDesktopSidebarCollapsed ? 'w-[4.75rem]' : 'w-[16rem]',
         'md:translate-x-0',
         isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'
       )}
     >
       <div className="relative flex h-full flex-col">
-        <div className={cn('flex flex-shrink-0 border-b border-slate-200 py-4', isDesktopSidebarCollapsed ? 'justify-center px-2.5' : 'items-center gap-2.5 px-3')}>
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 ring-1 ring-slate-200">
+        <div className={cn('flex flex-shrink-0 border-b border-slate-200 py-4 dark:border-gray-800', isDesktopSidebarCollapsed ? 'justify-center px-2.5' : 'items-center gap-2.5 px-3')}>
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 ring-1 ring-slate-200 dark:bg-gray-800 dark:ring-gray-700">
             <img src={LOGO_PATH} alt={BRAND_NAME} className="h-7 w-7 object-contain" />
           </div>
           {!isDesktopSidebarCollapsed && (
             <div className="min-w-0">
-              <p className="truncate text-[0.62rem] font-semibold uppercase tracking-[0.22em] text-slate-400">Admin Panel</p>
-              <h1 className="truncate text-[0.95rem] font-semibold text-slate-900">{BRAND_NAME}</h1>
+              <p className="truncate text-[0.62rem] font-semibold uppercase tracking-[0.22em] text-slate-400 dark:text-gray-500">{userRole === 'member' ? 'Member Portal' : 'Admin Panel'}</p>
+              <h1 className="truncate text-[0.95rem] font-semibold text-slate-900 dark:text-gray-100">{BRAND_NAME}</h1>
             </div>
           )}
         </div>
 
         {!isDesktopSidebarCollapsed && (
           <div className="px-2.5 pt-3">
-            <div className="rounded-xl border border-slate-200 bg-slate-50 p-1">
-              <label className="flex items-center gap-2 rounded-lg px-2.5 py-2 text-[0.78rem] text-slate-600">
-                <FiSearch className="h-3.5 w-3.5 text-slate-400" />
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-1 dark:border-gray-700 dark:bg-gray-800/60">
+              <label className="flex items-center gap-2 rounded-lg px-2.5 py-2 text-[0.78rem] text-slate-600 dark:text-gray-300">
+                <FiSearch className="h-3.5 w-3.5 text-slate-400 dark:text-gray-500" />
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(event) => setSearchQuery(event.target.value)}
                   placeholder="Search modules"
-                  className="w-full bg-transparent text-[0.78rem] text-slate-800 placeholder:text-slate-400 focus:outline-none"
+                  className="w-full bg-transparent text-[0.78rem] text-slate-800 placeholder:text-slate-400 focus:outline-none dark:text-gray-100 dark:placeholder:text-gray-500"
                 />
               </label>
             </div>
@@ -341,11 +357,11 @@ export default function Sidebar() {
           </div>
         </nav>
 
-        <div className={cn('flex flex-shrink-0 border-t border-slate-200 py-3', isDesktopSidebarCollapsed ? 'justify-center px-2.5' : 'items-center justify-between px-3')}>
+        <div className={cn('flex flex-shrink-0 border-t border-slate-200 py-3 dark:border-gray-800', isDesktopSidebarCollapsed ? 'justify-center px-2.5' : 'items-center justify-between px-3')}>
           {!isDesktopSidebarCollapsed && (
             <div>
-              <p className="text-[0.62rem] uppercase tracking-[0.18em] text-slate-400">Status</p>
-              <p className="mt-1 text-[0.78rem] font-medium text-slate-700">{isOnline ? 'Connected' : 'Offline mode'}</p>
+              <p className="text-[0.62rem] uppercase tracking-[0.18em] text-slate-400 dark:text-gray-500">Status</p>
+              <p className="mt-1 text-[0.78rem] font-medium text-slate-700 dark:text-gray-300">{isOnline ? 'Connected' : 'Offline mode'}</p>
             </div>
           )}
           <span

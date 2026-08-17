@@ -6,7 +6,7 @@ import { z } from 'zod';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Card from '@/components/ui/Card';
-import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { PageSkeleton } from '@/components/ui/Skeleton';
 import SearchableSelect from '@/components/ui/SearchableSelect';
 import QuickAddMember from '@/components/quick-add/QuickAddMember';
 import { libraryService, LibraryBook } from '@/services/libraryService';
@@ -117,7 +117,7 @@ export default function IssueCreate() {
     }
   };
 
-  if (loadingBooks || loadingMembers) return <LoadingSpinner />;
+  if (loadingBooks || loadingMembers) return <PageSkeleton />;
 
   return (
     <div className="space-y-4">

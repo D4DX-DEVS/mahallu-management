@@ -4,7 +4,7 @@ import { FiEdit2, FiArrowLeft, FiTrash2, FiPlus, FiEye, FiUpload } from 'react-i
 import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
-import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { PageSkeleton } from '@/components/ui/Skeleton';
 import Modal from '@/components/ui/Modal';
 import Table from '@/components/ui/Table';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
@@ -85,9 +85,7 @@ export default function FamilyDetail() {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <LoadingSpinner />
-      </div>
+      <PageSkeleton />
     );
   }
 

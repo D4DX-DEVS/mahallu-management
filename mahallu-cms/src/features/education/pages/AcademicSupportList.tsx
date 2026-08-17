@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import Pagination from '@/components/ui/Pagination';
-import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { PageSkeleton } from '@/components/ui/Skeleton';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import EmptyState from '@/components/ui/EmptyState';
 import { toast } from '@/store/toastStore';
@@ -118,9 +118,7 @@ export default function AcademicSupportList() {
           </div>
 
           {loading ? (
-            <div className="flex justify-center py-8">
-              <LoadingSpinner />
-            </div>
+            <PageSkeleton variant="section" />
           ) : cases.length === 0 ? (
             <EmptyState
               title="No support cases found"

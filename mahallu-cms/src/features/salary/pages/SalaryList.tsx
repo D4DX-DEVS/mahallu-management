@@ -7,7 +7,7 @@ import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
-import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { PageSkeleton } from '@/components/ui/Skeleton';
 import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
 import { TableColumn, Pagination as PaginationType } from '@/types';
@@ -125,7 +125,7 @@ export default function SalaryList() {
           </div>
           <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Salary' }]} />
         </div>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           <StatCard title="Total Payments" value={pagination?.total || payments.length} icon={<FiDollarSign className="h-5 w-5" />} />
           <StatCard title="Total Paid" value={`₹${totalPaid.toLocaleString()}`} icon={<FiCheckCircle className="h-5 w-5" />} />
           <StatCard title="Total Pending" value={`₹${totalPending.toLocaleString()}`} icon={<FiClock className="h-5 w-5" />} />
@@ -169,7 +169,7 @@ export default function SalaryList() {
         )}
 
         {loading ? (
-          <div className="flex justify-center items-center py-12"><LoadingSpinner /></div>
+          <PageSkeleton variant="section" />
         ) : error ? (
           <div className="text-center py-12">
             <p className="text-red-600 dark:text-red-400">{error}</p>

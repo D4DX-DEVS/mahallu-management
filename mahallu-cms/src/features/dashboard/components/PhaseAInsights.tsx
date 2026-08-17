@@ -28,7 +28,7 @@ export default function PhaseAInsights() {
   return (
     <div className="space-y-3">
       {(surveyOverdue || expiringCommittees > 0) && (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-2">
           {surveyOverdue && (
             <Link to="/survey">
               <Card className="border-l-4 border-amber-500 p-3">

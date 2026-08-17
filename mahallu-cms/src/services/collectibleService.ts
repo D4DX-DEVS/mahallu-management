@@ -10,6 +10,8 @@ export interface Varisangya {
   paymentMethod?: string;
   receiptNo?: string;
   remarks?: string;
+  status?: 'pending' | 'verified';
+  source?: 'admin' | 'member';
   createdAt: string;
 }
 
@@ -24,6 +26,8 @@ export interface Zakat {
   receiptNo?: string;
   category?: string;
   remarks?: string;
+  status?: 'pending' | 'verified';
+  source?: 'admin' | 'member';
   createdAt: string;
 }
 
@@ -70,16 +74,19 @@ export interface DuesSummary {
 }
 
 export const collectibleService = {
-  getFamilyDues: async (params?: { search?: string; onlyPending?: boolean }) => {
-    const response = await api.get<{ success: boolean; data: { dues: FamilyDue[]; summary: DuesSummary } }>(
-      '/collectibles/dues',
-      { params: { ...params, onlyPending: params?.onlyPending ? 'true' : undefined } }
-    );
-    return response.data.data;
+  getFamilyDues: async (params?: { search?: string; onlyPending?: boolean; page?: number; limit?: number }) => {
+    const response = await api.get<{
+      success: boolean;
+      data: { dues: FamilyDue[]; summary: DuesSummary };
+      pagination?: { page: number; limit: number; total: number; totalPages: number };
+    }>('/collectibles/dues', {
+      params: { ...params, onlyPending: params?.onlyPending ? 'true' : undefined },
+    });
+    return { ...response.data.data, pagination: response.data.pagination ?? null };
   },
 
   // Varisangya
-  getAllVarisangyas: async (params?: { familyId?: string; memberId?: string; page?: number; limit?: number; dateFrom?: string; dateTo?: string }) => {
+  getAllVarisangyas: async (params?: { familyId?: string; memberId?: string; hasFamily?: boolean; hasMember?: boolean; page?: number; limit?: number; dateFrom?: string; dateTo?: string }) => {
     const response = await api.get<{ success: boolean; data: Varisangya[]; pagination?: any }>('/collectibles/varisangya', { params });
     // Handle both paginated and non-paginated responses
     if (response.data.pagination) {
@@ -101,6 +108,11 @@ export const collectibleService = {
   deleteVarisangya: async (id: string) => {
     const response = await api.delete<{ success: boolean; message: string }>(`/collectibles/varisangya/${id}`);
     return response.data;
+  },
+
+  verifyVarisangya: async (id: string) => {
+    const response = await api.put<{ success: boolean; data: Varisangya }>(`/collectibles/varisangya/${id}/verify`, {});
+    return response.data.data;
   },
 
   getNextReceiptNo: async (type: 'varisangya' | 'zakat') => {
@@ -134,6 +146,11 @@ export const collectibleService = {
   deleteZakat: async (id: string) => {
     const response = await api.delete<{ success: boolean; message: string }>(`/collectibles/zakat/${id}`);
     return response.data;
+  },
+
+  verifyZakat: async (id: string) => {
+    const response = await api.put<{ success: boolean; data: Zakat }>(`/collectibles/zakat/${id}/verify`, {});
+    return response.data.data;
   },
 
   // Wallet – API returns MongoDB docs with _id; normalize to id for frontend

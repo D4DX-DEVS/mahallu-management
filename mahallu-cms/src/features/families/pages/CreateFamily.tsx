@@ -9,7 +9,6 @@ import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
-import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import QuickAddTenantSetting from '@/components/quick-add/QuickAddTenantSetting';
 import QuickAddVarisangyaGrade from '@/components/quick-add/QuickAddVarisangyaGrade';
 import { ROUTES } from '@/constants/routes';

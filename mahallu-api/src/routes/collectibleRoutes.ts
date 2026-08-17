@@ -12,6 +12,8 @@ import {
   deleteZakat,
   getWallet,
   getWalletTransactions,
+  verifyVarisangya,
+  verifyZakat,
 } from '../controllers/collectibleController';
 import { authMiddleware, allowRoles } from '../middleware/authMiddleware';
 import { tenantMiddleware, tenantFilter } from '../middleware/tenantMiddleware';
@@ -163,6 +165,7 @@ router.get('/dues', getFamilyDues);
  *         $ref: '#/components/responses/Unauthorized'
  */
 router.post('/varisangya', createVarisangyaValidation, validationHandler, createVarisangya);
+router.put('/varisangya/:id/verify', allowRoles(['super_admin', 'mahall']), verifyVarisangya);
 router.put('/varisangya/:id', updateVarisangyaValidation, validationHandler, updateVarisangya);
 router.delete('/varisangya/:id', deleteVarisangya);
 
@@ -297,6 +300,7 @@ router.get('/zakat', getAllZakats);
  *         $ref: '#/components/responses/Unauthorized'
  */
 router.post('/zakat', createZakatValidation, validationHandler, createZakat);
+router.put('/zakat/:id/verify', allowRoles(['super_admin', 'mahall']), verifyZakat);
 router.put('/zakat/:id', updateZakat);
 router.delete('/zakat/:id', deleteZakat);
 

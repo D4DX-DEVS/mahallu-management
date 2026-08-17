@@ -4,7 +4,7 @@ import { getHealthResources, deleteHealthResource, IHealthResource } from '@/ser
 import Pagination from '@/components/ui/Pagination';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
-import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { PageSkeleton } from '@/components/ui/Skeleton';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { toast } from '@/store/toastStore';
 import { useNavigate } from 'react-router-dom';
@@ -64,7 +64,7 @@ export default function DoctorsDirectory() {
   };
 
   if (loading) {
-    return <LoadingSpinner />;
+    return <PageSkeleton />;
   }
 
   return (

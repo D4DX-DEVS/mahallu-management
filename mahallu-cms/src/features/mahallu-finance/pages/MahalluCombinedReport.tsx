@@ -4,9 +4,10 @@ import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
-import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { PageSkeleton } from '@/components/ui/Skeleton';
 import { accountingReportService, DayBookEntry, TrialBalanceEntry } from '@/services/accountingReportService';
 import { instituteService } from '@/services/instituteService';
+import { FiHome, FiBook } from 'react-icons/fi';
 
 type ReportType = 'day-book' | 'trial-balance' | 'balance-sheet' | 'income-expenditure';
 
@@ -124,7 +125,7 @@ export default function MahalluCombinedReport() {
                   : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:border-indigo-400'
               }`}
             >
-              🏛️ Mahallu (Main)
+              <span className="inline-flex items-center gap-1.5"><FiHome className="h-3.5 w-3.5" /> Mahallu (Main)</span>
             </button>
             {/* Institute chips */}
             {institutes.map(inst => (
@@ -137,7 +138,7 @@ export default function MahalluCombinedReport() {
                     : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:border-blue-400'
                 }`}
               >
-                🏫 {inst.name}
+                <span className="inline-flex items-center gap-1.5"><FiBook className="h-3.5 w-3.5" /> {inst.name}</span>
               </button>
             ))}
           </div>
@@ -154,7 +155,7 @@ export default function MahalluCombinedReport() {
       </Card>
 
       {/* Results */}
-      {loading && <div className="flex justify-center py-12"><LoadingSpinner /></div>}
+      {loading && <PageSkeleton variant="section" />}
 
       {error && <Card><p className="text-center py-8 text-red-600">{error}</p></Card>}
 

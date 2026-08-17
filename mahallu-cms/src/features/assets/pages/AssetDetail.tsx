@@ -4,7 +4,7 @@ import { FiEdit2, FiArrowLeft, FiPlus, FiTrash2, FiTool } from 'react-icons/fi';
 import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
-import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { PageSkeleton } from '@/components/ui/Skeleton';
 import Modal from '@/components/ui/Modal';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import Table from '@/components/ui/Table';
@@ -218,9 +218,7 @@ export default function AssetDetail() {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <LoadingSpinner />
-      </div>
+      <PageSkeleton />
     );
   }
 
@@ -349,9 +347,7 @@ export default function AssetDetail() {
         </div>
 
         {maintenanceLoading ? (
-          <div className="flex justify-center items-center py-8">
-            <LoadingSpinner />
-          </div>
+          <PageSkeleton variant="section" />
         ) : (
           <Table
             columns={maintenanceColumns}

@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import Pagination from '@/components/ui/Pagination';
-import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { PageSkeleton } from '@/components/ui/Skeleton';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import EmptyState from '@/components/ui/EmptyState';
 import { toast } from '@/store/toastStore';
@@ -107,9 +107,7 @@ export default function AwardsList() {
           </div>
 
           {loading ? (
-            <div className="flex justify-center py-8">
-              <LoadingSpinner />
-            </div>
+            <PageSkeleton variant="section" />
           ) : awards.length === 0 ? (
             <EmptyState
               title="No awards found"

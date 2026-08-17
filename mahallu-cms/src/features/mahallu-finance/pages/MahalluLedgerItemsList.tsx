@@ -8,7 +8,7 @@ import Modal from '@/components/ui/Modal';
 import Select from '@/components/ui/Select';
 import Table from '@/components/ui/Table';
 import Pagination from '@/components/ui/Pagination';
-import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { PageSkeleton } from '@/components/ui/Skeleton';
 import TableToolbar from '@/components/ui/TableToolbar';
 import { TableColumn, Pagination as PaginationType } from '@/types';
 import { masterAccountService, LedgerItem, Ledger } from '@/services/masterAccountService';
@@ -148,7 +148,7 @@ export default function MahalluLedgerItemsList() {
           isExporting={isExporting}
           actionButtons={<Button onClick={() => navigate(ROUTES.MAHALLU_FINANCE.LEDGER_ITEMS_CREATE)} size="sm"><FiFileMinus className="h-4 w-4 mr-2" />Add Entry</Button>}
         />
-        {loading ? <div className="flex justify-center py-12"><LoadingSpinner /></div>
+        {loading ? <PageSkeleton variant="section" />
           : error ? <p className="text-center py-8 text-red-600">{error}</p>
           : <>
             <Table columns={columns} data={filtered} emptyMessage="No entries found" />

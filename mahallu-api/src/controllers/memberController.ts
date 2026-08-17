@@ -36,6 +36,13 @@ export const getAllMembers = async (req: AuthRequest, res: Response) => {
 
     if (familyId) query.familyId = familyId;
     if (gender) query.gender = gender;
+    if (req.query.institutionId) query.educationInstitutionId = req.query.institutionId;
+    if (req.query.localityFacilityId) query.localityFacilityId = req.query.localityFacilityId;
+    if (req.query.unenrolled === 'true') {
+      // Students/children with no institution linkage
+      query.educationInstitutionId = { $exists: false };
+      query.localityFacilityId = { $exists: false };
+    }
     if (search) {
       query.$or = [
         { name: { $regex: search, $options: 'i' } },

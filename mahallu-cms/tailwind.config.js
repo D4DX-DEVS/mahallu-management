@@ -33,6 +33,14 @@ export default {
           900: '#713f12',
         },
       },
+      keyframes: {
+        shimmer: {
+          '100%': { transform: 'translateX(100%)' },
+        },
+      },
+      animation: {
+        shimmer: 'shimmer 1.6s infinite',
+      },
       fontFamily: {
         // Noto Sans Malayalam sits behind Inter so Malayalam glyphs render
         // properly everywhere without changing Latin text.

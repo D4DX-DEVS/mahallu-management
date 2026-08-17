@@ -13,11 +13,14 @@ export interface IMember extends Document {
   healthStatus?: string;
   phone?: string;
   education?: string;
+  educationInstitutionId?: mongoose.Types.ObjectId; // Institute the member studies in (madrasa etc.)
+  localityFacilityId?: mongoose.Types.ObjectId; // External school/college from the locality registry
   maritalStatus?: 'single' | 'married' | 'divorced' | 'widowed';
   marriageCount?: number;
   isOrphan?: boolean;
   isDead?: boolean;
   isFamilyHead?: boolean;
+  relationship?: 'head' | 'spouse' | 'son' | 'daughter' | 'father' | 'mother' | 'other';
   // Socio-economic profile (spec 5/7) - all optional, older documents stay valid
   occupation?: string;
   occupationSector?: 'government' | 'private' | 'self_employed' | 'abroad' | 'unemployed' | 'student' | 'homemaker' | 'retired' | 'none';
@@ -92,6 +95,16 @@ const MemberSchema = new Schema<IMember>(
       type: String,
       trim: true,
     },
+    educationInstitutionId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Institute',
+      index: true,
+    },
+    localityFacilityId: {
+      type: Schema.Types.ObjectId,
+      ref: 'LocalityFacility',
+      index: true,
+    },
     maritalStatus: {
       type: String,
       enum: ['single', 'married', 'divorced', 'widowed'],
@@ -114,6 +127,10 @@ const MemberSchema = new Schema<IMember>(
       type: Boolean,
       default: false,
       index: true,
+    },
+    relationship: {
+      type: String,
+      enum: ['head', 'spouse', 'son', 'daughter', 'father', 'mother', 'other'],
     },
     occupation: {
       type: String,

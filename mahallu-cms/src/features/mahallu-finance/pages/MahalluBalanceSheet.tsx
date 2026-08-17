@@ -3,7 +3,7 @@ import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
-import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { PageSkeleton } from '@/components/ui/Skeleton';
 import { accountingReportService, BalanceSheetData } from '@/services/accountingReportService';
 
 export default function MahalluBalanceSheet() {
@@ -44,7 +44,7 @@ export default function MahalluBalanceSheet() {
         </div>
 
         {loading ? (
-          <div className="flex justify-center py-12"><LoadingSpinner /></div>
+          <PageSkeleton variant="section" />
         ) : error ? (
           <p className="text-center py-8 text-red-600">{error}</p>
         ) : !data ? (

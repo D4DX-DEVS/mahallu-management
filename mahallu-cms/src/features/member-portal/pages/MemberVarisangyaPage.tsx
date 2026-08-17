@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { FiArrowLeft, FiCalendar } from 'react-icons/fi';
 import Card from '@/components/ui/Card';
-import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { PageSkeleton } from '@/components/ui/Skeleton';
 import {
   memberPortalService,
   MemberVarisangyaResponse,
@@ -163,9 +163,7 @@ export default function MemberVarisangyaPage() {
       {/* Content */}
       <Card>
         {loading ? (
-          <div className="flex justify-center py-12">
-            <LoadingSpinner />
-          </div>
+          <PageSkeleton variant="section" />
         ) : error ? (
           <p className="text-center py-8 text-red-500 dark:text-red-400 text-sm">{error}</p>
         ) : (

@@ -12,6 +12,12 @@ export const ROUTES = {
     NOC_REQUEST: '/member/noc/request',
     NOC_LIST: '/member/noc',
     PAYMENTS: '/member/payments',
+    NIKAH_REQUEST: '/member/nikah/request',
+    DEATH_REQUEST: '/member/death/request',
+    REQUESTS: '/member/requests',
+    CERTIFICATES: '/member/certificates',
+    PROFILE: '/member/profile',
+    FAMILY: '/member/family',
   },
   
   // Users
@@ -98,6 +104,14 @@ export const ROUTES = {
       NIKAH: '/registrations/noc/nikah',
     },
   },
+
+  // Certificates
+  CERTIFICATES: {
+    LIST: '/admin/certificates',
+  },
+
+  // Change Requests
+  CHANGE_REQUESTS: '/admin/change-requests',
   
   // Collectibles
   COLLECTIBLES: {
@@ -172,6 +186,7 @@ export const ROUTES = {
     AREA: '/reports/area',
     BLOOD_BANK: '/reports/blood-bank',
     ORPHANS: '/reports/orphans',
+    DATA_QUALITY: '/admin/data-quality',
   },
   
   // Mahall Main

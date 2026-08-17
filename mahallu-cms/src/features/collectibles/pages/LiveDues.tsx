@@ -3,9 +3,9 @@ import { FiAlertCircle, FiCheckCircle, FiDollarSign, FiHome } from 'react-icons/
 import Card from '@/components/ui/Card';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
-import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
-import { TableColumn } from '@/types';
+import { TableColumn, Pagination as PaginationType } from '@/types';
 import { collectibleService, FamilyDue } from '@/services/collectibleService';
 import { useDebounce } from '@/hooks/useDebounce';
 import { exportToCSV } from '@/utils/exportUtils';
@@ -23,8 +23,16 @@ export default function LiveDues() {
   } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [pagination, setPagination] = useState<PaginationType | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(20);
 
   const debouncedSearch = useDebounce(searchQuery, 500);
+
+  // A new search/filter invalidates the current page offset
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearch, onlyPending]);
 
   useEffect(() => {
     const fetchDues = async () => {
@@ -34,9 +42,12 @@ export default function LiveDues() {
         const result = await collectibleService.getFamilyDues({
           search: debouncedSearch || undefined,
           onlyPending,
+          page: currentPage,
+          limit: itemsPerPage,
         });
         setDues(result.dues);
         setSummary(result.summary);
+        setPagination(result.pagination);
       } catch (err: any) {
         setError(err.response?.data?.message || 'Failed to load dues');
       } finally {
@@ -44,10 +55,11 @@ export default function LiveDues() {
       }
     };
     fetchDues();
-  }, [debouncedSearch, onlyPending]);
+  }, [debouncedSearch, onlyPending, currentPage, itemsPerPage]);
 
   const columns: TableColumn<FamilyDue>[] = [
-    { key: 'familyId', label: 'No.', render: (_, __, index) => index + 1 },
+    // Row number must account for the page offset, not just the index in the slice
+    { key: 'familyId', label: 'No.', render: (_, __, index) => (currentPage - 1) * itemsPerPage + index + 1 },
     { key: 'houseName', label: 'House Name' },
     { key: 'familyHead', label: 'Family Head', render: (v) => v || '-' },
     { key: 'varisangyaGrade', label: 'Grade', render: (v) => v || '-' },
@@ -76,8 +88,14 @@ export default function LiveDues() {
     { key: 'dueAmount', label: 'Due' },
   ];
 
-  const handleExport = (_type?: 'csv' | 'json' | 'pdf') => {
-    exportToCSV(exportColumns, dues, 'varisangya-dues');
+  // Export covers every matching row, not just the page on screen
+  const handleExport = async (_type?: 'csv' | 'json' | 'pdf') => {
+    const all = await collectibleService.getFamilyDues({
+      search: debouncedSearch || undefined,
+      onlyPending,
+      limit: 10000,
+    });
+    exportToCSV(exportColumns, all.dues, 'varisangya-dues');
   };
 
   return (
@@ -124,10 +142,21 @@ export default function LiveDues() {
           </div>
         )}
 
-        {loading ? (
-          <LoadingSpinner />
-        ) : (
-          <Table columns={columns} data={dues} emptyMessage="No dues found" showExport={false} />
+        <Table columns={columns} data={dues} isLoading={loading} emptyMessage="No dues found" showExport={false} />
+        {pagination && pagination.totalPages > 1 && (
+          <div className="mt-4">
+            <Pagination
+              currentPage={pagination.page}
+              totalPages={pagination.totalPages}
+              totalItems={pagination.total}
+              itemsPerPage={pagination.limit}
+              onPageChange={setCurrentPage}
+              onItemsPerPageChange={(items) => {
+                setItemsPerPage(items);
+                setCurrentPage(1);
+              }}
+            />
+          </div>
         )}
       </Card>
     </div>

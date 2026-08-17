@@ -4,7 +4,7 @@ import { FiEdit2, FiArrowLeft, FiCalendar } from 'react-icons/fi';
 import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
-import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { PageSkeleton } from '@/components/ui/Skeleton';
 import Table from '@/components/ui/Table';
 import { TableColumn } from '@/types';
 import { Committee, Member } from '@/types';
@@ -54,9 +54,7 @@ export default function CommitteeDetail() {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <LoadingSpinner />
-      </div>
+      <PageSkeleton />
     );
   }
 

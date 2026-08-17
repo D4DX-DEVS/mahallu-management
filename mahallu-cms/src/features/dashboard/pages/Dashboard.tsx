@@ -6,7 +6,7 @@ import StatCard from '@/components/ui/StatCard';
 import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import PhaseAInsights from '../components/PhaseAInsights';
-import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { PageSkeleton } from '@/components/ui/Skeleton';
 import { dashboardService, DashboardStats, RecentFamily, ActivityTimelineData, FinancialSummary } from '@/services/dashboardService';
 import { ROUTES } from '@/constants/routes';
 import { formatDate } from '@/utils/format';
@@ -116,9 +116,7 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-[calc(100vh-100px)]">
-        <LoadingSpinner />
-      </div>
+      <PageSkeleton />
     );
   }
 
@@ -150,7 +148,7 @@ export default function Dashboard() {
       <PhaseAInsights />
 
       {/* Statistics Cards */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {statCards.map((stat, index) => (
           <StatCard key={index} {...stat} />
         ))}

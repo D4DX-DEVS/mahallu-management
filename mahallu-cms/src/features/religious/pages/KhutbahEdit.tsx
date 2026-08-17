@@ -9,7 +9,7 @@ import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
-import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { PageSkeleton } from '@/components/ui/Skeleton';
 import { ROUTES } from '@/constants/routes';
 import { religiousService, KHUTBAH_STATUS_OPTIONS } from '@/services/religiousService';
 import { Khateeb } from '@/services/religiousService';
@@ -99,7 +99,7 @@ export default function KhutbahEdit() {
     }
   };
 
-  if (loading) return <LoadingSpinner />;
+  if (loading) return <PageSkeleton />;
 
   const khateebOptions = khateebs.map((k) => ({
     value: k._id,

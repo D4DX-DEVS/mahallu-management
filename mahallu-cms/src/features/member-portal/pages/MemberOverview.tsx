@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Card from '@/components/ui/Card';
-import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { FiHeart, FiAlertCircle, FiClipboard, FiFileText, FiUser, FiUsers } from 'react-icons/fi';
+import { PageSkeleton } from '@/components/ui/Skeleton';
 import { memberPortalService, MemberOverviewResponse } from '@/services/memberPortalService';
 import { ROUTES } from '@/constants/routes';
 
@@ -30,9 +31,7 @@ export default function MemberOverview() {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-[calc(100vh-140px)]">
-        <LoadingSpinner />
-      </div>
+      <PageSkeleton />
     );
   }
 
@@ -48,67 +47,118 @@ export default function MemberOverview() {
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">My Dashboard</h1>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-        <Card>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Mahallu Users</p>
-          <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100">{overview.mahalluStatistics.users}</p>
+      <div className="grid grid-cols-3 gap-2 sm:gap-4">
+        <Card padding="sm">
+          <p className="text-[0.68rem] sm:text-sm text-gray-500 dark:text-gray-400 leading-tight">Mahallu Users</p>
+          <p className="text-xl sm:text-2xl font-semibold text-gray-900 dark:text-gray-100">{overview.mahalluStatistics.users}</p>
         </Card>
-        <Card>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Mahallu Families</p>
-          <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100">{overview.mahalluStatistics.families}</p>
+        <Card padding="sm">
+          <p className="text-[0.68rem] sm:text-sm text-gray-500 dark:text-gray-400 leading-tight">Mahallu Families</p>
+          <p className="text-xl sm:text-2xl font-semibold text-gray-900 dark:text-gray-100">{overview.mahalluStatistics.families}</p>
         </Card>
-        <Card>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Mahallu Members</p>
-          <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100">{overview.mahalluStatistics.members}</p>
-        </Card>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card>
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">My Details</h2>
-          <div className="space-y-2 text-sm">
-            <p><span className="text-gray-500 dark:text-gray-400">Name:</span> <span className="text-gray-900 dark:text-gray-100">{overview.member.name}</span></p>
-            <p><span className="text-gray-500 dark:text-gray-400">Phone:</span> <span className="text-gray-900 dark:text-gray-100">{overview.member.phone || '-'}</span></p>
-            <p><span className="text-gray-500 dark:text-gray-400">Member ID:</span> <span className="text-gray-900 dark:text-gray-100">{overview.varusankhyaDetails.memberMahallId || '-'}</span></p>
-          </div>
-        </Card>
-
-        <Card>
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">Family Details</h2>
-          <div className="space-y-2 text-sm">
-            <p><span className="text-gray-500 dark:text-gray-400">House Name:</span> <span className="text-gray-900 dark:text-gray-100">{overview.family.details?.houseName || '-'}</span></p>
-            <p><span className="text-gray-500 dark:text-gray-400">Family ID:</span> <span className="text-gray-900 dark:text-gray-100">{overview.varusankhyaDetails.familyMahallId || '-'}</span></p>
-            <p><span className="text-gray-500 dark:text-gray-400">Varisangya Grade:</span> <span className="text-gray-900 dark:text-gray-100">{overview.varusankhyaDetails.varisangyaGrade || '-'}</span></p>
-            <p><span className="text-gray-500 dark:text-gray-400">Contact:</span> <span className="text-gray-900 dark:text-gray-100">{overview.family.details?.contactNo || '-'}</span></p>
-          </div>
+        <Card padding="sm">
+          <p className="text-[0.68rem] sm:text-sm text-gray-500 dark:text-gray-400 leading-tight">Mahallu Members</p>
+          <p className="text-xl sm:text-2xl font-semibold text-gray-900 dark:text-gray-100">{overview.mahalluStatistics.members}</p>
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card>
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">Family Financial Summary</h2>
-          <div className="space-y-2 text-sm">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+        <Link to={ROUTES.MEMBER.PROFILE}>
+          <Card className="h-full cursor-pointer hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100">My Details</h2>
+              <span className="text-primary-600 dark:text-primary-400 text-sm">→</span>
+            </div>
+            <div className="space-y-2 text-sm">
+              <p><span className="text-gray-500 dark:text-gray-400">Name:</span> <span className="text-gray-900 dark:text-gray-100">{overview.member.name}</span></p>
+              {overview.member.phone && <p><span className="text-gray-500 dark:text-gray-400">Phone:</span> <span className="text-gray-900 dark:text-gray-100">{overview.member.phone}</span></p>}
+              {overview.varusankhyaDetails.memberMahallId && <p><span className="text-gray-500 dark:text-gray-400">Member ID:</span> <span className="text-gray-900 dark:text-gray-100">{overview.varusankhyaDetails.memberMahallId}</span></p>}
+            </div>
+          </Card>
+        </Link>
+
+        <Link to={ROUTES.MEMBER.FAMILY}>
+          <Card className="h-full cursor-pointer hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100">Family Details</h2>
+              <span className="text-primary-600 dark:text-primary-400 text-sm">→</span>
+            </div>
+            <div className="space-y-2 text-sm">
+              {overview.family.details?.houseName && <p><span className="text-gray-500 dark:text-gray-400">House Name:</span> <span className="text-gray-900 dark:text-gray-100">{overview.family.details.houseName}</span></p>}
+              {overview.varusankhyaDetails.familyMahallId && <p><span className="text-gray-500 dark:text-gray-400">Family ID:</span> <span className="text-gray-900 dark:text-gray-100">{overview.varusankhyaDetails.familyMahallId}</span></p>}
+              {overview.varusankhyaDetails.varisangyaGrade && <p><span className="text-gray-500 dark:text-gray-400">Varisangya Grade:</span> <span className="text-gray-900 dark:text-gray-100">{overview.varusankhyaDetails.varisangyaGrade}</span></p>}
+              {overview.family.details?.contactNo && <p><span className="text-gray-500 dark:text-gray-400">Contact:</span> <span className="text-gray-900 dark:text-gray-100">{overview.family.details.contactNo}</span></p>}
+            </div>
+          </Card>
+        </Link>
+      </div>
+
+      <Link to={ROUTES.MEMBER.VARISANGYA} className="block">
+        <Card className="cursor-pointer hover:shadow-md transition-shadow">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100">Family Financial Summary</h2>
+            <span className="text-primary-600 dark:text-primary-400 text-sm">→</span>
+          </div>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
             <p><span className="text-gray-500 dark:text-gray-400">Varisangya Total:</span> <span className="text-gray-900 dark:text-gray-100">{currency.format(overview.family.financialSummary.varisangyaTotal || 0)}</span></p>
             <p><span className="text-gray-500 dark:text-gray-400">Varisangya Count:</span> <span className="text-gray-900 dark:text-gray-100">{overview.family.financialSummary.varisangyaCount}</span></p>
             <p><span className="text-gray-500 dark:text-gray-400">Zakat Total:</span> <span className="text-gray-900 dark:text-gray-100">{currency.format(overview.family.financialSummary.zakatTotal || 0)}</span></p>
             <p><span className="text-gray-500 dark:text-gray-400">Zakat Count:</span> <span className="text-gray-900 dark:text-gray-100">{overview.family.financialSummary.zakatCount}</span></p>
-          </div>
-          <div className="mt-4 pt-3 border-t border-gray-100 dark:border-gray-800">
-            <Link
-              to={ROUTES.MEMBER.VARISANGYA}
-              className="text-sm text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 font-medium"
-            >
-              View All Varisangya →
-            </Link>
-          </div>
-        </Card>
-
-        <Card>
-          <div className="space-y-2 text-sm">
             <p><span className="text-gray-500 dark:text-gray-400">Latest Varisangya Receipt:</span> <span className="text-gray-900 dark:text-gray-100">{overview.varusankhyaDetails.latestVarisangyaReceiptNo || '-'}</span></p>
             <p><span className="text-gray-500 dark:text-gray-400">Latest Zakat Receipt:</span> <span className="text-gray-900 dark:text-gray-100">{overview.varusankhyaDetails.latestZakatReceiptNo || '-'}</span></p>
           </div>
         </Card>
+      </Link>
+
+      {/* Quick Actions */}
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
+        <Link to={ROUTES.MEMBER.NIKAH_REQUEST}>
+          <Card className="h-full cursor-pointer hover:shadow-md transition-shadow">
+            <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-xl bg-primary-50 text-primary-600 dark:bg-primary-500/10 dark:text-primary-300"><FiHeart className="h-5 w-5" /></div>
+            <h3 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-gray-100">Nikah Registration</h3>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Register a marriage</p>
+          </Card>
+        </Link>
+
+        <Link to={ROUTES.MEMBER.DEATH_REQUEST}>
+          <Card className="h-full cursor-pointer hover:shadow-md transition-shadow">
+            <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-xl bg-primary-50 text-primary-600 dark:bg-primary-500/10 dark:text-primary-300"><FiAlertCircle className="h-5 w-5" /></div>
+            <h3 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-gray-100">Report Death</h3>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Report a death in family</p>
+          </Card>
+        </Link>
+
+        <Link to={ROUTES.MEMBER.REQUESTS}>
+          <Card className="h-full cursor-pointer hover:shadow-md transition-shadow">
+            <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-xl bg-primary-50 text-primary-600 dark:bg-primary-500/10 dark:text-primary-300"><FiClipboard className="h-5 w-5" /></div>
+            <h3 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-gray-100">My Requests</h3>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">View all registrations</p>
+          </Card>
+        </Link>
+
+        <Link to={ROUTES.MEMBER.CERTIFICATES}>
+          <Card className="h-full cursor-pointer hover:shadow-md transition-shadow">
+            <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-xl bg-primary-50 text-primary-600 dark:bg-primary-500/10 dark:text-primary-300"><FiFileText className="h-5 w-5" /></div>
+            <h3 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-gray-100">Certificates</h3>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Approved certificates</p>
+          </Card>
+        </Link>
+
+        <Link to={ROUTES.MEMBER.PROFILE}>
+          <Card className="h-full cursor-pointer hover:shadow-md transition-shadow">
+            <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-xl bg-primary-50 text-primary-600 dark:bg-primary-500/10 dark:text-primary-300"><FiUser className="h-5 w-5" /></div>
+            <h3 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-gray-100">My Profile</h3>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Edit your details</p>
+          </Card>
+        </Link>
+
+        <Link to={ROUTES.MEMBER.FAMILY}>
+          <Card className="h-full cursor-pointer hover:shadow-md transition-shadow">
+            <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-xl bg-primary-50 text-primary-600 dark:bg-primary-500/10 dark:text-primary-300"><FiUsers className="h-5 w-5" /></div>
+            <h3 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-gray-100">My Family</h3>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Family details</p>
+          </Card>
+        </Link>
       </div>
 
       <Card>

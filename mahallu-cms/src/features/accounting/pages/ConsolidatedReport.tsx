@@ -3,7 +3,7 @@ import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
-import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { PageSkeleton } from '@/components/ui/Skeleton';
 import { accountingReportService } from '@/services/accountingReportService';
 
 interface InstituteRow {
@@ -66,7 +66,7 @@ export default function ConsolidatedReport() {
         </div>
 
         {loading ? (
-          <div className="flex justify-center items-center py-12"><LoadingSpinner /></div>
+          <PageSkeleton variant="section" />
         ) : error ? (
           <div className="text-center py-12"><p className="text-red-600 dark:text-red-400">{error}</p></div>
         ) : !reportData ? (

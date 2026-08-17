@@ -99,6 +99,98 @@ export interface RegistrationsResponse {
   noc: any[];
 }
 
+export interface NikahRegistration {
+  _id: string;
+  mahallMemberType: 'groom' | 'bride';
+  subjectMemberId?: string;
+  groomName: string;
+  groomAge?: number;
+  brideName: string;
+  brideAge?: number;
+  nikahDate: string;
+  venue: string;
+  waliName: string;
+  witness1: string;
+  witness2: string;
+  mahrAmount: number;
+  mahrDescription: string;
+  documents: string[];
+  status: 'pending' | 'correction_required' | 'approved' | 'rejected';
+  remarks?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DeathRegistration {
+  _id: string;
+  deceasedMemberId?: string;
+  deceasedName: string;
+  deathDate: string;
+  placeOfDeath: string;
+  causeOfDeath: string;
+  informantName?: string;
+  informantRelation?: string;
+  informantPhone?: string;
+  documents: string[];
+  status: 'pending' | 'correction_required' | 'approved' | 'rejected';
+  remarks?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface FamilyMember {
+  id: string;
+  name: string;
+  phone?: string;
+  email?: string;
+  gender?: 'male' | 'female';
+  relationship?: string;
+  age?: number;
+  maritalStatus?: string;
+  education?: string;
+  occupation?: string;
+  bloodGroup?: string;
+  mahallId?: string;
+  status?: string;
+}
+
+export interface DocumentRecord {
+  _id: string;
+  id?: string; // normalized alias of _id
+  fileName: string;
+  documentType: 'id_proof' | 'age_proof' | 'photo' | 'address_proof' | 'divorce_doc' | 'death_proof' | 'other';
+  status: 'pending' | 'uploaded' | 'verified' | 'rejected';
+  ownerType?: string;
+  createdAt: string;
+}
+
+export interface Certificate {
+  _id: string;
+  certificateNo: string;
+  type: string;
+  issueDate: string;
+  status: string;
+}
+
+export interface ChangeRequest {
+  _id: string;
+  targetType: 'member' | 'family';
+  targetId: string;
+  changes: Array<{ field: string; newValue: string }>;
+  status: 'pending' | 'approved' | 'rejected';
+  remarks?: string;
+  createdAt: string;
+}
+
+export interface PaginationResponse<T> {
+  data: T[];
+  pagination: {
+    total: number;
+    page: number;
+    limit: number;
+  };
+}
+
 export const memberPortalService = {
   getOverview: async () => {
     const response = await api.get<{ success: boolean; data: MemberOverviewResponse }>('/member-user/overview');
@@ -130,7 +222,145 @@ export const memberPortalService = {
       '/member-user/registrations',
       { params }
     );
+    const data = response.data.data as unknown;
+    // With a type filter the backend returns a paginated ARRAY — normalize to the keyed shape
+    if (type && Array.isArray(data)) {
+      return { [type]: data } as unknown as RegistrationsResponse;
+    }
+    return data as RegistrationsResponse;
+  },
+
+  getRegistrations: async (type: 'nikah' | 'death' | 'noc', page = 1, limit = 10) => {
+    const response = await api.get<PaginationResponse<NikahRegistration | DeathRegistration>>(
+      `/member-user/registrations?type=${type}&page=${page}&limit=${limit}`
+    );
+    return response.data;
+  },
+
+  getFamilyMembers: async (page = 1, limit = 10) => {
+    const response = await api.get<PaginationResponse<FamilyMember>>(
+      `/member-user/family-members?page=${page}&limit=${limit}`
+    );
+    return response.data;
+  },
+
+  updateProfile: async (data: { phone?: string; email?: string }) => {
+    const response = await api.put<{ success: boolean; data: any }>(
+      '/member-user/profile',
+      data
+    );
     return response.data.data;
+  },
+
+  createNikahRegistration: async (data: {
+    mahallMemberType: 'groom' | 'bride';
+    subjectMemberId?: string;
+    groomName: string;
+    groomAge?: number;
+    brideName: string;
+    brideAge?: number;
+    nikahDate: string;
+    venue: string;
+    waliName: string;
+    witness1: string;
+    witness2: string;
+    mahrAmount: number;
+    mahrDescription: string;
+    documents: string[];
+  }) => {
+    const response = await api.post<{ success: boolean; data: NikahRegistration }>(
+      '/member-user/registrations/nikah',
+      data
+    );
+    return response.data.data;
+  },
+
+  createDeathRegistration: async (data: {
+    deceasedMemberId?: string;
+    deathDate: string;
+    placeOfDeath: string;
+    causeOfDeath: string;
+    informantName?: string;
+    informantRelation?: string;
+    informantPhone?: string;
+    documents: string[];
+  }) => {
+    const response = await api.post<{ success: boolean; data: DeathRegistration }>(
+      '/member-user/registrations/death',
+      data
+    );
+    return response.data.data;
+  },
+
+  updateRegistration: async (type: 'nikah' | 'death', id: string, data: any) => {
+    const response = await api.put<{ success: boolean; data: any }>(
+      `/member-user/registrations/${type}/${id}`,
+      data
+    );
+    return response.data.data;
+  },
+
+  uploadDocument: async (file: File, documentType: string, ownerType?: string) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('documentType', documentType);
+    if (ownerType) formData.append('ownerType', ownerType);
+
+    // No manual Content-Type: axios/browser must set the multipart boundary themselves
+    const response = await api.post<{ success: boolean; data: DocumentRecord & { _id?: string } }>(
+      '/documents/upload',
+      formData
+    );
+    const doc = response.data.data;
+    // POST responses keep Mongo's _id — pages rely on `id`
+    return { ...doc, id: doc.id || doc._id };
+  },
+
+  getDocuments: async (page = 1, limit = 10) => {
+    const response = await api.get<PaginationResponse<DocumentRecord>>(
+      `/documents?page=${page}&limit=${limit}`
+    );
+    return response.data;
+  },
+
+  getDocumentUrl: async (docId: string) => {
+    const response = await api.get<{ success: boolean; data: { url: string; fileName: string } }>(
+      `/documents/${docId}/url`
+    );
+    return response.data.data;
+  },
+
+  getCertificates: async (page = 1, limit = 10) => {
+    const response = await api.get<PaginationResponse<Certificate>>(
+      `/certificates?page=${page}&limit=${limit}`
+    );
+    return response.data;
+  },
+
+  getCertificateUrl: async (certId: string) => {
+    const response = await api.get<{ success: boolean; data: { url: string; fileName: string } }>(
+      `/certificates/${certId}/download`
+    );
+    return response.data.data;
+  },
+
+  createChangeRequest: async (data: {
+    targetType: 'member' | 'family';
+    targetId: string;
+    changes: Array<{ field: string; newValue: string }>;
+  }) => {
+    const response = await api.post<{ success: boolean; data: ChangeRequest }>(
+      '/change-requests',
+      data
+    );
+    return response.data.data;
+  },
+
+  getChangeRequests: async (page = 1, limit = 10) => {
+    const response = await api.get<PaginationResponse<ChangeRequest>>(
+      `/change-requests?page=${page}&limit=${limit}`
+    );
+    return response.data;
   },
 
   requestNOC: async (data: {
