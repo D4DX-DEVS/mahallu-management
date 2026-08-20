@@ -1,12 +1,48 @@
-import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { ReactNode, useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import {
+  FiUsers,
+  FiHeart,
+  FiBriefcase,
+  FiTool,
+  FiBook,
+  FiUserX,
+  FiLifeBuoy,
+  FiHome,
+  FiGift,
+} from 'react-icons/fi';
 import Card from '@/components/ui/Card';
+import DashboardStatCard, { StatCardAccent } from './DashboardStatCard';
 import { registerService, RegisterSummaryRow } from '@/services/registerService';
 import { surveyService } from '@/services/surveyService';
 import { committeeService } from '@/services/committeeService';
 
+const REGISTER_ICONS: Record<string, { icon: ReactNode; accent: StatCardAccent }> = {
+  'zakat-payers': { icon: <FiGift className="h-4 w-4" />, accent: 'amber' },
+  'zakat-beneficiaries': { icon: <FiGift className="h-4 w-4" />, accent: 'rose' },
+  'job-seekers': { icon: <FiBriefcase className="h-4 w-4" />, accent: 'indigo' },
+  'skilled-workers': { icon: <FiTool className="h-4 w-4" />, accent: 'violet' },
+  students: { icon: <FiBook className="h-4 w-4" />, accent: 'emerald' },
+  marriageable: { icon: <FiHeart className="h-4 w-4" />, accent: 'rose' },
+  volunteers: { icon: <FiUsers className="h-4 w-4" />, accent: 'lime' },
+  widows: { icon: <FiUsers className="h-4 w-4" />, accent: 'slate' },
+  orphans: { icon: <FiUsers className="h-4 w-4" />, accent: 'slate' },
+  disabled: { icon: <FiLifeBuoy className="h-4 w-4" />, accent: 'orange' },
+  elderly: { icon: <FiHeart className="h-4 w-4" />, accent: 'rose' },
+  unemployed: { icon: <FiUserX className="h-4 w-4" />, accent: 'red' },
+  welfare: { icon: <FiHome className="h-4 w-4" />, accent: 'emerald' },
+};
+
+const DEFAULT_REGISTER_ICON = { icon: <FiUsers className="h-4 w-4" />, accent: 'slate' as StatCardAccent };
+
+interface PhaseAInsightsProps {
+  /** Extra stat cards (e.g. dashboard totals) rendered in the same grid as the register cards. */
+  children?: ReactNode;
+}
+
 /** Registers snapshot plus the survey / committee-term warnings (spec 5.3, 29). */
-export default function PhaseAInsights() {
+export default function PhaseAInsights({ children }: PhaseAInsightsProps) {
+  const navigate = useNavigate();
   const [registers, setRegisters] = useState<RegisterSummaryRow[]>([]);
   const [surveyOverdue, setSurveyOverdue] = useState(false);
   const [expiringCommittees, setExpiringCommittees] = useState(0);
@@ -56,7 +92,7 @@ export default function PhaseAInsights() {
         </div>
       )}
 
-      {topRegisters.length > 0 && (
+      {(topRegisters.length > 0 || children) && (
         <div>
           <div className="mb-2 flex items-center justify-between">
             <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Community Registers</h2>
@@ -64,19 +100,21 @@ export default function PhaseAInsights() {
               View all
             </Link>
           </div>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
-            {topRegisters.map((row) => (
-              <Link key={row.key} to={`/registers/${row.key}`}>
-                <Card className="h-full p-3 transition-shadow hover:shadow-md sm:p-4">
-                  <p className="text-xs font-medium leading-tight text-gray-500 dark:text-gray-400 sm:text-sm">
-                    {row.label}
-                  </p>
-                  <p className="mt-1 text-base font-bold text-gray-900 dark:text-gray-100 sm:text-xl">
-                    {row.count}
-                  </p>
-                </Card>
-              </Link>
-            ))}
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+            {topRegisters.map((row) => {
+              const { icon, accent } = REGISTER_ICONS[row.key] || DEFAULT_REGISTER_ICON;
+              return (
+                <DashboardStatCard
+                  key={row.key}
+                  label={row.label}
+                  value={row.count}
+                  icon={icon}
+                  accent={accent}
+                  onClick={() => navigate(`/registers/${row.key}`)}
+                />
+              );
+            })}
+            {children}
           </div>
         </div>
       )}
