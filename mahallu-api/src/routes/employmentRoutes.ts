@@ -52,7 +52,7 @@ applyAuth(summaryRouter);
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  */
-summaryRouter.get('/', getEmploymentSummary);
+summaryRouter.get('/summary', getEmploymentSummary);
 
 // ============= EMPLOYER ENDPOINTS =============
 

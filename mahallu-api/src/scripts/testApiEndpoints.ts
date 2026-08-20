@@ -429,18 +429,20 @@ class ApiTester {
   async testMadrasas() {
     console.log('\n=== Testing Madrasas ===');
 
-    // Test get all madrasas
-    this.addResult(await this.makeRequest('GET', '/madrasa'));
+    // Madrasa has no bare collection endpoint - classes and enrollments are
+    // the actual resources (see routes/madrasaRoutes.ts).
+    this.addResult(await this.makeRequest('GET', '/madrasa/classes'));
+    this.addResult(await this.makeRequest('GET', '/madrasa/summary'));
 
-    // Test create madrasa with invalid data (validation error)
+    // Test create class with invalid data (validation error)
     this.addResult(
-      await this.makeRequest('POST', '/madrasa', { name: '', place: '' }, true)
+      await this.makeRequest('POST', '/madrasa/classes', { name: '' }, true)
     );
 
-    // Test create madrasa with valid data
-    const createResult = await this.makeRequest('POST', '/madrasa', {
-      name: 'Test Madrasa',
-      place: 'Test Place',
+    // Test create class with valid data
+    const createResult = await this.makeRequest('POST', '/madrasa/classes', {
+      name: 'Test Class',
+      academicYear: '2025-26',
       tenantId: this.tenantId,
     });
     this.addResult(createResult);

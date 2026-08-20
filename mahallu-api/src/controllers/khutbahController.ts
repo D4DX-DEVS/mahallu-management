@@ -338,6 +338,8 @@ export const deleteKhutbah = async (req: AuthRequest, res: Response) => {
  */
 export const getMosqueInstituteHandler = async (req: AuthRequest, res: Response) => {
   try {
+    if (!req.tenantId) return res.status(400).json({ success: false, message: 'Tenant ID is required' });
+
     const mosque = await getMosqueInstitute(req.tenantId);
     res.json({ success: true, data: mosque });
   } catch (error: any) {

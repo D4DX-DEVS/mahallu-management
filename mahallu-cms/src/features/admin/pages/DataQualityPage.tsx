@@ -56,7 +56,7 @@ export default function DataQualityPage() {
   const exportToCSV = async (entity: string) => {
     try {
       setExporting(prev => ({ ...prev, [entity]: true }));
-      const response = await api.get(`/api/export/${entity}`, {
+      const response = await api.get(`/export/${entity}`, {
         responseType: 'blob',
       });
 
