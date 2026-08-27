@@ -1,5 +1,5 @@
 import { Response } from 'express';
-import { ClassAttendance } from '../models/Attendance';
+import { ClassAttendance, Exam } from '../models/Attendance';
 import { StudentEnrollment, MadrasaClass } from '../models/Madrasa';
 import { AuthRequest } from '../middleware/authMiddleware';
 import { getPaginationParams, createPaginationResponse } from '../utils/pagination';
@@ -235,7 +235,7 @@ export const getAttendanceById = async (req: AuthRequest, res: Response) => {
  */
 export const getClassProgress = async (req: AuthRequest, res: Response) => {
   try {
-    const { classId } = req.params;
+    const { id: classId } = req.params;
 
     // Verify class exists and belongs to tenant
     const cls = await MadrasaClass.findOne({ _id: classId, tenantId: req.tenantId });
@@ -284,7 +284,6 @@ export const getClassProgress = async (req: AuthRequest, res: Response) => {
     });
 
     // Calculate exam averages per student
-    const { Exam } = await import('../models/Attendance.js');
     const exams = await Exam.find({ classId, tenantId: req.tenantId });
 
     const examsByEnrollment: Record<string, { marks: number[]; count: number }> = {};

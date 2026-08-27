@@ -142,9 +142,9 @@ export default function ClassesList() {
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-4">
           {rows.map((cls) => (
             <Card
-              key={cls._id}
+              key={cls.id}
               className="cursor-pointer transition-shadow duration-200 hover:shadow-lg"
-              onClick={() => navigate(`/education/classes/${cls._id}`)}
+              onClick={() => navigate(`/education/classes/${cls.id}`)}
             >
               <div className="mb-2 flex items-start justify-between gap-2">
                 <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">

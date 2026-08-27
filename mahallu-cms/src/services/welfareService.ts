@@ -3,7 +3,7 @@ import api from './api';
 export type WelfareStatus = 'pending' | 'verified' | 'approved' | 'rejected' | 'disbursed' | 'closed';
 
 export interface WelfareScheme {
-  _id: string;
+  id: string;
   name: string;
   nameMl?: string;
   category: string;
@@ -13,7 +13,7 @@ export interface WelfareScheme {
 }
 
 export interface WelfareApplication {
-  _id: string;
+  id: string;
   schemeId: { _id: string; name: string; category?: string } | string;
   familyId?: { _id: string; houseName: string; familyHead?: string; contactNo?: string } | string;
   memberId?: { _id: string; name: string } | string;

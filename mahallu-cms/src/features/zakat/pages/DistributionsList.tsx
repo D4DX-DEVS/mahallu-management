@@ -196,7 +196,7 @@ export default function DistributionsList() {
                 options={[
                   { value: '', label: 'Select a verified beneficiary' },
                   ...verified.map((b) => ({
-                    value: b._id,
+                    value: b.id,
                     label:
                       (b.memberId && typeof b.memberId === 'object' ? b.memberId.name : b.name) || 'Unnamed',
                   })),

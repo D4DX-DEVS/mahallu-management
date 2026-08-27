@@ -131,7 +131,7 @@ export default function AnnouncementsList() {
               data={rows}
               emptyMessage="No announcements yet"
               showExport={false}
-              onRowClick={(row) => navigate(`/announcements/${row._id}`)}
+              onRowClick={(row) => navigate(`/announcements/${row.id}`)}
             />
           </div>
         )}

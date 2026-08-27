@@ -60,7 +60,7 @@ export default function ExamCreate() {
       setSubmitting(true);
       const exam = await examService.createExam(formData);
       toast.success(`Exam "${formData.name}" created`);
-      navigate(`/education/exams/${exam._id}`);
+      navigate(`/education/exams/${exam.id}`);
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Failed to create exam');
     } finally {
@@ -100,7 +100,7 @@ export default function ExamCreate() {
             >
               <option value="">Select a class</option>
               {classes.map((cls) => (
-                <option key={cls._id} value={cls._id}>
+                <option key={cls.id} value={cls.id}>
                   {cls.name} ({cls.academicYear})
                 </option>
               ))}

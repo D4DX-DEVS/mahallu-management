@@ -51,7 +51,7 @@ export default function ReliefCreate() {
         followUpDate: form.followUpDate || undefined,
       });
       toast.success('Case reported successfully');
-      navigate(`/relief/${created._id}`);
+      navigate(`/relief/${created.id}`);
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to report the case');
     } finally {

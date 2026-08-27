@@ -45,12 +45,12 @@ export default function AnnouncementCreate() {
       setSaving(true);
       const created = await announcementService.create(form as any);
       if (sendNow) {
-        await announcementService.send(created._id);
+        await announcementService.send(created.id);
         toast.success('Announcement sent');
       } else {
         toast.success('Announcement saved as draft');
       }
-      navigate(`/announcements/${created._id}`);
+      navigate(`/announcements/${created.id}`);
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Failed to save announcement');
     } finally {

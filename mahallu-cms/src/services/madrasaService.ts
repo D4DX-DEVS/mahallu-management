@@ -4,13 +4,13 @@ export type ClassType = 'weekend_madrasa' | 'tuition' | 'adult_quran' | 'remedia
 export type EnrollmentStatus = 'active' | 'completed' | 'dropped';
 
 export interface MadrasaClass {
-  _id: string;
-  instituteId?: { _id: string; name: string } | string;
+  id: string;
+  instituteId?: { id: string; name: string } | string;
   name: string;
   nameMl?: string;
   academicYear: string;
   classType: ClassType;
-  teacherEmployeeId?: { _id: string; name: string; designation?: string } | string;
+  teacherEmployeeId?: { id: string; name: string; designation?: string } | string;
   subjects: string[];
   schedule?: string;
   status: 'active' | 'inactive';
@@ -19,9 +19,9 @@ export interface MadrasaClass {
 }
 
 export interface StudentEnrollment {
-  _id: string;
-  classId: { _id: string; name: string; academicYear?: string } | string;
-  memberId: { _id: string; name: string; nameMl?: string; contactNo?: string } | string;
+  id: string;
+  classId: { id: string; name: string; academicYear?: string } | string;
+  memberId: { id: string; name: string; nameMl?: string; contactNo?: string } | string;
   rollNo?: string;
   enrollDate: string;
   status: EnrollmentStatus;

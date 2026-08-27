@@ -179,7 +179,7 @@ export default function LoanDetail() {
       <RepaymentModal
         isOpen={repayOpen}
         onClose={() => setRepayOpen(false)}
-        loanId={loan._id}
+        loanId={loan.id}
         outstandingBalance={loan.outstandingBalance}
         onRecorded={() => id && fetchLoan(id)}
       />

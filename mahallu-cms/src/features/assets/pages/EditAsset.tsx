@@ -12,6 +12,7 @@ import Select from '@/components/ui/Select';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import { ROUTES } from '@/constants/routes';
 import { assetService } from '@/services/assetService';
+import { mosqueService, MosqueProfile } from '@/services/mosqueService';
 
 const assetSchema = z.object({
   name: z.string().min(1, 'Asset name is required').max(200),
@@ -25,6 +26,7 @@ const assetSchema = z.object({
   status: z.enum(['active', 'in_use', 'under_maintenance', 'disposed', 'damaged']).optional(),
   location: z.string().optional(),
   locationMl: z.string().optional(),
+  mosqueId: z.string().optional(),
 });
 
 type AssetFormData = z.infer<typeof assetSchema>;
@@ -34,6 +36,8 @@ export default function EditAsset() {
   const { id } = useParams<{ id: string }>();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [mosques, setMosques] = useState<MosqueProfile[]>([]);
+  const [loadedMosqueId, setLoadedMosqueId] = useState<string>('');
 
   const {
     register,
@@ -45,10 +49,25 @@ export default function EditAsset() {
   });
 
   useEffect(() => {
+    mosqueService
+      .getAll({ limit: 100 })
+      .then((result) => setMosques(result.data))
+      .catch(() => setMosques([]));
+  }, []);
+
+  useEffect(() => {
     if (id) {
       fetchAsset();
     }
   }, [id]);
+
+  // Re-apply once mosques' <option>s exist in the DOM — setting it before they're
+  // rendered races React's re-render and the <select> silently keeps "Unassigned".
+  useEffect(() => {
+    if (loadedMosqueId && mosques.some((m) => m.id === loadedMosqueId)) {
+      setValue('mosqueId', loadedMosqueId);
+    }
+  }, [mosques, loadedMosqueId]);
 
   const fetchAsset = async () => {
     if (!id) return;
@@ -64,6 +83,7 @@ export default function EditAsset() {
       setValue('location', asset.location || '');
       setValue('nameMl', asset.nameMl || '');
       setValue('locationMl', asset.locationMl || '');
+      setLoadedMosqueId(typeof asset.mosqueId === 'object' ? asset.mosqueId?.id || '' : asset.mosqueId || '');
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to load asset');
     } finally {
@@ -85,6 +105,7 @@ export default function EditAsset() {
         status: data.status || 'active',
         location: data.location || undefined,
         locationMl: data.locationMl,
+        mosqueId: data.mosqueId || null,
       };
 
       await assetService.update(id, assetData);
@@ -174,6 +195,14 @@ export default function EditAsset() {
               {...register('category')}
               error={errors.category?.message}
               required
+            />
+            <Select
+              label="Mosque"
+              options={[
+                { value: '', label: 'Unassigned' },
+                ...mosques.map((m) => ({ value: m.id, label: m.name })),
+              ]}
+              {...register('mosqueId')}
             />
             <Select
               label="Status"

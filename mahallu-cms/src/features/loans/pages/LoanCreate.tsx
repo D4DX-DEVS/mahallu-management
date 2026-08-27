@@ -65,7 +65,7 @@ export default function LoanCreate() {
         notes: form.notes || undefined,
       });
       toast.success('Loan application created');
-      navigate(`/loans/${loan._id}`);
+      navigate(`/loans/${loan.id}`);
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to create the application');
     } finally {

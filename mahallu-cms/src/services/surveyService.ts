@@ -30,7 +30,7 @@ export interface SurveySnapshot {
 }
 
 export interface LocalityFacility {
-  _id: string;
+  id: string;
   name: string;
   nameMl?: string;
   type: string;

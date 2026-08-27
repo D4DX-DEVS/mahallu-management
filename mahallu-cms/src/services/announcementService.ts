@@ -1,7 +1,7 @@
 import api from './api';
 
 export interface Announcement {
-  _id: string;
+  id: string;
   title: string;
   titleMl?: string;
   body: string;

@@ -7,7 +7,7 @@ import { getPaginationParams, createPaginationResponse } from '../utils/paginati
 
 export const getAllAssets = async (req: AuthRequest, res: Response) => {
   try {
-    const { status, category, search, tenantId } = req.query;
+    const { status, category, search, tenantId, mosqueId } = req.query;
     const { page, limit, skip } = getPaginationParams(req);
     const query: any = {};
 
@@ -20,6 +20,7 @@ export const getAllAssets = async (req: AuthRequest, res: Response) => {
 
     if (status) query.status = status;
     if (category) query.category = category;
+    if (mosqueId) query.mosqueId = mosqueId;
     if (search) {
       query.$or = [
         { name: { $regex: search, $options: 'i' } },
@@ -29,7 +30,7 @@ export const getAllAssets = async (req: AuthRequest, res: Response) => {
     }
 
     const [assets, total] = await Promise.all([
-      Asset.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit),
+      Asset.find(query).populate('mosqueId', 'name').sort({ createdAt: -1 }).skip(skip).limit(limit),
       Asset.countDocuments(query),
     ]);
 
@@ -41,7 +42,7 @@ export const getAllAssets = async (req: AuthRequest, res: Response) => {
 
 export const getAssetById = async (req: Request, res: Response) => {
   try {
-    const asset = await Asset.findById(req.params.id);
+    const asset = await Asset.findById(req.params.id).populate('mosqueId', 'name');
     if (!asset) {
       return res.status(404).json({ success: false, message: 'Asset not found' });
     }

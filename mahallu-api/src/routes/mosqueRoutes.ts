@@ -1,5 +1,11 @@
 import express from 'express';
-import { getMosqueProfile, upsertMosqueProfile } from '../controllers/mosqueController';
+import {
+  getAllMosques,
+  getMosqueById,
+  createMosque,
+  updateMosque,
+  deleteMosque,
+} from '../controllers/mosqueController';
 import { authMiddleware, allowRoles } from '../middleware/authMiddleware';
 import { tenantMiddleware, tenantFilter } from '../middleware/tenantMiddleware';
 
@@ -11,43 +17,68 @@ router.use(tenantFilter);
 
 /**
  * @swagger
- * /mosque-profile:
+ * /mosques:
  *   get:
- *     summary: Get the mosque profile
+ *     summary: List mosques
  *     tags: [Mosque]
  *     description: |
- *       One profile per Mahallu. Returns null before the first save.
+ *       A Mahallu can have multiple mosques.
  *       **Access:** Super Admin, Mahall Admin, Survey, Institute
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
  *     responses:
  *       200:
- *         description: Mosque profile or null
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 data:
- *                   type: object
- *                   nullable: true
+ *         description: Mosque list
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  */
-router.get('/', getMosqueProfile);
+router.get('/', getAllMosques);
 
 /**
  * @swagger
- * /mosque-profile:
- *   put:
- *     summary: Create or update the mosque profile
+ * /mosques/{id}:
+ *   get:
+ *     summary: Get a mosque
+ *     tags: [Mosque]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Mosque
+ *       404:
+ *         $ref: '#/components/responses/NotFound'
+ */
+router.get('/:id', getMosqueById);
+
+/**
+ * @swagger
+ * /mosques:
+ *   post:
+ *     summary: Create a mosque
  *     tags: [Mosque]
  *     description: |
- *       Upserts the tenant's single mosque profile.
- *       **Access:** Super Admin, Mahall Admin
+ *       **Access:** Mahall Admin
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -56,6 +87,7 @@ router.get('/', getMosqueProfile);
  *         application/json:
  *           schema:
  *             type: object
+ *             required: [name]
  *             properties:
  *               name:
  *                 type: string
@@ -81,11 +113,55 @@ router.get('/', getMosqueProfile);
  *               staffNotes:
  *                 type: string
  *     responses:
- *       200:
- *         description: Saved profile
+ *       201:
+ *         description: Created
  *       403:
  *         description: Role not allowed
  */
-router.put('/', allowRoles(['mahall']), upsertMosqueProfile);
+router.post('/', allowRoles(['mahall']), createMosque);
+
+/**
+ * @swagger
+ * /mosques/{id}:
+ *   put:
+ *     summary: Update a mosque
+ *     tags: [Mosque]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Updated
+ *       404:
+ *         $ref: '#/components/responses/NotFound'
+ */
+router.put('/:id', allowRoles(['mahall']), updateMosque);
+
+/**
+ * @swagger
+ * /mosques/{id}:
+ *   delete:
+ *     summary: Delete a mosque
+ *     tags: [Mosque]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Deleted
+ *       403:
+ *         description: Role not allowed
+ */
+router.delete('/:id', allowRoles(['mahall']), deleteMosque);
 
 export default router;

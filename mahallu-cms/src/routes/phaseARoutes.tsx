@@ -9,7 +9,8 @@ import SchemesList from '@/features/welfare/pages/SchemesList';
 import ApplicationsList from '@/features/welfare/pages/ApplicationsList';
 import ApplicationCreate from '@/features/welfare/pages/ApplicationCreate';
 import ApplicationDetail from '@/features/welfare/pages/ApplicationDetail';
-import MosqueProfilePage from '@/features/mosque/pages/MosqueProfilePage';
+import MosquesList from '@/features/mosque/pages/MosquesList';
+import MosqueDetail from '@/features/mosque/pages/MosqueDetail';
 import AnnouncementsList from '@/features/communication/pages/AnnouncementsList';
 import AnnouncementCreate from '@/features/communication/pages/AnnouncementCreate';
 import AnnouncementDetail from '@/features/communication/pages/AnnouncementDetail';
@@ -41,7 +42,8 @@ export const phaseARoutes = [
   route('/welfare/applications/:id', <ApplicationDetail />, surveyRoles),
 
   // Mosque profile (A6)
-  route('/mosque', <MosqueProfilePage />),
+  route('/mosque', <MosquesList />),
+  route('/mosque/:id', <MosqueDetail />),
 
   // Demographics report (spec 34.1)
   route('/reports/demographics', <DemographicsReport />, surveyRoles),

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { FiEdit2, FiTrash2, FiEye, FiPackage, FiCheckCircle, FiAlertTriangle, FiXCircle } from 'react-icons/fi';
 import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
@@ -14,6 +14,7 @@ import { TableColumn, Pagination as PaginationType } from '@/types';
 import { Asset } from '@/types';
 import { ROUTES } from '@/constants/routes';
 import { assetService } from '@/services/assetService';
+import { mosqueService, MosqueProfile } from '@/services/mosqueService';
 import { useDebounce } from '@/hooks/useDebounce';
 import { formatDate } from '@/utils/format';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
@@ -47,9 +48,11 @@ const statusColors: Record<string, string> = {
 
 export default function AssetsList() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [searchQuery, setSearchQuery] = useState('');
-  const [isFilterVisible, setIsFilterVisible] = useState(false);
+  const [isFilterVisible, setIsFilterVisible] = useState(!!searchParams.get('mosqueId'));
   const [assets, setAssets] = useState<Asset[]>([]);
+  const [mosques, setMosques] = useState<MosqueProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
@@ -61,12 +64,21 @@ export default function AssetsList() {
   const [isExporting, setIsExporting] = useState(false);
   const [statusFilter, setStatusFilter] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
+  const [mosqueFilter, setMosqueFilter] = useState(searchParams.get('mosqueId') || '');
 
   const debouncedSearch = useDebounce(searchQuery, 500);
+  const mosqueName = (id: string) => mosques.find((m) => m.id === id)?.name;
+
+  useEffect(() => {
+    mosqueService
+      .getAll({ limit: 100 })
+      .then((result) => setMosques(result.data))
+      .catch(() => setMosques([]));
+  }, []);
 
   useEffect(() => {
     fetchAssets();
-  }, [debouncedSearch, currentPage, statusFilter, categoryFilter]);
+  }, [debouncedSearch, currentPage, statusFilter, categoryFilter, mosqueFilter]);
 
   const fetchAssets = async () => {
     try {
@@ -79,6 +91,7 @@ export default function AssetsList() {
       if (debouncedSearch) params.search = debouncedSearch;
       if (statusFilter) params.status = statusFilter;
       if (categoryFilter) params.category = categoryFilter;
+      if (mosqueFilter) params.mosqueId = mosqueFilter;
 
       const result = await assetService.getAll(params);
       setAssets(result.data);
@@ -155,6 +168,11 @@ export default function AssetsList() {
       key: 'category',
       label: 'Category',
       render: (category) => categoryLabels[category] || category,
+    },
+    {
+      key: 'mosqueId',
+      label: 'Mosque',
+      render: (value) => (typeof value === 'object' && value ? value.name : mosqueName(value) || '-'),
     },
     {
       key: 'estimatedValue',
@@ -259,12 +277,12 @@ export default function AssetsList() {
           onSearchChange={setSearchQuery}
           onFilterClick={() => setIsFilterVisible(!isFilterVisible)}
           isFilterVisible={isFilterVisible}
-          hasFilters={!!statusFilter || !!categoryFilter}
+          hasFilters={!!statusFilter || !!categoryFilter || !!mosqueFilter}
           onRefresh={fetchAssets}
           onExport={handleExport}
           isExporting={isExporting}
           actionButtons={
-            <Link to={ROUTES.ASSETS.CREATE}>
+            <Link to={mosqueFilter ? `${ROUTES.ASSETS.CREATE}?mosqueId=${mosqueFilter}` : ROUTES.ASSETS.CREATE}>
               <Button size="md">
                 + New Asset
               </Button>
@@ -300,9 +318,31 @@ export default function AssetsList() {
               <option value="equipment">Equipment</option>
               <option value="other">Other</option>
             </select>
-            {(statusFilter || categoryFilter) && (
+            <select
+              value={mosqueFilter}
+              onChange={(e) => {
+                setMosqueFilter(e.target.value);
+                setCurrentPage(1);
+                setSearchParams(e.target.value ? { mosqueId: e.target.value } : {});
+              }}
+              className="px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200"
+            >
+              <option value="">All Mosques</option>
+              {mosques.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.name}
+                </option>
+              ))}
+            </select>
+            {(statusFilter || categoryFilter || mosqueFilter) && (
               <button
-                onClick={() => { setStatusFilter(''); setCategoryFilter(''); setCurrentPage(1); }}
+                onClick={() => {
+                  setStatusFilter('');
+                  setCategoryFilter('');
+                  setMosqueFilter('');
+                  setCurrentPage(1);
+                  setSearchParams({});
+                }}
                 className="px-3 py-2 text-sm text-red-600 hover:text-red-700 dark:text-red-400"
               >
                 Clear Filters

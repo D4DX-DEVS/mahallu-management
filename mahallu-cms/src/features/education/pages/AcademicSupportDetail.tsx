@@ -59,7 +59,7 @@ export default function AcademicSupportDetail() {
     e.preventDefault();
     if (!supportCase) return;
     try {
-      await scholarshipService.updateSupportCase(supportCase._id, formData);
+      await scholarshipService.updateSupportCase(supportCase.id, formData);
       setSupportCase((prev) =>
         prev ? {
           ...prev,
@@ -79,7 +79,7 @@ export default function AcademicSupportDetail() {
     if (!supportCase) return;
     try {
       setDeleting(true);
-      await scholarshipService.deleteSupportCase(supportCase._id);
+      await scholarshipService.deleteSupportCase(supportCase.id);
       setShowDeleteConfirm(false);
       toast.success('Support case deleted');
       navigate('/education/support');

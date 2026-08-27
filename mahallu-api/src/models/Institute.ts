@@ -12,6 +12,12 @@ export interface IInstitute extends Document {
   contactNo?: string;
   email?: string;
   status: 'active' | 'inactive';
+  address?: {
+    state?: string;
+    district?: string;
+    pinCode?: string;
+    postOffice?: string;
+  };
   audience?: 'all' | 'men' | 'women' | 'youth' | 'children' | 'families';
   programType?: 'quran_class' | 'hadith' | 'fiqh' | 'lecture' | 'family' | 'other';
   /** Event fields (Task C3) — used when a program is run as a gathering/event. */
@@ -75,6 +81,12 @@ const InstituteSchema = new Schema<IInstitute>(
       type: String,
       enum: ['active', 'inactive'],
       default: 'active',
+    },
+    address: {
+      state: { type: String, trim: true },
+      district: { type: String, trim: true },
+      pinCode: { type: String, trim: true },
+      postOffice: { type: String, trim: true },
     },
     audience: {
       type: String,

@@ -53,7 +53,7 @@ export default function AttendanceSheet() {
       // Initialize attendance state
       const initial: Record<string, boolean> = {};
       activeStudents.forEach((s) => {
-        initial[s._id] = false;
+        initial[s.id] = false;
       });
       setAttendance(initial);
     } catch (err: any) {
@@ -77,10 +77,10 @@ export default function AttendanceSheet() {
       if (recordForDate) {
         const attendanceMap: Record<string, boolean> = {};
         students.forEach((s) => {
-          attendanceMap[s._id] = false;
+          attendanceMap[s.id] = false;
         });
         recordForDate.records.forEach((r) => {
-          const enrollmentId = typeof r.enrollmentId === 'string' ? r.enrollmentId : r.enrollmentId._id;
+          const enrollmentId = typeof r.enrollmentId === 'string' ? r.enrollmentId : r.enrollmentId.id;
           attendanceMap[enrollmentId] = r.present;
         });
         setAttendance(attendanceMap);
@@ -88,7 +88,7 @@ export default function AttendanceSheet() {
         // No record for this date, reset to all absent
         const initial: Record<string, boolean> = {};
         students.forEach((s) => {
-          initial[s._id] = false;
+          initial[s.id] = false;
         });
         setAttendance(initial);
       }
@@ -113,8 +113,8 @@ export default function AttendanceSheet() {
     try {
       setSaving(true);
       const records = students.map((s) => ({
-        enrollmentId: s._id,
-        present: attendance[s._id] || false,
+        enrollmentId: s.id,
+        present: attendance[s.id] || false,
       }));
 
       await attendanceService.upsertAttendance(classId, selectedDate, records);
@@ -192,7 +192,7 @@ export default function AttendanceSheet() {
           <div>
             <div className="space-y-2 mb-4">
               {students.map((student) => {
-                const isPresent = attendance[student._id] || false;
+                const isPresent = attendance[student.id] || false;
                 const memberName =
                   student.memberId && typeof student.memberId === 'object'
                     ? student.memberId.name
@@ -200,11 +200,11 @@ export default function AttendanceSheet() {
 
                 return (
                   <div
-                    key={student._id}
+                    key={student.id}
                     className="flex items-center gap-3 rounded border border-gray-200 px-4 py-3 dark:border-gray-700"
                   >
                     <button
-                      onClick={() => toggleStudent(student._id)}
+                      onClick={() => toggleStudent(student.id)}
                       className={`flex h-5 w-5 items-center justify-center rounded border-2 transition ${
                         isPresent
                           ? 'border-green-600 bg-green-600 dark:border-green-500 dark:bg-green-500'

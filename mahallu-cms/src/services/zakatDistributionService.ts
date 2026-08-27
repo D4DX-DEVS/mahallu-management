@@ -3,7 +3,7 @@ import api from './api';
 export type VerificationStatus = 'pending' | 'verified' | 'rejected';
 
 export interface ZakatBeneficiary {
-  _id: string;
+  id: string;
   memberId?: { _id: string; name: string; phone?: string; familyName?: string } | string;
   familyId?: { _id: string; houseName: string } | string;
   name?: string;
@@ -17,7 +17,7 @@ export interface ZakatBeneficiary {
 }
 
 export interface ZakatDistribution {
-  _id: string;
+  id: string;
   beneficiaryId: { _id: string; name?: string; category?: string; memberId?: { name: string } } | string;
   amount: number;
   distributionDate: string;

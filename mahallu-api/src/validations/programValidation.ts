@@ -22,12 +22,12 @@ export const createProgramValidation = [
     .withMessage('Join date must be a valid date'),
   body('description').optional().trim(),
   body('contactNo')
-    .optional()
+    .optional({ checkFalsy: true })
     .trim()
     .matches(/^[0-9]{10,11}$/)
     .withMessage('Contact number must be 10 or 11 digits'),
   body('email')
-    .optional()
+    .optional({ checkFalsy: true })
     .trim()
     .isEmail()
     .withMessage('Invalid email address')
@@ -62,12 +62,12 @@ export const updateProgramValidation = [
     .withMessage('Join date must be a valid date'),
   body('description').optional().trim(),
   body('contactNo')
-    .optional()
+    .optional({ checkFalsy: true })
     .trim()
     .matches(/^[0-9]{10,11}$/)
     .withMessage('Contact number must be 10 or 11 digits'),
   body('email')
-    .optional()
+    .optional({ checkFalsy: true })
     .trim()
     .isEmail()
     .withMessage('Invalid email address')

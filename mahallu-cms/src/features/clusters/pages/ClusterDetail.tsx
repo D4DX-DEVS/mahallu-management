@@ -321,14 +321,16 @@ export default function ClusterDetail() {
                 key={familyId}
                 className="flex items-center gap-2 rounded-lg border border-gray-200 px-2 py-2 dark:border-gray-700"
               >
-                <Checkbox
-                  checked={selectedIds.includes(familyId)}
-                  onChange={(e) =>
-                    setSelectedIds((prev) =>
-                      e.target.checked ? [...prev, familyId] : prev.filter((x) => x !== familyId)
-                    )
-                  }
-                />
+                <div className="shrink-0">
+                  <Checkbox
+                    checked={selectedIds.includes(familyId)}
+                    onChange={(e) =>
+                      setSelectedIds((prev) =>
+                        e.target.checked ? [...prev, familyId] : prev.filter((x) => x !== familyId)
+                      )
+                    }
+                  />
+                </div>
                 <span className="min-w-0 flex-1 text-xs sm:text-sm">
                   <span className="block truncate font-medium">{family.houseName}</span>
                   <span className="block truncate text-gray-500">{family.familyHead || '-'}</span>

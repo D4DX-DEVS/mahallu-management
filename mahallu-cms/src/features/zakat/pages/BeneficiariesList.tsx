@@ -70,8 +70,8 @@ export default function BeneficiariesList() {
 
   const setVerification = async (row: ZakatBeneficiary, verificationStatus: VerificationStatus) => {
     try {
-      setBusyId(row._id);
-      await zakatDistributionService.verifyBeneficiary(row._id, { verificationStatus });
+      setBusyId(row.id);
+      await zakatDistributionService.verifyBeneficiary(row.id, { verificationStatus });
       if (verificationStatus === 'verified') {
         toast.success('Beneficiary verified');
       } else if (verificationStatus === 'rejected') {
@@ -113,8 +113,8 @@ export default function BeneficiariesList() {
           {row.verificationStatus === 'verified' && (
             <button
               className="text-blue-600 hover:text-blue-800 disabled:opacity-50"
-              disabled={busyId === row._id}
-              onClick={() => navigate('/zakat/distributions/create', { state: { beneficiaryId: row._id } })}
+              disabled={busyId === row.id}
+              onClick={() => navigate('/zakat/distributions/create', { state: { beneficiaryId: row.id } })}
               title="Record a distribution for this beneficiary"
             >
               <FiSend size={16} />
@@ -123,19 +123,19 @@ export default function BeneficiariesList() {
           {row.verificationStatus !== 'verified' && (
             <button
               className="text-emerald-600 hover:underline disabled:opacity-50"
-              disabled={busyId === row._id}
+              disabled={busyId === row.id}
               onClick={() => setVerification(row, 'verified')}
             >
-              {busyId === row._id ? 'Working...' : 'Verify'}
+              {busyId === row.id ? 'Working...' : 'Verify'}
             </button>
           )}
           {row.verificationStatus === 'pending' && (
             <button
               className="text-red-600 hover:underline disabled:opacity-50"
-              disabled={busyId === row._id}
+              disabled={busyId === row.id}
               onClick={() => setRejectConfirm(row)}
             >
-              {busyId === row._id ? 'Working...' : 'Reject'}
+              {busyId === row.id ? 'Working...' : 'Reject'}
             </button>
           )}
         </div>

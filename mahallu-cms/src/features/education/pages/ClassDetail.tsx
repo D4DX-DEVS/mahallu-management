@@ -111,8 +111,8 @@ export default function ClassDetail() {
 
   const changeStatus = async (row: StudentEnrollment, status: EnrollmentStatus) => {
     try {
-      setBusyId(row._id);
-      await madrasaService.updateEnrollment(row._id, { status });
+      setBusyId(row.id);
+      await madrasaService.updateEnrollment(row.id, { status });
       toast.success('Enrollment updated');
       refresh();
     } catch (err: any) {
@@ -150,7 +150,7 @@ export default function ClassDetail() {
           {row.status === 'active' && (
             <button
               onClick={() => changeStatus(row, 'completed')}
-              disabled={busyId === row._id}
+              disabled={busyId === row.id}
               className="text-xs font-medium text-green-600 hover:underline disabled:opacity-50 dark:text-green-400"
             >
               Complete
@@ -159,15 +159,15 @@ export default function ClassDetail() {
           {row.status === 'active' && (
             <button
               onClick={() => changeStatus(row, 'dropped')}
-              disabled={busyId === row._id}
+              disabled={busyId === row.id}
               className="text-xs font-medium text-amber-600 hover:underline disabled:opacity-50 dark:text-amber-400"
             >
               Drop
             </button>
           )}
           <button
-            onClick={() => setRemoveConfirm({ id: row._id, name: studentName(row) })}
-            disabled={removing || busyId === row._id}
+            onClick={() => setRemoveConfirm({ id: row.id, name: studentName(row) })}
+            disabled={removing || busyId === row.id}
             className="text-xs font-medium text-red-600 hover:underline disabled:opacity-50 dark:text-red-400"
           >
             Remove
@@ -211,13 +211,13 @@ export default function ClassDetail() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="secondary" onClick={() => navigate(`/education/classes/${cls._id}/attendance`)}>
+          <Button variant="secondary" onClick={() => navigate(`/education/classes/${cls.id}/attendance`)}>
             Attendance
           </Button>
-          <Button variant="secondary" onClick={() => navigate(`/education/classes/${cls._id}/exams`)}>
+          <Button variant="secondary" onClick={() => navigate(`/education/classes/${cls.id}/exams`)}>
             Exams
           </Button>
-          <Button variant="secondary" onClick={() => navigate(`/education/classes/${cls._id}/edit`)}>
+          <Button variant="secondary" onClick={() => navigate(`/education/classes/${cls.id}/edit`)}>
             Edit class
           </Button>
           <Button onClick={() => setEnrollOpen(true)}>Enroll student</Button>
@@ -344,7 +344,7 @@ export default function ClassDetail() {
       <EnrollStudentModal
         isOpen={enrollOpen}
         onClose={() => setEnrollOpen(false)}
-        classId={cls._id}
+        classId={cls.id}
         onEnrolled={refresh}
       />
 

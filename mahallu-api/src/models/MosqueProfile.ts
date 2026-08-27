@@ -13,7 +13,7 @@ export const MOSQUE_FACILITIES = [
 
 export interface IMosqueProfile extends Document {
   tenantId: mongoose.Types.ObjectId;
-  name?: string;
+  name: string;
   nameMl?: string;
   capacity?: number;
   facilities: string[];
@@ -29,15 +29,14 @@ export interface IMosqueProfile extends Document {
 
 const MosqueProfileSchema = new Schema<IMosqueProfile>(
   {
-    // One profile per tenant - the endpoint upserts on this key
+    // A Mahallu can have multiple mosques
     tenantId: {
       type: Schema.Types.ObjectId,
       ref: 'Tenant',
       required: [true, 'Tenant ID is required'],
-      unique: true,
       index: true,
     },
-    name: { type: String, trim: true },
+    name: { type: String, required: [true, 'Mosque name is required'], trim: true },
     nameMl: { type: String, trim: true },
     capacity: { type: Number, min: 0 },
     facilities: {

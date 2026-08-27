@@ -55,7 +55,7 @@ export default function AwardCreate() {
         status: formData.status,
         remarks: formData.remarks || undefined,
       });
-      const member = members.find((m) => m._id === formData.memberId);
+      const member = members.find((m) => (m._id || m.id) === formData.memberId);
       toast.success(`Award created for ${member?.name || 'student'}`);
       navigate(`/education/scholarships/${scholarshipId}/awards`);
     } catch (err: any) {

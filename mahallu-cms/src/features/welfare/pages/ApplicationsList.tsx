@@ -124,7 +124,7 @@ export default function ApplicationsList() {
             <Select
               options={[
                 { value: '', label: 'All schemes' },
-                ...schemes.map((s) => ({ value: s._id, label: s.name })),
+                ...schemes.map((s) => ({ value: s.id, label: s.name })),
               ]}
               value={schemeFilter}
               onChange={(e) => {
@@ -173,7 +173,7 @@ export default function ApplicationsList() {
               data={rows}
               emptyMessage="No applications found"
               showExport={false}
-              onRowClick={(row) => navigate(`/welfare/applications/${row._id}`)}
+              onRowClick={(row) => navigate(`/welfare/applications/${row.id}`)}
             />
           </div>
         )}

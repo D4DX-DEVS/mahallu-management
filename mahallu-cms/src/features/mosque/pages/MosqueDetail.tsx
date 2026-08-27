@@ -1,15 +1,16 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import { toast } from '@/store/toastStore';
 import { ROUTES } from '@/constants/routes';
 import { mosqueService, MOSQUE_FACILITY_OPTIONS, MosqueProfile } from '@/services/mosqueService';
 
-const emptyProfile: MosqueProfile = {
+const emptyProfile: Omit<MosqueProfile, 'id'> = {
   name: '',
   nameMl: '',
   capacity: undefined,
@@ -21,25 +22,31 @@ const emptyProfile: MosqueProfile = {
   staffNotes: '',
 };
 
-export default function MosqueProfilePage() {
-  const [profile, setProfile] = useState<MosqueProfile>(emptyProfile);
+export default function MosqueDetail() {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const [profile, setProfile] = useState<MosqueProfile | null>(null);
+  const [form, setForm] = useState<Omit<MosqueProfile, 'id'>>(emptyProfile);
   const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [isConfirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 
   useEffect(() => {
+    if (!id) return;
     mosqueService
-      .get()
+      .getById(id)
       .then((data) => {
-        if (data) setProfile({ ...emptyProfile, ...data, facilities: data.facilities || [] });
-        else setEditing(true);
+        setProfile(data);
+        setForm({ ...emptyProfile, ...data, facilities: data.facilities || [] });
       })
-      .catch(() => setEditing(true))
+      .catch(() => setNotFound(true))
       .finally(() => setLoading(false));
-  }, []);
+  }, [id]);
 
   const toggleFacility = (value: string) => {
-    setProfile((prev) => ({
+    setForm((prev) => ({
       ...prev,
       facilities: prev.facilities.includes(value)
         ? prev.facilities.filter((f) => f !== value)
@@ -48,10 +55,15 @@ export default function MosqueProfilePage() {
   };
 
   const handleSave = async () => {
+    if (!id || !form.name.trim()) {
+      toast.error('Mosque name is required');
+      return;
+    }
     try {
       setSaving(true);
-      const saved = await mosqueService.save(profile);
-      setProfile({ ...emptyProfile, ...saved, facilities: saved.facilities || [] });
+      const saved = await mosqueService.update(id, form);
+      setProfile(saved);
+      setForm({ ...emptyProfile, ...saved, facilities: saved.facilities || [] });
       setEditing(false);
       toast.success('Mosque profile saved');
     } catch (err: any) {
@@ -61,9 +73,32 @@ export default function MosqueProfilePage() {
     }
   };
 
+  const handleDelete = async () => {
+    if (!id) return;
+    try {
+      await mosqueService.remove(id);
+      toast.success('Mosque deleted');
+      navigate('/mosque');
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to delete mosque');
+      setConfirmDeleteOpen(false);
+    }
+  };
+
   if (loading) {
+    return <PageSkeleton variant="section" />;
+  }
+
+  if (notFound || !profile) {
     return (
-      <PageSkeleton variant="section" />
+      <Card>
+        <p className="text-red-600 dark:text-red-400">Mosque not found</p>
+        <Link to="/mosque">
+          <Button variant="outline" className="mt-4">
+            Back to mosques
+          </Button>
+        </Link>
+      </Card>
     );
   }
 
@@ -78,16 +113,22 @@ export default function MosqueProfilePage() {
     <div className="space-y-3">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">Mosque Profile</h1>
+          <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">{profile.name}</h1>
           <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
             Capacity, facilities and religious staff
           </p>
         </div>
-        <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Mosque' }]} />
+        <Breadcrumb
+          items={[
+            { label: 'Dashboard', path: '/dashboard' },
+            { label: 'Mosque', path: '/mosque' },
+            { label: profile.name },
+          ]}
+        />
       </div>
 
       <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
-        <Link to={ROUTES.ASSETS.LIST}>
+        <Link to={`${ROUTES.ASSETS.LIST}?mosqueId=${profile.id}`}>
           <Button variant="outline" size="md" className="w-full sm:w-auto">
             Maintenance &amp; Assets
           </Button>
@@ -97,9 +138,19 @@ export default function MosqueProfilePage() {
             {saving ? 'Saving...' : 'Save Profile'}
           </Button>
         ) : (
-          <Button size="md" onClick={() => setEditing(true)} className="w-full sm:w-auto">
-            Edit Profile
-          </Button>
+          <>
+            <Button
+              variant="outline"
+              size="md"
+              className="w-full sm:w-auto"
+              onClick={() => setConfirmDeleteOpen(true)}
+            >
+              Delete Mosque
+            </Button>
+            <Button size="md" onClick={() => setEditing(true)} className="w-full sm:w-auto">
+              Edit Profile
+            </Button>
+          </>
         )}
       </div>
 
@@ -108,50 +159,51 @@ export default function MosqueProfilePage() {
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <Input
               label="Mosque Name"
-              value={profile.name || ''}
-              onChange={(e) => setProfile({ ...profile, name: e.target.value })}
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              required
             />
             <Input
               label="Name (Malayalam)"
-              value={profile.nameMl || ''}
-              onChange={(e) => setProfile({ ...profile, nameMl: e.target.value })}
+              value={form.nameMl || ''}
+              onChange={(e) => setForm({ ...form, nameMl: e.target.value })}
               className="font-malayalam"
             />
             <Input
               label="Capacity"
               type="number"
-              value={profile.capacity != null ? String(profile.capacity) : ''}
+              value={form.capacity != null ? String(form.capacity) : ''}
               onChange={(e) =>
-                setProfile({ ...profile, capacity: e.target.value ? Number(e.target.value) : undefined })
+                setForm({ ...form, capacity: e.target.value ? Number(e.target.value) : undefined })
               }
             />
             <Input
               label="Imam Name"
-              value={profile.imamName || ''}
-              onChange={(e) => setProfile({ ...profile, imamName: e.target.value })}
+              value={form.imamName || ''}
+              onChange={(e) => setForm({ ...form, imamName: e.target.value })}
             />
             <Input
               label="Muazzin Name"
-              value={profile.muazzinName || ''}
-              onChange={(e) => setProfile({ ...profile, muazzinName: e.target.value })}
+              value={form.muazzinName || ''}
+              onChange={(e) => setForm({ ...form, muazzinName: e.target.value })}
             />
             <Input
               label="Khateeb Name"
-              value={profile.khateebName || ''}
-              onChange={(e) => setProfile({ ...profile, khateebName: e.target.value })}
+              value={form.khateebName || ''}
+              onChange={(e) => setForm({ ...form, khateebName: e.target.value })}
             />
             <div className="md:col-span-2">
               <Input
                 label="Prayer Facility Notes"
-                value={profile.prayerFacilityNotes || ''}
-                onChange={(e) => setProfile({ ...profile, prayerFacilityNotes: e.target.value })}
+                value={form.prayerFacilityNotes || ''}
+                onChange={(e) => setForm({ ...form, prayerFacilityNotes: e.target.value })}
               />
             </div>
             <div className="md:col-span-2">
               <Input
                 label="Staff Notes"
-                value={profile.staffNotes || ''}
-                onChange={(e) => setProfile({ ...profile, staffNotes: e.target.value })}
+                value={form.staffNotes || ''}
+                onChange={(e) => setForm({ ...form, staffNotes: e.target.value })}
               />
             </div>
           </div>
@@ -160,7 +212,7 @@ export default function MosqueProfilePage() {
             <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">Facilities</p>
             <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
               {MOSQUE_FACILITY_OPTIONS.map((option) => {
-                const active = profile.facilities.includes(option.value);
+                const active = form.facilities.includes(option.value);
                 return (
                   <button
                     key={option.value}
@@ -220,6 +272,16 @@ export default function MosqueProfilePage() {
           </Card>
         </>
       )}
+
+      <ConfirmDialog
+        isOpen={isConfirmDeleteOpen}
+        title="Delete Mosque"
+        message={`Delete "${profile.name}"? Its assets will remain but become unassigned.`}
+        variant="danger"
+        confirmLabel="Delete"
+        onConfirm={handleDelete}
+        onCancel={() => setConfirmDeleteOpen(false)}
+      />
     </div>
   );
 }

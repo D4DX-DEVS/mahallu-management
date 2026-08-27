@@ -1,7 +1,7 @@
 import api from './api';
 
 export interface Cluster {
-  _id: string;
+  id: string;
   name: string;
   nameMl?: string;
   code?: string;
@@ -13,7 +13,7 @@ export interface Cluster {
 }
 
 export interface ClusterVisit {
-  _id: string;
+  id: string;
   clusterId: { _id: string; name: string } | string;
   familyId?: { _id: string; houseName: string; familyHead?: string } | string;
   visitDate: string;

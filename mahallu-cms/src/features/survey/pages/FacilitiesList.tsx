@@ -85,7 +85,7 @@ export default function FacilitiesList() {
   };
 
   const openEdit = (facility: LocalityFacility) => {
-    setEditingId(facility._id);
+    setEditingId(facility.id);
     setForm({
       name: facility.name || '',
       nameMl: facility.nameMl || '',
@@ -126,7 +126,7 @@ export default function FacilitiesList() {
   };
 
   const openDeleteConfirm = (facility: LocalityFacility) => {
-    setDeletingId(facility._id);
+    setDeletingId(facility.id);
     setDeletingName(facility.name);
     setConfirmDeleteOpen(true);
   };

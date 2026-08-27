@@ -94,6 +94,12 @@ export interface Institute {
   contactNo?: string;
   email?: string;
   status?: 'active' | 'inactive';
+  address?: {
+    state?: string;
+    district?: string;
+    pinCode?: string;
+    postOffice?: string;
+  };
   audience?: 'all' | 'men' | 'women' | 'youth' | 'children' | 'families';
   programType?: 'quran_class' | 'hadith' | 'fiqh' | 'lecture' | 'family' | 'other';
   /** Event fields (Task C3) — present when a program is run as a gathering. */
@@ -213,6 +219,7 @@ export interface ApiError {
 export interface Asset {
   id: string;
   tenantId?: string;
+  mosqueId?: string | { id: string; name: string };
   name: string;
   nameMl?: string;
   description?: string;

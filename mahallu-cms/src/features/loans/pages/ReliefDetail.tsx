@@ -58,7 +58,7 @@ export default function ReliefDetail() {
       const payload: Record<string, any> = { status: nextStatus };
       if (assistanceGiven) payload.assistanceGiven = assistanceGiven;
       if (amount) payload.amount = Number(amount);
-      await reliefService.updateCaseStatus(reliefCase._id, payload);
+      await reliefService.updateCaseStatus(reliefCase.id, payload);
       if (id) fetchCase(id);
     } catch (err: any) {
       setActionError(err.response?.data?.message || 'Failed to update the case');

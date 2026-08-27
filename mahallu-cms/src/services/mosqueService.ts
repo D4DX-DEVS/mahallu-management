@@ -1,8 +1,8 @@
 import api from './api';
 
 export interface MosqueProfile {
-  _id?: string;
-  name?: string;
+  id: string;
+  name: string;
   nameMl?: string;
   capacity?: number;
   facilities: string[];
@@ -26,13 +26,30 @@ export const MOSQUE_FACILITY_OPTIONS = [
 ];
 
 export const mosqueService = {
-  get: async () => {
-    const response = await api.get<{ success: boolean; data: MosqueProfile | null }>('/mosque-profile');
+  getAll: async (params?: { page?: number; limit?: number; search?: string }) => {
+    const response = await api.get<{ success: boolean; data: MosqueProfile[]; pagination?: any }>('/mosques', {
+      params,
+    });
+    return { data: response.data.data, pagination: response.data.pagination || null };
+  },
+
+  getById: async (id: string) => {
+    const response = await api.get<{ success: boolean; data: MosqueProfile }>(`/mosques/${id}`);
     return response.data.data;
   },
 
-  save: async (payload: Partial<MosqueProfile>) => {
-    const response = await api.put<{ success: boolean; data: MosqueProfile }>('/mosque-profile', payload);
+  create: async (payload: Partial<MosqueProfile>) => {
+    const response = await api.post<{ success: boolean; data: MosqueProfile }>('/mosques', payload);
     return response.data.data;
+  },
+
+  update: async (id: string, payload: Partial<MosqueProfile>) => {
+    const response = await api.put<{ success: boolean; data: MosqueProfile }>(`/mosques/${id}`, payload);
+    return response.data.data;
+  },
+
+  remove: async (id: string) => {
+    const response = await api.delete<{ success: boolean; message: string }>(`/mosques/${id}`);
+    return response.data;
   },
 };

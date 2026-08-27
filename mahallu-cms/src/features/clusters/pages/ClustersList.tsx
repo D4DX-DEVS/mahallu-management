@@ -115,7 +115,7 @@ export default function ClustersList() {
         ) : (
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
             {rows.map((cluster) => (
-              <Link key={cluster._id} to={`/clusters/${cluster._id}`}>
+              <Link key={cluster.id} to={`/clusters/${cluster.id}`}>
                 <Card className="h-full p-3 transition-shadow hover:shadow-md sm:p-4">
                   <p className="text-sm font-semibold leading-tight text-gray-900 dark:text-gray-100 sm:text-base">
                     {cluster.name}

@@ -173,7 +173,7 @@ app.use('/api/locality-facilities', localityFacilityRoutes);
 app.use('/api/clusters', clusterRoutes);
 app.use('/api/cluster-visits', clusterVisitRoutes);
 app.use('/api/welfare', welfareRoutes);
-app.use('/api/mosque-profile', mosqueRoutes);
+app.use('/api/mosques', mosqueRoutes);
 app.use('/api/announcements', announcementRoutes);
 app.use('/api/zakat', zakatDistributionRoutes);
 app.use('/api/qard', qardRoutes);

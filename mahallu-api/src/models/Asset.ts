@@ -2,6 +2,7 @@ import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IAsset extends Document {
   tenantId: mongoose.Types.ObjectId;
+  mosqueId?: mongoose.Types.ObjectId;
   name: string;
   nameMl?: string;
   description?: string;
@@ -34,6 +35,11 @@ const AssetSchema = new Schema<IAsset>(
       type: Schema.Types.ObjectId,
       ref: 'Tenant',
       required: [true, 'Tenant ID is required'],
+      index: true,
+    },
+    mosqueId: {
+      type: Schema.Types.ObjectId,
+      ref: 'MosqueProfile',
       index: true,
     },
     name: {

@@ -58,7 +58,7 @@ export default function ApplicationCreate() {
         reason: form.reason,
       });
       toast.success('Application created');
-      navigate(`/welfare/applications/${application._id}`);
+      navigate(`/welfare/applications/${application.id}`);
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Failed to create application');
     } finally {
@@ -99,7 +99,7 @@ export default function ApplicationCreate() {
                 }}
                 options={[
                   { value: '', label: 'Select a scheme' },
-                  ...schemes.map((scheme) => ({ value: scheme._id, label: scheme.name })),
+                  ...schemes.map((scheme) => ({ value: scheme.id, label: scheme.name })),
                 ]}
                 required
               />

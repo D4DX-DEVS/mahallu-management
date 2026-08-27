@@ -129,7 +129,7 @@ export default function AwardsList() {
                   </thead>
                   <tbody>
                     {awards.map((award) => (
-                      <tr key={award._id} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
+                      <tr key={award.id} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
                         <td className="py-2 font-medium">{memberName(award.memberId)}</td>
                         <td className="py-2 hidden sm:table-cell text-xs">
                           {new Date(award.awardedDate).toLocaleDateString()}
@@ -143,7 +143,7 @@ export default function AwardsList() {
                         <td className="py-2">
                           <div className="flex gap-2">
                             <button
-                              onClick={() => setDeleteConfirm({ id: award._id, name: memberName(award.memberId) })}
+                              onClick={() => setDeleteConfirm({ id: award.id, name: memberName(award.memberId) })}
                               className="text-xs text-red-600 hover:underline"
                             >
                               Delete

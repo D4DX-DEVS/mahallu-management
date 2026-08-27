@@ -3,11 +3,11 @@ import api from './api';
 export type ExamStatus = 'scheduled' | 'completed' | 'cancelled';
 
 export interface AttendanceRecord {
-  _id: string;
-  classId: string | { _id: string; name: string };
+  id: string;
+  classId: string | { id: string; name: string };
   date: string;
   records: Array<{
-    enrollmentId: string | { _id: string; rollNo?: string; memberId?: string };
+    enrollmentId: string | { id: string; rollNo?: string; memberId?: string };
     present: boolean;
   }>;
   markedBy?: string;
@@ -15,13 +15,13 @@ export interface AttendanceRecord {
 }
 
 export interface Exam {
-  _id: string;
-  classId: string | { _id: string; name: string };
+  id: string;
+  classId: string | { id: string; name: string };
   name: string;
   examDate: string;
   maxMarks: number;
   results: Array<{
-    enrollmentId: string | { _id: string; rollNo?: string };
+    enrollmentId: string | { id: string; rollNo?: string };
     marks: number;
     grade?: string;
     studentName?: string;

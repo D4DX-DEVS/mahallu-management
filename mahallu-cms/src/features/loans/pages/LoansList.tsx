@@ -155,7 +155,7 @@ export default function LoansList() {
             columns={columns}
             data={rows}
             isLoading={loading}
-            onRowClick={(row) => navigate(`/loans/${row._id}`)}
+            onRowClick={(row) => navigate(`/loans/${row.id}`)}
           />
         )}
 

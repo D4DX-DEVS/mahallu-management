@@ -12,7 +12,7 @@ export type SupportCaseType =
 export type SupportCaseStatus = 'open' | 'in_progress' | 'resolved' | 'closed';
 
 export interface Scholarship {
-  _id: string;
+  id: string;
   name: string;
   nameMl?: string;
   amount: number;
@@ -24,9 +24,9 @@ export interface Scholarship {
 }
 
 export interface ScholarshipAward {
-  _id: string;
-  scholarshipId: { _id: string; name: string; amount: number; academicYear: string } | string;
-  memberId: { _id: string; name: string; nameMl?: string; contactNo?: string } | string;
+  id: string;
+  scholarshipId: { id: string; name: string; amount: number; academicYear: string } | string;
+  memberId: { id: string; name: string; nameMl?: string; contactNo?: string } | string;
   awardedDate: string;
   amount: number;
   status: AwardStatus;
@@ -36,8 +36,8 @@ export interface ScholarshipAward {
 }
 
 export interface AcademicSupportCase {
-  _id: string;
-  memberId: { _id: string; name: string; nameMl?: string; contactNo?: string } | string;
+  id: string;
+  memberId: { id: string; name: string; nameMl?: string; contactNo?: string } | string;
   type: SupportCaseType;
   description: string;
   mentorName?: string;

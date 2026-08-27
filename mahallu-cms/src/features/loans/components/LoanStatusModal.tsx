@@ -46,7 +46,7 @@ export default function LoanStatusModal({ isOpen, onClose, loan, onUpdated }: Lo
       if (disbursing) payload.disbursedDate = disbursedDate;
       if (notes) payload.notes = notes;
 
-      await qardService.updateLoanStatus(loan._id, payload);
+      await qardService.updateLoanStatus(loan.id, payload);
       toast.success(`Loan status updated to ${label(status)}`);
       onUpdated();
       onClose();

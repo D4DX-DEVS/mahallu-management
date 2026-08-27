@@ -54,7 +54,7 @@ export default function AcademicSupportCreate() {
         ...formData,
         startDate: new Date(formData.startDate).toISOString(),
       });
-      const member = members.find((m) => m._id === formData.memberId);
+      const member = members.find((m) => (m._id || m.id) === formData.memberId);
       toast.success(`Support case created for ${member?.name || 'student'}`);
       navigate('/education/support');
     } catch (err: any) {

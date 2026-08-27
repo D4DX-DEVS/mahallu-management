@@ -1,6 +1,7 @@
 import { body, param } from 'express-validator';
 
 export const createAssetValidation = [
+  body('mosqueId').optional({ nullable: true, checkFalsy: true }).isMongoId().withMessage('Invalid mosque ID'),
   body('name')
     .trim()
     .notEmpty()
@@ -44,6 +45,7 @@ export const createAssetValidation = [
 
 export const updateAssetValidation = [
   param('id').isMongoId().withMessage('Invalid asset ID'),
+  body('mosqueId').optional({ nullable: true, checkFalsy: true }).isMongoId().withMessage('Invalid mosque ID'),
   body('name')
     .optional()
     .trim()

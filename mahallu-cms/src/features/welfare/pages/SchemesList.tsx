@@ -57,7 +57,7 @@ export default function SchemesList() {
   };
 
   const openEdit = (scheme: WelfareScheme) => {
-    setEditingId(scheme._id);
+    setEditingId(scheme.id);
     setForm({
       name: scheme.name || '',
       nameMl: scheme.nameMl || '',

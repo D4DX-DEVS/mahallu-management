@@ -280,6 +280,12 @@ export default function AssetDetail() {
               <p className="mt-1 text-gray-900 dark:text-gray-100">{categoryLabels[asset.category] || asset.category}</p>
             </div>
             <div>
+              <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Mosque</label>
+              <p className="mt-1 text-gray-900 dark:text-gray-100">
+                {typeof asset.mosqueId === 'object' && asset.mosqueId ? asset.mosqueId.name : 'Unassigned'}
+              </p>
+            </div>
+            <div>
               <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Status</label>
               <p className="mt-1">
                 <span className={`px-2 py-1 text-xs font-medium rounded-full ${statusColors[asset.status] || 'bg-gray-100 text-gray-800'}`}>

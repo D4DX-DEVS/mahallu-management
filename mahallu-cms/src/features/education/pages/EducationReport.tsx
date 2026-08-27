@@ -32,7 +32,7 @@ export default function EducationReport() {
     const fetch = async () => {
       try {
         const response = await reportService.getEducationReport();
-        setData(response.data);
+        setData(response);
       } catch (err: any) {
         setError(err.response?.data?.message || 'Failed to fetch report');
       } finally {

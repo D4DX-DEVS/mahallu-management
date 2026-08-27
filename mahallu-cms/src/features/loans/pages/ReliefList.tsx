@@ -160,7 +160,7 @@ export default function ReliefList() {
             columns={columns}
             data={rows}
             isLoading={loading}
-            onRowClick={(row) => navigate(`/relief/${row._id}`)}
+            onRowClick={(row) => navigate(`/relief/${row.id}`)}
           />
         )}
 

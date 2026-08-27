@@ -158,7 +158,7 @@ export const getAllAwards = async (req: AuthRequest, res: Response) => {
 
 export const getAwardsByScholarship = async (req: AuthRequest, res: Response) => {
   try {
-    const { scholarshipId } = req.params;
+    const { id: scholarshipId } = req.params;
     const { page, limit, skip } = getPaginationParams(req);
 
     const scholarship = await Scholarship.findOne({
@@ -283,7 +283,17 @@ export const getAllSupportCases = async (req: AuthRequest, res: Response) => {
     if (req.query.type) query.type = req.query.type;
     if (req.query.status) query.status = req.query.status;
     if (req.query.memberId) query.memberId = req.query.memberId;
-    if (req.query.search) query.description = { $regex: String(req.query.search), $options: 'i' };
+    if (req.query.search) {
+      const search = String(req.query.search);
+      const matchingMembers = await Member.find({
+        ...tenantScope(req),
+        name: { $regex: search, $options: 'i' },
+      }).select('_id');
+      query.$or = [
+        { description: { $regex: search, $options: 'i' } },
+        { memberId: { $in: matchingMembers.map((m) => m._id) } },
+      ];
+    }
 
     const [cases, total] = await Promise.all([
       AcademicSupportCase.find(query)

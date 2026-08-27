@@ -141,14 +141,14 @@ export default function AcademicSupportList() {
                   </thead>
                   <tbody>
                     {cases.map((c) => (
-                      <tr key={c._id} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
+                      <tr key={c.id} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
                         <td className="py-2 font-medium">{memberName(c.memberId)}</td>
                         <td className="py-2 hidden sm:table-cell text-xs">
                           {supportCaseTypeLabel(c.type)}
                         </td>
                         <td className="py-2 hidden md:table-cell text-xs">
                           <button
-                            onClick={() => navigate(`/education/support/${c._id}`)}
+                            onClick={() => navigate(`/education/support/${c.id}`)}
                             className="text-blue-600 hover:underline"
                           >
                             {c.description}
@@ -163,13 +163,13 @@ export default function AcademicSupportList() {
                         <td className="py-2">
                           <div className="flex gap-2">
                             <button
-                              onClick={() => navigate(`/education/support/${c._id}`)}
+                              onClick={() => navigate(`/education/support/${c.id}`)}
                               className="text-xs text-blue-600 hover:underline"
                             >
                               View
                             </button>
                             <button
-                              onClick={() => setDeleteConfirm({ id: c._id, name: memberName(c.memberId) })}
+                              onClick={() => setDeleteConfirm({ id: c.id, name: memberName(c.memberId) })}
                               className="text-xs text-red-600 hover:underline"
                             >
                               Delete

@@ -216,7 +216,7 @@ export default function ProjectDetail() {
                       </thead>
                       <tbody>
                         {expenditure.items.map((item: any) => (
-                          <tr key={item._id} className="border-t hover:bg-gray-50">
+                          <tr key={item.id} className="border-t hover:bg-gray-50">
                             <td className="px-3 py-2">{new Date(item.date).toLocaleDateString()}</td>
                             <td className="px-3 py-2">{item.description}</td>
                             <td className="px-3 py-2">{item.ledgerId?.name || '-'}</td>

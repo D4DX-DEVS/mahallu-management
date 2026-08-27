@@ -21,7 +21,7 @@ interface ClassFormProps {
 }
 
 const refId = (value: unknown): string => {
-  if (value && typeof value === 'object') return (value as { _id: string })._id;
+  if (value && typeof value === 'object') return (value as { id: string }).id;
   return typeof value === 'string' ? value : '';
 };
 
@@ -83,11 +83,11 @@ export default function ClassForm({ existing }: ClassFormProps) {
     try {
       setSaving(true);
       if (existing) {
-        await madrasaService.updateClass(existing._id, payload);
-        navigate(`/education/classes/${existing._id}`);
+        await madrasaService.updateClass(existing.id, payload);
+        navigate(`/education/classes/${existing.id}`);
       } else {
         const created = await madrasaService.createClass(payload);
-        navigate(`/education/classes/${created._id}`);
+        navigate(`/education/classes/${created.id}`);
       }
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to save the class');
@@ -197,7 +197,7 @@ export default function ClassForm({ existing }: ClassFormProps) {
             <Button
               type="button"
               variant="outline"
-              onClick={() => navigate(existing ? `/education/classes/${existing._id}` : '/education')}
+              onClick={() => navigate(existing ? `/education/classes/${existing.id}` : '/education')}
             >
               Cancel
             </Button>

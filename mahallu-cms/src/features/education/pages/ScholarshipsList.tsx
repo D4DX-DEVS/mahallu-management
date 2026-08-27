@@ -124,10 +124,10 @@ export default function ScholarshipsList() {
                   </thead>
                   <tbody>
                     {scholarships.map((s) => (
-                      <tr key={s._id} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
+                      <tr key={s.id} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
                         <td className="py-2 font-medium">
                           <button
-                            onClick={() => navigate(`/education/scholarships/${s._id}`)}
+                            onClick={() => navigate(`/education/scholarships/${s.id}`)}
                             className="text-blue-600 hover:underline"
                           >
                             {s.name}
@@ -144,13 +144,13 @@ export default function ScholarshipsList() {
                         <td className="py-2">
                           <div className="flex gap-2">
                             <button
-                              onClick={() => navigate(`/education/scholarships/${s._id}`)}
+                              onClick={() => navigate(`/education/scholarships/${s.id}`)}
                               className="text-xs text-blue-600 hover:underline"
                             >
                               View
                             </button>
                             <button
-                              onClick={() => setDeleteConfirm({ id: s._id, name: s.name })}
+                              onClick={() => setDeleteConfirm({ id: s.id, name: s.name })}
                               className="text-xs text-red-600 hover:underline"
                             >
                               Delete

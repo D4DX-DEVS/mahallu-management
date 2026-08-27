@@ -27,7 +27,10 @@ export const getAreaReport = async (req: AuthRequest, res: Response) => {
 
     const families = await Family.find(query);
     const familyIds = families.map((f) => f._id);
-    const members = await Member.find({ familyId: { $in: familyIds } });
+    const members = await Member.find({
+      familyId: { $in: familyIds },
+      status: { $nin: ['inactive', 'deleted'] },
+    });
 
     const report = {
       totalFamilies: families.length,
@@ -230,7 +233,8 @@ export const getDemographicsReport = async (req: AuthRequest, res: Response) => 
       return res.status(400).json({ success: false, message: 'Tenant ID is required' });
     }
 
-    const memberBase: any = { tenantId, status: 'active', isDead: { $ne: true } };
+    // Missing status on legacy records predates the field's default and should count as active.
+    const memberBase: any = { tenantId, status: { $nin: ['inactive', 'deleted'] }, isDead: { $ne: true } };
 
     const ageBands = [
       { key: '0-14', min: 0, max: 14 },

@@ -23,7 +23,7 @@ export interface Installment {
 }
 
 export interface QardRepayment {
-  _id: string;
+  id: string;
   loanId: string;
   amount: number;
   paymentDate: string;
@@ -32,9 +32,9 @@ export interface QardRepayment {
 }
 
 export interface QardLoan {
-  _id: string;
-  applicantMemberId?: { _id: string; name: string; contactNo?: string } | string;
-  familyId?: { _id: string; houseName: string; mahallId?: string } | string;
+  id: string;
+  applicantMemberId?: { id: string; name: string; contactNo?: string } | string;
+  familyId?: { id: string; houseName: string; mahallId?: string } | string;
   applicantName?: string;
   amount: number;
   purpose: string;
@@ -64,9 +64,9 @@ export interface QardSummary {
 }
 
 export interface ReliefCase {
-  _id: string;
-  familyId?: { _id: string; houseName: string } | string;
-  memberId?: { _id: string; name: string; contactNo?: string } | string;
+  id: string;
+  familyId?: { id: string; houseName: string } | string;
+  memberId?: { id: string; name: string; contactNo?: string } | string;
   title: string;
   titleMl?: string;
   description?: string;

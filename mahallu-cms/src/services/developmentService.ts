@@ -1,7 +1,7 @@
 import api from './api';
 
 export interface DevelopmentProject {
-  _id: string;
+  id: string;
   name: string;
   nameMl?: string;
   area: string;

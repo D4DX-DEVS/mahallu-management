@@ -21,10 +21,14 @@ const programSchema = z.object({
   description: z.string().optional(),
   contactNo: z.string().regex(/^[0-9]{10,11}$/, 'Contact number must be 10 or 11 digits').optional().or(z.literal('')),
   email: z.string().email('Invalid email').optional().or(z.literal('')),
-  'address.state': z.string().optional(),
-  'address.district': z.string().optional(),
-  'address.pinCode': z.string().optional(),
-  'address.postOffice': z.string().optional(),
+  address: z
+    .object({
+      state: z.string().optional(),
+      district: z.string().optional(),
+      pinCode: z.string().optional(),
+      postOffice: z.string().optional(),
+    })
+    .optional(),
   status: z.enum(['active', 'inactive']).optional(),
   audience: z.enum(['all', 'men', 'women', 'youth', 'children', 'families']).optional(),
   programType: z.enum(['quran_class', 'hadith', 'fiqh', 'lecture', 'family', 'other']).optional(),
@@ -58,20 +62,15 @@ export default function CreateProgram() {
         type: 'program',
         joinDate: data.joinDate,
         description: data.description,
-        contactNo: data.contactNo,
+        contactNo: data.contactNo || undefined,
         email: data.email || undefined,
         status: data.status || 'active',
         audience: data.audience,
         programType: data.programType,
       };
 
-      if (data['address.state'] || data['address.district']) {
-        programData.address = {
-          state: data['address.state'],
-          district: data['address.district'],
-          pinCode: data['address.pinCode'],
-          postOffice: data['address.postOffice'],
-        };
+      if (data.address?.state || data.address?.district) {
+        programData.address = data.address;
       }
 
       await programService.create(programData);

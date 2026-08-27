@@ -169,8 +169,8 @@ export default function ProjectsList() {
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
             {projects.map((project) => (
               <Card
-                key={project._id}
-                onClick={() => navigate(`/development/${project._id}`)}
+                key={project.id}
+                onClick={() => navigate(`/development/${project.id}`)}
                 className="cursor-pointer hover:shadow-lg transition"
               >
                 <div className="p-4">
@@ -207,7 +207,7 @@ export default function ProjectsList() {
                       size="sm"
                       onClick={(e) => {
                         e.stopPropagation();
-                        navigate(`/development/${project._id}`);
+                        navigate(`/development/${project.id}`);
                       }}
                       className="flex-1"
                     >
@@ -218,7 +218,7 @@ export default function ProjectsList() {
                       variant="danger"
                       onClick={(e) => {
                         e.stopPropagation();
-                        setDeleteId(project._id);
+                        setDeleteId(project.id);
                         setConfirmDelete(true);
                       }}
                     >

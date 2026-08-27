@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { FiSave, FiX } from 'react-icons/fi';
 import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
@@ -11,6 +11,7 @@ import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import { ROUTES } from '@/constants/routes';
 import { assetService } from '@/services/assetService';
+import { mosqueService, MosqueProfile } from '@/services/mosqueService';
 
 const assetSchema = z.object({
   name: z.string().min(1, 'Asset name is required').max(200),
@@ -24,24 +25,45 @@ const assetSchema = z.object({
   status: z.enum(['active', 'in_use', 'under_maintenance', 'disposed', 'damaged']).optional(),
   location: z.string().optional(),
   locationMl: z.string().optional(),
+  mosqueId: z.string().optional(),
 });
 
 type AssetFormData = z.infer<typeof assetSchema>;
 
 export default function CreateAsset() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [error, setError] = useState<string | null>(null);
+  const [mosques, setMosques] = useState<MosqueProfile[]>([]);
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<AssetFormData>({
     resolver: zodResolver(assetSchema),
     defaultValues: {
       status: 'active',
       purchaseDate: new Date().toISOString().split('T')[0],
+      mosqueId: searchParams.get('mosqueId') || '',
     },
   });
+
+  useEffect(() => {
+    mosqueService
+      .getAll({ limit: 100 })
+      .then((result) => setMosques(result.data))
+      .catch(() => setMosques([]));
+  }, []);
+
+  // Re-apply the preselected mosque once its <option> actually exists in the DOM —
+  // setting it in the same tick as setMosques races the re-render and silently no-ops.
+  useEffect(() => {
+    const preselected = searchParams.get('mosqueId');
+    if (preselected && mosques.some((m) => m.id === preselected)) {
+      setValue('mosqueId', preselected);
+    }
+  }, [mosques]);
 
   const onSubmit = async (data: AssetFormData) => {
     try {
@@ -56,6 +78,7 @@ export default function CreateAsset() {
         status: data.status || 'active',
         location: data.location || undefined,
         locationMl: data.locationMl,
+        mosqueId: data.mosqueId || undefined,
       };
 
       await assetService.create(assetData);
@@ -143,6 +166,14 @@ export default function CreateAsset() {
               {...register('category')}
               error={errors.category?.message}
               required
+            />
+            <Select
+              label="Mosque"
+              options={[
+                { value: '', label: 'Unassigned' },
+                ...mosques.map((m) => ({ value: m.id, label: m.name })),
+              ]}
+              {...register('mosqueId')}
             />
             <Select
               label="Status"

@@ -20,12 +20,16 @@ const programSchema = z.object({
   placeMl: z.string().optional(),
   joinDate: z.string().min(1, 'Join Date is required'),
   description: z.string().optional(),
-  contactNo: z.string().optional(),
+  contactNo: z.string().regex(/^[0-9]{10,11}$/, 'Contact number must be 10 or 11 digits').optional().or(z.literal('')),
   email: z.string().email('Invalid email').optional().or(z.literal('')),
-  'address.state': z.string().optional(),
-  'address.district': z.string().optional(),
-  'address.pinCode': z.string().optional(),
-  'address.postOffice': z.string().optional(),
+  address: z
+    .object({
+      state: z.string().optional(),
+      district: z.string().optional(),
+      pinCode: z.string().optional(),
+      postOffice: z.string().optional(),
+    })
+    .optional(),
   status: z.enum(['active', 'inactive']).optional(),
   audience: z.enum(['all', 'men', 'women', 'youth', 'children', 'families']).optional(),
   programType: z.enum(['quran_class', 'hadith', 'fiqh', 'lecture', 'family', 'other']).optional(),
@@ -69,6 +73,12 @@ export default function EditProgram() {
       setValue('email', program.email || '');
       setValue('nameMl', program.nameMl || '');
       setValue('placeMl', program.placeMl || '');
+      if (program.address) {
+        setValue('address.state', program.address.state || '');
+        setValue('address.district', program.address.district || '');
+        setValue('address.pinCode', program.address.pinCode || '');
+        setValue('address.postOffice', program.address.postOffice || '');
+      }
       setValue('status', (program.status || 'active') as 'active' | 'inactive');
       if (program.audience) setValue('audience', program.audience as 'all' | 'men' | 'women' | 'youth' | 'children' | 'families');
       if (program.programType) setValue('programType', program.programType as 'quran_class' | 'hadith' | 'fiqh' | 'lecture' | 'family' | 'other');
@@ -92,7 +102,7 @@ export default function EditProgram() {
         placeMl: data.placeMl,
         joinDate: data.joinDate,
         description: data.description,
-        contactNo: data.contactNo,
+        contactNo: data.contactNo || undefined,
         email: data.email || undefined,
         status: data.status || 'active',
         audience: data.audience,
@@ -101,13 +111,8 @@ export default function EditProgram() {
         awards: data.awards || undefined,
       };
 
-      if (data['address.state'] || data['address.district']) {
-        programData.address = {
-          state: data['address.state'],
-          district: data['address.district'],
-          pinCode: data['address.pinCode'],
-          postOffice: data['address.postOffice'],
-        };
+      if (data.address?.state || data.address?.district) {
+        programData.address = data.address;
       }
 
       await programService.update(id, programData);
@@ -196,10 +201,10 @@ export default function EditProgram() {
             <div className="md:col-span-2">
               <Input label="Description" {...register('description')} error={errors.description?.message} />
             </div>
-            <Input label="State" {...register('address.state')} error={errors['address.state']?.message} />
-            <Input label="District" {...register('address.district')} error={errors['address.district']?.message} />
-            <Input label="PIN Code" {...register('address.pinCode')} error={errors['address.pinCode']?.message} />
-            <Input label="Post Office" {...register('address.postOffice')} error={errors['address.postOffice']?.message} />
+            <Input label="State" {...register('address.state')} error={errors.address?.state?.message} />
+            <Input label="District" {...register('address.district')} error={errors.address?.district?.message} />
+            <Input label="PIN Code" {...register('address.pinCode')} error={errors.address?.pinCode?.message} />
+            <Input label="Post Office" {...register('address.postOffice')} error={errors.address?.postOffice?.message} />
           </div>
 
           <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
