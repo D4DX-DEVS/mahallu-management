@@ -15,6 +15,7 @@ import { socialService, Support } from '@/services/socialService';
 import { formatDate } from '@/utils/format';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
 import { toast } from '@/store/toastStore';
+import { ROUTES } from '@/constants/routes';
 
 export default function SupportList() {
   const navigate = useNavigate();
@@ -149,7 +150,7 @@ export default function SupportList() {
           <button
             onClick={(e) => {
               e.stopPropagation();
-              navigate(`/social/support/${row.id}`);
+              navigate(ROUTES.SOCIAL.SUPPORT_DETAIL(row.id));
             }}
             className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
             title="View"
@@ -204,7 +205,7 @@ export default function SupportList() {
           onExport={handleExport}
           isExporting={isExporting}
           actionButtons={
-            <Link to="/social/support/create">
+            <Link to={ROUTES.SOCIAL.CREATE_SUPPORT}>
               <Button size="md">
                 + New Ticket
               </Button>

@@ -276,7 +276,7 @@ export default function VolunteerDetail() {
             <>
               <div className="space-y-3">
                 {assignments.map((assignment) => (
-                  <div key={assignment._id} className="border-l-4 border-blue-400 pl-3 py-2">
+                  <div key={assignment.id} className="border-l-4 border-blue-400 pl-3 py-2">
                     <div className="flex justify-between items-start gap-2">
                       <div className="flex-1">
                         <p className="text-sm font-medium text-gray-900">

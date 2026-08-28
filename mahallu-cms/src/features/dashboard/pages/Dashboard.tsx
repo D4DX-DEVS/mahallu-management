@@ -154,9 +154,9 @@ export default function Dashboard() {
             <div className="mb-4 flex items-center justify-between">
                 <div>
                     <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">
-                        Attendance Timeline
+                        New Registrations
                     </h2>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">Weekly overview</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Family registrations, last 7 days</p>
                 </div>
             </div>
             <div className="h-[250px] w-full">
@@ -188,7 +188,7 @@ export default function Dashboard() {
                                 borderRadius: '8px',
                                 boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
                             }}
-                            formatter={(value: number) => [`${value} attendances`, '']}
+                            formatter={(value: number) => [`${value} registration${value === 1 ? '' : 's'}`, '']}
                             labelFormatter={(label) => label}
                         />
                         <Area

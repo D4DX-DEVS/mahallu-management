@@ -1,10 +1,10 @@
 import api from './api';
 
 export interface Khateeb {
-  _id: string;
+  id: string;
   name: string;
   nameMl?: string;
-  memberId?: { _id: string; name: string; contactNo?: string } | string;
+  memberId?: { id: string; name: string; contactNo?: string } | string;
   qualifications?: string;
   contactNo?: string;
   status: 'active' | 'inactive';
@@ -12,8 +12,8 @@ export interface Khateeb {
 }
 
 export interface Khutbah {
-  _id: string;
-  khateebId: { _id: string; name: string; qualifications?: string } | string;
+  id: string;
+  khateebId: { id: string; name: string; qualifications?: string } | string;
   date: string;
   topic: string;
   topicMl?: string;

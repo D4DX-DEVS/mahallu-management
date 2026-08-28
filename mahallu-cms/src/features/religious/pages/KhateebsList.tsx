@@ -107,7 +107,7 @@ export default function KhateebsList() {
       reset({
         name: khateeb.name,
         nameMl: khateeb.nameMl || '',
-        memberId: typeof khateeb.memberId === 'object' ? khateeb.memberId._id : khateeb.memberId,
+        memberId: typeof khateeb.memberId === 'object' ? khateeb.memberId.id : khateeb.memberId,
         qualifications: khateeb.qualifications || '',
         contactNo: khateeb.contactNo || '',
         status: khateeb.status,
@@ -123,7 +123,7 @@ export default function KhateebsList() {
     try {
       setError(null);
       if (editingKhateeb) {
-        await religiousService.updateKhateeb(editingKhateeb._id, data);
+        await religiousService.updateKhateeb(editingKhateeb.id, data);
       } else {
         await religiousService.createKhateeb(data);
       }
@@ -139,7 +139,7 @@ export default function KhateebsList() {
     if (!selectedKhateeb) return;
     try {
       setDeleting(true);
-      await religiousService.deleteKhateeb(selectedKhateeb._id);
+      await religiousService.deleteKhateeb(selectedKhateeb.id);
       setShowDeleteModal(false);
       setSelectedKhateeb(null);
       fetchKhateebs();
@@ -159,7 +159,7 @@ export default function KhateebsList() {
     {
       key: 'name',
       label: 'Name',
-      render: (khateeb: Khateeb) => (
+      render: (_: any, khateeb: Khateeb) => (
         <div>
           <p className="font-medium">{khateeb.name}</p>
           {khateeb.nameMl && <p className="text-sm text-gray-600">{khateeb.nameMl}</p>}
@@ -169,17 +169,17 @@ export default function KhateebsList() {
     {
       key: 'qualifications',
       label: 'Qualifications',
-      render: (khateeb: Khateeb) => khateeb.qualifications || '—',
+      render: (_: any, khateeb: Khateeb) => khateeb.qualifications || '—',
     },
     {
       key: 'contactNo',
       label: 'Contact',
-      render: (khateeb: Khateeb) => khateeb.contactNo || '—',
+      render: (_: any, khateeb: Khateeb) => khateeb.contactNo || '—',
     },
     {
       key: 'status',
       label: 'Status',
-      render: (khateeb: Khateeb) => (
+      render: (_: any, khateeb: Khateeb) => (
         <span
           className={`px-2 py-1 rounded text-xs font-medium ${
             khateeb.status === 'active'
@@ -194,7 +194,7 @@ export default function KhateebsList() {
     {
       key: 'actions',
       label: 'Actions',
-      render: (khateeb: Khateeb) => (
+      render: (_: any, khateeb: Khateeb) => (
         <div className="flex gap-2">
           <Button
             size="sm"

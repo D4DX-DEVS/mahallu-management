@@ -60,7 +60,7 @@ export default function KhutbahEdit() {
       const data = await religiousService.getKhutbahById(id);
       setValue(
         'khateebId',
-        typeof data.khateebId === 'object' ? data.khateebId._id : data.khateebId
+        typeof data.khateebId === 'object' ? data.khateebId.id : data.khateebId
       );
       setValue('date', String(data.date).split('T')[0]);
       setValue('topic', data.topic);
@@ -102,7 +102,7 @@ export default function KhutbahEdit() {
   if (loading) return <PageSkeleton />;
 
   const khateebOptions = khateebs.map((k) => ({
-    value: k._id,
+    value: k.id,
     label: k.name,
   }));
 

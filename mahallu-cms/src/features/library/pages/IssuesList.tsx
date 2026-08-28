@@ -48,7 +48,7 @@ export default function IssuesList() {
     if (!returnId) return;
     try {
       await libraryService.returnIssue(returnId);
-      setIssues(issues.map((i) => (i._id === returnId ? { ...i, status: 'returned' } : i)));
+      setIssues(issues.map((i) => (i.id === returnId ? { ...i, status: 'returned' } : i)));
       toast.success('Book marked as returned');
       setConfirmReturn(false);
       setReturnId(null);
@@ -79,7 +79,7 @@ export default function IssuesList() {
     {
       key: 'bookId',
       label: 'Book',
-      render: (issue: BookIssue) => (
+      render: (_: any, issue: BookIssue) => (
         <div className="text-sm">
           {typeof issue.bookId === 'object' ? issue.bookId.title : 'N/A'}
         </div>
@@ -88,7 +88,7 @@ export default function IssuesList() {
     {
       key: 'memberId',
       label: 'Member',
-      render: (issue: BookIssue) => (
+      render: (_: any, issue: BookIssue) => (
         <div className="text-sm">
           {typeof issue.memberId === 'object' && issue.memberId && 'name' in issue.memberId ? (issue.memberId as any).name : 'N/A'}
         </div>
@@ -97,12 +97,12 @@ export default function IssuesList() {
     {
       key: 'issueDate',
       label: 'Issued',
-      render: (issue: BookIssue) => new Date(issue.issueDate).toLocaleDateString(),
+      render: (_: any, issue: BookIssue) => new Date(issue.issueDate).toLocaleDateString(),
     },
     {
       key: 'dueDate',
       label: 'Due',
-      render: (issue: BookIssue) => (
+      render: (_: any, issue: BookIssue) => (
         <div>
           <div className="text-sm">{new Date(issue.dueDate).toLocaleDateString()}</div>
           {issue.status !== 'returned' && (
@@ -114,17 +114,17 @@ export default function IssuesList() {
     {
       key: 'status',
       label: 'Status',
-      render: (issue: BookIssue) => getStatusBadge(issue),
+      render: (_: any, issue: BookIssue) => getStatusBadge(issue),
     },
     {
       key: 'actions',
       label: 'Actions',
-      render: (issue: BookIssue) => (
+      render: (_: any, issue: BookIssue) => (
         issue.status !== 'returned' && (
           <Button
             size="sm"
             onClick={() => {
-              setReturnId(issue._id);
+              setReturnId(issue.id);
               setConfirmReturn(true);
             }}
           >

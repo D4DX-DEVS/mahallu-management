@@ -3,8 +3,8 @@ import api from './api';
 export interface Varisangya {
   id: string;
   tenantId?: string;
-  familyId?: string | { _id: string; houseName?: string };
-  memberId?: string | { _id: string; name?: string };
+  familyId?: string | { id: string; houseName?: string };
+  memberId?: string | { id: string; name?: string };
   amount: number;
   paymentDate: string;
   paymentMethod?: string;

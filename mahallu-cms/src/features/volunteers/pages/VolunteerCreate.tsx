@@ -91,7 +91,7 @@ export default function VolunteerCreate() {
                     value={formData.memberId}
                     onChange={(v) => setFormData((prev) => ({ ...prev, memberId: v }))}
                     options={members.map((m) => ({
-                      value: m._id,
+                      value: m.id,
                       label: `${m.name}${m.familyName ? ` (${m.familyName})` : ''}`,
                     }))}
                     placeholder={loadingMembers ? 'Loading members...' : 'Search and select member'}

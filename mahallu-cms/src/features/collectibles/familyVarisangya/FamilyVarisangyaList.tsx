@@ -28,6 +28,8 @@ interface FamilyVarisangyaData extends Family {
 
 const FAMILY_BASE = ROUTES.COLLECTIBLES.FAMILY_VARISANGYA.BASE;
 
+const getFamilyId = (v: any) => (typeof v.familyId === 'object' && v.familyId != null ? (v.familyId as any).id : v.familyId);
+
 export default function FamilyVarisangyaList() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
@@ -65,7 +67,6 @@ export default function FamilyVarisangyaList() {
       const varisangyasResult = await collectibleService.getAllVarisangyas();
       const allVarisangyas = varisangyasResult.data;
 
-      const getFamilyId = (v: any) => (typeof v.familyId === 'object' && v.familyId != null ? (v.familyId as any)._id : v.familyId);
       const familiesWithVarisangya = familiesData.map((family) => {
         const fid = (family as any).id ?? (family as any)._id;
         const familyVarisangyas = allVarisangyas.filter(
@@ -109,7 +110,7 @@ export default function FamilyVarisangyaList() {
       const allVarisangyas = varisangyasResult.data;
       const dataToExport = familiesData.map((family) => {
         const familyVarisangyas = allVarisangyas.filter(
-          (v) => v.familyId === family.id
+          (v) => getFamilyId(v) === family.id
         );
         const totalVarisangya = familyVarisangyas.reduce(
           (sum, v) => sum + (v.amount || 0),
@@ -141,7 +142,7 @@ export default function FamilyVarisangyaList() {
             const invoices: InvoiceDetails[] = [];
             for (const family of familiesData) {
               const familyVarisangyas = allVarisangyas.filter(
-                (v) => v.familyId === family.id
+                (v) => getFamilyId(v) === family.id
               );
               for (const entry of familyVarisangyas) {
                 invoices.push({

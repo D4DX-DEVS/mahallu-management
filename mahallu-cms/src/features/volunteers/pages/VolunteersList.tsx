@@ -52,7 +52,7 @@ export default function VolunteersList() {
     try {
       setDeleting(true);
       await volunteerService.deleteVolunteer(deleteId);
-      setVolunteers((prev) => prev.filter((v) => v._id !== deleteId));
+      setVolunteers((prev) => prev.filter((v) => v.id !== deleteId));
       toast.success('Volunteer deleted successfully');
       setShowDeleteConfirm(false);
       setDeleteId(null);
@@ -121,9 +121,9 @@ export default function VolunteersList() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {volunteers.map((volunteer) => (
               <Card
-                key={volunteer._id}
+                key={volunteer.id}
                 className="cursor-pointer hover:shadow-md transition-shadow"
-                onClick={() => navigate(`/volunteers/${volunteer._id}`)}
+                onClick={() => navigate(`/volunteers/${volunteer.id}`)}
               >
                 <div className="p-4 space-y-3">
                   <div className="flex justify-between items-start gap-2">
@@ -165,7 +165,7 @@ export default function VolunteersList() {
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        navigate(`/volunteers/${volunteer._id}/edit`);
+                        navigate(`/volunteers/${volunteer.id}/edit`);
                       }}
                       className="flex-1 px-2 py-1 text-xs bg-blue-50 text-blue-600 rounded hover:bg-blue-100"
                     >
@@ -174,7 +174,7 @@ export default function VolunteersList() {
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleDeleteClick(volunteer._id);
+                        handleDeleteClick(volunteer.id);
                       }}
                       className="flex-1 px-2 py-1 text-xs bg-red-50 text-red-600 rounded hover:bg-red-100"
                     >

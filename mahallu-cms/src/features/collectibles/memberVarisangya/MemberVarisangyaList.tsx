@@ -28,7 +28,7 @@ interface MemberVarisangyaData extends Member {
 
 const MEMBER_BASE = ROUTES.COLLECTIBLES.MEMBER_VARISANGYA.BASE;
 
-const getMemberId = (v: any) => (typeof v.memberId === 'object' && v.memberId != null ? v.memberId._id : v.memberId);
+const getMemberId = (v: any) => (typeof v.memberId === 'object' && v.memberId != null ? v.memberId.id : v.memberId);
 
 export default function MemberVarisangyaList() {
   const navigate = useNavigate();

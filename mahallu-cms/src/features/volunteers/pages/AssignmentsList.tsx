@@ -49,7 +49,7 @@ export default function AssignmentsList() {
     setIsDeleting(true);
     try {
       await volunteerService.deleteAssignment(deleteConfirm.id);
-      setAssignments((prev) => prev.filter((a) => a._id !== deleteConfirm.id));
+      setAssignments((prev) => prev.filter((a) => a.id !== deleteConfirm.id));
       toast.success('Assignment deleted successfully');
       setDeleteConfirm(null);
     } catch (error) {
@@ -141,7 +141,7 @@ export default function AssignmentsList() {
               </thead>
               <tbody>
                 {assignments.map((assignment) => (
-                  <tr key={assignment._id} className="border-b hover:bg-gray-50">
+                  <tr key={assignment.id} className="border-b hover:bg-gray-50">
                     <td className="px-4 py-3 text-sm">
                       {new Date(assignment.date).toLocaleDateString()}
                     </td>
@@ -166,13 +166,13 @@ export default function AssignmentsList() {
                     </td>
                     <td className="px-4 py-3 text-sm text-right">
                       <button
-                        onClick={() => navigate(`/volunteers/assignments/${assignment._id}/edit`)}
+                        onClick={() => navigate(`/volunteers/assignments/${assignment.id}/edit`)}
                         className="text-blue-600 hover:text-blue-800 mr-3"
                       >
                         Edit
                       </button>
                       <button
-                        onClick={() => handleDeleteClick(assignment._id, new Date(assignment.date).toLocaleDateString())}
+                        onClick={() => handleDeleteClick(assignment.id, new Date(assignment.date).toLocaleDateString())}
                         className="text-red-600 hover:text-red-800"
                       >
                         Delete

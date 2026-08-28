@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { FiEye, FiX, FiDollarSign, FiCheckCircle, FiClock } from 'react-icons/fi';
+import { FiEye, FiEdit2, FiTrash2, FiX, FiDollarSign, FiCheckCircle, FiClock } from 'react-icons/fi';
 import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
@@ -10,12 +10,14 @@ import Table from '@/components/ui/Table';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { TableColumn, Pagination as PaginationType } from '@/types';
 import { SalaryPayment } from '@/types';
 import { ROUTES } from '@/constants/routes';
 import { salaryService } from '@/services/salaryService';
 import { instituteService } from '@/services/instituteService';
 import { useAuthStore } from '@/store/authStore';
+import { toast } from '@/store/toastStore';
 
 const MONTHS = [
   { value: '1', label: 'January' }, { value: '2', label: 'February' }, { value: '3', label: 'March' },
@@ -41,6 +43,8 @@ export default function SalaryList() {
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; label: string } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     if (!userInstituteId) fetchInstitutes();
@@ -78,6 +82,25 @@ export default function SalaryList() {
     }
   };
 
+  const handleDeleteClick = (id: string, label: string) => {
+    setDeleteConfirm({ id, label });
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteConfirm) return;
+    try {
+      setIsDeleting(true);
+      await salaryService.delete(deleteConfirm.id);
+      toast.success('Salary payment deleted successfully');
+      setDeleteConfirm(null);
+      await fetchPayments();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to delete salary payment');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const columns: TableColumn<SalaryPayment>[] = [
     { key: 'id', label: 'No.', render: (_, __, index) => index + 1 },
     { key: 'employeeId', label: 'Employee', render: (emp) => (typeof emp === 'object' && emp?.name) ? emp.name : (emp || '-') },
@@ -101,11 +124,26 @@ export default function SalaryList() {
     {
       key: 'actions',
       label: 'Actions',
-      render: (_, row) => (
-        <button onClick={(e) => { e.stopPropagation(); navigate(ROUTES.SALARY.DETAIL(row.id)); }} className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400">
-          <FiEye className="h-4 w-4" />
-        </button>
-      ),
+      render: (_, row) => {
+        const empLabel = typeof row.employeeId === 'object' && row.employeeId?.name ? row.employeeId.name : 'this employee';
+        return (
+          <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+            <button onClick={() => navigate(ROUTES.SALARY.DETAIL(row.id))} className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400" title="View">
+              <FiEye className="h-4 w-4" />
+            </button>
+            <button onClick={() => navigate(ROUTES.SALARY.EDIT(row.id))} className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-blue-600 dark:text-blue-400" title="Edit">
+              <FiEdit2 className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => handleDeleteClick(row.id, `${getMonthName(row.month)} ${row.year} – ${empLabel}`)}
+              className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-red-600 dark:text-red-400"
+              title="Delete"
+            >
+              <FiTrash2 className="h-4 w-4" />
+            </button>
+          </div>
+        );
+      },
     },
   ];
 
@@ -185,6 +223,19 @@ export default function SalaryList() {
           </div>
         )}
       </Card>
+
+      <ConfirmDialog
+        isOpen={deleteConfirm !== null}
+        title="Delete Salary Payment"
+        message={deleteConfirm ? `Delete salary payment for ${deleteConfirm.label}?` : ''}
+        consequence="This action cannot be undone."
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        variant="danger"
+        isLoading={isDeleting}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setDeleteConfirm(null)}
+      />
     </div>
   );
 }

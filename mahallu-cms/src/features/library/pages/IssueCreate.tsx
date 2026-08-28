@@ -142,7 +142,7 @@ export default function IssueCreate() {
             >
               <option value="">Choose a book...</option>
               {books.map((book) => (
-                <option key={book._id} value={book._id}>
+                <option key={book.id} value={book.id}>
                   {book.title} - {book.author} ({book.availableCopies}/{book.copies} available)
                 </option>
               ))}
@@ -159,7 +159,7 @@ export default function IssueCreate() {
                   placeholder="Search by name..."
                   value={watch('memberId')}
                   onChange={(v) => setValue('memberId', v, { shouldValidate: true })}
-                  options={members.map((m) => ({ value: m._id, label: m.name }))}
+                  options={members.map((m) => ({ value: m.id, label: m.name }))}
                   onSearch={handleMemberSearch}
                   error={errors.memberId?.message}
                 />

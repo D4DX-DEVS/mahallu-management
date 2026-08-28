@@ -75,7 +75,7 @@ export default function KhutbahCreate() {
   };
 
   const khateebOptions = khateebs.map((k) => ({
-    value: k._id,
+    value: k.id,
     label: k.name,
   }));
 

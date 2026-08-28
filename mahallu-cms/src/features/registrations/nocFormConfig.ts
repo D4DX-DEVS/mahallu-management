@@ -39,10 +39,13 @@ export const DEFAULT_NOC_DESCRIPTION = `
 
 export const createNocSchema = z.object({
   applicantId: z.string().optional(),
-  applicantName: z.string().min(1, 'Applicant name is required'),
+  applicantName: z.string().min(2, 'Applicant name must be between 2 and 100 characters').max(100, 'Applicant name must be between 2 and 100 characters'),
   applicantNameMl: z.string().optional(),
-  applicantPhone: z.string().optional(),
-  purposeTitle: z.string().min(1, 'Purpose title is required'),
+  applicantPhone: z
+    .string()
+    .optional()
+    .refine((v) => !v || /^[0-9]{10}$/.test(v), 'Applicant phone must be exactly 10 digits'),
+  purposeTitle: z.string().min(2, 'Purpose title must be between 2 and 200 characters').max(200, 'Purpose title must be between 2 and 200 characters'),
   purposeTitleMl: z.string().optional(),
   purposeDescription: z.string().min(1, 'Purpose description is required'),
   type: z.enum(['common', 'nikah']),

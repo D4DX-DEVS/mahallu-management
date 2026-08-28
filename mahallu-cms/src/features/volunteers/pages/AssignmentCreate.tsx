@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { volunteerService, SERVICE_TYPE_OPTIONS } from '@/services/volunteerService';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
@@ -8,6 +8,8 @@ const today = () => new Date().toISOString().slice(0, 16);
 
 export default function AssignmentCreate() {
   const navigate = useNavigate();
+  const { id } = useParams<{ id: string }>();
+  const isEdit = Boolean(id);
   const [volunteers, setVolunteers] = useState<any[]>([]);
   const [formData, setFormData] = useState({
     volunteerIds: [] as string[],
@@ -19,6 +21,7 @@ export default function AssignmentCreate() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loadingVolunteers, setLoadingVolunteers] = useState(true);
+  const [loadingAssignment, setLoadingAssignment] = useState(isEdit);
 
   useEffect(() => {
     const fetchVolunteers = async () => {
@@ -39,6 +42,30 @@ export default function AssignmentCreate() {
     fetchVolunteers();
   }, []);
 
+  useEffect(() => {
+    if (!id) return;
+    const fetchAssignment = async () => {
+      try {
+        setLoadingAssignment(true);
+        const assignment = await volunteerService.getAssignment(id);
+        setFormData({
+          volunteerIds: assignment.volunteerIds.map((v: any) => (typeof v === 'object' ? v.id : v)),
+          serviceType: assignment.serviceType,
+          date: assignment.date ? new Date(assignment.date).toISOString().slice(0, 16) : today(),
+          description: assignment.description,
+          status: assignment.status,
+        });
+      } catch (err) {
+        console.error('Failed to fetch assignment:', err);
+        setError('Failed to load assignment');
+      } finally {
+        setLoadingAssignment(false);
+      }
+    };
+
+    fetchAssignment();
+  }, [id]);
+
   const toggleVolunteer = (volunteerId: string) => {
     setFormData((prev) => ({
       ...prev,
@@ -58,10 +85,14 @@ export default function AssignmentCreate() {
     try {
       setSaving(true);
       setError(null);
-      await volunteerService.createAssignment(formData);
+      if (isEdit && id) {
+        await volunteerService.updateAssignment(id, formData);
+      } else {
+        await volunteerService.createAssignment(formData);
+      }
       navigate('/volunteers/assignments');
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to create assignment');
+      setError(err.response?.data?.message || `Failed to ${isEdit ? 'update' : 'create'} assignment`);
     } finally {
       setSaving(false);
     }
@@ -78,8 +109,11 @@ export default function AssignmentCreate() {
     <div className="max-w-2xl mx-auto">
       <Card>
         <div className="p-6">
-          <h2 className="text-xl font-semibold mb-6">Create Assignment</h2>
+          <h2 className="text-xl font-semibold mb-6">{isEdit ? 'Edit Assignment' : 'Create Assignment'}</h2>
 
+          {loadingAssignment ? (
+            <p className="text-gray-500">Loading assignment...</p>
+          ) : (
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Volunteer Selection */}
             <div>
@@ -91,11 +125,11 @@ export default function AssignmentCreate() {
               ) : (
                 <div className="space-y-2 max-h-64 overflow-y-auto border border-gray-200 rounded-lg p-3">
                   {volunteers.map((volunteer) => (
-                    <label key={volunteer._id} className="flex items-center gap-2 cursor-pointer">
+                    <label key={volunteer.id} className="flex items-center gap-2 cursor-pointer">
                       <input
                         type="checkbox"
-                        checked={formData.volunteerIds.includes(volunteer._id)}
-                        onChange={() => toggleVolunteer(volunteer._id)}
+                        checked={formData.volunteerIds.includes(volunteer.id)}
+                        onChange={() => toggleVolunteer(volunteer.id)}
                         className="w-4 h-4 rounded border-gray-300"
                       />
                       <span className="text-sm text-gray-700">
@@ -179,13 +213,14 @@ export default function AssignmentCreate() {
 
             <div className="flex gap-3 pt-4">
               <Button type="submit" disabled={saving || loadingVolunteers}>
-                {saving ? 'Creating...' : 'Create Assignment'}
+                {saving ? (isEdit ? 'Saving...' : 'Creating...') : isEdit ? 'Save Changes' : 'Create Assignment'}
               </Button>
               <Button type="button" variant="secondary" onClick={() => navigate('/volunteers/assignments')}>
                 Cancel
               </Button>
             </div>
           </form>
+          )}
         </div>
       </Card>
     </div>

@@ -20,7 +20,7 @@ const schema = z.object({
   memberId: z.string().optional(),
   familyId: z.string().optional(),
   amount: z.preprocess(
-    (val) => (val === '' || Number.isNaN(val) ? undefined : val),
+    (val) => (val === '' || val === undefined ? undefined : Number(val)),
     z.number().min(0).optional()
   ),
   notes: z.string().optional(),

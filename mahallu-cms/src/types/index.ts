@@ -138,8 +138,8 @@ export interface Employee {
 export interface SalaryPayment {
   id: string;
   tenantId?: string;
-  instituteId: string;
-  employeeId: string;
+  instituteId: string | { id: string; name?: string; type?: string };
+  employeeId: string | { id: string; name?: string; designation?: string; salary?: number };
   employeeName?: string;
   employeeDesignation?: string;
   instituteName?: string;

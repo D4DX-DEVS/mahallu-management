@@ -13,6 +13,7 @@ import TableToolbar from '@/components/ui/TableToolbar';
 import { TableColumn, Pagination as PaginationType } from '@/types';
 import { socialService, Feed } from '@/services/socialService';
 import { formatDate } from '@/utils/format';
+import { ROUTES } from '@/constants/routes';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
 import { toast } from '@/store/toastStore';
 
@@ -173,7 +174,7 @@ export default function FeedsList() {
           onExport={handleExport}
           isExporting={isExporting}
           actionButtons={
-            <Link to="/social/feeds/create">
+            <Link to={ROUTES.SOCIAL.CREATE_FEED}>
               <Button size="md">
                 + New Feed
               </Button>

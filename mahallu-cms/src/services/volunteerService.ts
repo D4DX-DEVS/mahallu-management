@@ -16,8 +16,8 @@ export type ServiceType =
 export type VolunteerAvailability = 'anytime' | 'weekends' | 'emergency_only';
 
 export interface VolunteerProfile {
-  _id: string;
-  memberId: { _id: string; name: string; contactNo?: string } | string;
+  id: string;
+  memberId: { id: string; name: string; contactNo?: string } | string;
   wings: VolunteerWing[];
   serviceTypes: ServiceType[];
   availability: VolunteerAvailability;
@@ -27,8 +27,8 @@ export interface VolunteerProfile {
 }
 
 export interface VolunteerAssignment {
-  _id: string;
-  volunteerIds: Array<{ _id: string; name: string; contactNo?: string } | string>;
+  id: string;
+  volunteerIds: Array<{ id: string; name: string; contactNo?: string } | string>;
   serviceType: ServiceType;
   date: string;
   description: string;

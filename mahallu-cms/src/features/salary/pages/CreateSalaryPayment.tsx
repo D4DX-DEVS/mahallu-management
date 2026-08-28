@@ -2,13 +2,14 @@ import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { FiSave, FiX } from 'react-icons/fi';
 import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
+import { PageSkeleton } from '@/components/ui/Skeleton';
 import QuickAddInstitute from '@/components/quick-add/QuickAddInstitute';
 import { ROUTES } from '@/constants/routes';
 import { salaryService } from '@/services/salaryService';
@@ -42,17 +43,21 @@ type SalaryFormData = z.infer<typeof salarySchema>;
 
 export default function CreateSalaryPayment() {
   const navigate = useNavigate();
+  const { id } = useParams<{ id: string }>();
+  const isEdit = Boolean(id);
   const { currentInstituteId: userInstituteId } = useAuthStore();
   const [error, setError] = useState<string | null>(null);
   const [institutes, setInstitutes] = useState<{ id: string; name: string }[]>([]);
   const [employees, setEmployees] = useState<{ id: string; name: string; salary: number }[]>([]);
   const [addInstituteOpen, setAddInstituteOpen] = useState(false);
+  const [loadingPayment, setLoadingPayment] = useState(isEdit);
 
   const {
     register,
     handleSubmit,
     watch,
     setValue,
+    reset,
     formState: { errors, isSubmitting },
   } = useForm<SalaryFormData>({
     resolver: zodResolver(salarySchema),
@@ -80,13 +85,48 @@ export default function CreateSalaryPayment() {
   }, [selectedInstituteId]);
 
   useEffect(() => {
+    // Only auto-fill from the employee's current base salary when creating a
+    // new payment — for an edit, this would clobber the historical amount.
+    if (isEdit) return;
     if (selectedEmployeeId) {
       const emp = employees.find(e => e.id === selectedEmployeeId);
       if (emp && emp.salary) {
         setValue('baseSalary', String(emp.salary));
       }
     }
-  }, [selectedEmployeeId, employees]);
+  }, [selectedEmployeeId, employees, isEdit]);
+
+  useEffect(() => {
+    if (!id) return;
+    const fetchPayment = async () => {
+      try {
+        setLoadingPayment(true);
+        const payment = await salaryService.getById(id);
+        const instId = typeof payment.instituteId === 'object' ? payment.instituteId.id : payment.instituteId;
+        const empId = typeof payment.employeeId === 'object' ? payment.employeeId.id : payment.employeeId;
+        reset({
+          instituteId: instId,
+          employeeId: empId,
+          month: String(payment.month),
+          year: String(payment.year),
+          baseSalary: String(payment.baseSalary ?? ''),
+          allowances: String(payment.allowances ?? ''),
+          deductions: String(payment.deductions ?? ''),
+          paymentDate: payment.paymentDate ? payment.paymentDate.split('T')[0] : '',
+          paymentMethod: payment.paymentMethod || '',
+          referenceNo: payment.referenceNo || '',
+          status: payment.status || 'pending',
+          remarks: payment.remarks || '',
+        });
+        if (instId) fetchEmployees(instId);
+      } catch (err: any) {
+        setError(err.response?.data?.message || 'Failed to load salary payment.');
+      } finally {
+        setLoadingPayment(false);
+      }
+    };
+    fetchPayment();
+  }, [id]);
 
   const fetchInstitutes = async () => {
     try {
@@ -108,7 +148,7 @@ export default function CreateSalaryPayment() {
       const base = Number(data.baseSalary || 0);
       const allow = Number(data.allowances || 0);
       const deduct = Number(data.deductions || 0);
-      await salaryService.create({
+      const payload = {
         instituteId: data.instituteId,
         employeeId: data.employeeId,
         month: Number(data.month),
@@ -122,10 +162,15 @@ export default function CreateSalaryPayment() {
         referenceNo: data.referenceNo,
         status: data.status as any || 'pending',
         remarks: data.remarks,
-      });
+      };
+      if (isEdit && id) {
+        await salaryService.update(id, payload);
+      } else {
+        await salaryService.create(payload);
+      }
       navigate(ROUTES.SALARY.LIST);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to create salary payment.');
+      setError(err.response?.data?.message || `Failed to ${isEdit ? 'update' : 'create'} salary payment.`);
     }
   };
 
@@ -137,14 +182,16 @@ export default function CreateSalaryPayment() {
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 5 }, (_, i) => ({ value: String(currentYear - i), label: String(currentYear - i) }));
 
+  if (loadingPayment) return <PageSkeleton />;
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Create Salary Payment</h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Record a new salary payment</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{isEdit ? 'Edit Salary Payment' : 'Create Salary Payment'}</h1>
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{isEdit ? 'Update this salary payment' : 'Record a new salary payment'}</p>
         </div>
-        <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Salary', path: ROUTES.SALARY.LIST }, { label: 'Create' }]} />
+        <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Salary', path: ROUTES.SALARY.LIST }, { label: isEdit ? 'Edit' : 'Create' }]} />
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)}>
@@ -172,13 +219,14 @@ export default function CreateSalaryPayment() {
             <Select
               label="Employee"
               options={[{ value: '', label: 'Select Employee...' }, ...employees.map(e => ({ value: e.id, label: `${e.name} (₹${e.salary.toLocaleString()})` }))]}
+              value={watch('employeeId') || ''}
               {...register('employeeId')}
               error={errors.employeeId?.message}
               required
               className={userInstituteId ? '' : ''}
             />
-            <Select label="Month" options={MONTHS} {...register('month')} error={errors.month?.message} required />
-            <Select label="Year" options={years} {...register('year')} error={errors.year?.message} required />
+            <Select label="Month" options={MONTHS} value={watch('month') || ''} {...register('month')} error={errors.month?.message} required />
+            <Select label="Year" options={years} value={watch('year') || ''} {...register('year')} error={errors.year?.message} required />
           </div>
 
           <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 pt-4 border-t border-gray-200 dark:border-gray-700">Amount Breakdown</h3>
@@ -208,6 +256,7 @@ export default function CreateSalaryPayment() {
                 { value: 'cheque', label: 'Cheque' },
                 { value: 'upi', label: 'UPI' },
               ]}
+              value={watch('paymentMethod') || ''}
               {...register('paymentMethod')}
             />
             <Input label="Reference No." {...register('referenceNo')} placeholder="Transaction/Cheque No." />
@@ -218,6 +267,7 @@ export default function CreateSalaryPayment() {
                 { value: 'paid', label: 'Paid' },
                 { value: 'cancelled', label: 'Cancelled' },
               ]}
+              value={watch('status') || ''}
               {...register('status')}
             />
             <Input label="Remarks" {...register('remarks')} placeholder="Additional notes" className="md:col-span-2" />
@@ -228,7 +278,7 @@ export default function CreateSalaryPayment() {
               <FiX className="h-4 w-4 mr-2" />Cancel
             </Button>
             <Button type="submit" isLoading={isSubmitting}>
-              <FiSave className="h-4 w-4 mr-2" />Create Payment
+              <FiSave className="h-4 w-4 mr-2" />{isEdit ? 'Save Changes' : 'Create Payment'}
             </Button>
           </div>
         </Card>

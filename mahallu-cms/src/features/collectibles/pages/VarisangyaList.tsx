@@ -185,8 +185,8 @@ export default function VarisangyaList() {
     }
   };
 
-  const getId = (x: string | { _id: string } | undefined): string | undefined =>
-    x && typeof x === 'object' ? x._id : (typeof x === 'string' ? x : undefined);
+  const getId = (x: string | { id: string } | undefined): string | undefined =>
+    x && typeof x === 'object' ? x.id : (typeof x === 'string' ? x : undefined);
   const handleViewPdf = async (entry: Varisangya) => {
     try {
       let payerName: string | undefined;

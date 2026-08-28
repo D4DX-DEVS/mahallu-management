@@ -48,7 +48,7 @@ export interface ActivityLog {
 export interface Support {
   id: string;
   tenantId?: string;
-  userId?: string;
+  userId?: string | { id: string; name?: string };
   userName?: string;
   subject: string;
   message: string;
@@ -154,6 +154,19 @@ export const socialService = {
   createSupport: async (data: Partial<Support>) => {
     const response = await api.post<{ success: boolean; data: Support }>('/social/support', data);
     return response.data.data;
+  },
+
+  // No dedicated GET /social/support/:id endpoint exists on the backend,
+  // so fetch the list and find the matching ticket.
+  getSupportById: async (id: string) => {
+    const response = await api.get<{ success: boolean; data: Support[]; pagination?: any }>('/social/support', {
+      params: { limit: 1000 },
+    });
+    const ticket = response.data.data.find((s) => s.id === id);
+    if (!ticket) {
+      throw new Error('Support ticket not found');
+    }
+    return ticket;
   },
 
   updateSupport: async (id: string, data: Partial<Support>) => {

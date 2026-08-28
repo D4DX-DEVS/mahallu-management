@@ -85,12 +85,12 @@ export const getRecentFamilies = async (req: AuthRequest, res: Response) => {
     const families = await Family.find(query)
       .sort({ createdAt: -1 })
       .limit(limit)
-      .select('familyName mahallId createdAt status')
+      .select('houseName mahallId createdAt status')
       .lean();
 
     res.json({
       success: true,
-      data: families,
+      data: families.map((f: any) => ({ ...f, familyName: f.houseName })),
     });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
@@ -103,9 +103,10 @@ export const getActivityTimeline = async (req: AuthRequest, res: Response) => {
     const days = parseInt(req.query.days as string) || 7;
 
     const query: any = {};
-    // Apply tenant filter
+    // Apply tenant filter — aggregate $match bypasses Mongoose's automatic
+    // query casting, so tenantId must be cast to ObjectId explicitly here.
     if (tenantId) {
-      query.tenantId = tenantId;
+      query.tenantId = new mongoose.Types.ObjectId(tenantId);
     }
 
     // Calculate date range

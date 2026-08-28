@@ -53,6 +53,7 @@ const mf: { allowedRoles: AppRole[] } = { allowedRoles: ['super_admin', 'mahall'
 export const financeRoutes = [
   route(ROUTES.SALARY.LIST, <SalaryList />),
   route(ROUTES.SALARY.CREATE, <CreateSalaryPayment />),
+  route(ROUTES.SALARY.EDIT(':id'), <CreateSalaryPayment />),
   route(ROUTES.SALARY.SUMMARY, <SalarySummary />),
   route(ROUTES.SALARY.DETAIL(':id'), <SalaryDetail />),
 

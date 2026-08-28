@@ -63,7 +63,7 @@ export default function BooksList() {
     if (!deleteId) return;
     try {
       await libraryService.deleteBook(deleteId);
-      setBooks(books.filter((b) => b._id !== deleteId));
+      setBooks(books.filter((b) => b.id !== deleteId));
       toast.success('Book deleted successfully');
       setConfirmDelete(false);
       setDeleteId(null);
@@ -90,7 +90,7 @@ export default function BooksList() {
     {
       key: 'title',
       label: 'Title',
-      render: (book: LibraryBook) => (
+      render: (_: any, book: LibraryBook) => (
         <div>
           <div className="font-medium">{book.title}</div>
           {book.titleMl && <div className="text-xs text-gray-500">{book.titleMl}</div>}
@@ -101,30 +101,30 @@ export default function BooksList() {
     {
       key: 'category',
       label: 'Category',
-      render: (book: LibraryBook) => (
+      render: (_: any, book: LibraryBook) => (
         <Badge color="purple">{book.category}</Badge>
       ),
     },
     {
       key: 'availability',
       label: 'Availability',
-      render: (book: LibraryBook) => getAvailabilityBadge(book),
+      render: (_: any, book: LibraryBook) => getAvailabilityBadge(book),
     },
     {
       key: 'status',
       label: 'Status',
-      render: (book: LibraryBook) => (
+      render: (_: any, book: LibraryBook) => (
         <Badge color={book.status === 'active' ? 'green' : 'gray'}>{book.status}</Badge>
       ),
     },
     {
       key: 'actions',
       label: 'Actions',
-      render: (book: LibraryBook) => (
+      render: (_: any, book: LibraryBook) => (
         <div className="flex gap-2">
           {book.resourceType === 'physical' && book.availableCopies! > 0 && (
             <button
-              onClick={() => navigate('/library/issues/create', { state: { bookId: book._id } })}
+              onClick={() => navigate('/library/issues/create', { state: { bookId: book.id } })}
               className="text-green-600 hover:text-green-800"
               title="Issue this book to a member"
             >
@@ -132,14 +132,14 @@ export default function BooksList() {
             </button>
           )}
           <button
-            onClick={() => navigate(`/library/books/${book._id}/edit`)}
+            onClick={() => navigate(`/library/books/${book.id}/edit`)}
             className="text-blue-600 hover:text-blue-800"
           >
             <FiEdit2 size={16} />
           </button>
           <button
             onClick={() => {
-              setDeleteId(book._id);
+              setDeleteId(book.id);
               setConfirmDelete(true);
             }}
             className="text-red-600 hover:text-red-800"

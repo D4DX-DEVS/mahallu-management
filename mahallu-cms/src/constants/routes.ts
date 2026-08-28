@@ -73,6 +73,7 @@ export const ROUTES = {
     LIST: '/salary',
     CREATE: '/salary/create',
     DETAIL: (id: string) => `/salary/${id}`,
+    EDIT: (id: string) => `/salary/${id}/edit`,
     SUMMARY: '/salary/summary',
   },
   
@@ -139,9 +140,12 @@ export const ROUTES = {
     CREATE_BANNER: '/social/banners/create',
     EDIT_BANNER: '/social/banners/:id/edit',
     FEEDS: '/social/feeds',
+    CREATE_FEED: '/social/feeds/create',
     SUPER_FEEDS: '/social/super-feeds',
     ACTIVITY_LOGS: '/social/activity-logs',
     SUPPORT: '/social/support',
+    CREATE_SUPPORT: '/social/support/create',
+    SUPPORT_DETAIL: (id: string) => `/social/support/${id}`,
   },
   
   // Master Accounts

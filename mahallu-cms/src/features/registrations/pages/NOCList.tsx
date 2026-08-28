@@ -160,7 +160,11 @@ export default function NOCList() {
       setShowCreate(false);
       await fetchNOCs();
     } catch (err: any) {
-      setCreateError(err.response?.data?.message || 'Failed to create NOC. Please try again.');
+      const fieldErrors = err.response?.data?.errors;
+      const detail = Array.isArray(fieldErrors)
+        ? fieldErrors.map((e: any) => e.msg).filter(Boolean).join('; ')
+        : null;
+      setCreateError(detail || err.response?.data?.message || 'Failed to create NOC. Please try again.');
       console.error('Error creating NOC:', err);
     }
   };

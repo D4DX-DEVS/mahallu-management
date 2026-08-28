@@ -75,7 +75,7 @@ export default function KhutbahSchedule() {
     if (!selectedKhutbah) return;
     try {
       setDeleting(true);
-      await religiousService.deleteKhutbah(selectedKhutbah._id);
+      await religiousService.deleteKhutbah(selectedKhutbah.id);
       setShowDeleteModal(false);
       setSelectedKhutbah(null);
       fetchKhutbahs();
@@ -107,22 +107,22 @@ export default function KhutbahSchedule() {
     {
       key: 'date',
       label: 'Date',
-      render: (khutbah: Khutbah) => formatDate(khutbah.date),
+      render: (_: any, khutbah: Khutbah) => formatDate(khutbah.date),
     },
     {
       key: 'topic',
       label: 'Topic',
-      render: (khutbah: Khutbah) => khutbah.topic,
+      render: (_: any, khutbah: Khutbah) => khutbah.topic,
     },
     {
       key: 'khateebId',
       label: 'Khateeb',
-      render: (khutbah: Khutbah) => getKhateebName(khutbah),
+      render: (_: any, khutbah: Khutbah) => getKhateebName(khutbah),
     },
     {
       key: 'status',
       label: 'Status',
-      render: (khutbah: Khutbah) => (
+      render: (_: any, khutbah: Khutbah) => (
         <span className={`px-2 py-1 rounded text-xs font-medium ${getStatusBadge(khutbah.status)}`}>
           {KHUTBAH_STATUS_OPTIONS.find((s) => s.value === khutbah.status)?.label}
         </span>
@@ -131,9 +131,9 @@ export default function KhutbahSchedule() {
     {
       key: 'actions',
       label: 'Actions',
-      render: (khutbah: Khutbah) => (
+      render: (_: any, khutbah: Khutbah) => (
         <div className="flex gap-2">
-          <Link to={`${ROUTES.RELIGIOUS.KHUTBAHS}/${khutbah._id}/edit`}>
+          <Link to={`${ROUTES.RELIGIOUS.KHUTBAHS}/${khutbah.id}/edit`}>
             <Button size="sm" variant="outline">
               <FiEdit2 className="inline mr-1" />
               Edit

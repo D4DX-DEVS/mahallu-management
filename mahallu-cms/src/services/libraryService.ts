@@ -1,7 +1,7 @@
 import api from './api';
 
 export interface LibraryBook {
-  _id: string;
+  id: string;
   tenantId: string;
   title: string;
   titleMl?: string;
@@ -18,7 +18,7 @@ export interface LibraryBook {
 }
 
 export interface BookIssue {
-  _id: string;
+  id: string;
   tenantId: string;
   bookId: LibraryBook | string;
   memberId: string;
