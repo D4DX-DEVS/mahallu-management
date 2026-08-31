@@ -6,9 +6,9 @@ export default function WelcomeBanner() {
   const firstName = user?.name?.split(' ')[0] || 'there';
 
   return (
-    <div className="relative overflow-hidden rounded-[20px] bg-gradient-to-br from-primary-600 to-primary-800 px-5 py-5 text-white shadow-sm sm:px-7 sm:py-6">
+    <div className="relative overflow-hidden rounded-[20px] bg-gradient-to-br from-primary-200 to-primary-300 px-5 py-5 text-gray-900 shadow-sm sm:px-7 sm:py-6">
       <svg
-        className="pointer-events-none absolute -bottom-8 right-0 h-32 w-72 text-white/10 sm:h-40 sm:w-[26rem]"
+        className="pointer-events-none absolute -bottom-8 right-0 h-32 w-72 text-primary-900/10 sm:h-40 sm:w-[26rem]"
         viewBox="0 0 400 140"
         fill="currentColor"
         aria-hidden="true"
@@ -27,11 +27,11 @@ export default function WelcomeBanner() {
       <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-lg font-bold sm:text-xl">Welcome back, {firstName} 👋</h1>
-          <p className="mt-1 text-xs text-white/80 sm:text-sm">
+          <p className="mt-1 text-xs text-gray-700 sm:text-sm">
             Here's what's happening in your community today.
           </p>
         </div>
-        <div className="inline-flex w-fit items-center rounded-full bg-white/15 px-3 py-1.5 text-xs font-medium backdrop-blur-sm sm:text-sm">
+        <div className="inline-flex w-fit items-center rounded-full bg-white/60 px-3 py-1.5 text-xs font-medium text-gray-800 backdrop-blur-sm sm:text-sm">
           {formatDate(new Date(), 'EEE, dd MMM yyyy')}
         </div>
       </div>
