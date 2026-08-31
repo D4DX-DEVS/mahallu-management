@@ -109,5 +109,5 @@ export const downloadPaymentReceiptPdf = async (
     align: 'center',
   });
 
-  doc.save(`${filename}-${payment.receiptNo || payment._id}.pdf`);
+  doc.save(`${filename}-${payment.receiptNo || payment.id}.pdf`);
 };

@@ -13,6 +13,7 @@ import QuickAddInstitute from '@/components/quick-add/QuickAddInstitute';
 import { ROUTES } from '@/constants/routes';
 import { masterAccountService } from '@/services/masterAccountService';
 import { instituteService } from '@/services/instituteService';
+import { useAuthStore } from '@/store/authStore';
 import { Institute } from '@/types';
 
 const instituteAccountSchema = z.object({
@@ -29,6 +30,11 @@ type InstituteAccountFormData = z.infer<typeof instituteAccountSchema>;
 
 export default function CreateInstituteAccount() {
   const navigate = useNavigate();
+  const user = useAuthStore((state) => state.user);
+  // Institute-role users only ever manage their own institute — the backend forces every
+  // account they create onto their own instituteId regardless of what's submitted, so letting
+  // them pick a different one here just hid newly created accounts from their own list.
+  const isInstituteRole = user?.role === 'institute';
   const [error, setError] = useState<string | null>(null);
   const [institutes, setInstitutes] = useState<Institute[]>([]);
   const [loadingInstitutes, setLoadingInstitutes] = useState(false);
@@ -49,13 +55,20 @@ export default function CreateInstituteAccount() {
 
   useEffect(() => {
     fetchInstitutes();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchInstitutes = async () => {
     try {
       setLoadingInstitutes(true);
-      const result = await instituteService.getAll({ status: 'active' });
-      setInstitutes(result.data || []);
+      if (isInstituteRole && user?.instituteId) {
+        const own = await instituteService.getById(user.instituteId);
+        setInstitutes([own]);
+        setValue('instituteId', own.id, { shouldValidate: true });
+      } else {
+        const result = await instituteService.getAll({ status: 'active' });
+        setInstitutes(result.data || []);
+      }
     } catch (err) {
       console.error('Error fetching institutes:', err);
       setInstitutes([]);
@@ -116,10 +129,10 @@ export default function CreateInstituteAccount() {
                 label="Institute"
                 {...register('instituteId')}
                 value={watch('instituteId') || ''}
-                onAddNew={() => setAddInstituteOpen(true)}
+                onAddNew={isInstituteRole ? undefined : () => setAddInstituteOpen(true)}
                 addNewLabel="Add Institute"
                 error={errors.instituteId?.message}
-                disabled={loadingInstitutes}
+                disabled={loadingInstitutes || isInstituteRole}
                 options={[
                   { value: '', label: 'Select an institute' },
                   ...institutes.map((institute) => ({

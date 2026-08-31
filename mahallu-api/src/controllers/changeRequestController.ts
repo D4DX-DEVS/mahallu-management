@@ -111,6 +111,75 @@ export const createChangeRequest = async (req: AuthRequest, res: Response) => {
   }
 };
 
+// PUT /api/change-requests/:id — member edits own pending change request
+export const updateChangeRequest = async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.user?.memberId) {
+      return res.status(403).json({ success: false, message: 'Member account required' });
+    }
+
+    const { field, newValue } = req.body;
+    if (!field || newValue === undefined) {
+      return res.status(400).json({ success: false, message: 'field and newValue are required' });
+    }
+
+    const changeRequest = await ChangeRequest.findOne({
+      _id: req.params.id,
+      requestedByMemberId: req.user.memberId,
+      status: 'pending',
+    });
+    if (!changeRequest) {
+      return res.status(404).json({ success: false, message: 'Editable change request not found' });
+    }
+
+    const editable = changeRequest.targetType === 'member' ? MEMBER_EDITABLE_FIELDS : FAMILY_EDITABLE_FIELDS;
+    if (field === 'phone' || !editable.includes(field)) {
+      return res.status(400).json({ success: false, message: `Field cannot be changed via self-service: ${field}` });
+    }
+
+    const Model: any = changeRequest.targetType === 'member' ? Member : Family;
+    const target = await Model.findOne({ _id: changeRequest.targetId, tenantId: changeRequest.tenantId });
+    if (!target) {
+      return res.status(404).json({ success: false, message: 'Target record no longer exists' });
+    }
+
+    changeRequest.changes = [
+      {
+        field,
+        oldValue: target[field] !== undefined && target[field] !== null ? String(target[field]) : undefined,
+        newValue: String(newValue),
+      },
+    ] as any;
+    await changeRequest.save();
+
+    res.json({ success: true, data: changeRequest, message: 'Change request updated' });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// DELETE /api/change-requests/:id — member cancels own pending change request
+export const deleteChangeRequest = async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.user?.memberId) {
+      return res.status(403).json({ success: false, message: 'Member account required' });
+    }
+
+    const changeRequest = await ChangeRequest.findOneAndDelete({
+      _id: req.params.id,
+      requestedByMemberId: req.user.memberId,
+      status: 'pending',
+    });
+    if (!changeRequest) {
+      return res.status(404).json({ success: false, message: 'Pending change request not found' });
+    }
+
+    res.json({ success: true, message: 'Change request deleted' });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 // GET /api/change-requests — admin: queue (filter by status); member: own requests
 export const listChangeRequests = async (req: AuthRequest, res: Response) => {
   try {

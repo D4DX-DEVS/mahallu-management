@@ -128,7 +128,7 @@ export default function CampsList() {
           <>
             <div className="space-y-3 mb-6">
               {camps.map((camp) => (
-                <div key={camp._id} className="bg-white border border-gray-200 rounded-lg p-4">
+                <div key={camp.id} className="bg-white border border-gray-200 rounded-lg p-4">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <div className="flex-1">
                       <h3 className="text-base sm:text-lg font-semibold">{camp.name}</h3>
@@ -152,7 +152,7 @@ export default function CampsList() {
                       <Button
                         variant="secondary"
                         size="sm"
-                        onClick={() => navigate(`/health/camps/${camp._id}/edit`)}
+                        onClick={() => navigate(`/health/camps/${camp.id}/edit`)}
                         className="flex items-center gap-1"
                       >
                         <FiEdit2 className="w-4 h-4" /> Edit
@@ -161,7 +161,7 @@ export default function CampsList() {
                         variant="danger"
                         size="sm"
                         onClick={() => {
-                          setDeleteId(camp._id);
+                          setDeleteId(camp.id);
                           setConfirmDelete(true);
                         }}
                         className="flex items-center gap-1"

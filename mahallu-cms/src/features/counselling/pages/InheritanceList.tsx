@@ -153,7 +153,7 @@ export default function InheritanceList() {
           <>
             <div className="space-y-4 mb-6">
               {cases.map((caseRecord) => (
-                <Card key={caseRecord._id} className="p-4">
+                <Card key={caseRecord.id} className="p-4">
                   <div className="flex flex-col sm:flex-row sm:items-center gap-4">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
@@ -177,7 +177,7 @@ export default function InheritanceList() {
                       <Button
                         variant="secondary"
                         size="sm"
-                        onClick={() => navigate(`/inheritance/${caseRecord._id}`)}
+                        onClick={() => navigate(`/inheritance/${caseRecord.id}`)}
                         className="flex items-center gap-2"
                       >
                         <FiEye size={16} />
@@ -185,7 +185,7 @@ export default function InheritanceList() {
                       <Button
                         variant="secondary"
                         size="sm"
-                        onClick={() => navigate(`/inheritance/${caseRecord._id}/edit`)}
+                        onClick={() => navigate(`/inheritance/${caseRecord.id}`)}
                         className="flex items-center gap-2"
                       >
                         <FiEdit2 size={16} />
@@ -194,7 +194,7 @@ export default function InheritanceList() {
                         variant="danger"
                         size="sm"
                         onClick={() => {
-                          setDeleteId(caseRecord._id);
+                          setDeleteId(caseRecord.id);
                           setDeleteCaseName(caseRecord.caseNo);
                           setConfirmDelete(true);
                         }}

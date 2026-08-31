@@ -20,7 +20,7 @@ export interface SurveyStats {
 }
 
 export interface SurveySnapshot {
-  _id: string;
+  id: string;
   surveyDate: string;
   type: 'comprehensive' | 'annual';
   nextReviewDate: string;

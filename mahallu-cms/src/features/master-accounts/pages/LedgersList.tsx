@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { FiBook, FiEdit2, FiTrash2 } from 'react-icons/fi';
+import { FiBook, FiEdit2, FiTrash2, FiEye } from 'react-icons/fi';
 import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
@@ -36,6 +36,7 @@ export default function LedgersList() {
   const [selectedLedger, setSelectedLedger] = useState<Ledger | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showViewModal, setShowViewModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [editForm, setEditForm] = useState({ name: '', type: 'income' as string, description: '' });
 
@@ -122,6 +123,9 @@ export default function LedgersList() {
       label: 'Actions',
       render: (_, row) => (
         <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+          <button onClick={() => { setSelectedLedger(row); setShowViewModal(true); }} className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400" title="View">
+            <FiEye className="h-4 w-4" />
+          </button>
           <button onClick={() => openEditModal(row)} className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400" title="Edit">
             <FiEdit2 className="h-4 w-4" />
           </button>
@@ -244,6 +248,41 @@ export default function LedgersList() {
           </>
         )}
       </Card>
+
+      {/* View Modal */}
+      <Modal
+        isOpen={showViewModal}
+        onClose={() => { setShowViewModal(false); setSelectedLedger(null); }}
+        title="Ledger Details"
+        footer={<Button variant="outline" onClick={() => { setShowViewModal(false); setSelectedLedger(null); }}>Close</Button>}
+      >
+        {selectedLedger && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+            <div className="sm:col-span-2">
+              <p className="text-xs text-gray-500 dark:text-gray-400">Name</p>
+              <p className="text-gray-900 dark:text-gray-100 font-medium">{selectedLedger.name}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Type</p>
+              <p className="text-gray-900 dark:text-gray-100 capitalize">{selectedLedger.type || '—'}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Institute</p>
+              <p className="text-gray-900 dark:text-gray-100">
+                {institutes.find((i) => i.id === (selectedLedger as any).instituteId)?.name || '—'}
+              </p>
+            </div>
+            <div className="sm:col-span-2">
+              <p className="text-xs text-gray-500 dark:text-gray-400">Description</p>
+              <p className="text-gray-900 dark:text-gray-100">{selectedLedger.description || '—'}</p>
+            </div>
+            <div className="sm:col-span-2">
+              <p className="text-xs text-gray-500 dark:text-gray-400">Created</p>
+              <p className="text-gray-900 dark:text-gray-100">{formatDate(selectedLedger.createdAt)}</p>
+            </div>
+          </div>
+        )}
+      </Modal>
 
       {/* Edit Modal */}
       <Modal

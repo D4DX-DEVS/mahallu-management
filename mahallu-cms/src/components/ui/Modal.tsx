@@ -1,6 +1,8 @@
 import { ReactNode, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { FiX } from 'react-icons/fi';
 import { cn } from '@/utils/cn';
+import { getModalPortalTarget } from '@/utils/modalPortal';
 import Button from './Button';
 
 export interface ModalProps {
@@ -10,6 +12,7 @@ export interface ModalProps {
   children: ReactNode;
   size?: 'sm' | 'md' | 'lg' | 'xl';
   footer?: ReactNode;
+  overlay?: boolean;
 }
 
 export default function Modal({
@@ -19,6 +22,7 @@ export default function Modal({
   children,
   size = 'md',
   footer,
+  overlay = true,
 }: ModalProps) {
   useEffect(() => {
     if (isOpen) {
@@ -40,14 +44,20 @@ export default function Modal({
     xl: 'max-w-4xl',
   };
 
-  return (
+  const { node: portalTarget, scoped } = getModalPortalTarget();
+
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4"
+      className={cn(
+        scoped ? 'absolute inset-0' : 'fixed inset-0',
+        'z-50 flex items-center justify-center p-4',
+        overlay && 'bg-black/20 backdrop-blur-md dark:bg-black/40'
+      )}
       onClick={onClose}
     >
       <div
         className={cn(
-          'w-full bg-white rounded-lg shadow-xl dark:bg-gray-800',
+          'w-full bg-white rounded-lg shadow-2xl ring-1 ring-black/5 dark:bg-gray-800 dark:ring-white/10',
           sizeClasses[size],
           'max-h-[90vh] flex flex-col'
         )}
@@ -78,7 +88,8 @@ export default function Modal({
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    portalTarget
   );
 }
 

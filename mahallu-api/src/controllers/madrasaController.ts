@@ -233,6 +233,11 @@ export const createEnrollment = async (req: AuthRequest, res: Response) => {
     });
     const populated = await enrollment.populate('memberId', 'name nameMl contactNo');
 
+    // Enrollment is the strongest signal a member is a student - reflect it on the
+    // Member register (spec 7 'students' register reads occupationSector), unless
+    // the profile already carries an explicit sector.
+    await Member.updateOne({ _id: memberId, occupationSector: { $in: [null, undefined, ''] } }, { occupationSector: 'student' });
+
     res.status(201).json({ success: true, data: populated });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });

@@ -1,7 +1,7 @@
 import api from './api';
 
 export interface Cemetery {
-  _id?: string;
+  id?: string;
   tenantId: string;
   name: string;
   location?: string;
@@ -14,7 +14,7 @@ export interface Cemetery {
 }
 
 export interface GraveRecord {
-  _id?: string;
+  id?: string;
   tenantId: string;
   cemeteryId: string;
   graveNo: string;

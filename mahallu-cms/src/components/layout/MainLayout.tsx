@@ -40,13 +40,14 @@ export default function MainLayout({ children }: MainLayoutProps) {
       {/* Mobile overlay */}
       {isMobileSidebarOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/50 md:hidden"
+          className="fixed inset-0 z-40 bg-black/20 backdrop-blur-md dark:bg-black/40 md:hidden"
           onClick={() => setMobileSidebarOpen(false)}
         />
       )}
       
       <Sidebar />
       <div
+        id="app-content-area"
         className={
           'relative z-30 ml-0 flex flex-1 flex-col overflow-hidden transition-[margin-left] duration-200 ease-out ' +
           (isDesktopSidebarCollapsed ? 'md:ml-[4.75rem]' : 'md:ml-[16rem]')

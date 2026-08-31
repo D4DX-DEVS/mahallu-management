@@ -1,8 +1,10 @@
 import { useState, useEffect, Fragment } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { FiSearch, FiX } from 'react-icons/fi';
 import { menuItems, MenuItem } from '@/constants/menuItems';
 import { cn } from '@/utils/cn';
+import { getModalPortalTarget } from '@/utils/modalPortal';
 
 interface CommandPaletteProps {
   isOpen: boolean;
@@ -97,11 +99,18 @@ export default function CommandPalette({ isOpen, onClose }: CommandPaletteProps)
 
   if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-[15vh] px-4">
+  const { node: portalTarget, scoped } = getModalPortalTarget();
+
+  return createPortal(
+    <div
+      className={cn(
+        scoped ? 'absolute inset-0' : 'fixed inset-0',
+        'z-50 flex items-start justify-center pt-[15vh] px-4'
+      )}
+    >
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/20 backdrop-blur-md dark:bg-black/40"
         onClick={onClose}
       />
 
@@ -204,7 +213,8 @@ export default function CommandPalette({ isOpen, onClose }: CommandPaletteProps)
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    portalTarget
   );
 }
 

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { FiCreditCard, FiDollarSign, FiEdit2, FiTrash2 } from 'react-icons/fi';
+import { FiCreditCard, FiDollarSign, FiEdit2, FiTrash2, FiEye } from 'react-icons/fi';
 import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
@@ -36,6 +36,7 @@ export default function InstituteAccountsList() {
   const [selectedAccount, setSelectedAccount] = useState<InstituteAccount | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showViewModal, setShowViewModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [editForm, setEditForm] = useState({ accountName: '', accountNumber: '', bankName: '', ifscCode: '', balance: 0, status: 'active' as 'active' | 'inactive' });
 
@@ -114,6 +115,9 @@ export default function InstituteAccountsList() {
       label: 'Actions',
       render: (_, row) => (
         <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+          <button onClick={() => { setSelectedAccount(row); setShowViewModal(true); }} className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400" title="View">
+            <FiEye className="h-4 w-4" />
+          </button>
           <button onClick={() => openEditModal(row)} className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400" title="Edit">
             <FiEdit2 className="h-4 w-4" />
           </button>
@@ -242,6 +246,55 @@ export default function InstituteAccountsList() {
           </>
         )}
       </Card>
+
+      {/* View Modal */}
+      <Modal
+        isOpen={showViewModal}
+        onClose={() => { setShowViewModal(false); setSelectedAccount(null); }}
+        title="Institute Account Details"
+        footer={<Button variant="outline" onClick={() => { setShowViewModal(false); setSelectedAccount(null); }}>Close</Button>}
+      >
+        {selectedAccount && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+            <div className="sm:col-span-2">
+              <p className="text-xs text-gray-500 dark:text-gray-400">Account Name</p>
+              <p className="text-gray-900 dark:text-gray-100 font-medium">{(selectedAccount as any).accountName || '—'}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Institute</p>
+              <p className="text-gray-900 dark:text-gray-100">
+                {typeof selectedAccount.instituteId === 'object'
+                  ? (selectedAccount.instituteId as any)?.name
+                  : institutes.find((i) => i.id === selectedAccount.instituteId)?.name || '—'}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Status</p>
+              <p className="text-gray-900 dark:text-gray-100 capitalize">{selectedAccount.status || 'active'}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Account Number</p>
+              <p className="text-gray-900 dark:text-gray-100">{selectedAccount.accountNumber || '—'}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Bank Name</p>
+              <p className="text-gray-900 dark:text-gray-100">{selectedAccount.bankName || '—'}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">IFSC Code</p>
+              <p className="text-gray-900 dark:text-gray-100">{selectedAccount.ifscCode || '—'}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Balance</p>
+              <p className="text-gray-900 dark:text-gray-100">₹{(selectedAccount.balance || 0).toLocaleString()}</p>
+            </div>
+            <div className="sm:col-span-2">
+              <p className="text-xs text-gray-500 dark:text-gray-400">Created</p>
+              <p className="text-gray-900 dark:text-gray-100">{formatDate(selectedAccount.createdAt)}</p>
+            </div>
+          </div>
+        )}
+      </Modal>
 
       {/* Edit Modal */}
       <Modal

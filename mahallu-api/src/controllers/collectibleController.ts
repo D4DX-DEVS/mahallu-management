@@ -442,6 +442,14 @@ async function applyZakatSideEffects(zakat: any): Promise<void> {
     console.error('Failed to auto-post zakat to ledger:', ledgerError);
   }
 
+  if (zakat.payerId) {
+    try {
+      await Member.updateOne({ _id: zakat.payerId }, { isZakatPayer: true });
+    } catch (memberError) {
+      console.error('Failed to flag member as zakat payer:', memberError);
+    }
+  }
+
   void sendZakatReceipt(zakat);
 }
 

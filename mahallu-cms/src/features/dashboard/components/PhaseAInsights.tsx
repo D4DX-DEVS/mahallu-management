@@ -16,6 +16,8 @@ import DashboardStatCard, { StatCardAccent } from './DashboardStatCard';
 import { registerService, RegisterSummaryRow } from '@/services/registerService';
 import { surveyService } from '@/services/surveyService';
 import { committeeService } from '@/services/committeeService';
+import { registrationService } from '@/services/registrationService';
+import { volunteerService } from '@/services/volunteerService';
 
 const REGISTER_ICONS: Record<string, { icon: ReactNode; accent: StatCardAccent }> = {
   'zakat-payers': { icon: <FiGift className="h-4 w-4" />, accent: 'amber' },
@@ -46,6 +48,8 @@ export default function PhaseAInsights({ children }: PhaseAInsightsProps) {
   const [registers, setRegisters] = useState<RegisterSummaryRow[]>([]);
   const [surveyOverdue, setSurveyOverdue] = useState(false);
   const [expiringCommittees, setExpiringCommittees] = useState(0);
+  const [approvedNikahCount, setApprovedNikahCount] = useState(0);
+  const [activeVolunteerCount, setActiveVolunteerCount] = useState(0);
 
   useEffect(() => {
     registerService.getSummary().then(setRegisters).catch(() => setRegisters([]));
@@ -57,9 +61,28 @@ export default function PhaseAInsights({ children }: PhaseAInsightsProps) {
       .getAll({ expiring: 'true', limit: 1 })
       .then((result) => setExpiringCommittees(result?.pagination?.total ?? 0))
       .catch(() => setExpiringCommittees(0));
+    // Card shows approved nikkah registrations, not the isMarriageable profile flag.
+    registrationService
+      .getAllNikah({ status: 'approved', limit: 1 })
+      .then((result) => setApprovedNikahCount(result?.pagination?.total ?? 0))
+      .catch(() => setApprovedNikahCount(0));
+    // Card shows the Volunteers module's active profiles, not the isVolunteer
+    // profile flag (which can be stale - set manually without a real profile).
+    volunteerService
+      .getSummary()
+      .then((summary) => setActiveVolunteerCount(summary?.totalActiveVolunteers ?? 0))
+      .catch(() => setActiveVolunteerCount(0));
   }, []);
 
-  const topRegisters = registers.filter((row) => row.count > 0).slice(0, 8);
+  const COUNT_OVERRIDES: Record<string, number> = {
+    marriageable: approvedNikahCount,
+    volunteers: activeVolunteerCount,
+  };
+
+  const topRegisters = registers
+    .map((row) => (row.key in COUNT_OVERRIDES ? { ...row, count: COUNT_OVERRIDES[row.key] } : row))
+    .filter((row) => row.count > 0)
+    .slice(0, 8);
 
   return (
     <div className="space-y-3">

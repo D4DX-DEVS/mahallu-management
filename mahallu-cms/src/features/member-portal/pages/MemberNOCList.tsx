@@ -5,7 +5,9 @@ import { downloadNocPdf } from '@/utils/nocPdf';
 import { ROUTES } from '@/constants/routes';
 import Card from '@/components/ui/Card';
 import { PageSkeleton } from '@/components/ui/Skeleton';
-import { FiHeart, FiFileText } from 'react-icons/fi';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import RequestDetailModal, { RequestType } from '../components/RequestDetailModal';
+import { FiHeart, FiFileText, FiEdit2, FiEye, FiTrash2 } from 'react-icons/fi';
 
 const statusColors: Record<string, string> = {
   pending: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
@@ -19,6 +21,44 @@ export default function MemberNOCList() {
   const [error, setError] = useState<string | null>(null);
   const [downloading, setDownloading] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [modalState, setModalState] = useState<{ type: RequestType; request: any; mode: 'view' | 'edit' } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  // A nikah-type NOC's real detail lives on its linked NikahRegistration record
+  // (bride/groom, wali, witnesses, mahr…) — the NOC record itself only holds purpose/phone.
+  const openModal = (noc: any, mode: 'view' | 'edit') => {
+    if (noc.type === 'nikah' && noc.nikahRegistrationId && typeof noc.nikahRegistrationId === 'object') {
+      setModalState({ type: 'nikah', request: noc.nikahRegistrationId, mode });
+    } else {
+      setModalState({ type: 'noc', request: noc, mode });
+    }
+  };
+
+  const isEditable = (noc: any) => {
+    const status = noc.type === 'nikah' && noc.nikahRegistrationId && typeof noc.nikahRegistrationId === 'object'
+      ? noc.nikahRegistrationId.status
+      : noc.status;
+    return status === 'pending' || status === 'correction_required';
+  };
+
+  const isDeletable = (noc: any) => noc.status !== 'approved';
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      setDeleting(true);
+      setDeleteError(null);
+      await memberPortalService.deleteRegistration('noc', deleteTarget.id);
+      setDeleteTarget(null);
+      setRefreshKey((k) => k + 1);
+    } catch (err: any) {
+      setDeleteError(err.response?.data?.message || 'Failed to delete NOC request');
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   const load = async (silent = false) => {
     try {
@@ -45,7 +85,7 @@ export default function MemberNOCList() {
   }, []);
 
   const handleDownload = async (noc: any) => {
-    setDownloading(noc._id);
+    setDownloading(noc.id);
     try {
       const mahalluName =
         noc.tenantId && typeof noc.tenantId === 'object'
@@ -53,7 +93,7 @@ export default function MemberNOCList() {
           : undefined;
       await downloadNocPdf(
         {
-          id: noc._id,
+          id: noc.id,
           applicantName: noc.applicantName,
           applicantPhone: noc.applicantPhone,
           type: noc.type,
@@ -68,7 +108,7 @@ export default function MemberNOCList() {
           mahalluName,
           approvedBy: noc.approvedBy,
         } as any,
-        `noc-${noc.type}-${noc._id}`
+        `noc-${noc.type}-${noc.id}`
       );
     } finally {
       setDownloading(null);
@@ -138,7 +178,7 @@ export default function MemberNOCList() {
               <tbody>
                 {nocs.map((noc: any, index: number) => (
                   <tr
-                    key={noc._id || index}
+                    key={noc.id || index}
                     className="border-b border-gray-100 dark:border-gray-900 text-gray-900 dark:text-gray-100"
                   >
                     <td className="py-3 pr-4">
@@ -169,19 +209,51 @@ export default function MemberNOCList() {
                       </span>
                     </td>
                     <td className="py-3">
-                      {noc.status === 'approved' ? (
-                        <button
-                          onClick={() => handleDownload(noc)}
-                          disabled={downloading === noc._id}
-                          className="text-xs text-primary-600 dark:text-primary-400 hover:underline disabled:opacity-50"
-                        >
-                          {downloading === noc._id ? 'Generating…' : 'Download Certificate'}
-                        </button>
-                      ) : (
-                        <span className="text-xs text-gray-400 dark:text-gray-600">
-                          {noc.status === 'pending' ? 'Awaiting approval' : 'Rejected'}
-                        </span>
-                      )}
+                      <div className="flex items-center gap-2">
+                        {noc.status === 'approved' ? (
+                          <button
+                            onClick={() => handleDownload(noc)}
+                            disabled={downloading === noc.id}
+                            className="text-xs text-primary-600 dark:text-primary-400 hover:underline disabled:opacity-50"
+                          >
+                            {downloading === noc.id ? 'Generating…' : 'Download Certificate'}
+                          </button>
+                        ) : (
+                          <span className="text-xs text-gray-400 dark:text-gray-600">
+                            {noc.status === 'rejected' ? 'Rejected' : noc.status === 'correction_required' ? 'Needs correction' : 'Awaiting approval'}
+                          </span>
+                        )}
+                        <div className="flex items-center gap-1 ml-auto">
+                          {isEditable(noc) && (
+                            <button
+                              onClick={() => openModal(noc, 'edit')}
+                              title="Edit & resubmit"
+                              aria-label="Edit and resubmit"
+                              className="p-1.5 rounded-lg text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors"
+                            >
+                              <FiEdit2 size={14} />
+                            </button>
+                          )}
+                          <button
+                            onClick={() => openModal(noc, 'view')}
+                            title="View"
+                            aria-label="View details"
+                            className="p-1.5 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                          >
+                            <FiEye size={14} />
+                          </button>
+                          {isDeletable(noc) && (
+                            <button
+                              onClick={() => { setDeleteError(null); setDeleteTarget(noc); }}
+                              title="Delete"
+                              aria-label="Delete NOC request"
+                              className="p-1.5 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                            >
+                              <FiTrash2 size={14} />
+                            </button>
+                          )}
+                        </div>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -190,6 +262,30 @@ export default function MemberNOCList() {
           </div>
         </Card>
       )}
+
+      {modalState && (
+        <RequestDetailModal
+          type={modalState.type}
+          request={modalState.request}
+          mode={modalState.mode}
+          onClose={() => setModalState(null)}
+          onSaved={() => {
+            setModalState(null);
+            setRefreshKey((k) => k + 1);
+          }}
+        />
+      )}
+
+      <ConfirmDialog
+        isOpen={!!deleteTarget}
+        title="Delete NOC request?"
+        message="This will permanently delete this NOC request. This cannot be undone."
+        consequence={deleteError || undefined}
+        confirmLabel="Delete"
+        isLoading={deleting}
+        onConfirm={handleDelete}
+        onCancel={() => { setDeleteTarget(null); setDeleteError(null); }}
+      />
     </div>
   );
 }

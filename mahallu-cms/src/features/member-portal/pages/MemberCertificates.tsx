@@ -36,9 +36,9 @@ export default function MemberCertificates() {
   }, [page]);
 
   const handleDownload = async (cert: Certificate) => {
-    setDownloading(cert._id);
+    setDownloading(cert.id);
     try {
-      const urlData = await memberPortalService.getCertificateUrl(cert._id);
+      const urlData = await memberPortalService.getCertificateUrl(cert.id);
       window.open(urlData.url, '_blank');
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to download certificate');
@@ -89,7 +89,7 @@ export default function MemberCertificates() {
                 <tbody>
                   {certificates.map((cert, index) => (
                     <tr
-                      key={cert._id || index}
+                      key={cert.id || index}
                       className="border-b border-gray-100 dark:border-gray-900 text-gray-900 dark:text-gray-100"
                     >
                       <td className="py-3 pr-4 font-medium">{cert.certificateNo}</td>
@@ -105,10 +105,10 @@ export default function MemberCertificates() {
                       <td className="py-3">
                         <button
                           onClick={() => handleDownload(cert)}
-                          disabled={downloading === cert._id}
+                          disabled={downloading === cert.id}
                           className="text-xs text-primary-600 dark:text-primary-400 hover:underline disabled:opacity-50"
                         >
-                          {downloading === cert._id ? 'Downloading…' : 'Download'}
+                          {downloading === cert.id ? 'Downloading…' : 'Download'}
                         </button>
                       </td>
                     </tr>

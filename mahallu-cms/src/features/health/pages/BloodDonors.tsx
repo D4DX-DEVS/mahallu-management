@@ -130,7 +130,7 @@ export default function BloodDonors() {
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
               {donors.map((donor) => (
-                <div key={donor._id} className="bg-white border border-gray-200 rounded-lg p-4">
+                <div key={donor.id} className="bg-white border border-gray-200 rounded-lg p-4">
                   <div className="flex items-start justify-between mb-3">
                     <h3 className="text-base sm:text-lg font-semibold">{donor.name}</h3>
                     {donor.bloodGroup && (
@@ -152,7 +152,7 @@ export default function BloodDonors() {
                     <Button
                       variant="secondary"
                       size="sm"
-                      onClick={() => navigate(`/health/donors/${donor._id}/edit`)}
+                      onClick={() => navigate(`/health/donors/${donor.id}/edit`)}
                       className="flex-1 flex items-center justify-center gap-1"
                     >
                       <FiEdit2 className="w-4 h-4" /> Edit
@@ -161,7 +161,7 @@ export default function BloodDonors() {
                       variant="danger"
                       size="sm"
                       onClick={() => {
-                        setDeleteId(donor._id);
+                        setDeleteId(donor.id);
                         setConfirmDelete(true);
                       }}
                       className="flex-1 flex items-center justify-center gap-1"

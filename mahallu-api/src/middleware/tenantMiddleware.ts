@@ -64,13 +64,15 @@ export const tenantFilter = (req: TenantRequest, res: Response, next: NextFuncti
  * Adds instituteId filter to queries for users with role 'institute'
  */
 export const instituteFilter = (req: TenantRequest, res: Response, next: NextFunction) => {
-  // For institute role users, auto-inject their instituteId into queries
+  // For institute role users, auto-inject their instituteId into queries — always overwrite
+  // (not just when absent) so a client-supplied instituteId can never create/query records
+  // under a different institute than the one this user actually belongs to.
   if (req.user?.role === 'institute' && req.user?.instituteId) {
     const instituteId = req.user.instituteId.toString();
     if (req.query) {
       req.query.instituteId = instituteId;
     }
-    if (req.body && !req.body.instituteId) {
+    if (req.body) {
       req.body.instituteId = instituteId;
     }
   }

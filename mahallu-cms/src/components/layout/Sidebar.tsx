@@ -302,7 +302,7 @@ export default function Sidebar() {
   return (
     <aside
       className={cn(
-        'fixed left-0 top-0 z-50 h-screen border-r border-slate-200 bg-white text-slate-900 shadow-[0_24px_80px_rgba(15,23,42,0.12)] transition-[width,transform] duration-200 ease-out',
+        'fixed left-0 top-0 z-[60] h-screen border-r border-slate-200 bg-white text-slate-900 shadow-[0_24px_80px_rgba(15,23,42,0.12)] transition-[width,transform] duration-200 ease-out',
         'dark:border-gray-800 dark:bg-gray-900 dark:text-gray-100 dark:shadow-none',
         isDesktopSidebarCollapsed ? 'w-[4.75rem]' : 'w-[16rem]',
         'md:translate-x-0',

@@ -1,14 +1,17 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import cemeteryService, { GraveRecord, Cemetery } from '../../../services/cemeteryService';
 import Button from '../../../components/ui/Button';
 import Card from '../../../components/ui/Card';
 import Input from '../../../components/ui/Input';
+import SearchableSelect from '../../../components/ui/SearchableSelect';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import { FiArrowLeft } from 'react-icons/fi';
+import { memberService } from '@/services/memberService';
+import { familyService } from '@/services/familyService';
 
 const graveSchema = z.object({
   graveNo: z.string().min(1, 'Grave number is required'),
@@ -30,15 +33,34 @@ export function GraveForm() {
   const [error, setError] = useState<string | null>(null);
   const [cemetery, setCemetery] = useState<Cemetery | null>(null);
   const [grave, setGrave] = useState<GraveRecord | null>(null);
+  const [members, setMembers] = useState<any[]>([]);
+  const [loadingMembers, setLoadingMembers] = useState(true);
+  const [families, setFamilies] = useState<any[]>([]);
+  const [loadingFamilies, setLoadingFamilies] = useState(true);
 
   const {
     register,
+    control,
     handleSubmit,
     formState: { errors },
     reset,
   } = useForm<GraveFormData>({
     resolver: zodResolver(graveSchema),
   });
+
+  useEffect(() => {
+    memberService
+      .getAll({ page: 1, limit: 200 } as any)
+      .then((result: any) => setMembers(result.data || []))
+      .catch(() => setMembers([]))
+      .finally(() => setLoadingMembers(false));
+
+    familyService
+      .getAll({ page: 1, limit: 200 } as any)
+      .then((result: any) => setFamilies(result.data || []))
+      .catch(() => setFamilies([]))
+      .finally(() => setLoadingFamilies(false));
+  }, []);
 
   // Load cemetery and grave if editing
   useEffect(() => {
@@ -82,6 +104,8 @@ export function GraveForm() {
         tenantId: '',
         cemeteryId: cemeteryId!,
         ...data,
+        deceasedMemberId: data.deceasedMemberId || undefined,
+        familyId: data.familyId || undefined,
       } as GraveRecord;
 
       if (graveId) {
@@ -205,22 +229,42 @@ export function GraveForm() {
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Member ID (if family member)
-                </label>
-                <Input
-                  {...register('deceasedMemberId')}
-                  placeholder="Member ID (optional)"
+                <Controller
+                  name="deceasedMemberId"
+                  control={control}
+                  render={({ field }) => (
+                    <SearchableSelect
+                      label="Member (if family member)"
+                      value={field.value}
+                      onChange={field.onChange}
+                      options={members.map((member: any) => ({
+                        value: member._id || member.id,
+                        label: `${member.name}${member.familyName ? ` - ${member.familyName}` : ''}`,
+                      }))}
+                      placeholder="Search members..."
+                      isLoading={loadingMembers}
+                    />
+                  )}
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Family ID
-                </label>
-                <Input
-                  {...register('familyId')}
-                  placeholder="Family ID (optional)"
+                <Controller
+                  name="familyId"
+                  control={control}
+                  render={({ field }) => (
+                    <SearchableSelect
+                      label="Family"
+                      value={field.value}
+                      onChange={field.onChange}
+                      options={families.map((family: any) => ({
+                        value: family._id || family.id,
+                        label: `${family.houseName}${family.mahallId ? ` - ${family.mahallId}` : ''}`,
+                      }))}
+                      placeholder="Search families..."
+                      isLoading={loadingFamilies}
+                    />
+                  )}
                 />
               </div>
             </div>

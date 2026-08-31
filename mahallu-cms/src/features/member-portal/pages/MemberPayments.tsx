@@ -47,7 +47,7 @@ export default function MemberPayments() {
     .reduce((s, p) => s + p.amount, 0);
 
   const handleDownload = async (payment: PaymentRecord) => {
-    setDownloading(payment._id);
+    setDownloading(payment.id);
     try {
       await downloadPaymentReceiptPdf(payment, user?.name || 'Member');
     } finally {
@@ -138,7 +138,7 @@ export default function MemberPayments() {
               <tbody>
                 {filtered.map((payment) => (
                   <tr
-                    key={payment._id}
+                    key={payment.id}
                     className="border-b border-gray-100 dark:border-gray-900 text-gray-900 dark:text-gray-100"
                   >
                     <td className="py-3 pr-4 font-mono text-xs">
@@ -169,10 +169,10 @@ export default function MemberPayments() {
                     <td className="py-3">
                       <button
                         onClick={() => handleDownload(payment)}
-                        disabled={downloading === payment._id}
+                        disabled={downloading === payment.id}
                         className="text-xs text-primary-600 dark:text-primary-400 hover:underline disabled:opacity-50"
                       >
-                        {downloading === payment._id ? 'Generating…' : 'Download Receipt'}
+                        {downloading === payment.id ? 'Generating…' : 'Download Receipt'}
                       </button>
                     </td>
                   </tr>

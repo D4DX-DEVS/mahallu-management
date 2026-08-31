@@ -1,7 +1,7 @@
 import api from './api';
 
 export interface IHealthResource {
-  _id: string;
+  id: string;
   tenantId: string;
   type: 'doctor' | 'blood_donor' | 'palliative_case' | 'patient_support' | 'elderly_care';
   memberId?: string;
@@ -17,7 +17,7 @@ export interface IHealthResource {
 }
 
 export interface IMedicalCamp {
-  _id: string;
+  id: string;
   tenantId: string;
   name: string;
   campDate: string;

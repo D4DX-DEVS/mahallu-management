@@ -14,6 +14,7 @@ import {
   requestDeathRegistration,
   requestNOC,
   resubmitRegistration,
+  deleteOwnRegistration,
   getOwnNotifications,
   getCommunityPrograms,
   getPublicFeeds,
@@ -403,6 +404,9 @@ router.post('/registrations/noc', requestNOC);
 
 // Edit + resubmit an own registration while status is pending / correction_required
 router.put('/registrations/:type/:id', resubmitRegistration);
+
+// Cancel/delete an own registration while it hasn't been approved yet
+router.delete('/registrations/:type/:id', deleteOwnRegistration);
 
 /**
  * @swagger

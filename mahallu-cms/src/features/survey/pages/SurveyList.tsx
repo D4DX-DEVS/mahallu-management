@@ -55,7 +55,7 @@ export default function SurveyList() {
       const snapshot = await surveyService.generate({ type: generateType });
       setGenerateOpen(false);
       toast.success('Survey generated successfully');
-      navigate(`/survey/${snapshot._id}`);
+      navigate(`/survey/${snapshot.id}`);
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Failed to generate survey');
     } finally {
@@ -127,7 +127,7 @@ export default function SurveyList() {
               data={rows}
               emptyMessage="No survey snapshots yet"
               showExport={false}
-              onRowClick={(row) => navigate(`/survey/${row._id}`)}
+              onRowClick={(row) => navigate(`/survey/${row.id}`)}
             />
           </div>
         )}

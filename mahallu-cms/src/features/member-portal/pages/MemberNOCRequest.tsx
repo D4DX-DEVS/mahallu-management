@@ -1,34 +1,59 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/store/authStore';
-import { memberPortalService } from '@/services/memberPortalService';
+import { memberPortalService, FamilyMember, MemberOverviewResponse } from '@/services/memberPortalService';
 import { ROUTES } from '@/constants/routes';
 import Card from '@/components/ui/Card';
+import DatePicker from '@/components/ui/DatePicker';
+import AppSelect from '@/components/ui/AppSelect';
 import { FiHeart, FiFileText } from 'react-icons/fi';
 
 type NOCType = 'nikah' | 'common' | null;
-
-interface NikahFormData {
-  brideName: string;
-  brideAge: string;
-  nikahDate: string;
-  venue: string;
-  remarks: string;
-}
 
 interface CommonFormData {
   purposeTitle: string;
   purposeDescription: string;
 }
 
+interface DocumentChip {
+  id: string;
+  fileName: string;
+  documentType: 'id_proof' | 'age_proof' | 'photo' | 'address_proof' | 'divorce_doc' | 'death_proof' | 'other';
+}
+
 export default function MemberNOCRequest() {
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
 
+  const [overview, setOverview] = useState<MemberOverviewResponse | null>(null);
+  const [familyMembers, setFamilyMembers] = useState<FamilyMember[]>([]);
+
   const [selectedType, setSelectedType] = useState<NOCType>(null);
-  const [nikahForm, setNikahForm] = useState<NikahFormData>({
-    brideName: '', brideAge: '', nikahDate: '', venue: '', remarks: '',
-  });
+
+  // Nikah NOC — same fields as the standalone Register Nikah form
+  const [side, setSide] = useState<'groom' | 'bride'>('groom');
+  const [subjectMemberId, setSubjectMemberId] = useState('');
+  const [groomName, setGroomName] = useState(user?.name || '');
+  const [groomAge, setGroomAge] = useState('');
+  const [brideName, setBrideName] = useState('');
+  const [brideAge, setBrideAge] = useState('');
+  const [nikahDate, setNikahDate] = useState('');
+  const [venue, setVenue] = useState('');
+  const [waliName, setWaliName] = useState('');
+  const [witness1, setWitness1] = useState('');
+  const [witness2, setWitness2] = useState('');
+  const [mahrAmount, setMahrAmount] = useState('');
+  const [mahrDescription, setMahrDescription] = useState('');
+  const [nikahRemarks, setNikahRemarks] = useState('');
+
+  const [documents, setDocuments] = useState<DocumentChip[]>([]);
+  const [selectedDocType, setSelectedDocType] = useState<DocumentChip['documentType']>('id_proof');
+  const [uploading, setUploading] = useState(false);
+
+  const requiredDocTypes = ['id_proof', 'age_proof', 'photo'] as const;
+  const uploadedDocTypes = new Set(documents.map((d) => d.documentType));
+  const missingDocTypes = requiredDocTypes.filter((t) => !uploadedDocTypes.has(t));
+
   const [commonForm, setCommonForm] = useState<CommonFormData>({
     purposeTitle: '', purposeDescription: '',
   });
@@ -37,11 +62,52 @@ export default function MemberNOCRequest() {
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const overviewData = await memberPortalService.getOverview();
+        setOverview(overviewData);
+
+        if (overviewData.member.id !== user?.id) {
+          const familyResult = await memberPortalService.getFamilyMembers(1, 100);
+          setFamilyMembers(familyResult.data || []);
+        }
+      } catch {
+        // Non-fatal — family member picker just won't be offered
+      }
+    };
+    load();
+  }, [user?.id]);
+
+  const handleDocumentUpload = async (file: File) => {
+    setUploading(true);
+    try {
+      const doc = await memberPortalService.uploadDocument(file, selectedDocType);
+      setDocuments((prev) => [...prev, { id: doc.id, fileName: doc.fileName, documentType: selectedDocType }]);
+    } catch (err: any) {
+      setErrorMsg(err.response?.data?.message || 'Failed to upload document');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const removeDocument = (docId: string) => {
+    setDocuments((prev) => prev.filter((d) => d.id !== docId));
+  };
+
   const validateNikah = () => {
     const errs: Record<string, string> = {};
-    if (!nikahForm.brideName.trim()) errs.brideName = 'Bride name is required';
-    if (!nikahForm.nikahDate) errs.nikahDate = 'Nikah date is required';
-    if (!nikahForm.venue.trim()) errs.venue = 'Venue is required';
+    if (!groomName.trim()) errs.groomName = 'Groom name is required';
+    if (!brideName.trim()) errs.brideName = 'Bride name is required';
+    if (!nikahDate) errs.nikahDate = 'Nikah date is required';
+    if (!venue.trim()) errs.venue = 'Venue is required';
+    if (!waliName.trim()) errs.waliName = 'Wali name is required';
+    if (!witness1.trim()) errs.witness1 = 'First witness name is required';
+    if (!witness2.trim()) errs.witness2 = 'Second witness name is required';
+    if (!mahrAmount.trim()) errs.mahrAmount = 'Mahr amount is required';
+    if (missingDocTypes.length > 0) {
+      errs.documents = `Required documents missing: ${missingDocTypes.map((t) => t.replace(/_/g, ' ')).join(', ')}`;
+    }
     return errs;
   };
 
@@ -62,11 +128,21 @@ export default function MemberNOCRequest() {
       selectedType === 'nikah'
         ? {
             type: 'nikah' as const,
-            brideName: nikahForm.brideName,
-            brideAge: nikahForm.brideAge ? Number(nikahForm.brideAge) : undefined,
-            nikahDate: nikahForm.nikahDate,
-            venue: nikahForm.venue,
-            remarks: nikahForm.remarks || undefined,
+            subjectMemberId: subjectMemberId || undefined,
+            mahallMemberType: side,
+            groomName,
+            groomAge: groomAge ? Number(groomAge) : undefined,
+            brideName,
+            brideAge: brideAge ? Number(brideAge) : undefined,
+            nikahDate,
+            venue,
+            waliName,
+            witness1,
+            witness2,
+            mahrAmount: Number(mahrAmount),
+            mahrDescription: mahrDescription || undefined,
+            documents: documents.map((d) => d.id),
+            remarks: nikahRemarks || undefined,
           }
         : {
             type: 'common' as const,
@@ -86,6 +162,8 @@ export default function MemberNOCRequest() {
       setSubmitting(false);
     }
   };
+
+  const isFamilyHead = overview?.member.id === user?.id;
 
   if (successMsg) {
     return (
@@ -138,7 +216,7 @@ export default function MemberNOCRequest() {
         </div>
       )}
 
-      {/* Step 2a: Nikah Form */}
+      {/* Step 2a: Nikah Form — mirrors Register Nikah */}
       {selectedType === 'nikah' && (
         <Card>
           <div className="flex items-center justify-between mb-4">
@@ -147,71 +225,273 @@ export default function MemberNOCRequest() {
               Change type
             </button>
           </div>
-          <div className="space-y-4">
+          <div className="space-y-6">
+            {/* Nikah Side Selection */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Groom Name (Your Name)</label>
-              <input
-                type="text"
-                value={user?.name || ''}
-                readOnly
-                className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400 text-sm cursor-not-allowed"
-              />
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                Is this nikah for: <span className="text-red-500">*</span>
+              </label>
+              <div className="flex gap-4">
+                {(['groom', 'bride'] as const).map((s) => (
+                  <label key={s} className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="noc-nikah-side"
+                      value={s}
+                      checked={side === s}
+                      onChange={() => setSide(s)}
+                      className="w-4 h-4"
+                    />
+                    <span className="text-sm text-gray-700 dark:text-gray-300 capitalize">{s}</span>
+                  </label>
+                ))}
+              </div>
             </div>
+
+            {/* Subject Member Selection (for family head) */}
+            {isFamilyHead && familyMembers.length > 0 && (
+              <AppSelect
+                label="Family Member"
+                value={subjectMemberId}
+                onChange={setSubjectMemberId}
+                options={[
+                  { value: '', label: 'Select a family member…' },
+                  ...familyMembers.map((m) => ({ value: m.id, label: m.name })),
+                ]}
+                error={errors.subjectMemberId}
+              />
+            )}
+
+            {/* Groom Details */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Groom Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={groomName}
+                  onChange={(e) => setGroomName(e.target.value)}
+                  placeholder="Groom's full name"
+                  className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                />
+                {errors.groomName && <p className="text-red-500 text-xs mt-1">{errors.groomName}</p>}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Groom Age</label>
+                <input
+                  type="number"
+                  value={groomAge}
+                  onChange={(e) => setGroomAge(e.target.value)}
+                  placeholder="Age in years"
+                  min={1}
+                  max={120}
+                  className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                />
+              </div>
+            </div>
+
+            {/* Bride Details */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Bride Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={brideName}
+                  onChange={(e) => setBrideName(e.target.value)}
+                  placeholder="Bride's full name"
+                  className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                />
+                {errors.brideName && <p className="text-red-500 text-xs mt-1">{errors.brideName}</p>}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Bride Age</label>
+                <input
+                  type="number"
+                  value={brideAge}
+                  onChange={(e) => setBrideAge(e.target.value)}
+                  placeholder="Age in years"
+                  min={1}
+                  max={120}
+                  className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                />
+              </div>
+            </div>
+
+            {/* Nikah Details */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <DatePicker
+                label="Nikah Date"
+                value={nikahDate}
+                onChange={setNikahDate}
+                placeholder="Pick a date"
+                error={errors.nikahDate}
+                required
+              />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Venue <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={venue}
+                  onChange={(e) => setVenue(e.target.value)}
+                  placeholder="Location of nikah"
+                  className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                />
+                {errors.venue && <p className="text-red-500 text-xs mt-1">{errors.venue}</p>}
+              </div>
+            </div>
+
+            {/* Wali & Witnesses */}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Bride Name <span className="text-red-500">*</span>
+                Wali Name <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
-                value={nikahForm.brideName}
-                onChange={(e) => setNikahForm({ ...nikahForm, brideName: e.target.value })}
-                placeholder="Enter bride's full name"
+                value={waliName}
+                onChange={(e) => setWaliName(e.target.value)}
+                placeholder="Bride's wali name"
                 className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
-              {errors.brideName && <p className="text-red-500 text-xs mt-1">{errors.brideName}</p>}
+              {errors.waliName && <p className="text-red-500 text-xs mt-1">{errors.waliName}</p>}
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Bride Age</label>
-              <input
-                type="number"
-                value={nikahForm.brideAge}
-                onChange={(e) => setNikahForm({ ...nikahForm, brideAge: e.target.value })}
-                placeholder="Age in years"
-                min={1}
-                max={120}
-                className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-              />
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  First Witness <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={witness1}
+                  onChange={(e) => setWitness1(e.target.value)}
+                  placeholder="Witness name"
+                  className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                />
+                {errors.witness1 && <p className="text-red-500 text-xs mt-1">{errors.witness1}</p>}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Second Witness <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={witness2}
+                  onChange={(e) => setWitness2(e.target.value)}
+                  placeholder="Witness name"
+                  className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                />
+                {errors.witness2 && <p className="text-red-500 text-xs mt-1">{errors.witness2}</p>}
+              </div>
             </div>
+
+            {/* Mahr Details */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Mahr Amount (₹) <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="number"
+                  value={mahrAmount}
+                  onChange={(e) => setMahrAmount(e.target.value)}
+                  placeholder="Amount in rupees"
+                  min={0}
+                  className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                />
+                {errors.mahrAmount && <p className="text-red-500 text-xs mt-1">{errors.mahrAmount}</p>}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Mahr Description</label>
+                <input
+                  type="text"
+                  value={mahrDescription}
+                  onChange={(e) => setMahrDescription(e.target.value)}
+                  placeholder="e.g., Gold, Cash, etc."
+                  className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                />
+              </div>
+            </div>
+
+            {/* Required Documents Checklist */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Nikah Date <span className="text-red-500">*</span>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Required Documents
               </label>
-              <input
-                type="date"
-                value={nikahForm.nikahDate}
-                onChange={(e) => setNikahForm({ ...nikahForm, nikahDate: e.target.value })}
-                className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-              />
-              {errors.nikahDate && <p className="text-red-500 text-xs mt-1">{errors.nikahDate}</p>}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                {requiredDocTypes.map((docType) => (
+                  <div key={docType} className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-800 rounded">
+                    <span className="text-lg">{uploadedDocTypes.has(docType) ? '✓' : '○'}</span>
+                    <span className="text-xs text-gray-700 dark:text-gray-300">{docType.replace(/_/g, ' ')}</span>
+                  </div>
+                ))}
+              </div>
             </div>
+
+            {/* Document Upload */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Venue / Location <span className="text-red-500">*</span>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Upload Documents <span className="text-red-500">*</span>
               </label>
-              <input
-                type="text"
-                value={nikahForm.venue}
-                onChange={(e) => setNikahForm({ ...nikahForm, venue: e.target.value })}
-                placeholder="Where will the nikah take place?"
-                className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-              />
-              {errors.venue && <p className="text-red-500 text-xs mt-1">{errors.venue}</p>}
+              <div className="flex flex-col sm:flex-row gap-2 mb-3">
+                <div className="flex-1">
+                  <AppSelect
+                    value={selectedDocType}
+                    onChange={(v) => setSelectedDocType(v as typeof selectedDocType)}
+                    options={[
+                      { value: 'id_proof', label: 'ID Proof' },
+                      { value: 'age_proof', label: 'Age Proof' },
+                      { value: 'photo', label: 'Photo' },
+                      { value: 'address_proof', label: 'Address Proof' },
+                      { value: 'divorce_doc', label: 'Divorce Document' },
+                      { value: 'other', label: 'Other' },
+                    ]}
+                  />
+                </div>
+                <label htmlFor="doc-upload-noc-nikah" className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg text-sm cursor-pointer transition-colors">
+                  {uploading ? 'Uploading…' : 'Upload'}
+                </label>
+                <input
+                  type="file"
+                  onChange={(e) => {
+                    if (e.target.files?.[0]) {
+                      handleDocumentUpload(e.target.files[0]);
+                      e.target.value = '';
+                    }
+                  }}
+                  disabled={uploading}
+                  className="hidden"
+                  id="doc-upload-noc-nikah"
+                />
+              </div>
+              {documents.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-3">
+                  {documents.map((doc) => (
+                    <div key={doc.id} className="inline-flex items-center gap-2 px-3 py-1 bg-gray-100 dark:bg-gray-800 rounded-full">
+                      <span className="text-xs text-gray-700 dark:text-gray-300 truncate max-w-xs">{doc.documentType.replace(/_/g, ' ')}: {doc.fileName}</span>
+                      <button
+                        type="button"
+                        onClick={() => removeDocument(doc.id)}
+                        className="text-xs text-gray-500 dark:text-gray-400 hover:text-red-600"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {errors.documents && <p className="text-red-500 text-xs mt-1">{errors.documents}</p>}
             </div>
+
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Additional Remarks</label>
               <textarea
-                value={nikahForm.remarks}
-                onChange={(e) => setNikahForm({ ...nikahForm, remarks: e.target.value })}
+                value={nikahRemarks}
+                onChange={(e) => setNikahRemarks(e.target.value)}
                 placeholder="Any additional information…"
                 rows={3}
                 className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"

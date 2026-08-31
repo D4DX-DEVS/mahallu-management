@@ -618,6 +618,7 @@ export const getOwnRegistrations = async (req: AuthRequest, res: Response) => {
         ],
       };
       const nikahRegs = await NikahRegistration.find(nikahQuery)
+        .populate('documents', 'fileName documentType status')
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(Number(limit) || 10);
@@ -638,6 +639,7 @@ export const getOwnRegistrations = async (req: AuthRequest, res: Response) => {
         ],
       };
       const deathRegs = await DeathRegistration.find(deathQuery)
+        .populate('documents', 'fileName documentType status')
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(Number(limit) || 10);
@@ -658,8 +660,12 @@ export const getOwnRegistrations = async (req: AuthRequest, res: Response) => {
         ],
       };
       const nocs = await NOC.find(nocQuery)
-        .populate('nikahRegistrationId')
+        .populate({
+          path: 'nikahRegistrationId',
+          populate: { path: 'documents', select: 'fileName documentType status' },
+        })
         .populate('tenantId', 'name')
+        .populate('documents', 'fileName documentType status')
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(Number(limit) || 10);
@@ -880,29 +886,75 @@ export const requestNOC = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    const { type, brideName, brideAge, nikahDate, venue, purposeTitle, purposeDescription, remarks } = req.body;
+    const {
+      type, brideName, brideAge, groomName, groomAge, nikahDate, venue,
+      subjectMemberId, mahallMemberType, waliName, witness1, witness2, mahrAmount, mahrDescription,
+      purposeTitle, purposeDescription, remarks,
+    } = req.body;
 
     let nikahRegistrationId: any = undefined;
 
-    // For nikah NOC, create a linked NikahRegistration record first
+    // For nikah NOC, create a linked NikahRegistration record first — same fields/validation as
+    // the standalone Register Nikah flow so a nikah NOC captures the full ceremony details.
     if (type === 'nikah') {
-      if (!brideName || !nikahDate) {
+      let subject = member;
+      if (subjectMemberId && String(subjectMemberId) !== String(member._id)) {
+        if (member.isFamilyHead !== true) {
+          return res.status(403).json({
+            success: false,
+            message: 'Only the family head can apply for another family member',
+          });
+        }
+        const found = await Member.findOne({
+          _id: subjectMemberId,
+          familyId: member.familyId,
+          tenantId: member.tenantId,
+          status: 'active',
+        });
+        if (!found) {
+          return res.status(404).json({
+            success: false,
+            message: 'Selected member not found in your family',
+          });
+        }
+        subject = found;
+      }
+
+      const side: 'groom' | 'bride' = mahallMemberType === 'bride' ? 'bride' : 'groom';
+      const otherSideName = side === 'groom' ? brideName : groomName;
+      if (!otherSideName || !nikahDate) {
         return res.status(400).json({
           success: false,
-          message: 'brideName and nikahDate are required for nikah NOC',
+          message: side === 'groom'
+            ? 'brideName and nikahDate are required for nikah NOC'
+            : 'groomName and nikahDate are required for nikah NOC',
         });
       }
+
+      const missingDocs = await findMissingRequiredDocs(req.body.documents, member, 'nikah');
+      if (missingDocs.length > 0) {
+        return res.status(400).json({
+          success: false,
+          message: `Missing required documents: ${missingDocs.join(', ')}`,
+          code: 'DOCUMENTS_REQUIRED',
+          missing: missingDocs,
+        });
+      }
+
       const nikahReg = new NikahRegistration({
         tenantId: member.tenantId,
-        groomId: member._id,
-        groomName: member.name,
-        groomAge: member.age,
-        brideName,
-        brideAge,
+        mahallMemberType: side,
+        submittedByMemberId: member._id,
+        ...(side === 'groom'
+          ? { groomId: subject._id, groomName: subject.name, groomAge: groomAge ?? subject.age, brideName, brideAge }
+          : { brideId: subject._id, brideName: subject.name, brideAge: brideAge ?? subject.age, groomName, groomAge }),
         nikahDate,
         venue,
-        mahallMemberType: 'groom',
-        submittedByMemberId: member._id,
+        waliName,
+        witness1,
+        witness2,
+        mahrAmount,
+        mahrDescription,
         status: 'pending',
       });
       await nikahReg.save();
@@ -1010,6 +1062,62 @@ export const resubmitRegistration = async (req: AuthRequest, res: Response) => {
     await reg.save();
 
     res.json({ success: true, data: reg, message: 'Registration resubmitted' });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Cancel/delete an own registration — only while it hasn't been approved yet
+export const deleteOwnRegistration = async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.user?.memberId) {
+      return res.status(404).json({
+        success: false,
+        message: 'Member profile not linked to user account',
+      });
+    }
+
+    const member = await Member.findById(req.user.memberId);
+    if (!member) {
+      return res.status(404).json({ success: false, message: 'Member not found' });
+    }
+
+    const { type, id } = req.params;
+    const models: Record<string, any> = {
+      nikah: NikahRegistration,
+      death: DeathRegistration,
+      noc: NOC,
+    };
+    const Model = models[type];
+    if (!Model) {
+      return res.status(400).json({ success: false, message: 'type must be nikah, death or noc' });
+    }
+
+    const reg = await Model.findOne({
+      _id: id,
+      tenantId: member.tenantId,
+      status: { $in: ['pending', 'correction_required', 'rejected'] },
+      $or: [
+        { submittedByMemberId: member._id },
+        ...(type === 'nikah' ? [{ groomId: member._id }, { brideId: member._id }] : []),
+        ...(type === 'death' ? [{ deceasedId: member._id }] : []),
+        ...(type === 'noc' ? [{ applicantId: member._id }] : []),
+      ],
+    });
+
+    if (!reg) {
+      return res.status(404).json({ success: false, message: 'Deletable registration not found' });
+    }
+
+    await Model.deleteOne({ _id: reg._id });
+
+    // A nikah-type NOC also owns a linked NikahRegistration draft — remove it too, it has no
+    // independent purpose once the NOC that created it is gone.
+    if (type === 'noc' && (reg as any).nikahRegistrationId) {
+      await NikahRegistration.deleteOne({ _id: (reg as any).nikahRegistrationId, tenantId: member.tenantId });
+    }
+
+    res.json({ success: true, message: 'Registration deleted' });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
   }

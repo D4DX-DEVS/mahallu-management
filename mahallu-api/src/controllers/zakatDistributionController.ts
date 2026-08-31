@@ -91,6 +91,17 @@ export const createBeneficiary = async (req: AuthRequest, res: Response) => {
       verifiedBy: undefined,
       verifiedDate: undefined,
     });
+
+    // Keep the member-side register flag in sync so the beneficiary shows up
+    // in the "Zakat Beneficiaries" dashboard/register count immediately.
+    if (beneficiary.memberId) {
+      try {
+        await Member.updateOne({ _id: beneficiary.memberId }, { isZakatEligible: true });
+      } catch (memberError) {
+        console.error('Failed to flag member as zakat-eligible:', memberError);
+      }
+    }
+
     res.status(201).json({ success: true, data: beneficiary });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });

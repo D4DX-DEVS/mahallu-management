@@ -1,7 +1,7 @@
 import api from './api';
 
 export interface ICounsellingCase {
-  _id: string;
+  id: string;
   tenantId: string;
   caseNo: string;
   category: 'marriage' | 'family' | 'adolescent' | 'education' | 'parenting' | 'behaviour' | 'career';
@@ -21,7 +21,7 @@ export interface ICounsellingCase {
 }
 
 export interface IDisputeCase {
-  _id: string;
+  id: string;
   tenantId: string;
   caseNo: string;
   type: 'family' | 'marriage' | 'divorce' | 'community' | 'inheritance' | 'other';
@@ -36,7 +36,7 @@ export interface IDisputeCase {
 }
 
 export interface IInheritanceCase {
-  _id: string;
+  id: string;
   tenantId: string;
   caseNo: string;
   deceasedMemberId?: string;

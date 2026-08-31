@@ -78,8 +78,7 @@ export interface MemberVarisangyaResponse {
 }
 
 export interface PaymentRecord {
-  _id: string;
-  id?: string;
+  id: string;
   amount: number;
   paymentDate: string;
   receiptNo?: string;
@@ -99,8 +98,15 @@ export interface RegistrationsResponse {
   noc: any[];
 }
 
+export interface PopulatedDocument {
+  id: string;
+  fileName: string;
+  documentType: string;
+  status: 'pending' | 'verified' | 'rejected';
+}
+
 export interface NikahRegistration {
-  _id: string;
+  id: string;
   mahallMemberType: 'groom' | 'bride';
   subjectMemberId?: string;
   groomName: string;
@@ -114,7 +120,7 @@ export interface NikahRegistration {
   witness2: string;
   mahrAmount: number;
   mahrDescription: string;
-  documents: string[];
+  documents: PopulatedDocument[];
   status: 'pending' | 'correction_required' | 'approved' | 'rejected';
   remarks?: string;
   createdAt: string;
@@ -122,7 +128,7 @@ export interface NikahRegistration {
 }
 
 export interface DeathRegistration {
-  _id: string;
+  id: string;
   deceasedMemberId?: string;
   deceasedName: string;
   deathDate: string;
@@ -131,9 +137,27 @@ export interface DeathRegistration {
   informantName?: string;
   informantRelation?: string;
   informantPhone?: string;
-  documents: string[];
+  documents: PopulatedDocument[];
   status: 'pending' | 'correction_required' | 'approved' | 'rejected';
   remarks?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface NOCRecord {
+  id: string;
+  applicantName: string;
+  applicantPhone?: string;
+  type: 'common' | 'nikah';
+  purposeTitle?: string;
+  purposeDescription?: string;
+  purpose?: string;
+  nikahRegistrationId?: NikahRegistration | string;
+  documents: PopulatedDocument[];
+  status: 'pending' | 'correction_required' | 'approved' | 'rejected';
+  remarks?: string;
+  issuedDate?: string;
+  approvedBy?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -165,7 +189,7 @@ export interface DocumentRecord {
 }
 
 export interface Certificate {
-  _id: string;
+  id: string;
   certificateNo: string;
   type: string;
   issueDate: string;
@@ -173,11 +197,13 @@ export interface Certificate {
 }
 
 export interface ChangeRequest {
-  _id: string;
+  id: string;
   targetType: 'member' | 'family';
   targetId: string;
-  changes: Array<{ field: string; newValue: string }>;
+  changes: Array<{ field: string; oldValue?: string; newValue: string }>;
   status: 'pending' | 'approved' | 'rejected';
+  reviewedBy?: string;
+  reviewedAt?: string;
   remarks?: string;
   createdAt: string;
 }
@@ -231,7 +257,7 @@ export const memberPortalService = {
   },
 
   getRegistrations: async (type: 'nikah' | 'death' | 'noc', page = 1, limit = 10) => {
-    const response = await api.get<PaginationResponse<NikahRegistration | DeathRegistration>>(
+    const response = await api.get<PaginationResponse<NikahRegistration | DeathRegistration | NOCRecord>>(
       `/member-user/registrations?type=${type}&page=${page}&limit=${limit}`
     );
     return response.data;
@@ -292,12 +318,16 @@ export const memberPortalService = {
     return response.data.data;
   },
 
-  updateRegistration: async (type: 'nikah' | 'death', id: string, data: any) => {
+  updateRegistration: async (type: 'nikah' | 'death' | 'noc', id: string, data: any) => {
     const response = await api.put<{ success: boolean; data: any }>(
       `/member-user/registrations/${type}/${id}`,
       data
     );
     return response.data.data;
+  },
+
+  deleteRegistration: async (type: 'nikah' | 'death' | 'noc', id: string) => {
+    await api.delete(`/member-user/registrations/${type}/${id}`);
   },
 
   uploadDocument: async (file: File, documentType: string, ownerType?: string) => {
@@ -356,6 +386,18 @@ export const memberPortalService = {
     return response.data.data;
   },
 
+  updateChangeRequest: async (id: string, data: { field: string; newValue: string }) => {
+    const response = await api.put<{ success: boolean; data: ChangeRequest }>(
+      `/change-requests/${id}`,
+      data
+    );
+    return response.data.data;
+  },
+
+  deleteChangeRequest: async (id: string) => {
+    await api.delete(`/change-requests/${id}`);
+  },
+
   getChangeRequests: async (page = 1, limit = 10) => {
     const response = await api.get<PaginationResponse<ChangeRequest>>(
       `/change-requests?page=${page}&limit=${limit}`
@@ -367,10 +409,20 @@ export const memberPortalService = {
     type: 'common' | 'nikah';
     purposeTitle?: string;
     purposeDescription?: string;
+    subjectMemberId?: string;
+    mahallMemberType?: 'groom' | 'bride';
+    groomName?: string;
+    groomAge?: number;
     brideName?: string;
     brideAge?: number;
     nikahDate?: string;
     venue?: string;
+    waliName?: string;
+    witness1?: string;
+    witness2?: string;
+    mahrAmount?: number;
+    mahrDescription?: string;
+    documents?: string[];
     remarks?: string;
   }) => {
     const response = await api.post<{ success: boolean; data: any; message: string }>(

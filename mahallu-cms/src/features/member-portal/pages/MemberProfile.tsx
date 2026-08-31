@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react';
-import { useAuthStore } from '@/store/authStore';
 import { memberPortalService, MemberOverviewResponse, ChangeRequest } from '@/services/memberPortalService';
 import { authService } from '@/services/authService';
 import Card from '@/components/ui/Card';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import Pagination from '@/components/ui/Pagination';
+import Modal from '@/components/ui/Modal';
+import Button from '@/components/ui/Button';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import { FiEdit2, FiEye, FiTrash2 } from 'react-icons/fi';
 
 const EDITABLE_MEMBER_FIELDS = [
   'name',
@@ -19,8 +22,6 @@ const EDITABLE_MEMBER_FIELDS = [
 ];
 
 export default function MemberProfile() {
-  const user = useAuthStore((state) => state.user);
-
   const [overview, setOverview] = useState<MemberOverviewResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -53,6 +54,17 @@ export default function MemberProfile() {
 
   const requestsLimit = 10;
 
+  // Change request history — view/edit/delete
+  const [viewRequest, setViewRequest] = useState<ChangeRequest | null>(null);
+  const [editRequest, setEditRequest] = useState<ChangeRequest | null>(null);
+  const [editRequestField, setEditRequestField] = useState('');
+  const [editRequestValue, setEditRequestValue] = useState('');
+  const [savingEditRequest, setSavingEditRequest] = useState(false);
+  const [editRequestError, setEditRequestError] = useState<string | null>(null);
+  const [deleteRequest, setDeleteRequest] = useState<ChangeRequest | null>(null);
+  const [deletingRequest, setDeletingRequest] = useState(false);
+  const [deleteRequestError, setDeleteRequestError] = useState<string | null>(null);
+
   useEffect(() => {
     const load = async () => {
       try {
@@ -71,23 +83,24 @@ export default function MemberProfile() {
     load();
   }, []);
 
-  useEffect(() => {
-    const loadRequests = async () => {
-      try {
-        setLoadingRequests(true);
-        const result = await memberPortalService.getChangeRequests(requestsPage, requestsLimit);
-        setChangeRequests(result.data || []);
-        const total = result.pagination?.total || 0;
-        setTotalItems(total);
-        setTotalPages(Math.ceil(total / requestsLimit));
-      } catch (err: any) {
-        setError(err.response?.data?.message || 'Failed to load change requests');
-      } finally {
-        setLoadingRequests(false);
-      }
-    };
+  const loadRequests = async (page: number) => {
+    try {
+      setLoadingRequests(true);
+      const result = await memberPortalService.getChangeRequests(page, requestsLimit);
+      setChangeRequests(result.data || []);
+      const total = result.pagination?.total || 0;
+      setTotalItems(total);
+      setTotalPages(Math.ceil(total / requestsLimit));
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Failed to load change requests');
+    } finally {
+      setLoadingRequests(false);
+    }
+  };
 
-    loadRequests();
+  useEffect(() => {
+    loadRequests(requestsPage);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [requestsPage]);
 
   const handleUpdateProfile = async () => {
@@ -134,6 +147,7 @@ export default function MemberProfile() {
   };
 
   const handleSubmitChangeRequest = async () => {
+    if (!overview) return;
     if (!changeField || !changeValue.trim()) {
       setChangeError('Please select a field and enter a value');
       return;
@@ -156,7 +170,7 @@ export default function MemberProfile() {
       setChangeError(null);
       const requestData: any = {
         targetType: 'member',
-        targetId: user?.id || '',
+        targetId: overview.member.id,
         changes: [{ field: changeField, newValue: changeValue }],
       };
 
@@ -174,10 +188,54 @@ export default function MemberProfile() {
       setTimeout(() => setChangeSuccess(null), 3000);
       // Refresh requests
       setRequestsPage(1);
+      loadRequests(1);
     } catch (err: any) {
       setChangeError(err.response?.data?.message || 'Failed to submit change request');
     } finally {
       setSubmittingChange(false);
+    }
+  };
+
+  const openEditRequest = (req: ChangeRequest) => {
+    setEditRequestError(null);
+    setEditRequestField(req.changes[0]?.field || '');
+    setEditRequestValue(req.changes[0]?.newValue || '');
+    setEditRequest(req);
+  };
+
+  const handleSaveEditRequest = async () => {
+    if (!editRequest || !editRequestField || !editRequestValue.trim()) {
+      setEditRequestError('Please select a field and enter a value');
+      return;
+    }
+    try {
+      setSavingEditRequest(true);
+      setEditRequestError(null);
+      await memberPortalService.updateChangeRequest(editRequest.id, {
+        field: editRequestField,
+        newValue: editRequestValue,
+      });
+      setEditRequest(null);
+      loadRequests(requestsPage);
+    } catch (err: any) {
+      setEditRequestError(err.response?.data?.message || 'Failed to update change request');
+    } finally {
+      setSavingEditRequest(false);
+    }
+  };
+
+  const handleDeleteRequest = async () => {
+    if (!deleteRequest) return;
+    try {
+      setDeletingRequest(true);
+      setDeleteRequestError(null);
+      await memberPortalService.deleteChangeRequest(deleteRequest.id);
+      setDeleteRequest(null);
+      loadRequests(requestsPage);
+    } catch (err: any) {
+      setDeleteRequestError(err.response?.data?.message || 'Failed to delete change request');
+    } finally {
+      setDeletingRequest(false);
     }
   };
 
@@ -383,7 +441,7 @@ export default function MemberProfile() {
           <div className="space-y-3">
             {changeRequests.map((req) => (
               <div
-                key={req._id}
+                key={req.id}
                 className="border border-gray-200 dark:border-gray-800 rounded-lg p-3"
               >
                 <div className="flex items-start justify-between gap-3">
@@ -402,17 +460,49 @@ export default function MemberProfile() {
                       <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">{req.remarks}</p>
                     )}
                   </div>
-                  <span
-                    className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${
-                      req.status === 'pending'
-                        ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
-                        : req.status === 'approved'
-                        ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-                        : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
-                    }`}
-                  >
-                    {req.status}
-                  </span>
+                  <div className="flex flex-col items-end gap-2">
+                    <span
+                      className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${
+                        req.status === 'pending'
+                          ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
+                          : req.status === 'approved'
+                          ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+                          : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
+                      }`}
+                    >
+                      {req.status}
+                    </span>
+                    <div className="flex items-center gap-1">
+                      {req.status === 'pending' && (
+                        <button
+                          onClick={() => openEditRequest(req)}
+                          title="Edit"
+                          aria-label="Edit change request"
+                          className="p-1.5 rounded-lg text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors"
+                        >
+                          <FiEdit2 size={14} />
+                        </button>
+                      )}
+                      <button
+                        onClick={() => setViewRequest(req)}
+                        title="View"
+                        aria-label="View change request"
+                        className="p-1.5 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                      >
+                        <FiEye size={14} />
+                      </button>
+                      {req.status === 'pending' && (
+                        <button
+                          onClick={() => { setDeleteRequestError(null); setDeleteRequest(req); }}
+                          title="Delete"
+                          aria-label="Delete change request"
+                          className="p-1.5 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                        >
+                          <FiTrash2 size={14} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
             ))}
@@ -431,6 +521,125 @@ export default function MemberProfile() {
           </div>
         )}
       </Card>
+
+      {/* View change request */}
+      <Modal
+        isOpen={!!viewRequest}
+        onClose={() => setViewRequest(null)}
+        title="Change Request"
+        size="sm"
+        footer={<Button variant="outline" onClick={() => setViewRequest(null)}>Close</Button>}
+      >
+        {viewRequest && (
+          <div className="space-y-4 text-sm">
+            {viewRequest.changes.map((change, idx) => (
+              <div key={idx} className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Field</p>
+                  <p className="text-gray-900 dark:text-gray-100 capitalize">{change.field.replace(/([A-Z])/g, ' $1').trim()}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Current Value</p>
+                  <p className="text-gray-900 dark:text-gray-100">{change.oldValue || '—'}</p>
+                </div>
+                <div className="col-span-2">
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Requested Value</p>
+                  <p className="text-primary-600 dark:text-primary-400 font-medium">{change.newValue}</p>
+                </div>
+              </div>
+            ))}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Status</p>
+                <p className="text-gray-900 dark:text-gray-100 capitalize">{viewRequest.status}</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Submitted</p>
+                <p className="text-gray-900 dark:text-gray-100">{new Date(viewRequest.createdAt).toLocaleDateString('en-IN')}</p>
+              </div>
+              {viewRequest.reviewedBy && (
+                <div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Reviewed By</p>
+                  <p className="text-gray-900 dark:text-gray-100">{viewRequest.reviewedBy}</p>
+                </div>
+              )}
+              {viewRequest.reviewedAt && (
+                <div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Reviewed On</p>
+                  <p className="text-gray-900 dark:text-gray-100">{new Date(viewRequest.reviewedAt).toLocaleDateString('en-IN')}</p>
+                </div>
+              )}
+            </div>
+            {viewRequest.remarks && (
+              <div className="text-sm bg-orange-50 dark:bg-orange-900/20 text-orange-800 dark:text-orange-300 px-3 py-2 rounded-lg">
+                <span className="font-medium">Remarks: </span>
+                {viewRequest.remarks}
+              </div>
+            )}
+          </div>
+        )}
+      </Modal>
+
+      {/* Edit change request */}
+      <Modal
+        isOpen={!!editRequest}
+        onClose={() => setEditRequest(null)}
+        title="Edit Change Request"
+        size="sm"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setEditRequest(null)}>Cancel</Button>
+            <Button onClick={handleSaveEditRequest} disabled={savingEditRequest}>
+              {savingEditRequest ? 'Saving…' : 'Save Changes'}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Field to Change <span className="text-red-500">*</span>
+            </label>
+            <select
+              value={editRequestField}
+              onChange={(e) => setEditRequestField(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+            >
+              {EDITABLE_MEMBER_FIELDS.filter((f) => f !== 'phone' && f !== 'email').map((field) => (
+                <option key={field} value={field}>
+                  {field.replace(/([A-Z])/g, ' $1').trim()}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              New Value <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={editRequestValue}
+              onChange={(e) => setEditRequestValue(e.target.value)}
+              placeholder="Enter new value"
+              className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+            />
+          </div>
+          {editRequestError && (
+            <p className="text-red-500 text-sm bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-lg">{editRequestError}</p>
+          )}
+        </div>
+      </Modal>
+
+      <ConfirmDialog
+        isOpen={!!deleteRequest}
+        title="Delete change request?"
+        message="This will permanently cancel this change request. This cannot be undone."
+        consequence={deleteRequestError || undefined}
+        confirmLabel="Delete"
+        isLoading={deletingRequest}
+        onConfirm={handleDeleteRequest}
+        onCancel={() => { setDeleteRequest(null); setDeleteRequestError(null); }}
+      />
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { FiX, FiList, FiTrendingUp, FiTrendingDown, FiEdit2, FiTrash2 } from 'react-icons/fi';
+import { FiX, FiList, FiTrendingUp, FiTrendingDown, FiEdit2, FiTrash2, FiEye } from 'react-icons/fi';
 import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
@@ -36,6 +36,7 @@ export default function LedgerItemsList() {
   const [selectedItem, setSelectedItem] = useState<LedgerItem | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showViewModal, setShowViewModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [editForm, setEditForm] = useState({ date: '', amount: 0, type: 'income' as 'income' | 'expense', description: '', paymentMethod: '', referenceNo: '' });
   const [institutes, setInstitutes] = useState<{ id: string; name: string }[]>([]);
@@ -176,6 +177,13 @@ export default function LedgerItemsList() {
         const isAuto = row.source && row.source !== 'manual';
         return (
           <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={() => { setSelectedItem(row); setShowViewModal(true); }}
+              className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400"
+              title="View"
+            >
+              <FiEye className="h-4 w-4" />
+            </button>
             <button
               onClick={() => !isAuto && openEditModal(row)}
               className={`p-1.5 rounded-md ${isAuto ? 'opacity-30 cursor-not-allowed' : 'hover:bg-gray-100 dark:hover:bg-gray-700'} text-gray-600 dark:text-gray-400`}
@@ -348,6 +356,53 @@ export default function LedgerItemsList() {
           </>
         )}
       </Card>
+
+      {/* View Modal */}
+      <Modal
+        isOpen={showViewModal}
+        onClose={() => { setShowViewModal(false); setSelectedItem(null); }}
+        title="Ledger Item Details"
+        footer={<Button variant="outline" onClick={() => { setShowViewModal(false); setSelectedItem(null); }}>Close</Button>}
+      >
+        {selectedItem && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Date</p>
+              <p className="text-gray-900 dark:text-gray-100">{formatDate(selectedItem.date)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Type</p>
+              <p className="text-gray-900 dark:text-gray-100 capitalize">{selectedItem.type}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Amount</p>
+              <p className="text-gray-900 dark:text-gray-100 font-medium">₹{(selectedItem.amount || 0).toLocaleString()}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Ledger</p>
+              <p className="text-gray-900 dark:text-gray-100">
+                {ledgers.find((l) => l.id === selectedItem.ledgerId)?.name || '—'}
+              </p>
+            </div>
+            <div className="sm:col-span-2">
+              <p className="text-xs text-gray-500 dark:text-gray-400">Description</p>
+              <p className="text-gray-900 dark:text-gray-100">{selectedItem.description || '—'}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Payment Method</p>
+              <p className="text-gray-900 dark:text-gray-100">{selectedItem.paymentMethod || '—'}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Reference No</p>
+              <p className="text-gray-900 dark:text-gray-100">{selectedItem.referenceNo || '—'}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Source</p>
+              <p className="text-gray-900 dark:text-gray-100 capitalize">{selectedItem.source || 'manual'}</p>
+            </div>
+          </div>
+        )}
+      </Modal>
 
       {/* Edit Modal */}
       <Modal

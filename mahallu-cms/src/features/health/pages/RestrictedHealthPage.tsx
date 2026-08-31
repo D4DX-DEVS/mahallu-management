@@ -158,7 +158,7 @@ export default function RestrictedHealthPage({ title, type, subtitle }: Restrict
             <>
               <div className="space-y-3 mb-6">
                 {resources.map((resource) => (
-                  <div key={resource._id} className="bg-white border border-gray-200 rounded-lg p-4">
+                  <div key={resource.id} className="bg-white border border-gray-200 rounded-lg p-4">
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                       <div className="flex-1">
                         <h3 className="text-base sm:text-lg font-semibold">{resource.name}</h3>
@@ -173,7 +173,7 @@ export default function RestrictedHealthPage({ title, type, subtitle }: Restrict
                         variant="danger"
                         size="sm"
                         onClick={() => {
-                          setDeleteId(resource._id);
+                          setDeleteId(resource.id);
                           setConfirmDelete(true);
                         }}
                       >

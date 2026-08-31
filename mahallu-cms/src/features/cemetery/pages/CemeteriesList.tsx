@@ -62,7 +62,7 @@ export function CemeteriesList() {
     if (!deleteId) return;
     try {
       await cemeteryService.deleteCemetery(deleteId);
-      setCemeteries(cemeteries.filter((c) => c._id !== deleteId));
+      setCemeteries(cemeteries.filter((c) => c.id !== deleteId));
       toast.success('Cemetery deleted');
       setConfirmDelete(false);
       setDeleteId(null);
@@ -114,9 +114,9 @@ export function CemeteriesList() {
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
           {cemeteries.map((cemetery) => (
             <Card
-              key={cemetery._id}
+              key={cemetery.id}
               className="cursor-pointer hover:shadow-lg transition-shadow"
-              onClick={() => navigate(`/cemetery/${cemetery._id}`)}
+              onClick={() => navigate(`/cemetery/${cemetery.id}`)}
             >
               <div className="p-4 space-y-4">
                 <div className="flex items-start justify-between">
@@ -179,7 +179,7 @@ export function CemeteriesList() {
                     className="flex-1 flex items-center justify-center gap-1 text-xs"
                     onClick={(e) => {
                       e.stopPropagation();
-                      navigate(`/cemetery/${cemetery._id}/edit`);
+                      navigate(`/cemetery/${cemetery.id}/edit`);
                     }}
                   >
                     <FiEdit2 className="w-3 h-3" />
@@ -191,7 +191,7 @@ export function CemeteriesList() {
                     className="flex-1 flex items-center justify-center gap-1 text-xs text-red-600 hover:text-red-700"
                     onClick={(e) => {
                       e.stopPropagation();
-                      setDeleteId(cemetery._id!);
+                      setDeleteId(cemetery.id!);
                       setConfirmDelete(true);
                     }}
                   >

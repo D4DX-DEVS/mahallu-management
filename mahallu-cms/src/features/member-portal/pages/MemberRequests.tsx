@@ -1,13 +1,15 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { memberPortalService, NikahRegistration, DeathRegistration } from '@/services/memberPortalService';
+import { memberPortalService, NikahRegistration, DeathRegistration, NOCRecord } from '@/services/memberPortalService';
 import { ROUTES } from '@/constants/routes';
 import Card from '@/components/ui/Card';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import Pagination from '@/components/ui/Pagination';
+import RequestDetailModal, { RequestType } from '../components/RequestDetailModal';
 import { FiEdit2, FiEye, FiHeart, FiAlertCircle, FiFileText } from 'react-icons/fi';
 
 type TabType = 'nikah' | 'death' | 'noc';
+type RequestRecord = NikahRegistration | DeathRegistration | NOCRecord;
 
 const statusColors: Record<string, string> = {
   pending: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
@@ -18,36 +20,56 @@ const statusColors: Record<string, string> = {
 
 export default function MemberRequests() {
   const [activeTab, setActiveTab] = useState<TabType>('nikah');
-  const [requests, setRequests] = useState<(NikahRegistration | DeathRegistration)[]>([]);
+  const [requests, setRequests] = useState<RequestRecord[]>([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [modalState, setModalState] = useState<{ type: RequestType; request: any; mode: 'view' | 'edit' } | null>(null);
+
+  // A nikah-type NOC's real detail lives on its linked NikahRegistration record
+  // (bride/groom, wali, witnesses, mahr…) — the NOC record itself only holds purpose/phone.
+  const openModal = (req: RequestRecord, mode: 'view' | 'edit') => {
+    const record = req as any;
+    if (activeTab === 'noc' && record.type === 'nikah' && record.nikahRegistrationId && typeof record.nikahRegistrationId === 'object') {
+      setModalState({ type: 'nikah', request: record.nikahRegistrationId, mode });
+    } else {
+      setModalState({ type: activeTab, request: req, mode });
+    }
+  };
+
+  const isEditable = (req: RequestRecord) => {
+    const record = req as any;
+    const status = activeTab === 'noc' && record.type === 'nikah' && record.nikahRegistrationId && typeof record.nikahRegistrationId === 'object'
+      ? record.nikahRegistrationId.status
+      : record.status;
+    return status === 'pending' || status === 'correction_required';
+  };
 
   const limit = 10;
 
-  useEffect(() => {
-    const load = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const result = await memberPortalService.getRegistrations(activeTab, page, limit);
-        const rows = result.data as unknown;
-        // Defensive: older backend shape keyed rows by type instead of returning an array
-        setRequests(Array.isArray(rows) ? rows : ((rows as Record<string, never[]>)?.[activeTab] ?? []));
-        const total = result.pagination?.total || 0;
-        setTotalItems(total);
-        setTotalPages(Math.ceil(total / limit));
-      } catch (err: any) {
-        setError(err.response?.data?.message || 'Failed to load requests');
-      } finally {
-        setLoading(false);
-      }
-    };
+  const load = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const result = await memberPortalService.getRegistrations(activeTab, page, limit);
+      const rows = result.data as unknown;
+      // Defensive: older backend shape keyed rows by type instead of returning an array
+      setRequests(Array.isArray(rows) ? rows : ((rows as Record<string, never[]>)?.[activeTab] ?? []));
+      const total = result.pagination?.total || 0;
+      setTotalItems(total);
+      setTotalPages(Math.ceil(total / limit));
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Failed to load requests');
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, page]);
 
   const handleTabChange = (tab: TabType) => {
@@ -161,12 +183,14 @@ export default function MemberRequests() {
                 <tbody>
                   {requests.map((req, index) => {
                     const record = req as unknown as Record<string, string | undefined>;
+                    const nikahDetail = (req as any).nikahRegistrationId;
                     const label =
                       activeTab === 'nikah'
                         ? `${record.groomName} & ${record.brideName}`
                         : activeTab === 'death'
                           ? record.deceasedName || 'Death Registration'
-                          : record.purposeTitle || record.purpose || 'NOC Request';
+                          : record.purposeTitle || record.purpose ||
+                            (nikahDetail && typeof nikahDetail === 'object' ? `Nikah with ${nikahDetail.brideName}` : 'NOC Request');
                     const dateValue =
                       activeTab === 'nikah'
                         ? record.nikahDate
@@ -175,7 +199,7 @@ export default function MemberRequests() {
                           : record.createdAt;
                     return (
                       <tr
-                        key={req._id || index}
+                        key={req.id || index}
                         className="border-b border-gray-100 dark:border-gray-900 text-gray-900 dark:text-gray-100"
                       >
                         <td className="py-3 pr-4">{label}</td>
@@ -196,9 +220,9 @@ export default function MemberRequests() {
                         </td>
                         <td className="py-3">
                           <div className="flex items-center gap-1">
-                            {(req.status === 'pending' || req.status === 'correction_required') && (
+                            {isEditable(req) && (
                               <button
-                                onClick={() => setEditingId(req._id)}
+                                onClick={() => openModal(req, 'edit')}
                                 title="Edit & resubmit"
                                 aria-label="Edit and resubmit"
                                 className="p-2 rounded-lg text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors"
@@ -207,7 +231,7 @@ export default function MemberRequests() {
                               </button>
                             )}
                             <button
-                              onClick={() => setEditingId(req._id)}
+                              onClick={() => openModal(req, 'view')}
                               title="View"
                               aria-label="View details"
                               className="p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
@@ -236,6 +260,19 @@ export default function MemberRequests() {
             </div>
           )}
         </div>
+      )}
+
+      {modalState && (
+        <RequestDetailModal
+          type={modalState.type}
+          request={modalState.request}
+          mode={modalState.mode}
+          onClose={() => setModalState(null)}
+          onSaved={() => {
+            setModalState(null);
+            load();
+          }}
+        />
       )}
     </div>
   );

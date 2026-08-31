@@ -1,4 +1,4 @@
-import { FiMenu, FiBell, FiSun, FiMoon, FiUser, FiLogOut, FiSearch, FiMail, FiPhone, FiShield, FiCalendar, FiChevronDown, FiMapPin, FiAlertTriangle } from 'react-icons/fi';
+import { FiMenu, FiBell, FiSun, FiMoon, FiUser, FiLogOut, FiSearch, FiMail, FiPhone, FiShield, FiCalendar, FiMapPin, FiAlertTriangle } from 'react-icons/fi';
 import { useThemeStore } from '@/store/themeStore';
 import { useAuthStore } from '@/store/authStore';
 import { useLayoutStore } from '@/store/layoutStore';
@@ -137,7 +137,14 @@ export default function Header() {
         </div>
       )}
       
-      <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-gray-200/50 bg-white/80 backdrop-blur-md px-4 md:px-6 shadow-[0_4px_16px_rgba(15,23,42,0.06)] dark:border-gray-800/50 dark:bg-gray-900/80 dark:shadow-[0_4px_16px_rgba(0,0,0,0.35)]">
+      <header className="sticky top-0 z-30 relative flex h-16 items-center justify-between border-b border-gray-200/50 bg-white/80 backdrop-blur-md px-4 md:px-6 shadow-[0_4px_16px_rgba(15,23,42,0.06)] dark:border-gray-800/50 dark:bg-gray-900/80 dark:shadow-[0_4px_16px_rgba(0,0,0,0.35)]">
+        {/* Tenant Switcher (Super Admin Only) — centered in header */}
+        {isSuperAdmin && (
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+            <TenantSwitcher />
+          </div>
+        )}
+
         <div className="flex items-center gap-2 md:gap-4">
           {/* Mobile: no header buttons — footer nav "Menu" opens the sidebar */}
           <button
@@ -163,28 +170,40 @@ export default function Header() {
         </div>
 
         <div className="flex items-center gap-3">
-        {/* Tenant Switcher (Super Admin Only) */}
-        {isSuperAdmin && <TenantSwitcher />}
+        {/* Notifications */}
+        <button
+          onClick={handleNotificationsClick}
+          aria-label="View notifications"
+          className="relative inline-flex p-2 rounded-xl text-slate-600 hover:bg-slate-100 transition-colors dark:text-gray-400 dark:hover:bg-gray-800"
+        >
+          <FiBell className="h-5 w-5" />
+          {unreadCount > 0 && (
+            <span className="absolute top-1 right-1 min-w-[1rem] h-4 rounded-full bg-red-500 px-1 text-center text-[0.6rem] font-semibold leading-4 text-white">
+              {unreadCount > 99 ? '99+' : unreadCount}
+            </span>
+          )}
+        </button>
+
+        {/* Theme Toggle */}
+        <button
+          onClick={handleThemeToggle}
+          aria-label="Toggle theme"
+          className="inline-flex p-2 rounded-xl text-slate-600 hover:bg-slate-100 transition-colors dark:text-gray-400 dark:hover:bg-gray-800"
+        >
+          {mounted && theme === 'dark' ? <FiSun className="h-5 w-5" /> : <FiMoon className="h-5 w-5" />}
+        </button>
 
         {/* User Menu */}
         <div className="flex items-center gap-3 ml-2 pl-4 border-l border-gray-200/50 dark:border-gray-700/50 relative" ref={userMenuRef}>
           <button
             onClick={() => setShowUserMenu(!showUserMenu)}
-            className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100/80 dark:hover:bg-gray-800/80 transition-colors"
+            aria-label="Open user menu"
+            className="flex items-center p-1 rounded-full hover:bg-gray-100/80 dark:hover:bg-gray-800/80 transition-colors"
           >
             <div className="h-9 w-9 rounded-full bg-gradient-to-br from-primary-100 to-primary-200 dark:from-primary-900 dark:to-primary-800 flex items-center justify-center ring-2 ring-white dark:ring-gray-800 relative">
               <FiUser className="h-4 w-4 text-primary-600 dark:text-primary-400" />
               <span className="absolute bottom-0 right-0 h-3 w-3 bg-green-500 rounded-full border-2 border-white dark:border-gray-800"></span>
             </div>
-            <div className="hidden md:block text-left">
-              <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-                {user?.name || 'User'}
-              </p>
-              <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">
-                {getAccountTypeLabel()}
-              </p>
-            </div>
-            <FiChevronDown className={`h-4 w-4 text-gray-500 dark:text-gray-400 transition-transform ${showUserMenu ? 'rotate-180' : ''}`} />
           </button>
 
           {/* User Dropdown Menu */}
@@ -201,7 +220,7 @@ export default function Header() {
                     {user?.name || 'User'}
                   </p>
                   <p className="truncate text-xs text-gray-500 dark:text-gray-400">
-                    {user?.email || user?.phone || '—'}
+                    {getAccountTypeLabel()}
                   </p>
                 </div>
               </div>
@@ -251,47 +270,6 @@ export default function Header() {
 
               {/* Actions */}
               <div className="border-t border-gray-100 p-1.5 dark:border-gray-800">
-                <button
-                  onClick={handleNotificationsClick}
-                  aria-label="View notifications"
-                  className="group flex w-full items-center justify-between rounded-xl px-3 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
-                >
-                  <span className="flex items-center gap-2.5">
-                    <FiBell className="h-4 w-4 text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-200" />
-                    Notifications
-                  </span>
-                  {unreadCount > 0 && (
-                    <span className="min-w-[1.25rem] rounded-full bg-red-500 px-1.5 text-center text-[0.65rem] font-semibold leading-5 text-white">
-                      {unreadCount > 99 ? '99+' : unreadCount}
-                    </span>
-                  )}
-                </button>
-
-                <button
-                  onClick={handleThemeToggle}
-                  className="group flex w-full items-center justify-between rounded-xl px-3 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
-                >
-                  <span className="flex items-center gap-2.5">
-                    {mounted && theme === 'dark' ? (
-                      <FiSun className="h-4 w-4 text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-200" />
-                    ) : (
-                      <FiMoon className="h-4 w-4 text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-200" />
-                    )}
-                    {mounted && theme === 'dark' ? 'Light mode' : 'Dark mode'}
-                  </span>
-                  <span
-                    className={`h-4 w-7 rounded-full p-0.5 transition-colors ${
-                      mounted && theme === 'dark' ? 'bg-primary-600' : 'bg-gray-300 dark:bg-gray-600'
-                    }`}
-                  >
-                    <span
-                      className={`block h-3 w-3 rounded-full bg-white transition-transform ${
-                        mounted && theme === 'dark' ? 'translate-x-3' : ''
-                      }`}
-                    />
-                  </span>
-                </button>
-
                 <button
                   onClick={() => {
                     setShowUserMenu(false);

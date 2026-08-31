@@ -81,7 +81,7 @@ export default function IssuesList() {
       label: 'Book',
       render: (_: any, issue: BookIssue) => (
         <div className="text-sm">
-          {typeof issue.bookId === 'object' ? issue.bookId.title : 'N/A'}
+          {typeof issue.bookId === 'object' && issue.bookId ? issue.bookId.title : 'N/A'}
         </div>
       ),
     },

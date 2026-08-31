@@ -63,7 +63,7 @@ export function CemeteryDetail() {
     if (!deleteGraveId) return;
     try {
       await cemeteryService.deleteGraveRecord(deleteGraveId);
-      setGraves(graves.filter((g) => g._id !== deleteGraveId));
+      setGraves(graves.filter((g) => g.id !== deleteGraveId));
       toast.success('Grave record deleted');
       setConfirmDelete(false);
       setDeleteGraveId(null);
@@ -195,7 +195,7 @@ export function CemeteryDetail() {
               </thead>
               <tbody>
                 {graves.map((grave) => (
-                  <tr key={grave._id} className="border-b hover:bg-gray-50">
+                  <tr key={grave.id} className="border-b hover:bg-gray-50">
                     <td className="p-3 text-sm font-medium">{grave.graveNo}</td>
                     <td className="p-3 text-sm">{grave.deceasedName}</td>
                     <td className="p-3 text-sm hidden sm:table-cell text-gray-600">
@@ -211,7 +211,7 @@ export function CemeteryDetail() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => navigate(`/cemetery/${id}/grave/${grave._id}/edit`)}
+                          onClick={() => navigate(`/cemetery/${id}/grave/${grave.id}/edit`)}
                           className="text-xs"
                         >
                           <FiEdit2 className="w-3 h-3" />
@@ -221,7 +221,7 @@ export function CemeteryDetail() {
                           size="sm"
                           className="text-xs text-red-600 hover:text-red-700"
                           onClick={() => {
-                            setDeleteGraveId(grave._id!);
+                            setDeleteGraveId(grave.id!);
                             setConfirmDelete(true);
                           }}
                         >

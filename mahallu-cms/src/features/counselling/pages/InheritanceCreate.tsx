@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useForm, useFieldArray } from 'react-hook-form';
+import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
+import SearchableSelect from '@/components/ui/SearchableSelect';
 import { FiTrash2, FiPlus } from 'react-icons/fi';
 import { createInheritanceCase } from '@/services/counsellingService';
+import { memberService } from '@/services/memberService';
 
 interface FormData {
   deceasedName?: string;
@@ -26,6 +28,16 @@ export default function InheritanceCreate() {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [members, setMembers] = useState<any[]>([]);
+  const [loadingMembers, setLoadingMembers] = useState(true);
+
+  useEffect(() => {
+    memberService
+      .getAll({ page: 1, limit: 200 } as any)
+      .then((result: any) => setMembers(result.data || []))
+      .catch(() => setMembers([]))
+      .finally(() => setLoadingMembers(false));
+  }, []);
 
   const onSubmit = async (formData: FormData) => {
     if (!formData.deceasedName && !formData.deceasedMemberId) {
@@ -75,12 +87,23 @@ export default function InheritanceCreate() {
               <h3 className="font-bold mb-4">Deceased Information</h3>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium mb-2">Deceased Member ID (Optional)</label>
-                  <input
-                    {...register('deceasedMemberId')}
-                    type="text"
-                    placeholder="Select member or provide name below"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                  <Controller
+                    name="deceasedMemberId"
+                    control={control}
+                    render={({ field }) => (
+                      <SearchableSelect
+                        label="Deceased Member (Optional)"
+                        value={field.value}
+                        onChange={field.onChange}
+                        options={members.map((member: any) => ({
+                          value: member._id || member.id,
+                          label: `${member.name}${member.familyName ? ` - ${member.familyName}` : ''}`,
+                        }))}
+                        placeholder="Search members..."
+                        isLoading={loadingMembers}
+                        helperText="Select if this person has a member record, or provide name below"
+                      />
+                    )}
                   />
                 </div>
 
