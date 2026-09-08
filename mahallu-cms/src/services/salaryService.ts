@@ -1,21 +1,24 @@
-import api from './api';
+import api, { asList } from './api';
 import { SalaryPayment } from '@/types';
 
 export const salaryService = {
-  getAll: async (params?: { 
-    instituteId?: string; 
-    employeeId?: string; 
-    month?: number; 
-    year?: number; 
+  getAll: async (params?: {
+    instituteId?: string;
+    employeeId?: string;
+    month?: number;
+    year?: number;
     status?: string;
-    page?: number; 
-    limit?: number 
+    page?: number;
+    limit?: number;
   }) => {
-    const response = await api.get<{ success: boolean; data: SalaryPayment[]; pagination?: any }>('/salary-payments', { params });
+    const response = await api.get<{ success: boolean; data: SalaryPayment[]; pagination?: any }>(
+      '/salary-payments',
+      { params }
+    );
     if (response.data.pagination) {
-      return { data: response.data.data, pagination: response.data.pagination };
+      return { data: asList(response.data.data), pagination: response.data.pagination };
     }
-    return { data: response.data.data, pagination: null };
+    return { data: asList(response.data.data), pagination: null };
   },
 
   getById: async (id: string) => {
@@ -40,11 +43,13 @@ export const salaryService = {
 
   getSummary: async (params?: { instituteId?: string; month?: number; year?: number }) => {
     const response = await api.get<{ success: boolean; data: any[] }>('/salary-payments/summary', { params });
-    return response.data.data;
+    return asList(response.data.data);
   },
 
   getEmployeeHistory: async (employeeId: string) => {
-    const response = await api.get<{ success: boolean; data: any }>(`/salary-payments/employee/${employeeId}`);
+    const response = await api.get<{ success: boolean; data: any }>(
+      `/salary-payments/employee/${employeeId}`
+    );
     return response.data.data;
   },
 };

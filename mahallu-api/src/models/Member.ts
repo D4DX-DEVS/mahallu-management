@@ -1,4 +1,5 @@
 import mongoose, { Schema, Document } from 'mongoose';
+import { calculateAge } from '../utils/age';
 
 export interface IMember extends Document {
   tenantId: mongoose.Types.ObjectId; // Required for multi-tenancy
@@ -8,23 +9,27 @@ export interface IMember extends Document {
   familyId: mongoose.Types.ObjectId;
   familyName: string;
   age?: number;
-  gender?: 'male' | 'female';
+  dateOfBirth?: Date; // When set, `age` is derived from it on save
+  gender?: string; // Category key: 'gender'
   bloodGroup?: string;
   healthStatus?: string;
+  healthNotes?: string; // Free-text illness/condition details, captured when healthStatus is not 'healthy'
   phone?: string;
   education?: string;
   educationInstitutionId?: mongoose.Types.ObjectId; // Institute the member studies in (madrasa etc.)
-  localityFacilityId?: mongoose.Types.ObjectId; // External school/college from the locality registry
-  maritalStatus?: 'single' | 'married' | 'divorced' | 'widowed';
+  localityFacilityId?: mongoose.Types.ObjectId; // External school/college, picked from the locality registry
+  externalInstitution?: string; // Free-text external school/college, for one not in the locality registry
+  maritalStatus?: string; // Category key: 'marital_status'
   marriageCount?: number;
   isOrphan?: boolean;
   isDead?: boolean;
   isFamilyHead?: boolean;
-  relationship?: 'head' | 'spouse' | 'son' | 'daughter' | 'father' | 'mother' | 'other';
+  relationship?: string; // Category key: 'relationship'
+  relationshipOther?: string; // Free-text relationship, captured when relationship is 'other'
   // Socio-economic profile (spec 5/7) - all optional, older documents stay valid
   occupation?: string;
-  occupationSector?: 'government' | 'private' | 'self_employed' | 'abroad' | 'unemployed' | 'student' | 'homemaker' | 'retired' | 'none';
-  monthlyIncomeRange?: 'none' | 'below_10k' | '10k_25k' | '25k_50k' | 'above_50k';
+  occupationSector?: string; // Category key: 'occupation_sector'
+  monthlyIncomeRange?: string; // Category key: 'monthly_income_range'
   skills?: string[];
   isJobSeeker?: boolean;
   isZakatPayer?: boolean;
@@ -45,7 +50,7 @@ const MemberSchema = new Schema<IMember>(
     tenantId: {
       type: Schema.Types.ObjectId,
       ref: 'Tenant',
-      required: [true, 'Tenant ID is required'],
+      required: [true, 'Please select a Mahallu before continuing.'],
       index: true,
     },
     mahallId: {
@@ -75,15 +80,23 @@ const MemberSchema = new Schema<IMember>(
       type: Number,
       min: 0,
     },
+    dateOfBirth: {
+      type: Date,
+    },
     gender: {
+      // Valid values now come from the Category system (key: 'gender') and
+      // are enforced by validCategoryValue in memberValidation.ts.
       type: String,
-      enum: ['male', 'female'],
     },
     bloodGroup: {
+      // Category key: 'blood_group'.
       type: String,
-      enum: ['A +ve', 'A -ve', 'B +ve', 'B -ve', 'AB +ve', 'AB -ve', 'O +ve', 'O -ve'],
     },
     healthStatus: {
+      type: String,
+      trim: true,
+    },
+    healthNotes: {
       type: String,
       trim: true,
     },
@@ -105,9 +118,13 @@ const MemberSchema = new Schema<IMember>(
       ref: 'LocalityFacility',
       index: true,
     },
-    maritalStatus: {
+    externalInstitution: {
       type: String,
-      enum: ['single', 'married', 'divorced', 'widowed'],
+      trim: true,
+    },
+    maritalStatus: {
+      // Category key: 'marital_status'.
+      type: String,
     },
     marriageCount: {
       type: Number,
@@ -129,20 +146,24 @@ const MemberSchema = new Schema<IMember>(
       index: true,
     },
     relationship: {
+      // Category key: 'relationship'.
       type: String,
-      enum: ['head', 'spouse', 'son', 'daughter', 'father', 'mother', 'other'],
+    },
+    relationshipOther: {
+      type: String,
+      trim: true,
     },
     occupation: {
       type: String,
       trim: true,
     },
     occupationSector: {
+      // Category key: 'occupation_sector'.
       type: String,
-      enum: ['government', 'private', 'self_employed', 'abroad', 'unemployed', 'student', 'homemaker', 'retired', 'none'],
     },
     monthlyIncomeRange: {
+      // Category key: 'monthly_income_range'.
       type: String,
-      enum: ['none', 'below_10k', '10k_25k', '25k_50k', 'above_50k'],
     },
     skills: {
       type: [String],
@@ -171,6 +192,15 @@ const MemberSchema = new Schema<IMember>(
     timestamps: true,
   }
 );
+
+/** A known date of birth is the source of truth for age. */
+MemberSchema.pre('save', function (next) {
+  if (this.isModified('dateOfBirth') && this.dateOfBirth) {
+    const derived = calculateAge(this.dateOfBirth);
+    if (derived !== undefined) this.age = derived;
+  }
+  next();
+});
 
 /**
  * A widowed female member defaults to isWidow=true. It is an ASSIST, not a rule:

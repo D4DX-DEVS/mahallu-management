@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { toast } from '@/store/toastStore';
 import { announcementService, Announcement } from '@/services/announcementService';
+import { errorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
 
 const formatDate = (value?: string) => (value ? new Date(value).toLocaleString() : '-');
 
@@ -37,7 +38,7 @@ export default function AnnouncementDetail() {
       toast.success('Announcement sent');
       setConfirmSend(false);
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to send announcement');
+      toast.error(errorMessage(err, { action: 'send announcement' }));
       setConfirmSend(false);
     } finally {
       setSending(false);
@@ -51,15 +52,13 @@ export default function AnnouncementDetail() {
       toast.success('Announcement deleted');
       navigate('/announcements');
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to delete announcement');
+      toast.error(errorMessage(err, { action: 'delete announcement' }));
       setConfirmDelete(false);
     }
   };
 
   if (loading) {
-    return (
-      <PageSkeleton variant="section" />
-    );
+    return <PageSkeleton variant="section" />;
   }
 
   if (!announcement) {
@@ -88,25 +87,21 @@ export default function AnnouncementDetail() {
     <div className="space-y-3">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">{announcement.title}</h1>
           {announcement.titleMl && (
             <p className="mt-0.5 font-malayalam text-xs text-gray-500 dark:text-gray-400">
               {announcement.titleMl}
             </p>
           )}
         </div>
-        <Breadcrumb
-          items={[
-            { label: 'Dashboard', path: '/dashboard' },
-            { label: 'Announcements', path: '/announcements' },
-            { label: announcement.title },
-          ]}
+        <PageHeader
+          title={announcement.title}
+          breadcrumbs={[{ label: 'Announcements', path: '/announcements' }]}
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {infoCards.map((card) => (
-          <Card key={card.label} className="p-3 sm:p-4">
+          <Card key={card.label}>
             <p className="text-xs font-medium text-gray-500 dark:text-gray-400 sm:text-sm">{card.label}</p>
             <p className="mt-1 break-words text-sm font-semibold text-gray-900 dark:text-gray-100 sm:text-base">
               {card.value}
@@ -115,14 +110,14 @@ export default function AnnouncementDetail() {
         ))}
       </div>
 
-      <Card className="p-3 sm:p-4">
+      <Card>
         <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Message</h2>
         <p className="mt-1 whitespace-pre-wrap text-sm text-gray-600 dark:text-gray-300">
           {announcement.body}
         </p>
       </Card>
 
-      <Card className="p-3 sm:p-4">
+      <Card>
         <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Channels</h2>
         <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
           {announcement.channels.map((channel) => (
@@ -162,6 +157,7 @@ export default function AnnouncementDetail() {
       />
 
       <ConfirmDialog
+        isLoading={loading}
         isOpen={confirmDelete}
         title="Delete Announcement"
         message="Delete this announcement? This action cannot be undone."

@@ -14,6 +14,14 @@ import {
 import { authMiddleware, allowRoles } from '../middleware/authMiddleware';
 import { tenantMiddleware, tenantFilter } from '../middleware/tenantMiddleware';
 import { supportRouter } from './academicSupportRoutes';
+import { validationHandler } from '../middleware/validationHandler';
+import { idParam, listQuery } from '../validations/common';
+import {
+  createScholarshipValidation,
+  createAwardValidation,
+  updateScholarshipValidation,
+  updateAwardValidation,
+} from '../validations/moduleValidation';
 
 // Middleware stack
 const applyAuth = (router: express.Router) => {
@@ -99,8 +107,8 @@ applyAuth(awardsRouter);
  *       400:
  *         description: Invalid input
  */
-scholarshipsRouter.get('/', getAllScholarships);
-scholarshipsRouter.post('/', allowRoles(['mahall']), createScholarship);
+scholarshipsRouter.get('/', listQuery(), validationHandler, getAllScholarships);
+scholarshipsRouter.post('/', createScholarshipValidation, validationHandler, allowRoles(['mahall']), createScholarship);
 
 /**
  * @swagger
@@ -179,9 +187,9 @@ scholarshipsRouter.post('/', allowRoles(['mahall']), createScholarship);
  *       404:
  *         description: Not found
  */
-scholarshipsRouter.get('/:id', getScholarshipById);
-scholarshipsRouter.put('/:id', allowRoles(['mahall']), updateScholarship);
-scholarshipsRouter.delete('/:id', allowRoles(['mahall']), deleteScholarship);
+scholarshipsRouter.get('/:id', idParam('id', 'scholarship'), validationHandler, getScholarshipById);
+scholarshipsRouter.put('/:id', updateScholarshipValidation, validationHandler, allowRoles(['mahall']), updateScholarship);
+scholarshipsRouter.delete('/:id', idParam('id', 'scholarship'), validationHandler, allowRoles(['mahall']), deleteScholarship);
 
 /**
  * @swagger
@@ -208,7 +216,7 @@ scholarshipsRouter.delete('/:id', allowRoles(['mahall']), deleteScholarship);
  *       404:
  *         description: Scholarship not found
  */
-scholarshipsRouter.get('/:id/awards', getAwardsByScholarship);
+scholarshipsRouter.get('/:id/awards', idParam('id', 'scholarship'), validationHandler, getAwardsByScholarship);
 
 // ============= SCHOLARSHIP AWARDS ENDPOINTS =============
 
@@ -279,8 +287,8 @@ scholarshipsRouter.get('/:id/awards', getAwardsByScholarship);
  *       400:
  *         description: Invalid input or reference from another tenant
  */
-awardsRouter.get('/', getAllAwards);
-awardsRouter.post('/', allowRoles(['mahall']), createAward);
+awardsRouter.get('/', listQuery(), validationHandler, getAllAwards);
+awardsRouter.post('/', createAwardValidation, validationHandler, allowRoles(['mahall']), createAward);
 
 /**
  * @swagger
@@ -340,8 +348,8 @@ awardsRouter.post('/', allowRoles(['mahall']), createAward);
  *       404:
  *         description: Award not found
  */
-awardsRouter.put('/:id', allowRoles(['mahall']), updateAward);
-awardsRouter.delete('/:id', allowRoles(['mahall']), deleteAward);
+awardsRouter.put('/:id', updateAwardValidation, validationHandler, allowRoles(['mahall']), updateAward);
+awardsRouter.delete('/:id', idParam('id', 'award'), validationHandler, allowRoles(['mahall']), deleteAward);
 
 
 // Export all routers

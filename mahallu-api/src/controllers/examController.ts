@@ -5,6 +5,8 @@ import { AuthRequest } from '../middleware/authMiddleware';
 import { getPaginationParams, createPaginationResponse } from '../utils/pagination';
 import { stripImmutable, refBelongsToTenant } from '../utils/sanitizeUpdate';
 
+import { sendFailure } from '../utils/userMessages';
+
 const tenantScope = (req: AuthRequest): Record<string, any> =>
   req.tenantId ? { tenantId: req.tenantId } : {};
 
@@ -66,7 +68,7 @@ export const listExams = async (req: AuthRequest, res: Response) => {
 
     res.json(createPaginationResponse(exams, total, page, limit));
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the exams right now. Please try again.');
   }
 };
 
@@ -97,7 +99,7 @@ export const getExamById = async (req: AuthRequest, res: Response) => {
       .populate('results.enrollmentId', 'rollNo memberId');
 
     if (!exam) {
-      return res.status(404).json({ success: false, message: 'Exam not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that exam. It may have been removed." });
     }
 
     // Populate student details
@@ -125,7 +127,7 @@ export const getExamById = async (req: AuthRequest, res: Response) => {
 
     res.json({ success: true, data: examObj });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the exam right now. Please try again.');
   }
 };
 
@@ -172,12 +174,12 @@ export const createExam = async (req: AuthRequest, res: Response) => {
     if (!classId || !name || !examDate || maxMarks === undefined) {
       return res
         .status(400)
-        .json({ success: false, message: 'Class ID, name, date, and max marks are required' });
+        .json({ success: false, message: 'Please enter the class, name, date and maximum marks.' });
     }
 
     // Validate classId belongs to tenant
     if (!(await refBelongsToTenant(MadrasaClass, classId, req.tenantId))) {
-      return res.status(400).json({ success: false, message: 'Class does not belong to this Mahallu' });
+      return res.status(400).json({ success: false, message: 'This class belongs to another Mahallu.' });
     }
 
     const exam = new Exam({
@@ -195,7 +197,7 @@ export const createExam = async (req: AuthRequest, res: Response) => {
 
     res.status(201).json({ success: true, data: exam });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t save the exam. Please try again.');
   }
 };
 
@@ -233,7 +235,7 @@ export const updateExam = async (req: AuthRequest, res: Response) => {
   try {
     const exam = await Exam.findOne({ _id: req.params.id, ...tenantScope(req) });
     if (!exam) {
-      return res.status(404).json({ success: false, message: 'Exam not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that exam. It may have been removed." });
     }
 
     const updates = stripImmutable(req.body);
@@ -245,7 +247,7 @@ export const updateExam = async (req: AuthRequest, res: Response) => {
 
     res.json({ success: true, data: exam });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t update the exam. Please try again.');
   }
 };
 
@@ -276,12 +278,12 @@ export const deleteExam = async (req: AuthRequest, res: Response) => {
   try {
     const exam = await Exam.findOneAndDelete({ _id: req.params.id, ...tenantScope(req) });
     if (!exam) {
-      return res.status(404).json({ success: false, message: 'Exam not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that exam. It may have been removed." });
     }
 
     res.json({ success: true, message: 'Exam deleted' });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t delete the exam. Please try again.');
   }
 };
 
@@ -335,11 +337,11 @@ export const updateExamResults = async (req: AuthRequest, res: Response) => {
 
     const exam = await Exam.findOne({ _id: req.params.id, ...tenantScope(req) });
     if (!exam) {
-      return res.status(404).json({ success: false, message: 'Exam not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that exam. It may have been removed." });
     }
 
     if (!Array.isArray(results)) {
-      return res.status(400).json({ success: false, message: 'Results must be an array' });
+      return res.status(400).json({ success: false, message: 'Please add at least one result.' });
     }
 
     // Validate each result
@@ -349,7 +351,7 @@ export const updateExamResults = async (req: AuthRequest, res: Response) => {
       if (marks > exam.maxMarks) {
         return res
           .status(400)
-          .json({ success: false, message: `Marks (${marks}) cannot exceed max marks (${exam.maxMarks})` });
+          .json({ success: false, message: `Marks can't be more than the maximum of ${exam.maxMarks}.` });
       }
 
       // Verify enrollment belongs to this class and tenant
@@ -361,7 +363,7 @@ export const updateExamResults = async (req: AuthRequest, res: Response) => {
       if (!enrollment) {
         return res
           .status(400)
-          .json({ success: false, message: `Enrollment ${enrollmentId} not found in this class` });
+          .json({ success: false, message: "We couldn't find that student's enrolment in this class." });
       }
     }
 
@@ -372,6 +374,6 @@ export const updateExamResults = async (req: AuthRequest, res: Response) => {
 
     res.json({ success: true, data: exam });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t update the exam results. Please try again.');
   }
 };

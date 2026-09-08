@@ -5,6 +5,9 @@ import { AuthRequest } from '../middleware/authMiddleware';
 import { getPaginationParams, createPaginationResponse } from '../utils/pagination';
 import { defaultFeaturesFor } from '../config/moduleFeatures';
 
+import { sendFailure } from '../utils/userMessages';
+import { regexLiteral } from '../utils/queryGuard';
+
 export const getAllTenants = async (req: AuthRequest, res: Response) => {
   try {
     const { status, search, type } = req.query;
@@ -15,9 +18,9 @@ export const getAllTenants = async (req: AuthRequest, res: Response) => {
     if (type) query.type = type;
     if (search) {
       query.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { code: { $regex: search, $options: 'i' } },
-        { location: { $regex: search, $options: 'i' } },
+        { name: { $regex: regexLiteral(search), $options: 'i' } },
+        { code: { $regex: regexLiteral(search), $options: 'i' } },
+        { location: { $regex: regexLiteral(search), $options: 'i' } },
       ];
     }
 
@@ -41,7 +44,7 @@ export const getAllTenants = async (req: AuthRequest, res: Response) => {
 
     res.json(createPaginationResponse(tenantsWithCounts, total, page, limit));
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the Mahallus right now. Please try again.');
   }
 };
 
@@ -49,14 +52,14 @@ export const getTenantById = async (req: AuthRequest, res: Response) => {
   try {
     const tenant = await Tenant.findById(req.params.id);
     if (!tenant) {
-      return res.status(404).json({ success: false, message: 'Tenant not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that Mahallu. It may have been removed." });
     }
     if (!req.isSuperAdmin && req.tenantId?.toString() !== tenant._id.toString()) {
-      return res.status(403).json({ success: false, message: 'Access denied' });
+      return res.status(403).json({ success: false, message: "You don't have permission to do this. Please contact your Mahallu admin." });
     }
     res.json({ success: true, data: tenant });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the Mahallu right now. Please try again.');
   }
 };
 
@@ -69,7 +72,7 @@ export const createTenant = async (req: AuthRequest, res: Response) => {
     if (existingTenant) {
       return res.status(400).json({
         success: false,
-        message: 'Tenant with this code already exists',
+        message: 'A Mahallu with this code already exists. Please use a different code.',
       });
     }
 
@@ -88,14 +91,14 @@ export const createTenant = async (req: AuthRequest, res: Response) => {
 
     res.status(201).json({ success: true, data: tenant });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t save the Mahallu. Please try again.');
   }
 };
 
 export const updateTenant = async (req: AuthRequest, res: Response) => {
   try {
     if (!req.isSuperAdmin && req.tenantId?.toString() !== req.params.id) {
-      return res.status(403).json({ success: false, message: 'Access denied' });
+      return res.status(403).json({ success: false, message: "You don't have permission to do this. Please contact your Mahallu admin." });
     }
     // Handle nested settings update properly
     const updateData = { ...req.body };
@@ -124,7 +127,6 @@ export const updateTenant = async (req: AuthRequest, res: Response) => {
           ...existingSettings,
           ...updateData.settings,
           // Ensure arrays are properly replaced, not merged
-          varisangyaGrades: updateData.settings.varisangyaGrades || existingSettings.varisangyaGrades,
           educationOptions: updateData.settings.educationOptions || existingSettings.educationOptions,
         };
       }
@@ -137,12 +139,12 @@ export const updateTenant = async (req: AuthRequest, res: Response) => {
     );
 
     if (!tenant) {
-      return res.status(404).json({ success: false, message: 'Tenant not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that Mahallu. It may have been removed." });
     }
 
     res.json({ success: true, data: tenant });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t update the Mahallu. Please try again.');
   }
 };
 
@@ -150,13 +152,13 @@ export const deleteTenant = async (req: AuthRequest, res: Response) => {
   try {
     const tenant = await Tenant.findByIdAndDelete(req.params.id);
     if (!tenant) {
-      return res.status(404).json({ success: false, message: 'Tenant not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that Mahallu. It may have been removed." });
     }
 
     // Optionally: Delete all related data or mark as deleted
-    res.json({ success: true, message: 'Tenant deleted successfully' });
+    res.json({ success: true, message: 'Mahallu deleted' });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t delete the Mahallu. Please try again.');
   }
 };
 
@@ -164,7 +166,7 @@ export const getTenantStats = async (req: AuthRequest, res: Response) => {
   try {
     const tenantId = req.params.id;
     if (!req.isSuperAdmin && req.tenantId?.toString() !== tenantId) {
-      return res.status(403).json({ success: false, message: 'Access denied' });
+      return res.status(403).json({ success: false, message: "You don't have permission to do this. Please contact your Mahallu admin." });
     }
     
     // Get statistics for the tenant
@@ -183,7 +185,7 @@ export const getTenantStats = async (req: AuthRequest, res: Response) => {
       },
     });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the Mahallu statistics right now. Please try again.');
   }
 };
 
@@ -196,12 +198,12 @@ export const suspendTenant = async (req: AuthRequest, res: Response) => {
     );
 
     if (!tenant) {
-      return res.status(404).json({ success: false, message: 'Tenant not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that Mahallu. It may have been removed." });
     }
 
     res.json({ success: true, data: tenant });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t update the Mahallu. Please try again.');
   }
 };
 
@@ -214,12 +216,12 @@ export const activateTenant = async (req: AuthRequest, res: Response) => {
     );
 
     if (!tenant) {
-      return res.status(404).json({ success: false, message: 'Tenant not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that Mahallu. It may have been removed." });
     }
 
     res.json({ success: true, data: tenant });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t update the Mahallu. Please try again.');
   }
 };
 

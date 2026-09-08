@@ -1,48 +1,36 @@
 import { Request, Response, NextFunction } from 'express';
-import mongoose from 'mongoose';
+import { logFailure, statusForError, toUserMessage } from '../utils/userMessages';
 
 export interface AppError extends Error {
   statusCode?: number;
   isOperational?: boolean;
 }
 
+/**
+ * Last stop for anything that escapes a handler.
+ *
+ * The full error — message, stack, driver detail — goes to the server log.
+ * The response carries only copy the person on the other end can act on.
+ */
 export const errorHandler = (
   err: AppError,
   req: Request,
   res: Response,
   next: NextFunction
 ) => {
-  let error = { ...err };
-  error.message = err.message;
+  logFailure(`${req.method} ${req.originalUrl}`, err);
 
-  // Log error
-  console.error('Error:', err);
-
-  // Mongoose bad ObjectId
-  if (err instanceof mongoose.Error.CastError) {
-    const message = 'Resource not found';
-    error = { ...error, message, statusCode: 404 } as AppError;
+  // A handler that already began writing cannot be given a second status line;
+  // trying throws inside the error handler itself. Let Express close the socket.
+  if (res.headersSent) {
+    return next(err);
   }
 
-  // Mongoose duplicate key
-  if ((err as any).code === 11000) {
-    const message = 'Duplicate field value entered';
-    error = { ...error, message, statusCode: 400 } as AppError;
-  }
-
-  // Mongoose validation error
-  if (err instanceof mongoose.Error.ValidationError) {
-    const message = Object.values(err.errors).map((val) => val.message).join(', ');
-    error = { ...error, message, statusCode: 400 } as AppError;
-  }
-
-  const statusCode = error.statusCode || 500;
-  const message = error.message || 'Server Error';
+  const statusCode = statusForError(err, err.statusCode || 500);
 
   res.status(statusCode).json({
     success: false,
-    message,
-    ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
+    message: toUserMessage(err),
   });
 };
 
@@ -51,4 +39,3 @@ export const asyncHandler = (fn: Function) => {
     Promise.resolve(fn(req, res, next)).catch(next);
   };
 };
-

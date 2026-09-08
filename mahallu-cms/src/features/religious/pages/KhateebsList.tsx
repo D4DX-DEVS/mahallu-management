@@ -3,8 +3,8 @@ import { FiEdit2, FiTrash2, FiPlus, FiX } from 'react-icons/fi';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
+import ExpandableSearch from '@/components/ui/ExpandableSearch';
 import Button from '@/components/ui/Button';
 import Table from '@/components/ui/Table';
 import Modal from '@/components/ui/Modal';
@@ -17,13 +17,15 @@ import { memberService } from '@/services/memberService';
 import { useDebounce } from '@/hooks/useDebounce';
 import { ROUTES } from '@/constants/routes';
 import { Member } from '@/types';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
 
 const khateebSchema = z.object({
-  name: z.string().min(1, 'Name is required'),
-  nameMl: z.string().optional(),
-  memberId: z.string().optional(),
-  qualifications: z.string().optional(),
-  contactNo: z.string().optional(),
+  name: z.string().max(200, 'Please keep the name to 200 characters or less.').min(1, 'Name is required'),
+  nameMl: z.string().max(200, 'Please keep the name to 200 characters or less.').optional(),
+  memberId: z.string().max(200, 'Please keep the member to 200 characters or less.').optional(),
+  qualifications: z.string().max(200, 'Please keep the qualifications to 200 characters or less.').optional(),
+  contactNo: z.string().max(200, 'Please keep the contact no to 200 characters or less.').optional(),
   status: z.enum(['active', 'inactive']).optional(),
 });
 
@@ -94,7 +96,7 @@ export default function KhateebsList() {
         setPagination(result.pagination);
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch khateebs');
+      setError(loadErrorMessage(err, 'khateebs'));
       console.error('Error fetching khateebs:', err);
     } finally {
       setLoading(false);
@@ -131,7 +133,7 @@ export default function KhateebsList() {
       reset();
       fetchKhateebs();
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to save khateeb');
+      setError(errorMessage(err, { action: 'save khateeb' }));
     }
   };
 
@@ -144,7 +146,7 @@ export default function KhateebsList() {
       setSelectedKhateeb(null);
       fetchKhateebs();
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to delete khateeb');
+      setError(errorMessage(err, { action: 'delete khateeb' }));
     } finally {
       setDeleting(false);
     }
@@ -182,9 +184,7 @@ export default function KhateebsList() {
       render: (_: any, khateeb: Khateeb) => (
         <span
           className={`px-2 py-1 rounded text-xs font-medium ${
-            khateeb.status === 'active'
-              ? 'bg-green-100 text-green-800'
-              : 'bg-red-100 text-red-800'
+            khateeb.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
           }`}
         >
           {khateeb.status === 'active' ? 'Active' : 'Inactive'}
@@ -195,12 +195,8 @@ export default function KhateebsList() {
       key: 'actions',
       label: 'Actions',
       render: (_: any, khateeb: Khateeb) => (
-        <div className="flex gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => handleOpenModal(khateeb)}
-          >
+        <div className="flex flex-wrap gap-2">
+          <Button size="sm" variant="outline" onClick={() => handleOpenModal(khateeb)}>
             <FiEdit2 className="inline mr-1" />
             Edit
           </Button>
@@ -224,25 +220,19 @@ export default function KhateebsList() {
 
   return (
     <div className="space-y-6">
-      <Breadcrumb
-        items={[
-          { label: 'Dashboard', path: ROUTES.DASHBOARD },
-          { label: 'Khateebs', path: ROUTES.RELIGIOUS.KHATEEBS },
-        ]}
-      />
+      <PageHeader title="Khateebs" />
 
       {error && <div className="p-4 bg-red-100 text-red-800 rounded">{error}</div>}
 
       <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
-        <input
-          type="text"
-          placeholder="Search khateebs by name..."
+        <ExpandableSearch
           value={searchQuery}
-          onChange={(e) => {
-            setSearchQuery(e.target.value);
+          onChange={(value) => {
+            setSearchQuery(value);
             setCurrentPage(1);
           }}
-          className="flex-1 px-4 py-2 border rounded"
+          entity="khateebs"
+          placeholder="Search khateebs by name"
         />
         <Button onClick={() => handleOpenModal()}>
           <FiPlus className="inline mr-2" />
@@ -254,7 +244,16 @@ export default function KhateebsList() {
         <Table columns={columns} data={khateebs} />
       </Card>
 
-      {pagination && <Pagination {...pagination} onPageChange={setCurrentPage} />}
+      {pagination && (
+        <Pagination
+          currentPage={pagination.page}
+          totalPages={pagination.totalPages}
+          totalItems={pagination.total}
+          itemsPerPage={pagination.limit}
+          entity="khateebs"
+          onPageChange={setCurrentPage}
+        />
+      )}
 
       {/* Create/Edit Modal */}
       <Modal
@@ -273,11 +272,7 @@ export default function KhateebsList() {
             placeholder="Enter khateeb name"
           />
 
-          <Input
-            label="Name (Malayalam)"
-            {...register('nameMl')}
-            placeholder="Enter name in Malayalam"
-          />
+          <Input label="Name (Malayalam)" {...register('nameMl')} placeholder="Enter name in Malayalam" />
 
           <Select
             label="Member (Optional)"
@@ -289,6 +284,7 @@ export default function KhateebsList() {
           <div>
             <label className="block text-sm font-medium mb-2">Qualifications</label>
             <textarea
+              aria-label="Qualifications"
               {...register('qualifications')}
               placeholder="Enter educational qualifications and Islamic background"
               className="w-full px-3 py-2 border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary-500"
@@ -296,19 +292,11 @@ export default function KhateebsList() {
             />
           </div>
 
-          <Input
-            label="Contact No"
-            {...register('contactNo')}
-            placeholder="Enter contact number"
-          />
+          <Input label="Contact No" {...register('contactNo')} placeholder="Enter contact number" />
 
-          <Select
-            label="Status"
-            {...register('status')}
-            options={KHATEEB_STATUS_OPTIONS}
-          />
+          <Select label="Status" {...register('status')} options={KHATEEB_STATUS_OPTIONS} />
 
-          <div className="flex gap-3 justify-end pt-4">
+          <div className="flex gap-2 flex-col-reverse sm:flex-row sm:justify-end sm:gap-3 pt-4">
             <Button
               type="button"
               variant="outline"
@@ -331,16 +319,11 @@ export default function KhateebsList() {
       <Modal isOpen={showDeleteModal} onClose={() => setShowDeleteModal(false)} title="Confirm Delete">
         <div className="space-y-4">
           <p>Are you sure you want to delete this khateeb?</p>
-          <div className="flex gap-3 justify-end">
+          <div className="flex gap-2 flex-col-reverse sm:flex-row sm:justify-end sm:gap-3">
             <Button variant="outline" onClick={() => setShowDeleteModal(false)} disabled={deleting}>
               Cancel
             </Button>
-            <Button
-              variant="danger"
-              onClick={handleDelete}
-              disabled={deleting}
-              isLoading={deleting}
-            >
+            <Button variant="danger" onClick={handleDelete} disabled={deleting} isLoading={deleting}>
               Delete
             </Button>
           </div>

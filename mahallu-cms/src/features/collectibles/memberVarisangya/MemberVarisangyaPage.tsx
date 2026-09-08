@@ -1,10 +1,10 @@
 import { useSearchParams } from 'react-router-dom';
 import { FiActivity, FiList, FiCreditCard } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import { ROUTES } from '@/constants/routes';
 import MemberVarisangyaList from './MemberVarisangyaList';
 import MemberVarisangyaTransactions from './MemberVarisangyaTransactions';
 import MemberVarisangyaWallet from './MemberVarisangyaWallet';
+import PageHeader from '@/components/layout/PageHeader';
 
 export type MemberVarisangyaView = 'transactions' | 'list' | 'wallet';
 
@@ -32,16 +32,12 @@ export default function MemberVarisangyaPage() {
 
   return (
     <div className="space-y-4">
-      <Breadcrumb
-        items={[
-          { label: 'Dashboard', path: '/dashboard' },
-          { label: 'Collectibles', path: ROUTES.COLLECTIBLES.OVERVIEW },
-          { label: 'Member Varisangya' },
-        ]}
+      <PageHeader
+        title="Member Varisangya"
+        breadcrumbs={[{ label: 'Collectibles', path: ROUTES.COLLECTIBLES.OVERVIEW }]}
       />
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Member Varisangya</h1>
         <div className="flex rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-1 gap-0.5">
           {VIEW_OPTIONS.map((opt) => (
             <button

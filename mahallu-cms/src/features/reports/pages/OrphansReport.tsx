@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react';
 import { FiDownload, FiPrinter } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import { reportService, OrphansReport } from '@/services/reportService';
 import { exportToPDF } from '@/utils/exportUtils';
+import { loadErrorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
+import SortableTh from '@/components/ui/SortableTh';
+import { useSortableRows } from '@/hooks/useSortableRows';
 
 export default function OrphansReportPage() {
   const [report, setReport] = useState<OrphansReport | null>(null);
@@ -23,7 +26,7 @@ export default function OrphansReportPage() {
       const data = await reportService.getOrphansReport();
       setReport(data);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch orphans report');
+      setError(loadErrorMessage(err, 'orphans report'));
       console.error('Error fetching report:', err);
     } finally {
       setLoading(false);
@@ -32,30 +35,30 @@ export default function OrphansReportPage() {
 
   const handleExportCSV = () => {
     if (!report) return;
-    const csvData = report.orphans.map(orphan => ({
+    const csvData = sortedOrphans.map((orphan) => ({
       Name: orphan.name,
       Age: orphan.age || '-',
       Gender: orphan.gender || '-',
-      Family: orphan.family || '-'
+      Family: orphan.family || '-',
     }));
-    
+
     const headers = ['Name', 'Age', 'Gender', 'Family'];
     const csvRows = [headers.join(',')];
-    
-    csvData.forEach(row => {
-      const values = headers.map(header => {
+
+    csvData.forEach((row) => {
+      const values = headers.map((header) => {
         const value = row[header as keyof typeof row] ?? '';
         const escaped = String(value).replace(/"/g, '""');
         return escaped.includes(',') ? `"${escaped}"` : escaped;
       });
       csvRows.push(values.join(','));
     });
-    
+
     const csvContent = csvRows.join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
-    
+
     link.setAttribute('href', url);
     link.setAttribute('download', `orphans-report-${new Date().toISOString().split('T')[0]}.csv`);
     link.style.visibility = 'hidden';
@@ -70,23 +73,27 @@ export default function OrphansReportPage() {
       { key: 'name', label: 'Name' },
       { key: 'age', label: 'Age' },
       { key: 'gender', label: 'Gender' },
-      { key: 'familyName', label: 'Family' }
+      { key: 'familyName', label: 'Family' },
     ];
-    
-    const data = report.orphans.map(orphan => ({
+
+    const data = report.orphans.map((orphan) => ({
       name: orphan.name,
       age: orphan.age || '-',
       gender: orphan.gender || '-',
-      familyName: orphan.family || '-'
+      familyName: orphan.family || '-',
     }));
-    
+
     exportToPDF(columns, data, `orphans-report-${new Date().toISOString().split('T')[0]}`, 'Orphans Report');
   };
 
+  const {
+    rows: sortedOrphans,
+    sort,
+    toggleSort,
+  } = useSortableRows(report?.orphans ?? []);
+
   if (loading) {
-    return (
-      <PageSkeleton />
-    );
+    return <PageSkeleton />;
   }
 
   if (error || !report) {
@@ -102,27 +109,15 @@ export default function OrphansReportPage() {
 
   return (
     <div className="space-y-6">
-      <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Orphans Report' }]} />
+      <PageHeader description="List of orphaned members (under 18 years)" title="Orphans Report" />
 
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Orphans Report</h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">List of orphaned members (under 18 years)</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <Button
-            onClick={handleExportCSV}
-            variant="outline"
-            className="flex items-center gap-2"
-          >
+      <div className="flex flex-wrap gap-2 items-center justify-between">
+        <div className="flex flex-wrap items-center gap-3">
+          <Button onClick={handleExportCSV} variant="outline" className="flex items-center gap-2">
             <FiDownload className="h-4 w-4" />
             Export CSV
           </Button>
-          <Button
-            onClick={handlePrintPDF}
-            variant="outline"
-            className="flex items-center gap-2"
-          >
+          <Button onClick={handlePrintPDF} variant="outline" className="flex items-center gap-2">
             <FiPrinter className="h-4 w-4" />
             Print PDF
           </Button>
@@ -142,18 +137,18 @@ export default function OrphansReportPage() {
           <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
             <thead className="bg-gray-50 dark:bg-gray-800">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <SortableTh sortKey="name" sort={sort} onSort={toggleSort} className="px-6 py-3 uppercase tracking-wider">
                   Name
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                </SortableTh>
+                <SortableTh sortKey="age" sort={sort} onSort={toggleSort} className="px-6 py-3 uppercase tracking-wider">
                   Age
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                </SortableTh>
+                <SortableTh sortKey="gender" sort={sort} onSort={toggleSort} className="px-6 py-3 uppercase tracking-wider">
                   Gender
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                </SortableTh>
+                <SortableTh sortKey="family" sort={sort} onSort={toggleSort} className="px-6 py-3 uppercase tracking-wider">
                   Family
-                </th>
+                </SortableTh>
               </tr>
             </thead>
             <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
@@ -188,4 +183,3 @@ export default function OrphansReportPage() {
     </div>
   );
 }
-

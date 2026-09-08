@@ -1,186 +1,527 @@
-import { useState } from 'react';
-import { TableColumn } from '@/types';
+import { ReactNode, useId, useMemo, useState } from 'react';
+import { FiChevronUp, FiChevronDown, FiChevronRight } from 'react-icons/fi';
+import { TableColumn, SortState } from '@/types';
 import { cn } from '@/utils/cn';
+import { nextSortState, sortRows } from '@/utils/sort';
 import { TableSkeleton } from './Skeleton';
-import EmptyState from './EmptyState';
-import Button from './Button';
-import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
-import { toast } from '@/store/toastStore';
-import { FiFileText, FiFile, FiDownload } from 'react-icons/fi';
+import EmptyState, { EmptyStateVariant } from './EmptyState';
+
+/**
+ * Three states, one glyph. Unsorted shows both chevrons at low contrast so the
+ * column reads as sortable before it is touched; the active direction is the
+ * only one at full strength. Decorative - `aria-sort` on the <th> is what a
+ * screen reader announces.
+ */
+function SortIndicator({ direction }: { direction: 'asc' | 'desc' | null }) {
+  return (
+    <span className="inline-flex flex-col items-center leading-none" aria-hidden="true">
+      <FiChevronUp className={cn('-mb-1 h-3 w-3', direction === 'asc' ? 'opacity-100' : 'opacity-30')} />
+      <FiChevronDown className={cn('-mt-1 h-3 w-3', direction === 'desc' ? 'opacity-100' : 'opacity-30')} />
+    </span>
+  );
+}
 
 export interface TableProps<T = any> {
   columns: TableColumn<T>[];
   data: T[];
   isLoading?: boolean;
-  emptyMessage?: string;
+
+  /** Stable row identity. Falls back to `id`, then to the array index. */
+  rowKey?: (row: T, index: number) => string;
+
   onRowClick?: (row: T) => void;
-  className?: string;
-  exportFilename?: string;
-  exportTitle?: string;
-  showExport?: boolean;
+
+  /* ---- Sorting ---------------------------------------------------------
+   * Table sorts the rows it was handed, type-aware, in three states:
+   * unsorted -> ascending -> descending -> unsorted.
+   *
+   * It used to only report intent and leave the ordering to the caller, but
+   * the API sorts on two fields across fifty-five controllers, so on all but
+   * two lists `sortable: true` painted a glyph that did nothing. Sorting the
+   * rows it received is the ordering the user actually sees, and it stays
+   * correct alongside search and filters because those run before the rows
+   * arrive.
+   *
+   * `sort` / `onSortChange` still work, for a page that also wants to tell the
+   * API: the two compose, because ordering rows that are already in that order
+   * changes nothing. `onSortChange` is handed null on the third click. */
+  sort?: SortState | null;
+  onSortChange?: (sort: SortState | null) => void;
+
   /**
-   * Function to fetch all filtered data for export.
-   * Should return a Promise that resolves to an array of all filtered data.
-   * If not provided, exports will use the current page data.
+   * Turns every column into a sort control unless the column opts out with
+   * `sortable: false`. Set false for a table whose row order carries meaning -
+   * a ledger, a ranked list, a form's own rows.
    */
+  sortable?: boolean;
+
+  /**
+   * The caller has already ordered `data` and Table must not reorder it. Only
+   * for a list the API genuinely sorts across every page.
+   */
+  serverSorted?: boolean;
+
+  /* ---- Selection and bulk actions ------------------------------------- */
+  selectable?: boolean;
+  selectedKeys?: string[];
+  onSelectionChange?: (keys: string[]) => void;
+  /** Rendered above the table when at least one row is selected. */
+  bulkActions?: ReactNode;
+
+  /* ---- States ---------------------------------------------------------- */
+  /** Plural entity name used to write the empty-state copy, e.g. "families". */
+  entity?: string;
+  /** `no-results` when filters are active, so the copy and action differ. */
+  emptyVariant?: EmptyStateVariant;
+  emptyAction?: { label: string; onClick: () => void };
+  /** @deprecated Pass `entity` + `emptyVariant` instead. */
+  emptyMessage?: string;
+
+  className?: string;
+  /** Minimum table width so columns scroll instead of crushing on phones. */
+  minWidth?: string;
+
+  /* ---- Removed ---------------------------------------------------------
+   * Table used to ship its own CSV/JSON/PDF bar that duplicated TableToolbar's
+   * export menu — pages that used both showed export twice. Export now lives
+   * in TableToolbar only. These props are accepted and ignored so existing
+   * call sites keep compiling. */
+  /** @deprecated Export lives in TableToolbar. */
+  exportFilename?: string;
+  /** @deprecated Export lives in TableToolbar. */
+  exportTitle?: string;
+  /** @deprecated Export lives in TableToolbar. */
+  showExport?: boolean;
+  /** @deprecated Export lives in TableToolbar. */
   onExportAll?: () => Promise<T[]>;
 }
+
+const PRIORITY_CLASS: Record<NonNullable<TableColumn['priority']>, string> = {
+  primary: '',
+  secondary: 'hidden md:table-cell',
+  tertiary: 'hidden lg:table-cell',
+};
+
+const ALIGN_CLASS = {
+  left: 'text-left',
+  right: 'text-right tabular-nums',
+  center: 'text-center',
+};
 
 function Table<T extends Record<string, any>>({
   columns,
   data,
   isLoading = false,
-  emptyMessage = 'No data available',
+  rowKey,
   onRowClick,
+  sort,
+  onSortChange,
+  sortable = true,
+  serverSorted = false,
+  selectable = false,
+  selectedKeys = [],
+  onSelectionChange,
+  bulkActions,
+  entity = 'records',
+  emptyVariant = 'empty',
+  emptyAction,
+  emptyMessage,
   className,
-  exportFilename = 'export',
-  exportTitle,
-  showExport = true,
-  onExportAll,
+  minWidth = '48rem',
+  // Deprecated export props are intentionally destructured and unused.
+  exportFilename: _exportFilename,
+  exportTitle: _exportTitle,
+  showExport: _showExport,
+  onExportAll: _onExportAll,
 }: TableProps<T>) {
-  const [exporting, setExporting] = useState(false);
-  const [exportType, setExportType] = useState<'csv' | 'json' | 'pdf' | null>(null);
+  /* A list endpoint that answers with something other than an array — a 200
+   * missing its `data`, an error envelope, a shape change — used to reach
+   * `data.map()` here and throw, unmounting the app. A table with no rows is
+   * an empty table, so that is what it renders. */
+  const source: T[] = useMemo(() => (Array.isArray(data) ? data : []), [data]);
 
-  const handleExport = async (type: 'csv' | 'json' | 'pdf') => {
-    try {
-      setExporting(true);
-      setExportType(type);
-      
-      // If onExportAll is provided, fetch all filtered data, otherwise use current page data
-      const dataToExport = onExportAll ? await onExportAll() : data;
-      
-      if (dataToExport.length === 0) {
-        toast.info('Nothing to export — this list is empty');
-        return;
-      }
+  /* A page that passes `sort` owns the state; every other list keeps it here,
+   * so a table gets a working sort without the page threading state for it. */
+  const [ownSort, setOwnSort] = useState<SortState | null>(null);
+  const sortFieldId = useId();
+  const isControlled = sort !== undefined;
+  const activeSort = isControlled ? (sort ?? null) : ownSort;
 
-      switch (type) {
-        case 'csv':
-          exportToCSV(columns, dataToExport, exportFilename);
-          break;
-        case 'json':
-          exportToJSON(columns, dataToExport, exportFilename);
-          break;
-        case 'pdf':
-          exportToPDF(columns, dataToExport, exportFilename, exportTitle);
-          break;
-      }
-    } catch (error: any) {
-      console.error('Export error:', error);
-      toast.error(error?.message || 'Failed to export data. Please try again.');
-    } finally {
-      setExporting(false);
-      setExportType(null);
-    }
+  const rows: T[] = useMemo(() => {
+    if (!activeSort || serverSorted) return source;
+    return sortRows(source, activeSort.key, activeSort.direction);
+  }, [source, activeSort, serverSorted]);
+
+  const keyOf = useMemo(
+    () => rowKey ?? ((row: T, index: number) => String(row.id ?? row._id ?? index)),
+    [rowKey]
+  );
+
+  const allKeys = useMemo(() => rows.map((row, i) => keyOf(row, i)), [rows, keyOf]);
+  const allSelected = selectable && rows.length > 0 && allKeys.every((k) => selectedKeys.includes(k));
+  const someSelected = selectable && selectedKeys.length > 0 && !allSelected;
+
+  /* On a phone a nine-column table crushes rather than reads. The card list
+   * shows the first column as the row's title, the next few as label/value
+   * pairs, and keeps the actions cell — the same data, laid out for the
+   * device. Column priority decides what appears. */
+  const actionsColumn = columns.find((c) => c.key === 'actions');
+  const dataColumns = columns.filter((c) => c.key !== 'actions');
+  const titleColumn = dataColumns[0];
+  const cardColumns = dataColumns.slice(1).filter((c) => (c.priority ?? 'primary') === 'primary');
+
+  const toggleAll = () => onSelectionChange?.(allSelected ? [] : allKeys);
+  const toggleOne = (key: string) =>
+    onSelectionChange?.(
+      selectedKeys.includes(key) ? selectedKeys.filter((k) => k !== key) : [...selectedKeys, key]
+    );
+
+  /* Which columns get a sort control.
+   *
+   * An explicit `sortable` on the column always wins. Otherwise a column is
+   * sortable when it has a heading to click and a value in the data to sort
+   * on - which rules out the actions cell, an icon-only column, and a column
+   * whose `render` builds its content from the whole row rather than from a
+   * field of it. */
+  const canSort = (column: TableColumn<T>) => {
+    if (typeof column.sortable === 'boolean') return column.sortable;
+    if (!sortable) return false;
+    if (column.key === 'actions' || !column.label) return false;
+    return source.some((row) => {
+      const value = row[column.key];
+      if (value === null || value === undefined) return false;
+      // A cell already holding an element cannot be compared as data.
+      return !(typeof value === 'object' && '$$typeof' in (value as object));
+    });
   };
 
-  const handleExportCSV = () => handleExport('csv');
-  const handleExportJSON = () => handleExport('json');
-  const handleExportPDF = () => handleExport('pdf');
+  /* The phone list only shows the title column and the primary ones, so those
+   * are the only columns its sort field offers. Offering a column the cards do
+   * not render reorders the list by something invisible. */
+  const mobileSortColumns = [titleColumn, ...cardColumns].filter(
+    (column): column is TableColumn<T> => Boolean(column) && canSort(column!)
+  );
+
+  const requestSort = (key: string) => {
+    const next = nextSortState(activeSort, key);
+    if (!isControlled) setOwnSort(next);
+    onSortChange?.(next);
+  };
+
+  const cellValue = (column: TableColumn<T>, row: T, index: number) =>
+    column.render ? column.render(row[column.key], row, index) : (row[column.key] ?? '—');
 
   if (isLoading) {
     return (
       <div className={cn('space-y-3', className)}>
-        <div className="flex gap-3 border-b border-gray-200 px-3 pb-2.5 dark:border-gray-700">
-          {columns.map((column) => (
-            <span
-              key={column.key}
-              className="flex-1 text-[0.64rem] font-semibold uppercase tracking-[0.18em] text-gray-400 dark:text-gray-500"
-            >
-              {column.label}
-            </span>
-          ))}
-        </div>
-        <TableSkeleton columns={columns.length} />
+        <TableSkeleton columns={columns.length + (selectable ? 1 : 0)} />
       </div>
     );
   }
 
-  if (data.length === 0) {
-    return <EmptyState title={emptyMessage} />;
+  if (rows.length === 0) {
+    return (
+      <EmptyState
+        variant={emptyVariant}
+        entity={entity}
+        title={emptyMessage}
+        action={emptyAction}
+        className={className}
+      />
+    );
   }
 
   return (
     <div className={cn('space-y-3', className)}>
-      {showExport && data.length > 0 && (
-        <div className="flex items-center justify-end gap-2 border-b border-gray-200 pb-2 dark:border-gray-700">
-          <span className="mr-2 text-xs text-gray-600 dark:text-gray-400">Export:</span>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleExportCSV}
-            disabled={exporting}
-            isLoading={exporting && exportType === 'csv'}
-            className="flex items-center gap-2"
-          >
-            <FiFileText className="h-4 w-4" />
-            CSV
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleExportJSON}
-            disabled={exporting}
-            isLoading={exporting && exportType === 'json'}
-            className="flex items-center gap-2"
-          >
-            <FiFile className="h-4 w-4" />
-            JSON
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleExportPDF}
-            disabled={exporting}
-            isLoading={exporting && exportType === 'pdf'}
-            className="flex items-center gap-2"
-          >
-            <FiDownload className="h-4 w-4" />
-            PDF
-          </Button>
+      {selectable && selectedKeys.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border bg-accent/40 px-3 py-2">
+          <p className="text-sm font-medium tabular-nums text-foreground">{selectedKeys.length} selected</p>
+          <div className="flex items-center gap-2">
+            {bulkActions}
+            <button
+              type="button"
+              onClick={() => onSelectionChange?.([])}
+              className="rounded-sm text-sm text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              Clear
+            </button>
+          </div>
         </div>
       )}
-      <div className="overflow-x-auto overflow-y-visible">
-        <table className="w-full border-collapse">
-        <thead className="bg-gray-50/50 dark:bg-gray-800/50">
-          <tr className="border-b border-gray-200 dark:border-gray-700">
-              {columns.map((column) => (
-                <th
-                  key={column.key}
-                  className="px-3 py-2.5 text-left text-[0.64rem] font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400"
-                >
-                  <div className="flex items-center gap-2">
-                    {column.label}
-                    {column.sortable && (
-                      <span className="text-gray-400">↕</span>
-                    )}
-                  </div>
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-            {data.map((row, rowIndex) => (
-              <tr
-                key={rowIndex}
-                onClick={() => onRowClick?.(row)}
+
+      {/* ---- Phone: sort control ------------------------------------------
+          Below `md` the header row is replaced by cards, and with it the only
+          way to sort. The same three states live here as a field plus a
+          direction toggle, so a phone is not a read-only view of the list. */}
+      {mobileSortColumns.length > 0 && (
+        <div className="flex items-center gap-2 md:hidden">
+          <label htmlFor={sortFieldId} className="flex-shrink-0 text-label text-muted-foreground">
+            Sort by
+          </label>
+          <select
+            id={sortFieldId}
+            value={activeSort?.key ?? ''}
+            onChange={(event) => {
+              const key = event.target.value;
+              if (!key) {
+                if (!isControlled) setOwnSort(null);
+                onSortChange?.(null);
+                return;
+              }
+              const next = { key, direction: activeSort?.direction ?? ('asc' as const) };
+              if (!isControlled) setOwnSort(next);
+              onSortChange?.(next);
+            }}
+            className="min-w-0 flex-1 text-sm"
+          >
+            <option value="">Default order</option>
+            {mobileSortColumns.map((column) => (
+              <option key={column.key} value={column.key}>
+                {column.label}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            disabled={!activeSort}
+            onClick={() => activeSort && requestSort(activeSort.key)}
+            aria-label={
+              activeSort?.direction === 'asc'
+                ? 'Sorted ascending. Sort descending'
+                : activeSort?.direction === 'desc'
+                  ? 'Sorted descending. Clear sorting'
+                  : 'Choose a column to sort by first'
+            }
+            className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-md border border-input bg-background text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <SortIndicator direction={activeSort?.direction ?? null} />
+          </button>
+        </div>
+      )}
+
+      {/* ---- Phone: one card per record ---------------------------------- */}
+      <ul className="space-y-2 md:hidden">
+        {rows.map((row, rowIndex) => {
+          const key = keyOf(row, rowIndex);
+          const selected = selectedKeys.includes(key);
+          return (
+            <li key={key}>
+              <div
+                role={onRowClick ? 'button' : undefined}
+                tabIndex={onRowClick ? 0 : undefined}
+                onClick={onRowClick ? () => onRowClick(row) : undefined}
+                onKeyDown={
+                  onRowClick
+                    ? (event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault();
+                          onRowClick(row);
+                        }
+                      }
+                    : undefined
+                }
                 className={cn(
-                  'hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors',
-                  onRowClick && 'cursor-pointer'
+                  'rounded-lg border border-border bg-card p-3 transition-colors',
+                  selected && 'border-primary bg-accent/50',
+                  onRowClick &&
+                    'cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
                 )}
               >
-                {columns.map((column) => (
-                  <td
-                    key={column.key}
-                    className="px-3 py-2.5 text-[0.82rem] text-gray-900 dark:text-gray-100"
+                <div className="flex items-start gap-3">
+                  {selectable && (
+                    <input
+                      type="checkbox"
+                      checked={selected}
+                      onChange={() => toggleOne(key)}
+                      onClick={(e) => e.stopPropagation()}
+                      aria-label={'Select row ' + (rowIndex + 1)}
+                      className="mt-0.5 h-4 w-4 flex-shrink-0 rounded-sm border-input accent-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    />
+                  )}
+
+                  <div className="min-w-0 flex-1">
+                    {titleColumn && (
+                      /* A column's `render` returns arbitrary JSX — several return a
+                       * <div> or a <p>. Inside a <p> the browser silently closes the
+                       * paragraph early, so the content escaped this truncation box
+                       * and the card layout broke on phones. A <div> nests anything. */
+                      <div className="truncate text-sm font-medium text-foreground">
+                        {cellValue(titleColumn, row, rowIndex)}
+                      </div>
+                    )}
+
+                    {cardColumns.length > 0 && (
+                      <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1.5">
+                        {cardColumns.map((column) => (
+                          <div key={column.key} className="min-w-0">
+                            <dt className="text-label text-muted-foreground">{column.label}</dt>
+                            <dd className="truncate text-sm text-foreground">
+                              {cellValue(column, row, rowIndex)}
+                            </dd>
+                          </div>
+                        ))}
+                      </dl>
+                    )}
+                  </div>
+
+                  {onRowClick && !actionsColumn && (
+                    <FiChevronRight
+                      className="mt-0.5 h-4 w-4 flex-shrink-0 text-muted-foreground"
+                      aria-hidden="true"
+                    />
+                  )}
+                </div>
+
+                {actionsColumn && (
+                  <div
+                    className="mt-2 flex flex-wrap items-center justify-end gap-1 border-t border-border pt-2"
+                    onClick={(e) => e.stopPropagation()}
+                    /* Only the click was stopped, so Enter on a row action ran the
+                     * action and then the row's own click handler — deleting a
+                     * record and navigating to it in one keystroke. */
+                    onKeyDown={(e) => e.stopPropagation()}
                   >
-                    {column.render
-                      ? column.render(row[column.key], row, rowIndex)
-                      : row[column.key] ?? '-'}
-                  </td>
-                ))}
-              </tr>
-            ))}
+                    {cellValue(actionsColumn, row, rowIndex)}
+                  </div>
+                )}
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+
+      {/* ---- Tablet and up: the table ------------------------------------ */}
+      <div className="hidden overflow-x-auto rounded-lg border border-border md:block">
+        <table className="w-full border-collapse" style={{ minWidth }}>
+          <thead className="sticky top-0 z-10 bg-muted">
+            <tr className="border-b border-border">
+              {selectable && (
+                <th scope="col" className="w-10 px-3 py-2.5">
+                  <input
+                    type="checkbox"
+                    checked={allSelected}
+                    ref={(node) => {
+                      if (node) node.indeterminate = someSelected;
+                    }}
+                    onChange={toggleAll}
+                    aria-label={allSelected ? 'Clear selection' : 'Select all rows on this page'}
+                    className="h-4 w-4 rounded-sm border-input accent-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  />
+                </th>
+              )}
+              {columns.map((column) => {
+                const isSorted = activeSort?.key === column.key;
+                const direction = isSorted ? activeSort!.direction : null;
+                const sortableColumn = canSort(column);
+                return (
+                  <th
+                    key={column.key}
+                    scope="col"
+                    aria-sort={
+                      sortableColumn
+                        ? isSorted
+                          ? direction === 'asc'
+                            ? 'ascending'
+                            : 'descending'
+                          : 'none'
+                        : undefined
+                    }
+                    style={column.width ? { minWidth: column.width } : undefined}
+                    className={cn(
+                      /* 13px, not 12: a heading has to be as readable as the
+                       * cells it labels, and it carries the column's meaning
+                       * for every row under it. */
+                      'px-3 py-2.5 text-label font-semibold text-muted-foreground',
+                      ALIGN_CLASS[column.align ?? 'left'],
+                      PRIORITY_CLASS[column.priority ?? 'primary']
+                    )}
+                  >
+                    {sortableColumn ? (
+                      <button
+                        type="button"
+                        onClick={() => requestSort(column.key)}
+                        title={
+                          direction === 'asc'
+                            ? 'Sort ' + column.label + ' descending'
+                            : direction === 'desc'
+                              ? 'Stop sorting by ' + column.label
+                              : 'Sort ' + column.label + ' ascending'
+                        }
+                        className={cn(
+                          'inline-flex max-w-full items-center gap-1 rounded-sm transition-colors',
+                          'hover:text-foreground focus-visible:outline-none focus-visible:ring-2',
+                          'focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-muted',
+                          column.align === 'right' && 'flex-row-reverse',
+                          isSorted && 'text-foreground'
+                        )}
+                      >
+                        <span className="truncate">{column.label}</span>
+                        <SortIndicator direction={direction} />
+                      </button>
+                    ) : (
+                      column.label
+                    )}
+                  </th>
+                );
+              })}
+            </tr>
+          </thead>
+
+          <tbody className="divide-y divide-border bg-card">
+            {rows.map((row, rowIndex) => {
+              const key = keyOf(row, rowIndex);
+              const selected = selectedKeys.includes(key);
+              return (
+                <tr
+                  key={key}
+                  /* Row click is keyboard-operable: focusable, and Enter or
+                   * Space activate it the way a real control does. */
+                  tabIndex={onRowClick ? 0 : undefined}
+                  role={onRowClick ? 'button' : undefined}
+                  onClick={onRowClick ? () => onRowClick(row) : undefined}
+                  onKeyDown={
+                    onRowClick
+                      ? (event) => {
+                          if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault();
+                            onRowClick(row);
+                          }
+                        }
+                      : undefined
+                  }
+                  className={cn(
+                    'transition-colors',
+                    selected ? 'bg-accent/50' : 'hover:bg-accent/30',
+                    onRowClick &&
+                      'cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring'
+                  )}
+                >
+                  {selectable && (
+                    <td className="w-10 px-3 py-2.5" onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        checked={selected}
+                        onChange={() => toggleOne(key)}
+                        aria-label={'Select row ' + (rowIndex + 1)}
+                        className="h-4 w-4 rounded-sm border-input accent-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      />
+                    </td>
+                  )}
+                  {columns.map((column) => (
+                    <td
+                      key={column.key}
+                      className={cn(
+                        'px-3 py-2.5 text-sm text-foreground',
+                        ALIGN_CLASS[column.align ?? 'left'],
+                        PRIORITY_CLASS[column.priority ?? 'primary']
+                      )}
+                    >
+                      {cellValue(column, row, rowIndex)}
+                    </td>
+                  ))}
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -189,4 +530,3 @@ function Table<T extends Record<string, any>>({
 }
 
 export default Table;
-

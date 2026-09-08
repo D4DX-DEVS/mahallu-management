@@ -168,7 +168,7 @@ const QardLoanSchema = new Schema<IQardLoan>(
     tenantId: {
       type: Schema.Types.ObjectId,
       ref: 'Tenant',
-      required: [true, 'Tenant ID is required'],
+      required: [true, 'Please select a Mahallu before continuing.'],
       index: true,
     },
     applicantMemberId: { type: Schema.Types.ObjectId, ref: 'Member', index: true },
@@ -209,7 +209,7 @@ const QardRepaymentSchema = new Schema<IQardRepayment>(
     tenantId: {
       type: Schema.Types.ObjectId,
       ref: 'Tenant',
-      required: [true, 'Tenant ID is required'],
+      required: [true, 'Please select a Mahallu before continuing.'],
       index: true,
     },
     loanId: {

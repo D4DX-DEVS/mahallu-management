@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { FiBook, FiEdit2, FiTrash2, FiEye } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
@@ -19,6 +18,9 @@ import { useAuthStore } from '@/store/authStore';
 import { formatDate } from '@/utils/format';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
 import { toast } from '@/store/toastStore';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
+import ActionsMenu from '@/components/ui/ActionsMenu';
 
 export default function LedgersList() {
   const { currentInstituteId: userInstituteId } = useAuthStore();
@@ -42,7 +44,10 @@ export default function LedgersList() {
 
   useEffect(() => {
     if (!userInstituteId) {
-      instituteService.getAll({ limit: 1000 }).then(r => setInstitutes(r.data.map((i: any) => ({ id: i.id, name: i.name })))).catch(() => {});
+      instituteService
+        .getAll({ limit: 1000 })
+        .then((r) => setInstitutes(r.data.map((i: any) => ({ id: i.id, name: i.name }))))
+        .catch(() => {});
     }
   }, []);
 
@@ -65,7 +70,7 @@ export default function LedgersList() {
         setPagination(result.pagination);
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch ledgers');
+      setError(loadErrorMessage(err, 'ledgers'));
       console.error('Error fetching ledgers:', err);
       setLedgers([]);
     } finally {
@@ -102,14 +107,13 @@ export default function LedgersList() {
       }
     } catch (error: any) {
       console.error('Export error:', error);
-      toast.error(error?.message || 'Failed to export ledgers');
+      toast.error(error?.message || "Couldn't export ledgers");
     } finally {
       setIsExporting(false);
     }
   };
 
   const columns: TableColumn<Ledger>[] = [
-    { key: 'id', label: 'No.', render: (_, __, index) => index + 1 },
     { key: 'name', label: 'Name', sortable: true },
     { key: 'type', label: 'Type' },
     { key: 'description', label: 'Description' },
@@ -122,17 +126,28 @@ export default function LedgersList() {
       key: 'actions',
       label: 'Actions',
       render: (_, row) => (
-        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-          <button onClick={() => { setSelectedLedger(row); setShowViewModal(true); }} className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400" title="View">
-            <FiEye className="h-4 w-4" />
-          </button>
-          <button onClick={() => openEditModal(row)} className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400" title="Edit">
-            <FiEdit2 className="h-4 w-4" />
-          </button>
-          <button onClick={() => { setSelectedLedger(row); setShowDeleteModal(true); }} className="p-1.5 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400" title="Delete">
-            <FiTrash2 className="h-4 w-4" />
-          </button>
-        </div>
+        <ActionsMenu
+          items={[
+            {
+              label: 'View',
+              icon: <FiEye className="h-4 w-4" />,
+              onClick: () => {
+                setSelectedLedger(row);
+                setShowViewModal(true);
+              },
+            },
+            { label: 'Edit', icon: <FiEdit2 className="h-4 w-4" />, onClick: () => openEditModal(row) },
+            {
+              label: 'Delete',
+              icon: <FiTrash2 className="h-4 w-4" />,
+              onClick: () => {
+                setSelectedLedger(row);
+                setShowDeleteModal(true);
+              },
+              variant: 'danger',
+            },
+          ]}
+        />
       ),
     },
   ];
@@ -151,7 +166,7 @@ export default function LedgersList() {
       setShowEditModal(false);
       setSelectedLedger(null);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to update ledger');
+      setError(errorMessage(err, { action: 'update ledger' }));
     }
   };
 
@@ -164,24 +179,24 @@ export default function LedgersList() {
       setShowDeleteModal(false);
       setSelectedLedger(null);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to delete ledger');
+      setError(errorMessage(err, { action: 'delete ledger' }));
     } finally {
       setDeleting(false);
     }
   };
 
-  const stats = [{ title: 'Total Ledgers', value: pagination?.total || ledgers.length, icon: <FiBook className="h-5 w-5" /> }];
+  const stats = [
+    {
+      title: 'Total Ledgers',
+      value: pagination?.total || ledgers.length,
+      icon: <FiBook className="h-5 w-5" />,
+    },
+  ];
 
   return (
     <div className="space-y-4">
       <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Ledgers</h1>
-            <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">Manage ledgers</p>
-          </div>
-          <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Ledgers' }]} />
-        </div>
+        <PageHeader title="Ledgers" description="Manage ledgers" />
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-1">
           {stats.map((stat, index) => (
@@ -202,19 +217,20 @@ export default function LedgersList() {
           isExporting={isExporting}
           actionButtons={
             <Link to="/master-accounts/ledgers/create">
-              <Button size="md">
-                + New Ledger
-              </Button>
+              <Button size="md">+ New Ledger</Button>
             </Link>
           }
         />
 
         {isFilterVisible && !userInstituteId && (
-          <div className="flex flex-wrap items-center gap-4 mb-6 p-4 border border-gray-200 rounded-lg bg-white dark:bg-gray-800 dark:border-gray-700">
-            <div className="w-64">
+          <div className="flex flex-wrap items-center gap-4 mb-6 p-4 border border-gray-200 rounded-lg max-sm:border-0 max-sm:bg-transparent max-sm:p-0 bg-white dark:bg-gray-800 dark:border-gray-700">
+            <div className="w-full sm:w-64">
               <Select
                 label="Institute"
-                options={[{ value: 'all', label: 'All Institutes' }, ...institutes.map(i => ({ value: i.id, label: i.name }))]}
+                options={[
+                  { value: 'all', label: 'All Institutes' },
+                  ...institutes.map((i) => ({ value: i.id, label: i.name })),
+                ]}
                 value={instituteFilter}
                 onChange={(e) => setInstituteFilter(e.target.value)}
               />
@@ -252,9 +268,22 @@ export default function LedgersList() {
       {/* View Modal */}
       <Modal
         isOpen={showViewModal}
-        onClose={() => { setShowViewModal(false); setSelectedLedger(null); }}
+        onClose={() => {
+          setShowViewModal(false);
+          setSelectedLedger(null);
+        }}
         title="Ledger Details"
-        footer={<Button variant="outline" onClick={() => { setShowViewModal(false); setSelectedLedger(null); }}>Close</Button>}
+        footer={
+          <Button
+            variant="outline"
+            onClick={() => {
+              setShowViewModal(false);
+              setSelectedLedger(null);
+            }}
+          >
+            Close
+          </Button>
+        }
       >
         {selectedLedger && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
@@ -287,39 +316,79 @@ export default function LedgersList() {
       {/* Edit Modal */}
       <Modal
         isOpen={showEditModal}
-        onClose={() => { setShowEditModal(false); setSelectedLedger(null); }}
+        onClose={() => {
+          setShowEditModal(false);
+          setSelectedLedger(null);
+        }}
         title="Edit Ledger"
         footer={
           <>
-            <Button variant="outline" onClick={() => { setShowEditModal(false); setSelectedLedger(null); }}>Cancel</Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowEditModal(false);
+                setSelectedLedger(null);
+              }}
+            >
+              Cancel
+            </Button>
             <Button onClick={handleEdit}>Save Changes</Button>
           </>
         }
       >
         <div className="space-y-4">
-          <Input label="Name" value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} />
-          <Select label="Type" value={editForm.type} onChange={(e) => setEditForm({ ...editForm, type: e.target.value })} options={[{ value: 'income', label: 'Income' }, { value: 'expense', label: 'Expense' }]} />
-          <Input label="Description" value={editForm.description} onChange={(e) => setEditForm({ ...editForm, description: e.target.value })} />
+          <Input
+            label="Name"
+            value={editForm.name}
+            onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+          />
+          <Select
+            label="Type"
+            value={editForm.type}
+            onChange={(e) => setEditForm({ ...editForm, type: e.target.value })}
+            options={[
+              { value: 'income', label: 'Income' },
+              { value: 'expense', label: 'Expense' },
+            ]}
+          />
+          <Input
+            label="Description"
+            value={editForm.description}
+            onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+          />
         </div>
       </Modal>
 
       {/* Delete Modal */}
       <Modal
         isOpen={showDeleteModal}
-        onClose={() => { setShowDeleteModal(false); setSelectedLedger(null); }}
+        onClose={() => {
+          setShowDeleteModal(false);
+          setSelectedLedger(null);
+        }}
         title="Delete Ledger"
         footer={
           <>
-            <Button variant="outline" onClick={() => { setShowDeleteModal(false); setSelectedLedger(null); }}>Cancel</Button>
-            <Button variant="danger" onClick={handleDelete} isLoading={deleting}>Delete</Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowDeleteModal(false);
+                setSelectedLedger(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button variant="danger" onClick={handleDelete} isLoading={deleting}>
+              Delete
+            </Button>
           </>
         }
       >
         <p className="text-gray-600 dark:text-gray-400">
-          Are you sure you want to delete <strong>{selectedLedger?.name}</strong>? This action cannot be undone.
+          Are you sure you want to delete <strong>{selectedLedger?.name}</strong>? This action cannot be
+          undone.
         </p>
       </Modal>
     </div>
   );
 }
-

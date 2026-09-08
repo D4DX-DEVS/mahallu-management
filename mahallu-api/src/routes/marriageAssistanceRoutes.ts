@@ -9,6 +9,12 @@ import {
 } from '../controllers/marriageAssistanceController';
 import { authMiddleware, allowRoles } from '../middleware/authMiddleware';
 import { tenantMiddleware, tenantFilter } from '../middleware/tenantMiddleware';
+import { validationHandler } from '../middleware/validationHandler';
+import { idParam, listQuery } from '../validations/common';
+import {
+  createMarriageAssistanceValidation,
+  updateMarriageAssistanceValidation,
+} from '../validations/moduleValidation';
 
 const router = express.Router();
 
@@ -54,7 +60,7 @@ router.use(tenantFilter);
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  */
-router.get('/', getAllAssistances);
+router.get('/', listQuery(), validationHandler, getAllAssistances);
 
 /**
  * @swagger
@@ -76,7 +82,7 @@ router.get('/', getAllAssistances);
  *       404:
  *         $ref: '#/components/responses/NotFound'
  */
-router.get('/:id', getAssistanceById);
+router.get('/:id', idParam('id', 'application'), validationHandler, getAssistanceById);
 
 /**
  * @swagger
@@ -114,7 +120,7 @@ router.get('/:id', getAssistanceById);
  *       400:
  *         description: Missing required fields or invalid tenant reference
  */
-router.post('/', allowRoles(['mahall']), createAssistance);
+router.post('/', createMarriageAssistanceValidation, validationHandler, allowRoles(['mahall']), createAssistance);
 
 /**
  * @swagger
@@ -150,7 +156,7 @@ router.post('/', allowRoles(['mahall']), createAssistance);
  *       404:
  *         description: Record not found
  */
-router.put('/:id', allowRoles(['mahall']), updateAssistance);
+router.put('/:id', updateMarriageAssistanceValidation, validationHandler, allowRoles(['mahall']), updateAssistance);
 
 /**
  * @swagger
@@ -188,7 +194,7 @@ router.put('/:id', allowRoles(['mahall']), updateAssistance);
  *       400:
  *         description: Invalid status transition
  */
-router.put('/:id/status', allowRoles(['mahall']), updateAssistanceStatus);
+router.put('/:id/status', idParam('id', 'application'), validationHandler, allowRoles(['mahall']), updateAssistanceStatus);
 
 /**
  * @swagger
@@ -211,6 +217,6 @@ router.put('/:id/status', allowRoles(['mahall']), updateAssistanceStatus);
  *       404:
  *         description: Record not found
  */
-router.delete('/:id', allowRoles(['mahall']), deleteAssistance);
+router.delete('/:id', idParam('id', 'application'), validationHandler, allowRoles(['mahall']), deleteAssistance);
 
 export default router;

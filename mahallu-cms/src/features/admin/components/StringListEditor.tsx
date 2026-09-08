@@ -52,7 +52,12 @@ export default function StringListEditor({
           </div>
         ))}
 
-        <Button type="button" variant="outline" onClick={() => onChange([...values, ''])} className="w-full mt-2">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => onChange([...values, ''])}
+          className="w-full mt-2"
+        >
           {addLabel}
         </Button>
       </div>

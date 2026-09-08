@@ -1,59 +1,46 @@
 import { InputHTMLAttributes, forwardRef, ReactNode } from 'react';
 import { cn } from '@/utils/cn';
-
+import Field, { useFieldIds } from './Field';
 export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label?: string;
   error?: string;
   helperText?: string;
   icon?: ReactNode;
-}
-
+} /** Shared control surface — Input, Select trigger and DatePicker all use it. */
+export const controlClasses =
+  'flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground ' +
+  'transition-colors placeholder:text-muted-foreground ' +
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ' +
+  'focus-visible:ring-offset-background ' +
+  'disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-muted ' +
+  'aria-[invalid=true]:border-destructive aria-[invalid=true]:focus-visible:ring-destructive';
 const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ className, label, error, helperText, icon, type = 'text', ...props }, ref) => {
+  ({ className, label, error, helperText, icon, type = 'text', id, required, ...props }, ref) => {
+    const ids = useFieldIds({ id, error, helperText, required });
     return (
-      <div className="w-full">
-        {label && (
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 ml-1">
-            {label}
-            {props.required && <span className="text-red-500 ml-1">*</span>}
-          </label>
-        )}
-        <div className="relative group">
+      <Field ids={ids} label={label} error={error} helperText={helperText} required={required}>
+        <div className="relative">
           {icon && (
-            <div className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-gray-400 group-focus-within:text-primary-500 transition-colors duration-200 pointer-events-none">
+            <span
+              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+              aria-hidden="true"
+            >
               {icon}
-            </div>
+            </span>
           )}
           <input
             type={type}
             ref={ref}
-            className={cn(
-              'flex h-11 w-full rounded-xl border border-gray-200 bg-white px-3.5 py-2 text-sm transition-all duration-200',
-              'ring-offset-white file:border-0 file:bg-transparent file:text-sm file:font-medium',
-              'placeholder:text-gray-400',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/20 focus-visible:border-primary-500',
-              'disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-gray-50',
-              'hover:border-gray-300 dark:hover:border-gray-600',
-              'dark:border-gray-700 dark:bg-gray-900/50 dark:text-gray-100 dark:ring-offset-gray-950',
-              'dark:placeholder:text-gray-500 dark:focus-visible:ring-primary-500/20 dark:focus-visible:border-primary-500',
-              error && 'border-red-500 focus-visible:ring-red-500/20 focus-visible:border-red-500',
-              icon && 'pl-11',
-              className
-            )}
+            required={required}
+            className={cn(controlClasses, icon && 'pl-10', className)}
+            {...ids.controlProps}
             {...props}
           />
         </div>
-        {error && (
-          <p className="mt-1.5 ml-1 text-sm text-red-600 dark:text-red-400 animate-in slide-in-from-top-1 fade-in duration-200">{error}</p>
-        )}
-        {helperText && !error && (
-          <p className="mt-1.5 ml-1 text-sm text-gray-500 dark:text-gray-400">{helperText}</p>
-        )}
-      </div>
+      </Field>
     );
   }
 );
-
 Input.displayName = 'Input';
 
 export default Input;

@@ -41,7 +41,7 @@ const UserSchema = new Schema<IUser>(
     },
     phone: {
       type: String,
-      required: [true, 'Phone number is required'],
+      required: [true, 'Please enter your phone number.'],
       trim: true,
     },
     email: {

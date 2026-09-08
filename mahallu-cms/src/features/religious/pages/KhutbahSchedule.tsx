@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { FiEdit2, FiTrash2, FiPlus, FiCalendar } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Table from '@/components/ui/Table';
@@ -12,6 +11,8 @@ import { Khutbah, religiousService, KHUTBAH_STATUS_OPTIONS } from '@/services/re
 import { useDebounce } from '@/hooks/useDebounce';
 import { formatDate } from '@/utils/format';
 import { ROUTES } from '@/constants/routes';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
 
 export default function KhutbahSchedule() {
   const [khutbahs, setKhutbahs] = useState<Khutbah[]>([]);
@@ -64,7 +65,7 @@ export default function KhutbahSchedule() {
         setPagination(result.pagination);
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch khutbahs');
+      setError(loadErrorMessage(err, 'khutbahs'));
       console.error('Error fetching khutbahs:', err);
     } finally {
       setLoading(false);
@@ -81,7 +82,7 @@ export default function KhutbahSchedule() {
       fetchKhutbahs();
       fetchUpcomingKhutbah();
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to delete khutbah');
+      setError(errorMessage(err, { action: 'delete khutbah' }));
     } finally {
       setDeleting(false);
     }
@@ -132,7 +133,7 @@ export default function KhutbahSchedule() {
       key: 'actions',
       label: 'Actions',
       render: (_: any, khutbah: Khutbah) => (
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Link to={`${ROUTES.RELIGIOUS.KHUTBAHS}/${khutbah.id}/edit`}>
             <Button size="sm" variant="outline">
               <FiEdit2 className="inline mr-1" />
@@ -159,12 +160,7 @@ export default function KhutbahSchedule() {
 
   return (
     <div className="space-y-6">
-      <Breadcrumb
-        items={[
-          { label: 'Dashboard', path: ROUTES.DASHBOARD },
-          { label: 'Khutbah Schedule', path: ROUTES.RELIGIOUS.KHUTBAHS },
-        ]}
-      />
+      <PageHeader title="Khutbah Schedule" />
 
       {error && <div className="p-4 bg-red-100 text-red-800 rounded">{error}</div>}
 
@@ -187,7 +183,9 @@ export default function KhutbahSchedule() {
               <div>
                 <p className="text-sm text-gray-600">Topic</p>
                 <p className="font-medium">{upcomingKhutbah.topic}</p>
-                {upcomingKhutbah.topicMl && <p className="text-sm text-gray-700">{upcomingKhutbah.topicMl}</p>}
+                {upcomingKhutbah.topicMl && (
+                  <p className="text-sm text-gray-700">{upcomingKhutbah.topicMl}</p>
+                )}
               </div>
               <div>
                 <p className="text-sm text-gray-600">Khateeb</p>
@@ -203,6 +201,7 @@ export default function KhutbahSchedule() {
         <div className="w-full sm:w-auto">
           <label className="block text-sm font-medium mb-2">Filter by Month</label>
           <input
+            aria-label="Filter by Month"
             type="month"
             value={selectedMonth}
             onChange={(e) => {
@@ -225,22 +224,26 @@ export default function KhutbahSchedule() {
         <Table columns={columns} data={khutbahs} />
       </Card>
 
-      {pagination && <Pagination {...pagination} onPageChange={setCurrentPage} />}
+      {pagination && (
+        <Pagination
+          currentPage={pagination.page}
+          totalPages={pagination.totalPages}
+          totalItems={pagination.total}
+          itemsPerPage={pagination.limit}
+          entity="khutbahs"
+          onPageChange={setCurrentPage}
+        />
+      )}
 
       {/* Delete Modal */}
       <Modal isOpen={showDeleteModal} onClose={() => setShowDeleteModal(false)} title="Confirm Delete">
         <div className="space-y-4">
           <p>Are you sure you want to delete this khutbah?</p>
-          <div className="flex gap-3 justify-end">
+          <div className="flex gap-2 flex-col-reverse sm:flex-row sm:justify-end sm:gap-3">
             <Button variant="outline" onClick={() => setShowDeleteModal(false)} disabled={deleting}>
               Cancel
             </Button>
-            <Button
-              variant="danger"
-              onClick={handleDelete}
-              disabled={deleting}
-              isLoading={deleting}
-            >
+            <Button variant="danger" onClick={handleDelete} disabled={deleting} isLoading={deleting}>
               Delete
             </Button>
           </div>

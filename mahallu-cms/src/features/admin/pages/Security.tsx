@@ -6,6 +6,10 @@ import { authService } from '@/services/authService';
 import { socialService, type ActivityLog } from '@/services/socialService';
 import { useAuthStore } from '@/store/authStore';
 import { formatDateTime } from '@/utils/format';
+import { errorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
+import SortableTh from '@/components/ui/SortableTh';
+import { useSortableRows } from '@/hooks/useSortableRows';
 
 /** Task C5 — two-factor switch plus this account's access history. */
 export default function Security() {
@@ -33,7 +37,7 @@ export default function Security() {
       setLogs(res.data || []);
       setPagination(res.pagination);
     } catch (err) {
-      console.error('Failed to load access history:', err);
+      console.error("Couldn't load access history:", err);
     } finally {
       setLoading(false);
     }
@@ -52,35 +56,42 @@ export default function Security() {
       setTwoFactor(res.twoFactorEnabled);
       if (user) setUser({ ...user, twoFactorEnabled: res.twoFactorEnabled });
     } catch (err: any) {
-      setError(err?.response?.data?.message || 'Could not update two-factor setting');
+      setError(errorMessage(err, { action: 'update two-factor setting' }));
     } finally {
       setSaving(false);
     }
   };
 
+  /* The Endpoint cell joins method and path, so it sorts on the joined text. */
+  const {
+    rows: sortedLogs,
+    sort,
+    toggleSort,
+  } = useSortableRows(logs, null, {
+    endpoint: (row) => `${row.httpMethod} ${row.endpoint}`,
+  });
+
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Security</h1>
-        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-          Two-factor login and the access history for your account
-        </p>
+        <PageHeader title="Security" description="Two-factor login and the access history for your account" />
       </div>
 
-      <Card className="p-4">
+      <Card>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="flex gap-3">
             <FiShield className="mt-1 h-5 w-5 text-primary-600" />
             <div>
               <h2 className="font-semibold text-gray-900 dark:text-gray-100">Two-factor login</h2>
               <p className="mt-1 max-w-xl text-sm text-gray-600 dark:text-gray-400">
-                When on, signing in with a password stops at an OTP step — the code goes to your
-                registered WhatsApp number. Keep that number reachable before switching this on.
+                When on, signing in with a password stops at an OTP step — the code goes to your registered
+                WhatsApp number. Keep that number reachable before switching this on.
               </p>
             </div>
           </div>
           <label className="flex cursor-pointer items-center gap-2 text-sm">
             <input
+              aria-label="Select row"
               type="checkbox"
               checked={twoFactor}
               disabled={saving}
@@ -93,7 +104,7 @@ export default function Security() {
         {error && <div className="mt-3 text-sm text-red-600">{error}</div>}
       </Card>
 
-      <Card className="p-3 sm:p-4">
+      <Card>
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <h2 className="font-semibold text-gray-900 dark:text-gray-100">Access history</h2>
           <span className="text-xs sm:text-sm text-gray-500">
@@ -110,15 +121,25 @@ export default function Security() {
             <table className="min-w-full text-sm">
               <thead>
                 <tr className="text-left text-xs uppercase text-gray-500">
-                  <th className="py-2 pr-3">When</th>
-                  <th className="py-2 pr-3">Action</th>
-                  <th className="py-2 pr-3">Module</th>
-                  <th className="py-2 pr-3">Endpoint</th>
-                  <th className="py-2">IP</th>
+                  <SortableTh sortKey="createdAt" sort={sort} onSort={toggleSort} className="py-2 pr-3">
+                    When
+                  </SortableTh>
+                  <SortableTh sortKey="action" sort={sort} onSort={toggleSort} className="py-2 pr-3">
+                    Action
+                  </SortableTh>
+                  <SortableTh sortKey="entityType" sort={sort} onSort={toggleSort} className="py-2 pr-3">
+                    Module
+                  </SortableTh>
+                  <SortableTh sortKey="endpoint" sort={sort} onSort={toggleSort} className="py-2 pr-3">
+                    Endpoint
+                  </SortableTh>
+                  <SortableTh sortKey="ipAddress" sort={sort} onSort={toggleSort} className="py-2">
+                    IP
+                  </SortableTh>
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {logs.map((log) => (
+                {sortedLogs.map((log) => (
                   <tr key={log.id}>
                     <td className="whitespace-nowrap py-2 pr-3">{formatDateTime(log.createdAt)}</td>
                     <td className="py-2 pr-3">{log.action}</td>

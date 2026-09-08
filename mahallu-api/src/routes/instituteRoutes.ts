@@ -15,6 +15,7 @@ import {
   getInstituteValidation,
   deleteInstituteValidation,
 } from '../validations/instituteValidation';
+import { idParam, listQuery } from '../validations/common';
 
 const router = express.Router();
 
@@ -106,7 +107,7 @@ router.use(tenantFilter);
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  */
-router.get('/', getAllInstitutes);
+router.get('/', listQuery(), validationHandler, getAllInstitutes);
 
 /**
  * @swagger
@@ -342,7 +343,7 @@ router.put('/:id', updateInstituteValidation, validationHandler, updateInstitute
  *                   example: true
  *                 message:
  *                   type: string
- *                   example: 'Institute deleted successfully'
+ *                   example: 'Institute deleted'
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  *       404:

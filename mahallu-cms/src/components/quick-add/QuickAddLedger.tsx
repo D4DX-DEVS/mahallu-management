@@ -8,6 +8,7 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import { masterAccountService, Ledger } from '@/services/masterAccountService';
+import { errorMessage } from '@/utils/errors';
 
 const ledgerSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -45,10 +46,14 @@ export default function QuickAddLedger({ open, onClose, onCreated }: Props) {
         type: data.type,
         description: data.description,
       });
-      onCreated({ id: created.id, label: `${created.name} (${created.type})`, type: created.type || data.type });
+      onCreated({
+        id: created.id,
+        label: `${created.name} (${created.type})`,
+        type: created.type || data.type,
+      });
       onClose();
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to create ledger. Please try again.');
+      setError(errorMessage(err, { action: 'create ledger. please try again' }));
     }
   };
 
@@ -89,15 +94,11 @@ export default function QuickAddLedger({ open, onClose, onCreated }: Props) {
             ]}
           />
           <div className="md:col-span-2">
-            <Input
-              label="Description"
-              {...register('description')}
-              placeholder="Optional description"
-            />
+            <Input label="Description" {...register('description')} placeholder="Optional description" />
           </div>
         </div>
 
-        <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+        <div className="flex gap-2 flex-col-reverse sm:flex-row sm:justify-end sm:gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
           <Button type="button" variant="outline" onClick={onClose}>
             <FiX className="h-4 w-4 mr-2" />
             Cancel

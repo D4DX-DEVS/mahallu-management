@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { FiEdit2, FiUsers, FiCheckCircle, FiXCircle } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import StatCard from '@/components/ui/StatCard';
@@ -17,6 +16,8 @@ import { useDebounce } from '@/hooks/useDebounce';
 import { formatDate, formatDateTime } from '@/utils/format';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
 import { toast } from '@/store/toastStore';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
 
 export default function MahallUsersList() {
   const navigate = useNavigate();
@@ -29,7 +30,7 @@ export default function MahallUsersList() {
   const [itemsPerPage] = useState(10);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
   const [isExporting, setIsExporting] = useState(false);
-  
+
   const debouncedSearch = useDebounce(searchQuery, 500);
 
   useEffect(() => {
@@ -54,7 +55,7 @@ export default function MahallUsersList() {
         setPagination(result.pagination);
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch users');
+      setError(loadErrorMessage(err, 'users'));
       console.error('Error fetching users:', err);
     } finally {
       setLoading(false);
@@ -64,10 +65,10 @@ export default function MahallUsersList() {
   const handleExport = async (type: 'csv' | 'json' | 'pdf') => {
     try {
       setIsExporting(true);
-      
+
       const params: any = { role: 'mahall', limit: 10000 };
       if (debouncedSearch) params.search = debouncedSearch;
-      
+
       const result = await userService.getAll(params);
       const dataToExport = result.data;
 
@@ -92,16 +93,15 @@ export default function MahallUsersList() {
       }
     } catch (error: any) {
       console.error('Export error:', error);
-      toast.error(error?.response?.data?.message || 'Failed to export data');
+      toast.error(errorMessage(error, { action: 'export data' }));
     } finally {
       setIsExporting(false);
     }
   };
 
   const columns: TableColumn<User>[] = [
-    { key: 'id', label: 'No.', render: (_, __, index) => index + 1 },
-    { 
-      key: 'name', 
+    {
+      key: 'name',
       label: 'Name',
       render: (name, row) => (
         <div>
@@ -155,6 +155,7 @@ export default function MahallUsersList() {
             }}
             className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
             title="Edit"
+            aria-label="Edit"
           >
             <FiEdit2 className="h-4 w-4" />
           </button>
@@ -180,20 +181,10 @@ export default function MahallUsersList() {
   return (
     <div className="space-y-4">
       <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">
-              All Mahall Users
-            </h1>
-            <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
-              Manage mahall users and their permissions
-            </p>
-          </div>
-          <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'All Mahall Users' }]} />
-        </div>
+        <PageHeader title="All Mahall Users" description="Manage mahall users and their permissions" />
 
         {/* Statistics Cards */}
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           {stats.map((stat, index) => (
             <StatCard key={index} {...stat} />
           ))}
@@ -213,9 +204,7 @@ export default function MahallUsersList() {
           isExporting={isExporting}
           actionButtons={
             <Link to={ROUTES.USERS.CREATE_MAHALL}>
-              <Button size="md">
-                + New User
-              </Button>
+              <Button size="md">+ New User</Button>
             </Link>
           }
         />
@@ -257,4 +246,3 @@ export default function MahallUsersList() {
     </div>
   );
 }
-

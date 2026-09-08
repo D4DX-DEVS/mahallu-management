@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { FiPlus, FiSearch, FiEdit2, FiTrash2, FiPhone } from 'react-icons/fi';
+import { FiPlus, FiEdit2, FiTrash2, FiPhone } from 'react-icons/fi';
 import { getHealthResources, deleteHealthResource, IHealthResource } from '@/services/healthService';
 import Pagination from '@/components/ui/Pagination';
+import ExpandableSearch from '@/components/ui/ExpandableSearch';
 import Button from '@/components/ui/Button';
-import Input from '@/components/ui/Input';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { toast } from '@/store/toastStore';
 import { useNavigate } from 'react-router-dom';
+import PageHeader from '@/components/layout/PageHeader';
 
 export default function DoctorsDirectory() {
   const navigate = useNavigate();
@@ -32,7 +33,7 @@ export default function DoctorsDirectory() {
       setTotalItems(response.pagination.total);
       setCurrentPage(response.pagination.page);
     } catch (error) {
-      console.error('Failed to fetch doctors:', error);
+      console.error("Couldn't load doctors:", error);
     } finally {
       setLoading(false);
     }
@@ -50,10 +51,10 @@ export default function DoctorsDirectory() {
       setConfirmDelete(false);
       setDeleteId(null);
       fetchDoctors(currentPage, search);
-      toast.success('Doctor deleted successfully');
+      toast.success('Doctor deleted');
     } catch (error) {
-      toast.error('Failed to delete doctor');
-      console.error('Failed to delete doctor:', error);
+      toast.error("Couldn't delete doctor. Please try again.");
+      console.error("Couldn't delete doctor:", error);
     } finally {
       setDeleting(false);
     }
@@ -68,32 +69,24 @@ export default function DoctorsDirectory() {
   }
 
   return (
-    <div className="flex-1 overflow-auto">
-      <div className="p-4 sm:p-6 max-w-full">
+    <div>
+      <div className="max-w-full">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold">Doctors Directory</h1>
-            <p className="text-sm sm:text-base text-gray-600 mt-1">{doctors.length} doctors found</p>
+            <PageHeader title="Doctors Directory" description={`${doctors.length} doctors found`} />
           </div>
-          <Button
-            onClick={() => navigate('/health/doctors/create')}
-            className="flex items-center gap-2"
-          >
+          <Button onClick={() => navigate('/health/doctors/create')} className="flex items-center gap-2">
             <FiPlus /> Add Doctor
           </Button>
         </div>
 
         <div className="mb-6">
-          <div className="flex items-center gap-2 bg-white border border-gray-300 rounded-lg px-3 py-2">
-            <FiSearch className="text-gray-400" />
-            <Input
-              type="text"
-              placeholder="Search by name or specialty..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="flex-1 border-none focus:ring-0"
-            />
-          </div>
+          <ExpandableSearch
+            value={search}
+            onChange={(value) => setSearch(value)}
+            entity="doctors"
+            placeholder="Search by name or specialty"
+          />
         </div>
 
         {doctors.length === 0 ? (
@@ -104,7 +97,7 @@ export default function DoctorsDirectory() {
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
               {doctors.map((doctor) => (
-                <div key={doctor.id} className="bg-white border border-gray-200 rounded-lg p-4">
+                <div key={doctor.id} className="rounded-lg border border-border bg-card p-3 sm:p-4">
                   <h3 className="text-base sm:text-lg font-semibold">{doctor.name}</h3>
                   {doctor.specialty && (
                     <p className="text-xs sm:text-sm text-gray-600 mt-1">{doctor.specialty}</p>
@@ -118,7 +111,7 @@ export default function DoctorsDirectory() {
                       Availability: {doctor.availability}
                     </p>
                   )}
-                  <div className="flex gap-2 mt-4">
+                  <div className="flex flex-wrap gap-2 mt-4">
                     <Button
                       variant="secondary"
                       size="sm"

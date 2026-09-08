@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react';
 import { FiDownload, FiPrinter } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import { reportService, AreaReport } from '@/services/reportService';
 import { exportToPDF } from '@/utils/exportUtils';
+import { loadErrorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
+import SortableTh from '@/components/ui/SortableTh';
+import { useSortableRows } from '@/hooks/useSortableRows';
 
 export default function AreaReportPage() {
   const [report, setReport] = useState<AreaReport | null>(null);
@@ -23,7 +26,7 @@ export default function AreaReportPage() {
       const data = await reportService.getAreaReport();
       setReport(data);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch area report');
+      setError(loadErrorMessage(err, 'area report'));
       console.error('Error fetching report:', err);
     } finally {
       setLoading(false);
@@ -32,29 +35,29 @@ export default function AreaReportPage() {
 
   const handleExportCSV = () => {
     if (!report) return;
-    const csvData = report.families.map(family => ({
+    const csvData = report.families.map((family) => ({
       'House Name': family.houseName,
       Area: family.area || '-',
-      Members: family.memberCount
+      Members: family.memberCount,
     }));
-    
+
     const headers = ['House Name', 'Area', 'Members'];
     const csvRows = [headers.join(',')];
-    
-    csvData.forEach(row => {
-      const values = headers.map(header => {
+
+    csvData.forEach((row) => {
+      const values = headers.map((header) => {
         const value = row[header as keyof typeof row] ?? '';
         const escaped = String(value).replace(/"/g, '""');
         return escaped.includes(',') ? `"${escaped}"` : escaped;
       });
       csvRows.push(values.join(','));
     });
-    
+
     const csvContent = csvRows.join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
-    
+
     link.setAttribute('href', url);
     link.setAttribute('download', `area-report-${new Date().toISOString().split('T')[0]}.csv`);
     link.style.visibility = 'hidden';
@@ -68,22 +71,26 @@ export default function AreaReportPage() {
     const columns = [
       { key: 'houseName', label: 'House Name' },
       { key: 'area', label: 'Area' },
-      { key: 'memberCount', label: 'Members' }
+      { key: 'memberCount', label: 'Members' },
     ];
-    
-    const data = report.families.map(family => ({
+
+    const data = report.families.map((family) => ({
       houseName: family.houseName,
       area: family.area || '-',
-      memberCount: family.memberCount
+      memberCount: family.memberCount,
     }));
-    
+
     exportToPDF(columns, data, `area-report-${new Date().toISOString().split('T')[0]}`, 'Area Report');
   };
 
+  const {
+    rows: sortedFamilies,
+    sort,
+    toggleSort,
+  } = useSortableRows(report?.families ?? []);
+
   if (loading) {
-    return (
-      <PageSkeleton />
-    );
+    return <PageSkeleton />;
   }
 
   if (error || !report) {
@@ -99,34 +106,22 @@ export default function AreaReportPage() {
 
   return (
     <div className="space-y-6">
-      <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Area Report' }]} />
+      <PageHeader description="Area-wise family and member statistics" title="Area Report" />
 
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Area Report</h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Area-wise family and member statistics</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <Button
-            onClick={handleExportCSV}
-            variant="outline"
-            className="flex items-center gap-2"
-          >
+      <div className="flex flex-wrap gap-2 items-center justify-between">
+        <div className="flex flex-wrap items-center gap-3">
+          <Button onClick={handleExportCSV} variant="outline" className="flex items-center gap-2">
             <FiDownload className="h-4 w-4" />
             Export CSV
           </Button>
-          <Button
-            onClick={handlePrintPDF}
-            variant="outline"
-            className="flex items-center gap-2"
-          >
+          <Button onClick={handlePrintPDF} variant="outline" className="flex items-center gap-2">
             <FiPrinter className="h-4 w-4" />
             Print PDF
           </Button>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
         <Card>
           <div className="text-sm text-gray-500 dark:text-gray-400">Total Families</div>
           <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{report.totalFamilies}</div>
@@ -151,19 +146,19 @@ export default function AreaReportPage() {
           <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
             <thead className="bg-gray-50 dark:bg-gray-800">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <SortableTh sortKey="houseName" sort={sort} onSort={toggleSort} className="px-6 py-3 uppercase tracking-wider">
                   House Name
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                </SortableTh>
+                <SortableTh sortKey="area" sort={sort} onSort={toggleSort} className="px-6 py-3 uppercase tracking-wider">
                   Area
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                </SortableTh>
+                <SortableTh sortKey="memberCount" sort={sort} onSort={toggleSort} className="px-6 py-3 uppercase tracking-wider">
                   Members
-                </th>
+                </SortableTh>
               </tr>
             </thead>
             <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
-              {report.families.map((family) => (
+              {sortedFamilies.map((family) => (
                 <tr key={family.id}>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
                     {family.houseName}
@@ -183,4 +178,3 @@ export default function AreaReportPage() {
     </div>
   );
 }
-

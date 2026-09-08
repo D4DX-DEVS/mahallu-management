@@ -5,42 +5,42 @@ export const createNikahRegistrationValidation = [
   body('groomName')
     .trim()
     .notEmpty()
-    .withMessage('Groom name is required')
+    .withMessage('Please enter the groom name.')
     .isLength({ min: 2, max: 100 })
-    .withMessage('Groom name must be between 2 and 100 characters'),
+    .withMessage('Please keep the groom name between 2 and 100 characters.'),
   body('groomNameMl').optional().trim(),
   body('groomAge')
     .optional()
     .isInt({ min: 0, max: 150 })
-    .withMessage('Groom age must be between 0 and 150'),
+    .withMessage('Please enter a groom age between 0 and 150.'),
   body('groomId')
     .optional()
     .isMongoId()
-    .withMessage('Invalid groom member ID'),
+    .withMessage('Please select a valid groom member.'),
   body('brideName')
     .trim()
     .notEmpty()
-    .withMessage('Bride name is required')
+    .withMessage('Please enter the bride name.')
     .isLength({ min: 2, max: 100 })
-    .withMessage('Bride name must be between 2 and 100 characters'),
+    .withMessage('Please keep the bride name between 2 and 100 characters.'),
   body('brideNameMl').optional().trim(),
   body('brideAge')
     .optional()
     .isInt({ min: 0, max: 150 })
-    .withMessage('Bride age must be between 0 and 150'),
+    .withMessage('Please enter a bride age between 0 and 150.'),
   body('brideId')
     .optional()
     .isMongoId()
-    .withMessage('Invalid bride member ID'),
+    .withMessage('Please select a valid bride member.'),
   body('mahallMemberType')
     .optional()
     .isIn(['groom', 'bride'])
-    .withMessage('Invalid mahall member type'),
+    .withMessage('Please choose a valid mahall member type.'),
   body('nikahDate')
     .notEmpty()
-    .withMessage('Nikah date is required')
+    .withMessage('Please select the nikah date.')
     .isISO8601()
-    .withMessage('Nikah date must be a valid date'),
+    .withMessage('Please choose a valid nikah date.'),
   body('mahallId').optional().trim(),
   body('waliName').optional().trim(),
   body('witness1').optional().trim(),
@@ -48,57 +48,57 @@ export const createNikahRegistrationValidation = [
   body('mahrAmount')
     .optional()
     .isFloat({ min: 0 })
-    .withMessage('Mahr amount must be a positive number'),
+    .withMessage('Please enter a mahr amount greater than zero.'),
   body('mahrDescription').optional().trim(),
   body('status')
     .optional()
     .isIn(['pending', 'approved', 'rejected'])
-    .withMessage('Invalid status'),
+    .withMessage('Please choose a valid status.'),
   body('remarks').optional().trim(),
 ];
 
 export const getNikahRegistrationValidation = [
-  param('id').isMongoId().withMessage('Invalid nikah registration ID'),
+  param('id').isMongoId().withMessage('Please select a valid nikah registration.'),
 ];
 
 export const updateNikahRegistrationValidation = [
-  param('id').isMongoId().withMessage('Invalid nikah registration ID'),
+  param('id').isMongoId().withMessage('Please select a valid nikah registration.'),
   body('groomName')
     .optional()
     .trim()
     .isLength({ min: 2, max: 100 })
-    .withMessage('Groom name must be between 2 and 100 characters'),
+    .withMessage('Please keep the groom name between 2 and 100 characters.'),
   body('groomNameMl').optional().trim(),
   body('groomAge')
     .optional()
     .isInt({ min: 0, max: 150 })
-    .withMessage('Groom age must be between 0 and 150'),
+    .withMessage('Please enter a groom age between 0 and 150.'),
   body('groomId')
     .optional()
     .isMongoId()
-    .withMessage('Invalid groom member ID'),
+    .withMessage('Please select a valid groom member.'),
   body('brideName')
     .optional()
     .trim()
     .isLength({ min: 2, max: 100 })
-    .withMessage('Bride name must be between 2 and 100 characters'),
+    .withMessage('Please keep the bride name between 2 and 100 characters.'),
   body('brideNameMl').optional().trim(),
   body('brideAge')
     .optional()
     .isInt({ min: 0, max: 150 })
-    .withMessage('Bride age must be between 0 and 150'),
+    .withMessage('Please enter a bride age between 0 and 150.'),
   body('brideId')
     .optional()
     .isMongoId()
-    .withMessage('Invalid bride member ID'),
+    .withMessage('Please select a valid bride member.'),
   body('mahallMemberType')
     .optional()
     .isIn(['groom', 'bride'])
-    .withMessage('Invalid mahall member type'),
+    .withMessage('Please choose a valid mahall member type.'),
   body('nikahDate')
     .optional()
     .isISO8601()
-    .withMessage('Nikah date must be a valid date'),
+    .withMessage('Please choose a valid nikah date.'),
   body('mahallId').optional().trim(),
   body('waliName').optional().trim(),
   body('witness1').optional().trim(),
@@ -106,12 +106,12 @@ export const updateNikahRegistrationValidation = [
   body('mahrAmount')
     .optional()
     .isFloat({ min: 0 })
-    .withMessage('Mahr amount must be a positive number'),
+    .withMessage('Please enter a mahr amount greater than zero.'),
   body('mahrDescription').optional().trim(),
   body('status')
     .optional()
     .isIn(['pending', 'approved', 'rejected'])
-    .withMessage('Invalid status'),
+    .withMessage('Please choose a valid status.'),
   body('remarks').optional().trim(),
 ];
 
@@ -120,77 +120,77 @@ export const createDeathRegistrationValidation = [
   body('deceasedName')
     .trim()
     .notEmpty()
-    .withMessage('Deceased name is required')
+    .withMessage('Please enter the deceased name.')
     .isLength({ min: 2, max: 100 })
-    .withMessage('Deceased name must be between 2 and 100 characters'),
+    .withMessage('Please keep the deceased name between 2 and 100 characters.'),
   body('deceasedNameMl').optional().trim(),
   body('deceasedId')
     .optional({ values: 'falsy' })
     .isMongoId()
-    .withMessage('Invalid deceased member ID'),
+    .withMessage('Please select a valid deceased member.'),
   body('deathDate')
     .notEmpty()
-    .withMessage('Death date is required')
+    .withMessage('Please select the death date.')
     .isISO8601()
-    .withMessage('Death date must be a valid date'),
+    .withMessage('Please choose a valid death date.'),
   body('placeOfDeath').optional().trim(),
   body('causeOfDeath').optional().trim(),
   body('mahallId').optional().trim(),
   body('familyId')
     .optional({ values: 'falsy' })
     .isMongoId()
-    .withMessage('Invalid family ID'),
+    .withMessage('Please select a valid family.'),
   body('informantName').optional().trim(),
   body('informantRelation').optional().trim(),
   body('informantPhone')
     .optional()
     .trim()
     .matches(/^[0-9]{10}$/)
-    .withMessage('Informant phone must be exactly 10 digits'),
+    .withMessage('Please enter a 10-digit informant phone.'),
   body('status')
     .optional()
     .isIn(['pending', 'approved', 'rejected'])
-    .withMessage('Invalid status'),
+    .withMessage('Please choose a valid status.'),
   body('remarks').optional().trim(),
 ];
 
 export const getDeathRegistrationValidation = [
-  param('id').isMongoId().withMessage('Invalid death registration ID'),
+  param('id').isMongoId().withMessage('Please select a valid death registration.'),
 ];
 
 export const updateDeathRegistrationValidation = [
-  param('id').isMongoId().withMessage('Invalid death registration ID'),
+  param('id').isMongoId().withMessage('Please select a valid death registration.'),
   body('deceasedName')
     .optional()
     .trim()
     .isLength({ min: 2, max: 100 })
-    .withMessage('Deceased name must be between 2 and 100 characters'),
+    .withMessage('Please keep the deceased name between 2 and 100 characters.'),
   body('deceasedId')
     .optional({ values: 'falsy' })
     .isMongoId()
-    .withMessage('Invalid deceased member ID'),
+    .withMessage('Please select a valid deceased member.'),
   body('deathDate')
     .optional()
     .isISO8601()
-    .withMessage('Death date must be a valid date'),
+    .withMessage('Please choose a valid death date.'),
   body('placeOfDeath').optional().trim(),
   body('causeOfDeath').optional().trim(),
   body('mahallId').optional().trim(),
   body('familyId')
     .optional({ values: 'falsy' })
     .isMongoId()
-    .withMessage('Invalid family ID'),
+    .withMessage('Please select a valid family.'),
   body('informantName').optional().trim(),
   body('informantRelation').optional().trim(),
   body('informantPhone')
     .optional()
     .trim()
     .matches(/^[0-9]{10}$/)
-    .withMessage('Informant phone must be exactly 10 digits'),
+    .withMessage('Please enter a 10-digit informant phone.'),
   body('status')
     .optional()
     .isIn(['pending', 'approved', 'rejected'])
-    .withMessage('Invalid status'),
+    .withMessage('Please choose a valid status.'),
   body('remarks').optional().trim(),
 ];
 
@@ -199,89 +199,89 @@ export const createNOCValidation = [
   body('applicantName')
     .trim()
     .notEmpty()
-    .withMessage('Applicant name is required')
+    .withMessage('Please enter the applicant name.')
     .isLength({ min: 2, max: 100 })
-    .withMessage('Applicant name must be between 2 and 100 characters'),
+    .withMessage('Please keep the applicant name between 2 and 100 characters.'),
   body('applicantNameMl').optional().trim(),
   body('applicantId')
     .optional()
     .isMongoId()
-    .withMessage('Invalid applicant member ID'),
+    .withMessage('Please select a valid applicant member.'),
   body('applicantPhone')
     .optional()
     .trim()
     .matches(/^[0-9]{10}$/)
-    .withMessage('Applicant phone must be exactly 10 digits'),
+    .withMessage('Please enter a 10-digit applicant phone.'),
   body('purposeTitle')
     .optional()
     .trim()
     .isLength({ min: 2, max: 200 })
-    .withMessage('Purpose title must be between 2 and 200 characters'),
+    .withMessage('Please keep the purpose title between 2 and 200 characters.'),
   body('purposeTitleMl').optional().trim(),
   body('purposeDescription')
     .optional()
     .isLength({ min: 2 })
-    .withMessage('Purpose description must be at least 2 characters'),
+    .withMessage('Please use at least 2 characters for the purpose description.'),
   body('purpose')
     .optional()
     .trim()
     .isLength({ min: 2, max: 500 })
-    .withMessage('Purpose must be between 2 and 500 characters'),
+    .withMessage('Please keep the purpose between 2 and 500 characters.'),
   body('type')
     .isIn(['common', 'nikah'])
-    .withMessage('Invalid NOC type'),
+    .withMessage('Please choose a valid NOC type.'),
   body('nikahRegistrationId')
     .optional()
     .isMongoId()
-    .withMessage('Invalid nikah registration ID'),
+    .withMessage('Please select a valid nikah registration.'),
   body('status')
     .optional()
     .isIn(['pending', 'approved', 'rejected'])
-    .withMessage('Invalid status'),
+    .withMessage('Please choose a valid status.'),
   body('issuedDate')
     .optional()
     .isISO8601()
-    .withMessage('Issued date must be a valid date'),
+    .withMessage('Please choose a valid issued date.'),
   body('expiryDate')
     .optional()
     .isISO8601()
-    .withMessage('Expiry date must be a valid date'),
+    .withMessage('Please choose a valid expiry date.'),
   body('remarks').optional().trim(),
 ];
 
 export const updateNOCValidation = [
-  param('id').isMongoId().withMessage('Invalid NOC ID'),
+  param('id').isMongoId().withMessage('Please select a valid NOC.'),
   body('status')
     .optional()
     .isIn(['pending', 'approved', 'rejected'])
-    .withMessage('Invalid status'),
+    .withMessage('Please choose a valid status.'),
   body('issuedDate')
     .optional()
     .isISO8601()
-    .withMessage('Issued date must be a valid date'),
+    .withMessage('Please choose a valid issued date.'),
   body('expiryDate')
     .optional()
     .isISO8601()
-    .withMessage('Expiry date must be a valid date'),
+    .withMessage('Please choose a valid expiry date.'),
   body('purposeTitle')
     .optional()
     .trim()
     .isLength({ min: 2, max: 200 })
-    .withMessage('Purpose title must be between 2 and 200 characters'),
+    .withMessage('Please keep the purpose title between 2 and 200 characters.'),
   body('purposeTitleMl').optional().trim(),
   body('purposeDescription')
     .optional()
     .isLength({ min: 2 })
-    .withMessage('Purpose description must be at least 2 characters'),
+    .withMessage('Please use at least 2 characters for the purpose description.'),
   body('purpose')
     .optional()
     .trim()
     .isLength({ min: 2, max: 500 })
-    .withMessage('Purpose must be between 2 and 500 characters'),
+    .withMessage('Please keep the purpose between 2 and 500 characters.'),
   body('remarks').optional().trim(),
 ];
 
 export const getNOCValidation = [
-  param('id').isMongoId().withMessage('Invalid NOC ID'),
+  param('id').isMongoId().withMessage('Please select a valid NOC.'),
 ];
 

@@ -18,14 +18,6 @@ export const statusLabels: Record<string, string> = {
   damaged: 'Damaged',
 };
 
-export const statusColors: Record<string, string> = {
-  active: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-  in_use: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-  under_maintenance: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
-  disposed: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200',
-  damaged: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
-};
-
 export const maintenanceStatusLabels: Record<string, string> = {
   scheduled: 'Scheduled',
   in_progress: 'In Progress',

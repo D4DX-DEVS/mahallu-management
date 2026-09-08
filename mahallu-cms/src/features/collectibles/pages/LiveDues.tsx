@@ -9,6 +9,8 @@ import { TableColumn, Pagination as PaginationType } from '@/types';
 import { collectibleService, FamilyDue } from '@/services/collectibleService';
 import { useDebounce } from '@/hooks/useDebounce';
 import { exportToCSV } from '@/utils/exportUtils';
+import { loadErrorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
 
 export default function LiveDues() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -49,7 +51,7 @@ export default function LiveDues() {
         setSummary(result.summary);
         setPagination(result.pagination);
       } catch (err: any) {
-        setError(err.response?.data?.message || 'Failed to load dues');
+        setError(loadErrorMessage(err, 'dues'));
       } finally {
         setLoading(false);
       }
@@ -101,30 +103,36 @@ export default function LiveDues() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Live Dues</h1>
-        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-          Varisangya expected vs paid for the current year
-        </p>
+        <PageHeader title="Live Dues" description="Varisangya expected vs paid for the current year" />
       </div>
 
       {summary && (
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard title="Families" value={summary.totalFamilies} icon={<FiHome className="h-5 w-5" />} />
-          <StatCard title="With Dues" value={summary.familiesWithDues} icon={<FiAlertCircle className="h-5 w-5" />} />
-          <StatCard title="Total Collected" value={`₹${summary.totalPaid.toLocaleString()}`} icon={<FiCheckCircle className="h-5 w-5" />} />
-          <StatCard title="Total Due" value={`₹${summary.totalDue.toLocaleString()}`} icon={<FiDollarSign className="h-5 w-5" />} />
+          <StatCard
+            title="With Dues"
+            value={summary.familiesWithDues}
+            icon={<FiAlertCircle className="h-5 w-5" />}
+          />
+          <StatCard
+            title="Total Collected"
+            value={`₹${summary.totalPaid.toLocaleString()}`}
+            icon={<FiCheckCircle className="h-5 w-5" />}
+          />
+          <StatCard
+            title="Total Due"
+            value={`₹${summary.totalDue.toLocaleString()}`}
+            icon={<FiDollarSign className="h-5 w-5" />}
+          />
         </div>
       )}
 
       <Card>
-        <TableToolbar
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-          onExport={handleExport}
-        />
+        <TableToolbar searchQuery={searchQuery} onSearchChange={setSearchQuery} onExport={handleExport} />
 
         <div className="mb-4 flex items-center gap-2 px-1">
           <input
+            aria-label="Select row"
             id="only-pending"
             type="checkbox"
             checked={onlyPending}
@@ -142,7 +150,13 @@ export default function LiveDues() {
           </div>
         )}
 
-        <Table columns={columns} data={dues} isLoading={loading} emptyMessage="No dues found" showExport={false} />
+        <Table
+          columns={columns}
+          data={dues}
+          isLoading={loading}
+          emptyMessage="No dues found"
+          showExport={false}
+        />
         {pagination && pagination.totalPages > 1 && (
           <div className="mt-4">
             <Pagination

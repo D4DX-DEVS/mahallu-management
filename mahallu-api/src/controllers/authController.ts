@@ -5,6 +5,8 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { AuthRequest } from '../middleware/authMiddleware';
 
+import { sendFailure } from '../utils/userMessages';
+
 const getPhoneVariants = (input: string): string[] => {
   const variants = new Set<string>();
   const raw = (input || '').trim();
@@ -39,7 +41,7 @@ export const login = async (req: Request, res: Response) => {
     if (!phone || !password) {
       return res.status(400).json({
         success: false,
-        message: 'Phone and password are required',
+        message: 'Please enter your phone number and password.',
       });
     }
 
@@ -58,13 +60,13 @@ export const login = async (req: Request, res: Response) => {
         if (!user) {
           return res.status(401).json({
             success: false,
-            message: 'Invalid credentials. Member account not found.',
+            message: "We couldn't find a member account for this phone number. Please check the number or contact your Mahallu admin.",
           });
         }
       } else {
         return res.status(401).json({
           success: false,
-          message: 'Invalid credentials',
+          message: 'That phone number or password is incorrect. Please try again.',
         });
       }
     }
@@ -73,21 +75,21 @@ export const login = async (req: Request, res: Response) => {
     if (!isPasswordValid) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid credentials',
+        message: 'That phone number or password is incorrect. Please try again.',
       });
     }
 
     if (user.status !== 'active') {
       return res.status(403).json({
         success: false,
-        message: 'Account is inactive',
+        message: 'Your account is inactive. Please contact your Mahallu admin.',
       });
     }
 
     if (user.role === 'member') {
       return res.status(403).json({
         success: false,
-        message: 'Member login is OTP-only. Please use send OTP and verify OTP.',
+        message: 'Members sign in with an OTP. Please request an OTP to continue.',
       });
     }
 
@@ -97,7 +99,7 @@ export const login = async (req: Request, res: Response) => {
       return res.json({
         success: true,
         data: { requiresOtp: true, phone: user.phone },
-        message: 'Two-factor authentication is enabled. Verify the OTP sent to your phone.',
+        message: 'Please enter the OTP we sent to your phone.',
       });
     }
 
@@ -123,7 +125,7 @@ export const login = async (req: Request, res: Response) => {
       },
     });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t sign you in. Please check your details and try again.');
   }
 };
 
@@ -134,7 +136,7 @@ export const getCurrentUser = async (req: AuthRequest, res: Response) => {
     
     res.json({ success: true, data: user });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the current user right now. Please try again.');
   }
 };
 
@@ -142,12 +144,12 @@ export const registerDevice = async (req: AuthRequest, res: Response) => {
   try {
     const { oneSignalPlayerId } = req.body;
     if (!oneSignalPlayerId) {
-      return res.status(400).json({ success: false, message: 'oneSignalPlayerId is required' });
+      return res.status(400).json({ success: false, message: "We couldn't set up notifications on this device. Please try again." });
     }
     await User.findByIdAndUpdate(req.user?._id, { oneSignalPlayerId });
-    res.json({ success: true, message: 'Device registered successfully' });
+    res.json({ success: true, message: 'Notifications are on for this device' });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t save the device. Please try again.');
   }
 };
 
@@ -163,7 +165,7 @@ export const setTwoFactor = async (req: AuthRequest, res: Response) => {
   try {
     const { enabled } = req.body;
     if (typeof enabled !== 'boolean') {
-      return res.status(400).json({ success: false, message: 'enabled must be true or false' });
+      return res.status(400).json({ success: false, message: 'Please turn this setting on or off.' });
     }
 
     const user = await User.findByIdAndUpdate(
@@ -173,12 +175,12 @@ export const setTwoFactor = async (req: AuthRequest, res: Response) => {
     ).select('-password');
 
     if (!user) {
-      return res.status(404).json({ success: false, message: 'User not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that user. It may have been removed." });
     }
 
     res.json({ success: true, data: { twoFactorEnabled: user.twoFactorEnabled } });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t update the two factor. Please try again.');
   }
 };
 
@@ -187,22 +189,22 @@ export const selectAccount = async (req: Request, res: Response) => {
     const { preAuthToken, userId } = req.body;
 
     if (!preAuthToken || !userId) {
-      return res.status(400).json({ success: false, message: 'preAuthToken and userId are required' });
+      return res.status(400).json({ success: false, message: 'That sign-in step has expired. Please sign in again.' });
     }
 
     if (!process.env.JWT_SECRET) {
-      return res.status(500).json({ success: false, message: 'Missing JWT secret' });
+      return res.status(500).json({ success: false, message: 'Something went wrong on our side. Please try again in a moment.' });
     }
 
     let decoded: any;
     try {
       decoded = jwt.verify(preAuthToken, process.env.JWT_SECRET);
     } catch {
-      return res.status(401).json({ success: false, message: 'Invalid or expired selection token. Please log in again.' });
+      return res.status(401).json({ success: false, message: 'That sign-in step has expired. Please sign in again.' });
     }
 
     if (decoded.purpose !== 'role_selection') {
-      return res.status(401).json({ success: false, message: 'Invalid token purpose' });
+      return res.status(401).json({ success: false, message: 'Your session has ended. Please sign in again to continue.' });
     }
 
     const tokenPhone: string = decoded.phone;
@@ -212,16 +214,16 @@ export const selectAccount = async (req: Request, res: Response) => {
 
     const user = await User.findById(userId).select('-password');
     if (!user) {
-      return res.status(404).json({ success: false, message: 'User account not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that user account. It may have been removed." });
     }
 
     // Verify user's phone matches the token's phone (prevents cross-account hijacking)
     if (!phoneVariants.includes(user.phone)) {
-      return res.status(401).json({ success: false, message: 'Account mismatch. Please log in again.' });
+      return res.status(401).json({ success: false, message: "We couldn't match your account. Please sign in again." });
     }
 
     if (user.status !== 'active') {
-      return res.status(403).json({ success: false, message: 'Account is inactive' });
+      return res.status(403).json({ success: false, message: 'Your account is inactive. Please contact your Mahallu admin.' });
     }
 
     user.lastLogin = new Date();
@@ -238,7 +240,7 @@ export const selectAccount = async (req: Request, res: Response) => {
       data: { user, token },
     });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t switch to that account. Please try again.');
   }
 };
 
@@ -248,23 +250,23 @@ export const changePassword = async (req: AuthRequest, res: Response) => {
     const user = await User.findById(req.user?._id).select('+password');
 
     if (!user) {
-      return res.status(404).json({ success: false, message: 'User not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that user. It may have been removed." });
     }
 
     const isPasswordValid = await bcrypt.compare(currentPassword, user.password);
     if (!isPasswordValid) {
       return res.status(401).json({
         success: false,
-        message: 'Current password is incorrect',
+        message: 'Your current password is incorrect. Please try again.',
       });
     }
 
     user.password = await bcrypt.hash(newPassword, 10);
     await user.save();
 
-    res.json({ success: true, message: 'Password changed successfully' });
+    res.json({ success: true, message: 'Password changed' });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t change your password. Please try again.');
   }
 };
 

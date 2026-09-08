@@ -11,6 +11,7 @@ import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { toast } from '@/store/toastStore';
+import PageHeader from '@/components/layout/PageHeader';
 
 interface RestrictedHealthPageProps {
   title: string;
@@ -49,7 +50,7 @@ export default function RestrictedHealthPage({ title, type, subtitle }: Restrict
         setAccessDenied(true);
         setResources([]);
       } else {
-        console.error('Failed to fetch resources:', error);
+        console.error("Couldn't load resources:", error);
       }
     } finally {
       setLoading(false);
@@ -68,10 +69,10 @@ export default function RestrictedHealthPage({ title, type, subtitle }: Restrict
       setConfirmDelete(false);
       setDeleteId(null);
       fetchResources(currentPage);
-      toast.success('Record deleted successfully');
+      toast.success('Entry deleted');
     } catch (error) {
-      toast.error('Failed to delete record');
-      console.error('Failed to delete resource:', error);
+      toast.error("Couldn't delete record. Please try again.");
+      console.error("Couldn't delete resource:", error);
     } finally {
       setDeleting(false);
     }
@@ -101,10 +102,10 @@ export default function RestrictedHealthPage({ title, type, subtitle }: Restrict
       setShowCreate(false);
       setForm({ name: '', contactNo: '', availability: '', notes: '' });
       fetchResources(1);
-      toast.success('Record added successfully');
+      toast.success('Entry added');
     } catch (error) {
-      toast.error('Failed to save record');
-      console.error('Failed to create resource:', error);
+      toast.error("Couldn't save record. Please try again.");
+      console.error("Couldn't create resource:", error);
       setFormErrors({ name: 'Could not save. Please try again.' });
     } finally {
       setSaving(false);
@@ -120,12 +121,13 @@ export default function RestrictedHealthPage({ title, type, subtitle }: Restrict
       <div className="flex-1 flex items-center justify-center">
         <div className="text-center max-w-md px-4">
           <FiLock className="w-16 h-16 mx-auto text-red-500 mb-4" />
-          <h1 className="text-2xl font-bold mb-2">{title}</h1>
+          <PageHeader title={title} />
           <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
             <div className="flex gap-2">
               <FiAlertCircle className="text-amber-600 flex-shrink-0 mt-0.5" />
               <p className="text-amber-800 text-sm">
-                Access to sensitive health records requires special permission. Please contact your administrator to request access to {subtitle}.
+                Access to sensitive health records requires special permission. Please contact your
+                administrator to request access to {subtitle}.
               </p>
             </div>
           </div>
@@ -135,13 +137,10 @@ export default function RestrictedHealthPage({ title, type, subtitle }: Restrict
   }
 
   return (
-    <div className="flex-1 overflow-auto">
-      <div className="p-4 sm:p-6 max-w-full">
+    <div>
+      <div className="max-w-full">
+        <PageHeader title={title} description={`${totalItems} ${totalItems === 1 ? 'record' : 'records'}`} />
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold">{title}</h1>
-            <p className="text-sm sm:text-base text-gray-600 mt-1">{totalItems} records</p>
-          </div>
           <Button onClick={() => setShowCreate(true)}>+ Add Record</Button>
         </div>
 
@@ -158,13 +157,11 @@ export default function RestrictedHealthPage({ title, type, subtitle }: Restrict
             <>
               <div className="space-y-3 mb-6">
                 {resources.map((resource) => (
-                  <div key={resource.id} className="bg-white border border-gray-200 rounded-lg p-4">
+                  <div key={resource.id} className="rounded-lg border border-border bg-card p-3 sm:p-4">
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                       <div className="flex-1">
                         <h3 className="text-base sm:text-lg font-semibold">{resource.name}</h3>
-                        <p className="text-xs sm:text-sm text-gray-600 mt-1">
-                          Contact: {resource.contactNo}
-                        </p>
+                        <p className="text-xs sm:text-sm text-gray-600 mt-1">Contact: {resource.contactNo}</p>
                         {resource.notes && (
                           <p className="text-xs sm:text-sm text-gray-600 mt-2">{resource.notes}</p>
                         )}
@@ -203,26 +200,29 @@ export default function RestrictedHealthPage({ title, type, subtitle }: Restrict
           <div>
             <label className="block text-sm font-medium mb-1">Name *</label>
             <input
+              aria-label="Name"
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 rounded"
               placeholder="Patient or case name"
             />
-            {formErrors.name && <p className="mt-1 text-xs text-red-600">{formErrors.name}</p>}
+            {formErrors.name && <p className="mt-1 text-label text-red-600">{formErrors.name}</p>}
           </div>
           <div>
             <label className="block text-sm font-medium mb-1">Contact Number *</label>
             <input
+              aria-label="Contact Number"
               value={form.contactNo}
               onChange={(e) => setForm({ ...form, contactNo: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 rounded"
               placeholder="Phone number"
             />
-            {formErrors.contactNo && <p className="mt-1 text-xs text-red-600">{formErrors.contactNo}</p>}
+            {formErrors.contactNo && <p className="mt-1 text-label text-red-600">{formErrors.contactNo}</p>}
           </div>
           <div>
             <label className="block text-sm font-medium mb-1">Availability / Frequency</label>
             <input
+              aria-label="Availability / Frequency"
               value={form.availability}
               onChange={(e) => setForm({ ...form, availability: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 rounded"
@@ -232,6 +232,7 @@ export default function RestrictedHealthPage({ title, type, subtitle }: Restrict
           <div>
             <label className="block text-sm font-medium mb-1">Notes</label>
             <textarea
+              aria-label="Notes"
               value={form.notes}
               onChange={(e) => setForm({ ...form, notes: e.target.value })}
               rows={3}
@@ -239,7 +240,7 @@ export default function RestrictedHealthPage({ title, type, subtitle }: Restrict
               placeholder="Condition, care needs, family contact..."
             />
           </div>
-          <div className="flex gap-3 justify-end">
+          <div className="flex gap-2 flex-col-reverse sm:flex-row sm:justify-end sm:gap-3">
             <Button variant="secondary" onClick={() => setShowCreate(false)}>
               Cancel
             </Button>

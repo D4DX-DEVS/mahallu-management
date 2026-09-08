@@ -5,12 +5,26 @@ import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { toast } from '@/store/toastStore';
+import { errorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
+import { FieldRule, LIMITS, validateForm, firstError } from '@/utils/validation';
+
+/** The same rules the create form and the API apply. */
+const RULES: Record<string, FieldRule> = {
+  name: { label: 'employer name', required: true, minLength: LIMITS.name.min, maxLength: LIMITS.title.max },
+  businessType: { label: 'business type', maxLength: 100 },
+  contactPerson: { label: 'contact person', maxLength: 100 },
+  contactNo: { label: 'contact number', type: 'phone' },
+  location: { label: 'location', maxLength: LIMITS.shortText.max },
+  notes: { label: 'notes', maxLength: LIMITS.notes.max },
+};
 
 export default function EmployerEdit() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [employer, setEmployer] = useState<Employer | null>(null);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState<Partial<Employer>>({});
   const [deleteConfirm, setDeleteConfirm] = useState(false);
@@ -25,7 +39,7 @@ export default function EmployerEdit() {
           setFormData(data);
         }
       } catch (error) {
-        console.error('Failed to fetch employer:', error);
+        console.error("Couldn't load employer:", error);
       } finally {
         setLoading(false);
       }
@@ -39,9 +53,23 @@ export default function EmployerEdit() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  // Save had no in-flight guard: a second click while the first request was
+  // still open fired the same update again.
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!id) return;
+    if (!id || saving) return;
+
+    // Save had no checks at all: a blank name, a 5,000-character note or a
+    // contact number reading "call the office" all went straight to the API.
+    // These fields are raw inputs, so the message goes where this page already
+    // puts its messages.
+    const problems = validateForm(formData, RULES);
+    if (Object.keys(problems).length > 0) {
+      toast.error(firstError(problems));
+      return;
+    }
+
+    setSaving(true);
 
     try {
       const updated = await employmentService.updateEmployer(id, {
@@ -56,13 +84,12 @@ export default function EmployerEdit() {
 
       setEmployer(updated);
       setIsEditing(false);
-      toast.success('Employer updated successfully');
+      toast.success('Employer updated');
     } catch (error) {
-      const message = error instanceof Error && 'response' in error
-        ? (error.response as any)?.data?.message || 'Failed to update employer'
-        : 'Failed to update employer';
-      toast.error(message);
-      console.error('Failed to update employer:', error);
+      toast.error(errorMessage(error, { action: 'update the employer' }));
+      console.error("Couldn't update employer:", error);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -75,11 +102,11 @@ export default function EmployerEdit() {
 
     setIsDeleting(true);
     try {
-      await employmentService.deleteEmployer(employer._id);
-      toast.success('Employer deleted successfully');
+      await employmentService.deleteEmployer(employer.id);
+      toast.success('Employer deleted');
       navigate('/employment/employers');
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to delete employer';
+      const message = errorMessage(error, { action: 'delete this employer' });
       toast.error(message);
       setIsDeleting(false);
     }
@@ -104,22 +131,22 @@ export default function EmployerEdit() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <button onClick={() => navigate('/employment/employers')} className="p-2 hover:bg-gray-100 rounded text-lg">
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            onClick={() => navigate('/employment/employers')}
+            className="p-2 hover:bg-gray-100 rounded text-lg"
+          >
             ←
           </button>
-          <h1 className="text-2xl font-bold text-gray-900">{employer.name}</h1>
+          <PageHeader title={employer.name} />
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {!isEditing && (
             <>
               <Button onClick={() => setIsEditing(true)} className="bg-blue-600 text-white">
                 Edit
               </Button>
-              <Button
-                onClick={handleDeleteClick}
-                className="bg-red-600 text-white"
-              >
+              <Button onClick={handleDeleteClick} className="bg-red-600 text-white">
                 Delete
               </Button>
             </>
@@ -128,15 +155,15 @@ export default function EmployerEdit() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="p-4">
+        <Card>
           <div className="text-xs text-gray-600">Business Type</div>
           <div className="font-semibold text-gray-900">{employer.businessType || '—'}</div>
         </Card>
-        <Card className="p-4">
+        <Card>
           <div className="text-xs text-gray-600">Contact Person</div>
           <div className="font-semibold text-gray-900">{employer.contactPerson || '—'}</div>
         </Card>
-        <Card className="p-4">
+        <Card>
           <div className="text-xs text-gray-600">Status</div>
           <div className="font-semibold text-gray-900 capitalize">{employer.status}</div>
         </Card>
@@ -149,6 +176,7 @@ export default function EmployerEdit() {
               <div>
                 <label className="block text-sm font-medium text-gray-900 mb-2">Employer Name</label>
                 <input
+                  aria-label="Employer Name"
                   type="text"
                   name="name"
                   value={formData.name || ''}
@@ -160,6 +188,7 @@ export default function EmployerEdit() {
               <div>
                 <label className="block text-sm font-medium text-gray-900 mb-2">Business Type</label>
                 <input
+                  aria-label="Business Type"
                   type="text"
                   name="businessType"
                   value={formData.businessType || ''}
@@ -171,6 +200,7 @@ export default function EmployerEdit() {
               <div>
                 <label className="block text-sm font-medium text-gray-900 mb-2">Contact Person</label>
                 <input
+                  aria-label="Contact Person"
                   type="text"
                   name="contactPerson"
                   value={formData.contactPerson || ''}
@@ -182,6 +212,7 @@ export default function EmployerEdit() {
               <div>
                 <label className="block text-sm font-medium text-gray-900 mb-2">Contact Number</label>
                 <input
+                  aria-label="Contact Number"
                   type="tel"
                   name="contactNo"
                   value={formData.contactNo || ''}
@@ -193,6 +224,7 @@ export default function EmployerEdit() {
               <div>
                 <label className="block text-sm font-medium text-gray-900 mb-2">Location</label>
                 <input
+                  aria-label="Location"
                   type="text"
                   name="location"
                   value={formData.location || ''}
@@ -204,6 +236,7 @@ export default function EmployerEdit() {
               <div>
                 <label className="block text-sm font-medium text-gray-900 mb-2">Status</label>
                 <select
+                  aria-label="Status"
                   name="status"
                   value={formData.status || 'active'}
                   onChange={handleChange}
@@ -218,6 +251,7 @@ export default function EmployerEdit() {
             <div>
               <label className="block text-sm font-medium text-gray-900 mb-2">Notes</label>
               <textarea
+                aria-label="Notes"
                 name="notes"
                 value={formData.notes || ''}
                 onChange={handleChange}
@@ -226,11 +260,11 @@ export default function EmployerEdit() {
               />
             </div>
 
-            <div className="flex gap-3 justify-end">
+            <div className="flex gap-2 flex-col-reverse sm:flex-row sm:justify-end sm:gap-3">
               <Button onClick={() => setIsEditing(false)} className="bg-gray-200 text-gray-800">
                 Cancel
               </Button>
-              <Button type="submit" className="bg-blue-600 text-white">
+              <Button type="submit" className="bg-blue-600 text-white" isLoading={saving} disabled={saving}>
                 Save Changes
               </Button>
             </div>

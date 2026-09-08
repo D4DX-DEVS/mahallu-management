@@ -27,6 +27,7 @@ import {
   updateNOCValidation,
   getNOCValidation,
 } from '../validations/registrationValidation';
+import { idParam, listQuery } from '../validations/common';
 
 const router = express.Router();
 
@@ -110,7 +111,7 @@ router.use(tenantFilter);
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  */
-router.get('/nikah', getAllNikahRegistrations);
+router.get('/nikah', listQuery(), validationHandler, getAllNikahRegistrations);
 
 /**
  * @swagger
@@ -325,7 +326,7 @@ router.put('/nikah/:id', updateNikahRegistrationValidation, validationHandler, u
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  */
-router.get('/death', getAllDeathRegistrations);
+router.get('/death', listQuery(), validationHandler, getAllDeathRegistrations);
 
 /**
  * @swagger
@@ -529,7 +530,7 @@ router.put('/death/:id', updateDeathRegistrationValidation, validationHandler, u
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  */
-router.get('/noc', getAllNOCs);
+router.get('/noc', listQuery(), validationHandler, getAllNOCs);
 
 /**
  * @swagger

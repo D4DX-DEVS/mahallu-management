@@ -4,6 +4,9 @@ import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import { assistantService, type AssistantTurn } from '@/services/assistantService';
 import { useAuthStore } from '@/store/authStore';
+import PageHeader from '@/components/layout/PageHeader';
+/** A question, not a payload. The API answers a prompt, and pays per token. */
+const MAX_QUESTION_LENGTH = 1000;
 
 /**
  * Task C4 — AI assistant chat panel.
@@ -145,6 +148,10 @@ export default function Assistant() {
   const send = async (text: string) => {
     const asked = text.trim();
     if (!asked || loading) return;
+    if (asked.length > MAX_QUESTION_LENGTH) {
+      setError(`Please keep your question to ${MAX_QUESTION_LENGTH} characters or less.`);
+      return;
+    }
 
     let id = currentId;
     if (!id) {
@@ -178,14 +185,14 @@ export default function Assistant() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-start justify-between gap-2">
+      <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <h1 className="font-title text-2xl font-bold text-gray-900 dark:text-gray-100">AI സഹായി</h1>
-          <p className="font-body mt-1 text-sm text-gray-500 dark:text-gray-400">
-            Ask about this Mahallu in Malayalam or English — മലയാളത്തിലോ ഇംഗ്ലീഷിലോ ചോദിക്കാം.
-          </p>
+          <PageHeader
+            title="AI സഹായി"
+            description="Ask about this Mahallu in Malayalam or English — മലയാളത്തിലോ ഇംഗ്ലീഷിലോ ചോദിക്കാം."
+          />
         </div>
-        <div className="relative flex gap-2">
+        <div className="relative flex flex-wrap gap-2">
           {chats.length > 0 && (
             <Button type="button" variant="outline" onClick={() => setShowHistory((v) => !v)}>
               <FiClock className="mr-1.5 h-4 w-4" />
@@ -199,17 +206,25 @@ export default function Assistant() {
             </Button>
           )}
           {showHistory && (
-            <div className="absolute right-0 top-full z-10 mt-1 max-h-80 w-80 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-900">
+            <div className="absolute right-0 top-full z-10 mt-1 max-h-80 w-80 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-900">
               {chats.map((c) => (
                 <div
                   key={c.id}
                   className={`flex items-center gap-2 border-b border-gray-100 px-3 py-2 last:border-0 dark:border-gray-800 ${
-                    c.id === currentId ? 'bg-primary-50 dark:bg-gray-800' : 'hover:bg-gray-50 dark:hover:bg-gray-800'
+                    c.id === currentId
+                      ? 'bg-primary-50 dark:bg-gray-800'
+                      : 'hover:bg-gray-50 dark:hover:bg-gray-800'
                   }`}
                 >
-                  <button type="button" onClick={() => openChat(c.id)} className="flex-1 overflow-hidden text-left">
-                    <span className="font-body block truncate text-sm text-gray-900 dark:text-gray-100">{c.title}</span>
-                    <span className="font-body text-[11px] text-gray-400">{formatWhen(c.updatedAt)}</span>
+                  <button
+                    type="button"
+                    onClick={() => openChat(c.id)}
+                    className="flex-1 overflow-hidden text-left"
+                  >
+                    <span className="font-body block truncate text-sm text-gray-900 dark:text-gray-100">
+                      {c.title}
+                    </span>
+                    <span className="font-body text-xs text-gray-400">{formatWhen(c.updatedAt)}</span>
                   </button>
                   <button
                     type="button"
@@ -226,7 +241,7 @@ export default function Assistant() {
         </div>
       </div>
 
-      <Card className="p-3 sm:p-4">
+      <Card>
         <div className="h-[55vh] overflow-y-auto pr-1">
           {turns.length === 0 && (
             <div className="py-8 text-center">
@@ -259,8 +274,11 @@ export default function Assistant() {
                 >
                   {renderMarkup(turn.content)}
                   {turn.toolsUsed && turn.toolsUsed.length > 0 && (
-                    <div className="mt-1 text-[11px] opacity-60">
-                      Source: {Array.from(new Set(turn.toolsUsed.map((t) => TOOL_LABELS[t] || 'ERP data'))).join(' · ')}
+                    <div className="mt-1 text-xs opacity-60">
+                      Source:{' '}
+                      {Array.from(new Set(turn.toolsUsed.map((t) => TOOL_LABELS[t] || 'ERP data'))).join(
+                        ' · '
+                      )}
                     </div>
                   )}
                 </div>
@@ -281,6 +299,7 @@ export default function Assistant() {
           className="mt-3 flex gap-2"
         >
           <input
+            aria-label="ചോദ്യം ടൈപ്പ് ചെയ്യുക"
             value={question}
             onChange={(e) => setQuestion(e.target.value)}
             maxLength={1000}
@@ -292,7 +311,7 @@ export default function Assistant() {
           </Button>
         </form>
         {remaining !== null && (
-          <p className="font-body mt-1.5 text-right text-[11px] text-gray-400">
+          <p className="font-body mt-1.5 text-right text-xs text-gray-400">
             ഇന്ന് ബാക്കി {remaining} ചോദ്യങ്ങൾ · {remaining} left today
           </p>
         )}

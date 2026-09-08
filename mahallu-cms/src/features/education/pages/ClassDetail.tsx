@@ -1,6 +1,5 @@
 import { useState, useEffect, ReactNode } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Table from '@/components/ui/Table';
@@ -23,6 +22,10 @@ import {
 } from '@/services/madrasaService';
 import { attendanceService, ClassProgress } from '@/services/attendanceService';
 import EnrollStudentModal from '../components/EnrollStudentModal';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
+import SortableTh from '@/components/ui/SortableTh';
+import { useSortableRows } from '@/hooks/useSortableRows';
 
 const STATUS_FILTER = [{ value: '', label: 'All students' }, ...ENROLLMENT_STATUS_OPTIONS];
 
@@ -69,7 +72,7 @@ export default function ClassDetail() {
       setError(null);
       setCls(await madrasaService.getClass(classId));
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to load the class');
+      setError(loadErrorMessage(err, 'the class'));
     } finally {
       setLoading(false);
     }
@@ -81,7 +84,7 @@ export default function ClassDetail() {
       const data = await attendanceService.getClassProgress(classId);
       setProgress(data);
     } catch (err: any) {
-      console.error('Failed to load progress', err);
+      console.error("Couldn't load progress", err);
     } finally {
       setProgressLoading(false);
     }
@@ -116,7 +119,7 @@ export default function ClassDetail() {
       toast.success('Enrollment updated');
       refresh();
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to update enrollment');
+      toast.error(errorMessage(err, { action: 'update enrollment' }));
     } finally {
       setBusyId(null);
     }
@@ -131,7 +134,7 @@ export default function ClassDetail() {
       toast.success(`${removeConfirm.name} removed from class`);
       refresh();
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to remove student');
+      toast.error(errorMessage(err, { action: 'remove student' }));
     } finally {
       setRemoving(false);
     }
@@ -177,12 +180,18 @@ export default function ClassDetail() {
     },
   ];
 
+  const {
+    rows: sortedStudents,
+    sort,
+    toggleSort,
+  } = useSortableRows(progress?.students ?? []);
+
   if (loading) return <PageSkeleton />;
 
   if (error || !cls) {
     return (
       <div>
-        <Breadcrumb items={[{ label: 'Services' }, { label: 'Education', path: '/education' }]} />
+        <PageHeader title="Education" breadcrumbs={[{ label: 'Services' }]} />
         <Card>
           <p className="text-sm text-red-600 dark:text-red-400">{error || 'Class not found'}</p>
           <Button className="mt-3" variant="secondary" onClick={() => navigate('/education')}>
@@ -195,21 +204,12 @@ export default function ClassDetail() {
 
   return (
     <div>
-      <Breadcrumb
-        items={[
-          { label: 'Services' },
-          { label: 'Education', path: '/education' },
-          { label: cls.name },
-        ]}
+      <PageHeader
+        title={cls.name}
+        breadcrumbs={[{ label: 'Services' }, { label: 'Education', path: '/education' }]}
       />
 
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">{cls.name}</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            {classTypeLabel(cls.classType)} · {cls.academicYear}
-          </p>
-        </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="secondary" onClick={() => navigate(`/education/classes/${cls.id}/attendance`)}>
             Attendance
@@ -231,24 +231,21 @@ export default function ClassDetail() {
           <Field label="Teacher" value={teacherName(cls)} />
           <Field
             label="Institute"
-            value={
-              cls.instituteId && typeof cls.instituteId === 'object' ? cls.instituteId.name : '-'
-            }
+            value={cls.instituteId && typeof cls.instituteId === 'object' ? cls.instituteId.name : '-'}
           />
           <Field label="Schedule" value={cls.schedule || '-'} />
           <Field label="Active students" value={cls.studentCount ?? 0} />
           <Field label="Status" value={cls.status} />
           <div className="col-span-2 sm:col-span-3 lg:col-span-4">
-            <Field
-              label="Subjects"
-              value={cls.subjects?.length ? cls.subjects.join(', ') : 'None listed'}
-            />
+            <Field label="Subjects" value={cls.subjects?.length ? cls.subjects.join(', ') : 'None listed'} />
           </div>
         </div>
       </Card>
 
       {progressLoading ? (
-        <Card className="mb-4"><PageSkeleton variant="section" /></Card>
+        <Card className="mb-4">
+          <PageSkeleton variant="section" />
+        </Card>
       ) : progress ? (
         <Card className="mb-4">
           <h2 className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100">Progress</h2>
@@ -256,19 +253,19 @@ export default function ClassDetail() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-200 dark:border-gray-700">
-                  <th className="px-4 py-2 text-left font-medium text-gray-700 dark:text-gray-300">
+                  <SortableTh sortKey="studentName" sort={sort} onSort={toggleSort} className="px-4 py-2">
                     Student
-                  </th>
-                  <th className="px-4 py-2 text-left font-medium text-gray-700 dark:text-gray-300">
+                  </SortableTh>
+                  <SortableTh sortKey="attendance" sort={sort} onSort={toggleSort} className="px-4 py-2">
                     Attendance
-                  </th>
-                  <th className="px-4 py-2 text-left font-medium text-gray-700 dark:text-gray-300">
+                  </SortableTh>
+                  <SortableTh sortKey="examAverage" sort={sort} onSort={toggleSort} className="px-4 py-2">
                     Exam Average
-                  </th>
+                  </SortableTh>
                 </tr>
               </thead>
               <tbody>
-                {progress.students.map((student, idx) => (
+                {sortedStudents.map((student, idx) => (
                   <tr
                     key={idx}
                     className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/30"

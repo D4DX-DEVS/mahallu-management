@@ -5,12 +5,14 @@ import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import { toast } from '@/store/toastStore';
+import { errorMessage } from '@/utils/errors';
 import {
   getCounsellingCaseById,
   addCounsellingNote,
   updateCounsellingCase,
   ICounsellingCase,
 } from '@/services/counsellingService';
+import PageHeader from '@/components/layout/PageHeader';
 
 export default function CounsellingDetail() {
   const { id } = useParams<{ id: string }>();
@@ -33,7 +35,7 @@ export default function CounsellingDetail() {
       setCaseRecord(response.data);
       setEditStatus(response.data.status);
     } catch (error) {
-      console.error('Failed to fetch case:', error);
+      console.error("Couldn't load case:", error);
     } finally {
       setLoading(false);
     }
@@ -48,8 +50,8 @@ export default function CounsellingDetail() {
       setNote('');
       toast.success('Session note added');
     } catch (error) {
-      console.error('Failed to add note:', error);
-      toast.error((error as any).response?.data?.message || 'Failed to add session note');
+      console.error("Couldn't add note:", error);
+      toast.error(errorMessage(error, { action: 'add session note' }));
     } finally {
       setAddingNote(false);
     }
@@ -63,8 +65,8 @@ export default function CounsellingDetail() {
       setIsEditing(false);
       toast.success('Case status updated');
     } catch (error) {
-      console.error('Failed to update status:', error);
-      toast.error((error as any).response?.data?.message || 'Failed to update case status');
+      console.error("Couldn't update status:", error);
+      toast.error(errorMessage(error, { action: 'update case status' }));
     }
   };
 
@@ -72,8 +74,9 @@ export default function CounsellingDetail() {
   if (!caseRecord) return <div className="p-4">Case not found</div>;
 
   return (
-    <div className="flex-1 overflow-auto">
-      <div className="p-4 sm:p-6">
+    <div>
+      <PageHeader title="Counselling case" breadcrumbs={[{ label: 'Counselling', path: '/counselling' }]} />
+      <div>
         <Button
           variant="ghost"
           className="mb-6 flex items-center gap-2"
@@ -85,7 +88,7 @@ export default function CounsellingDetail() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
           {/* Case Info */}
-          <Card className="p-4">
+          <Card>
             <h2 className="text-lg font-bold mb-4">Case Information</h2>
             <div className="space-y-3">
               <div>
@@ -114,7 +117,7 @@ export default function CounsellingDetail() {
           </Card>
 
           {/* Status */}
-          <Card className="p-4">
+          <Card>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold">Status</h2>
               {!isEditing && (
@@ -131,6 +134,7 @@ export default function CounsellingDetail() {
             {isEditing ? (
               <div className="space-y-3">
                 <select
+                  aria-label="Filter"
                   value={editStatus}
                   onChange={(e) => setEditStatus(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg"
@@ -140,7 +144,7 @@ export default function CounsellingDetail() {
                   <option value="follow_up">Follow Up</option>
                   <option value="closed">Closed</option>
                 </select>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <Button variant="primary" size="sm" onClick={handleSaveStatus}>
                     <FiSave size={16} />
                     Save
@@ -157,7 +161,7 @@ export default function CounsellingDetail() {
         </div>
 
         {/* Session Notes Timeline */}
-        <Card className="p-4 mb-6">
+        <Card className="mb-6">
           <h2 className="text-lg font-bold mb-4">Session Notes</h2>
           <div className="space-y-4 mb-6 max-h-96 overflow-y-auto">
             {caseRecord.sessionNotes && caseRecord.sessionNotes.length > 0 ? (
@@ -178,6 +182,7 @@ export default function CounsellingDetail() {
           <div className="border-t pt-4">
             <label className="block text-sm font-medium mb-2">Add Session Note</label>
             <textarea
+              aria-label="Add Session Note"
               value={note}
               onChange={(e) => setNote(e.target.value)}
               placeholder="Enter session note..."
@@ -198,7 +203,7 @@ export default function CounsellingDetail() {
 
         {/* Closure Notes */}
         {caseRecord.closureNotes && (
-          <Card className="p-4 bg-amber-50 border border-amber-200">
+          <Card className="bg-amber-50 border border-amber-200">
             <h3 className="font-bold mb-2">Closure Notes</h3>
             <p className="text-sm">{caseRecord.closureNotes}</p>
           </Card>

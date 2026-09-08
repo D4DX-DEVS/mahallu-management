@@ -7,6 +7,7 @@ import Checkbox from '@/components/ui/Checkbox';
 import { formatCurrency } from '@/utils/format';
 import { toast } from '@/store/toastStore';
 import { qardService, QardLoan, LoanStatus, LOAN_TRANSITIONS } from '@/services/qardService';
+import { errorMessage } from '@/utils/errors';
 
 interface LoanStatusModalProps {
   isOpen: boolean;
@@ -51,7 +52,7 @@ export default function LoanStatusModal({ isOpen, onClose, loan, onUpdated }: Lo
       onUpdated();
       onClose();
     } catch (err: any) {
-      const errorMsg = err.response?.data?.message || 'Failed to update the loan';
+      const errorMsg = errorMessage(err, { action: 'update the loan' });
       setError(errorMsg);
       toast.error(errorMsg);
     } finally {
@@ -65,14 +66,11 @@ export default function LoanStatusModal({ isOpen, onClose, loan, onUpdated }: Lo
       onClose={onClose}
       title="Move this loan"
       footer={
-        <div className="flex justify-end gap-2">
+        <div className="flex gap-2 flex-col-reverse sm:flex-row sm:justify-end sm:gap-2">
           <Button variant="secondary" onClick={onClose} disabled={saving}>
             Cancel
           </Button>
-          <Button
-            onClick={submit}
-            disabled={!status || saving || (overApproving && !allowOverApproval)}
-          >
+          <Button onClick={submit} disabled={!status || saving || (overApproving && !allowOverApproval)}>
             {saving ? 'Saving...' : 'Update'}
           </Button>
         </div>

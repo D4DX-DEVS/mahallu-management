@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { FiEdit2, FiArrowLeft, FiPlus, FiTrash2, FiTool } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import { PageSkeleton } from '@/components/ui/Skeleton';
@@ -16,11 +15,15 @@ import { toast } from '@/store/toastStore';
 import {
   categoryLabels,
   statusLabels,
-  statusColors,
   maintenanceStatusLabels,
   maintenanceStatusColors,
 } from '../assetLabels';
-
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import StatusBadge from '@/components/ui/StatusBadge';
+import PageHeader from '@/components/layout/PageHeader';
+import ActionsMenu from '@/components/ui/ActionsMenu';
+import DatePicker from '@/components/ui/DatePicker';
+import Input from '@/components/ui/Input';
 
 export default function AssetDetail() {
   const { id } = useParams<{ id: string }>();
@@ -63,7 +66,7 @@ export default function AssetDetail() {
       const data = await assetService.getById(id);
       setAsset(data);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch asset');
+      setError(loadErrorMessage(err, 'asset'));
     } finally {
       setLoading(false);
     }
@@ -102,11 +105,15 @@ export default function AssetDetail() {
   const openEditMaintenance = (record: AssetMaintenance) => {
     setEditingMaintenance(record);
     setMaintenanceForm({
-      maintenanceDate: record.maintenanceDate ? new Date(record.maintenanceDate).toISOString().split('T')[0] : '',
+      maintenanceDate: record.maintenanceDate
+        ? new Date(record.maintenanceDate).toISOString().split('T')[0]
+        : '',
       description: record.description || '',
       cost: record.cost ? String(record.cost) : '',
       performedBy: record.performedBy || '',
-      nextMaintenanceDate: record.nextMaintenanceDate ? new Date(record.nextMaintenanceDate).toISOString().split('T')[0] : '',
+      nextMaintenanceDate: record.nextMaintenanceDate
+        ? new Date(record.nextMaintenanceDate).toISOString().split('T')[0]
+        : '',
       status: record.status || 'scheduled',
     });
     setShowMaintenanceModal(true);
@@ -135,7 +142,7 @@ export default function AssetDetail() {
       await fetchMaintenanceRecords();
     } catch (err: any) {
       console.error('Error saving maintenance record:', err);
-      toast.error(err.response?.data?.message || 'Failed to save maintenance record');
+      toast.error(errorMessage(err, { action: 'save maintenance record' }));
     } finally {
       setMaintenanceSubmitting(false);
     }
@@ -151,14 +158,13 @@ export default function AssetDetail() {
       setSelectedMaintenance(null);
       await fetchMaintenanceRecords();
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to delete maintenance record');
+      toast.error(errorMessage(err, { action: 'delete maintenance record' }));
     } finally {
       setDeletingMaintenance(false);
     }
   };
 
   const maintenanceColumns: TableColumn<AssetMaintenance>[] = [
-    { key: 'id', label: 'No.', render: (_, __, index) => index + 1 },
     {
       key: 'maintenanceDate',
       label: 'Date',
@@ -168,14 +174,16 @@ export default function AssetDetail() {
     {
       key: 'cost',
       label: 'Cost (₹)',
-      render: (cost) => cost ? cost.toLocaleString('en-IN') : '-',
+      render: (cost) => (cost ? cost.toLocaleString('en-IN') : '-'),
     },
     { key: 'performedBy', label: 'Performed By', render: (val) => val || '-' },
     {
       key: 'status',
       label: 'Status',
       render: (status) => (
-        <span className={`px-2 py-1 text-xs font-medium rounded-full ${maintenanceStatusColors[status] || 'bg-gray-100 text-gray-800'}`}>
+        <span
+          className={`px-2 py-1 text-xs font-medium rounded-full ${maintenanceStatusColors[status] || 'bg-gray-100 text-gray-800'}`}
+        >
           {maintenanceStatusLabels[status] || status}
         </span>
       ),
@@ -183,43 +191,38 @@ export default function AssetDetail() {
     {
       key: 'nextMaintenanceDate',
       label: 'Next Due',
-      render: (date) => date ? formatDate(date) : '-',
+      render: (date) => (date ? formatDate(date) : '-'),
     },
     {
       key: 'actions',
       label: 'Actions',
       render: (_, row) => (
-        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              openEditMaintenance(row);
-            }}
-            className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
-            title="Edit"
-          >
-            <FiEdit2 className="h-4 w-4" />
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setSelectedMaintenance(row);
-              setShowDeleteMaintenanceModal(true);
-            }}
-            className="p-1.5 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 transition-colors"
-            title="Delete"
-          >
-            <FiTrash2 className="h-4 w-4" />
-          </button>
-        </div>
+        <ActionsMenu
+          items={[
+            {
+              label: 'Edit',
+              icon: <FiEdit2 className="h-4 w-4" />,
+              onClick: () => {
+                openEditMaintenance(row);
+              },
+            },
+            {
+              label: 'Delete',
+              icon: <FiTrash2 className="h-4 w-4" />,
+              onClick: () => {
+                setSelectedMaintenance(row);
+                setShowDeleteMaintenanceModal(true);
+              },
+              variant: 'danger',
+            },
+          ]}
+        />
       ),
     },
   ];
 
   if (loading) {
-    return (
-      <PageSkeleton />
-    );
+    return <PageSkeleton />;
   }
 
   if (error || !asset) {
@@ -236,20 +239,14 @@ export default function AssetDetail() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{asset.name}</h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Asset Details</p>
-        </div>
-        <div className="flex items-center gap-4">
-          <Breadcrumb
-            items={[
-              { label: 'Dashboard', path: '/dashboard' },
-              { label: 'Assets', path: ROUTES.ASSETS.LIST },
-              { label: asset.name },
-            ]}
+      <div className="flex flex-wrap gap-2 items-center justify-between">
+        <div className="flex flex-wrap items-center gap-4">
+          <PageHeader
+            description="Asset Details"
+            title={asset.name}
+            breadcrumbs={[{ label: 'Assets', path: ROUTES.ASSETS.LIST }]}
           />
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Link to={ROUTES.ASSETS.LIST}>
               <Button variant="outline">
                 <FiArrowLeft className="h-4 w-4 mr-2" />
@@ -277,7 +274,9 @@ export default function AssetDetail() {
             </div>
             <div>
               <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Category</label>
-              <p className="mt-1 text-gray-900 dark:text-gray-100">{categoryLabels[asset.category] || asset.category}</p>
+              <p className="mt-1 text-gray-900 dark:text-gray-100">
+                {categoryLabels[asset.category] || asset.category}
+              </p>
             </div>
             <div>
               <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Mosque</label>
@@ -288,9 +287,7 @@ export default function AssetDetail() {
             <div>
               <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Status</label>
               <p className="mt-1">
-                <span className={`px-2 py-1 text-xs font-medium rounded-full ${statusColors[asset.status] || 'bg-gray-100 text-gray-800'}`}>
-                  {statusLabels[asset.status] || asset.status}
-                </span>
+                <StatusBadge status={asset.status} />
               </p>
             </div>
             <div>
@@ -394,22 +391,19 @@ export default function AssetDetail() {
         }
       >
         <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Maintenance Date <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="date"
-              value={maintenanceForm.maintenanceDate}
-              onChange={(e) => setMaintenanceForm({ ...maintenanceForm, maintenanceDate: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-            />
-          </div>
+          <Input
+            label="Maintenance date"
+            type="date"
+            required
+            value={maintenanceForm.maintenanceDate}
+            onChange={(e) => setMaintenanceForm({ ...maintenanceForm, maintenanceDate: e.target.value })}
+          />
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Description <span className="text-red-500">*</span>
             </label>
             <textarea
+              aria-label="Description"
               value={maintenanceForm.description}
               onChange={(e) => setMaintenanceForm({ ...maintenanceForm, description: e.target.value })}
               rows={3}
@@ -417,10 +411,13 @@ export default function AssetDetail() {
               placeholder="Describe the maintenance work..."
             />
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Cost (₹)</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Cost (₹)
+              </label>
               <input
+                aria-label="Cost (₹)"
                 type="number"
                 min="0"
                 step="0.01"
@@ -431,8 +428,11 @@ export default function AssetDetail() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Performed By</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Performed By
+              </label>
               <input
+                aria-label="Performed By"
                 type="text"
                 value={maintenanceForm.performedBy}
                 onChange={(e) => setMaintenanceForm({ ...maintenanceForm, performedBy: e.target.value })}
@@ -441,10 +441,13 @@ export default function AssetDetail() {
               />
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Status</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Status
+              </label>
               <select
+                aria-label="Status"
                 value={maintenanceForm.status}
                 onChange={(e) => setMaintenanceForm({ ...maintenanceForm, status: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
@@ -456,12 +459,10 @@ export default function AssetDetail() {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Next Maintenance Date</label>
-              <input
-                type="date"
+              <DatePicker
+                label="Next Maintenance Date"
                 value={maintenanceForm.nextMaintenanceDate}
-                onChange={(e) => setMaintenanceForm({ ...maintenanceForm, nextMaintenanceDate: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                onChange={(value) => setMaintenanceForm({ ...maintenanceForm, nextMaintenanceDate: value })}
               />
             </div>
           </div>

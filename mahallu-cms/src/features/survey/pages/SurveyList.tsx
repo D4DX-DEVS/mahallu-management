@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
@@ -12,6 +11,8 @@ import Pagination from '@/components/ui/Pagination';
 import { Pagination as PaginationType, TableColumn } from '@/types';
 import { surveyService, SurveySnapshot } from '@/services/surveyService';
 import { toast } from '@/store/toastStore';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
 
 const formatDate = (value?: string) => (value ? new Date(value).toLocaleDateString() : '—');
 
@@ -32,7 +33,10 @@ export default function SurveyList() {
   }, [currentPage]);
 
   useEffect(() => {
-    surveyService.getStatus().then(setStatus).catch(() => setStatus(null));
+    surveyService
+      .getStatus()
+      .then(setStatus)
+      .catch(() => setStatus(null));
   }, []);
 
   const fetchRows = async () => {
@@ -43,7 +47,7 @@ export default function SurveyList() {
       setRows(result.data);
       setPagination(result.pagination);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to load surveys');
+      setError(loadErrorMessage(err, 'surveys'));
     } finally {
       setLoading(false);
     }
@@ -54,10 +58,10 @@ export default function SurveyList() {
       setGenerating(true);
       const snapshot = await surveyService.generate({ type: generateType });
       setGenerateOpen(false);
-      toast.success('Survey generated successfully');
+      toast.success('Survey generated');
       navigate(`/survey/${snapshot.id}`);
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to generate survey');
+      toast.error(errorMessage(err, { action: 'generate survey' }));
     } finally {
       setGenerating(false);
     }
@@ -73,30 +77,24 @@ export default function SurveyList() {
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">Survey &amp; Demographics</h1>
-          <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-            Point-in-time snapshots of the Mahallu population
-          </p>
-        </div>
-        <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Survey' }]} />
-      </div>
+      <PageHeader
+        title="Survey &amp; Demographics"
+        description="Point-in-time snapshots of the Mahallu population"
+      />
 
       {status?.isOverdue && (
         <Card className="border-l-4 border-amber-500 p-3">
           <p className="text-sm font-semibold text-amber-700 dark:text-amber-400">Survey renewal overdue</p>
           <p className="mt-0.5 text-xs text-gray-600 dark:text-gray-300">
-            The review date for the latest snapshot has passed. Generate a fresh survey to keep the data current.
+            The review date for the latest snapshot has passed. Generate a fresh survey to keep the data
+            current.
           </p>
         </Card>
       )}
 
       <Card>
         <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-xs text-gray-500 dark:text-gray-400">
-            {pagination?.total ?? 0} snapshot(s)
-          </p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">{pagination?.total ?? 0} snapshot(s)</p>
           <Button size="md" onClick={() => setGenerateOpen(true)}>
             + Generate Survey
           </Button>

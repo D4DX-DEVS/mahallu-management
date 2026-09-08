@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { FiSave, FiArrowLeft } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
+import PageHeader from '@/components/layout/PageHeader';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -10,6 +10,7 @@ import { Tenant } from '@/types/tenant';
 import { tenantService } from '@/services/tenantService';
 import { CLASSIFICATION_OPTIONS, TenantClassification } from '@/constants/modules';
 import ModuleFeatureToggles from '../components/ModuleFeatureToggles';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
 
 export default function EditTenant() {
   const { id } = useParams<{ id: string }>();
@@ -69,7 +70,7 @@ export default function EditTenant() {
       });
     } catch (error: any) {
       console.error('Error loading tenant:', error);
-      setError(error.response?.data?.message || 'Failed to load tenant');
+      setError(loadErrorMessage(error, 'tenant'));
     } finally {
       setIsLoading(false);
     }
@@ -77,7 +78,7 @@ export default function EditTenant() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     try {
       setIsSaving(true);
       setError(null);
@@ -86,7 +87,7 @@ export default function EditTenant() {
       navigate(`/admin/tenants/${id}`);
     } catch (error: any) {
       console.error('Error updating tenant:', error);
-      setError(error.response?.data?.message || 'Failed to update tenant');
+      setError(errorMessage(error, { action: 'update tenant' }));
     } finally {
       setIsSaving(false);
     }
@@ -104,17 +105,13 @@ export default function EditTenant() {
     }
   };
 
-  const breadcrumbItems = [
-    { label: 'Dashboard', path: '/dashboard' },
-    { label: 'Admin', path: '/admin/tenants' },
-    { label: 'Tenants', path: '/admin/tenants' },
-    { label: formData.name || 'Edit' },
-  ];
+  const pageTitle = formData.name || 'Edit tenant';
+  const breadcrumbItems = [{ label: 'Tenants', path: '/admin/tenants' }];
 
   if (isLoading) {
     return (
       <div className="space-y-4">
-        <Breadcrumb items={breadcrumbItems} />
+        <PageHeader title={pageTitle} breadcrumbs={breadcrumbItems} />
         <Card>
           <div className="flex items-center justify-center h-64">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
@@ -127,14 +124,11 @@ export default function EditTenant() {
   if (error) {
     return (
       <div className="space-y-4">
-        <Breadcrumb items={breadcrumbItems} />
+        <PageHeader title={pageTitle} breadcrumbs={breadcrumbItems} />
         <Card>
           <div className="text-center py-12">
             <p className="text-red-500 dark:text-red-400 mb-4">{error}</p>
-            <Button
-              variant="outline"
-              onClick={() => navigate('/admin/tenants')}
-            >
+            <Button variant="outline" onClick={() => navigate('/admin/tenants')}>
               Back to Tenants
             </Button>
           </div>
@@ -145,7 +139,7 @@ export default function EditTenant() {
 
   return (
     <div className="space-y-4">
-      <Breadcrumb items={breadcrumbItems} />
+      <PageHeader title={pageTitle} breadcrumbs={breadcrumbItems} />
 
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -160,12 +154,7 @@ export default function EditTenant() {
             Back
           </Button>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-              Edit Tenant
-            </h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              Update tenant information
-            </p>
+            <PageHeader title="Edit Tenant" description="Update tenant information" />
           </div>
         </div>
       </div>
@@ -189,13 +178,13 @@ export default function EditTenant() {
               />
 
               <div className="hidden">
-              <Input
-                label="Tenant Name (Malayalam)"
-                value={formData.nameMl}
-                onChange={(e) => handleChange('nameMl', e.target.value)}
-                placeholder="മഹല്ലിന്റെ പേര്"
-                className="font-malayalam"
-              />
+                <Input
+                  label="Tenant Name (Malayalam)"
+                  value={formData.nameMl}
+                  onChange={(e) => handleChange('nameMl', e.target.value)}
+                  placeholder="മഹല്ലിന്റെ പേര്"
+                  className="font-malayalam"
+                />
               </div>
 
               <Input
@@ -215,13 +204,13 @@ export default function EditTenant() {
               />
 
               <div className="hidden">
-              <Input
-                label="Location (Malayalam)"
-                value={formData.locationMl}
-                onChange={(e) => handleChange('locationMl', e.target.value)}
-                placeholder="സ്ഥലം"
-                className="font-malayalam"
-              />
+                <Input
+                  label="Location (Malayalam)"
+                  value={formData.locationMl}
+                  onChange={(e) => handleChange('locationMl', e.target.value)}
+                  placeholder="സ്ഥലം"
+                  className="font-malayalam"
+                />
               </div>
 
               <Select
@@ -314,20 +303,11 @@ export default function EditTenant() {
           </div>
 
           {/* Form Actions */}
-          <div className="flex justify-end gap-3 mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => navigate(`/admin/tenants/${id}`)}
-            >
+          <div className="flex gap-2 flex-col-reverse sm:flex-row sm:justify-end sm:gap-3 mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+            <Button type="button" variant="outline" onClick={() => navigate(`/admin/tenants/${id}`)}>
               Cancel
             </Button>
-            <Button
-              type="submit"
-              variant="primary"
-              disabled={isSaving}
-              className="flex items-center gap-2"
-            >
+            <Button type="submit" variant="primary" disabled={isSaving} className="flex items-center gap-2">
               {isSaving ? (
                 <>
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>

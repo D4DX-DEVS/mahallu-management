@@ -4,6 +4,9 @@ import Member from '../models/Member';
 import { AuthRequest } from '../middleware/authMiddleware';
 import { getPaginationParams, createPaginationResponse } from '../utils/pagination';
 
+import { sendFailure } from '../utils/userMessages';
+import { regexLiteral } from '../utils/queryGuard';
+
 // Nikah Registration
 export const getAllNikahRegistrations = async (req: AuthRequest, res: Response) => {
   try {
@@ -21,8 +24,8 @@ export const getAllNikahRegistrations = async (req: AuthRequest, res: Response) 
     if (status) query.status = status;
     if (search) {
       query.$or = [
-        { groomName: { $regex: search, $options: 'i' } },
-        { brideName: { $regex: search, $options: 'i' } },
+        { groomName: { $regex: regexLiteral(search), $options: 'i' } },
+        { brideName: { $regex: regexLiteral(search), $options: 'i' } },
       ];
     }
 
@@ -38,7 +41,7 @@ export const getAllNikahRegistrations = async (req: AuthRequest, res: Response) 
 
     res.json(createPaginationResponse(registrations, total, page, limit));
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the nikah registrations right now. Please try again.');
   }
 };
 
@@ -49,17 +52,17 @@ export const getNikahRegistrationById = async (req: AuthRequest, res: Response) 
       .populate('brideId', 'name');
     
     if (!registration) {
-      return res.status(404).json({ success: false, message: 'Nikah registration not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that nikah registration. It may have been removed." });
     }
 
     // Check tenant access
     if (!req.isSuperAdmin && registration.tenantId.toString() !== req.tenantId) {
-      return res.status(403).json({ success: false, message: 'Access denied' });
+      return res.status(403).json({ success: false, message: "You don't have permission to do this. Please contact your Mahallu admin." });
     }
 
     res.json({ success: true, data: registration });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the nikah registration right now. Please try again.');
   }
 };
 
@@ -73,7 +76,7 @@ export const createNikahRegistration = async (req: AuthRequest, res: Response) =
     if (!registrationData.tenantId && !req.isSuperAdmin) {
       return res.status(400).json({
         success: false,
-        message: 'Tenant ID is required',
+        message: 'Please select a Mahallu before continuing.',
       });
     }
 
@@ -81,7 +84,7 @@ export const createNikahRegistration = async (req: AuthRequest, res: Response) =
     await registration.save();
     res.status(201).json({ success: true, data: registration });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t save the nikah registration. Please try again.');
   }
 };
 
@@ -96,12 +99,12 @@ export const updateNikahRegistration = async (req: AuthRequest, res: Response) =
 
     const registration = await NikahRegistration.findById(id);
     if (!registration) {
-      return res.status(404).json({ success: false, message: 'Nikah registration not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that nikah registration. It may have been removed." });
     }
 
     // Check tenant access
     if (!req.isSuperAdmin && registration.tenantId.toString() !== req.tenantId) {
-      return res.status(403).json({ success: false, message: 'Access denied' });
+      return res.status(403).json({ success: false, message: "You don't have permission to do this. Please contact your Mahallu admin." });
     }
 
     const updated = await NikahRegistration.findByIdAndUpdate(
@@ -118,7 +121,7 @@ export const updateNikahRegistration = async (req: AuthRequest, res: Response) =
 
     res.json({ success: true, data: updated });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t update the nikah registration. Please try again.');
   }
 };
 
@@ -138,7 +141,7 @@ export const getAllDeathRegistrations = async (req: AuthRequest, res: Response) 
 
     if (status) query.status = status;
     if (search) {
-      query.deceasedName = { $regex: search, $options: 'i' };
+      query.deceasedName = { $regex: regexLiteral(search), $options: 'i' };
     }
 
     const [registrations, total] = await Promise.all([
@@ -153,7 +156,7 @@ export const getAllDeathRegistrations = async (req: AuthRequest, res: Response) 
 
     res.json(createPaginationResponse(registrations, total, page, limit));
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the death registrations right now. Please try again.');
   }
 };
 
@@ -164,17 +167,17 @@ export const getDeathRegistrationById = async (req: AuthRequest, res: Response) 
       .populate('familyId', 'houseName');
     
     if (!registration) {
-      return res.status(404).json({ success: false, message: 'Death registration not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that death registration. It may have been removed." });
     }
 
     // Check tenant access
     if (!req.isSuperAdmin && registration.tenantId.toString() !== req.tenantId) {
-      return res.status(403).json({ success: false, message: 'Access denied' });
+      return res.status(403).json({ success: false, message: "You don't have permission to do this. Please contact your Mahallu admin." });
     }
 
     res.json({ success: true, data: registration });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the death registration right now. Please try again.');
   }
 };
 
@@ -188,7 +191,7 @@ export const createDeathRegistration = async (req: AuthRequest, res: Response) =
     if (!registrationData.tenantId && !req.isSuperAdmin) {
       return res.status(400).json({
         success: false,
-        message: 'Tenant ID is required',
+        message: 'Please select a Mahallu before continuing.',
       });
     }
 
@@ -204,7 +207,7 @@ export const createDeathRegistration = async (req: AuthRequest, res: Response) =
     }
     res.status(201).json({ success: true, data: registration });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t save the death registration. Please try again.');
   }
 };
 
@@ -219,12 +222,12 @@ export const updateDeathRegistration = async (req: AuthRequest, res: Response) =
 
     const registration = await DeathRegistration.findById(id);
     if (!registration) {
-      return res.status(404).json({ success: false, message: 'Death registration not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that death registration. It may have been removed." });
     }
 
     // Check tenant access
     if (!req.isSuperAdmin && registration.tenantId.toString() !== req.tenantId) {
-      return res.status(403).json({ success: false, message: 'Access denied' });
+      return res.status(403).json({ success: false, message: "You don't have permission to do this. Please contact your Mahallu admin." });
     }
 
     const updated = await DeathRegistration.findByIdAndUpdate(
@@ -241,7 +244,7 @@ export const updateDeathRegistration = async (req: AuthRequest, res: Response) =
 
     res.json({ success: true, data: updated });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t update the death registration. Please try again.');
   }
 };
 
@@ -262,7 +265,7 @@ export const getAllNOCs = async (req: AuthRequest, res: Response) => {
     if (type) query.type = type;
     if (status) query.status = status;
     if (search) {
-      query.applicantName = { $regex: search, $options: 'i' };
+      query.applicantName = { $regex: regexLiteral(search), $options: 'i' };
     }
 
     const [nocs, total] = await Promise.all([
@@ -278,7 +281,7 @@ export const getAllNOCs = async (req: AuthRequest, res: Response) => {
 
     res.json(createPaginationResponse(nocs, total, page, limit));
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the no cs right now. Please try again.');
   }
 };
 
@@ -289,17 +292,17 @@ export const getNOCById = async (req: AuthRequest, res: Response) => {
       .populate('nikahRegistrationId');
     
     if (!noc) {
-      return res.status(404).json({ success: false, message: 'NOC not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that NOC. It may have been removed." });
     }
 
     // Check tenant access
     if (!req.isSuperAdmin && noc.tenantId.toString() !== req.tenantId) {
-      return res.status(403).json({ success: false, message: 'Access denied' });
+      return res.status(403).json({ success: false, message: "You don't have permission to do this. Please contact your Mahallu admin." });
     }
 
     res.json({ success: true, data: noc });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the NOC right now. Please try again.');
   }
 };
 
@@ -307,10 +310,10 @@ export const createNOC = async (req: AuthRequest, res: Response) => {
   try {
     const { purposeTitle, purposeDescription, purpose } = req.body;
     if (!purposeTitle && !purpose) {
-      return res.status(400).json({ success: false, message: 'Purpose title is required' });
+      return res.status(400).json({ success: false, message: 'Please enter the purpose title.' });
     }
     if (!purposeDescription && !purpose) {
-      return res.status(400).json({ success: false, message: 'Purpose description is required' });
+      return res.status(400).json({ success: false, message: 'Please enter the purpose description.' });
     }
     const nocData = {
       ...req.body,
@@ -329,7 +332,7 @@ export const createNOC = async (req: AuthRequest, res: Response) => {
     if (!nocData.tenantId && !req.isSuperAdmin) {
       return res.status(400).json({
         success: false,
-        message: 'Tenant ID is required',
+        message: 'Please select a Mahallu before continuing.',
       });
     }
 
@@ -337,7 +340,7 @@ export const createNOC = async (req: AuthRequest, res: Response) => {
     await noc.save();
     res.status(201).json({ success: true, data: noc });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t save the NOC. Please try again.');
   }
 };
 
@@ -361,12 +364,12 @@ export const updateNOC = async (req: AuthRequest, res: Response) => {
       .populate('nikahRegistrationId');
 
     if (!noc) {
-      return res.status(404).json({ success: false, message: 'NOC not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that NOC. It may have been removed." });
     }
 
     res.json({ success: true, data: noc });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t update the NOC. Please try again.');
   }
 };
 

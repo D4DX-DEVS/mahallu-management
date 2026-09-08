@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { FiDollarSign, FiCreditCard, FiCheckCircle } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import StatCard from '@/components/ui/StatCard';
@@ -16,6 +15,8 @@ import { formatDate } from '@/utils/format';
 import { exportToCSV, exportToJSON } from '@/utils/exportUtils';
 import { exportInvoicesToPdf, InvoiceDetails } from '@/utils/invoiceUtils';
 import { toast } from '@/store/toastStore';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
 
 export default function ZakatList() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -51,7 +52,7 @@ export default function ZakatList() {
         setPagination(result.pagination);
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch zakats');
+      setError(loadErrorMessage(err, 'zakats'));
       console.error('Error fetching zakats:', err);
     } finally {
       setLoading(false);
@@ -61,10 +62,10 @@ export default function ZakatList() {
   const handleExport = async (type: 'csv' | 'json' | 'pdf') => {
     try {
       setIsExporting(true);
-      
+
       const params: any = { limit: 10000 };
       if (debouncedSearch) params.search = debouncedSearch;
-      
+
       const result = await collectibleService.getAllZakats(params);
       const dataToExport = result.data;
 
@@ -101,7 +102,7 @@ export default function ZakatList() {
       }
     } catch (error: any) {
       console.error('Export error:', error);
-      toast.error(error?.message || 'Failed to export zakat data');
+      toast.error(error?.message || "Couldn't export zakat data");
     } finally {
       setIsExporting(false);
     }
@@ -110,15 +111,14 @@ export default function ZakatList() {
   const handleVerify = async (row: Zakat) => {
     try {
       await collectibleService.verifyZakat(row.id);
-      toast.success('Zakat verified successfully');
+      toast.success('Zakat verified');
       await fetchZakats();
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to verify zakat');
+      toast.error(errorMessage(err, { action: 'verify zakat' }));
     }
   };
 
   const columns: TableColumn<Zakat>[] = [
-    { key: 'id', label: 'No.', render: (_, __, index) => index + 1 },
     { key: 'payerName', label: 'Payer Name', sortable: true },
     {
       key: 'amount',
@@ -164,6 +164,7 @@ export default function ZakatList() {
               }}
               className="p-1.5 rounded-md hover:bg-green-100 dark:hover:bg-green-900 text-green-600 dark:text-green-400 transition-colors"
               title="Verify payment"
+              aria-label="Verify payment"
             >
               <FiCheckCircle className="h-4 w-4" />
             </button>
@@ -176,22 +177,24 @@ export default function ZakatList() {
   const totalAmount = zakats.reduce((sum, z) => sum + (z.amount || 0), 0);
 
   const stats = [
-    { title: 'Total Payments', value: pagination?.total || zakats.length, icon: <FiCreditCard className="h-5 w-5" /> },
-    { title: 'Total Amount', value: `₹${totalAmount.toLocaleString()}`, icon: <FiDollarSign className="h-5 w-5" /> },
+    {
+      title: 'Total Payments',
+      value: pagination?.total || zakats.length,
+      icon: <FiCreditCard className="h-5 w-5" />,
+    },
+    {
+      title: 'Total Amount',
+      value: `₹${totalAmount.toLocaleString()}`,
+      icon: <FiDollarSign className="h-5 w-5" />,
+    },
   ];
 
   return (
     <div className="space-y-4">
       <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Zakat</h1>
-            <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">Manage zakat payments</p>
-          </div>
-          <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Zakat' }]} />
-        </div>
+        <PageHeader title="Zakat" description="Manage zakat payments" />
 
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {stats.map((stat, index) => (
             <StatCard key={index} {...stat} />
           ))}
@@ -210,9 +213,7 @@ export default function ZakatList() {
           isExporting={isExporting}
           actionButtons={
             <Link to="/collectibles/zakat/create">
-              <Button size="md">
-                + New Payment
-              </Button>
+              <Button size="md">+ New Payment</Button>
             </Link>
           }
         />
@@ -248,4 +249,3 @@ export default function ZakatList() {
     </div>
   );
 }
-

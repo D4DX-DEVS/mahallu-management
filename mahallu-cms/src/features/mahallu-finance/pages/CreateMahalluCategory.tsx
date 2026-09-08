@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiSave, FiX } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -10,6 +9,17 @@ import { ROUTES } from '@/constants/routes';
 import { masterAccountService } from '@/services/masterAccountService';
 import { useAuthStore } from '@/store/authStore';
 import { getTenantId } from '@/utils/tenantHelper';
+import { errorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
+import { useFormValidation } from '@/hooks/useFormValidation';
+import { FieldRule, LIMITS } from '@/utils/validation';
+
+const RULES: Record<string, FieldRule> = {
+  name: { label: 'category name', required: true, minLength: 2, maxLength: LIMITS.title.max },
+  nameMl: { label: 'category name', maxLength: LIMITS.title.max },
+  description: { label: 'description', maxLength: LIMITS.description.max },
+  type: { label: 'type', required: true, oneOf: ['income', 'expense'] },
+};
 
 const emptyForm = {
   name: '',
@@ -23,19 +33,23 @@ export default function CreateMahalluCategory() {
   const { currentTenantId, user } = useAuthStore();
   const tenantId = getTenantId(user, currentTenantId);
   const [form, setForm] = useState(emptyForm);
+  const { errors, validate } = useFormValidation(RULES);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.name.trim()) return;
+    // A bare `return` here left Save doing nothing at all: no message, no
+    // marked field, no clue what the form wanted.
+    if (!validate(form)) return;
+    if (saving) return;
     try {
       setSaving(true);
       setError(null);
       await masterAccountService.createCategory({ ...form, ...(tenantId ? { tenantId } : {}) });
       navigate(ROUTES.MAHALLU_FINANCE.CATEGORIES);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to create category. Please try again.');
+      setError(errorMessage(err, { action: 'create category. please try again' }));
     } finally {
       setSaving(false);
     }
@@ -43,20 +57,14 @@ export default function CreateMahalluCategory() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Add Category</h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Create a new income or expense category</p>
-        </div>
-        <Breadcrumb
-          items={[
-            { label: 'Dashboard', path: '/dashboard' },
-            { label: 'Mahallu Finance', path: ROUTES.MAHALLU_FINANCE.ACCOUNTS },
-            { label: 'Categories', path: ROUTES.MAHALLU_FINANCE.CATEGORIES },
-            { label: 'Create' },
-          ]}
-        />
-      </div>
+      <PageHeader
+        title="Add Category"
+        description="Create a new income or expense category"
+        breadcrumbs={[
+          { label: 'Mahallu Finance', path: ROUTES.MAHALLU_FINANCE.ACCOUNTS },
+          { label: 'Categories', path: ROUTES.MAHALLU_FINANCE.CATEGORIES },
+        ]}
+      />
 
       <form onSubmit={handleSubmit}>
         <Card className="space-y-6">
@@ -70,38 +78,51 @@ export default function CreateMahalluCategory() {
             <Input
               label="Name *"
               value={form.name}
-              onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+              error={errors.name}
+              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
               placeholder="e.g. Maintenance Fee"
               required
             />
             <div className="hidden">
-            <Input
-              label="Name (Malayalam)"
-              value={form.nameMl}
-              onChange={e => setForm(f => ({ ...f, nameMl: e.target.value }))}
-              placeholder="മലയാളത്തില്"
-            />
+              <Input
+                label="Name (Malayalam)"
+                value={form.nameMl}
+                error={errors.nameMl}
+                onChange={(e) => setForm((f) => ({ ...f, nameMl: e.target.value }))}
+                placeholder="മലയാളത്തില്"
+              />
             </div>
             <Select
               label="Type *"
-              options={[{ value: 'income', label: 'Income' }, { value: 'expense', label: 'Expense' }]}
+              options={[
+                { value: 'income', label: 'Income' },
+                { value: 'expense', label: 'Expense' },
+              ]}
               value={form.type}
-              onChange={e => setForm(f => ({ ...f, type: e.target.value as 'income' | 'expense' }))}
+              error={errors.type}
+              onChange={(e) => setForm((f) => ({ ...f, type: e.target.value as 'income' | 'expense' }))}
             />
             <Input
               label="Description"
               value={form.description}
-              onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+              error={errors.description}
+              onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
               placeholder="Optional description"
             />
           </div>
 
-          <div className="flex items-center justify-end gap-3 pt-2">
-            <Button type="button" variant="secondary" onClick={() => navigate(ROUTES.MAHALLU_FINANCE.CATEGORIES)}>
-              <FiX className="h-4 w-4 mr-2" />Cancel
+          <div className="flex gap-2 flex-col-reverse sm:flex-row sm:justify-end sm:gap-3 sm:items-center pt-2">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => navigate(ROUTES.MAHALLU_FINANCE.CATEGORIES)}
+            >
+              <FiX className="h-4 w-4 mr-2" />
+              Cancel
             </Button>
             <Button type="submit" disabled={saving || !form.name.trim()}>
-              <FiSave className="h-4 w-4 mr-2" />{saving ? 'Saving...' : 'Create Category'}
+              <FiSave className="h-4 w-4 mr-2" />
+              {saving ? 'Saving...' : 'Create Category'}
             </Button>
           </div>
         </Card>

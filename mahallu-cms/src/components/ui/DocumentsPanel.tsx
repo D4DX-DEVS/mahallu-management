@@ -36,7 +36,7 @@ export default function DocumentsPanel({ ownerType, ownerId, isAdmin = false }: 
       });
       setDocuments(result.data);
     } catch (err: any) {
-      setError('Failed to load documents');
+      setError("Couldn't load documents");
     } finally {
       setLoading(false);
     }
@@ -52,7 +52,7 @@ export default function DocumentsPanel({ ownerType, ownerId, isAdmin = false }: 
       link.click();
       document.body.removeChild(link);
     } catch (err: any) {
-      toast.error('Failed to load document');
+      toast.error("Couldn't load document. Please try again.");
     }
   };
 
@@ -65,19 +65,19 @@ export default function DocumentsPanel({ ownerType, ownerId, isAdmin = false }: 
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      toast.success('Document downloaded successfully');
+      toast.success('Document downloaded');
     } catch (err: any) {
-      toast.error('Failed to download document');
+      toast.error("Couldn't download document. Please try again.");
     }
   };
 
   const handleVerify = async (id: string) => {
     try {
       await registrationService.updateDocumentStatus(id, 'verified');
-      toast.success('Document verified successfully');
+      toast.success('Document verified');
       await fetchDocuments();
     } catch (err: any) {
-      toast.error('Failed to verify document');
+      toast.error("Couldn't verify document. Please try again.");
     }
   };
 
@@ -88,22 +88,18 @@ export default function DocumentsPanel({ ownerType, ownerId, isAdmin = false }: 
 
   const handleReject = async () => {
     if (!rejectModal.docId || !rejectionReason.trim()) {
-      toast.error('Please provide a rejection reason');
+      toast.error('Please enter a reason for rejecting this.');
       return;
     }
 
     try {
       setRejecting(true);
-      await registrationService.updateDocumentStatus(
-        rejectModal.docId,
-        'rejected',
-        rejectionReason
-      );
-      toast.success('Document rejected successfully');
+      await registrationService.updateDocumentStatus(rejectModal.docId, 'rejected', rejectionReason);
+      toast.success('Document rejected');
       setRejectModal({ open: false });
       await fetchDocuments();
     } catch (err: any) {
-      toast.error('Failed to reject document');
+      toast.error("Couldn't reject document. Please try again.");
     } finally {
       setRejecting(false);
     }
@@ -141,31 +137,27 @@ export default function DocumentsPanel({ ownerType, ownerId, isAdmin = false }: 
       {documents.map((doc) => (
         <div
           key={doc._id || doc.id}
-          className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+          className="flex flex-col gap-3 rounded-lg border border-gray-200 p-3 transition-colors hover:bg-gray-50 sm:flex-row sm:items-center sm:justify-between sm:p-4 dark:border-gray-700 dark:hover:bg-gray-700/50"
         >
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-3">
               <div className="flex-1 min-w-0">
-                <p className="font-medium text-gray-900 dark:text-gray-100 truncate">
-                  {doc.fileName}
-                </p>
-                <div className="flex items-center gap-2 mt-1">
-                  <span className="text-xs text-gray-500 dark:text-gray-400">
-                    {doc.documentType}
-                  </span>
-                  <span className={`inline-block px-2 py-1 rounded text-xs font-semibold ${getStatusColor(doc.status)}`}>
+                <p className="font-medium text-gray-900 dark:text-gray-100 truncate">{doc.fileName}</p>
+                <div className="mt-1 flex flex-wrap items-center gap-2">
+                  <span className="text-xs text-gray-500 dark:text-gray-400">{doc.documentType}</span>
+                  <span
+                    className={`inline-block px-2 py-1 rounded text-xs font-semibold ${getStatusColor(doc.status)}`}
+                  >
                     {doc.status?.charAt(0).toUpperCase() + doc.status?.slice(1)}
                   </span>
                 </div>
                 {doc.status === 'rejected' && doc.rejectionReason && (
-                  <p className="text-xs text-red-600 dark:text-red-400 mt-1">
-                    Reason: {doc.rejectionReason}
-                  </p>
+                  <p className="mt-1 break-words text-xs text-red-600 dark:text-red-400">Reason: {doc.rejectionReason}</p>
                 )}
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2 ml-4 flex-shrink-0">
+          <div className="flex flex-shrink-0 flex-wrap items-center gap-2 sm:ml-4">
             <Button
               size="sm"
               variant="outline"
@@ -220,6 +212,7 @@ export default function DocumentsPanel({ ownerType, ownerId, isAdmin = false }: 
               Rejection Reason
             </label>
             <textarea
+              aria-label="Reason for rejection"
               value={rejectionReason}
               onChange={(e) => setRejectionReason(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-gray-100"
@@ -227,19 +220,11 @@ export default function DocumentsPanel({ ownerType, ownerId, isAdmin = false }: 
               placeholder="Explain why this document is being rejected..."
             />
           </div>
-          <div className="flex gap-3 justify-end">
-            <Button
-              variant="outline"
-              onClick={() => setRejectModal({ open: false })}
-              disabled={rejecting}
-            >
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end sm:gap-3">
+            <Button variant="outline" onClick={() => setRejectModal({ open: false })} disabled={rejecting}>
               Cancel
             </Button>
-            <Button
-              onClick={handleReject}
-              isLoading={rejecting}
-              className="bg-red-600 hover:bg-red-700"
-            >
+            <Button onClick={handleReject} isLoading={rejecting} className="bg-red-600 hover:bg-red-700">
               Reject Document
             </Button>
           </div>

@@ -39,17 +39,25 @@ export const authService = {
   },
 
   sendOTP: async (phone: string) => {
-    const response = await api.post<{ success: boolean; message: string; otp?: string }>('/auth/send-otp', { phone });
+    const response = await api.post<{ success: boolean; message: string; otp?: string }>('/auth/send-otp', {
+      phone,
+    });
     return response.data;
   },
 
   verifyOTP: async (credentials: OTPCredentials): Promise<AuthResponse | RoleSelectionResponse> => {
-    const response = await api.post<{ success: boolean; data: AuthResponse | RoleSelectionResponse }>('/auth/verify-otp', credentials);
+    const response = await api.post<{ success: boolean; data: AuthResponse | RoleSelectionResponse }>(
+      '/auth/verify-otp',
+      credentials
+    );
     return response.data.data;
   },
 
   selectAccount: async (preAuthToken: string, userId: string): Promise<AuthResponse> => {
-    const response = await api.post<{ success: boolean; data: AuthResponse }>('/auth/select-account', { preAuthToken, userId });
+    const response = await api.post<{ success: boolean; data: AuthResponse }>('/auth/select-account', {
+      preAuthToken,
+      userId,
+    });
     return response.data.data;
   },
 
@@ -82,4 +90,3 @@ export const authService = {
     return response.data;
   },
 };
-

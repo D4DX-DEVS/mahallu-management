@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -9,6 +8,23 @@ import SearchableSelect from '@/components/ui/SearchableSelect';
 import { toast } from '@/store/toastStore';
 import { reliefService, RELIEF_URGENCY_OPTIONS } from '@/services/qardService';
 import { familyService } from '@/services/familyService';
+import { errorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
+import { useFormValidation } from '@/hooks/useFormValidation';
+import { FieldRule, LIMITS } from '@/utils/validation';
+
+/**
+ * The same limits the API applies, so a form that passes here is not
+ * refused there. Required matches what each input already declares.
+ */
+const RULES: Record<string, FieldRule> = {
+  familyId: { label: 'family', type: 'id' },
+  title: { label: 'title', required: true, maxLength: LIMITS.title.max },
+  titleMl: { label: 'title', maxLength: LIMITS.title.max },
+  description: { label: 'description', maxLength: LIMITS.description.max },
+  urgency: { label: 'urgency', required: true, maxLength: LIMITS.shortText.max },
+  followUpDate: { label: 'follow up date', type: 'date' },
+};
 
 export default function ReliefCreate() {
   const navigate = useNavigate();
@@ -23,6 +39,7 @@ export default function ReliefCreate() {
     urgency: 'medium',
     followUpDate: '',
   });
+  const { errors, validate } = useFormValidation(RULES);
 
   useEffect(() => {
     familyService
@@ -33,6 +50,8 @@ export default function ReliefCreate() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    // Every field checked at once, each message on its own field.
+    if (!validate(form)) return;
     setError(null);
 
     if (!form.title.trim()) {
@@ -50,10 +69,10 @@ export default function ReliefCreate() {
         urgency: form.urgency,
         followUpDate: form.followUpDate || undefined,
       });
-      toast.success('Case reported successfully');
+      toast.success('Case reported');
       navigate(`/relief/${created.id}`);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to report the case');
+      setError(errorMessage(err, { action: 'report the case' }));
     } finally {
       setSaving(false);
     }
@@ -61,30 +80,19 @@ export default function ReliefCreate() {
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">
-            Report an Emergency Case
-          </h1>
-          <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-            Recorded as reported; verification and assistance follow
-          </p>
-        </div>
-        <Breadcrumb
-          items={[
-            { label: 'Dashboard', path: '/dashboard' },
-            { label: 'Emergency Relief', path: '/relief' },
-            { label: 'New' },
-          ]}
-        />
-      </div>
+      <PageHeader
+        title="Report an Emergency Case"
+        description="Recorded as reported; verification and assistance follow"
+        breadcrumbs={[{ label: 'Emergency Relief', path: '/relief' }]}
+      />
 
       <form onSubmit={handleSubmit}>
-        <Card className="p-3 sm:p-4">
+        <Card>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <Input
               label="Title"
               value={form.title}
+              error={errors.title}
               onChange={(e) => setForm({ ...form, title: e.target.value })}
               placeholder="e.g. Roof collapsed after heavy rain"
               required
@@ -93,6 +101,7 @@ export default function ReliefCreate() {
             <Input
               label="Title (Malayalam)"
               value={form.titleMl}
+              error={errors.titleMl}
               onChange={(e) => setForm({ ...form, titleMl: e.target.value })}
               placeholder="Optional"
             />
@@ -100,6 +109,7 @@ export default function ReliefCreate() {
             <SearchableSelect
               label="Family"
               value={form.familyId}
+              error={errors.familyId}
               onChange={(value) => setForm({ ...form, familyId: value })}
               options={families.map((family: any) => ({
                 value: family._id || family.id,
@@ -112,6 +122,7 @@ export default function ReliefCreate() {
             <Select
               label="Urgency"
               value={form.urgency}
+              error={errors.urgency}
               onChange={(e) => setForm({ ...form, urgency: e.target.value })}
               options={RELIEF_URGENCY_OPTIONS}
               required
@@ -121,6 +132,7 @@ export default function ReliefCreate() {
               label="Follow-up date"
               type="date"
               value={form.followUpDate}
+              error={errors.followUpDate}
               onChange={(e) => setForm({ ...form, followUpDate: e.target.value })}
             />
 
@@ -128,6 +140,7 @@ export default function ReliefCreate() {
               <Input
                 label="Description"
                 value={form.description}
+                error={errors.description}
                 onChange={(e) => setForm({ ...form, description: e.target.value })}
                 placeholder="What happened, and what is needed"
               />

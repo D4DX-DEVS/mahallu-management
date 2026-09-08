@@ -4,6 +4,7 @@ import { useAuthStore } from '@/store/authStore';
 import { tenantService } from '@/services/tenantService';
 import { Tenant } from '@/types/tenant';
 import { cn } from '@/utils/cn';
+import { loadErrorMessage } from '@/utils/errors';
 
 export default function TenantSwitcher() {
   const { isSuperAdmin, currentTenantId, setCurrentTenant } = useAuthStore();
@@ -65,7 +66,7 @@ export default function TenantSwitcher() {
     } catch (error: any) {
       console.error('Error loading tenants:', error);
       setTenants([]);
-      setLoadError(error?.response?.data?.message || 'Failed to load tenants');
+      setLoadError(loadErrorMessage(error, 'tenants'));
     } finally {
       setIsLoading(false);
     }
@@ -105,12 +106,12 @@ export default function TenantSwitcher() {
       <button
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
-          "flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors border",
+          'flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors border',
           isViewingAsTenant
-            ? "bg-primary-50 text-primary-700 border-primary-200 dark:bg-primary-900/20 dark:text-primary-400 dark:border-primary-800"
-            : isOpen 
-              ? "bg-gray-100 text-gray-900 border-gray-200 dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700" 
-              : "border-transparent text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
+            ? 'bg-primary-50 text-primary-700 border-primary-200 dark:bg-primary-900/20 dark:text-primary-400 dark:border-primary-800'
+            : isOpen
+              ? 'bg-gray-100 text-gray-900 border-gray-200 dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700'
+              : 'border-transparent text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800'
         )}
       >
         <FiLayers className="h-4 w-4" />
@@ -120,11 +121,11 @@ export default function TenantSwitcher() {
         {isViewingAsTenant && (
           <span className="text-xs px-1.5 py-0.5 bg-primary-100 dark:bg-primary-800 rounded">Viewing</span>
         )}
-        <FiChevronDown className={cn("h-4 w-4 transition-transform", isOpen && "rotate-180")} />
+        <FiChevronDown className={cn('h-4 w-4 transition-transform', isOpen && 'rotate-180')} />
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-gray-900 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 py-2 z-50 max-h-[500px] flex flex-col">
+        <div className="absolute right-0 z-50 mt-2 flex max-h-[500px] w-80 max-w-[calc(100vw-2rem)] flex-col rounded-lg border border-gray-200 bg-white py-2 shadow-xl dark:border-gray-700 dark:bg-gray-900">
           {/* Switch back to Super Admin option */}
           {isViewingAsTenant && (
             <div className="px-3 pb-2 mb-2 border-b border-gray-200 dark:border-gray-700">
@@ -145,6 +146,7 @@ export default function TenantSwitcher() {
             <div className="relative">
               <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
               <input
+                aria-label="Search tenants"
                 type="text"
                 placeholder="Search tenants..."
                 value={searchQuery}
@@ -154,18 +156,22 @@ export default function TenantSwitcher() {
               />
             </div>
           </div>
-          
+
           <div className="overflow-y-auto max-h-[400px]">
             {isLoading ? (
               <div className="px-4 py-8 text-sm text-gray-500 text-center">Loading...</div>
             ) : loadError ? (
               <div className="px-4 py-8 text-sm text-red-600 dark:text-red-400 text-center">
                 {loadError}
-                <p className="mt-2 text-gray-500 dark:text-gray-400">Check that you are logged in as Super Admin.</p>
+                <p className="mt-2 text-gray-500 dark:text-gray-400">
+                  Check that you are logged in as Super Admin.
+                </p>
               </div>
             ) : filteredTenants.length === 0 ? (
               <div className="px-4 py-8 text-sm text-gray-500 text-center">
-                {searchQuery ? 'No tenants found matching your search' : 'No tenants available. Create a tenant first.'}
+                {searchQuery
+                  ? 'No tenants found matching your search'
+                  : 'No tenants available. Create a tenant first.'}
               </div>
             ) : (
               <div className="space-y-1 py-1">
@@ -174,10 +180,10 @@ export default function TenantSwitcher() {
                     key={tenant.id}
                     onClick={() => handleTenantSelect(tenant)}
                     className={cn(
-                      "w-full text-left px-4 py-3 text-sm hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors border-l-4",
+                      'w-full text-left px-4 py-3 text-sm hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors border-l-4',
                       currentTenantId === tenant.id
-                        ? "border-primary-500 bg-primary-50/50 dark:bg-primary-900/10 text-primary-700 dark:text-primary-400"
-                        : "border-transparent text-gray-700 dark:text-gray-300"
+                        ? 'border-primary-500 bg-primary-50/50 dark:bg-primary-900/10 text-primary-700 dark:text-primary-400'
+                        : 'border-transparent text-gray-700 dark:text-gray-300'
                     )}
                   >
                     <div className="flex items-start justify-between gap-3">

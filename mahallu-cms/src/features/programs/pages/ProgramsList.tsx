@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { FiEdit2, FiTrash2, FiEye, FiX, FiLayers, FiCheckCircle, FiXCircle } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import StatCard from '@/components/ui/StatCard';
@@ -18,6 +17,9 @@ import { programService } from '@/services/programService';
 import { useDebounce } from '@/hooks/useDebounce';
 import { formatDate } from '@/utils/format';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
+import ActionsMenu from '@/components/ui/ActionsMenu';
 
 export default function ProgramsList() {
   const navigate = useNavigate();
@@ -65,7 +67,7 @@ export default function ProgramsList() {
         setPagination(result.pagination);
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch programs');
+      setError(loadErrorMessage(err, 'programs'));
       console.error('Error fetching programs:', err);
     } finally {
       setLoading(false);
@@ -75,10 +77,10 @@ export default function ProgramsList() {
   const handleExport = async (type: 'csv' | 'json' | 'pdf') => {
     try {
       setIsExporting(true);
-      
+
       const params: any = { limit: 10000 };
       if (debouncedSearch) params.search = debouncedSearch;
-      
+
       const result = await programService.getAll(params);
       const dataToExport = result.data;
 
@@ -103,7 +105,7 @@ export default function ProgramsList() {
       }
     } catch (error: any) {
       console.error('Export error:', error);
-      toast.error(error?.message || 'Failed to export programs');
+      toast.error(error?.message || "Couldn't export programs");
     } finally {
       setIsExporting(false);
     }
@@ -118,27 +120,36 @@ export default function ProgramsList() {
       setShowDeleteModal(false);
       setSelectedProgram(null);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to delete program');
+      setError(errorMessage(err, { action: 'delete program' }));
       setDeleting(false);
     }
   };
 
   const columns: TableColumn<Institute>[] = [
-    { key: 'id', label: 'No.', render: (_, __, index) => index + 1 },
     { key: 'name', label: 'Name', sortable: true },
     { key: 'place', label: 'Place' },
     {
       key: 'audience',
       label: 'Audience',
       render: (audience) => (
-        <span className="text-sm">{audience ? audience.charAt(0).toUpperCase() + audience.slice(1) : '—'}</span>
+        <span className="text-sm">
+          {audience ? audience.charAt(0).toUpperCase() + audience.slice(1) : '—'}
+        </span>
       ),
     },
     {
       key: 'programType',
       label: 'Type',
       render: (type) => (
-        <span className="text-sm">{type ? type.replace(/_/g, ' ').split(' ').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') : '—'}</span>
+        <span className="text-sm">
+          {type
+            ? type
+                .replace(/_/g, ' ')
+                .split(' ')
+                .map((w: string) => w.charAt(0).toUpperCase() + w.slice(1))
+                .join(' ')
+            : '—'}
+        </span>
       ),
     },
     {
@@ -165,45 +176,43 @@ export default function ProgramsList() {
       key: 'actions',
       label: 'Actions',
       render: (_, row) => (
-        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(ROUTES.PROGRAMS.DETAIL(row.id));
-            }}
-            className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
-            title="View"
-          >
-            <FiEye className="h-4 w-4" />
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(`/programs/${row.id}/edit`);
-            }}
-            className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
-            title="Edit"
-          >
-            <FiEdit2 className="h-4 w-4" />
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setSelectedProgram(row);
-              setShowDeleteModal(true);
-            }}
-            className="p-1.5 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 transition-colors"
-            title="Delete"
-          >
-            <FiTrash2 className="h-4 w-4" />
-          </button>
-        </div>
+        <ActionsMenu
+          items={[
+            {
+              label: 'View',
+              icon: <FiEye className="h-4 w-4" />,
+              onClick: () => {
+                navigate(ROUTES.PROGRAMS.DETAIL(row.id));
+              },
+            },
+            {
+              label: 'Edit',
+              icon: <FiEdit2 className="h-4 w-4" />,
+              onClick: () => {
+                navigate(`/programs/${row.id}/edit`);
+              },
+            },
+            {
+              label: 'Delete',
+              icon: <FiTrash2 className="h-4 w-4" />,
+              onClick: () => {
+                setSelectedProgram(row);
+                setShowDeleteModal(true);
+              },
+              variant: 'danger',
+            },
+          ]}
+        />
       ),
     },
   ];
 
   const stats = [
-    { title: 'Total Programs', value: pagination?.total || programs.length, icon: <FiLayers className="h-5 w-5" /> },
+    {
+      title: 'Total Programs',
+      value: pagination?.total || programs.length,
+      icon: <FiLayers className="h-5 w-5" />,
+    },
     {
       title: 'Active',
       value: programs.filter((p) => p.status === 'active' || !p.status).length,
@@ -219,15 +228,9 @@ export default function ProgramsList() {
   return (
     <div className="space-y-4">
       <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Programs</h1>
-            <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">Manage programs</p>
-          </div>
-          <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Programs' }]} />
-        </div>
+        <PageHeader title="Programs" description="Manage programs" />
 
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           {stats.map((stat, index) => (
             <StatCard key={index} {...stat} />
           ))}
@@ -246,9 +249,7 @@ export default function ProgramsList() {
           isExporting={isExporting}
           actionButtons={
             <Link to={ROUTES.PROGRAMS.CREATE}>
-              <Button size="md">
-                + New Program
-              </Button>
+              <Button size="md">+ New Program</Button>
             </Link>
           }
         />
@@ -281,7 +282,11 @@ export default function ProgramsList() {
                       : 'bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
                   }`}
                 >
-                  {type.replace(/_/g, ' ').split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
+                  {type
+                    .replace(/_/g, ' ')
+                    .split(' ')
+                    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+                    .join(' ')}
                 </button>
               ))}
             </div>
@@ -348,10 +353,10 @@ export default function ProgramsList() {
         }
       >
         <p className="text-gray-600 dark:text-gray-400">
-          Are you sure you want to delete <strong>{selectedProgram?.name}</strong>? This action cannot be undone.
+          Are you sure you want to delete <strong>{selectedProgram?.name}</strong>? This action cannot be
+          undone.
         </p>
       </Modal>
     </div>
   );
 }
-

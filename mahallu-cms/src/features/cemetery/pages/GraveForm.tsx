@@ -9,19 +9,22 @@ import Card from '../../../components/ui/Card';
 import Input from '../../../components/ui/Input';
 import SearchableSelect from '../../../components/ui/SearchableSelect';
 import { PageSkeleton } from '@/components/ui/Skeleton';
+import EmptyState from '@/components/ui/EmptyState';
 import { FiArrowLeft } from 'react-icons/fi';
 import { memberService } from '@/services/memberService';
 import { familyService } from '@/services/familyService';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
 
 const graveSchema = z.object({
-  graveNo: z.string().min(1, 'Grave number is required'),
-  deceasedName: z.string().min(1, 'Deceased name is required'),
-  dateOfDeath: z.string().optional(),
-  burialDate: z.string().optional(),
-  rowLabel: z.string().optional(),
-  notes: z.string().optional(),
-  deceasedMemberId: z.string().optional(),
-  familyId: z.string().optional(),
+  graveNo: z.string().max(200, 'Please keep the grave no to 200 characters or less.').min(1, 'Grave number is required'),
+  deceasedName: z.string().max(200, 'Please keep the deceased name to 200 characters or less.').min(1, 'Deceased name is required'),
+  dateOfDeath: z.string().max(200, 'Please keep the date of death to 200 characters or less.').optional(),
+  burialDate: z.string().max(200, 'Please keep the burial date to 200 characters or less.').optional(),
+  rowLabel: z.string().max(200, 'Please keep the row label to 200 characters or less.').optional(),
+  notes: z.string().max(2000, 'Please keep the notes to 2000 characters or less.').optional(),
+  deceasedMemberId: z.string().max(200, 'Please keep the deceased member to 200 characters or less.').optional(),
+  familyId: z.string().max(200, 'Please keep the family to 200 characters or less.').optional(),
 });
 
 type GraveFormData = z.infer<typeof graveSchema>;
@@ -32,6 +35,7 @@ export function GraveForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [cemetery, setCemetery] = useState<Cemetery | null>(null);
+  const [loadingCemetery, setLoadingCemetery] = useState(true);
   const [grave, setGrave] = useState<GraveRecord | null>(null);
   const [members, setMembers] = useState<any[]>([]);
   const [loadingMembers, setLoadingMembers] = useState(true);
@@ -88,11 +92,14 @@ export function GraveForm() {
           });
         }
       } catch (err: any) {
-        setError(err.response?.data?.message || 'Failed to load data');
+        setError(loadErrorMessage(err, 'this cemetery'));
+      } finally {
+        setLoadingCemetery(false);
       }
     };
 
     if (cemeteryId) loadData();
+    else setLoadingCemetery(false);
   }, [cemeteryId, graveId, reset]);
 
   const onSubmit = async (data: GraveFormData) => {
@@ -116,14 +123,33 @@ export function GraveForm() {
 
       navigate(`/cemetery/${cemeteryId}`);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to save grave record');
+      setError(errorMessage(err, { action: 'save grave record' }));
     } finally {
       setLoading(false);
     }
   };
 
-  if (!cemetery) {
+  if (loadingCemetery) {
     return <PageSkeleton />;
+  }
+
+  /*
+   * The skeleton used to be the only thing this screen could show without a
+   * cemetery, so a deleted or mistyped cemetery left it shimmering forever —
+   * the error was set but never reached, because the early return ran first.
+   */
+  if (!cemetery) {
+    return (
+      <div className="space-y-6">
+        <PageHeader title={graveId ? 'Edit grave' : 'Add grave'} />
+        <EmptyState
+          variant="error"
+          title="This cemetery couldn’t be opened"
+          description={error ?? 'It may have been removed. Pick a cemetery from the list and try again.'}
+          action={{ label: 'Back to cemeteries', onClick: () => navigate('/cemetery') }}
+        />
+      </div>
+    );
   }
 
   return (
@@ -136,39 +162,27 @@ export function GraveForm() {
         >
           <FiArrowLeft /> Back
         </Button>
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold">
-            {graveId ? 'Edit Grave' : 'Add Grave'} - {cemetery.name}
-          </h1>
-        </div>
+        <PageHeader title={graveId ? 'Edit grave' : 'Add grave'} description={cemetery.name} />
       </div>
 
       {error && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-          {error}
-        </div>
+        <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">{error}</div>
       )}
 
-      <Card className="p-6">
+      <Card padding="lg">
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Grave Number *
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Grave Number *</label>
             <Input
               {...register('graveNo')}
               placeholder="e.g., A-001, B-045"
               className={errors.graveNo ? 'border-red-500' : ''}
             />
-            {errors.graveNo && (
-              <p className="mt-1 text-sm text-red-600">{errors.graveNo.message}</p>
-            )}
+            {errors.graveNo && <p className="mt-1 text-sm text-red-600">{errors.graveNo.message}</p>}
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Deceased Name *
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Deceased Name *</label>
             <Input
               {...register('deceasedName')}
               placeholder="Enter full name"
@@ -181,41 +195,25 @@ export function GraveForm() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Date of Death
-              </label>
-              <Input
-                {...register('dateOfDeath')}
-                type="date"
-              />
+              <label className="block text-sm font-medium text-gray-700 mb-1">Date of Death</label>
+              <Input {...register('dateOfDeath')} type="date" />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Burial Date
-              </label>
-              <Input
-                {...register('burialDate')}
-                type="date"
-              />
+              <label className="block text-sm font-medium text-gray-700 mb-1">Burial Date</label>
+              <Input {...register('burialDate')} type="date" />
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Row Label
-            </label>
-            <Input
-              {...register('rowLabel')}
-              placeholder="e.g., Row 1, Section A"
-            />
+            <label className="block text-sm font-medium text-gray-700 mb-1">Row Label</label>
+            <Input {...register('rowLabel')} placeholder="e.g., Row 1, Section A" />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Notes
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
             <textarea
+              aria-label="Notes"
               {...register('notes')}
               placeholder="Enter any additional notes"
               rows={4}
@@ -224,9 +222,7 @@ export function GraveForm() {
           </div>
 
           <div className="pt-4 border-t">
-            <p className="text-sm text-gray-600 mb-4">
-              Optional: Link to member or family (if available)
-            </p>
+            <p className="text-sm text-gray-600 mb-4">Optional: Link to member or family (if available)</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Controller
@@ -270,12 +266,8 @@ export function GraveForm() {
             </div>
           </div>
 
-          <div className="flex gap-3 pt-4">
-            <Button
-              type="submit"
-              disabled={loading}
-              className="flex-1"
-            >
+          <div className="flex flex-wrap gap-3 pt-4">
+            <Button type="submit" disabled={loading} className="flex-1">
               {loading ? 'Saving...' : 'Save Grave'}
             </Button>
             <Button

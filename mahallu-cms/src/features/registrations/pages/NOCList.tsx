@@ -4,7 +4,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { FiEye, FiEdit2, FiX, FiFileText, FiClock, FiCheckCircle, FiDownload } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -27,15 +26,15 @@ import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
 import { downloadNocPdf } from '@/utils/nocPdf';
 import { DEFAULT_NOC_DESCRIPTION, createNocSchema, CreateNocFormData } from '../nocFormConfig';
 import { buildNocColumns } from '../nocColumns';
-
-
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
 
 export default function NOCList() {
   const navigate = useNavigate();
   const location = useLocation();
   const isNikahNOC = location.pathname === ROUTES.REGISTRATIONS.NOC.NIKAH;
   const isCommonNOC = location.pathname === ROUTES.REGISTRATIONS.NOC.COMMON;
-  
+
   const [searchQuery, setSearchQuery] = useState('');
   const [isFilterVisible, setIsFilterVisible] = useState(false);
   const [typeFilter, setTypeFilter] = useState<string>(() => {
@@ -133,7 +132,7 @@ export default function NOCList() {
         setPagination(result.pagination);
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch NOCs');
+      setError(loadErrorMessage(err, 'nocs'));
       console.error('Error fetching NOCs:', err);
     } finally {
       setLoading(false);
@@ -162,9 +161,12 @@ export default function NOCList() {
     } catch (err: any) {
       const fieldErrors = err.response?.data?.errors;
       const detail = Array.isArray(fieldErrors)
-        ? fieldErrors.map((e: any) => e.msg).filter(Boolean).join('; ')
+        ? fieldErrors
+            .map((e: any) => e.msg)
+            .filter(Boolean)
+            .join('; ')
         : null;
-      setCreateError(detail || err.response?.data?.message || 'Failed to create NOC. Please try again.');
+      setCreateError(detail || errorMessage(err, { action: 'create noc. please try again' }));
       console.error('Error creating NOC:', err);
     }
   };
@@ -172,12 +174,12 @@ export default function NOCList() {
   const handleExport = async (type: 'csv' | 'json' | 'pdf') => {
     try {
       setIsExporting(true);
-      
+
       const params: any = { limit: 10000 };
       if (debouncedSearch) params.search = debouncedSearch;
       if (typeFilter !== 'all') params.type = typeFilter;
       if (statusFilter !== 'all') params.status = statusFilter;
-      
+
       const result = await registrationService.getAllNOC(params);
       const dataToExport = result.data;
 
@@ -202,7 +204,7 @@ export default function NOCList() {
       }
     } catch (error: any) {
       console.error('Export error:', error);
-      toast.error(error?.message || 'Failed to export NOCs');
+      toast.error(error?.message || "Couldn't export NOCs");
     } finally {
       setIsExporting(false);
     }
@@ -211,7 +213,11 @@ export default function NOCList() {
   const columns = buildNocColumns({ navigate });
 
   const stats = [
-    { title: 'Total NOCs', value: pagination?.total || nocs.length, icon: <FiFileText className="h-5 w-5" /> },
+    {
+      title: 'Total NOCs',
+      value: pagination?.total || nocs.length,
+      icon: <FiFileText className="h-5 w-5" />,
+    },
     {
       title: 'Pending',
       value: nocs.filter((n) => n.status === 'pending' || !n.status).length,
@@ -227,26 +233,17 @@ export default function NOCList() {
   return (
     <div className="space-y-4">
       <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">
-              {isNikahNOC ? 'Nikah NOC' : isCommonNOC ? 'Common NOC' : 'NOC (No Objection Certificate)'}
-            </h1>
-            <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
-              {isNikahNOC ? 'Manage Nikah NOC requests' : isCommonNOC ? 'Manage Common NOC requests' : 'Manage NOC requests'}
-            </p>
-          </div>
-          <Breadcrumb
-            items={[
-              { label: 'Dashboard', path: '/dashboard' },
-              { label: 'Registrations', path: ROUTES.REGISTRATIONS.NIKAH },
-              {
-                label: isNikahNOC ? 'Nikah NOC' : isCommonNOC ? 'Common NOC' : 'NOC',
-                path: isNikahNOC ? ROUTES.REGISTRATIONS.NOC.NIKAH : isCommonNOC ? ROUTES.REGISTRATIONS.NOC.COMMON : '#',
-              },
-            ]}
-          />
-        </div>
+        <PageHeader
+          title={isNikahNOC ? 'Nikah NOC' : isCommonNOC ? 'Common NOC' : 'NOC (No Objection Certificate)'}
+          description={
+            isNikahNOC
+              ? 'Manage Nikah NOC requests'
+              : isCommonNOC
+                ? 'Manage Common NOC requests'
+                : 'Manage NOC requests'
+          }
+          breadcrumbs={[{ label: 'Registrations', path: ROUTES.REGISTRATIONS.NIKAH }]}
+        />
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           {stats.map((stat, index) => (
@@ -291,12 +288,12 @@ export default function NOCList() {
                   placeholder="Applicant Name"
                 />
                 <div className="hidden">
-                <Input
-                  label="Applicant Name (Malayalam)"
-                  {...register('applicantNameMl')}
-                  placeholder="അപേക്ഷകന്റെ പേര്"
-                  className="font-malayalam"
-                />
+                  <Input
+                    label="Applicant Name (Malayalam)"
+                    {...register('applicantNameMl')}
+                    placeholder="അപേക്ഷകന്റെ പേര്"
+                    className="font-malayalam"
+                  />
                 </div>
                 <Input
                   label="Applicant Phone"
@@ -313,12 +310,12 @@ export default function NOCList() {
                   className="md:col-span-2"
                 />
                 <div className="hidden">
-                <Input
-                  label="Purpose Title (Malayalam)"
-                  {...register('purposeTitleMl')}
-                  placeholder="ഉദ്ദേശ്യം"
-                  className="md:col-span-2 font-malayalam"
-                />
+                  <Input
+                    label="Purpose Title (Malayalam)"
+                    {...register('purposeTitleMl')}
+                    placeholder="ഉദ്ദേശ്യം"
+                    className="md:col-span-2 font-malayalam"
+                  />
                 </div>
                 <Select
                   label="NOC Type"
@@ -339,7 +336,7 @@ export default function NOCList() {
                   />
                 </div>
               </div>
-              <div className="flex justify-end gap-3 pt-2">
+              <div className="flex gap-2 flex-col-reverse sm:flex-row sm:justify-end sm:gap-3 pt-2">
                 <Button type="button" variant="outline" onClick={() => setShowCreate(false)}>
                   Cancel
                 </Button>
@@ -368,15 +365,16 @@ export default function NOCList() {
         />
 
         {isFilterVisible && (
-          <div className="relative flex flex-wrap items-center gap-4 mb-6 p-4 border border-gray-200 rounded-lg bg-white dark:bg-gray-800 dark:border-gray-700">
+          <div className="relative flex flex-wrap items-center gap-4 mb-6 p-4 border border-gray-200 rounded-lg max-sm:border-0 max-sm:bg-transparent max-sm:p-0 bg-white dark:bg-gray-800 dark:border-gray-700">
             <button
               onClick={() => setIsFilterVisible(false)}
               className="absolute right-4 top-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              aria-label="Close"
             >
               <FiX className="h-4 w-4" />
             </button>
             {!isNikahNOC && !isCommonNOC && (
-              <div className="w-32">
+              <div className="w-full sm:w-32">
                 <Select
                   options={[
                     { value: 'all', label: 'All Types' },
@@ -388,7 +386,7 @@ export default function NOCList() {
                 />
               </div>
             )}
-            <div className="w-32">
+            <div className="w-full sm:w-32">
               <Select
                 options={[
                   { value: 'all', label: 'All Status' },
@@ -440,4 +438,3 @@ export default function NOCList() {
     </div>
   );
 }
-

@@ -1,11 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Modal from '@/components/ui/Modal';
-import SearchInput from '@/components/ui/SearchInput';
+import ExpandableSearch from '@/components/ui/ExpandableSearch';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import EmptyState from '@/components/ui/EmptyState';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
@@ -14,6 +13,8 @@ import { Pagination as PaginationType } from '@/types';
 import { mosqueService, MOSQUE_FACILITY_OPTIONS, MosqueProfile } from '@/services/mosqueService';
 import { useDebounce } from '@/hooks/useDebounce';
 import { toast } from '@/store/toastStore';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
 
 const emptyForm = {
   name: '',
@@ -58,7 +59,7 @@ export default function MosquesList() {
       setRows(result.data);
       setPagination(result.pagination);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to load mosques');
+      setError(loadErrorMessage(err, 'mosques'));
     } finally {
       setLoading(false);
     }
@@ -97,7 +98,7 @@ export default function MosquesList() {
       fetchRows();
       toast.success('Mosque created');
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to create mosque');
+      toast.error(errorMessage(err, { action: 'create mosque' }));
     } finally {
       setSaving(false);
     }
@@ -119,31 +120,23 @@ export default function MosquesList() {
       setDeletingName('');
       fetchRows();
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to delete mosque');
+      toast.error(errorMessage(err, { action: 'delete mosque' }));
     }
   };
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">Mosques</h1>
-          <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-            Capacity, facilities and religious staff for each mosque
-          </p>
-        </div>
-        <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Mosque' }]} />
-      </div>
+      <PageHeader title="Mosques" description="Capacity, facilities and religious staff for each mosque" />
 
       <Card>
         <div className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto] sm:items-center">
-          <SearchInput
+          <ExpandableSearch
             value={searchQuery}
-            onChange={(e) => {
-              setSearchQuery(e.target.value);
+            onChange={(value) => {
+              setSearchQuery(value);
               setCurrentPage(1);
             }}
-            placeholder="Search mosques..."
+            entity="mosques"
           />
           <Button size="md" onClick={() => setFormOpen(true)}>
             + New Mosque
@@ -166,10 +159,10 @@ export default function MosquesList() {
             action={{ label: 'Add First Mosque', onClick: () => setFormOpen(true) }}
           />
         ) : (
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {rows.map((mosque) => (
-              <Card key={mosque.id} className="h-full p-3 transition-shadow hover:shadow-md sm:p-4">
-                <div className="flex items-start justify-between gap-2">
+              <Card key={mosque.id} className="h-full transition-shadow hover:shadow-md">
+                <div className="flex flex-wrap items-start justify-between gap-2">
                   <Link to={`/mosque/${mosque.id}`} className="min-w-0 flex-1">
                     <p className="truncate text-sm font-semibold leading-tight text-gray-900 dark:text-gray-100 sm:text-base">
                       {mosque.name}
@@ -325,6 +318,7 @@ export default function MosquesList() {
       </Modal>
 
       <ConfirmDialog
+        isLoading={saving}
         isOpen={isConfirmDeleteOpen}
         title="Delete Mosque"
         message={`Delete the mosque "${deletingName}"? Its assets will remain but become unassigned.`}

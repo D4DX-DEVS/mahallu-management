@@ -55,13 +55,18 @@ export const pettyCashService = {
     return (response.data.data || []).map(normalize) as PettyCashTransaction[];
   },
 
-  recordExpense: async (id: string, data: { amount: number; description: string; categoryId?: string; receiptNo?: string; date?: string }) => {
+  recordExpense: async (
+    id: string,
+    data: { amount: number; description: string; categoryId?: string; receiptNo?: string; date?: string }
+  ) => {
     const response = await api.post<{ success: boolean; data: any }>(`/petty-cash/${id}/expense`, data);
     return normalize(response.data.data) as PettyCashTransaction;
   },
 
   replenish: async (id: string) => {
-    const response = await api.post<{ success: boolean; data: any; message: string }>(`/petty-cash/${id}/replenish`);
+    const response = await api.post<{ success: boolean; data: any; message: string }>(
+      `/petty-cash/${id}/replenish`
+    );
     return response.data;
   },
 };

@@ -1,6 +1,5 @@
 import { useState, useEffect, ReactNode } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Table from '@/components/ui/Table';
@@ -20,6 +19,8 @@ import {
 import LoanStatusBadge, { InstallmentBadge } from '../components/LoanStatusBadge';
 import RepaymentModal from '../components/RepaymentModal';
 import LoanStatusModal from '../components/LoanStatusModal';
+import { loadErrorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
 
 const Field = ({ label, value }: { label: string; value: ReactNode }) => (
   <div>
@@ -47,7 +48,7 @@ export default function LoanDetail() {
       setError(null);
       setLoan(await qardService.getLoan(loanId));
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to load the loan');
+      setError(loadErrorMessage(err, 'the loan'));
     } finally {
       setLoading(false);
     }
@@ -77,7 +78,7 @@ export default function LoanDetail() {
   if (error || !loan) {
     return (
       <div>
-        <Breadcrumb items={[{ label: 'Services' }, { label: 'Qard Hasan', path: '/loans' }]} />
+        <PageHeader title="Qard Hasan" breadcrumbs={[{ label: 'Services' }]} />
         <Card>
           <p className="text-sm text-red-600 dark:text-red-400">{error || 'Loan not found'}</p>
           <Button className="mt-3" variant="secondary" onClick={() => navigate('/loans')}>
@@ -96,22 +97,16 @@ export default function LoanDetail() {
 
   return (
     <div>
-      <Breadcrumb
-        items={[
-          { label: 'Services' },
-          { label: 'Qard Hasan', path: '/loans' },
-          { label: loanApplicantName(loan) },
-        ]}
+      <PageHeader
+        title="loanApplicantName(loan)"
+        breadcrumbs={[{ label: 'Services' }, { label: 'Qard Hasan', path: '/loans' }]}
       />
 
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
-            {loanApplicantName(loan)}
-          </h1>
+        <div className="flex flex-wrap items-center gap-3">
           <LoanStatusBadge status={loan.status} />
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {canMove && (
             <Button variant="secondary" onClick={() => setStatusOpen(true)}>
               Change status
@@ -121,12 +116,9 @@ export default function LoanDetail() {
         </div>
       </div>
 
-      <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard title="Requested" value={formatCurrency(loan.amount)} />
-        <StatCard
-          title="Approved"
-          value={loan.approvedAmount ? formatCurrency(loan.approvedAmount) : '-'}
-        />
+        <StatCard title="Approved" value={loan.approvedAmount ? formatCurrency(loan.approvedAmount) : '-'} />
         <StatCard title="Repaid" value={formatCurrency(repaid)} />
         <StatCard title="Outstanding" value={formatCurrency(loan.outstandingBalance)} />
       </div>
@@ -137,10 +129,7 @@ export default function LoanDetail() {
           <Field label="Purpose" value={purpose} />
           <Field label="Details" value={loan.purposeDetails || '-'} />
           <Field label="Applied" value={formatDate(loan.appliedDate)} />
-          <Field
-            label="Disbursed"
-            value={loan.disbursedDate ? formatDate(loan.disbursedDate) : '-'}
-          />
+          <Field label="Disbursed" value={loan.disbursedDate ? formatDate(loan.disbursedDate) : '-'} />
           <Field label="Term" value={`${loan.repaymentMonths} months`} />
           <Field
             label="Monthly"
@@ -155,9 +144,7 @@ export default function LoanDetail() {
       </Card>
 
       <Card className="mb-4">
-        <h2 className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100">
-          Repayment schedule
-        </h2>
+        <h2 className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100">Repayment schedule</h2>
         <Table
           columns={scheduleColumns}
           data={loan.repaymentSchedule || []}
@@ -166,9 +153,7 @@ export default function LoanDetail() {
       </Card>
 
       <Card>
-        <h2 className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100">
-          Repayment history
-        </h2>
+        <h2 className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100">Repayment history</h2>
         <Table
           columns={repaymentColumns}
           data={loan.repayments || []}

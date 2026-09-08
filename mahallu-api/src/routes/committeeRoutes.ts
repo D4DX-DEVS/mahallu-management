@@ -17,6 +17,7 @@ import {
   deleteCommitteeValidation,
 } from '../validations/committeeValidation';
 import { param } from 'express-validator';
+import { idParam, listQuery } from '../validations/common';
 
 const router = express.Router();
 
@@ -86,7 +87,7 @@ router.use(tenantFilter);
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  */
-router.get('/', getAllCommittees);
+router.get('/', listQuery(), validationHandler, getAllCommittees);
 
 /**
  * @swagger

@@ -30,19 +30,44 @@ export default function RichTextEditor({ label, value, onChange, className, erro
 
   return (
     <div className={cn('w-full', className)}>
-      {label && <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 ml-1">{label}</label>}
-      <div className={cn('rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900/50', error && 'border-red-500')}>
+      {label && (
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 ml-1">
+          {label}
+        </label>
+      )}
+      <div
+        className={cn(
+          'rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900/50',
+          error && 'border-red-500'
+        )}
+      >
         <div className="flex flex-wrap items-center gap-2 border-b border-gray-200 dark:border-gray-700 px-3 py-2">
-          <button type="button" onClick={() => runCommand('bold')} className="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-800">
+          <button
+            type="button"
+            onClick={() => runCommand('bold')}
+            aria-label="Bold"
+            className="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-800"
+          >
             <FiBold className="h-4 w-4" />
           </button>
-          <button type="button" onClick={() => runCommand('italic')} className="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-800">
+          <button
+            type="button"
+            onClick={() => runCommand('italic')}
+            aria-label="Italic"
+            className="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-800"
+          >
             <FiItalic className="h-4 w-4" />
           </button>
-          <button type="button" onClick={() => runCommand('underline')} className="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-800">
+          <button
+            type="button"
+            onClick={() => runCommand('underline')}
+            aria-label="Underline"
+            className="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-800"
+          >
             <FiUnderline className="h-4 w-4" />
           </button>
           <select
+            aria-label="Font"
             className="h-9 rounded-lg border border-gray-200 bg-white px-2 text-sm dark:border-gray-700 dark:bg-gray-900"
             onChange={(e) => runCommand('fontName', e.target.value)}
             defaultValue=""
@@ -58,14 +83,25 @@ export default function RichTextEditor({ label, value, onChange, className, erro
           </select>
           <input
             type="color"
+            aria-label="Text colour"
             className="h-9 w-9 rounded border border-gray-200 p-1 dark:border-gray-700"
             onChange={(e) => runCommand('foreColor', e.target.value)}
             title="Text color"
           />
-          <button type="button" onClick={() => runCommand('undo')} className="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-800">
+          <button
+            type="button"
+            onClick={() => runCommand('undo')}
+            aria-label="Undo"
+            className="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-800"
+          >
             <FiRotateCcw className="h-4 w-4" />
           </button>
-          <button type="button" onClick={() => runCommand('redo')} className="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-800">
+          <button
+            type="button"
+            onClick={() => runCommand('redo')}
+            aria-label="Redo"
+            className="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-800"
+          >
             <FiRotateCw className="h-4 w-4" />
           </button>
         </div>

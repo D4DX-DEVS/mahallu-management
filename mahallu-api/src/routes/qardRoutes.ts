@@ -12,6 +12,13 @@ import {
 } from '../controllers/qardController';
 import { authMiddleware, allowRoles } from '../middleware/authMiddleware';
 import { tenantMiddleware, tenantFilter } from '../middleware/tenantMiddleware';
+import { validationHandler } from '../middleware/validationHandler';
+import { idParam, listQuery } from '../validations/common';
+import {
+  createQardLoanValidation,
+  createQardRepaymentValidation,
+  updateQardLoanValidation,
+} from '../validations/moduleValidation';
 
 const router = express.Router();
 
@@ -58,7 +65,7 @@ router.use(tenantFilter);
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  */
-router.get('/summary', getQardSummary);
+router.get('/summary', listQuery(), validationHandler, getQardSummary);
 
 /**
  * @swagger
@@ -124,8 +131,8 @@ router.get('/summary', getQardSummary);
  *       404:
  *         description: Loan not found
  */
-router.get('/repayments', getRepayments);
-router.post('/repayments', allowRoles(['mahall']), createRepayment);
+router.get('/repayments', listQuery(), validationHandler, getRepayments);
+router.post('/repayments', createQardRepaymentValidation, validationHandler, allowRoles(['mahall']), createRepayment);
 
 /**
  * @swagger
@@ -200,8 +207,8 @@ router.post('/repayments', allowRoles(['mahall']), createRepayment);
  *       400:
  *         description: Missing applicant, or a reference from another tenant
  */
-router.get('/loans', getAllLoans);
-router.post('/loans', allowRoles(['mahall']), createLoan);
+router.get('/loans', listQuery(), validationHandler, getAllLoans);
+router.post('/loans', createQardLoanValidation, validationHandler, allowRoles(['mahall']), createLoan);
 
 /**
  * @swagger
@@ -287,9 +294,9 @@ router.post('/loans', allowRoles(['mahall']), createLoan);
  *       404:
  *         description: Loan not found
  */
-router.get('/loans/:id', getLoanById);
-router.put('/loans/:id', allowRoles(['mahall']), updateLoan);
-router.delete('/loans/:id', allowRoles(['mahall']), deleteLoan);
+router.get('/loans/:id', idParam('id', 'loan'), validationHandler, getLoanById);
+router.put('/loans/:id', updateQardLoanValidation, validationHandler, allowRoles(['mahall']), updateLoan);
+router.delete('/loans/:id', idParam('id', 'loan'), validationHandler, allowRoles(['mahall']), deleteLoan);
 
 /**
  * @swagger
@@ -345,6 +352,6 @@ router.delete('/loans/:id', allowRoles(['mahall']), deleteLoan);
  *       404:
  *         description: Loan not found
  */
-router.put('/loans/:id/status', allowRoles(['mahall']), updateLoanStatus);
+router.put('/loans/:id/status', idParam('id', 'loan'), validationHandler, allowRoles(['mahall']), updateLoanStatus);
 
 export default router;

@@ -1,4 +1,4 @@
-import api from './api';
+import api, { asList } from './api';
 
 export interface MarriageAssistance {
   id: string;
@@ -37,7 +37,7 @@ export const marriageAssistanceService = {
       pagination?: Pagination;
     }>('/marriage-assistance', { params });
     return {
-      data: response.data.data,
+      data: asList(response.data.data),
       pagination: response.data.pagination || null,
     };
   },
@@ -66,11 +66,7 @@ export const marriageAssistanceService = {
     return response.data.data;
   },
 
-  updateStatus: async (
-    id: string,
-    status: 'approved' | 'completed',
-    notes?: string
-  ) => {
+  updateStatus: async (id: string, status: 'approved' | 'completed', notes?: string) => {
     const response = await api.put<{
       success: boolean;
       data: MarriageAssistance;

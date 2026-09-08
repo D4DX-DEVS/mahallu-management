@@ -19,6 +19,7 @@ import {
   getProgramValidation,
   deleteProgramValidation,
 } from '../validations/programValidation';
+import { idParam, listQuery } from '../validations/common';
 
 const router = express.Router();
 
@@ -88,7 +89,7 @@ router.use(tenantFilter);
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  */
-router.get('/', getAllPrograms);
+router.get('/', listQuery(), validationHandler, getAllPrograms);
 
 /**
  * @swagger
@@ -322,8 +323,8 @@ router.delete('/:id', deleteProgramValidation, validationHandler, deleteProgram)
  *       409:
  *         description: Member is already registered
  */
-router.get('/:id/registrations', getProgramRegistrations);
-router.post('/:id/registrations', registerMemberForProgram);
+router.get('/:id/registrations', idParam('id', 'program'), validationHandler, getProgramRegistrations);
+router.post('/:id/registrations', idParam('id', 'program'), validationHandler, registerMemberForProgram);
 
 /**
  * @swagger
@@ -381,8 +382,8 @@ router.post('/:id/registrations', registerMemberForProgram);
  *       404:
  *         $ref: '#/components/responses/NotFound'
  */
-router.put('/:id/registrations/:memberId', setProgramAttendance);
-router.delete('/:id/registrations/:memberId', removeProgramRegistration);
+router.put('/:id/registrations/:memberId', idParam('id', 'program'), idParam('memberId', 'member'), validationHandler, setProgramAttendance);
+router.delete('/:id/registrations/:memberId', idParam('id', 'program'), idParam('memberId', 'member'), validationHandler, removeProgramRegistration);
 
 export default router;
 

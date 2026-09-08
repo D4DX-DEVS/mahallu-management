@@ -4,7 +4,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useNavigate, useParams } from 'react-router-dom';
 import { FiSave, FiX } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -13,14 +12,16 @@ import { PageSkeleton } from '@/components/ui/Skeleton';
 import { ROUTES } from '@/constants/routes';
 import { religiousService, KHUTBAH_STATUS_OPTIONS } from '@/services/religiousService';
 import { Khateeb } from '@/services/religiousService';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
 
 const khutbahSchema = z.object({
-  khateebId: z.string().min(1, 'Khateeb is required'),
-  date: z.string().min(1, 'Date is required'),
-  topic: z.string().min(1, 'Topic is required'),
-  topicMl: z.string().optional(),
-  notes: z.string().optional(),
-  resourceUrl: z.string().optional(),
+  khateebId: z.string().max(200, 'Please keep the khateeb to 200 characters or less.').min(1, 'Khateeb is required'),
+  date: z.string().max(200, 'Please keep the date to 200 characters or less.').min(1, 'Date is required'),
+  topic: z.string().max(200, 'Please keep the topic to 200 characters or less.').min(1, 'Topic is required'),
+  topicMl: z.string().max(200, 'Please keep the topic to 200 characters or less.').optional(),
+  notes: z.string().max(2000, 'Please keep the notes to 2000 characters or less.').optional(),
+  resourceUrl: z.string().max(200, 'Please keep the resource url to 200 characters or less.').optional(),
   status: z.enum(['scheduled', 'delivered', 'cancelled']).optional(),
 });
 
@@ -58,10 +59,7 @@ export default function KhutbahEdit() {
     try {
       setLoading(true);
       const data = await religiousService.getKhutbahById(id);
-      setValue(
-        'khateebId',
-        typeof data.khateebId === 'object' ? data.khateebId.id : data.khateebId
-      );
+      setValue('khateebId', typeof data.khateebId === 'object' ? data.khateebId.id : data.khateebId);
       setValue('date', String(data.date).split('T')[0]);
       setValue('topic', data.topic);
       setValue('topicMl', data.topicMl || '');
@@ -69,7 +67,7 @@ export default function KhutbahEdit() {
       setValue('resourceUrl', data.resourceUrl || '');
       setValue('status', data.status || 'scheduled');
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to load khutbah');
+      setError(loadErrorMessage(err, 'khutbah'));
     } finally {
       setLoading(false);
     }
@@ -95,7 +93,7 @@ export default function KhutbahEdit() {
       await religiousService.updateKhutbah(id, data);
       navigate(ROUTES.RELIGIOUS.KHUTBAHS);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to update khutbah');
+      setError(errorMessage(err, { action: 'update khutbah' }));
     }
   };
 
@@ -108,21 +106,14 @@ export default function KhutbahEdit() {
 
   return (
     <div className="space-y-6">
-      <Breadcrumb
-        items={[
-          { label: 'Dashboard', path: ROUTES.DASHBOARD },
-          { label: 'Khutbah Schedule', path: ROUTES.RELIGIOUS.KHUTBAHS },
-          { label: 'Edit Khutbah' },
-        ]}
+      <PageHeader
+        title="Edit Khutbah"
+        breadcrumbs={[{ label: 'Khutbah Schedule', path: ROUTES.RELIGIOUS.KHUTBAHS }]}
       />
 
       <Card>
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold">Edit Khutbah</h1>
-          <Button
-            variant="outline"
-            onClick={() => navigate(ROUTES.RELIGIOUS.KHUTBAHS)}
-          >
+          <Button variant="outline" onClick={() => navigate(ROUTES.RELIGIOUS.KHUTBAHS)}>
             <FiX className="inline mr-2" />
             Cancel
           </Button>
@@ -143,12 +134,7 @@ export default function KhutbahEdit() {
             </div>
 
             <div>
-              <Input
-                label="Date *"
-                type="date"
-                {...register('date')}
-                error={errors.date?.message}
-              />
+              <Input label="Date *" type="date" {...register('date')} error={errors.date?.message} />
             </div>
 
             <div className="md:col-span-2">
@@ -171,6 +157,7 @@ export default function KhutbahEdit() {
             <div className="md:col-span-2">
               <label className="block text-sm font-medium mb-2">Notes</label>
               <textarea
+                aria-label="Notes"
                 {...register('notes')}
                 placeholder="Enter any notes or preparation details"
                 className="w-full px-3 py-2 border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary-500"
@@ -197,7 +184,7 @@ export default function KhutbahEdit() {
             </div>
           </div>
 
-          <div className="flex justify-end gap-4 pt-6 border-t">
+          <div className="flex gap-2 flex-col-reverse sm:flex-row sm:justify-end sm:gap-4 pt-6 border-t">
             <Button
               type="button"
               variant="outline"
@@ -206,11 +193,7 @@ export default function KhutbahEdit() {
             >
               Cancel
             </Button>
-            <Button
-              type="submit"
-              isLoading={isSubmitting}
-              disabled={isSubmitting}
-            >
+            <Button type="submit" isLoading={isSubmitting} disabled={isSubmitting}>
               <FiSave className="inline mr-2" />
               Save Changes
             </Button>

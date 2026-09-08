@@ -3,6 +3,7 @@ import { memberPortalService } from '@/services/memberPortalService';
 import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
 import { FiFile, FiExternalLink } from 'react-icons/fi';
+import { errorMessage } from '@/utils/errors';
 
 export type RequestType = 'nikah' | 'death' | 'noc';
 
@@ -60,14 +61,23 @@ interface RequestDetailModalProps {
   onSaved: () => void;
 }
 
-export default function RequestDetailModal({ type, request, mode, onClose, onSaved }: RequestDetailModalProps) {
+export default function RequestDetailModal({
+  type,
+  request,
+  mode,
+  onClose,
+  onSaved,
+}: RequestDetailModalProps) {
   const fields = FIELDS[type];
   const [formData, setFormData] = useState<Record<string, string>>(() =>
-    fields.reduce((acc, f) => {
-      const raw = request[f.key];
-      acc[f.key] = f.type === 'date' ? toDateInputValue(raw) : raw ?? '';
-      return acc;
-    }, {} as Record<string, string>)
+    fields.reduce(
+      (acc, f) => {
+        const raw = request[f.key];
+        acc[f.key] = f.type === 'date' ? toDateInputValue(raw) : (raw ?? '');
+        return acc;
+      },
+      {} as Record<string, string>
+    )
   );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -87,7 +97,7 @@ export default function RequestDetailModal({ type, request, mode, onClose, onSav
       const { url } = await memberPortalService.getDocumentUrl(docId);
       window.open(url, '_blank', 'noopener,noreferrer');
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to open document');
+      setError(errorMessage(err, { action: 'open document' }));
     } finally {
       setOpeningDocId(null);
     }
@@ -105,7 +115,7 @@ export default function RequestDetailModal({ type, request, mode, onClose, onSav
       await memberPortalService.updateRegistration(type, request.id, payload);
       onSaved();
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to save changes');
+      setError(errorMessage(err, { action: 'save changes' }));
     } finally {
       setSaving(false);
     }
@@ -120,13 +130,17 @@ export default function RequestDetailModal({ type, request, mode, onClose, onSav
       footer={
         mode === 'edit' ? (
           <>
-            <Button variant="outline" onClick={onClose}>Cancel</Button>
+            <Button variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
             <Button onClick={handleSave} disabled={saving}>
               {saving ? 'Saving…' : 'Save Changes'}
             </Button>
           </>
         ) : (
-          <Button variant="outline" onClick={onClose}>Close</Button>
+          <Button variant="outline" onClick={onClose}>
+            Close
+          </Button>
         )
       }
     >
@@ -134,7 +148,9 @@ export default function RequestDetailModal({ type, request, mode, onClose, onSav
         {request.status && (
           <div className="flex items-center gap-2 text-sm">
             <span className="font-medium text-gray-700 dark:text-gray-300">Status:</span>
-            <span className="capitalize text-gray-900 dark:text-gray-100">{String(request.status).replace('_', ' ')}</span>
+            <span className="capitalize text-gray-900 dark:text-gray-100">
+              {String(request.status).replace('_', ' ')}
+            </span>
           </div>
         )}
         {request.remarks && (
@@ -158,9 +174,12 @@ export default function RequestDetailModal({ type, request, mode, onClose, onSav
                   disabled={openingDocId === doc.id}
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 dark:bg-gray-800 rounded-full text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50 transition-colors"
                   title={doc.fileName}
+                  aria-label={`Open ${doc.fileName}`}
                 >
                   <FiFile size={12} />
-                  <span className="truncate max-w-[10rem]">{doc.documentType?.replace(/_/g, ' ') || doc.fileName}</span>
+                  <span className="truncate max-w-[10rem]">
+                    {doc.documentType?.replace(/_/g, ' ') || doc.fileName}
+                  </span>
                   {openingDocId === doc.id ? '…' : <FiExternalLink size={12} />}
                 </button>
               ))}
@@ -176,7 +195,7 @@ export default function RequestDetailModal({ type, request, mode, onClose, onSav
                 <p className="text-sm text-gray-900 dark:text-gray-100">
                   {f.type === 'date' && request[f.key]
                     ? new Date(request[f.key]).toLocaleDateString('en-IN')
-                    : (request[f.key] || '—')}
+                    : request[f.key] || '—'}
                 </p>
               </div>
             ))}
@@ -185,9 +204,12 @@ export default function RequestDetailModal({ type, request, mode, onClose, onSav
           <div className="space-y-4">
             {fields.map((f) => (
               <div key={f.key}>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{f.label}</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  {f.label}
+                </label>
                 {f.type === 'textarea' ? (
                   <textarea
+                    aria-label="Notes"
                     value={formData[f.key]}
                     onChange={(e) => setFormData({ ...formData, [f.key]: e.target.value })}
                     rows={3}
@@ -195,6 +217,7 @@ export default function RequestDetailModal({ type, request, mode, onClose, onSav
                   />
                 ) : (
                   <input
+                    aria-label="Value"
                     type={f.type}
                     value={formData[f.key]}
                     onChange={(e) => setFormData({ ...formData, [f.key]: e.target.value })}
@@ -204,7 +227,9 @@ export default function RequestDetailModal({ type, request, mode, onClose, onSav
               </div>
             ))}
             {error && (
-              <p className="text-red-500 text-sm bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-lg">{error}</p>
+              <p className="text-red-500 text-sm bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-lg">
+                {error}
+              </p>
             )}
           </div>
         )}

@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { FiTrash2, FiImage, FiCheckCircle, FiEdit2 } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import StatCard from '@/components/ui/StatCard';
@@ -15,6 +14,8 @@ import { socialService, Banner } from '@/services/socialService';
 import { formatDate } from '@/utils/format';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
 import { toast } from '@/store/toastStore';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
 
 export default function BannersList() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -48,7 +49,7 @@ export default function BannersList() {
         setPagination(result.pagination);
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch banners');
+      setError(loadErrorMessage(err, 'banners'));
       console.error('Error fetching banners:', err);
     } finally {
       setLoading(false);
@@ -58,7 +59,7 @@ export default function BannersList() {
   const handleExport = async (type: 'csv' | 'json' | 'pdf') => {
     try {
       setIsExporting(true);
-      
+
       const params: any = { limit: 10000 };
       const result = await socialService.getAllBanners(params);
       const dataToExport = result.data;
@@ -84,7 +85,7 @@ export default function BannersList() {
       }
     } catch (error: any) {
       console.error('Export error:', error);
-      toast.error(error?.response?.data?.message || 'Failed to export data');
+      toast.error(errorMessage(error, { action: 'export data' }));
     } finally {
       setIsExporting(false);
     }
@@ -99,14 +100,13 @@ export default function BannersList() {
       setShowDeleteModal(false);
       setSelectedBanner(null);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to delete banner');
+      setError(errorMessage(err, { action: 'delete banner' }));
     } finally {
       setDeleting(false);
     }
   };
 
   const columns: TableColumn<Banner>[] = [
-    { key: 'id', label: 'No.', render: (_, __, index) => index + 1 },
     { key: 'title', label: 'Title', sortable: true },
     {
       key: 'status',
@@ -149,6 +149,7 @@ export default function BannersList() {
             }}
             className="p-1.5 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 transition-colors"
             title="Delete"
+            aria-label="Delete"
           >
             <FiTrash2 className="h-4 w-4" />
           </button>
@@ -158,7 +159,11 @@ export default function BannersList() {
   ];
 
   const stats = [
-    { title: 'Total Banners', value: pagination?.total || banners.length, icon: <FiImage className="h-5 w-5" /> },
+    {
+      title: 'Total Banners',
+      value: pagination?.total || banners.length,
+      icon: <FiImage className="h-5 w-5" />,
+    },
     {
       title: 'Active',
       value: banners.filter((b) => b.status === 'active' || !b.status).length,
@@ -169,13 +174,7 @@ export default function BannersList() {
   return (
     <div className="space-y-4">
       <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Banners</h1>
-            <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">Manage banners</p>
-          </div>
-          <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Banners' }]} />
-        </div>
+        <PageHeader title="Banners" description="Manage banners" />
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {stats.map((stat, index) => (
@@ -196,9 +195,7 @@ export default function BannersList() {
           isExporting={isExporting}
           actionButtons={
             <Link to="/social/banners/create">
-              <Button size="md">
-                + New Banner
-              </Button>
+              <Button size="md">+ New Banner</Button>
             </Link>
           }
         />
@@ -259,10 +256,10 @@ export default function BannersList() {
         }
       >
         <p className="text-gray-600 dark:text-gray-400">
-          Are you sure you want to delete <strong>{selectedBanner?.title}</strong>? This action cannot be undone.
+          Are you sure you want to delete <strong>{selectedBanner?.title}</strong>? This action cannot be
+          undone.
         </p>
       </Modal>
     </div>
   );
 }
-

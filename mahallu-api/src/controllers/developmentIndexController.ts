@@ -18,6 +18,8 @@ import { StudentEnrollment } from '../models/Madrasa';
 import { JobVacancy, SkillTraining } from '../models/Employment';
 import { VolunteerProfile } from '../models/VolunteerProfile';
 import { DevelopmentProject } from '../models/DevelopmentProject';
+import { sendFailure } from '../utils/userMessages';
+
 import {
   DIMENSIONS,
   FAMILY_FRESHNESS_MONTHS,
@@ -209,12 +211,12 @@ export const getDevelopmentIndex = async (req: AuthRequest, res: Response) => {
   try {
     const tenantId = req.tenantId || (req.isSuperAdmin ? (req.query.tenantId as string) : undefined);
     if (!tenantId) {
-      return res.status(400).json({ success: false, message: 'Tenant ID is required' });
+      return res.status(400).json({ success: false, message: 'Please select a Mahallu before continuing.' });
     }
 
     const data = await computeDevelopmentIndex(new mongoose.Types.ObjectId(tenantId as string));
     res.json({ success: true, data });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the development index right now. Please try again.');
   }
 };

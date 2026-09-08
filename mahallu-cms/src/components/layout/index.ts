@@ -1,8 +1,6 @@
 // Export all layout components from a single file
 export { default as Sidebar } from './Sidebar';
 export { default as Header } from './Header';
-export { default as Breadcrumb } from './Breadcrumb';
 export { default as MainLayout } from './MainLayout';
-
-export type { BreadcrumbItem } from './Breadcrumb';
-
+export { default as PageHeader } from './PageHeader';
+export type { Crumb, PageHeaderProps } from './PageHeader';

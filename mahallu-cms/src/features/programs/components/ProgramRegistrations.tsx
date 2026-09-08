@@ -6,6 +6,7 @@ import SearchableSelect from '@/components/ui/SearchableSelect';
 import { programService, type ProgramRegistration, type RegisteredMember } from '@/services/programService';
 import { memberService } from '@/services/memberService';
 import { toast } from '@/store/toastStore';
+import { errorMessage } from '@/utils/errors';
 
 interface ProgramRegistrationsProps {
   programId: string;
@@ -19,7 +20,7 @@ const nameOf = (registration: ProgramRegistration): string => {
 
 const idOf = (registration: ProgramRegistration): string => {
   const member = registration.memberId;
-  return typeof member === 'string' ? member : member?._id;
+  return typeof member === 'string' ? member : member?.id;
 };
 
 /** Event registration list + attendance toggle (Task C3). */
@@ -45,7 +46,7 @@ export default function ProgramRegistrations({ programId }: ProgramRegistrations
       setRegistrations(res.data || []);
       setPagination(res.pagination);
     } catch (err) {
-      console.error('Failed to load registrations:', err);
+      console.error("Couldn't load registrations:", err);
     } finally {
       setLoading(false);
     }
@@ -59,7 +60,7 @@ export default function ProgramRegistrations({ programId }: ProgramRegistrations
     memberService
       .getAll({ limit: 100 })
       .then((res) => setMembers((res.data || []) as unknown as RegisteredMember[]))
-      .catch((err) => console.error('Failed to load members:', err));
+      .catch((err) => console.error("Couldn't load members:", err));
   }, []);
 
   const handleRegister = async () => {
@@ -71,7 +72,7 @@ export default function ProgramRegistrations({ programId }: ProgramRegistrations
       setSelectedMember('');
       await load();
     } catch (err: any) {
-      setError(err?.response?.data?.message || 'Failed to register member');
+      setError(errorMessage(err, { action: 'register member' }));
     } finally {
       setSaving(false);
     }
@@ -86,7 +87,7 @@ export default function ProgramRegistrations({ programId }: ProgramRegistrations
         prev.map((r) => (idOf(r) === memberId ? { ...r, attended: !r.attended } : r))
       );
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to update attendance');
+      toast.error(errorMessage(err, { action: 'update attendance' }));
     }
   };
 
@@ -98,14 +99,14 @@ export default function ProgramRegistrations({ programId }: ProgramRegistrations
       await load();
       toast.success('Registration removed');
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to remove registration');
+      toast.error(errorMessage(err, { action: 'remove registration' }));
     }
   };
 
   const attendedCount = registrations.filter((r) => r.attended).length;
 
   return (
-    <Card className="p-3 sm:p-4">
+    <Card>
       <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
         <h2 className="text-lg font-semibold">Registrations</h2>
         <div className="text-xs sm:text-sm text-gray-600">
@@ -118,7 +119,7 @@ export default function ProgramRegistrations({ programId }: ProgramRegistrations
           <SearchableSelect
             value={selectedMember}
             onChange={setSelectedMember}
-            options={members.map((m) => ({ value: m._id, label: m.name || m._id }))}
+            options={members.map((m) => ({ value: m.id, label: m.name || m.id }))}
             placeholder="Search and select member"
           />
         </div>
@@ -139,6 +140,7 @@ export default function ProgramRegistrations({ programId }: ProgramRegistrations
             <div key={idOf(r)} className="flex items-center justify-between gap-3 py-3">
               <label className="flex items-center gap-3 min-w-0">
                 <input
+                  aria-label="Select row"
                   type="checkbox"
                   checked={r.attended}
                   onChange={() => toggleAttendance(r)}

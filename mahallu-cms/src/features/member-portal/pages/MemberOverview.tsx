@@ -5,8 +5,14 @@ import { FiHeart, FiAlertCircle, FiClipboard, FiFileText, FiUser, FiUsers } from
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import { memberPortalService, MemberOverviewResponse } from '@/services/memberPortalService';
 import { ROUTES } from '@/constants/routes';
+import { loadErrorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
 
-const currency = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 });
+const currency = new Intl.NumberFormat('en-IN', {
+  style: 'currency',
+  currency: 'INR',
+  maximumFractionDigits: 0,
+});
 
 export default function MemberOverview() {
   const [overview, setOverview] = useState<MemberOverviewResponse | null>(null);
@@ -20,7 +26,7 @@ export default function MemberOverview() {
         const data = await memberPortalService.getOverview();
         setOverview(data);
       } catch (err: any) {
-        setError(err.response?.data?.message || 'Failed to load member overview');
+        setError(loadErrorMessage(err, 'member overview'));
       } finally {
         setLoading(false);
       }
@@ -30,14 +36,12 @@ export default function MemberOverview() {
   }, []);
 
   if (loading) {
-    return (
-      <PageSkeleton />
-    );
+    return <PageSkeleton />;
   }
 
   if (error || !overview) {
     return (
-      <div className="flex flex-col items-center justify-center h-[calc(100vh-140px)] gap-4">
+      <div className="flex flex-col items-center justify-center h-screen-content gap-4">
         <p className="text-red-600 dark:text-red-400">{error || 'Unable to load overview'}</p>
       </div>
     );
@@ -45,20 +49,27 @@ export default function MemberOverview() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">My Dashboard</h1>
-
-      <div className="grid grid-cols-3 gap-2 sm:gap-4">
+      <PageHeader title="My Dashboard" />
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-4">
         <Card padding="sm">
-          <p className="text-[0.68rem] sm:text-sm text-gray-500 dark:text-gray-400 leading-tight">Mahallu Users</p>
-          <p className="text-xl sm:text-2xl font-semibold text-gray-900 dark:text-gray-100">{overview.mahalluStatistics.users}</p>
+          <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 leading-tight">Mahallu Users</p>
+          <p className="text-xl sm:text-2xl font-semibold text-gray-900 dark:text-gray-100">
+            {overview.mahalluStatistics.users}
+          </p>
         </Card>
         <Card padding="sm">
-          <p className="text-[0.68rem] sm:text-sm text-gray-500 dark:text-gray-400 leading-tight">Mahallu Families</p>
-          <p className="text-xl sm:text-2xl font-semibold text-gray-900 dark:text-gray-100">{overview.mahalluStatistics.families}</p>
+          <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 leading-tight">
+            Mahallu Families
+          </p>
+          <p className="text-xl sm:text-2xl font-semibold text-gray-900 dark:text-gray-100">
+            {overview.mahalluStatistics.families}
+          </p>
         </Card>
         <Card padding="sm">
-          <p className="text-[0.68rem] sm:text-sm text-gray-500 dark:text-gray-400 leading-tight">Mahallu Members</p>
-          <p className="text-xl sm:text-2xl font-semibold text-gray-900 dark:text-gray-100">{overview.mahalluStatistics.members}</p>
+          <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 leading-tight">Mahallu Members</p>
+          <p className="text-xl sm:text-2xl font-semibold text-gray-900 dark:text-gray-100">
+            {overview.mahalluStatistics.members}
+          </p>
         </Card>
       </div>
 
@@ -66,13 +77,30 @@ export default function MemberOverview() {
         <Link to={ROUTES.MEMBER.PROFILE}>
           <Card className="h-full cursor-pointer hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100">My Details</h2>
+              <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100">
+                My Details
+              </h2>
               <span className="text-primary-600 dark:text-primary-400 text-sm">→</span>
             </div>
             <div className="space-y-2 text-sm">
-              <p><span className="text-gray-500 dark:text-gray-400">Name:</span> <span className="text-gray-900 dark:text-gray-100">{overview.member.name}</span></p>
-              {overview.member.phone && <p><span className="text-gray-500 dark:text-gray-400">Phone:</span> <span className="text-gray-900 dark:text-gray-100">{overview.member.phone}</span></p>}
-              {overview.varusankhyaDetails.memberMahallId && <p><span className="text-gray-500 dark:text-gray-400">Member ID:</span> <span className="text-gray-900 dark:text-gray-100">{overview.varusankhyaDetails.memberMahallId}</span></p>}
+              <p>
+                <span className="text-gray-500 dark:text-gray-400">Name:</span>
+                <span className="text-gray-900 dark:text-gray-100">{overview.member.name}</span>
+              </p>
+              {overview.member.phone && (
+                <p>
+                  <span className="text-gray-500 dark:text-gray-400">Phone:</span>
+                  <span className="text-gray-900 dark:text-gray-100">{overview.member.phone}</span>
+                </p>
+              )}
+              {overview.varusankhyaDetails.memberMahallId && (
+                <p>
+                  <span className="text-gray-500 dark:text-gray-400">Member ID:</span>
+                  <span className="text-gray-900 dark:text-gray-100">
+                    {overview.varusankhyaDetails.memberMahallId}
+                  </span>
+                </p>
+              )}
             </div>
           </Card>
         </Link>
@@ -80,14 +108,44 @@ export default function MemberOverview() {
         <Link to={ROUTES.MEMBER.FAMILY}>
           <Card className="h-full cursor-pointer hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100">Family Details</h2>
+              <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100">
+                Family Details
+              </h2>
               <span className="text-primary-600 dark:text-primary-400 text-sm">→</span>
             </div>
             <div className="space-y-2 text-sm">
-              {overview.family.details?.houseName && <p><span className="text-gray-500 dark:text-gray-400">House Name:</span> <span className="text-gray-900 dark:text-gray-100">{overview.family.details.houseName}</span></p>}
-              {overview.varusankhyaDetails.familyMahallId && <p><span className="text-gray-500 dark:text-gray-400">Family ID:</span> <span className="text-gray-900 dark:text-gray-100">{overview.varusankhyaDetails.familyMahallId}</span></p>}
-              {overview.varusankhyaDetails.varisangyaGrade && <p><span className="text-gray-500 dark:text-gray-400">Varisangya Grade:</span> <span className="text-gray-900 dark:text-gray-100">{overview.varusankhyaDetails.varisangyaGrade}</span></p>}
-              {overview.family.details?.contactNo && <p><span className="text-gray-500 dark:text-gray-400">Contact:</span> <span className="text-gray-900 dark:text-gray-100">{overview.family.details.contactNo}</span></p>}
+              {overview.family.details?.houseName && (
+                <p>
+                  <span className="text-gray-500 dark:text-gray-400">House Name:</span>
+                  <span className="text-gray-900 dark:text-gray-100">
+                    {overview.family.details.houseName}
+                  </span>
+                </p>
+              )}
+              {overview.varusankhyaDetails.familyMahallId && (
+                <p>
+                  <span className="text-gray-500 dark:text-gray-400">Family ID:</span>
+                  <span className="text-gray-900 dark:text-gray-100">
+                    {overview.varusankhyaDetails.familyMahallId}
+                  </span>
+                </p>
+              )}
+              {overview.varusankhyaDetails.varisangyaGrade && (
+                <p>
+                  <span className="text-gray-500 dark:text-gray-400">Varisangya Grade:</span>
+                  <span className="text-gray-900 dark:text-gray-100">
+                    {overview.varusankhyaDetails.varisangyaGrade}
+                  </span>
+                </p>
+              )}
+              {overview.family.details?.contactNo && (
+                <p>
+                  <span className="text-gray-500 dark:text-gray-400">Contact:</span>
+                  <span className="text-gray-900 dark:text-gray-100">
+                    {overview.family.details.contactNo}
+                  </span>
+                </p>
+              )}
             </div>
           </Card>
         </Link>
@@ -96,65 +154,119 @@ export default function MemberOverview() {
       <Link to={ROUTES.MEMBER.VARISANGYA} className="block">
         <Card className="cursor-pointer hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100">Family Financial Summary</h2>
+            <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100">
+              Family Financial Summary
+            </h2>
             <span className="text-primary-600 dark:text-primary-400 text-sm">→</span>
           </div>
-          <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-            <p><span className="text-gray-500 dark:text-gray-400">Varisangya Total:</span> <span className="text-gray-900 dark:text-gray-100">{currency.format(overview.family.financialSummary.varisangyaTotal || 0)}</span></p>
-            <p><span className="text-gray-500 dark:text-gray-400">Varisangya Count:</span> <span className="text-gray-900 dark:text-gray-100">{overview.family.financialSummary.varisangyaCount}</span></p>
-            <p><span className="text-gray-500 dark:text-gray-400">Zakat Total:</span> <span className="text-gray-900 dark:text-gray-100">{currency.format(overview.family.financialSummary.zakatTotal || 0)}</span></p>
-            <p><span className="text-gray-500 dark:text-gray-400">Zakat Count:</span> <span className="text-gray-900 dark:text-gray-100">{overview.family.financialSummary.zakatCount}</span></p>
-            <p><span className="text-gray-500 dark:text-gray-400">Latest Varisangya Receipt:</span> <span className="text-gray-900 dark:text-gray-100">{overview.varusankhyaDetails.latestVarisangyaReceiptNo || '-'}</span></p>
-            <p><span className="text-gray-500 dark:text-gray-400">Latest Zakat Receipt:</span> <span className="text-gray-900 dark:text-gray-100">{overview.varusankhyaDetails.latestZakatReceiptNo || '-'}</span></p>
+          <div className="grid grid-cols-1 gap-x-4 gap-y-2 text-sm sm:grid-cols-2">
+            <p>
+              <span className="text-gray-500 dark:text-gray-400">Varisangya Total:</span>
+              <span className="text-gray-900 dark:text-gray-100">
+                {currency.format(overview.family.financialSummary.varisangyaTotal || 0)}
+              </span>
+            </p>
+            <p>
+              <span className="text-gray-500 dark:text-gray-400">Varisangya Count:</span>
+              <span className="text-gray-900 dark:text-gray-100">
+                {overview.family.financialSummary.varisangyaCount}
+              </span>
+            </p>
+            <p>
+              <span className="text-gray-500 dark:text-gray-400">Zakat Total:</span>
+              <span className="text-gray-900 dark:text-gray-100">
+                {currency.format(overview.family.financialSummary.zakatTotal || 0)}
+              </span>
+            </p>
+            <p>
+              <span className="text-gray-500 dark:text-gray-400">Zakat Count:</span>
+              <span className="text-gray-900 dark:text-gray-100">
+                {overview.family.financialSummary.zakatCount}
+              </span>
+            </p>
+            <p>
+              <span className="text-gray-500 dark:text-gray-400">Latest Varisangya Receipt:</span>
+              <span className="text-gray-900 dark:text-gray-100">
+                {overview.varusankhyaDetails.latestVarisangyaReceiptNo || '-'}
+              </span>
+            </p>
+            <p>
+              <span className="text-gray-500 dark:text-gray-400">Latest Zakat Receipt:</span>
+              <span className="text-gray-900 dark:text-gray-100">
+                {overview.varusankhyaDetails.latestZakatReceiptNo || '-'}
+              </span>
+            </p>
           </div>
         </Card>
       </Link>
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
         <Link to={ROUTES.MEMBER.NIKAH_REQUEST}>
           <Card className="h-full cursor-pointer hover:shadow-md transition-shadow">
-            <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-xl bg-primary-50 text-primary-600 dark:bg-primary-500/10 dark:text-primary-300"><FiHeart className="h-5 w-5" /></div>
-            <h3 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-gray-100">Nikah Registration</h3>
+            <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-xl bg-primary-50 text-primary-600 dark:bg-primary-500/10 dark:text-primary-300">
+              <FiHeart className="h-5 w-5" />
+            </div>
+            <h3 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-gray-100">
+              Nikah Registration
+            </h3>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Register a marriage</p>
           </Card>
         </Link>
 
         <Link to={ROUTES.MEMBER.DEATH_REQUEST}>
           <Card className="h-full cursor-pointer hover:shadow-md transition-shadow">
-            <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-xl bg-primary-50 text-primary-600 dark:bg-primary-500/10 dark:text-primary-300"><FiAlertCircle className="h-5 w-5" /></div>
-            <h3 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-gray-100">Report Death</h3>
+            <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-xl bg-primary-50 text-primary-600 dark:bg-primary-500/10 dark:text-primary-300">
+              <FiAlertCircle className="h-5 w-5" />
+            </div>
+            <h3 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-gray-100">
+              Report Death
+            </h3>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Report a death in family</p>
           </Card>
         </Link>
 
         <Link to={ROUTES.MEMBER.REQUESTS}>
           <Card className="h-full cursor-pointer hover:shadow-md transition-shadow">
-            <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-xl bg-primary-50 text-primary-600 dark:bg-primary-500/10 dark:text-primary-300"><FiClipboard className="h-5 w-5" /></div>
-            <h3 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-gray-100">My Requests</h3>
+            <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-xl bg-primary-50 text-primary-600 dark:bg-primary-500/10 dark:text-primary-300">
+              <FiClipboard className="h-5 w-5" />
+            </div>
+            <h3 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-gray-100">
+              My Requests
+            </h3>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">View all registrations</p>
           </Card>
         </Link>
 
         <Link to={ROUTES.MEMBER.CERTIFICATES}>
           <Card className="h-full cursor-pointer hover:shadow-md transition-shadow">
-            <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-xl bg-primary-50 text-primary-600 dark:bg-primary-500/10 dark:text-primary-300"><FiFileText className="h-5 w-5" /></div>
-            <h3 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-gray-100">Certificates</h3>
+            <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-xl bg-primary-50 text-primary-600 dark:bg-primary-500/10 dark:text-primary-300">
+              <FiFileText className="h-5 w-5" />
+            </div>
+            <h3 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-gray-100">
+              Certificates
+            </h3>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Approved certificates</p>
           </Card>
         </Link>
 
         <Link to={ROUTES.MEMBER.PROFILE}>
           <Card className="h-full cursor-pointer hover:shadow-md transition-shadow">
-            <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-xl bg-primary-50 text-primary-600 dark:bg-primary-500/10 dark:text-primary-300"><FiUser className="h-5 w-5" /></div>
-            <h3 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-gray-100">My Profile</h3>
+            <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-xl bg-primary-50 text-primary-600 dark:bg-primary-500/10 dark:text-primary-300">
+              <FiUser className="h-5 w-5" />
+            </div>
+            <h3 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-gray-100">
+              My Profile
+            </h3>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Edit your details</p>
           </Card>
         </Link>
 
         <Link to={ROUTES.MEMBER.FAMILY}>
           <Card className="h-full cursor-pointer hover:shadow-md transition-shadow">
-            <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-xl bg-primary-50 text-primary-600 dark:bg-primary-500/10 dark:text-primary-300"><FiUsers className="h-5 w-5" /></div>
+            <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-xl bg-primary-50 text-primary-600 dark:bg-primary-500/10 dark:text-primary-300">
+              <FiUsers className="h-5 w-5" />
+            </div>
             <h3 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-gray-100">My Family</h3>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Family details</p>
           </Card>
@@ -175,7 +287,10 @@ export default function MemberOverview() {
             </thead>
             <tbody>
               {overview.family.members.map((member) => (
-                <tr key={member.id} className="border-b border-gray-100 dark:border-gray-900 text-gray-900 dark:text-gray-100">
+                <tr
+                  key={member.id}
+                  className="border-b border-gray-100 dark:border-gray-900 text-gray-900 dark:text-gray-100"
+                >
                   <td className="py-2 pr-3">{member.name}</td>
                   <td className="py-2 pr-3">{member.phone || '-'}</td>
                   <td className="py-2 pr-3">{member.gender || '-'}</td>

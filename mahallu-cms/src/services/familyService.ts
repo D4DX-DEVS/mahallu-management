@@ -1,18 +1,30 @@
-import api from './api';
+import api, { asList } from './api';
 import { Family } from '@/types';
 
 export const familyService = {
-  getAll: async (params?: { status?: string; search?: string; area?: string; sortBy?: string; page?: number; limit?: number }) => {
-    const response = await api.get<{ success: boolean; data: Family[]; pagination?: any }>('/families', { params });
+  getAll: async (params?: {
+    status?: string;
+    search?: string;
+    area?: string;
+    sortBy?: string;
+    page?: number;
+    limit?: number;
+  }) => {
+    const response = await api.get<{ success: boolean; data: Family[]; pagination?: any }>('/families', {
+      params,
+    });
     // Handle both paginated and non-paginated responses
     if (response.data.pagination) {
-      return { data: response.data.data, pagination: response.data.pagination };
+      return { data: asList(response.data.data), pagination: response.data.pagination };
     }
-    return { data: response.data.data, pagination: null };
+    return { data: asList(response.data.data), pagination: null };
   },
 
   getStats: async () => {
-    const response = await api.get<{ success: boolean; data: { totalMembers: number; maleCount: number; femaleCount: number } }>('/families/stats');
+    const response = await api.get<{
+      success: boolean;
+      data: { totalMembers: number; maleCount: number; femaleCount: number };
+    }>('/families/stats');
     return response.data.data;
   },
 
@@ -44,4 +56,3 @@ export const familyService = {
     return response.data.data;
   },
 };
-

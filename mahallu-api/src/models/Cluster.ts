@@ -18,7 +18,7 @@ const ClusterSchema = new Schema<ICluster>(
     tenantId: {
       type: Schema.Types.ObjectId,
       ref: 'Tenant',
-      required: [true, 'Tenant ID is required'],
+      required: [true, 'Please select a Mahallu before continuing.'],
       index: true,
     },
     name: { type: String, required: [true, 'Cluster name is required'], trim: true },
@@ -30,7 +30,7 @@ const ClusterSchema = new Schema<ICluster>(
       type: [{ type: Schema.Types.ObjectId, ref: 'Member' }],
       validate: {
         validator: (value: unknown[]) => !value || value.length <= 3,
-        message: 'A cluster team can hold at most 3 members',
+        message: 'A cluster team can have at most 3 members.',
       },
       default: [],
     },

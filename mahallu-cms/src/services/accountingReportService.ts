@@ -32,8 +32,16 @@ export interface BalanceSheetData {
 }
 
 export const accountingReportService = {
-  getDayBook: async (params: { instituteId?: string; startDate: string; endDate: string; scope?: string; includeEntities?: string }) => {
-    const response = await api.get<{ success: boolean; data: any }>('/accounting-reports/day-book', { params });
+  getDayBook: async (params: {
+    instituteId?: string;
+    startDate: string;
+    endDate: string;
+    scope?: string;
+    includeEntities?: string;
+  }) => {
+    const response = await api.get<{ success: boolean; data: any }>('/accounting-reports/day-book', {
+      params,
+    });
     const raw = response.data.data;
     // API returns { entries, summary } — extract and normalize entries
     const entries: DayBookEntry[] = (raw?.entries || raw || []).map((e: any) => ({
@@ -49,8 +57,16 @@ export const accountingReportService = {
     return entries;
   },
 
-  getTrialBalance: async (params: { instituteId?: string; startDate?: string; endDate?: string; scope?: string; includeEntities?: string }) => {
-    const response = await api.get<{ success: boolean; data: any }>('/accounting-reports/trial-balance', { params });
+  getTrialBalance: async (params: {
+    instituteId?: string;
+    startDate?: string;
+    endDate?: string;
+    scope?: string;
+    includeEntities?: string;
+  }) => {
+    const response = await api.get<{ success: boolean; data: any }>('/accounting-reports/trial-balance', {
+      params,
+    });
     const raw = response.data.data;
     // API returns { ledgers: [...], totals: {...} } — extract ledgers array and normalize
     const ledgers = raw?.ledgers || raw || [];
@@ -66,15 +82,26 @@ export const accountingReportService = {
     return entries;
   },
 
-  getBalanceSheet: async (params: { instituteId?: string; startDate?: string; endDate?: string; scope?: string; includeEntities?: string }) => {
-    const response = await api.get<{ success: boolean; data: any }>('/accounting-reports/balance-sheet', { params });
+  getBalanceSheet: async (params: {
+    instituteId?: string;
+    startDate?: string;
+    endDate?: string;
+    scope?: string;
+    includeEntities?: string;
+  }) => {
+    const response = await api.get<{ success: boolean; data: any }>('/accounting-reports/balance-sheet', {
+      params,
+    });
     const raw = response.data.data;
     // API returns nested structure — normalize to flat BalanceSheetData
     const bankBalances = (raw?.assets?.bankAccounts || raw?.bankBalances || []).map((b: any) => ({
       ledgerName: b.accountName || b.ledgerName || b.bankName || 'Unknown',
       balance: b.balance || 0,
     }));
-    const totalBankBalance = raw?.assets?.totalBankBalance ?? raw?.totalBankBalance ?? bankBalances.reduce((s: number, b: any) => s + b.balance, 0);
+    const totalBankBalance =
+      raw?.assets?.totalBankBalance ??
+      raw?.totalBankBalance ??
+      bankBalances.reduce((s: number, b: any) => s + b.balance, 0);
     const incomeByCategory = (raw?.income?.items || raw?.incomeByCategory || []).map((i: any) => ({
       category: i.ledgerName || i.category || 'Unknown',
       amount: i.total || i.amount || 0,
@@ -87,7 +114,7 @@ export const accountingReportService = {
     const totalExpense = raw?.summary?.totalExpenses ?? raw?.expenses?.total ?? raw?.totalExpense ?? 0;
     const salaryExpense = raw?.expenses?.salaryExpense ?? raw?.salaryExpense ?? 0;
     const totalExpenseWithSalary = totalExpense;
-    const netBalance = raw?.summary?.netBalance ?? raw?.netBalance ?? (totalIncome - totalExpenseWithSalary);
+    const netBalance = raw?.summary?.netBalance ?? raw?.netBalance ?? totalIncome - totalExpenseWithSalary;
 
     return {
       bankBalances,
@@ -102,18 +129,38 @@ export const accountingReportService = {
     } as BalanceSheetData;
   },
 
-  getLedgerReport: async (params: { ledgerId: string; instituteId?: string; startDate?: string; endDate?: string; scope?: string; includeEntities?: string }) => {
-    const response = await api.get<{ success: boolean; data: any }>('/accounting-reports/ledger-report', { params });
+  getLedgerReport: async (params: {
+    ledgerId: string;
+    instituteId?: string;
+    startDate?: string;
+    endDate?: string;
+    scope?: string;
+    includeEntities?: string;
+  }) => {
+    const response = await api.get<{ success: boolean; data: any }>('/accounting-reports/ledger-report', {
+      params,
+    });
     return response.data.data;
   },
 
-  getIncomeExpenditure: async (params: { instituteId?: string; startDate?: string; endDate?: string; scope?: string; includeEntities?: string }) => {
-    const response = await api.get<{ success: boolean; data: any }>('/accounting-reports/income-expenditure', { params });
+  getIncomeExpenditure: async (params: {
+    instituteId?: string;
+    startDate?: string;
+    endDate?: string;
+    scope?: string;
+    includeEntities?: string;
+  }) => {
+    const response = await api.get<{ success: boolean; data: any }>(
+      '/accounting-reports/income-expenditure',
+      { params }
+    );
     return response.data.data;
   },
 
   getConsolidatedReport: async (params: { startDate?: string; endDate?: string }) => {
-    const response = await api.get<{ success: boolean; data: any }>('/accounting-reports/consolidated', { params });
+    const response = await api.get<{ success: boolean; data: any }>('/accounting-reports/consolidated', {
+      params,
+    });
     return response.data.data;
   },
 };

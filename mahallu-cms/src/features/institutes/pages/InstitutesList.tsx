@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { FiEdit2, FiTrash2, FiX, FiEye, FiInbox, FiCheckCircle, FiXCircle } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
@@ -19,6 +18,9 @@ import { instituteService } from '@/services/instituteService';
 import { useDebounce } from '@/hooks/useDebounce';
 import { formatDate } from '@/utils/format';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
+import ActionsMenu from '@/components/ui/ActionsMenu';
 
 export default function InstitutesList() {
   const navigate = useNavigate();
@@ -62,7 +64,7 @@ export default function InstitutesList() {
         setPagination(result.pagination);
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch institutes');
+      setError(loadErrorMessage(err, 'institutes'));
       console.error('Error fetching institutes:', err);
     } finally {
       setLoading(false);
@@ -77,17 +79,26 @@ export default function InstitutesList() {
       if (typeFilter && typeFilter !== 'all') params.type = typeFilter;
       const result = await instituteService.getAll(params);
       const dataToExport = result.data;
-      if (dataToExport.length === 0) { toast.info('No institutes to export'); return; }
+      if (dataToExport.length === 0) {
+        toast.info('No institutes to export');
+        return;
+      }
       const filename = 'institutes';
       const title = 'All Institutes';
       switch (type) {
-        case 'csv': exportToCSV(columns, dataToExport, filename); break;
-        case 'json': exportToJSON(columns, dataToExport, filename); break;
-        case 'pdf': exportToPDF(columns, dataToExport, filename, title); break;
+        case 'csv':
+          exportToCSV(columns, dataToExport, filename);
+          break;
+        case 'json':
+          exportToJSON(columns, dataToExport, filename);
+          break;
+        case 'pdf':
+          exportToPDF(columns, dataToExport, filename, title);
+          break;
       }
     } catch (error: any) {
       console.error('Export error:', error);
-      toast.error(error?.message || 'Failed to export institutes');
+      toast.error(error?.message || "Couldn't export institutes");
     } finally {
       setIsExporting(false);
     }
@@ -102,13 +113,12 @@ export default function InstitutesList() {
       setShowDeleteModal(false);
       setSelectedInstitute(null);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to delete institute');
+      setError(errorMessage(err, { action: 'delete institute' }));
       setDeleting(false);
     }
   };
 
   const columns: TableColumn<Institute>[] = [
-    { key: 'id', label: 'No.', render: (_, __, index) => index + 1 },
     { key: 'name', label: 'Name', sortable: true },
     { key: 'place', label: 'Place' },
     {
@@ -144,45 +154,43 @@ export default function InstitutesList() {
       key: 'actions',
       label: 'Actions',
       render: (_, row) => (
-        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(ROUTES.INSTITUTES.DETAIL(row.id));
-            }}
-            className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
-            title="View"
-          >
-            <FiEye className="h-4 w-4" />
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(`/institutes/${row.id}/edit`);
-            }}
-            className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
-            title="Edit"
-          >
-            <FiEdit2 className="h-4 w-4" />
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setSelectedInstitute(row);
-              setShowDeleteModal(true);
-            }}
-            className="p-1.5 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 transition-colors"
-            title="Delete"
-          >
-            <FiTrash2 className="h-4 w-4" />
-          </button>
-        </div>
+        <ActionsMenu
+          items={[
+            {
+              label: 'View',
+              icon: <FiEye className="h-4 w-4" />,
+              onClick: () => {
+                navigate(ROUTES.INSTITUTES.DETAIL(row.id));
+              },
+            },
+            {
+              label: 'Edit',
+              icon: <FiEdit2 className="h-4 w-4" />,
+              onClick: () => {
+                navigate(`/institutes/${row.id}/edit`);
+              },
+            },
+            {
+              label: 'Delete',
+              icon: <FiTrash2 className="h-4 w-4" />,
+              onClick: () => {
+                setSelectedInstitute(row);
+                setShowDeleteModal(true);
+              },
+              variant: 'danger',
+            },
+          ]}
+        />
       ),
     },
   ];
 
   const stats = [
-    { title: 'Total Institutes', value: pagination?.total || institutes.length, icon: <FiInbox className="h-5 w-5" /> },
+    {
+      title: 'Total Institutes',
+      value: pagination?.total || institutes.length,
+      icon: <FiInbox className="h-5 w-5" />,
+    },
     {
       title: 'Active',
       value: institutes.filter((i) => i.status === 'active' || !i.status).length,
@@ -198,17 +206,7 @@ export default function InstitutesList() {
   return (
     <div className="space-y-4">
       <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">
-              Institutes
-            </h1>
-            <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
-              Manage institutes, madrasas, and other institutions
-            </p>
-          </div>
-          <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Institutes' }]} />
-        </div>
+        <PageHeader title="Institutes" description="Manage institutes, madrasas, and other institutions" />
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           {stats.map((stat, index) => (
@@ -235,14 +233,15 @@ export default function InstitutesList() {
         />
 
         {isFilterVisible && (
-          <div className="relative flex flex-wrap items-center gap-4 mb-6 p-4 border border-gray-200 rounded-lg bg-white dark:bg-gray-800 dark:border-gray-700">
+          <div className="relative flex flex-wrap items-center gap-4 mb-6 p-4 border border-gray-200 rounded-lg max-sm:border-0 max-sm:bg-transparent max-sm:p-0 bg-white dark:bg-gray-800 dark:border-gray-700">
             <button
               onClick={() => setIsFilterVisible(false)}
               className="absolute right-4 top-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              aria-label="Close"
             >
               <FiX className="h-4 w-4" />
             </button>
-            <div className="w-40">
+            <div className="w-full sm:w-40">
               <Select
                 options={[
                   { value: 'all', label: 'All Types' },
@@ -318,10 +317,13 @@ export default function InstitutesList() {
         title="Delete Institute"
         footer={
           <>
-            <Button variant="outline" onClick={() => {
-              setShowDeleteModal(false);
-              setSelectedInstitute(null);
-            }}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowDeleteModal(false);
+                setSelectedInstitute(null);
+              }}
+            >
               Cancel
             </Button>
             <Button variant="danger" onClick={handleDelete} isLoading={deleting}>
@@ -331,10 +333,10 @@ export default function InstitutesList() {
         }
       >
         <p className="text-gray-600 dark:text-gray-400">
-          Are you sure you want to delete <strong>{selectedInstitute?.name}</strong>? This action cannot be undone.
+          Are you sure you want to delete <strong>{selectedInstitute?.name}</strong>? This action cannot be
+          undone.
         </p>
       </Modal>
     </div>
   );
 }
-

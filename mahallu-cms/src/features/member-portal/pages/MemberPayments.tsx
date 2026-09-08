@@ -4,6 +4,10 @@ import { downloadPaymentReceiptPdf } from '@/utils/paymentReceiptPdf';
 import { useAuthStore } from '@/store/authStore';
 import Card from '@/components/ui/Card';
 import { PageSkeleton } from '@/components/ui/Skeleton';
+import { loadErrorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
+import SortableTh from '@/components/ui/SortableTh';
+import { useSortableRows } from '@/hooks/useSortableRows';
 
 type TabType = 'all' | 'varisangya' | 'zakat';
 
@@ -28,7 +32,7 @@ export default function MemberPayments() {
         const result = await memberPortalService.getOwnPayments(undefined, 1, 100);
         setPayments(result.data || []);
       } catch (err: any) {
-        setError(err.response?.data?.message || 'Failed to load payment records');
+        setError(loadErrorMessage(err, 'payment records'));
       } finally {
         setLoading(false);
       }
@@ -36,15 +40,10 @@ export default function MemberPayments() {
     load();
   }, []);
 
-  const filtered =
-    activeTab === 'all' ? payments : payments.filter((p) => p.type === activeTab);
+  const filtered = activeTab === 'all' ? payments : payments.filter((p) => p.type === activeTab);
 
-  const varisangyaTotal = payments
-    .filter((p) => p.type === 'varisangya')
-    .reduce((s, p) => s + p.amount, 0);
-  const zakatTotal = payments
-    .filter((p) => p.type === 'zakat')
-    .reduce((s, p) => s + p.amount, 0);
+  const varisangyaTotal = payments.filter((p) => p.type === 'varisangya').reduce((s, p) => s + p.amount, 0);
+  const zakatTotal = payments.filter((p) => p.type === 'zakat').reduce((s, p) => s + p.amount, 0);
 
   const handleDownload = async (payment: PaymentRecord) => {
     setDownloading(payment.id);
@@ -55,15 +54,23 @@ export default function MemberPayments() {
     }
   };
 
+  /* Type renders "Varisangya" or "Zakat" from a code, so it sorts on the word
+     shown rather than on the code. */
+  const {
+    rows: sortedPayments,
+    sort,
+    toggleSort,
+  } = useSortableRows(filtered, null, {
+    type: (row) => (row.type === 'varisangya' ? 'Varisangya' : 'Zakat'),
+  });
+
   if (loading) {
-    return (
-      <PageSkeleton />
-    );
+    return <PageSkeleton />;
   }
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center h-[calc(100vh-140px)] gap-4">
+      <div className="flex flex-col items-center justify-center h-screen-content gap-4">
         <p className="text-red-600 dark:text-red-400">{error}</p>
       </div>
     );
@@ -71,12 +78,9 @@ export default function MemberPayments() {
 
   return (
     <div className="space-y-6 max-w-4xl w-full mx-auto">
-      <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-        My Payments &amp; Receipts
-      </h1>
-
+      <PageHeader title="My Payments &amp; Receipts" />
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Card>
           <p className="text-sm text-gray-500 dark:text-gray-400">Total Varisangya Paid</p>
           <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100 mt-1">
@@ -127,31 +131,35 @@ export default function MemberPayments() {
             <table className="min-w-full text-sm">
               <thead>
                 <tr className="text-left border-b border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-400">
-                  <th className="py-2 pr-4">Receipt No</th>
-                  <th className="py-2 pr-4">Date</th>
-                  <th className="py-2 pr-4">Amount</th>
-                  <th className="py-2 pr-4">Type</th>
-                  <th className="py-2 pr-4">Method</th>
-                  <th className="py-2">Actions</th>
+                  <SortableTh sortKey="receiptNo" sort={sort} onSort={toggleSort} className="py-2 pr-4">
+                    Receipt No
+                  </SortableTh>
+                  <SortableTh sortKey="paymentDate" sort={sort} onSort={toggleSort} className="py-2 pr-4">
+                    Date
+                  </SortableTh>
+                  <SortableTh sortKey="amount" sort={sort} onSort={toggleSort} className="py-2 pr-4">
+                    Amount
+                  </SortableTh>
+                  <SortableTh sortKey="type" sort={sort} onSort={toggleSort} className="py-2 pr-4">
+                    Type
+                  </SortableTh>
+                  <SortableTh sortKey="paymentMethod" sort={sort} onSort={toggleSort} className="py-2 pr-4">
+                    Method
+                  </SortableTh>
+                  <th className="py-2 text-label font-semibold text-muted-foreground">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((payment) => (
+                {sortedPayments.map((payment) => (
                   <tr
                     key={payment.id}
                     className="border-b border-gray-100 dark:border-gray-900 text-gray-900 dark:text-gray-100"
                   >
-                    <td className="py-3 pr-4 font-mono text-xs">
-                      {payment.receiptNo || '—'}
-                    </td>
+                    <td className="py-3 pr-4 font-mono text-xs">{payment.receiptNo || '—'}</td>
                     <td className="py-3 pr-4 text-gray-500 dark:text-gray-400">
-                      {payment.paymentDate
-                        ? new Date(payment.paymentDate).toLocaleDateString('en-IN')
-                        : '—'}
+                      {payment.paymentDate ? new Date(payment.paymentDate).toLocaleDateString('en-IN') : '—'}
                     </td>
-                    <td className="py-3 pr-4 font-semibold">
-                      {currency.format(payment.amount)}
-                    </td>
+                    <td className="py-3 pr-4 font-semibold">{currency.format(payment.amount)}</td>
                     <td className="py-3 pr-4">
                       <span
                         className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${

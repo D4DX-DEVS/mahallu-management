@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -14,6 +13,24 @@ import {
   currentAcademicYear,
 } from '@/services/madrasaService';
 import { employeeService } from '@/services/employeeService';
+import { errorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
+import { useFormValidation } from '@/hooks/useFormValidation';
+import { FieldRule, LIMITS } from '@/utils/validation';
+
+/**
+ * The same limits the API applies, so a form that passes here is not
+ * refused there. Required matches what each input already declares.
+ */
+const RULES: Record<string, FieldRule> = {
+  name: { label: 'name', required: true, maxLength: LIMITS.title.max },
+  nameMl: { label: 'name', maxLength: LIMITS.title.max },
+  academicYear: { label: 'academic year', required: true, type: 'academicYear' },
+  classType: { label: 'class type', required: true, maxLength: LIMITS.shortText.max },
+  teacherEmployeeId: { label: 'teacher employee', type: 'id' },
+  schedule: { label: 'schedule', maxLength: LIMITS.shortText.max },
+  status: { label: 'status', maxLength: LIMITS.shortText.max },
+};
 
 interface ClassFormProps {
   /** Omitted when creating. */
@@ -48,6 +65,7 @@ export default function ClassForm({ existing }: ClassFormProps) {
     schedule: existing?.schedule || '',
     status: existing?.status || 'active',
   });
+  const { errors, validate } = useFormValidation(RULES);
 
   useEffect(() => {
     employeeService
@@ -58,6 +76,8 @@ export default function ClassForm({ existing }: ClassFormProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    // Every field checked at once, each message on its own field.
+    if (!validate(form)) return;
     setError(null);
 
     if (!form.name.trim()) {
@@ -90,7 +110,7 @@ export default function ClassForm({ existing }: ClassFormProps) {
         navigate(`/education/classes/${created.id}`);
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to save the class');
+      setError(errorMessage(err, { action: 'save the class' }));
     } finally {
       setSaving(false);
     }
@@ -98,30 +118,19 @@ export default function ClassForm({ existing }: ClassFormProps) {
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">
-            {editing ? 'Edit Class' : 'New Class'}
-          </h1>
-          <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-            Students are enrolled from the class page once it exists
-          </p>
-        </div>
-        <Breadcrumb
-          items={[
-            { label: 'Dashboard', path: '/dashboard' },
-            { label: 'Education', path: '/education' },
-            { label: editing ? 'Edit' : 'New' },
-          ]}
-        />
-      </div>
+      <PageHeader
+        title={editing ? 'Edit Class' : 'New Class'}
+        description="Students are enrolled from the class page once it exists"
+        breadcrumbs={[{ label: 'Education', path: '/education' }]}
+      />
 
       <form onSubmit={handleSubmit}>
-        <Card className="p-3 sm:p-4">
+        <Card>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <Input
               label="Class name"
               value={form.name}
+              error={errors.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
               placeholder="e.g. Beginners Quran"
               required
@@ -130,6 +139,7 @@ export default function ClassForm({ existing }: ClassFormProps) {
             <Input
               label="Class name (Malayalam)"
               value={form.nameMl}
+              error={errors.nameMl}
               onChange={(e) => setForm({ ...form, nameMl: e.target.value })}
               placeholder="Optional"
             />
@@ -137,6 +147,7 @@ export default function ClassForm({ existing }: ClassFormProps) {
             <Input
               label="Academic year"
               value={form.academicYear}
+              error={errors.academicYear}
               onChange={(e) => setForm({ ...form, academicYear: e.target.value })}
               placeholder="2025-26"
               required
@@ -145,6 +156,7 @@ export default function ClassForm({ existing }: ClassFormProps) {
             <Select
               label="Class type"
               value={form.classType}
+              error={errors.classType}
               onChange={(e) => setForm({ ...form, classType: e.target.value as any })}
               options={CLASS_TYPE_OPTIONS}
               required
@@ -153,6 +165,7 @@ export default function ClassForm({ existing }: ClassFormProps) {
             <SearchableSelect
               label="Teacher"
               value={form.teacherEmployeeId}
+              error={errors.teacherEmployeeId}
               onChange={(value) => setForm({ ...form, teacherEmployeeId: value })}
               options={teachers.map((employee: any) => ({
                 value: employee._id || employee.id,
@@ -165,6 +178,7 @@ export default function ClassForm({ existing }: ClassFormProps) {
             <Input
               label="Schedule"
               value={form.schedule}
+              error={errors.schedule}
               onChange={(e) => setForm({ ...form, schedule: e.target.value })}
               placeholder="e.g. Sat-Sun 9-11am"
             />
@@ -172,6 +186,7 @@ export default function ClassForm({ existing }: ClassFormProps) {
             <Select
               label="Status"
               value={form.status}
+              error={errors.status}
               onChange={(e) => setForm({ ...form, status: e.target.value as any })}
               options={CLASS_STATUS_OPTIONS}
             />
@@ -180,6 +195,7 @@ export default function ClassForm({ existing }: ClassFormProps) {
               <Input
                 label="Subjects"
                 value={form.subjects}
+                error={errors.subjects}
                 onChange={(e) => setForm({ ...form, subjects: e.target.value })}
                 placeholder="Fiqh, Tajweed, Seerah"
                 helperText="Separate each subject with a comma"

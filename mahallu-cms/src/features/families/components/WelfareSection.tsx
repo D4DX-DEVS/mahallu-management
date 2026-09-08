@@ -37,7 +37,7 @@ export default function WelfareSection({ register, defaultOpen = false }: Welfar
   const [open, setOpen] = useState(defaultOpen);
 
   return (
-    <Card className="p-3 sm:p-4">
+    <Card>
       <button
         type="button"
         onClick={() => setOpen(!open)}

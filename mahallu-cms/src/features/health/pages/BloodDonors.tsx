@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { FiPlus, FiSearch, FiEdit2, FiTrash2, FiPhone } from 'react-icons/fi';
+import { FiPlus, FiEdit2, FiTrash2, FiPhone } from 'react-icons/fi';
 import { getHealthResources, deleteHealthResource, IHealthResource } from '@/services/healthService';
 import Pagination from '@/components/ui/Pagination';
+import ExpandableSearch from '@/components/ui/ExpandableSearch';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
-import Input from '@/components/ui/Input';
 import { useNavigate } from 'react-router-dom';
 import { toast } from '@/store/toastStore';
+import PageHeader from '@/components/layout/PageHeader';
 
 export default function BloodDonors() {
   const navigate = useNavigate();
@@ -26,13 +27,20 @@ export default function BloodDonors() {
   const fetchDonors = async (page: number, searchTerm: string = '', bloodGroup: string = '') => {
     try {
       setLoading(true);
-      const response = await getHealthResources(page, itemsPerPage, 'blood_donor', 'active', bloodGroup, searchTerm);
+      const response = await getHealthResources(
+        page,
+        itemsPerPage,
+        'blood_donor',
+        'active',
+        bloodGroup,
+        searchTerm
+      );
       setDonors(response.data);
       setTotalPages(response.pagination.totalPages);
       setTotalItems(response.pagination.total);
       setCurrentPage(response.pagination.page);
     } catch (error) {
-      console.error('Failed to fetch blood donors:', error);
+      console.error("Couldn't load blood donors:", error);
     } finally {
       setLoading(false);
     }
@@ -49,13 +57,14 @@ export default function BloodDonors() {
       setConfirmDelete(false);
       setDeleteId(null);
       fetchDonors(currentPage, search, selectedBloodGroup);
-      toast.success('Donor removed successfully');
+      toast.success('Donor removed');
     } catch (error) {
-      const message = error instanceof Error && 'response' in error
-        ? (error.response as any)?.data?.message || 'Failed to remove donor'
-        : 'Failed to remove donor';
+      const message =
+        error instanceof Error && 'response' in error
+          ? (error.response as any)?.data?.message || "Couldn't remove donor"
+          : "Couldn't remove donor";
       toast.error(message);
-      console.error('Failed to delete blood donor:', error);
+      console.error("Couldn't delete blood donor:", error);
     }
   };
 
@@ -68,32 +77,24 @@ export default function BloodDonors() {
   }
 
   return (
-    <div className="flex-1 overflow-auto">
-      <div className="p-4 sm:p-6 max-w-full">
+    <div>
+      <div className="max-w-full">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold">Blood Donors</h1>
-            <p className="text-sm sm:text-base text-gray-600 mt-1">{donors.length} donors found</p>
+            <PageHeader title="Blood Donors" description={`${donors.length} donors found`} />
           </div>
-          <Button
-            onClick={() => navigate('/health/donors/create')}
-            className="flex items-center gap-2"
-          >
+          <Button onClick={() => navigate('/health/donors/create')} className="flex items-center gap-2">
             <FiPlus /> Add Donor
           </Button>
         </div>
 
         <div className="mb-6 space-y-4">
-          <div className="flex items-center gap-2 bg-white border border-gray-300 rounded-lg px-3 py-2">
-            <FiSearch className="text-gray-400" />
-            <Input
-              type="text"
-              placeholder="Search by name..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="flex-1 border-none focus:ring-0"
-            />
-          </div>
+          <ExpandableSearch
+            value={search}
+            onChange={(value) => setSearch(value)}
+            entity="blood donors"
+            placeholder="Search by name"
+          />
 
           <div className="flex flex-wrap gap-2">
             <button
@@ -130,7 +131,7 @@ export default function BloodDonors() {
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
               {donors.map((donor) => (
-                <div key={donor.id} className="bg-white border border-gray-200 rounded-lg p-4">
+                <div key={donor.id} className="rounded-lg border border-border bg-card p-3 sm:p-4">
                   <div className="flex items-start justify-between mb-3">
                     <h3 className="text-base sm:text-lg font-semibold">{donor.name}</h3>
                     {donor.bloodGroup && (
@@ -148,7 +149,7 @@ export default function BloodDonors() {
                       Availability: {donor.availability}
                     </p>
                   )}
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
                     <Button
                       variant="secondary"
                       size="sm"
@@ -186,13 +187,9 @@ export default function BloodDonors() {
         )}
       </div>
 
-      <Modal
-        isOpen={confirmDelete}
-        title="Delete Blood Donor"
-        onClose={() => setConfirmDelete(false)}
-      >
+      <Modal isOpen={confirmDelete} title="Delete Blood Donor" onClose={() => setConfirmDelete(false)}>
         <p className="text-gray-700 mb-6">Are you sure you want to delete this blood donor?</p>
-        <div className="flex gap-3 justify-end">
+        <div className="flex gap-2 flex-col-reverse sm:flex-row sm:justify-end sm:gap-3">
           <Button variant="secondary" onClick={() => setConfirmDelete(false)}>
             Cancel
           </Button>

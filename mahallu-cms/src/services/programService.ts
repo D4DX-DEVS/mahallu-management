@@ -1,14 +1,16 @@
-import api from './api';
+import api, { asList } from './api';
 import { Institute } from '@/types';
 
 export const programService = {
   getAll: async (params?: { status?: string; search?: string; page?: number; limit?: number }) => {
-    const response = await api.get<{ success: boolean; data: Institute[]; pagination?: any }>('/programs', { params });
+    const response = await api.get<{ success: boolean; data: Institute[]; pagination?: any }>('/programs', {
+      params,
+    });
     // Handle both paginated and non-paginated responses
     if (response.data.pagination) {
-      return { data: response.data.data, pagination: response.data.pagination };
+      return { data: asList(response.data.data), pagination: response.data.pagination };
     }
-    return { data: response.data.data, pagination: null };
+    return { data: asList(response.data.data), pagination: null };
   },
 
   getById: async (id: string) => {
@@ -37,7 +39,7 @@ export const programService = {
       `/programs/${id}/registrations`,
       { params }
     );
-    return { data: response.data.data, pagination: response.data.pagination ?? null };
+    return { data: asList(response.data.data), pagination: response.data.pagination ?? null };
   },
 
   register: async (id: string, memberId: string) => {
@@ -45,7 +47,7 @@ export const programService = {
       `/programs/${id}/registrations`,
       { memberId }
     );
-    return response.data.data;
+    return asList(response.data.data);
   },
 
   setAttendance: async (id: string, memberId: string, attended: boolean) => {
@@ -65,7 +67,7 @@ export const programService = {
 };
 
 export interface RegisteredMember {
-  _id: string;
+  id: string;
   name?: string;
   nameMl?: string;
   phone?: string;
@@ -77,4 +79,3 @@ export interface ProgramRegistration {
   memberId: RegisteredMember | string;
   attended: boolean;
 }
-

@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { FiEdit2, FiTrash2 } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import { PageSkeleton } from '@/components/ui/Skeleton';
@@ -10,6 +9,8 @@ import { ROUTES } from '@/constants/routes';
 import { memberService } from '@/services/memberService';
 import { Member } from '@/types';
 import { formatDate } from '@/utils/format';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
 
 export default function MemberDetail() {
   const { id } = useParams<{ id: string }>();
@@ -32,7 +33,7 @@ export default function MemberDetail() {
       const data = await memberService.getById(id!);
       setMember(data);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to load member');
+      setError(loadErrorMessage(err, 'member'));
     } finally {
       setLoading(false);
     }
@@ -45,15 +46,13 @@ export default function MemberDetail() {
       await memberService.delete(id);
       navigate(ROUTES.MEMBERS.LIST);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to delete member');
+      setError(errorMessage(err, { action: 'delete member' }));
       setDeleting(false);
     }
   };
 
   if (loading) {
-    return (
-      <PageSkeleton />
-    );
+    return <PageSkeleton />;
   }
 
   if (error || !member) {
@@ -69,43 +68,31 @@ export default function MemberDetail() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-            {member.name}
-          </h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            Member Details
-          </p>
-        </div>
-        <div className="flex items-center gap-4">
-          <Breadcrumb
-            items={[
-              { label: 'Dashboard', path: '/dashboard' },
-              { label: 'Members', path: ROUTES.MEMBERS.LIST },
-              { label: member.name },
-            ]}
+      <div className="flex flex-wrap gap-2 items-center justify-between">
+        <div className="flex flex-wrap items-center gap-4">
+          <PageHeader
+            description="Member Details"
+            title={member.name}
+            breadcrumbs={[{ label: 'Members', path: ROUTES.MEMBERS.LIST }]}
           />
-          <div className="flex gap-2">
-          <Link to={ROUTES.MEMBERS.EDIT(member.id)}>
-            <Button variant="outline">
-              <FiEdit2 className="h-4 w-4 mr-2" />
-              Edit
+          <div className="flex flex-wrap gap-2">
+            <Link to={ROUTES.MEMBERS.EDIT(member.id)}>
+              <Button variant="outline">
+                <FiEdit2 className="h-4 w-4 mr-2" />
+                Edit
+              </Button>
+            </Link>
+            <Button variant="danger" onClick={() => setShowDeleteModal(true)}>
+              <FiTrash2 className="h-4 w-4 mr-2" />
+              Delete
             </Button>
-          </Link>
-          <Button variant="danger" onClick={() => setShowDeleteModal(true)}>
-            <FiTrash2 className="h-4 w-4 mr-2" />
-            Delete
-          </Button>
-        </div>
+          </div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card>
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
-            Basic Information
-          </h2>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Basic Information</h2>
           <div className="space-y-3">
             <div>
               <span className="text-sm text-gray-500 dark:text-gray-400">Name</span>
@@ -224,4 +211,3 @@ export default function MemberDetail() {
     </div>
   );
 }
-

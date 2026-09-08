@@ -9,6 +9,10 @@ import {
   VarisangyaRecord,
 } from '@/services/memberPortalService';
 import { ROUTES } from '@/constants/routes';
+import { loadErrorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
+import SortableTh from '@/components/ui/SortableTh';
+import { useSortableRows } from '@/hooks/useSortableRows';
 
 const currency = new Intl.NumberFormat('en-IN', {
   style: 'currency',
@@ -22,6 +26,9 @@ const yearOptions = Array.from({ length: 6 }, (_, i) => currentYear - i);
 type Tab = 'family' | 'member';
 
 function VarisangyaTable({ records }: { records: VarisangyaRecord[] }) {
+  /* Above the empty-state return: a hook cannot sit after one. */
+  const { rows: sortedRecords, sort, toggleSort } = useSortableRows(records);
+
   if (records.length === 0) {
     return (
       <div className="py-10 text-center text-sm text-gray-500 dark:text-gray-400">
@@ -35,16 +42,26 @@ function VarisangyaTable({ records }: { records: VarisangyaRecord[] }) {
       <table className="min-w-full text-sm">
         <thead>
           <tr className="text-left border-b border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400">
-            <th className="py-2 pr-4 font-medium">Receipt No.</th>
-            <th className="py-2 pr-4 font-medium">Amount</th>
-            <th className="py-2 pr-4 font-medium">Payment Date</th>
-            <th className="py-2 pr-4 font-medium">Method</th>
-            <th className="py-2 pr-4 font-medium">Remarks</th>
-            <th className="py-2 pr-4 font-medium">Status</th>
+            <SortableTh sortKey="receiptNo" sort={sort} onSort={toggleSort} className="py-2 pr-4">
+              Receipt No.
+            </SortableTh>
+            <SortableTh sortKey="amount" sort={sort} onSort={toggleSort} className="py-2 pr-4">
+              Amount
+            </SortableTh>
+            <SortableTh sortKey="paymentDate" sort={sort} onSort={toggleSort} className="py-2 pr-4">
+              Payment Date
+            </SortableTh>
+            <SortableTh sortKey="paymentMethod" sort={sort} onSort={toggleSort} className="py-2 pr-4">
+              Method
+            </SortableTh>
+            <SortableTh sortKey="remarks" sort={sort} onSort={toggleSort} className="py-2 pr-4">
+              Remarks
+            </SortableTh>
+            <th className="py-2 pr-4 text-label font-semibold text-muted-foreground">Status</th>
           </tr>
         </thead>
         <tbody>
-          {records.map((record, idx) => (
+          {sortedRecords.map((record, idx) => (
             <tr
               key={idx}
               className="border-b border-gray-100 dark:border-gray-800 text-gray-900 dark:text-gray-100"
@@ -90,7 +107,7 @@ export default function MemberVarisangyaPage() {
         const result = await memberPortalService.getMemberVarisangya(selectedYear);
         setData(result);
       } catch (err: any) {
-        setError(err.response?.data?.message || 'Failed to load varisangya records');
+        setError(loadErrorMessage(err, 'varisangya records'));
       } finally {
         setLoading(false);
       }
@@ -98,11 +115,9 @@ export default function MemberVarisangyaPage() {
     fetchData();
   }, [selectedYear]);
 
-  const records = activeTab === 'family' ? data?.familyVarisangya ?? [] : data?.memberVarisangya ?? [];
-  const total =
-    activeTab === 'family' ? data?.summary.familyTotal ?? 0 : data?.summary.memberTotal ?? 0;
-  const count =
-    activeTab === 'family' ? data?.summary.familyCount ?? 0 : data?.summary.memberCount ?? 0;
+  const records = activeTab === 'family' ? (data?.familyVarisangya ?? []) : (data?.memberVarisangya ?? []);
+  const total = activeTab === 'family' ? (data?.summary.familyTotal ?? 0) : (data?.summary.memberTotal ?? 0);
+  const count = activeTab === 'family' ? (data?.summary.familyCount ?? 0) : (data?.summary.memberCount ?? 0);
 
   return (
     <div className="space-y-5">
@@ -115,17 +130,16 @@ export default function MemberVarisangyaPage() {
           >
             <FiArrowLeft className="h-5 w-5" />
           </Link>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">My Varisangya</h1>
+          <PageHeader title="My Varisangya" />
         </div>
 
         {/* Year filter */}
         <div className="flex items-center gap-2">
           <FiCalendar className="h-4 w-4 text-gray-500 dark:text-gray-400" />
           <select
+            aria-label="Filter"
             value={selectedYear ?? ''}
-            onChange={(e) =>
-              setSelectedYear(e.target.value ? Number(e.target.value) : undefined)
-            }
+            onChange={(e) => setSelectedYear(e.target.value ? Number(e.target.value) : undefined)}
             className="text-sm border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-1.5 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
           >
             <option value="">All Time</option>
@@ -173,11 +187,11 @@ export default function MemberVarisangyaPage() {
             {count > 0 && (
               <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-800 flex flex-wrap gap-6 text-sm">
                 <span className="text-gray-500 dark:text-gray-400">
-                  Total records:{' '}
+                  Total records:
                   <span className="font-semibold text-gray-900 dark:text-gray-100">{count}</span>
                 </span>
                 <span className="text-gray-500 dark:text-gray-400">
-                  Total paid:{' '}
+                  Total paid:
                   <span className="font-semibold text-green-700 dark:text-green-400">
                     {currency.format(total)}
                   </span>

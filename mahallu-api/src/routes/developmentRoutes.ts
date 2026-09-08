@@ -9,6 +9,12 @@ import {
 } from '../controllers/developmentController';
 import { authMiddleware, allowRoles } from '../middleware/authMiddleware';
 import { tenantMiddleware, tenantFilter } from '../middleware/tenantMiddleware';
+import { validationHandler } from '../middleware/validationHandler';
+import { idParam, listQuery } from '../validations/common';
+import {
+  createProjectValidation,
+  updateProjectValidation,
+} from '../validations/moduleValidation';
 
 const router = express.Router();
 
@@ -53,7 +59,7 @@ router.use(tenantFilter);
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  */
-router.get('/', getAllProjects);
+router.get('/', listQuery(), validationHandler, getAllProjects);
 
 /**
  * @swagger
@@ -75,7 +81,7 @@ router.get('/', getAllProjects);
  *       404:
  *         $ref: '#/components/responses/NotFound'
  */
-router.get('/:id', getProjectById);
+router.get('/:id', idParam('id', 'project'), validationHandler, getProjectById);
 
 /**
  * @swagger
@@ -109,7 +115,7 @@ router.get('/:id', getProjectById);
  *       404:
  *         description: Project not found
  */
-router.get('/:id/expenditure', getProjectExpenditure);
+router.get('/:id/expenditure', idParam('id', 'project'), validationHandler, getProjectExpenditure);
 
 /**
  * @swagger
@@ -159,7 +165,7 @@ router.get('/:id/expenditure', getProjectExpenditure);
  *       403:
  *         description: Role not allowed
  */
-router.post('/', allowRoles(['mahall']), createProject);
+router.post('/', createProjectValidation, validationHandler, allowRoles(['mahall']), createProject);
 
 /**
  * @swagger
@@ -205,7 +211,7 @@ router.post('/', allowRoles(['mahall']), createProject);
  *       404:
  *         description: Project not found
  */
-router.put('/:id', allowRoles(['mahall']), updateProject);
+router.put('/:id', updateProjectValidation, validationHandler, allowRoles(['mahall']), updateProject);
 
 /**
  * @swagger
@@ -228,6 +234,6 @@ router.put('/:id', allowRoles(['mahall']), updateProject);
  *       404:
  *         description: Project not found
  */
-router.delete('/:id', allowRoles(['mahall']), deleteProject);
+router.delete('/:id', idParam('id', 'project'), validationHandler, allowRoles(['mahall']), deleteProject);
 
 export default router;

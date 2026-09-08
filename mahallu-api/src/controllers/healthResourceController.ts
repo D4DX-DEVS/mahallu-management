@@ -5,6 +5,9 @@ import { AuthRequest } from '../middleware/authMiddleware';
 import { getPaginationParams, createPaginationResponse } from '../utils/pagination';
 import { stripImmutable, refBelongsToTenant } from '../utils/sanitizeUpdate';
 
+import { sendFailure } from '../utils/userMessages';
+import { regexLiteral } from '../utils/queryGuard';
+
 const tenantScope = (req: AuthRequest): Record<string, any> =>
   req.tenantId ? { tenantId: req.tenantId } : {};
 
@@ -14,7 +17,7 @@ const tenantScope = (req: AuthRequest): Record<string, any> =>
 const validateHealthResourceRefs = async (req: AuthRequest): Promise<string | null> => {
   const { memberId } = req.body;
   if (memberId && !(await refBelongsToTenant(Member, memberId, req.tenantId))) {
-    return 'Member does not belong to this Mahallu';
+    return 'This member belongs to another Mahallu.';
   }
   return null;
 };
@@ -36,7 +39,7 @@ export const getAllHealthResources = async (req: AuthRequest, res: Response) => 
       if (['palliative_case', 'patient_support'].includes(type)) {
         return res.status(403).json({
           success: false,
-          message: 'Access to this resource type is restricted. Use the sensitive endpoint.',
+          message: 'This record is restricted. Please contact your Mahallu admin for access.',
         });
       }
       query.type = type;
@@ -47,7 +50,7 @@ export const getAllHealthResources = async (req: AuthRequest, res: Response) => 
 
     if (req.query.status) query.status = req.query.status;
     if (req.query.bloodGroup) query.bloodGroup = req.query.bloodGroup;
-    if (req.query.search) query.name = { $regex: String(req.query.search), $options: 'i' };
+    if (req.query.search) query.name = { $regex: regexLiteral(String(req.query.search)), $options: 'i' };
 
     const [resources, total] = await Promise.all([
       HealthResource.find(query)
@@ -60,7 +63,7 @@ export const getAllHealthResources = async (req: AuthRequest, res: Response) => 
 
     res.json(createPaginationResponse(resources, total, page, limit));
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the health resources right now. Please try again.');
   }
 };
 
@@ -76,7 +79,7 @@ export const getAllSensitiveHealthResources = async (req: AuthRequest, res: Resp
 
     if (req.query.type) query.type = String(req.query.type);
     if (req.query.status) query.status = req.query.status;
-    if (req.query.search) query.name = { $regex: String(req.query.search), $options: 'i' };
+    if (req.query.search) query.name = { $regex: regexLiteral(String(req.query.search)), $options: 'i' };
 
     const [resources, total] = await Promise.all([
       HealthResource.find(query)
@@ -89,7 +92,7 @@ export const getAllSensitiveHealthResources = async (req: AuthRequest, res: Resp
 
     res.json(createPaginationResponse(resources, total, page, limit));
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the sensitive health resources right now. Please try again.');
   }
 };
 
@@ -104,12 +107,12 @@ export const getHealthResourceById = async (req: AuthRequest, res: Response) => 
     );
 
     if (!resource) {
-      return res.status(404).json({ success: false, message: 'Health resource not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that health resource. It may have been removed." });
     }
 
     res.json({ success: true, data: resource });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the health resource right now. Please try again.');
   }
 };
 
@@ -123,7 +126,7 @@ export const createHealthResource = async (req: AuthRequest, res: Response) => {
     if (['palliative_case', 'patient_support'].includes(req.body.type)) {
       return res.status(403).json({
         success: false,
-        message: 'Use the /health-resources/sensitive endpoint for restricted resource types.',
+        message: 'This record is restricted. Please contact your Mahallu admin for access.',
       });
     }
 
@@ -139,7 +142,7 @@ export const createHealthResource = async (req: AuthRequest, res: Response) => {
 
     res.status(201).json({ success: true, data: resource });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t save the health resource. Please try again.');
   }
 };
 
@@ -154,7 +157,7 @@ export const createSensitiveHealthResource = async (req: AuthRequest, res: Respo
     if (!['palliative_case', 'patient_support'].includes(req.body.type)) {
       return res.status(400).json({
         success: false,
-        message: 'Use the regular /health-resources endpoint for non-sensitive types.',
+        message: "This record isn't restricted, so it appears with the regular health resources.",
       });
     }
 
@@ -170,7 +173,7 @@ export const createSensitiveHealthResource = async (req: AuthRequest, res: Respo
 
     res.status(201).json({ success: true, data: resource });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t save the sensitive health resource. Please try again.');
   }
 };
 
@@ -183,7 +186,7 @@ export const updateHealthResource = async (req: AuthRequest, res: Response) => {
     const resource = await HealthResource.findOne({ _id: req.params.id, ...tenantScope(req) });
 
     if (!resource) {
-      return res.status(404).json({ success: false, message: 'Health resource not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that health resource. It may have been removed." });
     }
 
     // If type is being changed to sensitive, or resource is sensitive, require sensitiveAccess
@@ -197,7 +200,7 @@ export const updateHealthResource = async (req: AuthRequest, res: Response) => {
       if (!sensitiveModules || !sensitiveModules.includes('health')) {
         return res.status(403).json({
           success: false,
-          message: 'Access to this resource is restricted',
+          message: "This record isn't available for your account. Please contact your Mahallu admin.",
         });
       }
     }
@@ -214,7 +217,7 @@ export const updateHealthResource = async (req: AuthRequest, res: Response) => {
 
     res.json({ success: true, data: updated });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t update the health resource. Please try again.');
   }
 };
 
@@ -227,7 +230,7 @@ export const deleteHealthResource = async (req: AuthRequest, res: Response) => {
     const resource = await HealthResource.findOne({ _id: req.params.id, ...tenantScope(req) });
 
     if (!resource) {
-      return res.status(404).json({ success: false, message: 'Health resource not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that health resource. It may have been removed." });
     }
 
     // Check sensitive access if needed
@@ -239,7 +242,7 @@ export const deleteHealthResource = async (req: AuthRequest, res: Response) => {
       if (!sensitiveModules || !sensitiveModules.includes('health')) {
         return res.status(403).json({
           success: false,
-          message: 'Access to this resource is restricted',
+          message: "This record isn't available for your account. Please contact your Mahallu admin.",
         });
       }
     }
@@ -247,7 +250,7 @@ export const deleteHealthResource = async (req: AuthRequest, res: Response) => {
     await HealthResource.deleteOne({ _id: req.params.id });
     res.json({ success: true, message: 'Health resource deleted' });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t delete the health resource. Please try again.');
   }
 };
 
@@ -307,6 +310,6 @@ export const getHealthSummary = async (req: AuthRequest, res: Response) => {
       },
     });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the health summary right now. Please try again.');
   }
 };

@@ -1,4 +1,4 @@
-import api from './api';
+import api, { asList } from './api';
 
 export interface Cluster {
   id: string;
@@ -28,7 +28,7 @@ export const clusterService = {
     const response = await api.get<{ success: boolean; data: Cluster[]; pagination?: any }>('/clusters', {
       params,
     });
-    return { data: response.data.data, pagination: response.data.pagination || null };
+    return { data: asList(response.data.data), pagination: response.data.pagination || null };
   },
 
   getById: async (id: string) => {
@@ -41,7 +41,7 @@ export const clusterService = {
       `/clusters/${id}/families`,
       { params }
     );
-    return { data: response.data.data, pagination: response.data.pagination || null };
+    return { data: asList(response.data.data), pagination: response.data.pagination || null };
   },
 
   create: async (payload: Partial<Cluster>) => {
@@ -76,12 +76,17 @@ export const clusterService = {
 };
 
 export const clusterVisitService = {
-  getAll: async (params?: { page?: number; limit?: number; clusterId?: string; followUpNeeded?: boolean }) => {
+  getAll: async (params?: {
+    page?: number;
+    limit?: number;
+    clusterId?: string;
+    followUpNeeded?: boolean;
+  }) => {
     const response = await api.get<{ success: boolean; data: ClusterVisit[]; pagination?: any }>(
       '/cluster-visits',
       { params }
     );
-    return { data: response.data.data, pagination: response.data.pagination || null };
+    return { data: asList(response.data.data), pagination: response.data.pagination || null };
   },
 
   create: async (payload: Partial<ClusterVisit> & { clusterId: string }) => {

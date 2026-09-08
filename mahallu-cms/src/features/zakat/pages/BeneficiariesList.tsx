@@ -1,11 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { FiSend } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Table from '@/components/ui/Table';
-import SearchInput from '@/components/ui/SearchInput';
+import ExpandableSearch from '@/components/ui/ExpandableSearch';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import Pagination from '@/components/ui/Pagination';
 import EmptyState from '@/components/ui/EmptyState';
@@ -19,6 +18,8 @@ import {
   VerificationStatus,
 } from '@/services/zakatDistributionService';
 import { useDebounce } from '@/hooks/useDebounce';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
 
 const STATUS_TABS: Array<{ value: string; label: string }> = [
   { value: '', label: 'All' },
@@ -62,7 +63,7 @@ export default function BeneficiariesList() {
       setRows(result.data);
       setPagination(result.pagination);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to load beneficiaries');
+      setError(loadErrorMessage(err, 'beneficiaries'));
     } finally {
       setLoading(false);
     }
@@ -79,7 +80,7 @@ export default function BeneficiariesList() {
       }
       fetchRows();
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to update verification');
+      toast.error(errorMessage(err, { action: 'update verification' }));
     } finally {
       setBusyId(null);
     }
@@ -116,6 +117,7 @@ export default function BeneficiariesList() {
               disabled={busyId === row.id}
               onClick={() => navigate('/zakat/distributions/create', { state: { beneficiaryId: row.id } })}
               title="Record a distribution for this beneficiary"
+              aria-label="Record a distribution for this beneficiary"
             >
               <FiSend size={16} />
             </button>
@@ -145,17 +147,11 @@ export default function BeneficiariesList() {
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">Zakat Beneficiaries</h1>
-          <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-            Only verified beneficiaries can receive distributions
-          </p>
-        </div>
-        <Breadcrumb
-          items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Zakat' }, { label: 'Beneficiaries' }]}
-        />
-      </div>
+      <PageHeader
+        title="Zakat Beneficiaries"
+        description="Only verified beneficiaries can receive distributions"
+        breadcrumbs={[{ label: 'Zakat' }]}
+      />
 
       <Card>
         <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -180,13 +176,14 @@ export default function BeneficiariesList() {
           </div>
           <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
             <div className="w-full sm:w-56">
-              <SearchInput
+              <ExpandableSearch
                 value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value);
+                onChange={(value) => {
+                  setSearchQuery(value);
                   setCurrentPage(1);
                 }}
-                placeholder="Search by name..."
+                entity="beneficiaries"
+                placeholder="Search by name"
               />
             </div>
             <Link to="/zakat/beneficiaries/create">

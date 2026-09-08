@@ -42,14 +42,16 @@ const ZakatBeneficiarySchema = new Schema<IZakatBeneficiary>(
     tenantId: {
       type: Schema.Types.ObjectId,
       ref: 'Tenant',
-      required: [true, 'Tenant ID is required'],
+      required: [true, 'Please select a Mahallu before continuing.'],
       index: true,
     },
     memberId: { type: Schema.Types.ObjectId, ref: 'Member', index: true },
     familyId: { type: Schema.Types.ObjectId, ref: 'Family' },
     // Free-text fallback for a beneficiary who is not on the member roll
     name: { type: String, trim: true },
-    category: { type: String, enum: ZAKAT_CATEGORIES, default: 'other' },
+    // Category key: 'zakat_asnaf_category'. ZAKAT_CATEGORIES above now only
+    // feeds the Category seed script, not schema validation.
+    category: { type: String, default: 'other' },
     verificationStatus: {
       type: String,
       enum: ['pending', 'verified', 'rejected'],
@@ -88,7 +90,7 @@ const ZakatDistributionSchema = new Schema<IZakatDistribution>(
     tenantId: {
       type: Schema.Types.ObjectId,
       ref: 'Tenant',
-      required: [true, 'Tenant ID is required'],
+      required: [true, 'Please select a Mahallu before continuing.'],
       index: true,
     },
     beneficiaryId: {

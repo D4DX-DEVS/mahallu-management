@@ -4,19 +4,20 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useNavigate } from 'react-router-dom';
 import { FiSave, FiX } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import { ROUTES } from '@/constants/routes';
 import { masterAccountService } from '@/services/masterAccountService';
+import { errorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
 
 const ledgerSchema = z.object({
-  name: z.string().min(1, 'Name is required'),
-  nameMl: z.string().optional(),
+  name: z.string().max(200, 'Please keep the name to 200 characters or less.').min(1, 'Name is required'),
+  nameMl: z.string().max(200, 'Please keep the name to 200 characters or less.').optional(),
   type: z.enum(['income', 'expense'], { required_error: 'Type is required' }),
-  description: z.string().optional(),
+  description: z.string().max(3000, 'Please keep the description to 3000 characters or less.').optional(),
 });
 
 type LedgerFormData = z.infer<typeof ledgerSchema>;
@@ -46,26 +47,18 @@ export default function CreateLedger() {
       });
       navigate(ROUTES.MASTER_ACCOUNTS.LEDGERS);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to create ledger. Please try again.');
+      setError(errorMessage(err, { action: 'create ledger. please try again' }));
       console.error('Error creating ledger:', err);
     }
   };
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Create Ledger</h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Add a new income or expense ledger</p>
-        </div>
-        <Breadcrumb
-          items={[
-            { label: 'Dashboard', path: '/dashboard' },
-            { label: 'Ledgers', path: ROUTES.MASTER_ACCOUNTS.LEDGERS },
-            { label: 'Create' },
-          ]}
-        />
-      </div>
+      <PageHeader
+        title="Create Ledger"
+        description="Add a new income or expense ledger"
+        breadcrumbs={[{ label: 'Ledgers', path: ROUTES.MASTER_ACCOUNTS.LEDGERS }]}
+      />
 
       <form onSubmit={handleSubmit(onSubmit)}>
         <Card className="space-y-6">
@@ -77,10 +70,20 @@ export default function CreateLedger() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="md:col-span-2">
-              <Input label="Ledger Name" {...register('name')} error={errors.name?.message} placeholder="e.g., Monthly Income, Operating Expenses" />
+              <Input
+                label="Ledger Name"
+                {...register('name')}
+                error={errors.name?.message}
+                placeholder="e.g., Monthly Income, Operating Expenses"
+              />
             </div>
             <div className="md:col-span-2 hidden">
-              <Input label="Ledger Name (Malayalam)" {...register('nameMl')} placeholder="ലെഡ്ജർ നാമം" className="font-malayalam" />
+              <Input
+                label="Ledger Name (Malayalam)"
+                {...register('nameMl')}
+                placeholder="ലെഡ്ജർ നാമം"
+                className="font-malayalam"
+              />
             </div>
 
             <Select
@@ -94,11 +97,16 @@ export default function CreateLedger() {
             />
 
             <div className="md:col-span-2">
-              <Input label="Description" {...register('description')} error={errors.description?.message} placeholder="Optional description" />
+              <Input
+                label="Description"
+                {...register('description')}
+                error={errors.description?.message}
+                placeholder="Optional description"
+              />
             </div>
           </div>
 
-          <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+          <div className="flex gap-2 flex-col-reverse sm:flex-row sm:justify-end sm:gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
             <Button type="button" variant="outline" onClick={() => navigate(ROUTES.MASTER_ACCOUNTS.LEDGERS)}>
               <FiX className="h-4 w-4 mr-2" />
               Cancel
@@ -113,4 +121,3 @@ export default function CreateLedger() {
     </div>
   );
 }
-

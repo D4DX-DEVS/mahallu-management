@@ -12,6 +12,9 @@ import { getPaginationParams, createPaginationResponse } from '../utils/paginati
 import { stripImmutable, refBelongsToTenant } from '../utils/sanitizeUpdate';
 import { postLedgerEntry } from '../services/ledgerPostingService';
 
+import { sendFailure } from '../utils/userMessages';
+import { regexLiteral } from '../utils/queryGuard';
+
 const tenantScope = (req: AuthRequest) => {
   if (req.tenantId) return req.tenantId;
   if (req.isSuperAdmin && req.query.tenantId) return req.query.tenantId as string;
@@ -34,7 +37,7 @@ export const getAllSchemes = async (req: AuthRequest, res: Response) => {
     const query: any = scopedQuery(req);
     if (status) query.status = status;
     if (category) query.category = category;
-    if (search) query.name = { $regex: search, $options: 'i' };
+    if (search) query.name = { $regex: regexLiteral(search), $options: 'i' };
 
     const [data, total] = await Promise.all([
       WelfareScheme.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit),
@@ -42,7 +45,7 @@ export const getAllSchemes = async (req: AuthRequest, res: Response) => {
     ]);
     res.json(createPaginationResponse(data, total, page, limit));
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the schemes right now. Please try again.');
   }
 };
 
@@ -50,22 +53,22 @@ export const getSchemeById = async (req: AuthRequest, res: Response) => {
   try {
     const scheme = await WelfareScheme.findById(req.params.id);
     if (!scheme || (req.tenantId && scheme.tenantId.toString() !== req.tenantId)) {
-      return res.status(404).json({ success: false, message: 'Scheme not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that scheme. It may have been removed." });
     }
     res.json({ success: true, data: scheme });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the scheme right now. Please try again.');
   }
 };
 
 export const createScheme = async (req: AuthRequest, res: Response) => {
   try {
     const tenantId = tenantScope(req) || req.body.tenantId;
-    if (!tenantId) return res.status(400).json({ success: false, message: 'Tenant ID is required' });
+    if (!tenantId) return res.status(400).json({ success: false, message: 'Please select a Mahallu before continuing.' });
     const scheme = await WelfareScheme.create({ ...req.body, tenantId });
     res.status(201).json({ success: true, data: scheme });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t save the scheme. Please try again.');
   }
 };
 
@@ -73,7 +76,7 @@ export const updateScheme = async (req: AuthRequest, res: Response) => {
   try {
     const existing = await WelfareScheme.findById(req.params.id);
     if (!existing || (req.tenantId && existing.tenantId.toString() !== req.tenantId)) {
-      return res.status(404).json({ success: false, message: 'Scheme not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that scheme. It may have been removed." });
     }
     const scheme = await WelfareScheme.findByIdAndUpdate(req.params.id, stripImmutable(req.body), {
       new: true,
@@ -81,7 +84,7 @@ export const updateScheme = async (req: AuthRequest, res: Response) => {
     });
     res.json({ success: true, data: scheme });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t update the scheme. Please try again.');
   }
 };
 
@@ -89,19 +92,19 @@ export const deleteScheme = async (req: AuthRequest, res: Response) => {
   try {
     const existing = await WelfareScheme.findById(req.params.id);
     if (!existing || (req.tenantId && existing.tenantId.toString() !== req.tenantId)) {
-      return res.status(404).json({ success: false, message: 'Scheme not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that scheme. It may have been removed." });
     }
     const inUse = await WelfareApplication.countDocuments({ schemeId: existing._id });
     if (inUse > 0) {
       return res.status(400).json({
         success: false,
-        message: `Scheme has ${inUse} application(s); close it instead of deleting`,
+        message: `This scheme has ${inUse} application(s), so it can't be deleted. Please close it instead.`,
       });
     }
     await existing.deleteOne();
     res.json({ success: true, message: 'Scheme deleted' });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t delete the scheme. Please try again.');
   }
 };
 
@@ -118,7 +121,7 @@ export const getAllApplications = async (req: AuthRequest, res: Response) => {
     if (priority) query.priority = priority;
     if (schemeId) query.schemeId = schemeId;
     if (familyId) query.familyId = familyId;
-    if (search) query.reason = { $regex: search, $options: 'i' };
+    if (search) query.reason = { $regex: regexLiteral(search), $options: 'i' };
 
     const [data, total] = await Promise.all([
       WelfareApplication.find(query)
@@ -132,7 +135,7 @@ export const getAllApplications = async (req: AuthRequest, res: Response) => {
     ]);
     res.json(createPaginationResponse(data, total, page, limit));
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the applications right now. Please try again.');
   }
 };
 
@@ -143,22 +146,29 @@ export const getApplicationById = async (req: AuthRequest, res: Response) => {
       .populate('familyId', 'houseName familyHead contactNo area')
       .populate('memberId', 'name phone');
     if (!application || (req.tenantId && application.tenantId.toString() !== req.tenantId)) {
-      return res.status(404).json({ success: false, message: 'Application not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that application. It may have been removed." });
     }
     res.json({ success: true, data: application });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the application right now. Please try again.');
   }
 };
 
 export const createApplication = async (req: AuthRequest, res: Response) => {
   try {
     const tenantId = tenantScope(req) || req.body.tenantId;
-    if (!tenantId) return res.status(400).json({ success: false, message: 'Tenant ID is required' });
+    if (!tenantId) return res.status(400).json({ success: false, message: 'Please select a Mahallu before continuing.' });
 
     const scheme = await WelfareScheme.findById(req.body.schemeId);
     if (!scheme || scheme.tenantId.toString() !== tenantId.toString()) {
-      return res.status(400).json({ success: false, message: 'Invalid scheme' });
+      return res.status(400).json({ success: false, message: 'Please select a valid scheme.' });
+    }
+
+    if (!req.body.familyId) {
+      return res.status(400).json({ success: false, message: 'Please select a family.' });
+    }
+    if (!(await refBelongsToTenant(Family, req.body.familyId, tenantId))) {
+      return res.status(400).json({ success: false, message: 'Please select a valid family.' });
     }
 
     const application = await WelfareApplication.create({
@@ -176,7 +186,7 @@ export const createApplication = async (req: AuthRequest, res: Response) => {
 
     res.status(201).json({ success: true, data: application });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t save the application. Please try again.');
   }
 };
 
@@ -184,7 +194,7 @@ export const updateApplication = async (req: AuthRequest, res: Response) => {
   try {
     const existing = await WelfareApplication.findById(req.params.id);
     if (!existing || (req.tenantId && existing.tenantId.toString() !== req.tenantId)) {
-      return res.status(404).json({ success: false, message: 'Application not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that application. It may have been removed." });
     }
     // Status only moves through the status endpoint, never a blind update,
     // and tenant / identity fields are never client-settable
@@ -195,7 +205,7 @@ export const updateApplication = async (req: AuthRequest, res: Response) => {
       !(await refBelongsToTenant(Family, payload.familyId, existing.tenantId)) ||
       !(await refBelongsToTenant(WelfareScheme, payload.schemeId, existing.tenantId))
     ) {
-      return res.status(400).json({ success: false, message: 'Linked family or scheme is invalid' });
+      return res.status(400).json({ success: false, message: 'Please select a valid family and scheme.' });
     }
 
     const application = await WelfareApplication.findByIdAndUpdate(req.params.id, payload, {
@@ -204,7 +214,7 @@ export const updateApplication = async (req: AuthRequest, res: Response) => {
     });
     res.json({ success: true, data: application });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t update the application. Please try again.');
   }
 };
 
@@ -218,14 +228,14 @@ export const updateApplicationStatus = async (req: AuthRequest, res: Response) =
     const application = await WelfareApplication.findById(req.params.id);
 
     if (!application || (req.tenantId && application.tenantId.toString() !== req.tenantId)) {
-      return res.status(404).json({ success: false, message: 'Application not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that application. It may have been removed." });
     }
 
     const allowed = WELFARE_TRANSITIONS[application.status] || [];
     if (!allowed.includes(nextStatus)) {
       return res.status(400).json({
         success: false,
-        message: `Cannot move from ${application.status} to ${nextStatus}. Allowed: ${allowed.join(', ') || 'none'}`,
+        message: `This can't be moved from ${application.status} to ${nextStatus}.`,
       });
     }
 
@@ -234,7 +244,7 @@ export const updateApplicationStatus = async (req: AuthRequest, res: Response) =
       if (approvedAmount > application.requestedAmount && !req.body.override) {
         return res.status(400).json({
           success: false,
-          message: 'Approved amount exceeds the requested amount',
+          message: 'The approved amount is more than the amount requested.',
         });
       }
       application.approvedAmount = approvedAmount;
@@ -279,7 +289,7 @@ export const updateApplicationStatus = async (req: AuthRequest, res: Response) =
 
     res.json({ success: true, data: application });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t update the application status. Please try again.');
   }
 };
 
@@ -287,18 +297,18 @@ export const deleteApplication = async (req: AuthRequest, res: Response) => {
   try {
     const existing = await WelfareApplication.findById(req.params.id);
     if (!existing || (req.tenantId && existing.tenantId.toString() !== req.tenantId)) {
-      return res.status(404).json({ success: false, message: 'Application not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that application. It may have been removed." });
     }
     if (existing.status === 'disbursed' || existing.status === 'closed') {
       return res.status(400).json({
         success: false,
-        message: 'Disbursed applications are kept for the audit trail',
+        message: "Disbursed applications are kept on record and can't be deleted.",
       });
     }
     await existing.deleteOne();
     res.json({ success: true, message: 'Application deleted' });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t delete the application. Please try again.');
   }
 };
 
@@ -334,6 +344,6 @@ export const getWelfareSummary = async (req: AuthRequest, res: Response) => {
       },
     });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the welfare summary right now. Please try again.');
   }
 };

@@ -32,7 +32,7 @@ export const createSuperAdmin = async () => {
 
     const superAdmin = new User(superAdminData);
     await superAdmin.save();
-    console.log('✅ Super admin created successfully');
+    console.log('✅ Super admin created');
     console.log('Phone: 9999999999');
     console.log('Password: admin123');
     return superAdmin;

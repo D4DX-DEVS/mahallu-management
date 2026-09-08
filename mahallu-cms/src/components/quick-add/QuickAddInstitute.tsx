@@ -8,6 +8,7 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import { instituteService } from '@/services/instituteService';
+import { errorMessage } from '@/utils/errors';
 
 const instituteSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -60,7 +61,7 @@ export default function QuickAddInstitute({ open, onClose, onCreated }: Props) {
       onCreated({ id: created.id, label: created.name });
       onClose();
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to create institute. Please try again.');
+      setError(errorMessage(err, { action: 'create institute. please try again' }));
     }
   };
 
@@ -109,12 +110,7 @@ export default function QuickAddInstitute({ open, onClose, onCreated }: Props) {
             error={errors.joinDate?.message}
             required
           />
-          <Input
-            label="Contact No."
-            type="tel"
-            {...register('contactNo')}
-            placeholder="Contact Number"
-          />
+          <Input label="Contact No." type="tel" {...register('contactNo')} placeholder="Contact Number" />
           <Input
             label="Email"
             type="email"
@@ -139,7 +135,7 @@ export default function QuickAddInstitute({ open, onClose, onCreated }: Props) {
           />
         </div>
 
-        <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+        <div className="flex gap-2 flex-col-reverse sm:flex-row sm:justify-end sm:gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
           <Button type="button" variant="outline" onClick={onClose}>
             <FiX className="h-4 w-4 mr-2" />
             Cancel

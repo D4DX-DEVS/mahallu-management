@@ -9,6 +9,9 @@ import Member from '../models/Member';
 import Family from '../models/Family';
 import { postLedgerEntry } from '../services/ledgerPostingService';
 
+import { sendFailure } from '../utils/userMessages';
+import { regexLiteral } from '../utils/queryGuard';
+
 const tenantScope = (req: AuthRequest) => {
   if (req.tenantId) return req.tenantId;
   if (req.isSuperAdmin && req.query.tenantId) return req.query.tenantId as string;
@@ -32,7 +35,7 @@ export const getAllBeneficiaries = async (req: AuthRequest, res: Response) => {
     if (verificationStatus) query.verificationStatus = verificationStatus;
     if (category) query.category = category;
     if (status) query.status = status;
-    if (search) query.name = { $regex: search, $options: 'i' };
+    if (search) query.name = { $regex: regexLiteral(search), $options: 'i' };
 
     const [data, total] = await Promise.all([
       ZakatBeneficiary.find(query)
@@ -46,7 +49,7 @@ export const getAllBeneficiaries = async (req: AuthRequest, res: Response) => {
 
     res.json(createPaginationResponse(data, total, page, limit));
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the beneficiaries right now. Please try again.');
   }
 };
 
@@ -56,7 +59,7 @@ export const getBeneficiaryById = async (req: AuthRequest, res: Response) => {
       .populate('memberId', 'name phone familyName')
       .populate('familyId', 'houseName');
     if (!beneficiary || (req.tenantId && beneficiary.tenantId.toString() !== req.tenantId)) {
-      return res.status(404).json({ success: false, message: 'Beneficiary not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that beneficiary. It may have been removed." });
     }
 
     const distributions = await ZakatDistribution.find({ beneficiaryId: beneficiary._id })
@@ -65,22 +68,22 @@ export const getBeneficiaryById = async (req: AuthRequest, res: Response) => {
 
     res.json({ success: true, data: { beneficiary, distributions } });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the beneficiary right now. Please try again.');
   }
 };
 
 export const createBeneficiary = async (req: AuthRequest, res: Response) => {
   try {
     const tenantId = tenantScope(req) || req.body.tenantId;
-    if (!tenantId) return res.status(400).json({ success: false, message: 'Tenant ID is required' });
+    if (!tenantId) return res.status(400).json({ success: false, message: 'Please select a Mahallu before continuing.' });
     if (!req.body.memberId && !req.body.name) {
-      return res.status(400).json({ success: false, message: 'Either a member or a name is required' });
+      return res.status(400).json({ success: false, message: 'Please choose a member, or enter a name.' });
     }
     if (
       !(await refBelongsToTenant(Member, req.body.memberId, tenantId)) ||
       !(await refBelongsToTenant(Family, req.body.familyId, tenantId))
     ) {
-      return res.status(400).json({ success: false, message: 'Linked member or family is invalid' });
+      return res.status(400).json({ success: false, message: 'Please select a valid member and family.' });
     }
 
     // Verification is a separate, deliberate step - never granted on create
@@ -104,7 +107,7 @@ export const createBeneficiary = async (req: AuthRequest, res: Response) => {
 
     res.status(201).json({ success: true, data: beneficiary });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t save the beneficiary. Please try again.');
   }
 };
 
@@ -112,7 +115,7 @@ export const updateBeneficiary = async (req: AuthRequest, res: Response) => {
   try {
     const existing = await ZakatBeneficiary.findById(req.params.id);
     if (!existing || (req.tenantId && existing.tenantId.toString() !== req.tenantId)) {
-      return res.status(404).json({ success: false, message: 'Beneficiary not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that beneficiary. It may have been removed." });
     }
     // Verification only moves through the dedicated endpoint, and tenant /
     // identity fields are never client-settable
@@ -123,7 +126,7 @@ export const updateBeneficiary = async (req: AuthRequest, res: Response) => {
       !(await refBelongsToTenant(Member, payload.memberId, existing.tenantId)) ||
       !(await refBelongsToTenant(Family, payload.familyId, existing.tenantId))
     ) {
-      return res.status(400).json({ success: false, message: 'Linked member or family is invalid' });
+      return res.status(400).json({ success: false, message: 'Please select a valid member and family.' });
     }
     const beneficiary = await ZakatBeneficiary.findByIdAndUpdate(req.params.id, payload, {
       new: true,
@@ -131,7 +134,7 @@ export const updateBeneficiary = async (req: AuthRequest, res: Response) => {
     });
     res.json({ success: true, data: beneficiary });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t update the beneficiary. Please try again.');
   }
 };
 
@@ -140,12 +143,12 @@ export const verifyBeneficiary = async (req: AuthRequest, res: Response) => {
   try {
     const status = req.body.verificationStatus;
     if (!['verified', 'rejected', 'pending'].includes(status)) {
-      return res.status(400).json({ success: false, message: 'Invalid verification status' });
+      return res.status(400).json({ success: false, message: 'Please choose a valid verification status.' });
     }
 
     const beneficiary = await ZakatBeneficiary.findById(req.params.id);
     if (!beneficiary || (req.tenantId && beneficiary.tenantId.toString() !== req.tenantId)) {
-      return res.status(404).json({ success: false, message: 'Beneficiary not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that beneficiary. It may have been removed." });
     }
 
     if (status === 'rejected') {
@@ -153,7 +156,7 @@ export const verifyBeneficiary = async (req: AuthRequest, res: Response) => {
       if (paid > 0) {
         return res.status(400).json({
           success: false,
-          message: `Cannot reject: ${paid} distribution(s) already recorded. Mark inactive instead.`,
+          message: `${paid} distribution(s) are already recorded, so this can't be rejected. Please mark it inactive instead.`,
         });
       }
     }
@@ -166,7 +169,7 @@ export const verifyBeneficiary = async (req: AuthRequest, res: Response) => {
 
     res.json({ success: true, data: beneficiary });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t verify the beneficiary. Please try again.');
   }
 };
 
@@ -174,19 +177,19 @@ export const deleteBeneficiary = async (req: AuthRequest, res: Response) => {
   try {
     const existing = await ZakatBeneficiary.findById(req.params.id);
     if (!existing || (req.tenantId && existing.tenantId.toString() !== req.tenantId)) {
-      return res.status(404).json({ success: false, message: 'Beneficiary not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that beneficiary. It may have been removed." });
     }
     const paid = await ZakatDistribution.countDocuments({ beneficiaryId: existing._id });
     if (paid > 0) {
       return res.status(400).json({
         success: false,
-        message: 'Beneficiary has distributions on record; mark inactive instead of deleting',
+        message: "This beneficiary has distributions on record, so it can't be deleted. Mark it inactive instead.",
       });
     }
     await existing.deleteOne();
     res.json({ success: true, message: 'Beneficiary deleted' });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t delete the beneficiary. Please try again.');
   }
 };
 
@@ -221,7 +224,7 @@ export const getAllDistributions = async (req: AuthRequest, res: Response) => {
 
     res.json(createPaginationResponse(data, total, page, limit));
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the distributions right now. Please try again.');
   }
 };
 
@@ -232,16 +235,16 @@ export const getAllDistributions = async (req: AuthRequest, res: Response) => {
 export const createDistribution = async (req: AuthRequest, res: Response) => {
   try {
     const tenantId = tenantScope(req) || req.body.tenantId;
-    if (!tenantId) return res.status(400).json({ success: false, message: 'Tenant ID is required' });
+    if (!tenantId) return res.status(400).json({ success: false, message: 'Please select a Mahallu before continuing.' });
 
     const beneficiary = await ZakatBeneficiary.findById(req.body.beneficiaryId);
     if (!beneficiary || beneficiary.tenantId.toString() !== tenantId.toString()) {
-      return res.status(400).json({ success: false, message: 'Invalid beneficiary' });
+      return res.status(400).json({ success: false, message: 'Please select a valid beneficiary.' });
     }
     if (beneficiary.verificationStatus !== 'verified') {
       return res.status(400).json({
         success: false,
-        message: `Beneficiary is ${beneficiary.verificationStatus}; only verified beneficiaries can receive distributions`,
+        message: `Only verified beneficiaries can receive distributions. This beneficiary is ${beneficiary.verificationStatus}.`,
       });
     }
 
@@ -268,7 +271,31 @@ export const createDistribution = async (req: AuthRequest, res: Response) => {
 
     res.status(201).json({ success: true, data: distribution });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t save the distribution. Please try again.');
+  }
+};
+
+/** Beneficiary is immutable here - re-pointing a distribution goes through delete + re-create. */
+export const updateDistribution = async (req: AuthRequest, res: Response) => {
+  try {
+    const existing = await ZakatDistribution.findById(req.params.id);
+    if (!existing || (req.tenantId && existing.tenantId.toString() !== req.tenantId)) {
+      return res.status(404).json({ success: false, message: "We couldn't find that distribution. It may have been removed." });
+    }
+    const { tenantId, beneficiaryId, createdBy, postToLedger, ...rest } = req.body;
+    const payload = stripImmutable(rest);
+
+    const distribution = await ZakatDistribution.findByIdAndUpdate(req.params.id, payload, {
+      new: true,
+      runValidators: true,
+    }).populate({
+      path: 'beneficiaryId',
+      select: 'name category memberId',
+      populate: { path: 'memberId', select: 'name' },
+    });
+    res.json({ success: true, data: distribution });
+  } catch (error: any) {
+    sendFailure(res, error, 'We couldn\'t update the distribution. Please try again.');
   }
 };
 
@@ -276,42 +303,53 @@ export const deleteDistribution = async (req: AuthRequest, res: Response) => {
   try {
     const existing = await ZakatDistribution.findById(req.params.id);
     if (!existing || (req.tenantId && existing.tenantId.toString() !== req.tenantId)) {
-      return res.status(404).json({ success: false, message: 'Distribution not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that distribution. It may have been removed." });
     }
     await existing.deleteOne();
     res.json({ success: true, message: 'Distribution deleted' });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t delete the distribution. Please try again.');
   }
 };
 
 /** Collected (existing Zakat collections) vs distributed, for a given year. */
 export const getZakatSummary = async (req: AuthRequest, res: Response) => {
   try {
+    /*
+     * No tenant scope is not an error here. A super admin lands on this page
+     * before touching the tenant switcher, and refusing with a 400 turned that
+     * ordinary first view into "We couldn't load summary". Every other summary
+     * endpoint - qard, welfare, relief - answers across all Mahallus in that
+     * state, and the beneficiary and distribution lists behind this page
+     * already do too. This one was the outlier.
+     */
     const tenantId = tenantScope(req);
-    if (!tenantId) return res.status(400).json({ success: false, message: 'Tenant ID is required' });
+    const scope = scopedQuery(req);
+    // Aggregation does not cast strings to ObjectId the way find() does.
+    const tenantMatch: Record<string, any> = tenantId
+      ? { tenantId: new mongoose.Types.ObjectId(tenantId.toString()) }
+      : {};
 
     const year = Number(req.query.year) || new Date().getFullYear();
     const from = new Date(year, 0, 1);
     const to = new Date(year + 1, 0, 1);
-    const tenantObjectId = new mongoose.Types.ObjectId(tenantId.toString());
 
     const [collectedAgg, distributedAgg, byType, beneficiaryCounts] = await Promise.all([
       Zakat.aggregate([
-        { $match: { tenantId: tenantObjectId, paymentDate: { $gte: from, $lt: to } } },
+        { $match: { ...tenantMatch, paymentDate: { $gte: from, $lt: to } } },
         { $group: { _id: null, total: { $sum: '$amount' }, count: { $sum: 1 } } },
       ]),
       ZakatDistribution.aggregate([
-        { $match: { tenantId: tenantObjectId, distributionDate: { $gte: from, $lt: to } } },
+        { $match: { ...tenantMatch, distributionDate: { $gte: from, $lt: to } } },
         { $group: { _id: null, total: { $sum: '$amount' }, count: { $sum: 1 } } },
       ]),
       ZakatDistribution.aggregate([
-        { $match: { tenantId: tenantObjectId, distributionDate: { $gte: from, $lt: to } } },
+        { $match: { ...tenantMatch, distributionDate: { $gte: from, $lt: to } } },
         { $group: { _id: '$type', total: { $sum: '$amount' }, count: { $sum: 1 } } },
       ]),
       Promise.all([
-        ZakatBeneficiary.countDocuments({ tenantId, verificationStatus: 'verified', status: 'active' }),
-        ZakatBeneficiary.countDocuments({ tenantId, verificationStatus: 'pending' }),
+        ZakatBeneficiary.countDocuments({ ...scope, verificationStatus: 'verified', status: 'active' }),
+        ZakatBeneficiary.countDocuments({ ...scope, verificationStatus: 'pending' }),
       ]),
     ]);
 
@@ -333,6 +371,6 @@ export const getZakatSummary = async (req: AuthRequest, res: Response) => {
       },
     });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the zakat summary right now. Please try again.');
   }
 };

@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { FiDownload, FiTrash2, FiEye } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
@@ -15,6 +14,8 @@ import { TableColumn, Pagination as PaginationType } from '@/types';
 import { registrationService, Certificate } from '@/services/registrationService';
 import { useDebounce } from '@/hooks/useDebounce';
 import { formatDate } from '@/utils/format';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
 
 export default function CertificatesList() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -60,7 +61,7 @@ export default function CertificatesList() {
         setPagination(result.pagination);
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch certificates');
+      setError(loadErrorMessage(err, 'certificates'));
     } finally {
       setLoading(false);
     }
@@ -75,9 +76,9 @@ export default function CertificatesList() {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      toast.success('Certificate downloaded successfully');
+      toast.success('Certificate downloaded');
     } catch (err: any) {
-      toast.error('Failed to download certificate');
+      toast.error("Couldn't download certificate. Please try again.");
     }
   };
 
@@ -88,18 +89,18 @@ export default function CertificatesList() {
 
   const handleRevoke = async () => {
     if (!revokeModal.id || !revokeReason.trim()) {
-      toast.error('Please provide a revocation reason');
+      toast.error('Please enter a reason for revoking this.');
       return;
     }
 
     try {
       setRevoking(true);
       await registrationService.revokeCertificate(revokeModal.id, revokeReason);
-      toast.success('Certificate revoked successfully');
+      toast.success('Certificate revoked');
       setRevokeModal({ open: false });
       await fetchCertificates();
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to revoke certificate');
+      toast.error(errorMessage(err, { action: 'revoke certificate' }));
     } finally {
       setRevoking(false);
     }
@@ -137,7 +138,7 @@ export default function CertificatesList() {
     ),
     issuedBy: cert.issuedBy || '-',
     actions: (
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <Button
           size="sm"
           variant="outline"
@@ -162,19 +163,9 @@ export default function CertificatesList() {
 
   return (
     <div className="space-y-6">
-      <Breadcrumb
-        items={[
-          { label: 'Dashboard', path: '/dashboard' },
-          { label: 'Certificates' },
-        ]}
-      />
+      <PageHeader description="Manage issued certificates" title="Certificates" />
 
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Certificates</h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Manage issued certificates</p>
-        </div>
-      </div>
+      <div className="flex items-center justify-between"></div>
 
       <Card>
         <TableToolbar
@@ -231,7 +222,7 @@ export default function CertificatesList() {
             {pagination && (
               <Pagination
                 currentPage={currentPage}
-                totalPages={pagination.page || Math.ceil(pagination.total / itemsPerPage)}
+                totalPages={pagination.totalPages || Math.ceil(pagination.total / itemsPerPage)}
                 totalItems={pagination.total}
                 itemsPerPage={itemsPerPage}
                 onPageChange={setCurrentPage}
@@ -253,6 +244,7 @@ export default function CertificatesList() {
               Revocation Reason
             </label>
             <textarea
+              aria-label="Revocation Reason"
               value={revokeReason}
               onChange={(e) => setRevokeReason(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-gray-100"
@@ -260,19 +252,11 @@ export default function CertificatesList() {
               placeholder="Enter the reason for revocation..."
             />
           </div>
-          <div className="flex gap-3 justify-end">
-            <Button
-              variant="outline"
-              onClick={() => setRevokeModal({ open: false })}
-              disabled={revoking}
-            >
+          <div className="flex gap-2 flex-col-reverse sm:flex-row sm:justify-end sm:gap-3">
+            <Button variant="outline" onClick={() => setRevokeModal({ open: false })} disabled={revoking}>
               Cancel
             </Button>
-            <Button
-              onClick={handleRevoke}
-              isLoading={revoking}
-              className="bg-red-600 hover:bg-red-700"
-            >
+            <Button onClick={handleRevoke} isLoading={revoking} className="bg-red-600 hover:bg-red-700">
               Revoke Certificate
             </Button>
           </div>

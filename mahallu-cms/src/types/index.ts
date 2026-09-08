@@ -65,9 +65,15 @@ export interface Member {
   familyId: string;
   familyName: string;
   age?: number;
+  /** ISO date string. When set, `age` is derived from it. */
+  dateOfBirth?: string;
   gender?: 'male' | 'female';
   bloodGroup?: string;
   healthStatus?: string;
+  /** Free-text illness/condition details, captured when healthStatus is not 'healthy'. */
+  healthNotes?: string;
+  /** @deprecated Retired socio-economic field; new text goes to healthNotes. Read-only for old records. */
+  disabilityDetails?: string;
   phone?: string;
   education?: string;
   maritalStatus?: 'single' | 'married' | 'divorced' | 'widowed';
@@ -76,8 +82,12 @@ export interface Member {
   isDead?: boolean;
   isFamilyHead?: boolean;
   relationship?: 'head' | 'spouse' | 'son' | 'daughter' | 'father' | 'mother' | 'other';
+  /** Free-text relationship, captured when relationship is 'other'. */
+  relationshipOther?: string;
   educationInstitutionId?: string;
   localityFacilityId?: string;
+  /** Free-text external school/college, for one not in the locality registry. */
+  externalInstitution?: string;
   createdAt: string;
 }
 
@@ -193,8 +203,27 @@ export interface Meeting {
 export interface TableColumn<T = any> {
   key: string;
   label: string;
+  /** Renders a real sort button in the header. Requires Table's `sort`/`onSort`. */
   sortable?: boolean;
   render?: (value: any, row: T, index: number) => React.ReactNode;
+  /**
+   * Column priority, honoured by Table at every breakpoint.
+   * `primary`   always visible, including on phones (default)
+   * `secondary` hidden below md
+   * `tertiary`  hidden below lg
+   */
+  priority?: 'primary' | 'secondary' | 'tertiary';
+  /** Right-align numeric columns so digits line up. */
+  align?: 'left' | 'right' | 'center';
+  /** Minimum width, e.g. '12rem'. Keeps columns readable when the table scrolls. */
+  width?: string;
+}
+
+export type SortDirection = 'asc' | 'desc';
+
+export interface SortState {
+  key: string;
+  direction: SortDirection;
 }
 
 export interface Pagination {
@@ -247,4 +276,3 @@ export interface AssetMaintenance {
   createdAt: string;
   updatedAt?: string;
 }
-

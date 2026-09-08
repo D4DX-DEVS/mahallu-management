@@ -2,6 +2,7 @@ import { useState } from 'react';
 import QuickAddModal from '@/components/ui/QuickAddModal';
 import Input from '@/components/ui/Input';
 import { tenantService } from '@/services/tenantService';
+import { errorMessage } from '@/utils/errors';
 
 interface Props {
   open: boolean;
@@ -48,7 +49,7 @@ export default function QuickAddVarisangyaGrade({ open, onClose, tenantId, onCre
       setAmount('');
       onClose();
     } catch (err: any) {
-      setErrors({ general: err.response?.data?.message || 'Failed to add grade. Please try again.' });
+      setErrors({ general: errorMessage(err, { action: 'add grade. please try again' }) });
     } finally {
       setIsLoading(false);
     }
@@ -71,13 +72,14 @@ export default function QuickAddVarisangyaGrade({ open, onClose, tenantId, onCre
       confirmLabel="Add Grade"
     >
       <div className="space-y-4">
-        {errors.general && (
-          <p className="text-sm text-red-600 dark:text-red-400">{errors.general}</p>
-        )}
+        {errors.general && <p className="text-sm text-red-600 dark:text-red-400">{errors.general}</p>}
         <Input
           label="Grade Name"
           value={name}
-          onChange={(e) => { setName(e.target.value); setErrors((p) => ({ ...p, name: undefined })); }}
+          onChange={(e) => {
+            setName(e.target.value);
+            setErrors((p) => ({ ...p, name: undefined }));
+          }}
           placeholder="e.g. Gold, Silver, Bronze"
           error={errors.name}
           autoFocus
@@ -87,7 +89,10 @@ export default function QuickAddVarisangyaGrade({ open, onClose, tenantId, onCre
           type="number"
           min={0}
           value={amount}
-          onChange={(e) => { setAmount(e.target.value); setErrors((p) => ({ ...p, amount: undefined })); }}
+          onChange={(e) => {
+            setAmount(e.target.value);
+            setErrors((p) => ({ ...p, amount: undefined }));
+          }}
           placeholder="0"
           error={errors.amount}
         />

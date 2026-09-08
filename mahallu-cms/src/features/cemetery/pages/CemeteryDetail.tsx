@@ -3,12 +3,16 @@ import { useParams, useNavigate } from 'react-router-dom';
 import cemeteryService, { Cemetery, GraveRecord } from '../../../services/cemeteryService';
 import Button from '../../../components/ui/Button';
 import Card from '../../../components/ui/Card';
-import Input from '../../../components/ui/Input';
 import Pagination from '../../../components/ui/Pagination';
 import { PageSkeleton } from '@/components/ui/Skeleton';
+import ExpandableSearch from '@/components/ui/ExpandableSearch';
 import ConfirmDialog from '../../../components/ui/ConfirmDialog';
 import { toast } from '@/store/toastStore';
 import { FiPlus, FiEdit2, FiTrash2, FiArrowLeft } from 'react-icons/fi';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
+import SortableTh from '@/components/ui/SortableTh';
+import { useSortableRows } from '@/hooks/useSortableRows';
 
 export function CemeteryDetail() {
   const { id } = useParams<{ id: string }>();
@@ -50,7 +54,7 @@ export function CemeteryDetail() {
         setTotalPages(gravesData.pagination?.totalPages || 1);
         setTotalItems(gravesData.pagination?.total || 0);
       } catch (err: any) {
-        setError(err.response?.data?.message || 'Failed to load cemetery');
+        setError(loadErrorMessage(err, 'cemetery'));
       } finally {
         setLoading(false);
       }
@@ -68,11 +72,17 @@ export function CemeteryDetail() {
       setConfirmDelete(false);
       setDeleteGraveId(null);
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to delete grave');
+      toast.error(errorMessage(err, { action: 'delete grave' }));
       setConfirmDelete(false);
       setDeleteGraveId(null);
     }
   };
+
+  const {
+    rows: sortedGraves,
+    sort,
+    toggleSort,
+  } = useSortableRows(graves);
 
   if (loading && !cemetery) {
     return <PageSkeleton />;
@@ -89,38 +99,30 @@ export function CemeteryDetail() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <Button
-          variant="outline"
-          onClick={() => navigate('/cemetery')}
-          className="flex items-center gap-2"
-        >
+        <Button variant="outline" onClick={() => navigate('/cemetery')} className="flex items-center gap-2">
           <FiArrowLeft /> Back
         </Button>
         <div className="flex-1">
-          <h1 className="text-2xl sm:text-3xl font-bold">{cemetery.name}</h1>
-          {cemetery.location && (
-            <p className="text-sm text-gray-600">{cemetery.location}</p>
-          )}
+          <PageHeader title={cemetery.name} />
+          {cemetery.location && <p className="text-sm text-gray-600">{cemetery.location}</p>}
         </div>
       </div>
 
       {error && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-          {error}
-        </div>
+        <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">{error}</div>
       )}
 
       {/* Cemetery info cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
-        <Card className="p-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+        <Card>
           <div className="text-sm text-gray-600">Capacity</div>
           <div className="text-2xl font-bold mt-2">{cemetery.capacity}</div>
         </Card>
-        <Card className="p-4">
+        <Card>
           <div className="text-sm text-gray-600">Used</div>
           <div className="text-2xl font-bold mt-2">{cemetery.usedCount || 0}</div>
         </Card>
-        <Card className="p-4">
+        <Card>
           <div className="text-sm text-gray-600">Available</div>
           <div className="text-2xl font-bold mt-2">
             {(cemetery.capacity || 0) - (cemetery.usedCount || 0)}
@@ -129,7 +131,7 @@ export function CemeteryDetail() {
       </div>
 
       {/* Occupancy bar */}
-      <Card className="p-4">
+      <Card>
         <div className="text-sm text-gray-600 mb-3">Occupancy</div>
         <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
           <div
@@ -140,14 +142,12 @@ export function CemeteryDetail() {
           />
         </div>
         <div className="text-sm text-gray-600 mt-2">
-          {Math.round(
-            ((cemetery.usedCount || 0) / cemetery.capacity) * 100
-          )}% full
+          {Math.round(((cemetery.usedCount || 0) / cemetery.capacity) * 100)}% full
         </div>
       </Card>
 
       {cemetery.notes && (
-        <Card className="p-4">
+        <Card>
           <div className="text-sm text-gray-600 mb-2">Notes</div>
           <p className="text-gray-900">{cemetery.notes}</p>
         </Card>
@@ -165,12 +165,11 @@ export function CemeteryDetail() {
           </Button>
         </div>
 
-        <Input
-          type="text"
-          placeholder="Search by grave number or deceased name..."
+        <ExpandableSearch
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full"
+          onChange={(value) => setSearch(value)}
+          entity="graves"
+          placeholder="Search by grave number or deceased name"
         />
 
         {graves.length === 0 ? (
@@ -182,32 +181,48 @@ export function CemeteryDetail() {
             <table className="w-full">
               <thead>
                 <tr className="border-b">
-                  <th className="text-left p-3 text-xs font-semibold text-gray-600">Grave No</th>
-                  <th className="text-left p-3 text-xs font-semibold text-gray-600">Deceased Name</th>
-                  <th className="text-left p-3 text-xs font-semibold text-gray-600 hidden sm:table-cell">
+                  <SortableTh sortKey="graveNo" sort={sort} onSort={toggleSort} className="p-3">
+                    Grave No
+                  </SortableTh>
+                  <SortableTh sortKey="deceasedName" sort={sort} onSort={toggleSort} className="p-3">
+                    Deceased Name
+                  </SortableTh>
+                  <SortableTh
+                    sortKey="dateOfDeath"
+                    sort={sort}
+                    onSort={toggleSort}
+                    className="p-3"
+                    responsiveClassName="hidden sm:table-cell"
+                  >
                     Date of Death
-                  </th>
-                  <th className="text-left p-3 text-xs font-semibold text-gray-600 hidden md:table-cell">
+                  </SortableTh>
+                  <SortableTh
+                    sortKey="rowLabel"
+                    sort={sort}
+                    onSort={toggleSort}
+                    className="p-3"
+                    responsiveClassName="hidden md:table-cell"
+                  >
                     Row
+                  </SortableTh>
+                  <th className="p-3 text-right text-label font-semibold text-muted-foreground">
+                    Actions
                   </th>
-                  <th className="text-right p-3 text-xs font-semibold text-gray-600">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {graves.map((grave) => (
+                {sortedGraves.map((grave) => (
                   <tr key={grave.id} className="border-b hover:bg-gray-50">
                     <td className="p-3 text-sm font-medium">{grave.graveNo}</td>
                     <td className="p-3 text-sm">{grave.deceasedName}</td>
                     <td className="p-3 text-sm hidden sm:table-cell text-gray-600">
-                      {grave.dateOfDeath
-                        ? new Date(grave.dateOfDeath).toLocaleDateString()
-                        : '—'}
+                      {grave.dateOfDeath ? new Date(grave.dateOfDeath).toLocaleDateString() : '—'}
                     </td>
                     <td className="p-3 text-sm hidden md:table-cell text-gray-600">
                       {grave.rowLabel || '—'}
                     </td>
                     <td className="p-3 text-right">
-                      <div className="flex gap-2 justify-end">
+                      <div className="flex gap-2 flex-col-reverse sm:flex-row sm:justify-end sm:gap-2">
                         <Button
                           variant="outline"
                           size="sm"
@@ -248,6 +263,7 @@ export function CemeteryDetail() {
       </div>
 
       <ConfirmDialog
+        isLoading={loading}
         isOpen={confirmDelete}
         title="Delete Grave"
         message="Delete this grave record? This action cannot be undone."

@@ -5,6 +5,8 @@ import { Varisangya, Zakat } from '../models/Collectible';
 import { NikahRegistration, DeathRegistration, NOC } from '../models/Registration';
 import { AuthRequest } from '../middleware/authMiddleware';
 
+import { sendFailure } from '../utils/userMessages';
+
 // ponytail: in-memory CSV capped at 10k rows — stream with cursors if tenants outgrow this
 const MAX_EXPORT_ROWS = 10000;
 
@@ -71,11 +73,11 @@ export const exportEntityCsv = async (req: AuthRequest, res: Response) => {
     if (!config) {
       return res.status(400).json({
         success: false,
-        message: `Unknown entity. Available: ${Object.keys(ENTITIES).join(', ')}`,
+        message: "That export isn't available. Please choose another.",
       });
     }
     if (!req.tenantId) {
-      return res.status(400).json({ success: false, message: 'Tenant context required' });
+      return res.status(400).json({ success: false, message: 'Please select a Mahallu before continuing.' });
     }
 
     const docs = await config.model
@@ -91,6 +93,6 @@ export const exportEntityCsv = async (req: AuthRequest, res: Response) => {
     res.setHeader('Content-Disposition', `attachment; filename="${req.params.entity}-${stamp}.csv"`);
     res.send('﻿' + csv); // BOM so Excel opens UTF-8 correctly
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t prepare the entity CSV for download. Please try again.');
   }
 };

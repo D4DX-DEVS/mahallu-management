@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { FiEdit2, FiArrowLeft } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import { PageSkeleton } from '@/components/ui/Skeleton';
@@ -9,6 +8,8 @@ import { Institute } from '@/types';
 import { ROUTES } from '@/constants/routes';
 import { instituteService } from '@/services/instituteService';
 import { formatDate } from '@/utils/format';
+import { loadErrorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
 
 export default function InstituteDetail() {
   const { id } = useParams<{ id: string }>();
@@ -30,7 +31,7 @@ export default function InstituteDetail() {
       const data = await instituteService.getById(id);
       setInstitute(data);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch institute');
+      setError(loadErrorMessage(err, 'institute'));
       console.error('Error fetching institute:', err);
     } finally {
       setLoading(false);
@@ -38,9 +39,7 @@ export default function InstituteDetail() {
   };
 
   if (loading) {
-    return (
-      <PageSkeleton />
-    );
+    return <PageSkeleton />;
   }
 
   if (error || !institute) {
@@ -56,20 +55,14 @@ export default function InstituteDetail() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{institute.name}</h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Institute Details</p>
-        </div>
-        <div className="flex items-center gap-4">
-          <Breadcrumb
-            items={[
-              { label: 'Dashboard', path: '/dashboard' },
-              { label: 'Institutes', path: ROUTES.INSTITUTES.LIST },
-              { label: institute.name },
-            ]}
+      <div className="flex flex-wrap gap-2 items-center justify-between">
+        <div className="flex flex-wrap items-center gap-4">
+          <PageHeader
+            description="Institute Details"
+            title={institute.name}
+            breadcrumbs={[{ label: 'Institutes', path: ROUTES.INSTITUTES.LIST }]}
           />
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Link to={ROUTES.INSTITUTES.LIST}>
               <Button variant="outline">
                 <FiArrowLeft className="h-4 w-4 mr-2" />
@@ -158,4 +151,3 @@ export default function InstituteDetail() {
     </div>
   );
 }
-

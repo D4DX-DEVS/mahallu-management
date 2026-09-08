@@ -4,55 +4,55 @@ export const createCommitteeValidation = [
   body('name')
     .trim()
     .notEmpty()
-    .withMessage('Committee name is required')
+    .withMessage('Please select the committee name.')
     .isLength({ min: 2, max: 200 })
-    .withMessage('Committee name must be between 2 and 200 characters'),
+    .withMessage('Please keep the committee name between 2 and 200 characters.'),
   body('nameMl').optional().trim(),
   body('description').optional().trim(),
   body('descriptionMl').optional().trim(),
   body('members')
     .optional()
     .isArray()
-    .withMessage('Members must be an array'),
+    .withMessage('Please add at least one member.'),
   body('members.*')
     .optional()
     .isMongoId()
-    .withMessage('Invalid member ID'),
+    .withMessage('Please select a valid member.'),
   body('status')
     .optional()
     .isIn(['active', 'inactive'])
-    .withMessage('Invalid status'),
+    .withMessage('Please choose a valid status.'),
 ];
 
 export const updateCommitteeValidation = [
-  param('id').isMongoId().withMessage('Invalid committee ID'),
+  param('id').isMongoId().withMessage('Please select a valid committee.'),
   body('name')
     .optional()
     .trim()
     .isLength({ min: 2, max: 200 })
-    .withMessage('Committee name must be between 2 and 200 characters'),
+    .withMessage('Please keep the committee name between 2 and 200 characters.'),
   body('nameMl').optional().trim(),
   body('description').optional().trim(),
   body('descriptionMl').optional().trim(),
   body('members')
     .optional()
     .isArray()
-    .withMessage('Members must be an array'),
+    .withMessage('Please add at least one member.'),
   body('members.*')
     .optional()
     .isMongoId()
-    .withMessage('Invalid member ID'),
+    .withMessage('Please select a valid member.'),
   body('status')
     .optional()
     .isIn(['active', 'inactive'])
-    .withMessage('Invalid status'),
+    .withMessage('Please choose a valid status.'),
 ];
 
 export const getCommitteeValidation = [
-  param('id').isMongoId().withMessage('Invalid committee ID'),
+  param('id').isMongoId().withMessage('Please select a valid committee.'),
 ];
 
 export const deleteCommitteeValidation = [
-  param('id').isMongoId().withMessage('Invalid committee ID'),
+  param('id').isMongoId().withMessage('Please select a valid committee.'),
 ];
 

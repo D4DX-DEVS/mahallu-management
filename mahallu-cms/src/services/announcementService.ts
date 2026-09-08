@@ -1,4 +1,4 @@
-import api from './api';
+import api, { asList } from './api';
 
 export interface Announcement {
   id: string;
@@ -45,7 +45,7 @@ export const announcementService = {
       '/announcements',
       { params }
     );
-    return { data: response.data.data, pagination: response.data.pagination || null };
+    return { data: asList(response.data.data), pagination: response.data.pagination || null };
   },
 
   getById: async (id: string) => {
@@ -59,10 +59,7 @@ export const announcementService = {
   },
 
   update: async (id: string, payload: Partial<Announcement>) => {
-    const response = await api.put<{ success: boolean; data: Announcement }>(
-      `/announcements/${id}`,
-      payload
-    );
+    const response = await api.put<{ success: boolean; data: Announcement }>(`/announcements/${id}`, payload);
     return response.data.data;
   },
 

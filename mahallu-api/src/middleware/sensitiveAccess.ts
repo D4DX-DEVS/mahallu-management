@@ -22,7 +22,7 @@ export const sensitiveAccess = (moduleKey: string) => {
     if (!sensitiveModules || !sensitiveModules.includes(moduleKey)) {
       return res.status(403).json({
         success: false,
-        message: 'Access to this module is restricted',
+        message: "This section isn't available for your account. Please contact your Mahallu admin.",
       });
     }
 

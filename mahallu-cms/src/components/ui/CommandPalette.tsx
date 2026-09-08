@@ -52,9 +52,10 @@ export default function CommandPalette({ isOpen, onClose }: CommandPaletteProps)
   const allMenuItems = flattenMenuItems(menuItems);
 
   const filteredItems = search
-    ? allMenuItems.filter((item) =>
-        item.label.toLowerCase().includes(search.toLowerCase()) ||
-        item.breadcrumb.some((b) => b.toLowerCase().includes(search.toLowerCase()))
+    ? allMenuItems.filter(
+        (item) =>
+          item.label.toLowerCase().includes(search.toLowerCase()) ||
+          item.breadcrumb.some((b) => b.toLowerCase().includes(search.toLowerCase()))
       )
     : allMenuItems;
 
@@ -105,14 +106,11 @@ export default function CommandPalette({ isOpen, onClose }: CommandPaletteProps)
     <div
       className={cn(
         scoped ? 'absolute inset-0' : 'fixed inset-0',
-        'z-50 flex items-start justify-center pt-[15vh] px-4'
+        'z-50 flex items-start justify-center px-3 pt-[8vh] sm:px-4 sm:pt-[15vh]'
       )}
     >
       {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/20 backdrop-blur-md dark:bg-black/40"
-        onClick={onClose}
-      />
+      <div className="absolute inset-0 bg-black/20 backdrop-blur-md dark:bg-black/40" onClick={onClose} />
 
       {/* Command Palette */}
       <div className="relative w-full max-w-2xl bg-white dark:bg-gray-900 rounded-xl shadow-2xl overflow-hidden">
@@ -121,7 +119,8 @@ export default function CommandPalette({ isOpen, onClose }: CommandPaletteProps)
           <FiSearch className="h-5 w-5 text-gray-400" />
           <input
             type="text"
-            placeholder="Search menu..."
+            aria-label="Search menu"
+            placeholder="Search menu"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="flex-1 bg-transparent border-none outline-none text-gray-900 dark:text-gray-100 placeholder-gray-400"
@@ -130,17 +129,16 @@ export default function CommandPalette({ isOpen, onClose }: CommandPaletteProps)
           <button
             onClick={onClose}
             className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors"
+            aria-label="Close"
           >
             <FiX className="h-4 w-4 text-gray-400" />
           </button>
         </div>
 
         {/* Results */}
-        <div className="max-h-[60vh] overflow-y-auto">
+        <div className="max-h-[55vh] overflow-y-auto overscroll-contain sm:max-h-[60vh]">
           {filteredItems.length === 0 ? (
-            <div className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
-              No results found
-            </div>
+            <div className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">No results found</div>
           ) : (
             <div className="py-2">
               {filteredItems.map((item, index) => {
@@ -175,9 +173,7 @@ export default function CommandPalette({ isOpen, onClose }: CommandPaletteProps)
                       />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                        {item.label}
-                      </div>
+                      <div className="truncate text-sm font-medium text-gray-900 dark:text-gray-100">{item.label}</div>
                       <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
                         {item.breadcrumb.join(' > ')}
                       </div>
@@ -190,7 +186,7 @@ export default function CommandPalette({ isOpen, onClose }: CommandPaletteProps)
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between px-4 py-2 text-xs text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50">
+        <div className="hidden items-center justify-between border-t border-gray-200 bg-gray-50 px-4 py-2 text-xs text-gray-500 sm:flex dark:border-gray-800 dark:bg-gray-900/50 dark:text-gray-400">
           <div className="flex items-center gap-4">
             <span className="flex items-center gap-1">
               <kbd className="px-1.5 py-0.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded text-xs">
@@ -217,4 +213,3 @@ export default function CommandPalette({ isOpen, onClose }: CommandPaletteProps)
     portalTarget
   );
 }
-

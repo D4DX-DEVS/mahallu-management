@@ -8,7 +8,11 @@ interface ProtectedRouteProps {
   allowedRoles?: Array<'super_admin' | 'mahall' | 'survey' | 'institute' | 'member'>;
 }
 
-export default function ProtectedRoute({ children, superAdminOnly = false, allowedRoles }: ProtectedRouteProps) {
+export default function ProtectedRoute({
+  children,
+  superAdminOnly = false,
+  allowedRoles,
+}: ProtectedRouteProps) {
   const { user, isSuperAdmin } = useAuthStore();
   const location = useLocation();
   const isMemberPortalPath = location.pathname === '/member' || location.pathname.startsWith('/member/');
@@ -35,4 +39,3 @@ export default function ProtectedRoute({ children, superAdminOnly = false, allow
 
   return <>{children}</>;
 }
-

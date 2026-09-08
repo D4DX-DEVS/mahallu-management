@@ -3,6 +3,8 @@ import { LedgerItem, Ledger, Category, InstituteAccount, MahalluAccount } from '
 import { AuthRequest } from '../middleware/authMiddleware';
 import mongoose from 'mongoose';
 
+import { sendFailure } from '../utils/userMessages';
+
 /**
  * Build a MongoDB filter for LedgerItems based on scope/instituteId/includeEntities.
  *
@@ -133,7 +135,7 @@ export const getDayBook = async (req: AuthRequest, res: Response) => {
       },
     });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the day book right now. Please try again.');
   }
 };
 
@@ -214,7 +216,7 @@ export const getTrialBalance = async (req: AuthRequest, res: Response) => {
       },
     });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the trial balance right now. Please try again.');
   }
 };
 
@@ -352,7 +354,7 @@ export const getBalanceSheet = async (req: AuthRequest, res: Response) => {
       },
     });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the balance sheet right now. Please try again.');
   }
 };
 /**
@@ -363,7 +365,7 @@ export const getLedgerReport = async (req: AuthRequest, res: Response) => {
     const { ledgerId, instituteId, startDate, endDate, scope, includeEntities } = req.query;
 
     if (!ledgerId) {
-      return res.status(400).json({ success: false, message: 'ledgerId is required' });
+      return res.status(400).json({ success: false, message: 'Please select a ledger.' });
     }
 
     const tenantMatch: any = {};
@@ -455,7 +457,7 @@ export const getLedgerReport = async (req: AuthRequest, res: Response) => {
       },
     });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the ledger report right now. Please try again.');
   }
 };
 
@@ -578,7 +580,7 @@ export const getIncomeExpenditure = async (req: AuthRequest, res: Response) => {
       },
     });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the income expenditure right now. Please try again.');
   }
 };
 
@@ -717,6 +719,6 @@ export const getConsolidatedReport = async (req: AuthRequest, res: Response) => 
       },
     });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the consolidated report right now. Please try again.');
   }
 };

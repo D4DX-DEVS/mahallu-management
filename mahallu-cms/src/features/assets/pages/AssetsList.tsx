@@ -1,7 +1,14 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { FiEdit2, FiTrash2, FiEye, FiPackage, FiCheckCircle, FiAlertTriangle, FiXCircle } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
+import {
+  FiEdit2,
+  FiTrash2,
+  FiEye,
+  FiPackage,
+  FiCheckCircle,
+  FiAlertTriangle,
+  FiXCircle,
+} from 'react-icons/fi';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import StatCard from '@/components/ui/StatCard';
@@ -19,6 +26,10 @@ import { useDebounce } from '@/hooks/useDebounce';
 import { formatDate } from '@/utils/format';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
 import { toast } from '@/store/toastStore';
+import { errorMessage } from '@/utils/errors';
+import StatusBadge from '@/components/ui/StatusBadge';
+import PageHeader from '@/components/layout/PageHeader';
+import ActionsMenu from '@/components/ui/ActionsMenu';
 
 const categoryLabels: Record<string, string> = {
   furniture: 'Furniture',
@@ -36,14 +47,6 @@ const statusLabels: Record<string, string> = {
   under_maintenance: 'Under Maintenance',
   disposed: 'Disposed',
   damaged: 'Damaged',
-};
-
-const statusColors: Record<string, string> = {
-  active: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-  in_use: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-  under_maintenance: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
-  disposed: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200',
-  damaged: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
 };
 
 export default function AssetsList() {
@@ -140,7 +143,7 @@ export default function AssetsList() {
       }
     } catch (error: any) {
       console.error('Export error:', error);
-      toast.error(error?.response?.data?.message || 'Failed to export data');
+      toast.error(errorMessage(error, { action: 'export data' }));
     } finally {
       setIsExporting(false);
     }
@@ -155,14 +158,13 @@ export default function AssetsList() {
       setShowDeleteModal(false);
       setSelectedAsset(null);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to delete asset');
+      setError(errorMessage(err, { action: 'delete asset' }));
     } finally {
       setDeleting(false);
     }
   };
 
   const columns: TableColumn<Asset>[] = [
-    { key: 'id', label: 'No.', render: (_, __, index) => index + 1 },
     { key: 'name', label: 'Name', sortable: true },
     {
       key: 'category',
@@ -187,55 +189,49 @@ export default function AssetsList() {
     {
       key: 'status',
       label: 'Status',
-      render: (status) => (
-        <span className={`px-2 py-1 text-xs font-medium rounded-full ${statusColors[status] || 'bg-gray-100 text-gray-800'}`}>
-          {statusLabels[status] || status}
-        </span>
-      ),
+      render: (status) => <StatusBadge status={status} />,
     },
     {
       key: 'actions',
       label: 'Actions',
       render: (_, row) => (
-        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(ROUTES.ASSETS.DETAIL(row.id));
-            }}
-            className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
-            title="View"
-          >
-            <FiEye className="h-4 w-4" />
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(ROUTES.ASSETS.EDIT(row.id));
-            }}
-            className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
-            title="Edit"
-          >
-            <FiEdit2 className="h-4 w-4" />
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setSelectedAsset(row);
-              setShowDeleteModal(true);
-            }}
-            className="p-1.5 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 transition-colors"
-            title="Delete"
-          >
-            <FiTrash2 className="h-4 w-4" />
-          </button>
-        </div>
+        <ActionsMenu
+          items={[
+            {
+              label: 'View',
+              icon: <FiEye className="h-4 w-4" />,
+              onClick: () => {
+                navigate(ROUTES.ASSETS.DETAIL(row.id));
+              },
+            },
+            {
+              label: 'Edit',
+              icon: <FiEdit2 className="h-4 w-4" />,
+              onClick: () => {
+                navigate(ROUTES.ASSETS.EDIT(row.id));
+              },
+            },
+            {
+              label: 'Delete',
+              icon: <FiTrash2 className="h-4 w-4" />,
+              onClick: () => {
+                setSelectedAsset(row);
+                setShowDeleteModal(true);
+              },
+              variant: 'danger',
+            },
+          ]}
+        />
       ),
     },
   ];
 
   const stats = [
-    { title: 'Total Assets', value: pagination?.total || assets.length, icon: <FiPackage className="h-5 w-5" /> },
+    {
+      title: 'Total Assets',
+      value: pagination?.total || assets.length,
+      icon: <FiPackage className="h-5 w-5" />,
+    },
     {
       title: 'Active',
       value: assets.filter((a) => a.status === 'active' || a.status === 'in_use').length,
@@ -256,15 +252,9 @@ export default function AssetsList() {
   return (
     <div className="space-y-4">
       <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Asset Management</h1>
-            <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">Manage your mahallu assets</p>
-          </div>
-          <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Assets' }]} />
-        </div>
+        <PageHeader title="Asset Management" description="Manage your mahallu assets" />
 
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-4">
           {stats.map((stat, index) => (
             <StatCard key={index} {...stat} />
           ))}
@@ -282,10 +272,10 @@ export default function AssetsList() {
           onExport={handleExport}
           isExporting={isExporting}
           actionButtons={
-            <Link to={mosqueFilter ? `${ROUTES.ASSETS.CREATE}?mosqueId=${mosqueFilter}` : ROUTES.ASSETS.CREATE}>
-              <Button size="md">
-                + New Asset
-              </Button>
+            <Link
+              to={mosqueFilter ? `${ROUTES.ASSETS.CREATE}?mosqueId=${mosqueFilter}` : ROUTES.ASSETS.CREATE}
+            >
+              <Button size="md">+ New Asset</Button>
             </Link>
           }
         />
@@ -293,8 +283,12 @@ export default function AssetsList() {
         {isFilterVisible && (
           <div className="flex flex-wrap gap-3 p-4 border-b border-gray-200 dark:border-gray-700">
             <select
+              aria-label="Filter"
               value={statusFilter}
-              onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
+              onChange={(e) => {
+                setStatusFilter(e.target.value);
+                setCurrentPage(1);
+              }}
               className="px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200"
             >
               <option value="">All Status</option>
@@ -305,8 +299,12 @@ export default function AssetsList() {
               <option value="damaged">Damaged</option>
             </select>
             <select
+              aria-label="Filter"
               value={categoryFilter}
-              onChange={(e) => { setCategoryFilter(e.target.value); setCurrentPage(1); }}
+              onChange={(e) => {
+                setCategoryFilter(e.target.value);
+                setCurrentPage(1);
+              }}
               className="px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200"
             >
               <option value="">All Categories</option>
@@ -319,6 +317,7 @@ export default function AssetsList() {
               <option value="other">Other</option>
             </select>
             <select
+              aria-label="Filter"
               value={mosqueFilter}
               onChange={(e) => {
                 setMosqueFilter(e.target.value);
@@ -410,7 +409,8 @@ export default function AssetsList() {
         }
       >
         <p className="text-gray-600 dark:text-gray-400">
-          Are you sure you want to delete <strong>{selectedAsset?.name}</strong>? This will also delete all maintenance records. This action cannot be undone.
+          Are you sure you want to delete <strong>{selectedAsset?.name}</strong>? This will also delete all
+          maintenance records. This action cannot be undone.
         </p>
       </Modal>
     </div>

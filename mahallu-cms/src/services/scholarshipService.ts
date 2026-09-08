@@ -1,14 +1,9 @@
-import api from './api';
+import api, { asList } from './api';
 
 export type ScholarshipStatus = 'active' | 'closed';
 export type AwardStatus = 'applied' | 'approved' | 'paid';
 export type SupportCaseType =
-  | 'career_guidance'
-  | 'competitive_exam'
-  | 'dropout_risk'
-  | 'tuition'
-  | 'remedial'
-  | 'academic_award';
+  'career_guidance' | 'competitive_exam' | 'dropout_risk' | 'tuition' | 'remedial' | 'academic_award';
 export type SupportCaseStatus = 'open' | 'in_progress' | 'resolved' | 'closed';
 
 export interface Scholarship {
@@ -103,36 +98,26 @@ export const scholarshipService = {
       '/scholarships',
       { params }
     );
-    return { data: response.data.data, pagination: response.data.pagination || null };
+    return { data: asList(response.data.data), pagination: response.data.pagination || null };
   },
 
   getScholarship: async (id: string) => {
-    const response = await api.get<{ success: boolean; data: Scholarship }>(
-      `/scholarships/${id}`
-    );
+    const response = await api.get<{ success: boolean; data: Scholarship }>(`/scholarships/${id}`);
     return response.data.data;
   },
 
   createScholarship: async (payload: Record<string, any>) => {
-    const response = await api.post<{ success: boolean; data: Scholarship }>(
-      '/scholarships',
-      payload
-    );
+    const response = await api.post<{ success: boolean; data: Scholarship }>('/scholarships', payload);
     return response.data.data;
   },
 
   updateScholarship: async (id: string, payload: Record<string, any>) => {
-    const response = await api.put<{ success: boolean; data: Scholarship }>(
-      `/scholarships/${id}`,
-      payload
-    );
+    const response = await api.put<{ success: boolean; data: Scholarship }>(`/scholarships/${id}`, payload);
     return response.data.data;
   },
 
   deleteScholarship: async (id: string) => {
-    const response = await api.delete<{ success: boolean }>(
-      `/scholarships/${id}`
-    );
+    const response = await api.delete<{ success: boolean }>(`/scholarships/${id}`);
     return response.data.success;
   },
 
@@ -142,7 +127,7 @@ export const scholarshipService = {
       '/scholarship-awards',
       { params }
     );
-    return { data: response.data.data, pagination: response.data.pagination || null };
+    return { data: asList(response.data.data), pagination: response.data.pagination || null };
   },
 
   getAwardsByScholarship: async (scholarshipId: string, params?: Record<string, any>) => {
@@ -151,7 +136,7 @@ export const scholarshipService = {
       data: ScholarshipAward[];
       pagination?: any;
     }>(`/scholarships/${scholarshipId}/awards`, { params });
-    return { data: response.data.data, pagination: response.data.pagination || null };
+    return { data: asList(response.data.data), pagination: response.data.pagination || null };
   },
 
   createAward: async (payload: Record<string, any>) => {
@@ -171,9 +156,7 @@ export const scholarshipService = {
   },
 
   deleteAward: async (id: string) => {
-    const response = await api.delete<{ success: boolean }>(
-      `/scholarship-awards/${id}`
-    );
+    const response = await api.delete<{ success: boolean }>(`/scholarship-awards/${id}`);
     return response.data.success;
   },
 
@@ -183,7 +166,7 @@ export const scholarshipService = {
       '/academic-support',
       { params }
     );
-    return { data: response.data.data, pagination: response.data.pagination || null };
+    return { data: asList(response.data.data), pagination: response.data.pagination || null };
   },
 
   getSupportCase: async (id: string) => {
@@ -210,9 +193,7 @@ export const scholarshipService = {
   },
 
   deleteSupportCase: async (id: string) => {
-    const response = await api.delete<{ success: boolean }>(
-      `/academic-support/${id}`
-    );
+    const response = await api.delete<{ success: boolean }>(`/academic-support/${id}`);
     return response.data.success;
   },
 };

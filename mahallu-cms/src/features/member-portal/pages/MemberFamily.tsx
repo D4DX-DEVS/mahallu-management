@@ -1,13 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useAuthStore } from '@/store/authStore';
-import {
-  memberPortalService,
-  FamilyMember,
-  MemberOverviewResponse,
-} from '@/services/memberPortalService';
+import { memberPortalService, FamilyMember, MemberOverviewResponse } from '@/services/memberPortalService';
 import Card from '@/components/ui/Card';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import Pagination from '@/components/ui/Pagination';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
 
 const FAMILY_EDITABLE_FIELDS = ['contactNo', 'wardNumber', 'houseNo', 'area', 'place', 'houseName'];
 const MEMBER_EDITABLE_FIELDS = [
@@ -63,7 +61,7 @@ export default function MemberFamily() {
         setTotalItems(total);
         setTotalPages(Math.ceil(total / limit));
       } catch (err: any) {
-        setError(err.response?.data?.message || 'Failed to load family data');
+        setError(loadErrorMessage(err, 'family'));
       } finally {
         setLoading(false);
       }
@@ -86,12 +84,12 @@ export default function MemberFamily() {
         targetId: overview?.family.details?.id || '',
         changes: [{ field: familyChangeField, newValue: familyChangeValue }],
       });
-      setFamilySuccess('Change request submitted successfully!');
+      setFamilySuccess('Change request submitted!');
       setFamilyChangeField('');
       setFamilyChangeValue('');
       setTimeout(() => setFamilySuccess(null), 3000);
     } catch (err: any) {
-      setFamilyError(err.response?.data?.message || 'Failed to submit change request');
+      setFamilyError(errorMessage(err, { action: 'submit change request' }));
     } finally {
       setFamilySubmitting(false);
     }
@@ -111,27 +109,25 @@ export default function MemberFamily() {
         targetId: selectedMemberId,
         changes: [{ field: memberChangeField, newValue: memberChangeValue }],
       });
-      setMemberSuccess('Change request submitted successfully!');
+      setMemberSuccess('Change request submitted!');
       setSelectedMemberId(null);
       setMemberChangeField('');
       setMemberChangeValue('');
       setTimeout(() => setMemberSuccess(null), 3000);
     } catch (err: any) {
-      setMemberError(err.response?.data?.message || 'Failed to submit change request');
+      setMemberError(errorMessage(err, { action: 'submit change request' }));
     } finally {
       setMemberSubmitting(false);
     }
   };
 
   if (loading) {
-    return (
-      <PageSkeleton />
-    );
+    return <PageSkeleton />;
   }
 
   if (error || !overview) {
     return (
-      <div className="flex flex-col items-center justify-center h-[calc(100vh-140px)] gap-4">
+      <div className="flex flex-col items-center justify-center h-screen-content gap-4">
         <p className="text-red-600 dark:text-red-400">{error || 'Unable to load family data'}</p>
       </div>
     );
@@ -141,16 +137,13 @@ export default function MemberFamily() {
 
   return (
     <div className="space-y-6 max-w-4xl w-full mx-auto">
-      <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">My Family</h1>
-
+      <PageHeader title="My Family" />
       {/* Family Details */}
       {overview.family.details && (
         <Card>
           <div className="flex items-start justify-between">
             <div>
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
-                Family Details
-              </h2>
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Family Details</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                 {overview.family.details.houseName && (
                   <div>
@@ -222,6 +215,7 @@ export default function MemberFamily() {
                     Field to Change
                   </label>
                   <select
+                    aria-label="Field to Change"
                     value={familyChangeField}
                     onChange={(e) => setFamilyChangeField(e.target.value)}
                     className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
@@ -239,6 +233,7 @@ export default function MemberFamily() {
                     New Value
                   </label>
                   <input
+                    aria-label="New Value"
                     type="text"
                     value={familyChangeValue}
                     onChange={(e) => setFamilyChangeValue(e.target.value)}
@@ -292,10 +287,7 @@ export default function MemberFamily() {
         ) : (
           <div className="space-y-3">
             {members.map((member) => (
-              <div
-                key={member.id}
-                className="border border-gray-200 dark:border-gray-800 rounded-lg p-4"
-              >
+              <div key={member.id} className="border border-gray-200 dark:border-gray-800 rounded-lg p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1">
                     <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-2">{member.name}</h3>
@@ -360,6 +352,7 @@ export default function MemberFamily() {
                           Field to Change
                         </label>
                         <select
+                          aria-label="Field to Change"
                           value={memberChangeField}
                           onChange={(e) => setMemberChangeField(e.target.value)}
                           className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
@@ -378,6 +371,7 @@ export default function MemberFamily() {
                           New Value
                         </label>
                         <input
+                          aria-label="New Value"
                           type="text"
                           value={memberChangeValue}
                           onChange={(e) => setMemberChangeValue(e.target.value)}

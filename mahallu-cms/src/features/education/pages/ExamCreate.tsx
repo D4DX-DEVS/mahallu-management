@@ -1,12 +1,28 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import { toast } from '@/store/toastStore';
 import { examService } from '@/services/attendanceService';
 import { madrasaService, MadrasaClass } from '@/services/madrasaService';
+import { errorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
+import Input from '@/components/ui/Input';
+import { useFormValidation } from '@/hooks/useFormValidation';
+import { FieldRule, LIMITS } from '@/utils/validation';
+
+/**
+ * The same limits the API applies, so a form that passes here is not
+ * refused there. Required matches what each input already declares.
+ */
+const RULES: Record<string, FieldRule> = {
+  classId: { label: 'class', required: true, type: 'id' },
+  name: { label: 'name', required: true, maxLength: LIMITS.title.max },
+  examDate: { label: 'exam date', required: true, type: 'date' },
+  maxMarks: { label: 'maximum marks', required: true, type: 'integer', min: 1, max: 10000 },
+  status: { label: 'status', maxLength: LIMITS.shortText.max },
+};
 
 export default function ExamCreate() {
   const navigate = useNavigate();
@@ -23,6 +39,7 @@ export default function ExamCreate() {
     maxMarks: 100,
     status: 'scheduled' as const,
   });
+  const { errors, validate } = useFormValidation(RULES);
 
   useEffect(() => {
     fetchClasses();
@@ -34,7 +51,7 @@ export default function ExamCreate() {
       const result = await madrasaService.getClasses({ limit: 100 });
       setClasses(result.data);
     } catch (err: any) {
-      toast.error('Failed to load classes');
+      toast.error("Couldn't load classes. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -50,9 +67,11 @@ export default function ExamCreate() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    // Every field checked at once, each message on its own field.
+    if (!validate(formData)) return;
 
     if (!formData.classId || !formData.name || !formData.examDate) {
-      toast.error('Please fill in all required fields');
+      toast.error('Please fill in all the required fields.');
       return;
     }
 
@@ -62,7 +81,7 @@ export default function ExamCreate() {
       toast.success(`Exam "${formData.name}" created`);
       navigate(`/education/exams/${exam.id}`);
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to create exam');
+      toast.error(errorMessage(err, { action: 'create exam' }));
     } finally {
       setSubmitting(false);
     }
@@ -72,26 +91,18 @@ export default function ExamCreate() {
 
   return (
     <div>
-      <Breadcrumb
-        items={[
-          { label: 'Services' },
-          { label: 'Education', path: '/education' },
-          { label: 'New exam' },
-        ]}
+      <PageHeader
+        description="Add a new exam to a class"
+        title="New exam"
+        breadcrumbs={[{ label: 'Services' }, { label: 'Education', path: '/education' }]}
       />
-
-      <div className="mb-4">
-        <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Create Exam</h1>
-        <p className="text-sm text-gray-500 dark:text-gray-400">Add a new exam to a class</p>
-      </div>
 
       <Card>
         <form onSubmit={handleSubmit} className="space-y-4 max-w-2xl">
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Class *
-            </label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Class *</label>
             <select
+              aria-label="Class"
               name="classId"
               value={formData.classId}
               onChange={handleChange}
@@ -112,6 +123,7 @@ export default function ExamCreate() {
               Exam Name *
             </label>
             <input
+              aria-label="Exam Name"
               type="text"
               name="name"
               value={formData.name}
@@ -123,25 +135,22 @@ export default function ExamCreate() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Exam Date *
-              </label>
-              <input
-                type="date"
-                name="examDate"
-                value={formData.examDate}
-                onChange={handleChange}
-                required
-                className="w-full rounded border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-              />
-            </div>
+            <Input
+              label="Exam date"
+              type="date"
+              name="examDate"
+              value={formData.examDate}
+              error={errors.examDate}
+              onChange={handleChange}
+              required
+            />
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Max Marks *
               </label>
               <input
+                aria-label="Max Marks"
                 type="number"
                 name="maxMarks"
                 value={formData.maxMarks}
@@ -154,10 +163,9 @@ export default function ExamCreate() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Status
-            </label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Status</label>
             <select
+              aria-label="Status"
               name="status"
               value={formData.status}
               onChange={handleChange}
@@ -169,7 +177,7 @@ export default function ExamCreate() {
             </select>
           </div>
 
-          <div className="flex gap-2 border-t border-gray-200 pt-4 dark:border-gray-700">
+          <div className="flex flex-wrap gap-2 border-t border-gray-200 pt-4 dark:border-gray-700">
             <Button type="submit" disabled={submitting}>
               {submitting ? 'Creating...' : 'Create exam'}
             </Button>

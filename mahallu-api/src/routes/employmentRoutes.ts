@@ -15,6 +15,14 @@ import {
 import { authMiddleware, allowRoles } from '../middleware/authMiddleware';
 import { tenantMiddleware, tenantFilter } from '../middleware/tenantMiddleware';
 import { trainingsRouter } from './skillTrainingRoutes';
+import { validationHandler } from '../middleware/validationHandler';
+import { idParam, listQuery } from '../validations/common';
+import {
+  createEmployerValidation,
+  createVacancyValidation,
+  updateEmployerValidation,
+  updateVacancyValidation,
+} from '../validations/moduleValidation';
 
 // Middleware stack
 const applyAuth = (router: express.Router) => {
@@ -52,7 +60,7 @@ applyAuth(summaryRouter);
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  */
-summaryRouter.get('/summary', getEmploymentSummary);
+summaryRouter.get('/summary', listQuery(), validationHandler, getEmploymentSummary);
 
 // ============= EMPLOYER ENDPOINTS =============
 
@@ -128,8 +136,8 @@ summaryRouter.get('/summary', getEmploymentSummary);
  *       201:
  *         description: Employer created
  */
-employersRouter.get('/', getAllEmployers);
-employersRouter.post('/', allowRoles(['mahall']), createEmployer);
+employersRouter.get('/', listQuery(), validationHandler, getAllEmployers);
+employersRouter.post('/', createEmployerValidation, validationHandler, allowRoles(['mahall']), createEmployer);
 
 /**
  * @swagger
@@ -185,9 +193,9 @@ employersRouter.post('/', allowRoles(['mahall']), createEmployer);
  *       200:
  *         description: Employer deleted
  */
-employersRouter.get('/:id', getEmployerById);
-employersRouter.put('/:id', allowRoles(['mahall']), updateEmployer);
-employersRouter.delete('/:id', allowRoles(['mahall']), deleteEmployer);
+employersRouter.get('/:id', idParam('id', 'employer'), validationHandler, getEmployerById);
+employersRouter.put('/:id', updateEmployerValidation, validationHandler, allowRoles(['mahall']), updateEmployer);
+employersRouter.delete('/:id', idParam('id', 'employer'), validationHandler, allowRoles(['mahall']), deleteEmployer);
 
 // ============= JOB VACANCY ENDPOINTS =============
 
@@ -272,8 +280,8 @@ employersRouter.delete('/:id', allowRoles(['mahall']), deleteEmployer);
  *       201:
  *         description: Vacancy created
  */
-vacanciesRouter.get('/', getAllVacancies);
-vacanciesRouter.post('/', allowRoles(['mahall']), createVacancy);
+vacanciesRouter.get('/', listQuery(), validationHandler, getAllVacancies);
+vacanciesRouter.post('/', createVacancyValidation, validationHandler, allowRoles(['mahall']), createVacancy);
 
 /**
  * @swagger
@@ -329,9 +337,9 @@ vacanciesRouter.post('/', allowRoles(['mahall']), createVacancy);
  *       200:
  *         description: Vacancy deleted
  */
-vacanciesRouter.get('/:id', getVacancyById);
-vacanciesRouter.put('/:id', allowRoles(['mahall']), updateVacancy);
-vacanciesRouter.delete('/:id', allowRoles(['mahall']), deleteVacancy);
+vacanciesRouter.get('/:id', idParam('id', 'vacancy'), validationHandler, getVacancyById);
+vacanciesRouter.put('/:id', updateVacancyValidation, validationHandler, allowRoles(['mahall']), updateVacancy);
+vacanciesRouter.delete('/:id', idParam('id', 'vacancy'), validationHandler, allowRoles(['mahall']), deleteVacancy);
 
 
 // Export all routers

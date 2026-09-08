@@ -7,6 +7,9 @@ import { AuthRequest } from '../middleware/authMiddleware';
 import { getPaginationParams, createPaginationResponse } from '../utils/pagination';
 import { stripImmutable, refBelongsToTenant } from '../utils/sanitizeUpdate';
 
+import { sendFailure } from '../utils/userMessages';
+import { regexLiteral } from '../utils/queryGuard';
+
 const tenantScope = (req: AuthRequest): Record<string, any> =>
   req.tenantId ? { tenantId: req.tenantId } : {};
 
@@ -21,7 +24,7 @@ const validateKhutbahRefs = async (req: AuthRequest): Promise<string | null> => 
     return 'Khateeb does not belong to this Mahallu';
   }
   if (memberId && !(await refBelongsToTenant(Member, memberId, req.tenantId))) {
-    return 'Member does not belong to this Mahallu';
+    return 'This member belongs to another Mahallu.';
   }
   return null;
 };
@@ -79,7 +82,7 @@ export const getAllKhateebs = async (req: AuthRequest, res: Response) => {
     const { page, limit, skip } = getPaginationParams(req);
     const query: any = { ...tenantScope(req) };
 
-    if (req.query.search) query.name = { $regex: String(req.query.search), $options: 'i' };
+    if (req.query.search) query.name = { $regex: regexLiteral(String(req.query.search)), $options: 'i' };
     if (req.query.status) query.status = req.query.status;
 
     const [khateebs, total] = await Promise.all([
@@ -93,7 +96,7 @@ export const getAllKhateebs = async (req: AuthRequest, res: Response) => {
 
     res.json(createPaginationResponse(khateebs, total, page, limit));
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the khateebs right now. Please try again.');
   }
 };
 
@@ -105,12 +108,12 @@ export const getKhateebById = async (req: AuthRequest, res: Response) => {
     );
 
     if (!khateeb) {
-      return res.status(404).json({ success: false, message: 'Khateeb not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that khateeb. It may have been removed." });
     }
 
     res.json({ success: true, data: khateeb });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the khateeb right now. Please try again.');
   }
 };
 
@@ -129,7 +132,7 @@ export const createKhateeb = async (req: AuthRequest, res: Response) => {
 
     res.status(201).json({ success: true, data: khateeb });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t save the khateeb. Please try again.');
   }
 };
 
@@ -147,12 +150,12 @@ export const updateKhateeb = async (req: AuthRequest, res: Response) => {
     ).populate('memberId', 'name nameMl contactNo');
 
     if (!khateeb) {
-      return res.status(404).json({ success: false, message: 'Khateeb not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that khateeb. It may have been removed." });
     }
 
     res.json({ success: true, data: khateeb });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t update the khateeb. Please try again.');
   }
 };
 
@@ -161,12 +164,12 @@ export const deleteKhateeb = async (req: AuthRequest, res: Response) => {
     const khateeb = await Khateeb.findOneAndDelete({ _id: req.params.id, ...tenantScope(req) });
 
     if (!khateeb) {
-      return res.status(404).json({ success: false, message: 'Khateeb not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that khateeb. It may have been removed." });
     }
 
     res.json({ success: true, message: 'Khateeb deleted' });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t delete the khateeb. Please try again.');
   }
 };
 
@@ -246,7 +249,7 @@ export const getAllKhutbahs = async (req: AuthRequest, res: Response) => {
 
     res.json(createPaginationResponse(khutbahs, total, page, limit));
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the khutbahs right now. Please try again.');
   }
 };
 
@@ -258,12 +261,12 @@ export const getKhutbahById = async (req: AuthRequest, res: Response) => {
     );
 
     if (!khutbah) {
-      return res.status(404).json({ success: false, message: 'Khutbah not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that khutbah. It may have been removed." });
     }
 
     res.json({ success: true, data: khutbah });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the khutbah right now. Please try again.');
   }
 };
 
@@ -282,7 +285,7 @@ export const createKhutbah = async (req: AuthRequest, res: Response) => {
 
     res.status(201).json({ success: true, data: khutbah });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t save the khutbah. Please try again.');
   }
 };
 
@@ -300,12 +303,12 @@ export const updateKhutbah = async (req: AuthRequest, res: Response) => {
     ).populate('khateebId', 'name nameMl contactNo qualifications');
 
     if (!khutbah) {
-      return res.status(404).json({ success: false, message: 'Khutbah not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that khutbah. It may have been removed." });
     }
 
     res.json({ success: true, data: khutbah });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t update the khutbah. Please try again.');
   }
 };
 
@@ -314,12 +317,12 @@ export const deleteKhutbah = async (req: AuthRequest, res: Response) => {
     const khutbah = await Khutbah.findOneAndDelete({ _id: req.params.id, ...tenantScope(req) });
 
     if (!khutbah) {
-      return res.status(404).json({ success: false, message: 'Khutbah not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that khutbah. It may have been removed." });
     }
 
     res.json({ success: true, message: 'Khutbah deleted' });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t delete the khutbah. Please try again.');
   }
 };
 
@@ -338,11 +341,11 @@ export const deleteKhutbah = async (req: AuthRequest, res: Response) => {
  */
 export const getMosqueInstituteHandler = async (req: AuthRequest, res: Response) => {
   try {
-    if (!req.tenantId) return res.status(400).json({ success: false, message: 'Tenant ID is required' });
+    if (!req.tenantId) return res.status(400).json({ success: false, message: 'Please select a Mahallu before continuing.' });
 
     const mosque = await getMosqueInstitute(req.tenantId);
     res.json({ success: true, data: mosque });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the mosque institute right now. Please try again.');
   }
 };

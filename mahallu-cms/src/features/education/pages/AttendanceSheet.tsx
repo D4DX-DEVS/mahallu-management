@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import { PageSkeleton } from '@/components/ui/Skeleton';
@@ -8,6 +7,9 @@ import { toast } from '@/store/toastStore';
 import { madrasaService } from '@/services/madrasaService';
 import { attendanceService, AttendanceRecord } from '@/services/attendanceService';
 import { StudentEnrollment } from '@/services/madrasaService';
+import { errorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
+import DatePicker from '@/components/ui/DatePicker';
 
 export default function AttendanceSheet() {
   const { classId } = useParams<{ classId: string }>();
@@ -39,7 +41,7 @@ export default function AttendanceSheet() {
     try {
       setCls(await madrasaService.getClass(classId));
     } catch (err: any) {
-      setError('Failed to load class');
+      setError("Couldn't load class");
     }
   };
 
@@ -57,7 +59,7 @@ export default function AttendanceSheet() {
       });
       setAttendance(initial);
     } catch (err: any) {
-      setError('Failed to load students');
+      setError("Couldn't load students");
     } finally {
       setLoading(false);
     }
@@ -124,7 +126,7 @@ export default function AttendanceSheet() {
       });
       toast.success(`Attendance saved for ${dateStr}`);
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to save attendance');
+      toast.error(errorMessage(err, { action: 'save attendance' }));
     } finally {
       setSaving(false);
     }
@@ -137,20 +139,17 @@ export default function AttendanceSheet() {
 
   return (
     <div>
-      <Breadcrumb
-        items={[
+      <PageHeader
+        description={cls?.name}
+        title="Attendance"
+        breadcrumbs={[
           { label: 'Services' },
           { label: 'Education', path: '/education' },
           { label: cls?.name || 'Class', path: `/education/classes/${classId}` },
-          { label: 'Attendance' },
         ]}
       />
 
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Attendance Sheet</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400">{cls?.name}</p>
-        </div>
         <Button variant="secondary" onClick={() => navigate(`/education/classes/${classId}`)}>
           Back
         </Button>
@@ -165,13 +164,7 @@ export default function AttendanceSheet() {
       <Card className="mb-4">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
-            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">Date</label>
-            <input
-              type="date"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              className="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-            />
+            <DatePicker label="Date" value={selectedDate} onChange={(value) => setSelectedDate(value)} />
           </div>
           <div className="flex items-end">
             <div className="text-sm text-gray-600 dark:text-gray-400">
@@ -194,9 +187,7 @@ export default function AttendanceSheet() {
               {students.map((student) => {
                 const isPresent = attendance[student.id] || false;
                 const memberName =
-                  student.memberId && typeof student.memberId === 'object'
-                    ? student.memberId.name
-                    : '-';
+                  student.memberId && typeof student.memberId === 'object' ? student.memberId.name : '-';
 
                 return (
                   <div
@@ -214,9 +205,7 @@ export default function AttendanceSheet() {
                       {isPresent && <span className="text-white text-xs font-bold">✓</span>}
                     </button>
                     <div className="flex-1">
-                      <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                        {memberName}
-                      </div>
+                      <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{memberName}</div>
                       {student.rollNo && (
                         <div className="text-xs text-gray-500 dark:text-gray-400">Roll: {student.rollNo}</div>
                       )}
@@ -234,11 +223,7 @@ export default function AttendanceSheet() {
             </div>
 
             <div className="border-t border-gray-200 pt-4 dark:border-gray-700">
-              <Button
-                onClick={saveAttendance}
-                disabled={saving}
-                className="w-full sm:w-auto"
-              >
+              <Button onClick={saveAttendance} disabled={saving} className="w-full sm:w-auto">
                 {saving ? 'Saving...' : 'Save Attendance'}
               </Button>
             </div>

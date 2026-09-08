@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { FiCheckCircle, FiXCircle } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
@@ -14,6 +13,8 @@ import { TableColumn, Pagination as PaginationType } from '@/types';
 import { registrationService, ChangeRequest } from '@/services/registrationService';
 import { useDebounce } from '@/hooks/useDebounce';
 import { formatDate } from '@/utils/format';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
 
 export default function ChangeRequestsList() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -25,7 +26,11 @@ export default function ChangeRequestsList() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
-  const [reviewModal, setReviewModal] = useState<{ open: boolean; id?: string; action?: 'approved' | 'rejected' }>({
+  const [reviewModal, setReviewModal] = useState<{
+    open: boolean;
+    id?: string;
+    action?: 'approved' | 'rejected';
+  }>({
     open: false,
   });
   const [remarks, setRemarks] = useState('');
@@ -57,7 +62,7 @@ export default function ChangeRequestsList() {
         setPagination(result.pagination);
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch change requests');
+      setError(loadErrorMessage(err, 'change requests'));
     } finally {
       setLoading(false);
     }
@@ -71,22 +76,18 @@ export default function ChangeRequestsList() {
   const handleReview = async () => {
     if (!reviewModal.id || !reviewModal.action) return;
     if (reviewModal.action === 'rejected' && !remarks.trim()) {
-      toast.error('Please provide remarks for rejection');
+      toast.error('Please enter a reason for rejecting this.');
       return;
     }
 
     try {
       setReviewing(true);
-      await registrationService.reviewChangeRequest(
-        reviewModal.id,
-        reviewModal.action,
-        remarks || undefined
-      );
-      toast.success(`Change request ${reviewModal.action} successfully`);
+      await registrationService.reviewChangeRequest(reviewModal.id, reviewModal.action, remarks || undefined);
+      toast.success(`Change request ${reviewModal.action}`);
       setReviewModal({ open: false });
       await fetchChangeRequests();
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to review change request');
+      toast.error(errorMessage(err, { action: 'review change request' }));
     } finally {
       setReviewing(false);
     }
@@ -102,23 +103,18 @@ export default function ChangeRequestsList() {
   ];
 
   const rows = changeRequests.map((req) => ({
-    requester:
-      typeof req.requestedByMemberId === 'object'
-        ? req.requestedByMemberId.name
-        : 'Unknown',
+    requester: typeof req.requestedByMemberId === 'object' ? req.requestedByMemberId.name : 'Unknown',
     targetType: req.targetType || '-',
     changes: (
       <div className="text-xs space-y-1 max-w-xs">
-        {req.changes.slice(0, 2).map((change, idx) => (
+        {(req.changes ?? []).slice(0, 2).map((change, idx) => (
           <div key={idx} className="text-gray-600 dark:text-gray-400">
             <span className="font-medium">{change.field}:</span> {String(change.oldValue)} →{' '}
             {String(change.newValue)}
           </div>
         ))}
-        {req.changes.length > 2 && (
-          <div className="text-gray-500 dark:text-gray-500">
-            +{req.changes.length - 2} more changes
-          </div>
+        {(req.changes ?? []).length > 2 && (
+          <div className="text-gray-500 dark:text-gray-500">+{(req.changes ?? []).length - 2} more changes</div>
         )}
       </div>
     ),
@@ -128,8 +124,8 @@ export default function ChangeRequestsList() {
           req.status === 'pending'
             ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
             : req.status === 'approved'
-            ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-            : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+              ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+              : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
         }`}
       >
         {req.status?.charAt(0).toUpperCase() + req.status?.slice(1)}
@@ -138,7 +134,7 @@ export default function ChangeRequestsList() {
     createdAt: formatDate(req.createdAt),
     actions:
       req.status === 'pending' ? (
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button
             size="sm"
             variant="outline"
@@ -165,21 +161,9 @@ export default function ChangeRequestsList() {
 
   return (
     <div className="space-y-6">
-      <Breadcrumb
-        items={[
-          { label: 'Dashboard', path: '/dashboard' },
-          { label: 'Change Requests' },
-        ]}
-      />
+      <PageHeader description="Review and manage pending member change requests" title="Change Requests" />
 
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Change Requests</h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            Review and manage pending member change requests
-          </p>
-        </div>
-      </div>
+      <div className="flex items-center justify-between"></div>
 
       <Card>
         <TableToolbar
@@ -223,7 +207,7 @@ export default function ChangeRequestsList() {
             {pagination && (
               <Pagination
                 currentPage={currentPage}
-                totalPages={pagination.page || Math.ceil(pagination.total / itemsPerPage)}
+                totalPages={pagination.totalPages || Math.ceil(pagination.total / itemsPerPage)}
                 totalItems={pagination.total}
                 itemsPerPage={itemsPerPage}
                 onPageChange={setCurrentPage}
@@ -246,6 +230,7 @@ export default function ChangeRequestsList() {
                 Remarks
               </label>
               <textarea
+                aria-label="Remarks"
                 value={remarks}
                 onChange={(e) => setRemarks(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-gray-100"
@@ -260,6 +245,7 @@ export default function ChangeRequestsList() {
                 Remarks (Optional)
               </label>
               <textarea
+                aria-label="Remarks (Optional)"
                 value={remarks}
                 onChange={(e) => setRemarks(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-gray-100"
@@ -268,18 +254,18 @@ export default function ChangeRequestsList() {
               />
             </div>
           )}
-          <div className="flex gap-3 justify-end">
-            <Button
-              variant="outline"
-              onClick={() => setReviewModal({ open: false })}
-              disabled={reviewing}
-            >
+          <div className="flex gap-2 flex-col-reverse sm:flex-row sm:justify-end sm:gap-3">
+            <Button variant="outline" onClick={() => setReviewModal({ open: false })} disabled={reviewing}>
               Cancel
             </Button>
             <Button
               onClick={handleReview}
               isLoading={reviewing}
-              className={reviewModal.action === 'approved' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'}
+              className={
+                reviewModal.action === 'approved'
+                  ? 'bg-green-600 hover:bg-green-700'
+                  : 'bg-red-600 hover:bg-red-700'
+              }
             >
               {reviewModal.action === 'approved' ? 'Approve' : 'Reject'} Request
             </Button>

@@ -17,9 +17,9 @@ export default function ModuleFeatureToggles({ value, onChange, disabled }: Modu
   };
 
   return (
-    <Card className="p-3 sm:p-4">
-      <h3 className="text-sm sm:text-base font-semibold text-slate-900">Enabled Modules</h3>
-      <p className="mt-1 text-xs sm:text-sm text-slate-500">
+    <Card>
+      <h3 className="text-sm sm:text-base font-semibold text-gray-900">Enabled Modules</h3>
+      <p className="mt-1 text-xs sm:text-sm text-gray-500">
         Defaults come from the Mahallu classification. Turn individual modules on or off here.
       </p>
 
@@ -38,7 +38,7 @@ export default function ModuleFeatureToggles({ value, onChange, disabled }: Modu
                 'disabled:opacity-60',
                 enabled
                   ? 'border-primary-200 bg-primary-50 text-primary-900'
-                  : 'border-slate-200 bg-white text-slate-500',
+                  : 'border-gray-200 bg-white text-gray-500',
               ].join(' ')}
             >
               <span className="text-xs sm:text-sm font-medium leading-tight break-words">
@@ -47,7 +47,7 @@ export default function ModuleFeatureToggles({ value, onChange, disabled }: Modu
               <span
                 className={[
                   'h-4 w-7 flex-shrink-0 rounded-full p-0.5 transition-colors',
-                  enabled ? 'bg-primary-600' : 'bg-slate-300',
+                  enabled ? 'bg-primary-600' : 'bg-gray-300',
                 ].join(' ')}
               >
                 <span

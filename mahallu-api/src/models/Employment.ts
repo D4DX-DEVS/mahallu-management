@@ -22,7 +22,7 @@ const EmployerSchema = new Schema<IEmployer>(
     tenantId: {
       type: Schema.Types.ObjectId,
       ref: 'Tenant',
-      required: [true, 'Tenant ID is required'],
+      required: [true, 'Please select a Mahallu before continuing.'],
       index: true,
     },
     name: { type: String, required: [true, 'Employer name is required'], trim: true },
@@ -60,7 +60,7 @@ const JobVacancySchema = new Schema<IJobVacancy>(
     tenantId: {
       type: Schema.Types.ObjectId,
       ref: 'Tenant',
-      required: [true, 'Tenant ID is required'],
+      required: [true, 'Please select a Mahallu before continuing.'],
       index: true,
     },
     employerId: { type: Schema.Types.ObjectId, ref: 'Employer', index: true },
@@ -112,7 +112,7 @@ const SkillTrainingSchema = new Schema<ISkillTraining>(
     tenantId: {
       type: Schema.Types.ObjectId,
       ref: 'Tenant',
-      required: [true, 'Tenant ID is required'],
+      required: [true, 'Please select a Mahallu before continuing.'],
       index: true,
     },
     name: { type: String, required: [true, 'Training name is required'], trim: true },

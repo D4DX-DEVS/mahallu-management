@@ -1,15 +1,14 @@
-import { ReactNode, useEffect, useState } from 'react';
+import { ReactNode, useEffect } from 'react';
 import Sidebar from './Sidebar';
 import { useTenant } from '@/hooks/useTenant';
 import Header from './Header';
 import MobileFooterNav from './MobileFooterNav';
 import { useLayoutStore } from '@/store/layoutStore';
 import { useLocation } from 'react-router-dom';
-
+import { RouteErrorBoundary } from '@/components/ui/ErrorBoundary';
 interface MainLayoutProps {
   children: ReactNode;
 }
-
 export default function MainLayout({ children }: MainLayoutProps) {
   // Keeps authStore.tenantFeatures fresh so module gating works on every page.
   useTenant();
@@ -17,56 +16,59 @@ export default function MainLayout({ children }: MainLayoutProps) {
   const isDesktopSidebarCollapsed = useLayoutStore((s) => s.isDesktopSidebarCollapsed);
   const setMobileSidebarOpen = useLayoutStore((s) => s.setMobileSidebarOpen);
   const location = useLocation();
-  const [contentVisible, setContentVisible] = useState(true);
-
-  // Fade content on route changes
-  useEffect(() => {
-    setContentVisible(false);
-    const raf = window.requestAnimationFrame(() => setContentVisible(true));
-    return () => window.cancelAnimationFrame(raf);
-  }, [location.pathname]);
-
-  // Close mobile sidebar on route change
   useEffect(() => {
     setMobileSidebarOpen(false);
   }, [location.pathname, setMobileSidebarOpen]);
-
+  /*
+   *
+   * The page chrome is deliberately flat.
+   *
+   * It previously painted a fixed radial-gradient backdrop and floated the
+   * content in a backdrop-blur-xl frosted panel with a 60px shadow. The blur
+   * sat behind a full-page scroll container, so it repainted on every scroll
+   * frame — expensive on the mid-range Android hardware a community office
+   * actually uses — and it was the single most decorative element in a dense
+   * operational tool. It also mixed the `slate` ramp into a product built on
+   * `gray`, which is now the one neutral ramp. */
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-100 text-slate-950 dark:bg-slate-950 dark:text-slate-50">
-      <div className="fixed inset-0 z-0 pointer-events-none">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(20,184,166,0.14),transparent_28%),radial-gradient(circle_at_right,rgba(245,158,11,0.14),transparent_24%),linear-gradient(180deg,rgba(255,255,255,0.98),rgba(241,245,249,0.95))] dark:bg-[radial-gradient(circle_at_top_left,rgba(20,184,166,0.12),transparent_26%),radial-gradient(circle_at_right,rgba(245,158,11,0.08),transparent_22%),linear-gradient(180deg,rgba(2,6,23,0.98),rgba(15,23,42,0.98))]" />
-      </div>
-
-      {/* Mobile overlay */}
+    <div className="flex h-screen h-[100dvh] overflow-hidden bg-background text-foreground">
       {isMobileSidebarOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/20 backdrop-blur-md dark:bg-black/40 md:hidden"
+          className="fixed inset-0 z-40 bg-foreground/25 md:hidden"
           onClick={() => setMobileSidebarOpen(false)}
+          aria-hidden="true"
         />
       )}
-      
       <Sidebar />
       <div
         id="app-content-area"
         className={
-          'relative z-30 ml-0 flex flex-1 flex-col overflow-hidden transition-[margin-left] duration-200 ease-out ' +
-          (isDesktopSidebarCollapsed ? 'md:ml-[4.75rem]' : 'md:ml-[16rem]')
+          'relative z-30 flex min-w-0 flex-1 flex-col overflow-hidden transition-[margin-left] duration-200 ease-out ' +
+          (isDesktopSidebarCollapsed ? 'md:ml-rail' : 'md:ml-64')
         }
       >
-        <Header />
-        <main
-          className={
-            'flex-1 overflow-y-auto scroll-smooth transition-opacity duration-150 ease-out px-0 pb-20 pt-0 sm:px-3 sm:pb-20 sm:pt-3 md:px-4 md:pb-5 md:pt-3 lg:px-5 ' +
-            (contentVisible ? 'opacity-100' : 'opacity-0')
-          }
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-primary focus:px-4 focus:py-2 focus:text-sm focus:text-primary-foreground"
         >
-          <div className="mx-auto min-h-full w-full max-w-[1680px] sm:rounded-[24px] sm:border sm:border-white/60 bg-white/72 p-2.5 sm:p-3 sm:shadow-[0_20px_60px_rgba(15,23,42,0.06)] sm:backdrop-blur-xl dark:bg-slate-950 dark:sm:bg-slate-900/62 dark:sm:border-white/8 md:p-4 lg:p-4.5">
-            {children}
+          Skip to content
+        </a>
+
+        <Header />
+
+        {/* 12px gutters on a phone, 24px from `md`. The page used to keep its
+            desktop 16px inset on a 360px screen and then nest a bordered card
+            inside it, so a table had 320px to render nine columns in. */}
+        <main id="main-content" className="flex-1 overflow-y-auto px-3 pb-24 pt-4 md:px-6 md:pb-8">
+          {/* A page that throws costs the user that page, not the whole app:
+              the chrome stays up and the boundary clears on the next route. */}
+          <div className="mx-auto w-full max-w-content">
+            <RouteErrorBoundary>{children}</RouteErrorBoundary>
           </div>
         </main>
+
         <MobileFooterNav />
       </div>
     </div>
   );
 }
-

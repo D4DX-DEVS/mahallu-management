@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { FiEdit2, FiArrowLeft, FiTrash2, FiPlus, FiEye, FiUpload } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import { PageSkeleton } from '@/components/ui/Skeleton';
@@ -16,6 +15,9 @@ import { memberService } from '@/services/memberService';
 import { Family, Member } from '@/types';
 import { formatDate } from '@/utils/format';
 import { toast } from '@/store/toastStore';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
+import ActionsMenu from '@/components/ui/ActionsMenu';
 
 const MEMBER_COLUMNS: ColumnSpec[] = [
   { key: 'name', label: 'Name', required: true },
@@ -27,7 +29,8 @@ const MEMBER_COLUMNS: ColumnSpec[] = [
   { key: 'occupation', label: 'Occupation' },
 ];
 
-const MEMBER_TEMPLATE = 'name,nameMl,gender,age,maritalStatus,education,occupation\nAhmed Ali,അഹമ്മദ് അലി,male,30,married,Bachelor,Engineer\nFatima Ahmed,ഫാറ്റിമ അഹമ്മദ്,female,28,married,Bachelor,Homemaker\n';
+const MEMBER_TEMPLATE =
+  'name,nameMl,gender,age,maritalStatus,education,occupation\nAhmed Ali,അഹമ്മദ് അലി,male,30,married,Bachelor,Engineer\nFatima Ahmed,ഫാറ്റിമ അഹമ്മദ്,female,28,married,Bachelor,Homemaker\n';
 
 export default function FamilyDetail() {
   const { id } = useParams<{ id: string }>();
@@ -40,7 +43,9 @@ export default function FamilyDetail() {
   const [deleting, setDeleting] = useState(false);
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [showDeleteMemberDialog, setShowDeleteMemberDialog] = useState(false);
-  const [selectedMemberToDelete, setSelectedMemberToDelete] = useState<{ id: string; name: string } | null>(null);
+  const [selectedMemberToDelete, setSelectedMemberToDelete] = useState<{ id: string; name: string } | null>(
+    null
+  );
   const [deletingMember, setDeletingMember] = useState(false);
 
   useEffect(() => {
@@ -56,7 +61,7 @@ export default function FamilyDetail() {
       const data = await familyService.getById(id!);
       setFamily(data);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to load family');
+      setError(loadErrorMessage(err, 'family'));
     } finally {
       setLoading(false);
     }
@@ -78,15 +83,13 @@ export default function FamilyDetail() {
       await familyService.delete(id);
       navigate(ROUTES.FAMILIES.LIST);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to delete family');
+      setError(errorMessage(err, { action: 'delete family' }));
       setDeleting(false);
     }
   };
 
   if (loading) {
-    return (
-      <PageSkeleton />
-    );
+    return <PageSkeleton />;
   }
 
   if (error || !family) {
@@ -115,7 +118,7 @@ export default function FamilyDetail() {
       setShowDeleteMemberDialog(false);
       setSelectedMemberToDelete(null);
     } catch (err: any) {
-      toast.error(err.response?.data?.message || `Failed to remove ${selectedMemberToDelete.name}`);
+      toast.error(errorMessage(err, { action: `remove ${selectedMemberToDelete.name}` }));
       setDeletingMember(false);
     }
   };
@@ -125,7 +128,6 @@ export default function FamilyDetail() {
   };
 
   const memberColumns: TableColumn<Member>[] = [
-    { key: 'id', label: 'No.', render: (_, __, index) => index + 1 },
     { key: 'name', label: 'Name' },
     {
       key: 'age',
@@ -142,62 +144,46 @@ export default function FamilyDetail() {
       key: 'actions',
       label: 'Actions',
       render: (_, row) => (
-        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(ROUTES.MEMBERS.DETAIL(row.id));
-            }}
-            className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
-            title="View"
-          >
-            <FiEye className="h-4 w-4" />
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(ROUTES.MEMBERS.EDIT(row.id));
-            }}
-            className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
-            title="Edit"
-          >
-            <FiEdit2 className="h-4 w-4" />
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              handleDeleteMember(row.id, row.name);
-            }}
-            className="p-1.5 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 transition-colors"
-            title="Delete"
-          >
-            <FiTrash2 className="h-4 w-4" />
-          </button>
-        </div>
+        <ActionsMenu
+          items={[
+            {
+              label: 'View',
+              icon: <FiEye className="h-4 w-4" />,
+              onClick: () => {
+                navigate(ROUTES.MEMBERS.DETAIL(row.id));
+              },
+            },
+            {
+              label: 'Edit',
+              icon: <FiEdit2 className="h-4 w-4" />,
+              onClick: () => {
+                navigate(ROUTES.MEMBERS.EDIT(row.id));
+              },
+            },
+            {
+              label: 'Delete',
+              icon: <FiTrash2 className="h-4 w-4" />,
+              onClick: () => {
+                handleDeleteMember(row.id, row.name);
+              },
+              variant: 'danger',
+            },
+          ]}
+        />
       ),
     },
   ];
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-            {family.houseName}
-          </h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            Family Details
-          </p>
-        </div>
-        <div className="flex items-center gap-4">
-          <Breadcrumb
-            items={[
-              { label: 'Dashboard', path: '/dashboard' },
-              { label: 'Families', path: ROUTES.FAMILIES.LIST },
-              { label: family.houseName },
-            ]}
+      <div className="flex flex-wrap gap-2 items-center justify-between">
+        <div className="flex flex-wrap items-center gap-4">
+          <PageHeader
+            description="Family Details"
+            title={family.houseName}
+            breadcrumbs={[{ label: 'Families', path: ROUTES.FAMILIES.LIST }]}
           />
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Link to={ROUTES.FAMILIES.EDIT(family.id)}>
               <Button variant="outline">
                 <FiEdit2 className="h-4 w-4 mr-2" />
@@ -214,9 +200,7 @@ export default function FamilyDetail() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card>
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
-            Basic Information
-          </h2>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Basic Information</h2>
           <div className="space-y-3">
             {family.mahallId && (
               <div>
@@ -254,8 +238,8 @@ export default function FamilyDetail() {
                     family.status === 'approved'
                       ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
                       : family.status === 'unapproved'
-                      ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                      : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+                        ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                        : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
                   }`}
                 >
                   {family.status}
@@ -266,9 +250,7 @@ export default function FamilyDetail() {
         </Card>
 
         <Card>
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
-            Address Information
-          </h2>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Address Information</h2>
           <div className="space-y-3">
             <div>
               <span className="text-sm text-gray-500 dark:text-gray-400">State</span>
@@ -302,11 +284,11 @@ export default function FamilyDetail() {
         </Card>
 
         <Card className="md:col-span-2">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex flex-wrap gap-2 items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
               Family Members ({members.length})
             </h2>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button size="sm" variant="outline" onClick={() => setIsImportOpen(true)}>
                 <FiUpload className="h-4 w-4 mr-2" />
                 Import Members
@@ -345,7 +327,8 @@ export default function FamilyDetail() {
         }
       >
         <p className="text-gray-600 dark:text-gray-400">
-          Are you sure you want to delete <strong>{family.houseName}</strong>? This will also delete all associated members. This action cannot be undone.
+          Are you sure you want to delete <strong>{family.houseName}</strong>? This will also delete all
+          associated members. This action cannot be undone.
         </p>
       </Modal>
 
@@ -377,4 +360,3 @@ export default function FamilyDetail() {
     </div>
   );
 }
-

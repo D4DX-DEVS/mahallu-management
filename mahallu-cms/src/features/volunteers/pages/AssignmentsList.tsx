@@ -1,11 +1,21 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { volunteerService, type VolunteerAssignment, SERVICE_TYPE_OPTIONS, ASSIGNMENT_STATUS_OPTIONS } from '@/services/volunteerService';
+import {
+  volunteerService,
+  type VolunteerAssignment,
+  SERVICE_TYPE_OPTIONS,
+  ASSIGNMENT_STATUS_OPTIONS,
+} from '@/services/volunteerService';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import Pagination from '@/components/ui/Pagination';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { toast } from '@/store/toastStore';
+import { errorMessage } from '@/utils/errors';
+import StatusBadge from '@/components/ui/StatusBadge';
+import PageHeader from '@/components/layout/PageHeader';
+import SortableTh from '@/components/ui/SortableTh';
+import { useSortableRows } from '@/hooks/useSortableRows';
 
 export default function AssignmentsList() {
   const navigate = useNavigate();
@@ -30,7 +40,7 @@ export default function AssignmentsList() {
         setAssignments(result.data);
         setTotalPages(result.pagination?.totalPages || 1);
       } catch (error) {
-        console.error('Failed to fetch assignments:', error);
+        console.error("Couldn't load assignments:", error);
       } finally {
         setLoading(false);
       }
@@ -50,10 +60,10 @@ export default function AssignmentsList() {
     try {
       await volunteerService.deleteAssignment(deleteConfirm.id);
       setAssignments((prev) => prev.filter((a) => a.id !== deleteConfirm.id));
-      toast.success('Assignment deleted successfully');
+      toast.success('Assignment deleted');
       setDeleteConfirm(null);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to delete assignment';
+      const message = errorMessage(error, { action: 'delete this assignment' });
       toast.error(message);
     } finally {
       setIsDeleting(false);
@@ -64,34 +74,30 @@ export default function AssignmentsList() {
     setDeleteConfirm(null);
   }, []);
 
-  const statusColor = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return 'bg-green-100 text-green-800';
-      case 'cancelled':
-        return 'bg-red-100 text-red-800';
-      case 'assigned':
-      default:
-        return 'bg-blue-100 text-blue-800';
-    }
-  };
-
   const volunteerNames = (assignment: VolunteerAssignment) => {
     if (!Array.isArray(assignment.volunteerIds)) return '-';
-    return assignment.volunteerIds
-      .map((v) => (typeof v === 'object' ? v.name : '-'))
-      .join(', ');
+    return assignment.volunteerIds.map((v) => (typeof v === 'object' ? v.name : '-')).join(', ');
   };
+
+  /* Service type and Volunteers both render resolved labels, so each sorts on
+     the text in the cell rather than on the code or the id list behind it. */
+  const {
+    rows: sortedAssignments,
+    sort,
+    toggleSort,
+  } = useSortableRows(assignments, null, {
+    serviceType: (row) =>
+      SERVICE_TYPE_OPTIONS.find((x) => x.value === row.serviceType)?.label || row.serviceType,
+    volunteers: (row) => volunteerNames(row),
+  });
 
   return (
     <div className="space-y-6">
+      <PageHeader title="Volunteer assignments" description="Who is doing what, and when." breadcrumbs={[{ label: 'Volunteers', path: '/volunteers' }]} />
       <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
         <div className="flex-1">
           <div className="flex gap-2 flex-wrap">
-            {[
-              { value: '', label: 'All Status' },
-              ...ASSIGNMENT_STATUS_OPTIONS,
-            ].map((status) => (
+            {[{ value: '', label: 'All Status' }, ...ASSIGNMENT_STATUS_OPTIONS].map((status) => (
               <button
                 key={status.value}
                 onClick={() => {
@@ -116,11 +122,11 @@ export default function AssignmentsList() {
 
       {loading ? (
         <Card>
-          <div className="p-8 text-center">Loading assignments...</div>
+          <div className="py-8 text-center">Loading assignments...</div>
         </Card>
       ) : assignments.length === 0 ? (
         <Card>
-          <div className="p-8 text-center text-gray-500">
+          <div className="py-8 text-center text-gray-500">
             <p>No assignments found</p>
           </div>
         </Card>
@@ -130,21 +136,32 @@ export default function AssignmentsList() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-gray-50">
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700">Date</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700">Service Type</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 hidden sm:table-cell">
+                  <SortableTh sortKey="date" sort={sort} onSort={toggleSort}>
+                    Date
+                  </SortableTh>
+                  <SortableTh sortKey="serviceType" sort={sort} onSort={toggleSort}>
+                    Service Type
+                  </SortableTh>
+                  <SortableTh
+                    sortKey="volunteers"
+                    sort={sort}
+                    onSort={toggleSort}
+                    responsiveClassName="hidden sm:table-cell"
+                  >
                     Volunteers
+                  </SortableTh>
+                  <SortableTh sortKey="status" sort={sort} onSort={toggleSort}>
+                    Status
+                  </SortableTh>
+                  <th className="px-4 py-3 text-right text-label font-semibold text-muted-foreground">
+                    Actions
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700">Status</th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {assignments.map((assignment) => (
+                {sortedAssignments.map((assignment) => (
                   <tr key={assignment.id} className="border-b hover:bg-gray-50">
-                    <td className="px-4 py-3 text-sm">
-                      {new Date(assignment.date).toLocaleDateString()}
-                    </td>
+                    <td className="px-4 py-3 text-sm">{new Date(assignment.date).toLocaleDateString()}</td>
                     <td className="px-4 py-3 text-sm">
                       <div className="font-medium text-gray-900">
                         {SERVICE_TYPE_OPTIONS.find((x) => x.value === assignment.serviceType)?.label ||
@@ -156,13 +173,7 @@ export default function AssignmentsList() {
                       {volunteerNames(assignment)}
                     </td>
                     <td className="px-4 py-3 text-sm">
-                      <span
-                        className={`inline-block px-2 py-1 text-xs font-medium rounded ${statusColor(
-                          assignment.status
-                        )}`}
-                      >
-                        {assignment.status}
-                      </span>
+                      <StatusBadge status={assignment.status} />
                     </td>
                     <td className="px-4 py-3 text-sm text-right">
                       <button
@@ -172,7 +183,9 @@ export default function AssignmentsList() {
                         Edit
                       </button>
                       <button
-                        onClick={() => handleDeleteClick(assignment.id, new Date(assignment.date).toLocaleDateString())}
+                        onClick={() =>
+                          handleDeleteClick(assignment.id, new Date(assignment.date).toLocaleDateString())
+                        }
                         className="text-red-600 hover:text-red-800"
                       >
                         Delete

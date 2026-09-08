@@ -46,7 +46,7 @@ const formatDate = (d?: Date | string | null): string =>
 async function loadContent(type: CertificateType, registrationId: string, tenantId: unknown): Promise<CertificateContent> {
   if (type === 'nikah') {
     const reg = await NikahRegistration.findOne({ _id: registrationId, tenantId });
-    if (!reg) throw new Error('Nikah registration not found');
+    if (!reg) throw new Error("We couldn't find that nikah registration. It may have been removed.");
     if (reg.status !== 'approved') throw new Error('Registration must be approved before issuing a certificate');
     return {
       fields: [
@@ -63,7 +63,7 @@ async function loadContent(type: CertificateType, registrationId: string, tenant
   }
   if (type === 'death') {
     const reg = await DeathRegistration.findOne({ _id: registrationId, tenantId });
-    if (!reg) throw new Error('Death registration not found');
+    if (!reg) throw new Error("We couldn't find that death registration. It may have been removed.");
     if (reg.status !== 'approved') throw new Error('Registration must be approved before issuing a certificate');
     return {
       fields: [
@@ -76,7 +76,7 @@ async function loadContent(type: CertificateType, registrationId: string, tenant
     };
   }
   const reg = await NOC.findOne({ _id: registrationId, tenantId });
-  if (!reg) throw new Error('NOC not found');
+  if (!reg) throw new Error("We couldn't find that NOC. It may have been removed.");
   if (reg.status !== 'approved') throw new Error('NOC must be approved before issuing a certificate');
   return {
     fields: [

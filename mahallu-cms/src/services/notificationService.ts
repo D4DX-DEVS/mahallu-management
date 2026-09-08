@@ -1,4 +1,4 @@
-import api from './api';
+import api, { asList } from './api';
 
 export interface Notification {
   id: string;
@@ -14,12 +14,15 @@ export interface Notification {
 
 export const notificationService = {
   getAll: async (params?: { recipientType?: string; isRead?: boolean; page?: number; limit?: number }) => {
-    const response = await api.get<{ success: boolean; data: Notification[]; pagination?: any }>('/notifications', { params });
+    const response = await api.get<{ success: boolean; data: Notification[]; pagination?: any }>(
+      '/notifications',
+      { params }
+    );
     // Handle both paginated and non-paginated responses
     if (response.data.pagination) {
-      return { data: response.data.data, pagination: response.data.pagination };
+      return { data: asList(response.data.data), pagination: response.data.pagination };
     }
-    return { data: response.data.data, pagination: null };
+    return { data: asList(response.data.data), pagination: null };
   },
 
   create: async (data: Partial<Notification>) => {
@@ -40,10 +43,13 @@ export const notificationService = {
   uploadImage: async (file: File): Promise<string> => {
     const formData = new FormData();
     formData.append('image', file);
-    const response = await api.post<{ success: boolean; url: string }>('/upload/notification-image', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
+    const response = await api.post<{ success: boolean; url: string }>(
+      '/upload/notification-image',
+      formData,
+      {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      }
+    );
     return response.data.url;
   },
 };
-

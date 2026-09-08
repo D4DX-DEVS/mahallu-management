@@ -11,6 +11,8 @@ import { getPaginationParams, createPaginationResponse } from '../utils/paginati
 import User from '../models/User';
 import DocumentFile from '../models/DocumentFile';
 
+import { sendFailure } from '../utils/userMessages';
+
 /**
  * Validates that the given document ids were uploaded by this member,
  * links them to the registration, and returns the valid ids.
@@ -63,7 +65,7 @@ export const getOwnProfile = async (req: AuthRequest, res: Response) => {
     if (!req.user?.memberId) {
       return res.status(404).json({
         success: false,
-        message: 'Member profile not linked to user account',
+        message: "Your profile isn't linked to a member record yet. Please contact your Mahallu admin.",
       });
     }
 
@@ -73,13 +75,13 @@ export const getOwnProfile = async (req: AuthRequest, res: Response) => {
     if (!member) {
       return res.status(404).json({
         success: false,
-        message: 'Member not found',
+        message: "We couldn't find that member. It may have been removed.",
       });
     }
 
     res.json({ success: true, data: member });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load your profile right now. Please try again.');
   }
 };
 
@@ -89,7 +91,7 @@ export const getOwnOverview = async (req: AuthRequest, res: Response) => {
     if (!req.user?.memberId) {
       return res.status(404).json({
         success: false,
-        message: 'Member profile not linked to user account',
+        message: "Your profile isn't linked to a member record yet. Please contact your Mahallu admin.",
       });
     }
 
@@ -99,7 +101,7 @@ export const getOwnOverview = async (req: AuthRequest, res: Response) => {
     if (!member) {
       return res.status(404).json({
         success: false,
-        message: 'Member not found',
+        message: "We couldn't find that member. It may have been removed.",
       });
     }
 
@@ -211,7 +213,7 @@ export const getOwnOverview = async (req: AuthRequest, res: Response) => {
 
     res.json({ success: true, data });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load your overview right now. Please try again.');
   }
 };
 
@@ -221,7 +223,7 @@ export const updateOwnProfile = async (req: AuthRequest, res: Response) => {
     if (!req.user?.memberId) {
       return res.status(404).json({
         success: false,
-        message: 'Member profile not linked to user account',
+        message: "Your profile isn't linked to a member record yet. Please contact your Mahallu admin.",
       });
     }
 
@@ -244,13 +246,13 @@ export const updateOwnProfile = async (req: AuthRequest, res: Response) => {
     if (!member) {
       return res.status(404).json({
         success: false,
-        message: 'Member not found',
+        message: "We couldn't find that member. It may have been removed.",
       });
     }
 
     res.json({ success: true, data: member });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t update your profile. Please try again.');
   }
 };
 
@@ -260,7 +262,7 @@ export const getOwnPayments = async (req: AuthRequest, res: Response) => {
     if (!req.user?.memberId) {
       return res.status(404).json({
         success: false,
-        message: 'Member profile not linked to user account',
+        message: "Your profile isn't linked to a member record yet. Please contact your Mahallu admin.",
       });
     }
 
@@ -271,7 +273,7 @@ export const getOwnPayments = async (req: AuthRequest, res: Response) => {
     if (!member) {
       return res.status(404).json({
         success: false,
-        message: 'Member not found',
+        message: "We couldn't find that member. It may have been removed.",
       });
     }
 
@@ -348,7 +350,7 @@ export const getOwnPayments = async (req: AuthRequest, res: Response) => {
 
     res.json(createPaginationResponse(payments, total, Number(page) || 1, Number(limit) || 10));
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load your payments right now. Please try again.');
   }
 };
 
@@ -358,7 +360,7 @@ export const getOwnVarisangya = async (req: AuthRequest, res: Response) => {
     if (!req.user?.memberId) {
       return res.status(404).json({
         success: false,
-        message: 'Member profile not linked to user account',
+        message: "Your profile isn't linked to a member record yet. Please contact your Mahallu admin.",
       });
     }
 
@@ -366,7 +368,7 @@ export const getOwnVarisangya = async (req: AuthRequest, res: Response) => {
     if (!member) {
       return res.status(404).json({
         success: false,
-        message: 'Member not found',
+        message: "We couldn't find that member. It may have been removed.",
       });
     }
 
@@ -412,7 +414,7 @@ export const getOwnVarisangya = async (req: AuthRequest, res: Response) => {
       },
     });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load your varisangya right now. Please try again.');
   }
 };
 
@@ -422,7 +424,7 @@ export const getOwnWallet = async (req: AuthRequest, res: Response) => {
     if (!req.user?.memberId) {
       return res.status(404).json({
         success: false,
-        message: 'Member profile not linked to user account',
+        message: "Your profile isn't linked to a member record yet. Please contact your Mahallu admin.",
       });
     }
 
@@ -430,7 +432,7 @@ export const getOwnWallet = async (req: AuthRequest, res: Response) => {
     if (!member) {
       return res.status(404).json({
         success: false,
-        message: 'Member not found',
+        message: "We couldn't find that member. It may have been removed.",
       });
     }
 
@@ -450,7 +452,7 @@ export const getOwnWallet = async (req: AuthRequest, res: Response) => {
 
     res.json({ success: true, data: wallet });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load your wallet right now. Please try again.');
   }
 };
 
@@ -460,7 +462,7 @@ export const getOwnWalletTransactions = async (req: AuthRequest, res: Response) 
     if (!req.user?.memberId) {
       return res.status(404).json({
         success: false,
-        message: 'Member profile not linked to user account',
+        message: "Your profile isn't linked to a member record yet. Please contact your Mahallu admin.",
       });
     }
 
@@ -468,7 +470,7 @@ export const getOwnWalletTransactions = async (req: AuthRequest, res: Response) 
     if (!member) {
       return res.status(404).json({
         success: false,
-        message: 'Member not found',
+        message: "We couldn't find that member. It may have been removed.",
       });
     }
 
@@ -499,7 +501,7 @@ export const getOwnWalletTransactions = async (req: AuthRequest, res: Response) 
 
     res.json(createPaginationResponse(transactions, total, Number(page) || 1, Number(limit) || 10));
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load your wallet transactions right now. Please try again.');
   }
 };
 
@@ -509,7 +511,7 @@ export const requestVarisangyaPayment = async (req: AuthRequest, res: Response) 
     if (!req.user?.memberId) {
       return res.status(404).json({
         success: false,
-        message: 'Member profile not linked to user account',
+        message: "Your profile isn't linked to a member record yet. Please contact your Mahallu admin.",
       });
     }
 
@@ -517,7 +519,7 @@ export const requestVarisangyaPayment = async (req: AuthRequest, res: Response) 
     if (!member) {
       return res.status(404).json({
         success: false,
-        message: 'Member not found',
+        message: "We couldn't find that member. It may have been removed.",
       });
     }
 
@@ -537,10 +539,10 @@ export const requestVarisangyaPayment = async (req: AuthRequest, res: Response) 
     res.status(201).json({
       success: true,
       data: varisangya,
-      message: 'Varisangya payment request submitted successfully',
+      message: 'Varisangya payment request submitted',
     });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t save the varisangya payment. Please try again.');
   }
 };
 
@@ -550,7 +552,7 @@ export const requestZakatPayment = async (req: AuthRequest, res: Response) => {
     if (!req.user?.memberId) {
       return res.status(404).json({
         success: false,
-        message: 'Member profile not linked to user account',
+        message: "Your profile isn't linked to a member record yet. Please contact your Mahallu admin.",
       });
     }
 
@@ -558,7 +560,7 @@ export const requestZakatPayment = async (req: AuthRequest, res: Response) => {
     if (!member) {
       return res.status(404).json({
         success: false,
-        message: 'Member not found',
+        message: "We couldn't find that member. It may have been removed.",
       });
     }
 
@@ -578,10 +580,10 @@ export const requestZakatPayment = async (req: AuthRequest, res: Response) => {
     res.status(201).json({
       success: true,
       data: zakat,
-      message: 'Zakat payment request submitted successfully',
+      message: 'Zakat payment request submitted',
     });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t save the zakat payment. Please try again.');
   }
 };
 
@@ -591,7 +593,7 @@ export const getOwnRegistrations = async (req: AuthRequest, res: Response) => {
     if (!req.user?.memberId) {
       return res.status(404).json({
         success: false,
-        message: 'Member profile not linked to user account',
+        message: "Your profile isn't linked to a member record yet. Please contact your Mahallu admin.",
       });
     }
 
@@ -599,7 +601,7 @@ export const getOwnRegistrations = async (req: AuthRequest, res: Response) => {
     if (!member) {
       return res.status(404).json({
         success: false,
-        message: 'Member not found',
+        message: "We couldn't find that member. It may have been removed.",
       });
     }
 
@@ -693,7 +695,7 @@ export const getOwnRegistrations = async (req: AuthRequest, res: Response) => {
 
     res.json({ success: true, data: registrations });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load your registrations right now. Please try again.');
   }
 };
 
@@ -703,7 +705,7 @@ export const requestNikahRegistration = async (req: AuthRequest, res: Response) 
     if (!req.user?.memberId) {
       return res.status(404).json({
         success: false,
-        message: 'Member profile not linked to user account',
+        message: "Your profile isn't linked to a member record yet. Please contact your Mahallu admin.",
       });
     }
 
@@ -711,7 +713,7 @@ export const requestNikahRegistration = async (req: AuthRequest, res: Response) 
     if (!member) {
       return res.status(404).json({
         success: false,
-        message: 'Member not found',
+        message: "We couldn't find that member. It may have been removed.",
       });
     }
 
@@ -722,7 +724,7 @@ export const requestNikahRegistration = async (req: AuthRequest, res: Response) 
       if (member.isFamilyHead !== true) {
         return res.status(403).json({
           success: false,
-          message: 'Only the family head can apply for another family member',
+          message: 'Only the family head can apply on behalf of another family member.',
         });
       }
       const found = await Member.findOne({
@@ -734,7 +736,7 @@ export const requestNikahRegistration = async (req: AuthRequest, res: Response) 
       if (!found) {
         return res.status(404).json({
           success: false,
-          message: 'Selected member not found in your family',
+          message: "We couldn't find that person in your family.",
         });
       }
       subject = found;
@@ -746,7 +748,7 @@ export const requestNikahRegistration = async (req: AuthRequest, res: Response) 
     if (!otherSideName) {
       return res.status(400).json({
         success: false,
-        message: side === 'groom' ? 'brideName is required' : 'groomName is required',
+        message: side === 'groom' ? 'Please enter the bride’s name.' : 'Please enter the groom’s name.',
       });
     }
 
@@ -754,7 +756,7 @@ export const requestNikahRegistration = async (req: AuthRequest, res: Response) 
     if (missingDocs.length > 0) {
       return res.status(400).json({
         success: false,
-        message: `Missing required documents: ${missingDocs.join(', ')}`,
+        message: `Please attach these documents: ${missingDocs.join(', ')}.`,
         code: 'DOCUMENTS_REQUIRED',
         missing: missingDocs,
       });
@@ -783,10 +785,10 @@ export const requestNikahRegistration = async (req: AuthRequest, res: Response) 
     res.status(201).json({
       success: true,
       data: nikah,
-      message: 'Nikah registration request submitted successfully',
+      message: 'Nikah registration request submitted',
     });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t save the nikah registration. Please try again.');
   }
 };
 
@@ -796,7 +798,7 @@ export const requestDeathRegistration = async (req: AuthRequest, res: Response) 
     if (!req.user?.memberId) {
       return res.status(404).json({
         success: false,
-        message: 'Member profile not linked to user account',
+        message: "Your profile isn't linked to a member record yet. Please contact your Mahallu admin.",
       });
     }
 
@@ -804,7 +806,7 @@ export const requestDeathRegistration = async (req: AuthRequest, res: Response) 
     if (!member) {
       return res.status(404).json({
         success: false,
-        message: 'Member not found',
+        message: "We couldn't find that member. It may have been removed.",
       });
     }
 
@@ -821,7 +823,7 @@ export const requestDeathRegistration = async (req: AuthRequest, res: Response) 
       if (!found) {
         return res.status(404).json({
           success: false,
-          message: 'Selected member not found in your family',
+          message: "We couldn't find that person in your family.",
         });
       }
       deceased = found;
@@ -831,7 +833,7 @@ export const requestDeathRegistration = async (req: AuthRequest, res: Response) 
     if (missingDeathDocs.length > 0) {
       return res.status(400).json({
         success: false,
-        message: `Missing required documents: ${missingDeathDocs.join(', ')}`,
+        message: `Please attach these documents: ${missingDeathDocs.join(', ')}.`,
         code: 'DOCUMENTS_REQUIRED',
         missing: missingDeathDocs,
       });
@@ -861,10 +863,10 @@ export const requestDeathRegistration = async (req: AuthRequest, res: Response) 
     res.status(201).json({
       success: true,
       data: death,
-      message: 'Death registration request submitted successfully',
+      message: 'Death registration request submitted',
     });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t save the death registration. Please try again.');
   }
 };
 
@@ -874,7 +876,7 @@ export const requestNOC = async (req: AuthRequest, res: Response) => {
     if (!req.user?.memberId) {
       return res.status(404).json({
         success: false,
-        message: 'Member profile not linked to user account',
+        message: "Your profile isn't linked to a member record yet. Please contact your Mahallu admin.",
       });
     }
 
@@ -882,7 +884,7 @@ export const requestNOC = async (req: AuthRequest, res: Response) => {
     if (!member) {
       return res.status(404).json({
         success: false,
-        message: 'Member not found',
+        message: "We couldn't find that member. It may have been removed.",
       });
     }
 
@@ -902,7 +904,7 @@ export const requestNOC = async (req: AuthRequest, res: Response) => {
         if (member.isFamilyHead !== true) {
           return res.status(403).json({
             success: false,
-            message: 'Only the family head can apply for another family member',
+            message: 'Only the family head can apply on behalf of another family member.',
           });
         }
         const found = await Member.findOne({
@@ -914,7 +916,7 @@ export const requestNOC = async (req: AuthRequest, res: Response) => {
         if (!found) {
           return res.status(404).json({
             success: false,
-            message: 'Selected member not found in your family',
+            message: "We couldn't find that person in your family.",
           });
         }
         subject = found;
@@ -926,8 +928,8 @@ export const requestNOC = async (req: AuthRequest, res: Response) => {
         return res.status(400).json({
           success: false,
           message: side === 'groom'
-            ? 'brideName and nikahDate are required for nikah NOC'
-            : 'groomName and nikahDate are required for nikah NOC',
+            ? 'Please enter the bride’s name and the nikah date.'
+            : 'Please enter the groom’s name and the nikah date.',
         });
       }
 
@@ -935,7 +937,7 @@ export const requestNOC = async (req: AuthRequest, res: Response) => {
       if (missingDocs.length > 0) {
         return res.status(400).json({
           success: false,
-          message: `Missing required documents: ${missingDocs.join(', ')}`,
+          message: `Please attach these documents: ${missingDocs.join(', ')}.`,
           code: 'DOCUMENTS_REQUIRED',
           missing: missingDocs,
         });
@@ -992,10 +994,10 @@ export const requestNOC = async (req: AuthRequest, res: Response) => {
     res.status(201).json({
       success: true,
       data: populated,
-      message: 'NOC request submitted successfully',
+      message: 'NOC request submitted',
     });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t save the NOC. Please try again.');
   }
 };
 
@@ -1005,13 +1007,13 @@ export const resubmitRegistration = async (req: AuthRequest, res: Response) => {
     if (!req.user?.memberId) {
       return res.status(404).json({
         success: false,
-        message: 'Member profile not linked to user account',
+        message: "Your profile isn't linked to a member record yet. Please contact your Mahallu admin.",
       });
     }
 
     const member = await Member.findById(req.user.memberId);
     if (!member) {
-      return res.status(404).json({ success: false, message: 'Member not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that member. It may have been removed." });
     }
 
     const { type, id } = req.params;
@@ -1022,7 +1024,7 @@ export const resubmitRegistration = async (req: AuthRequest, res: Response) => {
     };
     const Model = models[type];
     if (!Model) {
-      return res.status(400).json({ success: false, message: 'type must be nikah, death or noc' });
+      return res.status(400).json({ success: false, message: 'Please choose a registration type.' });
     }
 
     const reg = await Model.findOne({
@@ -1038,7 +1040,7 @@ export const resubmitRegistration = async (req: AuthRequest, res: Response) => {
     });
 
     if (!reg) {
-      return res.status(404).json({ success: false, message: 'Editable registration not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find a registration that can be edited." });
     }
 
     // Allowlist per type — members may edit details, never workflow/identity/linkage fields
@@ -1063,7 +1065,7 @@ export const resubmitRegistration = async (req: AuthRequest, res: Response) => {
 
     res.json({ success: true, data: reg, message: 'Registration resubmitted' });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t save the registration. Please try again.');
   }
 };
 
@@ -1073,13 +1075,13 @@ export const deleteOwnRegistration = async (req: AuthRequest, res: Response) => 
     if (!req.user?.memberId) {
       return res.status(404).json({
         success: false,
-        message: 'Member profile not linked to user account',
+        message: "Your profile isn't linked to a member record yet. Please contact your Mahallu admin.",
       });
     }
 
     const member = await Member.findById(req.user.memberId);
     if (!member) {
-      return res.status(404).json({ success: false, message: 'Member not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that member. It may have been removed." });
     }
 
     const { type, id } = req.params;
@@ -1090,7 +1092,7 @@ export const deleteOwnRegistration = async (req: AuthRequest, res: Response) => 
     };
     const Model = models[type];
     if (!Model) {
-      return res.status(400).json({ success: false, message: 'type must be nikah, death or noc' });
+      return res.status(400).json({ success: false, message: 'Please choose a registration type.' });
     }
 
     const reg = await Model.findOne({
@@ -1106,7 +1108,7 @@ export const deleteOwnRegistration = async (req: AuthRequest, res: Response) => 
     });
 
     if (!reg) {
-      return res.status(404).json({ success: false, message: 'Deletable registration not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find a registration that can be deleted." });
     }
 
     await Model.deleteOne({ _id: reg._id });
@@ -1119,7 +1121,7 @@ export const deleteOwnRegistration = async (req: AuthRequest, res: Response) => 
 
     res.json({ success: true, message: 'Registration deleted' });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t delete your registration. Please try again.');
   }
 };
 
@@ -1129,7 +1131,7 @@ export const getOwnNotifications = async (req: AuthRequest, res: Response) => {
     if (!req.user?.memberId) {
       return res.status(404).json({
         success: false,
-        message: 'Member profile not linked to user account',
+        message: "Your profile isn't linked to a member record yet. Please contact your Mahallu admin.",
       });
     }
 
@@ -1137,7 +1139,7 @@ export const getOwnNotifications = async (req: AuthRequest, res: Response) => {
     if (!member) {
       return res.status(404).json({
         success: false,
-        message: 'Member not found',
+        message: "We couldn't find that member. It may have been removed.",
       });
     }
 
@@ -1161,7 +1163,7 @@ export const getOwnNotifications = async (req: AuthRequest, res: Response) => {
 
     res.json(createPaginationResponse(notifications, total, page, limit));
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load your notifications right now. Please try again.');
   }
 };
 
@@ -1171,7 +1173,7 @@ export const getCommunityPrograms = async (req: AuthRequest, res: Response) => {
     if (!req.user?.memberId) {
       return res.status(404).json({
         success: false,
-        message: 'Member profile not linked to user account',
+        message: "Your profile isn't linked to a member record yet. Please contact your Mahallu admin.",
       });
     }
 
@@ -1179,7 +1181,7 @@ export const getCommunityPrograms = async (req: AuthRequest, res: Response) => {
     if (!member) {
       return res.status(404).json({
         success: false,
-        message: 'Member not found',
+        message: "We couldn't find that member. It may have been removed.",
       });
     }
 
@@ -1201,7 +1203,7 @@ export const getCommunityPrograms = async (req: AuthRequest, res: Response) => {
 
     res.json(createPaginationResponse(programs, total, page, limit));
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the community programs right now. Please try again.');
   }
 };
 
@@ -1211,7 +1213,7 @@ export const getPublicBanners = async (req: AuthRequest, res: Response) => {
     if (!req.user?.memberId) {
       return res.status(404).json({
         success: false,
-        message: 'Member profile not linked to user account',
+        message: "Your profile isn't linked to a member record yet. Please contact your Mahallu admin.",
       });
     }
 
@@ -1219,7 +1221,7 @@ export const getPublicBanners = async (req: AuthRequest, res: Response) => {
     if (!member) {
       return res.status(404).json({
         success: false,
-        message: 'Member not found',
+        message: "We couldn't find that member. It may have been removed.",
       });
     }
 
@@ -1255,7 +1257,7 @@ export const getPublicBanners = async (req: AuthRequest, res: Response) => {
 
     res.json(createPaginationResponse(banners, total, page, limit));
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the public banners right now. Please try again.');
   }
 };
 
@@ -1265,7 +1267,7 @@ export const getPublicFeeds = async (req: AuthRequest, res: Response) => {
     if (!req.user?.memberId) {
       return res.status(404).json({
         success: false,
-        message: 'Member profile not linked to user account',
+        message: "Your profile isn't linked to a member record yet. Please contact your Mahallu admin.",
       });
     }
 
@@ -1273,7 +1275,7 @@ export const getPublicFeeds = async (req: AuthRequest, res: Response) => {
     if (!member) {
       return res.status(404).json({
         success: false,
-        message: 'Member not found',
+        message: "We couldn't find that member. It may have been removed.",
       });
     }
 
@@ -1294,7 +1296,7 @@ export const getPublicFeeds = async (req: AuthRequest, res: Response) => {
 
     res.json(createPaginationResponse(feeds, total, page, limit));
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the public feeds right now. Please try again.');
   }
 };
 
@@ -1304,7 +1306,7 @@ export const getOwnFamilyMembers = async (req: AuthRequest, res: Response) => {
     if (!req.user?.memberId) {
       return res.status(404).json({
         success: false,
-        message: 'Member profile not linked to user account',
+        message: "Your profile isn't linked to a member record yet. Please contact your Mahallu admin.",
       });
     }
 
@@ -1312,14 +1314,14 @@ export const getOwnFamilyMembers = async (req: AuthRequest, res: Response) => {
     if (!member) {
       return res.status(404).json({
         success: false,
-        message: 'Member not found',
+        message: "We couldn't find that member. It may have been removed.",
       });
     }
 
     if (!member.familyId) {
       return res.status(404).json({
         success: false,
-        message: 'Member is not linked to a family',
+        message: "This member isn't linked to a family yet. Please add them to a family first.",
       });
     }
 
@@ -1345,7 +1347,7 @@ export const getOwnFamilyMembers = async (req: AuthRequest, res: Response) => {
 
     res.json(createPaginationResponse(familyMembers, total, page, limit));
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load your family members right now. Please try again.');
   }
 };
 

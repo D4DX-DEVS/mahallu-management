@@ -117,8 +117,8 @@ export const activityLogger = async (
   }
 
   const startTime = Date.now();
-  const originalSend = res.send;
-  const originalJson = res.json;
+  const originalSend = res.send.bind(res);
+  const originalJson = res.json.bind(res);
 
   // Capture request details (available at middleware execution time)
   const requestBody = sanitizeRequestBody(req.body);
@@ -128,6 +128,15 @@ export const activityLogger = async (
   const ipAddress = getClientIp(req);
   const userAgent = req.headers['user-agent'] || 'unknown';
 
+  // Express rewrites `req.path` to the router-relative path once a mounted
+  // router takes over, so by the time a response is sent it reads "/" for every
+  // request — the audit trail recorded no route at all. Both are read here,
+  // before the routers run.
+  const endpoint = (req.originalUrl || req.url || '').split('?')[0];
+  const query =
+    req.query && typeof req.query === 'object' && Object.keys(req.query).length > 0
+      ? req.query
+      : undefined;
   // Helper function to safely convert tenantId to ObjectId and get user info
   const getUserInfo = (request: Request): { userId?: mongoose.Types.ObjectId; tenantId?: mongoose.Types.ObjectId } => {
     const authReq = request as AuthRequest;
@@ -146,27 +155,38 @@ export const activityLogger = async (
     return { userId, tenantId };
   };
 
-  // Override res.json to capture response (runs after authMiddleware)
-  res.json = function (body: any) {
-    const statusCode = res.statusCode;
-    const responseTime = Date.now() - startTime;
+  /*
+   * One log per request.
+   *
+   * `res.json` delegates to `res.send` inside Express, so overriding both wrote
+   * the same request twice — every JSON response cost two inserts, doubling the
+   * write load on the activity collection and duplicating every audit row.
+   * Whichever method finishes the response writes; the other is a no-op.
+   */
+  let logged = false;
 
-    // Get user and tenant info (available now that authMiddleware has run)
+  const writeLog = (body?: any) => {
+    if (logged) return;
+    logged = true;
+
+    const statusCode = res.statusCode;
     const { userId, tenantId } = getUserInfo(req);
 
-    // Create activity log entry
     const logData: any = {
       action,
       entityType,
       httpMethod: req.method,
-      endpoint: req.path,
+      endpoint,
       ipAddress,
       userAgent,
       statusCode,
-      requestBody: requestBody && typeof requestBody === 'object' && Object.keys(requestBody).length > 0 ? requestBody : undefined,
+      requestBody:
+        requestBody && typeof requestBody === 'object' && Object.keys(requestBody).length > 0
+          ? requestBody
+          : undefined,
       details: {
-        responseTime: `${responseTime}ms`,
-        query: req.query && typeof req.query === 'object' && Object.keys(req.query).length > 0 ? req.query : undefined,
+        responseTime: `${Date.now() - startTime}ms`,
+        query,
       },
     };
 
@@ -187,7 +207,7 @@ export const activityLogger = async (
       logData.errorMessage = body?.message || `HTTP ${statusCode}`;
       // Don't log full error response for security
       logData.responseData = { success: false, message: body?.message };
-    } else if (statusCode < 400 && body) {
+    } else if (body && typeof body === 'object') {
       // Only log success response structure, not full data
       logData.responseData = {
         success: body.success !== undefined ? body.success : true,
@@ -195,71 +215,24 @@ export const activityLogger = async (
       };
     }
 
-    // Save log asynchronously (don't block response)
-    // Only log if we have at least tenantId or it's a system-level action
+    // Save log asynchronously (don’t block response)
+    // Only log if we have at least tenantId or it is a user-level action
     if (logData.tenantId || logData.userId) {
       ActivityLog.create(logData).catch((err) => {
         console.error('Failed to create activity log:', err);
       });
     }
-
-    // Call original json method
-    return originalJson.call(this, body);
   };
 
-  // Override res.send to capture response (for non-JSON responses)
+  res.json = function (body: any) {
+    writeLog(body);
+    return originalJson(body);
+  };
+
   res.send = function (body: any) {
-    const statusCode = res.statusCode;
-    const responseTime = Date.now() - startTime;
-
-    // Get user and tenant info (available now that authMiddleware has run)
-    const { userId, tenantId } = getUserInfo(req);
-
-    // Create activity log entry
-    const logData: any = {
-      action,
-      entityType,
-      httpMethod: req.method,
-      endpoint: req.path,
-      ipAddress,
-      userAgent,
-      statusCode,
-      requestBody: requestBody && typeof requestBody === 'object' && Object.keys(requestBody).length > 0 ? requestBody : undefined,
-      details: {
-        responseTime: `${responseTime}ms`,
-        query: req.query && typeof req.query === 'object' && Object.keys(req.query).length > 0 ? req.query : undefined,
-      },
-    };
-
-    if (tenantId) {
-      logData.tenantId = tenantId;
-    }
-
-    if (userId) {
-      logData.userId = userId;
-    }
-
-    if (entityId) {
-      logData.entityId = entityId;
-    }
-
-    // Add error message if status code indicates error
-    if (statusCode >= 400) {
-      logData.errorMessage = `HTTP ${statusCode}`;
-    }
-
-    // Save log asynchronously (don't block response)
-    // Only log if we have at least tenantId or it's a system-level action
-    if (logData.tenantId || logData.userId) {
-      ActivityLog.create(logData).catch((err) => {
-        console.error('Failed to create activity log:', err);
-      });
-    }
-
-    // Call original send method
-    return originalSend.call(this, body);
+    writeLog(typeof body === 'object' ? body : undefined);
+    return originalSend(body);
   };
-
   next();
 };
 

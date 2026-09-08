@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -12,6 +11,8 @@ import Pagination from '@/components/ui/Pagination';
 import { Pagination as PaginationType, TableColumn } from '@/types';
 import { welfareService, WelfareScheme } from '@/services/welfareService';
 import { toast } from '@/store/toastStore';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
 
 export const WELFARE_CATEGORY_OPTIONS = [
   { value: 'medical', label: 'Medical' },
@@ -50,7 +51,7 @@ export default function SchemesList() {
       setRows(result.data);
       setPagination(result.pagination);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to load schemes');
+      setError(loadErrorMessage(err, 'schemes'));
     } finally {
       setLoading(false);
     }
@@ -92,7 +93,7 @@ export default function SchemesList() {
       setFieldErrors({});
       fetchRows();
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to save scheme');
+      toast.error(errorMessage(err, { action: 'save scheme' }));
     } finally {
       setSaving(false);
     }
@@ -120,21 +121,11 @@ export default function SchemesList() {
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">Welfare Schemes</h1>
-          <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-            Assistance programmes families can apply to
-          </p>
-        </div>
-        <Breadcrumb
-          items={[
-            { label: 'Dashboard', path: '/dashboard' },
-            { label: 'Welfare', path: '/welfare/applications' },
-            { label: 'Schemes' },
-          ]}
-        />
-      </div>
+      <PageHeader
+        title="Welfare Schemes"
+        description="Assistance programmes families can apply to"
+        breadcrumbs={[{ label: 'Welfare', path: '/welfare/applications' }]}
+      />
 
       <Card>
         <div className="mb-3 flex items-center justify-between gap-2">
@@ -210,7 +201,9 @@ export default function SchemesList() {
               }}
               required
             />
-            {fieldErrors.name && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{fieldErrors.name}</p>}
+            {fieldErrors.name && (
+              <p className="mt-1 text-sm text-red-600 dark:text-red-400">{fieldErrors.name}</p>
+            )}
           </div>
           <Input
             label="Name (Malayalam)"

@@ -10,6 +10,26 @@ import {
   SUPPORT_CASE_STATUS_OPTIONS,
 } from '@/services/scholarshipService';
 import { memberService } from '@/services/memberService';
+import { errorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
+import Input from '@/components/ui/Input';
+import { useFormValidation } from '@/hooks/useFormValidation';
+import { FieldRule, LIMITS, firstError, validateForm } from '@/utils/validation';
+
+/**
+ * The same limits the API applies, so a form that passes here is not
+ * refused there. Required matches what each input already declares.
+ */
+const RULES: Record<string, FieldRule> = {
+  memberId: { label: 'member', required: true, type: 'id' },
+  type: { label: 'support type', required: true, maxLength: LIMITS.shortText.max },
+  description: { label: 'description', required: true, maxLength: LIMITS.description.max },
+  mentorName: { label: 'mentor name', maxLength: LIMITS.title.max },
+  startDate: { label: 'start date', type: 'date' },
+  status: { label: 'status', maxLength: LIMITS.shortText.max },
+  outcome: { label: 'outcome', maxLength: LIMITS.notes.max },
+  notes: { label: 'notes', maxLength: LIMITS.notes.max },
+};
 
 export default function AcademicSupportCreate() {
   const navigate = useNavigate();
@@ -27,6 +47,7 @@ export default function AcademicSupportCreate() {
     outcome: '',
     notes: '',
   });
+  const { errors, setErrors } = useFormValidation(RULES);
 
   useEffect(() => {
     memberService
@@ -36,17 +57,21 @@ export default function AcademicSupportCreate() {
       .finally(() => setLoadingMembers(false));
   }, []);
 
-  const handleChange = (
-    e: React.ChangeEvent<
-      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
-    >
-  ) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    // Every field checked at once. Fields rendered with this app's
+    // inputs mark themselves; the rest report through the banner.
+    const problems = validateForm(formData, RULES);
+    if (Object.keys(problems).length > 0) {
+      setErrors(problems);
+      setError(firstError(problems));
+      return;
+    }
     setLoading(true);
     setError('');
     try {
@@ -58,8 +83,8 @@ export default function AcademicSupportCreate() {
       toast.success(`Support case created for ${member?.name || 'student'}`);
       navigate('/education/support');
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to create case');
-      toast.error(err.response?.data?.message || 'Failed to create case');
+      setError(errorMessage(err, { action: 'create case' }));
+      toast.error(errorMessage(err, { action: 'create case' }));
     } finally {
       setLoading(false);
     }
@@ -67,10 +92,9 @@ export default function AcademicSupportCreate() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">New Academic Support Case</h1>
-
+      <PageHeader title="New Academic Support Case" />
       <Card>
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-6">
           {error && (
             <div className="bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200 p-3 rounded">
               {error}
@@ -81,9 +105,8 @@ export default function AcademicSupportCreate() {
             <SearchableSelect
               label="Student *"
               value={formData.memberId}
-              onChange={(value) =>
-                setFormData((prev) => ({ ...prev, memberId: value }))
-              }
+              error={errors.memberId}
+              onChange={(value) => setFormData((prev) => ({ ...prev, memberId: value }))}
               options={members.map((member: any) => ({
                 value: member._id || member.id,
                 label: `${member.name}${member.familyName ? ` - ${member.familyName}` : ''}`,
@@ -98,6 +121,7 @@ export default function AcademicSupportCreate() {
             <div>
               <label className="block text-sm font-medium mb-2">Type *</label>
               <select
+                aria-label="Type"
                 name="type"
                 value={formData.type}
                 onChange={handleChange}
@@ -114,6 +138,7 @@ export default function AcademicSupportCreate() {
             <div>
               <label className="block text-sm font-medium mb-2">Status</label>
               <select
+                aria-label="Status"
                 name="status"
                 value={formData.status}
                 onChange={handleChange}
@@ -129,10 +154,9 @@ export default function AcademicSupportCreate() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-2">
-              Description *
-            </label>
+            <label className="block text-sm font-medium mb-2">Description *</label>
             <textarea
+              aria-label="Description"
               name="description"
               placeholder="Describe the case..."
               value={formData.description}
@@ -145,10 +169,9 @@ export default function AcademicSupportCreate() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium mb-2">
-                Mentor Name
-              </label>
+              <label className="block text-sm font-medium mb-2">Mentor Name</label>
               <input
+                aria-label="Mentor Name"
                 name="mentorName"
                 placeholder="Mentor name"
                 value={formData.mentorName}
@@ -157,23 +180,20 @@ export default function AcademicSupportCreate() {
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium mb-2">
-                Start Date
-              </label>
-              <input
-                type="date"
-                name="startDate"
-                value={formData.startDate}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700"
-              />
-            </div>
+            <Input
+              label="Start date"
+              type="date"
+              name="startDate"
+              value={formData.startDate}
+              error={errors.startDate}
+              onChange={handleChange}
+            />
           </div>
 
           <div>
             <label className="block text-sm font-medium mb-2">Notes</label>
             <textarea
+              aria-label="Notes"
               name="notes"
               placeholder="Additional notes..."
               value={formData.notes}
@@ -183,14 +203,11 @@ export default function AcademicSupportCreate() {
             />
           </div>
 
-          <div className="flex gap-4">
+          <div className="flex flex-wrap gap-4">
             <Button type="submit" disabled={loading}>
               {loading ? 'Creating...' : 'Create Case'}
             </Button>
-            <Button
-              type="button"
-              onClick={() => navigate('/education/support')}
-            >
+            <Button type="button" onClick={() => navigate('/education/support')}>
               Cancel
             </Button>
           </div>

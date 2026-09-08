@@ -4,7 +4,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useNavigate } from 'react-router-dom';
 import { FiSave, FiX } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -14,15 +13,17 @@ import { ROUTES } from '@/constants/routes';
 import { committeeService } from '@/services/committeeService';
 import { meetingService } from '@/services/meetingService';
 import { Committee, Member } from '@/types';
+import { errorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
 
 const meetingSchema = z.object({
-  committeeId: z.string().min(1, 'Committee is required'),
-  title: z.string().min(1, 'Meeting title is required'),
-  titleMl: z.string().optional(),
-  meetingDate: z.string().min(1, 'Meeting date is required'),
-  agenda: z.string().optional(),
-  agendaMl: z.string().optional(),
-  attendance: z.array(z.string()).optional(),
+  committeeId: z.string().max(200, 'Please keep the committee to 200 characters or less.').min(1, 'Committee is required'),
+  title: z.string().max(200, 'Please keep the title to 200 characters or less.').min(1, 'Meeting title is required'),
+  titleMl: z.string().max(200, 'Please keep the title to 200 characters or less.').optional(),
+  meetingDate: z.string().max(200, 'Please keep the meeting date to 200 characters or less.').min(1, 'Meeting date is required'),
+  agenda: z.string().max(3000, 'Please keep the agenda to 3000 characters or less.').optional(),
+  agendaMl: z.string().max(3000, 'Please keep the agenda to 3000 characters or less.').optional(),
+  attendance: z.array(z.string()).max(500, 'Please mark 500 attendees or fewer.').optional(),
 });
 
 type MeetingFormData = z.infer<typeof meetingSchema>;
@@ -88,7 +89,10 @@ export default function CreateMeeting() {
 
   const toggleAttendance = (memberId: string) => {
     if (selectedAttendance.includes(memberId)) {
-      setValue('attendance', selectedAttendance.filter((id) => id !== memberId));
+      setValue(
+        'attendance',
+        selectedAttendance.filter((id) => id !== memberId)
+      );
     } else {
       setValue('attendance', [...selectedAttendance, memberId]);
     }
@@ -116,26 +120,18 @@ export default function CreateMeeting() {
       });
       navigate(ROUTES.COMMITTEES.MEETINGS);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to create meeting. Please try again.');
+      setError(errorMessage(err, { action: 'create meeting. please try again' }));
       console.error('Error creating meeting:', err);
     }
   };
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Create Meeting</h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Schedule a new committee meeting</p>
-        </div>
-        <Breadcrumb
-          items={[
-            { label: 'Dashboard', path: '/dashboard' },
-            { label: 'Meetings', path: ROUTES.COMMITTEES.MEETINGS },
-            { label: 'Create' },
-          ]}
-        />
-      </div>
+      <PageHeader
+        title="Create Meeting"
+        description="Schedule a new committee meeting"
+        breadcrumbs={[{ label: 'Meetings', path: ROUTES.COMMITTEES.MEETINGS }]}
+      />
 
       <form onSubmit={handleSubmit(onSubmit)}>
         <Card className="space-y-6">
@@ -169,12 +165,12 @@ export default function CreateMeeting() {
               className="md:col-span-2"
             />
             <div className="hidden">
-            <Input
-              label="Meeting Title (Malayalam)"
-              {...register('titleMl')}
-              placeholder="യോഗ തലക്കെട്ട്"
-              className="md:col-span-2 font-malayalam"
-            />
+              <Input
+                label="Meeting Title (Malayalam)"
+                {...register('titleMl')}
+                placeholder="യോഗ തലക്കെട്ട്"
+                className="md:col-span-2 font-malayalam"
+              />
             </div>
             <Input
               label="Meeting Date & Time"
@@ -190,12 +186,12 @@ export default function CreateMeeting() {
               className="md:col-span-2"
             />
             <div className="hidden">
-            <Input
-              label="Agenda (Malayalam)"
-              {...register('agendaMl')}
-              placeholder="അജണ്ട"
-              className="md:col-span-2 font-malayalam"
-            />
+              <Input
+                label="Agenda (Malayalam)"
+                {...register('agendaMl')}
+                placeholder="അജണ്ട"
+                className="md:col-span-2 font-malayalam"
+              />
             </div>
           </div>
 
@@ -225,6 +221,7 @@ export default function CreateMeeting() {
                         className="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 p-2 rounded"
                       >
                         <input
+                          aria-label="Select row"
                           type="checkbox"
                           checked={selectedAttendance.includes(member.id)}
                           onChange={() => toggleAttendance(member.id)}
@@ -241,7 +238,7 @@ export default function CreateMeeting() {
             )}
           </div>
 
-          <div className="flex justify-end gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+          <div className="flex gap-2 flex-col-reverse sm:flex-row sm:justify-end sm:gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
             <Button type="button" variant="outline" onClick={() => navigate(ROUTES.COMMITTEES.MEETINGS)}>
               <FiX className="h-4 w-4 mr-2" />
               Cancel

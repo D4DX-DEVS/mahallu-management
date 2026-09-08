@@ -98,11 +98,11 @@ test('beneficiary documents validate without a member reference', async () => {
   assert.equal(doc.status, 'active');
 });
 
-test('beneficiary rejects a category outside the asnaf enum', async () => {
-  const doc = new ZakatBeneficiary({
-    tenantId: new mongoose.Types.ObjectId(),
-    name: 'Bad category',
-    category: 'not_an_asnaf',
-  });
-  await assert.rejects(() => doc.validate(), /category/);
+test('category is no longer schema-enforced — moved to the dynamic Category system', () => {
+  // Categories master data (see models/Category.ts) is now the source of
+  // truth for valid asnaf codes, enforced by validCategoryValue at the route
+  // layer (categoryValueValidation.ts), not by a Mongoose enum. ZAKAT_CATEGORIES
+  // above only feeds the seed script now.
+  const categoryPath = ZakatBeneficiary.schema.paths.category as any;
+  assert.equal(categoryPath.options.enum, undefined);
 });

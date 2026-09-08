@@ -29,7 +29,7 @@ export const useToastStore = create<ToastState>((set) => ({
 /**
  * Fire-and-forget notifications. Usable outside React (services, handlers):
  *   toast.success('Application created')
- *   toast.error(err.response?.data?.message || 'Failed to save')
+ *   toast.error(errorMessage(err, { action: 'save' }))
  */
 export const toast = {
   success: (message: string) => useToastStore.getState().push('success', message),

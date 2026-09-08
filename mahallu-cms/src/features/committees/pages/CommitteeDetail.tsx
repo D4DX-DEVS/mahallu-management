@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { FiEdit2, FiArrowLeft, FiCalendar } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import { PageSkeleton } from '@/components/ui/Skeleton';
@@ -11,6 +10,8 @@ import { Committee, Member } from '@/types';
 import { ROUTES } from '@/constants/routes';
 import { committeeService } from '@/services/committeeService';
 import { formatDate } from '@/utils/format';
+import { loadErrorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
 
 export default function CommitteeDetail() {
   const { id } = useParams<{ id: string }>();
@@ -34,7 +35,7 @@ export default function CommitteeDetail() {
       const data = await committeeService.getById(id);
       setCommittee(data);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch committee');
+      setError(loadErrorMessage(err, 'committee'));
       console.error('Error fetching committee:', err);
     } finally {
       setLoading(false);
@@ -53,9 +54,7 @@ export default function CommitteeDetail() {
   };
 
   if (loading) {
-    return (
-      <PageSkeleton />
-    );
+    return <PageSkeleton />;
   }
 
   if (error || !committee) {
@@ -70,7 +69,6 @@ export default function CommitteeDetail() {
   }
 
   const memberColumns: TableColumn<Member>[] = [
-    { key: 'id', label: 'No.', render: (_, __, index) => index + 1 },
     { key: 'name', label: 'Name' },
     { key: 'familyName', label: 'Family' },
     { key: 'phone', label: 'Phone' },
@@ -78,20 +76,14 @@ export default function CommitteeDetail() {
 
   return (
     <div className="space-y-6">
-      <Breadcrumb
-        items={[
-          { label: 'Dashboard', path: '/dashboard' },
-          { label: 'Committees', path: ROUTES.COMMITTEES.LIST },
-          { label: committee.name },
-        ]}
+      <PageHeader
+        description="Committee Details"
+        title={committee.name}
+        breadcrumbs={[{ label: 'Committees', path: ROUTES.COMMITTEES.LIST }]}
       />
 
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{committee.name}</h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Committee Details</p>
-        </div>
-        <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2 items-center justify-between">
+        <div className="flex flex-wrap gap-2">
           <Link to={ROUTES.COMMITTEES.LIST}>
             <Button variant="outline">
               <FiArrowLeft className="h-4 w-4 mr-2" />
@@ -179,7 +171,10 @@ export default function CommitteeDetail() {
           <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Recent Meetings</h2>
           <div className="space-y-2">
             {meetings.slice(0, 5).map((meeting: any, index: number) => (
-              <div key={meeting.id || index} className="p-3 border border-gray-200 dark:border-gray-700 rounded-lg">
+              <div
+                key={meeting.id || index}
+                className="p-3 border border-gray-200 dark:border-gray-700 rounded-lg"
+              >
                 <p className="font-medium text-gray-900 dark:text-gray-100">{meeting.title || 'Meeting'}</p>
                 {meeting.date && (
                   <p className="text-sm text-gray-500 dark:text-gray-400">{formatDate(meeting.date)}</p>
@@ -192,4 +187,3 @@ export default function CommitteeDetail() {
     </div>
   );
 }
-

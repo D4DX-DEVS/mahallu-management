@@ -3,12 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import cemeteryService, { Cemetery } from '../../../services/cemeteryService';
 import Button from '../../../components/ui/Button';
 import Card from '../../../components/ui/Card';
-import Input from '../../../components/ui/Input';
 import Pagination from '../../../components/ui/Pagination';
 import { PageSkeleton } from '@/components/ui/Skeleton';
+import ExpandableSearch from '@/components/ui/ExpandableSearch';
 import ConfirmDialog from '../../../components/ui/ConfirmDialog';
 import { toast } from '@/store/toastStore';
 import { FiPlus, FiEdit2, FiTrash2 } from 'react-icons/fi';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
 
 export function CemeteriesList() {
   const navigate = useNavigate();
@@ -39,16 +41,12 @@ export function CemeteriesList() {
       try {
         setLoading(true);
         setError(null);
-        const response = await cemeteryService.getAllCemeteries(
-          currentPage,
-          itemsPerPage,
-          debouncedSearch
-        );
+        const response = await cemeteryService.getAllCemeteries(currentPage, itemsPerPage, debouncedSearch);
         setCemeteries(response.data || []);
         setTotalPages(response.pagination?.totalPages || 1);
         setTotalItems(response.pagination?.total || 0);
       } catch (err: any) {
-        setError(err.response?.data?.message || 'Failed to load cemeteries');
+        setError(loadErrorMessage(err, 'cemeteries'));
         setCemeteries([]);
       } finally {
         setLoading(false);
@@ -67,7 +65,7 @@ export function CemeteriesList() {
       setConfirmDelete(false);
       setDeleteId(null);
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to delete cemetery');
+      toast.error(errorMessage(err, { action: 'delete cemetery' }));
       setConfirmDelete(false);
       setDeleteId(null);
     }
@@ -77,8 +75,7 @@ export function CemeteriesList() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold">Cemeteries</h1>
-          <p className="text-sm text-gray-600 mt-1">Manage cemetery records and grave allocations</p>
+          <PageHeader title="Cemeteries" description="Manage cemetery records and grave allocations" />
         </div>
         <Button
           onClick={() => navigate('/cemetery/create')}
@@ -89,19 +86,15 @@ export function CemeteriesList() {
       </div>
 
       <div className="w-full">
-        <Input
-          type="text"
-          placeholder="Search cemeteries..."
+        <ExpandableSearch
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full"
+          onChange={(value) => setSearch(value)}
+          entity="cemeteries"
         />
       </div>
 
       {error && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-          {error}
-        </div>
+        <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">{error}</div>
       )}
 
       {loading ? (
@@ -111,23 +104,19 @@ export function CemeteriesList() {
           <div className="text-gray-500">No cemeteries found</div>
         </div>
       ) : (
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
           {cemeteries.map((cemetery) => (
             <Card
               key={cemetery.id}
               className="cursor-pointer hover:shadow-lg transition-shadow"
               onClick={() => navigate(`/cemetery/${cemetery.id}`)}
             >
-              <div className="p-4 space-y-4">
+              <div className="space-y-4">
                 <div className="flex items-start justify-between">
                   <div className="flex-1 min-w-0">
-                    <h3 className="text-base sm:text-lg font-semibold truncate">
-                      {cemetery.name}
-                    </h3>
+                    <h3 className="text-base sm:text-lg font-semibold truncate">{cemetery.name}</h3>
                     {cemetery.location && (
-                      <p className="text-xs sm:text-sm text-gray-600 truncate mt-1">
-                        {cemetery.location}
-                      </p>
+                      <p className="text-xs sm:text-sm text-gray-600 truncate mt-1">{cemetery.location}</p>
                     )}
                   </div>
                   <span
@@ -154,9 +143,7 @@ export function CemeteriesList() {
                     <div className="flex justify-between text-xs sm:text-sm">
                       <span className="text-gray-600">Occupancy</span>
                       <span className="font-semibold">
-                        {Math.round(
-                          ((cemetery.usedCount || 0) / cemetery.capacity) * 100
-                        )}%
+                        {Math.round(((cemetery.usedCount || 0) / cemetery.capacity) * 100)}%
                       </span>
                     </div>
                   )}
@@ -172,7 +159,7 @@ export function CemeteriesList() {
                   />
                 </div>
 
-                <div className="flex gap-2 pt-2 border-t">
+                <div className="flex flex-wrap gap-2 pt-2 border-t">
                   <Button
                     variant="outline"
                     size="sm"
@@ -216,6 +203,7 @@ export function CemeteriesList() {
       )}
 
       <ConfirmDialog
+        isLoading={loading}
         isOpen={confirmDelete}
         title="Delete Cemetery"
         message="Delete this cemetery? This action cannot be undone."

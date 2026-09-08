@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { FiTrash2, FiFileText, FiClock, FiCheckCircle, FiX, FiPlus } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
@@ -15,6 +14,8 @@ import { TableColumn, Pagination as PaginationType } from '@/types';
 import { marriageAssistanceService, MarriageAssistance } from '@/services/marriageAssistanceService';
 import { useDebounce } from '@/hooks/useDebounce';
 import { toast } from '@/store/toastStore';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
 
 export default function MarriageAssistanceList() {
   const navigate = useNavigate();
@@ -60,7 +61,7 @@ export default function MarriageAssistanceList() {
         setPagination(result.pagination);
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch marriage assistance records');
+      setError(loadErrorMessage(err, 'marriage assistance records'));
       console.error('Error fetching records:', err);
     } finally {
       setLoading(false);
@@ -78,10 +79,10 @@ export default function MarriageAssistanceList() {
     try {
       await marriageAssistanceService.delete(deleteConfirm.id);
       await fetchRecords();
-      toast.success('Record deleted successfully');
+      toast.success('Entry deleted');
       setDeleteConfirm(null);
     } catch (err: any) {
-      const message = err.response?.data?.message || 'Failed to delete record';
+      const message = errorMessage(err, { action: 'delete record' });
       toast.error(message);
       setIsDeleting(false);
     }
@@ -110,7 +111,6 @@ export default function MarriageAssistanceList() {
   };
 
   const columns: TableColumn<MarriageAssistance>[] = [
-    { key: 'id', label: 'No.', render: (_, __, index) => index + 1 },
     {
       key: 'memberId',
       label: 'Member/Family',
@@ -134,7 +134,9 @@ export default function MarriageAssistanceList() {
       key: 'status',
       label: 'Status',
       render: (status) => (
-        <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusBadgeColor(status as string)}`}>
+        <span
+          className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusBadgeColor(status as string)}`}
+        >
           {status}
         </span>
       ),
@@ -143,8 +145,12 @@ export default function MarriageAssistanceList() {
       key: 'actions',
       label: 'Actions',
       render: (_, row) => {
-        const label = typeof row.memberId === 'object' ? row.memberId?.name :
-                      typeof row.familyId === 'object' ? row.familyId?.houseName : 'Record';
+        const label =
+          typeof row.memberId === 'object'
+            ? row.memberId?.name
+            : typeof row.familyId === 'object'
+              ? row.familyId?.houseName
+              : 'Record';
         return (
           <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
             {row.type === 'premarital_counselling' && (
@@ -152,6 +158,7 @@ export default function MarriageAssistanceList() {
                 onClick={() => navigate('/counselling/create')}
                 className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-green-600 dark:text-green-400"
                 title="Create Counselling Case"
+                aria-label="Create Counselling Case"
               >
                 <FiPlus className="h-4 w-4" />
               </button>
@@ -160,6 +167,7 @@ export default function MarriageAssistanceList() {
               onClick={() => handleDeleteClick(row.id, label)}
               className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-red-600 dark:text-red-400"
               title="Delete"
+              aria-label="Delete"
             >
               <FiTrash2 className="h-4 w-4" />
             </button>
@@ -190,13 +198,7 @@ export default function MarriageAssistanceList() {
   return (
     <div className="space-y-4">
       <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Marriage Assistance</h1>
-            <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">Manage marriage assistance requests</p>
-          </div>
-          <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Marriage Assistance' }]} />
-        </div>
+        <PageHeader title="Marriage Assistance" description="Manage marriage assistance requests" />
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           {stats.map((stat, index) => (
@@ -214,9 +216,11 @@ export default function MarriageAssistanceList() {
           hasFilters={true}
           onRefresh={fetchRecords}
           actionButtons={
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Link to="/registers/marriageable">
-                <Button variant="outline" size="md">View Marriageable Register</Button>
+                <Button variant="outline" size="md">
+                  View Marriageable Register
+                </Button>
               </Link>
               <Link to="/registrations/marriage-assistance/create">
                 <Button size="md">+ New Request</Button>
@@ -226,14 +230,15 @@ export default function MarriageAssistanceList() {
         />
 
         {isFilterVisible && (
-          <div className="relative flex flex-wrap items-center gap-4 mb-6 p-4 border border-gray-200 rounded-lg bg-white dark:bg-gray-800 dark:border-gray-700">
+          <div className="relative flex flex-wrap items-center gap-4 mb-6 p-4 border border-gray-200 rounded-lg max-sm:border-0 max-sm:bg-transparent max-sm:p-0 bg-white dark:bg-gray-800 dark:border-gray-700">
             <button
               onClick={() => setIsFilterVisible(false)}
               className="absolute right-4 top-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              aria-label="Close"
             >
               <FiX className="h-4 w-4" />
             </button>
-            <div className="w-40">
+            <div className="w-full sm:w-40">
               <Select
                 options={[
                   { value: 'all', label: 'All Types' },
@@ -245,7 +250,7 @@ export default function MarriageAssistanceList() {
                 onChange={(e) => setTypeFilter(e.target.value)}
               />
             </div>
-            <div className="w-40">
+            <div className="w-full sm:w-40">
               <Select
                 options={[
                   { value: 'all', label: 'All Status' },

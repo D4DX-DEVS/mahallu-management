@@ -5,6 +5,8 @@ import { AuthRequest } from '../middleware/authMiddleware';
 import { getPaginationParams, createPaginationResponse } from '../utils/pagination';
 import { sendPushSilent } from '../services/oneSignalService';
 
+import { sendFailure } from '../utils/userMessages';
+
 export const getAllNotifications = async (req: AuthRequest, res: Response) => {
   try {
     const { recipientType, isRead, tenantId } = req.query;
@@ -35,7 +37,7 @@ export const getAllNotifications = async (req: AuthRequest, res: Response) => {
 
     res.json(createPaginationResponse(notifications, total, page, limit));
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the notifications right now. Please try again.');
   }
 };
 
@@ -49,7 +51,7 @@ export const createNotification = async (req: AuthRequest, res: Response) => {
     if (!notificationData.tenantId && !req.isSuperAdmin) {
       return res.status(400).json({
         success: false,
-        message: 'Tenant ID is required',
+        message: 'Please select a Mahallu before continuing.',
       });
     }
 
@@ -83,7 +85,7 @@ export const createNotification = async (req: AuthRequest, res: Response) => {
 
     res.status(201).json({ success: true, data: notification });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t save the notification. Please try again.');
   }
 };
 
@@ -96,12 +98,12 @@ export const markAsRead = async (req: Request, res: Response) => {
     );
 
     if (!notification) {
-      return res.status(404).json({ success: false, message: 'Notification not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that notification. It may have been removed." });
     }
 
     res.json({ success: true, data: notification });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t update the as read. Please try again.');
   }
 };
 
@@ -122,7 +124,7 @@ export const markAllAsRead = async (req: AuthRequest, res: Response) => {
     await Notification.updateMany(query, { isRead: true });
     res.json({ success: true, message: 'All notifications marked as read' });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t update the as read. Please try again.');
   }
 };
 

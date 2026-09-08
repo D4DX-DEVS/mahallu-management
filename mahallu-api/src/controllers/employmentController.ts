@@ -6,6 +6,9 @@ import { AuthRequest } from '../middleware/authMiddleware';
 import { getPaginationParams, createPaginationResponse } from '../utils/pagination';
 import { stripImmutable, refBelongsToTenant } from '../utils/sanitizeUpdate';
 
+import { sendFailure } from '../utils/userMessages';
+import { regexLiteral } from '../utils/queryGuard';
+
 const tenantScope = (req: AuthRequest): Record<string, any> =>
   req.tenantId ? { tenantId: req.tenantId } : {};
 
@@ -17,7 +20,7 @@ export const getAllEmployers = async (req: AuthRequest, res: Response) => {
     const query: any = { ...tenantScope(req) };
 
     if (req.query.status) query.status = req.query.status;
-    if (req.query.search) query.name = { $regex: String(req.query.search), $options: 'i' };
+    if (req.query.search) query.name = { $regex: regexLiteral(String(req.query.search)), $options: 'i' };
 
     const [employers, total] = await Promise.all([
       Employer.find(query)
@@ -30,7 +33,7 @@ export const getAllEmployers = async (req: AuthRequest, res: Response) => {
 
     res.json(createPaginationResponse(employers, total, page, limit));
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the employers right now. Please try again.');
   }
 };
 
@@ -42,19 +45,19 @@ export const getEmployerById = async (req: AuthRequest, res: Response) => {
     );
 
     if (!employer) {
-      return res.status(404).json({ success: false, message: 'Employer not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that employer. It may have been removed." });
     }
 
     res.json({ success: true, data: employer });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the employer right now. Please try again.');
   }
 };
 
 export const createEmployer = async (req: AuthRequest, res: Response) => {
   try {
     if (req.body.memberId && !(await refBelongsToTenant(Member, req.body.memberId, req.tenantId))) {
-      return res.status(400).json({ success: false, message: 'Member does not belong to this Mahallu' });
+      return res.status(400).json({ success: false, message: 'This member belongs to another Mahallu.' });
     }
 
     const employer = await Employer.create({
@@ -64,7 +67,7 @@ export const createEmployer = async (req: AuthRequest, res: Response) => {
 
     res.status(201).json({ success: true, data: employer });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t save the employer. Please try again.');
   }
 };
 
@@ -72,11 +75,11 @@ export const updateEmployer = async (req: AuthRequest, res: Response) => {
   try {
     const existing = await Employer.findOne({ _id: req.params.id, ...tenantScope(req) });
     if (!existing) {
-      return res.status(404).json({ success: false, message: 'Employer not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that employer. It may have been removed." });
     }
 
     if (req.body.memberId && !(await refBelongsToTenant(Member, req.body.memberId, req.tenantId))) {
-      return res.status(400).json({ success: false, message: 'Member does not belong to this Mahallu' });
+      return res.status(400).json({ success: false, message: 'This member belongs to another Mahallu.' });
     }
 
     const employer = await Employer.findByIdAndUpdate(req.params.id, stripImmutable(req.body), {
@@ -86,7 +89,7 @@ export const updateEmployer = async (req: AuthRequest, res: Response) => {
 
     res.json({ success: true, data: employer });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t update the employer. Please try again.');
   }
 };
 
@@ -94,13 +97,13 @@ export const deleteEmployer = async (req: AuthRequest, res: Response) => {
   try {
     const employer = await Employer.findOne({ _id: req.params.id, ...tenantScope(req) });
     if (!employer) {
-      return res.status(404).json({ success: false, message: 'Employer not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that employer. It may have been removed." });
     }
 
     await Employer.deleteOne({ _id: req.params.id });
     res.json({ success: true, message: 'Employer deleted' });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t delete the employer. Please try again.');
   }
 };
 
@@ -113,7 +116,7 @@ export const getAllVacancies = async (req: AuthRequest, res: Response) => {
 
     if (req.query.status) query.status = req.query.status;
     if (req.query.employerId) query.employerId = req.query.employerId;
-    if (req.query.search) query.title = { $regex: String(req.query.search), $options: 'i' };
+    if (req.query.search) query.title = { $regex: regexLiteral(String(req.query.search)), $options: 'i' };
 
     const [vacancies, total] = await Promise.all([
       JobVacancy.find(query)
@@ -126,7 +129,7 @@ export const getAllVacancies = async (req: AuthRequest, res: Response) => {
 
     res.json(createPaginationResponse(vacancies, total, page, limit));
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the vacancies right now. Please try again.');
   }
 };
 
@@ -138,12 +141,12 @@ export const getVacancyById = async (req: AuthRequest, res: Response) => {
     );
 
     if (!vacancy) {
-      return res.status(404).json({ success: false, message: 'Job vacancy not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that job vacancy. It may have been removed." });
     }
 
     res.json({ success: true, data: vacancy });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the vacancy right now. Please try again.');
   }
 };
 
@@ -153,12 +156,12 @@ export const createVacancy = async (req: AuthRequest, res: Response) => {
     if (!req.body.employerId && !req.body.employerName) {
       return res.status(400).json({
         success: false,
-        message: 'Either employerId or employerName must be provided',
+        message: 'Please choose an employer, or enter the employer’s name.',
       });
     }
 
     if (req.body.employerId && !(await refBelongsToTenant(Employer, req.body.employerId, req.tenantId))) {
-      return res.status(400).json({ success: false, message: 'Employer does not belong to this Mahallu' });
+      return res.status(400).json({ success: false, message: 'This employer belongs to another Mahallu.' });
     }
 
     const vacancy = await JobVacancy.create({
@@ -168,7 +171,7 @@ export const createVacancy = async (req: AuthRequest, res: Response) => {
 
     res.status(201).json({ success: true, data: vacancy });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t save the vacancy. Please try again.');
   }
 };
 
@@ -176,11 +179,11 @@ export const updateVacancy = async (req: AuthRequest, res: Response) => {
   try {
     const existing = await JobVacancy.findOne({ _id: req.params.id, ...tenantScope(req) });
     if (!existing) {
-      return res.status(404).json({ success: false, message: 'Job vacancy not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that job vacancy. It may have been removed." });
     }
 
     if (req.body.employerId && !(await refBelongsToTenant(Employer, req.body.employerId, req.tenantId))) {
-      return res.status(400).json({ success: false, message: 'Employer does not belong to this Mahallu' });
+      return res.status(400).json({ success: false, message: 'This employer belongs to another Mahallu.' });
     }
 
     const vacancy = await JobVacancy.findByIdAndUpdate(req.params.id, stripImmutable(req.body), {
@@ -190,7 +193,7 @@ export const updateVacancy = async (req: AuthRequest, res: Response) => {
 
     res.json({ success: true, data: vacancy });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t update the vacancy. Please try again.');
   }
 };
 
@@ -198,13 +201,13 @@ export const deleteVacancy = async (req: AuthRequest, res: Response) => {
   try {
     const vacancy = await JobVacancy.findOne({ _id: req.params.id, ...tenantScope(req) });
     if (!vacancy) {
-      return res.status(404).json({ success: false, message: 'Job vacancy not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that job vacancy. It may have been removed." });
     }
 
     await JobVacancy.deleteOne({ _id: req.params.id });
     res.json({ success: true, message: 'Job vacancy deleted' });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t delete the vacancy. Please try again.');
   }
 };
 
@@ -216,7 +219,7 @@ export const getAllTrainings = async (req: AuthRequest, res: Response) => {
     const query: any = { ...tenantScope(req) };
 
     if (req.query.status) query.status = req.query.status;
-    if (req.query.search) query.name = { $regex: String(req.query.search), $options: 'i' };
+    if (req.query.search) query.name = { $regex: regexLiteral(String(req.query.search)), $options: 'i' };
 
     const [trainings, total] = await Promise.all([
       SkillTraining.find(query)
@@ -234,7 +237,7 @@ export const getAllTrainings = async (req: AuthRequest, res: Response) => {
 
     res.json(createPaginationResponse(withCounts, total, page, limit));
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the trainings right now. Please try again.');
   }
 };
 
@@ -246,7 +249,7 @@ export const getTrainingById = async (req: AuthRequest, res: Response) => {
     );
 
     if (!training) {
-      return res.status(404).json({ success: false, message: 'Skill training not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that skill training. It may have been removed." });
     }
 
     res.json({
@@ -257,7 +260,7 @@ export const getTrainingById = async (req: AuthRequest, res: Response) => {
       },
     });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the training right now. Please try again.');
   }
 };
 
@@ -271,7 +274,7 @@ export const createTraining = async (req: AuthRequest, res: Response) => {
 
     res.status(201).json({ success: true, data: training });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t save the training. Please try again.');
   }
 };
 
@@ -279,7 +282,7 @@ export const updateTraining = async (req: AuthRequest, res: Response) => {
   try {
     const existing = await SkillTraining.findOne({ _id: req.params.id, ...tenantScope(req) });
     if (!existing) {
-      return res.status(404).json({ success: false, message: 'Skill training not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that skill training. It may have been removed." });
     }
 
     const training = await SkillTraining.findByIdAndUpdate(req.params.id, stripImmutable(req.body), {
@@ -289,7 +292,7 @@ export const updateTraining = async (req: AuthRequest, res: Response) => {
 
     res.json({ success: true, data: training });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t update the training. Please try again.');
   }
 };
 
@@ -297,13 +300,13 @@ export const deleteTraining = async (req: AuthRequest, res: Response) => {
   try {
     const training = await SkillTraining.findOne({ _id: req.params.id, ...tenantScope(req) });
     if (!training) {
-      return res.status(404).json({ success: false, message: 'Skill training not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that skill training. It may have been removed." });
     }
 
     await SkillTraining.deleteOne({ _id: req.params.id });
     res.json({ success: true, message: 'Skill training deleted' });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t delete the training. Please try again.');
   }
 };
 
@@ -313,21 +316,21 @@ export const addParticipant = async (req: AuthRequest, res: Response) => {
   try {
     const training = await SkillTraining.findOne({ _id: req.params.id, ...tenantScope(req) });
     if (!training) {
-      return res.status(404).json({ success: false, message: 'Skill training not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that skill training. It may have been removed." });
     }
 
     const { memberId } = req.body;
     if (!memberId) {
-      return res.status(400).json({ success: false, message: 'Member ID is required' });
+      return res.status(400).json({ success: false, message: 'Please select a member.' });
     }
 
     if (!(await refBelongsToTenant(Member, memberId, req.tenantId))) {
-      return res.status(400).json({ success: false, message: 'Member does not belong to this Mahallu' });
+      return res.status(400).json({ success: false, message: 'This member belongs to another Mahallu.' });
     }
 
     // Check if already enrolled
     if (training.participants.some((p) => p.memberId.toString() === memberId)) {
-      return res.status(400).json({ success: false, message: 'Member is already a participant' });
+      return res.status(400).json({ success: false, message: 'This member is already a participant.' });
     }
 
     training.participants.push({
@@ -341,7 +344,7 @@ export const addParticipant = async (req: AuthRequest, res: Response) => {
 
     res.json({ success: true, data: updated });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t save the participant. Please try again.');
   }
 };
 
@@ -349,12 +352,12 @@ export const updateParticipant = async (req: AuthRequest, res: Response) => {
   try {
     const training = await SkillTraining.findOne({ _id: req.params.id, ...tenantScope(req) });
     if (!training) {
-      return res.status(404).json({ success: false, message: 'Skill training not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that skill training. It may have been removed." });
     }
 
     const participant = training.participants.find((p) => p.memberId.toString() === req.params.memberId);
     if (!participant) {
-      return res.status(404).json({ success: false, message: 'Participant not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that participant. It may have been removed." });
     }
 
     if (req.body.certificateIssued !== undefined) {
@@ -369,7 +372,7 @@ export const updateParticipant = async (req: AuthRequest, res: Response) => {
 
     res.json({ success: true, data: updated });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t update the participant. Please try again.');
   }
 };
 
@@ -377,7 +380,7 @@ export const removeParticipant = async (req: AuthRequest, res: Response) => {
   try {
     const training = await SkillTraining.findOne({ _id: req.params.id, ...tenantScope(req) });
     if (!training) {
-      return res.status(404).json({ success: false, message: 'Skill training not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that skill training. It may have been removed." });
     }
 
     training.participants = training.participants.filter(
@@ -389,7 +392,7 @@ export const removeParticipant = async (req: AuthRequest, res: Response) => {
 
     res.json({ success: true, data: updated });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t delete the participant. Please try again.');
   }
 };
 
@@ -418,6 +421,6 @@ export const getEmploymentSummary = async (req: AuthRequest, res: Response) => {
 
     res.json({ success: true, data: summary });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the employment summary right now. Please try again.');
   }
 };

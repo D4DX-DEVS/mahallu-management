@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { FiEye, FiEdit2, FiUsers, FiCheckCircle, FiXCircle } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import StatCard from '@/components/ui/StatCard';
@@ -15,6 +14,9 @@ import { useDebounce } from '@/hooks/useDebounce';
 import { formatDate } from '@/utils/format';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
 import { toast } from '@/store/toastStore';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
+import ActionsMenu from '@/components/ui/ActionsMenu';
 
 export default function InstituteUsersList() {
   const navigate = useNavigate();
@@ -51,7 +53,7 @@ export default function InstituteUsersList() {
       setUsers(result.data || []);
       setPagination(result.pagination);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch institute users');
+      setError(loadErrorMessage(err, 'institute users'));
       console.error('Error fetching users:', err);
     } finally {
       setLoading(false);
@@ -61,10 +63,10 @@ export default function InstituteUsersList() {
   const handleExport = async (type: 'csv' | 'json' | 'pdf') => {
     try {
       setIsExporting(true);
-      
+
       const params: any = { role: 'institute', limit: 10000 };
       if (debouncedSearch) params.search = debouncedSearch;
-      
+
       const result = await userService.getAll(params);
       const dataToExport = result.data;
 
@@ -89,14 +91,13 @@ export default function InstituteUsersList() {
       }
     } catch (error: any) {
       console.error('Export error:', error);
-      toast.error(error?.response?.data?.message || 'Failed to export data');
+      toast.error(errorMessage(error, { action: 'export data' }));
     } finally {
       setIsExporting(false);
     }
   };
 
   const columns: TableColumn<User>[] = [
-    { key: 'id', label: 'No.', render: (_, __, index) => index + 1 },
     { key: 'name', label: 'Name', sortable: true },
     { key: 'phone', label: 'Phone' },
     { key: 'email', label: 'Email', render: (email) => email || '-' },
@@ -124,35 +125,35 @@ export default function InstituteUsersList() {
       key: 'actions',
       label: 'Actions',
       render: (_, row) => (
-        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(`/users/institute/${row.id}`);
-            }}
-            className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
-            title="View"
-          >
-            <FiEye className="h-4 w-4" />
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(`/users/institute/${row.id}/edit`);
-            }}
-            className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
-            title="Edit"
-          >
-            <FiEdit2 className="h-4 w-4" />
-          </button>
-        </div>
+        <ActionsMenu
+          items={[
+            {
+              label: 'View',
+              icon: <FiEye className="h-4 w-4" />,
+              onClick: () => {
+                navigate(`/users/institute/${row.id}`);
+              },
+            },
+            {
+              label: 'Edit',
+              icon: <FiEdit2 className="h-4 w-4" />,
+              onClick: () => {
+                navigate(`/users/institute/${row.id}/edit`);
+              },
+            },
+          ]}
+        />
       ),
     },
   ];
 
   const stats = [
     // ponytail: total comes from the server; Active/Inactive still count the current page
-    { title: 'Total Institute Users', value: pagination?.total ?? users.length, icon: <FiUsers className="h-5 w-5" /> },
+    {
+      title: 'Total Institute Users',
+      value: pagination?.total ?? users.length,
+      icon: <FiUsers className="h-5 w-5" />,
+    },
     {
       title: 'Active',
       value: users.filter((u) => u.status === 'active' || !u.status).length,
@@ -168,13 +169,7 @@ export default function InstituteUsersList() {
   return (
     <div className="space-y-4">
       <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Institute Users</h1>
-            <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">Manage institute users</p>
-          </div>
-          <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Institute Users' }]} />
-        </div>
+        <PageHeader title="Institute Users" description="Manage institute users" />
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           {stats.map((stat, index) => (
@@ -195,9 +190,7 @@ export default function InstituteUsersList() {
           isExporting={isExporting}
           actionButtons={
             <Link to="/users/institute/create">
-              <Button size="md">
-                + New Institute User
-              </Button>
+              <Button size="md">+ New Institute User</Button>
             </Link>
           }
         />
@@ -240,4 +233,3 @@ export default function InstituteUsersList() {
     </div>
   );
 }
-

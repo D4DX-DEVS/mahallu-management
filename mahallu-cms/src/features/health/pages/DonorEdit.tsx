@@ -7,13 +7,15 @@ import { FiArrowLeft } from 'react-icons/fi';
 import { getHealthResourceById, updateHealthResource } from '@/services/healthService';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
+import { errorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
 
 const donorSchema = z.object({
-  name: z.string().min(1, 'Name is required'),
-  bloodGroup: z.string().min(1, 'Blood group is required'),
-  contactNo: z.string().min(1, 'Contact number is required'),
-  availability: z.string().optional(),
-  notes: z.string().optional(),
+  name: z.string().max(200, 'Please keep the name to 200 characters or less.').min(1, 'Name is required'),
+  bloodGroup: z.string().max(200, 'Please keep the blood group to 200 characters or less.').min(1, 'Blood group is required'),
+  contactNo: z.string().max(200, 'Please keep the contact no to 200 characters or less.').min(1, 'Contact number is required'),
+  availability: z.string().max(200, 'Please keep the availability to 200 characters or less.').optional(),
+  notes: z.string().max(2000, 'Please keep the notes to 2000 characters or less.').optional(),
   status: z.enum(['active', 'inactive']),
 });
 
@@ -49,7 +51,7 @@ export default function DonorEdit() {
         setValue('notes', donor.notes || '');
         setValue('status', donor.status);
       } catch (err: any) {
-        setError('Failed to load blood donor');
+        setError("Couldn't load blood donor");
       } finally {
         setLoading(false);
       }
@@ -66,7 +68,7 @@ export default function DonorEdit() {
       await updateHealthResource(id, data);
       navigate('/health/donors');
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to update blood donor');
+      setError(errorMessage(err, { action: 'update blood donor' }));
     } finally {
       setSubmitting(false);
     }
@@ -75,8 +77,8 @@ export default function DonorEdit() {
   if (loading) return <div className="p-4">Loading...</div>;
 
   return (
-    <div className="flex-1 overflow-auto">
-      <div className="p-4 sm:p-6 max-w-2xl">
+    <div>
+      <div className="max-w-2xl">
         <button
           onClick={() => navigate('/health/donors')}
           className="flex items-center gap-2 text-blue-600 hover:text-blue-800 mb-6"
@@ -84,32 +86,23 @@ export default function DonorEdit() {
           <FiArrowLeft /> Back to Blood Donors
         </button>
 
-        <h1 className="text-2xl sm:text-3xl font-bold mb-6">Edit Blood Donor</h1>
-
+        <PageHeader title="Edit Blood Donor" />
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 text-red-700">
-            {error}
-          </div>
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 text-red-700">{error}</div>
         )}
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 sm:space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Name *
-              </label>
-              <Input
-                {...register('name')}
-                className={errors.name ? 'border-red-500' : ''}
-              />
+              <label className="block text-sm font-medium text-gray-700 mb-2">Name *</label>
+              <Input {...register('name')} className={errors.name ? 'border-red-500' : ''} />
               {errors.name && <span className="text-red-500 text-sm">{errors.name.message}</span>}
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Blood Group *
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Blood Group *</label>
               <select
+                aria-label="Blood Group"
                 {...register('bloodGroup')}
                 className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 ${
                   errors.bloodGroup ? 'border-red-500' : 'border-gray-300'
@@ -122,38 +115,29 @@ export default function DonorEdit() {
                   </option>
                 ))}
               </select>
-              {errors.bloodGroup && (
-                <span className="text-red-500 text-sm">{errors.bloodGroup.message}</span>
-              )}
+              {errors.bloodGroup && <span className="text-red-500 text-sm">{errors.bloodGroup.message}</span>}
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Contact Number *
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Contact Number *</label>
               <Input
                 {...register('contactNo')}
                 type="tel"
                 className={errors.contactNo ? 'border-red-500' : ''}
               />
-              {errors.contactNo && (
-                <span className="text-red-500 text-sm">{errors.contactNo.message}</span>
-              )}
+              {errors.contactNo && <span className="text-red-500 text-sm">{errors.contactNo.message}</span>}
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Availability
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Availability</label>
               <Input {...register('availability')} />
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Status
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
             <select
+              aria-label="Status"
               {...register('status')}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
             >
@@ -163,17 +147,16 @@ export default function DonorEdit() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Notes
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Notes</label>
             <textarea
+              aria-label="Notes"
               {...register('notes')}
               rows={4}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
             />
           </div>
 
-          <div className="flex gap-4 pt-6">
+          <div className="flex flex-wrap gap-4 pt-6">
             <Button
               type="button"
               variant="secondary"

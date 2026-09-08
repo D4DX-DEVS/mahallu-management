@@ -4,7 +4,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useNavigate, useParams } from 'react-router-dom';
 import { FiSave, FiX } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -26,32 +25,43 @@ import { facilityService } from '@/services/surveyService';
 import { Family } from '@/types';
 import { useAuthStore } from '@/store/authStore';
 import { getTenantId as extractTenantId } from '@/utils/tenantHelper';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
 
 const memberSchema = z.object({
-  name: z.string().min(1, 'Name is required'),
-  nameMl: z.string().optional(),
-  familyId: z.string().min(1, 'Family is required'),
-  familyName: z.string().min(1, 'Family Name is required'),
-  mahallId: z.string().optional(),
-  age: z.preprocess((val) => (val === '' || Number.isNaN(val) ? undefined : val), z.number().min(0).max(150).optional()),
+  name: z.string().max(200, 'Please keep the name to 200 characters or less.').min(1, 'Name is required'),
+  nameMl: z.string().max(200, 'Please keep the name to 200 characters or less.').optional(),
+  familyId: z.string().max(200, 'Please keep the family to 200 characters or less.').min(1, 'Family is required'),
+  familyName: z.string().max(200, 'Please keep the family name to 200 characters or less.').min(1, 'Family Name is required'),
+  mahallId: z.string().max(200, 'Please keep the mahall to 200 characters or less.').optional(),
+  age: z.preprocess(
+    (val) => (val === '' || Number.isNaN(val) ? undefined : val),
+    z.number().min(0).max(150).optional()
+  ),
   gender: z.enum(['male', 'female']).optional().or(z.literal('')),
   bloodGroup: z
     .enum(['A +ve', 'A -ve', 'B +ve', 'B -ve', 'AB +ve', 'AB -ve', 'O +ve', 'O -ve'])
     .optional()
     .or(z.literal('')),
-  healthStatus: z.string().optional(),
-  phone: z.string().optional().refine(
-    (val) => !val || /^\d{10}$/.test(val),
-    { message: 'Phone number must be exactly 10 digits' }
-  ),
-  education: z.string().optional(),
+  healthStatus: z.string().max(200, 'Please keep the health status to 200 characters or less.').optional(),
+  phone: z
+    .string()
+    .optional()
+    .refine((val) => !val || /^\d{10}$/.test(val), { message: 'Phone number must be exactly 10 digits' }),
+  education: z.string().max(200, 'Please keep the education to 200 characters or less.').optional(),
   maritalStatus: z.enum(['single', 'married', 'divorced', 'widowed']).optional().or(z.literal('')),
-  marriageCount: z.preprocess((val) => (val === '' || Number.isNaN(val) ? undefined : val), z.number().min(0).optional()),
+  marriageCount: z.preprocess(
+    (val) => (val === '' || Number.isNaN(val) ? undefined : val),
+    z.number().min(0).optional()
+  ),
   isOrphan: z.boolean().optional(),
   isDead: z.boolean().optional(),
-  relationship: z.enum(['head', 'spouse', 'son', 'daughter', 'father', 'mother', 'other']).optional().or(z.literal('')),
-  educationInstitutionId: z.string().optional(),
-  localityFacilityId: z.string().optional(),
+  relationship: z
+    .enum(['head', 'spouse', 'son', 'daughter', 'father', 'mother', 'other'])
+    .optional()
+    .or(z.literal('')),
+  educationInstitutionId: z.string().max(200, 'Please keep the education institution to 200 characters or less.').optional(),
+  localityFacilityId: z.string().max(200, 'Please keep the locality facility to 200 characters or less.').optional(),
   ...socioEconomicSchemaFields,
 });
 
@@ -143,22 +153,24 @@ export default function EditMember() {
       if (tenantId) {
         try {
           const tenantData = await tenantService.getById(tenantId);
-          setEducationOptions(tenantData.settings?.educationOptions || [
-            'Below SSLC',
-            'SSLC',
-            'Plus Two',
-            'Degree',
-            'Diploma',
-            'Post Graduation',
-            'Doctorate',
-            'MBBS',
-          ]);
+          setEducationOptions(
+            tenantData.settings?.educationOptions || [
+              'Below SSLC',
+              'SSLC',
+              'Plus Two',
+              'Degree',
+              'Diploma',
+              'Post Graduation',
+              'Doctorate',
+              'MBBS',
+            ]
+          );
         } catch (err) {
-          console.error('Failed to fetch education options:', err);
+          console.error("Couldn't load education options:", err);
         }
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to load member');
+      setError(loadErrorMessage(err, 'member'));
     } finally {
       setLoading(false);
     }
@@ -175,22 +187,23 @@ export default function EditMember() {
           gender: data.gender === '' ? undefined : data.gender,
           bloodGroup: data.bloodGroup === '' ? undefined : data.bloodGroup,
           maritalStatus: data.maritalStatus === '' ? undefined : data.maritalStatus,
-          marriageCount: data.marriageCount == null || Number.isNaN(data.marriageCount) ? undefined : Number(data.marriageCount),
+          marriageCount:
+            data.marriageCount == null || Number.isNaN(data.marriageCount)
+              ? undefined
+              : Number(data.marriageCount),
           ...normalizeSocioEconomic(data),
         }).filter(([_, v]) => v !== '' && v !== undefined && !(typeof v === 'number' && Number.isNaN(v)))
       );
       await memberService.update(id, memberData);
       navigate(ROUTES.MEMBERS.LIST);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to update member. Please try again.');
+      setError(errorMessage(err, { action: 'update member. please try again' }));
       console.error('Error updating member:', err);
     }
   };
 
   if (loading) {
-    return (
-      <PageSkeleton />
-    );
+    return <PageSkeleton />;
   }
 
   const genderOptions = [
@@ -237,23 +250,11 @@ export default function EditMember() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-            Edit Member
-          </h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            Update member information
-          </p>
-        </div>
-        <Breadcrumb
-          items={[
-            { label: 'Dashboard', path: '/dashboard' },
-            { label: 'Members', path: ROUTES.MEMBERS.LIST },
-            { label: 'Edit' },
-          ]}
-        />
-      </div>
+      <PageHeader
+        title="Edit Member"
+        description="Update member information"
+        breadcrumbs={[{ label: 'Members', path: ROUTES.MEMBERS.LIST }]}
+      />
 
       <form onSubmit={handleSubmit(onSubmit)}>
         <Card className="space-y-6">
@@ -288,12 +289,12 @@ export default function EditMember() {
               placeholder="Full Name"
             />
             <div className="hidden">
-            <Input
-              label="Member Name (Malayalam)"
-              {...register('nameMl')}
-              placeholder="പേര്"
-              className="font-malayalam"
-            />
+              <Input
+                label="Member Name (Malayalam)"
+                {...register('nameMl')}
+                placeholder="പേര്"
+                className="font-malayalam"
+              />
             </div>
             <Input
               label="Member ID (Auto-generated)"
@@ -326,7 +327,7 @@ export default function EditMember() {
               ]}
             />
           </div>
-          
+
           <div className="md:col-span-2">
             <RadioCardGroup
               label="Gender"
@@ -337,7 +338,7 @@ export default function EditMember() {
               columns={2}
             />
           </div>
-          
+
           <div className="md:col-span-2">
             <RadioCardGroup
               label="Blood Group"
@@ -348,7 +349,7 @@ export default function EditMember() {
               columns={4}
             />
           </div>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:col-span-2">
             <Input
               label="Phone"
@@ -369,7 +370,7 @@ export default function EditMember() {
               {...register('education')}
               options={[
                 { value: '', label: 'Select Education' },
-                ...educationOptions.map(opt => ({ value: opt, label: opt }))
+                ...educationOptions.map((opt) => ({ value: opt, label: opt })),
               ]}
             />
             <Select
@@ -377,7 +378,7 @@ export default function EditMember() {
               {...register('educationInstitutionId')}
               options={[
                 { value: '', label: 'Select Institute' },
-                ...institutes.map(inst => ({ value: inst.id || inst._id, label: inst.name }))
+                ...institutes.map((inst) => ({ value: inst.id || inst._id, label: inst.name })),
               ]}
             />
             <Select
@@ -385,14 +386,10 @@ export default function EditMember() {
               {...register('localityFacilityId')}
               options={[
                 { value: '', label: 'Select Facility' },
-                ...facilities.map(fac => ({ value: fac._id, label: fac.name }))
+                ...facilities.map((fac) => ({ value: fac.id, label: fac.name })),
               ]}
             />
-            <Select
-              label="Marital Status"
-              {...register('maritalStatus')}
-              options={maritalStatusOptions}
-            />
+            <Select label="Marital Status" {...register('maritalStatus')} options={maritalStatusOptions} />
             <Input
               label="Number of Marriages"
               type="number"
@@ -402,11 +399,21 @@ export default function EditMember() {
             />
             <div className="flex items-center gap-4 md:col-span-2">
               <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-                <input type="checkbox" {...register('isOrphan')} className="rounded border-gray-300 text-primary-600" />
+                <input
+                  aria-label="Select row"
+                  type="checkbox"
+                  {...register('isOrphan')}
+                  className="rounded border-gray-300 text-primary-600"
+                />
                 Is Orphan
               </label>
               <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-                <input type="checkbox" {...register('isDead')} className="rounded border-gray-300 text-primary-600" />
+                <input
+                  aria-label="Select row"
+                  type="checkbox"
+                  {...register('isDead')}
+                  className="rounded border-gray-300 text-primary-600"
+                />
                 Is Deceased
               </label>
             </div>
@@ -416,12 +423,8 @@ export default function EditMember() {
             <SocioEconomicSection register={register} />
           </div>
 
-          <div className="flex justify-end gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => navigate(ROUTES.MEMBERS.LIST)}
-            >
+          <div className="flex gap-2 flex-col-reverse sm:flex-row sm:justify-end sm:gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+            <Button type="button" variant="outline" onClick={() => navigate(ROUTES.MEMBERS.LIST)}>
               <FiX className="h-4 w-4 mr-2" />
               Cancel
             </Button>
@@ -435,4 +438,3 @@ export default function EditMember() {
     </div>
   );
 }
-

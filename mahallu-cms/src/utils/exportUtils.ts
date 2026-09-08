@@ -9,22 +9,22 @@ function extractTextFromReactElement(element: any): string {
   if (element === null || element === undefined) {
     return '';
   }
-  
+
   // Handle primitive types
   if (typeof element === 'string' || typeof element === 'number') {
     return String(element);
   }
-  
+
   // Handle boolean
   if (typeof element === 'boolean') {
     return '';
   }
-  
+
   // Handle arrays
   if (Array.isArray(element)) {
     return element.map(extractTextFromReactElement).filter(Boolean).join(' ');
   }
-  
+
   // Handle React elements
   if (typeof element === 'object') {
     // Check if it's a React element with props
@@ -34,7 +34,7 @@ function extractTextFromReactElement(element: any): string {
         return extractTextFromReactElement(children);
       }
     }
-    
+
     // Check if it has a type property (React element)
     if (element.type) {
       // For certain element types, try to extract text differently
@@ -43,27 +43,23 @@ function extractTextFromReactElement(element: any): string {
       }
     }
   }
-  
+
   return '';
 }
 
 /**
  * Extract text value from a cell, handling render functions
  */
-function extractCellValue<T>(
-  value: any,
-  row: T,
-  column: TableColumn<T>
-): string {
+function extractCellValue<T>(value: any, row: T, column: TableColumn<T>): string {
   if (column.render) {
     try {
       const rendered = column.render(value, row, 0);
-      
+
       // Handle primitive types directly
       if (typeof rendered === 'string' || typeof rendered === 'number') {
         return String(rendered);
       }
-      
+
       // Handle React elements
       if (rendered && typeof rendered === 'object') {
         const extractedText = extractTextFromReactElement(rendered);
@@ -71,7 +67,7 @@ function extractCellValue<T>(
           return extractedText.trim();
         }
       }
-      
+
       // Fallback: use the original value
       if (value !== null && value !== undefined) {
         if (typeof value === 'object') {
@@ -82,20 +78,20 @@ function extractCellValue<T>(
     } catch (error) {
       console.warn('Error extracting cell value:', error);
     }
-    
+
     // Final fallback
     return '-';
   }
-  
+
   // Handle null, undefined, and other types
   if (value === null || value === undefined) {
     return '-';
   }
-  
+
   if (typeof value === 'object') {
     return JSON.stringify(value);
   }
-  
+
   return String(value);
 }
 
@@ -109,7 +105,7 @@ export function exportToCSV<T extends Record<string, any>>(
 ): void {
   // Extract headers
   const headers = columns.map((col) => col.label);
-  
+
   // Extract rows
   const rows = data.map((row) =>
     columns.map((column) => {
@@ -122,18 +118,15 @@ export function exportToCSV<T extends Record<string, any>>(
       return textValue;
     })
   );
-  
+
   // Combine headers and rows
-  const csvContent = [
-    headers.join(','),
-    ...rows.map((row) => row.join(','))
-  ].join('\n');
-  
+  const csvContent = [headers.join(','), ...rows.map((row) => row.join(','))].join('\n');
+
   // Create blob and download
   const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
   const link = document.createElement('a');
   const url = URL.createObjectURL(blob);
-  
+
   link.setAttribute('href', url);
   link.setAttribute('download', `${filename}.csv`);
   link.style.visibility = 'hidden';
@@ -160,12 +153,12 @@ export function exportToJSON<T extends Record<string, any>>(
     });
     return obj;
   });
-  
+
   const jsonContent = JSON.stringify(jsonData, null, 2);
   const blob = new Blob([jsonContent], { type: 'application/json;charset=utf-8;' });
   const link = document.createElement('a');
   const url = URL.createObjectURL(blob);
-  
+
   link.setAttribute('href', url);
   link.setAttribute('download', `${filename}.json`);
   link.style.visibility = 'hidden';
@@ -184,13 +177,13 @@ export function exportToPDF<T extends Record<string, any>>(
   title?: string
 ): void {
   const doc = new jsPDF();
-  
+
   // Add title if provided
   if (title) {
     doc.setFontSize(16);
     doc.text(title, 14, 15);
   }
-  
+
   // Extract headers and rows
   const headers = columns.map((col) => col.label);
   const rows = data.map((row) =>
@@ -199,10 +192,10 @@ export function exportToPDF<T extends Record<string, any>>(
       return extractCellValue(value, row, column);
     })
   );
-  
+
   // Calculate starting Y position
   const startY = title ? 25 : 15;
-  
+
   // Generate table
   autoTable(doc, {
     head: [headers],
@@ -222,8 +215,7 @@ export function exportToPDF<T extends Record<string, any>>(
     },
     margin: { top: startY, left: 14, right: 14 },
   });
-  
+
   // Save PDF
   doc.save(`${filename}.pdf`);
 }
-

@@ -4,6 +4,9 @@ import { AuthRequest } from '../middleware/authMiddleware';
 import { getPaginationParams, createPaginationResponse } from '../utils/pagination';
 import { stripImmutable } from '../utils/sanitizeUpdate';
 
+import { sendFailure } from '../utils/userMessages';
+import { regexLiteral } from '../utils/queryGuard';
+
 const tenantScope = (req: AuthRequest): Record<string, any> =>
   req.tenantId ? { tenantId: req.tenantId } : {};
 
@@ -17,7 +20,7 @@ export const getAllMedicalCamps = async (req: AuthRequest, res: Response) => {
     const query: any = { ...tenantScope(req) };
 
     if (req.query.status) query.status = req.query.status;
-    if (req.query.search) query.name = { $regex: String(req.query.search), $options: 'i' };
+    if (req.query.search) query.name = { $regex: regexLiteral(String(req.query.search)), $options: 'i' };
 
     const [camps, total] = await Promise.all([
       MedicalCamp.find(query)
@@ -29,7 +32,7 @@ export const getAllMedicalCamps = async (req: AuthRequest, res: Response) => {
 
     res.json(createPaginationResponse(camps, total, page, limit));
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the medical camps right now. Please try again.');
   }
 };
 
@@ -41,12 +44,12 @@ export const getMedicalCampById = async (req: AuthRequest, res: Response) => {
     const camp = await MedicalCamp.findOne({ _id: req.params.id, ...tenantScope(req) });
 
     if (!camp) {
-      return res.status(404).json({ success: false, message: 'Medical camp not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that medical camp. It may have been removed." });
     }
 
     res.json({ success: true, data: camp });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the medical camp right now. Please try again.');
   }
 };
 
@@ -63,7 +66,7 @@ export const createMedicalCamp = async (req: AuthRequest, res: Response) => {
 
     res.status(201).json({ success: true, data: camp });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t save the medical camp. Please try again.');
   }
 };
 
@@ -76,7 +79,7 @@ export const updateMedicalCamp = async (req: AuthRequest, res: Response) => {
     const camp = await MedicalCamp.findOne({ _id: req.params.id, ...tenantScope(req) });
 
     if (!camp) {
-      return res.status(404).json({ success: false, message: 'Medical camp not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that medical camp. It may have been removed." });
     }
 
     const updated = await MedicalCamp.findByIdAndUpdate(
@@ -90,7 +93,7 @@ export const updateMedicalCamp = async (req: AuthRequest, res: Response) => {
 
     res.json({ success: true, data: updated });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t update the medical camp. Please try again.');
   }
 };
 
@@ -103,12 +106,12 @@ export const deleteMedicalCamp = async (req: AuthRequest, res: Response) => {
     const camp = await MedicalCamp.findOne({ _id: req.params.id, ...tenantScope(req) });
 
     if (!camp) {
-      return res.status(404).json({ success: false, message: 'Medical camp not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that medical camp. It may have been removed." });
     }
 
     await MedicalCamp.deleteOne({ _id: req.params.id });
     res.json({ success: true, message: 'Medical camp deleted' });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t delete the medical camp. Please try again.');
   }
 };

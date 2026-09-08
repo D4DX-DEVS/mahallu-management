@@ -4,7 +4,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useNavigate, useParams } from 'react-router-dom';
 import { FiSave, FiX } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -13,15 +12,17 @@ import RichTextEditor from '@/components/ui/RichTextEditor';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import { ROUTES } from '@/constants/routes';
 import { registrationService } from '@/services/registrationService';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
 
 const nocSchema = z.object({
-  applicantName: z.string().min(1, 'Applicant name is required'),
-  applicantPhone: z.string().optional(),
-  purposeTitle: z.string().min(1, 'Purpose title is required'),
-  purposeDescription: z.string().min(1, 'Purpose description is required'),
+  applicantName: z.string().max(200, 'Please keep the applicant name to 200 characters or less.').min(1, 'Applicant name is required'),
+  applicantPhone: z.string().max(200, 'Please keep the applicant phone to 200 characters or less.').optional(),
+  purposeTitle: z.string().max(2000, 'Please keep the purpose title to 2000 characters or less.').min(1, 'Purpose title is required'),
+  purposeDescription: z.string().max(3000, 'Please keep the purpose description to 3000 characters or less.').min(1, 'Purpose description is required'),
   type: z.enum(['common', 'nikah']),
   status: z.enum(['pending', 'approved', 'rejected']).optional(),
-  remarks: z.string().optional(),
+  remarks: z.string().max(2000, 'Please keep the remarks to 2000 characters or less.').optional(),
 });
 
 type NOCFormData = z.infer<typeof nocSchema>;
@@ -61,7 +62,7 @@ export default function EditNOC() {
       setValue('status', noc.status || 'pending');
       setValue('remarks', noc.remarks || '');
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to load NOC');
+      setError(loadErrorMessage(err, 'noc'));
     } finally {
       setLoading(false);
     }
@@ -82,31 +83,22 @@ export default function EditNOC() {
       });
       navigate(ROUTES.REGISTRATIONS.NOC.COMMON);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to update NOC. Please try again.');
+      setError(errorMessage(err, { action: 'update noc. please try again' }));
       console.error('Error updating NOC:', err);
     }
   };
 
   if (loading) {
-    return (
-      <PageSkeleton />
-    );
+    return <PageSkeleton />;
   }
 
   return (
     <div className="space-y-6">
-      <Breadcrumb
-        items={[
-          { label: 'Dashboard', path: '/dashboard' },
-          { label: 'NOC', path: ROUTES.REGISTRATIONS.NOC.COMMON },
-          { label: 'Edit' },
-        ]}
+      <PageHeader
+        description="Update No Objection Certificate"
+        title="Edit"
+        breadcrumbs={[{ label: 'NOC', path: ROUTES.REGISTRATIONS.NOC.COMMON }]}
       />
-
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Edit NOC</h1>
-        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Update No Objection Certificate</p>
-      </div>
 
       <form onSubmit={handleSubmit(onSubmit)}>
         <Card className="space-y-6">
@@ -166,15 +158,10 @@ export default function EditNOC() {
                 error={errors.purposeDescription?.message}
               />
             </div>
-            <Input
-              label="Remarks"
-              {...register('remarks')}
-              placeholder="Remarks"
-              className="md:col-span-2"
-            />
+            <Input label="Remarks" {...register('remarks')} placeholder="Remarks" className="md:col-span-2" />
           </div>
 
-          <div className="flex justify-end gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+          <div className="flex gap-2 flex-col-reverse sm:flex-row sm:justify-end sm:gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
             <Button type="button" variant="outline" onClick={() => navigate(ROUTES.REGISTRATIONS.NOC.COMMON)}>
               <FiX className="h-4 w-4 mr-2" />
               Cancel
@@ -189,4 +176,3 @@ export default function EditNOC() {
     </div>
   );
 }
-

@@ -4,43 +4,43 @@ export const createEmployeeValidation = [
   body('name')
     .trim()
     .notEmpty()
-    .withMessage('Employee name is required')
+    .withMessage('Please enter the employee name.')
     .isLength({ min: 2, max: 200 })
-    .withMessage('Employee name must be between 2 and 200 characters'),
+    .withMessage('Please keep the employee name between 2 and 200 characters.'),
   body('nameMl').optional().trim(),
   body('instituteId')
     .notEmpty()
-    .withMessage('Institute ID is required')
+    .withMessage('Please select an institute before continuing.')
     .isMongoId()
-    .withMessage('Invalid Institute ID'),
+    .withMessage('Please select a valid institute.'),
   body('designation')
     .trim()
     .notEmpty()
-    .withMessage('Designation is required')
+    .withMessage('Please enter the designation.')
     .isLength({ min: 2, max: 100 })
-    .withMessage('Designation must be between 2 and 100 characters'),
+    .withMessage('Please keep the designation between 2 and 100 characters.'),
   body('designationMl').optional().trim(),
   body('salary')
     .notEmpty()
-    .withMessage('Salary is required')
+    .withMessage('Please enter the salary.')
     .isFloat({ min: 0 })
-    .withMessage('Salary must be a positive number'),
+    .withMessage('Please enter a salary greater than zero.'),
   body('phone')
     .optional()
     .trim()
     .matches(/^[0-9]{10}$/)
-    .withMessage('Phone number must be exactly 10 digits'),
+    .withMessage('Please enter a 10-digit phone number.'),
   body('email')
     .optional()
     .trim()
     .isEmail()
-    .withMessage('Invalid email address')
+    .withMessage('Please enter a valid email address.')
     .normalizeEmail(),
   body('department').optional().trim(),
   body('joinDate')
     .optional()
     .isISO8601()
-    .withMessage('Join date must be a valid date'),
+    .withMessage('Please choose a valid join date.'),
   body('address').optional().trim(),
   body('qualifications').optional().trim(),
   body('bankAccount.accountNumber').optional().trim(),
@@ -49,53 +49,53 @@ export const createEmployeeValidation = [
   body('status')
     .optional()
     .isIn(['active', 'inactive'])
-    .withMessage('Invalid status'),
+    .withMessage('Please choose a valid status.'),
 ];
 
 export const updateEmployeeValidation = [
-  param('id').isMongoId().withMessage('Invalid employee ID'),
+  param('id').isMongoId().withMessage('Please select a valid employee.'),
   body('name')
     .optional()
     .trim()
     .isLength({ min: 2, max: 200 })
-    .withMessage('Employee name must be between 2 and 200 characters'),
+    .withMessage('Please keep the employee name between 2 and 200 characters.'),
   body('nameMl').optional().trim(),
   body('designation')
     .optional()
     .trim()
     .isLength({ min: 2, max: 100 })
-    .withMessage('Designation must be between 2 and 100 characters'),
+    .withMessage('Please keep the designation between 2 and 100 characters.'),
   body('designationMl').optional().trim(),
   body('salary')
     .optional()
     .isFloat({ min: 0 })
-    .withMessage('Salary must be a positive number'),
+    .withMessage('Please enter a salary greater than zero.'),
   body('phone')
     .optional()
     .trim()
     .matches(/^[0-9]{10}$/)
-    .withMessage('Phone number must be exactly 10 digits'),
+    .withMessage('Please enter a 10-digit phone number.'),
   body('email')
     .optional()
     .trim()
     .isEmail()
-    .withMessage('Invalid email address')
+    .withMessage('Please enter a valid email address.')
     .normalizeEmail(),
   body('department').optional().trim(),
   body('joinDate')
     .optional()
     .isISO8601()
-    .withMessage('Join date must be a valid date'),
+    .withMessage('Please choose a valid join date.'),
   body('status')
     .optional()
     .isIn(['active', 'inactive'])
-    .withMessage('Invalid status'),
+    .withMessage('Please choose a valid status.'),
 ];
 
 export const getEmployeeValidation = [
-  param('id').isMongoId().withMessage('Invalid employee ID'),
+  param('id').isMongoId().withMessage('Please select a valid employee.'),
 ];
 
 export const deleteEmployeeValidation = [
-  param('id').isMongoId().withMessage('Invalid employee ID'),
+  param('id').isMongoId().withMessage('Please select a valid employee.'),
 ];

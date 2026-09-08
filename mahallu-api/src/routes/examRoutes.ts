@@ -9,6 +9,12 @@ import {
 } from '../controllers/examController';
 import { authMiddleware, allowRoles } from '../middleware/authMiddleware';
 import { tenantMiddleware, tenantFilter } from '../middleware/tenantMiddleware';
+import { validationHandler } from '../middleware/validationHandler';
+import { idParam, listQuery } from '../validations/common';
+import {
+  createExamValidation,
+  updateExamValidation,
+} from '../validations/moduleValidation';
 
 const router = express.Router();
 
@@ -51,7 +57,7 @@ router.use(tenantFilter);
  *       200:
  *         description: Paginated exams
  */
-router.get('/', listExams);
+router.get('/', listQuery(), validationHandler, listExams);
 
 /**
  * @swagger
@@ -89,7 +95,7 @@ router.get('/', listExams);
  *       400:
  *         description: Invalid input or references
  */
-router.post('/', allowRoles(['super_admin', 'mahall']), createExam);
+router.post('/', createExamValidation, validationHandler, allowRoles(['super_admin', 'mahall']), createExam);
 
 /**
  * @swagger
@@ -111,7 +117,7 @@ router.post('/', allowRoles(['super_admin', 'mahall']), createExam);
  *       404:
  *         description: Exam not found
  */
-router.get('/:id', getExamById);
+router.get('/:id', idParam('id', 'exam'), validationHandler, getExamById);
 
 /**
  * @swagger
@@ -143,7 +149,7 @@ router.get('/:id', getExamById);
  *       404:
  *         description: Exam not found
  */
-router.put('/:id', allowRoles(['super_admin', 'mahall']), updateExam);
+router.put('/:id', updateExamValidation, validationHandler, allowRoles(['super_admin', 'mahall']), updateExam);
 
 /**
  * @swagger
@@ -168,7 +174,7 @@ router.put('/:id', allowRoles(['super_admin', 'mahall']), updateExam);
  *       404:
  *         description: Exam not found
  */
-router.delete('/:id', allowRoles(['super_admin', 'mahall']), deleteExam);
+router.delete('/:id', idParam('id', 'exam'), validationHandler, allowRoles(['super_admin', 'mahall']), deleteExam);
 
 /**
  * @swagger
@@ -214,6 +220,6 @@ router.delete('/:id', allowRoles(['super_admin', 'mahall']), deleteExam);
  *       404:
  *         description: Exam not found
  */
-router.put('/:id/results', allowRoles(['super_admin', 'mahall']), updateExamResults);
+router.put('/:id/results', idParam('id', 'exam'), validationHandler, allowRoles(['super_admin', 'mahall']), updateExamResults);
 
 export default router;

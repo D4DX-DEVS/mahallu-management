@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -12,6 +11,32 @@ import { qardService, LOAN_PURPOSE_OPTIONS } from '@/services/qardService';
 import { memberService } from '@/services/memberService';
 import { Member } from '@/types';
 import { FiPlus } from 'react-icons/fi';
+import { errorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
+import { useFormValidation } from '@/hooks/useFormValidation';
+import { FieldRule, LIMITS } from '@/utils/validation';
+
+/**
+ * Same limits the API applies, so a form that passes here is not refused there.
+ * A member or a name is required, but either will do - the pair is checked
+ * together on the name, which is where the message belongs.
+ */
+const RULES: Record<string, FieldRule> = {
+  applicantMemberId: { label: 'member', type: 'id' },
+  applicantName: {
+    label: 'applicant name',
+    maxLength: LIMITS.name.max,
+    custom: (value, values) =>
+      !value && !values.applicantMemberId
+        ? 'Please choose a member, or enter the applicant name.'
+        : undefined,
+  },
+  amount: { label: 'amount', type: 'number', required: true, min: 1, max: LIMITS.amount.max },
+  repaymentMonths: { label: 'repayment term', type: 'integer', required: true, min: 1, max: 600 },
+  purpose: { label: 'purpose', required: true },
+  purposeDetails: { label: 'purpose details', maxLength: 1000 },
+  notes: { label: 'notes', maxLength: LIMITS.notes.max },
+};
 
 export default function LoanCreate() {
   const navigate = useNavigate();
@@ -19,6 +44,7 @@ export default function LoanCreate() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [addMemberOpen, setAddMemberOpen] = useState(false);
+  const { errors, validate, clearField } = useFormValidation(RULES);
   const [form, setForm] = useState({
     applicantMemberId: '',
     applicantName: '',
@@ -40,18 +66,10 @@ export default function LoanCreate() {
     e.preventDefault();
     setError(null);
 
-    if (!form.applicantMemberId && !form.applicantName.trim()) {
-      setError('Pick a member or enter an applicant name');
-      return;
-    }
-    if (!(Number(form.amount) > 0)) {
-      setError('Enter the amount being requested');
-      return;
-    }
-    if (!(Number(form.repaymentMonths) >= 1)) {
-      setError('Repayment term must be at least one month');
-      return;
-    }
+    // Every field at once, each message on its own field - a form with three
+    // problems used to show one sentence in a banner and mark nothing.
+    if (!validate(form)) return;
+    if (saving) return; // a second click while the first request is open
 
     try {
       setSaving(true);
@@ -67,7 +85,7 @@ export default function LoanCreate() {
       toast.success('Loan application created');
       navigate(`/loans/${loan.id}`);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to create the application');
+      setError(errorMessage(err, { action: 'create the application' }));
     } finally {
       setSaving(false);
     }
@@ -75,26 +93,14 @@ export default function LoanCreate() {
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">
-            New Qard Hasan Application
-          </h1>
-          <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-            Created as applied; approval and disbursement are separate steps
-          </p>
-        </div>
-        <Breadcrumb
-          items={[
-            { label: 'Dashboard', path: '/dashboard' },
-            { label: 'Qard Hasan', path: '/loans' },
-            { label: 'New' },
-          ]}
-        />
-      </div>
+      <PageHeader
+        title="New Qard Hasan Application"
+        description="Created as applied; approval and disbursement are separate steps"
+        breadcrumbs={[{ label: 'Qard Hasan', path: '/loans' }]}
+      />
 
       <form onSubmit={handleSubmit}>
-        <Card className="p-3 sm:p-4">
+        <Card>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div>
               <div className="flex items-end gap-2">
@@ -108,6 +114,7 @@ export default function LoanCreate() {
                       label: `${member.name}${member.familyName ? ` - ${member.familyName}` : ''}`,
                     }))}
                     placeholder="Search members..."
+                    error={errors.applicantMemberId}
                     helperText="Leave blank for a non-member applicant"
                   />
                 </div>
@@ -126,7 +133,11 @@ export default function LoanCreate() {
             <Input
               label="Applicant name (non-member)"
               value={form.applicantName}
-              onChange={(e) => setForm({ ...form, applicantName: e.target.value })}
+              onChange={(e) => {
+                clearField('applicantName');
+                setForm({ ...form, applicantName: e.target.value });
+              }}
+              error={errors.applicantName}
               placeholder="Required when no member is selected"
             />
 
@@ -135,7 +146,11 @@ export default function LoanCreate() {
               type="number"
               min={0}
               value={form.amount}
-              onChange={(e) => setForm({ ...form, amount: e.target.value })}
+              onChange={(e) => {
+                clearField('amount');
+                setForm({ ...form, amount: e.target.value });
+              }}
+              error={errors.amount}
               placeholder="0"
               required
             />
@@ -145,7 +160,11 @@ export default function LoanCreate() {
               type="number"
               min={1}
               value={form.repaymentMonths}
-              onChange={(e) => setForm({ ...form, repaymentMonths: e.target.value })}
+              onChange={(e) => {
+                clearField('repaymentMonths');
+                setForm({ ...form, repaymentMonths: e.target.value });
+              }}
+              error={errors.repaymentMonths}
               helperText="The schedule is generated over this many months on disbursement"
               required
             />
@@ -161,7 +180,11 @@ export default function LoanCreate() {
             <Input
               label="Purpose details"
               value={form.purposeDetails}
-              onChange={(e) => setForm({ ...form, purposeDetails: e.target.value })}
+              onChange={(e) => {
+                clearField('purposeDetails');
+                setForm({ ...form, purposeDetails: e.target.value });
+              }}
+              error={errors.purposeDetails}
               placeholder="Optional"
             />
 
@@ -169,7 +192,11 @@ export default function LoanCreate() {
               <Input
                 label="Notes"
                 value={form.notes}
-                onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                onChange={(e) => {
+                  clearField('notes');
+                  setForm({ ...form, notes: e.target.value });
+                }}
+                error={errors.notes}
               />
             </div>
           </div>

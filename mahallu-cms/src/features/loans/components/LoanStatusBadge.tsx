@@ -1,7 +1,6 @@
 import { LoanStatus, InstallmentStatus, ReliefStatus, ReliefUrgency } from '@/services/qardService';
 
-const PILL =
-  'inline-block rounded-full px-2 py-0.5 text-xs font-medium capitalize whitespace-nowrap';
+const PILL = 'inline-block rounded-full px-2 py-0.5 text-xs font-medium capitalize whitespace-nowrap';
 
 const LOAN_COLORS: Record<LoanStatus, string> = {
   applied: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200',
@@ -39,27 +38,17 @@ const URGENCY_COLORS: Record<ReliefUrgency, string> = {
 const label = (value: string) => value.replace(/_/g, ' ');
 
 export default function LoanStatusBadge({ status }: { status: LoanStatus }) {
-  return (
-    <span className={`${PILL} ${LOAN_COLORS[status] || LOAN_COLORS.applied}`}>{label(status)}</span>
-  );
+  return <span className={`${PILL} ${LOAN_COLORS[status] || LOAN_COLORS.applied}`}>{label(status)}</span>;
 }
 
 export function InstallmentBadge({ status }: { status: InstallmentStatus }) {
-  return (
-    <span className={`${PILL} ${INSTALLMENT_COLORS[status] || INSTALLMENT_COLORS.due}`}>
-      {status}
-    </span>
-  );
+  return <span className={`${PILL} ${INSTALLMENT_COLORS[status] || INSTALLMENT_COLORS.due}`}>{status}</span>;
 }
 
 export function ReliefStatusBadge({ status }: { status: ReliefStatus }) {
-  return (
-    <span className={`${PILL} ${RELIEF_COLORS[status] || RELIEF_COLORS.reported}`}>{status}</span>
-  );
+  return <span className={`${PILL} ${RELIEF_COLORS[status] || RELIEF_COLORS.reported}`}>{status}</span>;
 }
 
 export function UrgencyBadge({ urgency }: { urgency: ReliefUrgency }) {
-  return (
-    <span className={`${PILL} ${URGENCY_COLORS[urgency] || URGENCY_COLORS.medium}`}>{urgency}</span>
-  );
+  return <span className={`${PILL} ${URGENCY_COLORS[urgency] || URGENCY_COLORS.medium}`}>{urgency}</span>;
 }

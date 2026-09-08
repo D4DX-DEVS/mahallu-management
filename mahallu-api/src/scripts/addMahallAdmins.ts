@@ -58,9 +58,7 @@ async function main() {
           subscription: { plan: 'standard', startDate: new Date(), isActive: true },
           settings: {
             varisangyaAmount: 100,
-            varisangyaGrades: [],
             educationOptions: [],
-            areaOptions: [],
             features: {},
           },
         });

@@ -1,14 +1,22 @@
-import api from './api';
+import api, { asList } from './api';
 import { User } from '@/types';
 
 export const userService = {
-  getAll: async (params?: { role?: string; status?: string; search?: string; page?: number; limit?: number }) => {
-    const response = await api.get<{ success: boolean; data: User[]; pagination?: any }>('/users', { params });
+  getAll: async (params?: {
+    role?: string;
+    status?: string;
+    search?: string;
+    page?: number;
+    limit?: number;
+  }) => {
+    const response = await api.get<{ success: boolean; data: User[]; pagination?: any }>('/users', {
+      params,
+    });
     // Handle both paginated and non-paginated responses
     if (response.data.pagination) {
-      return { data: response.data.data, pagination: response.data.pagination };
+      return { data: asList(response.data.data), pagination: response.data.pagination };
     }
-    return { data: response.data.data, pagination: null };
+    return { data: asList(response.data.data), pagination: null };
   },
 
   getById: async (id: string) => {
@@ -31,4 +39,3 @@ export const userService = {
     return response.data;
   },
 };
-

@@ -12,6 +12,7 @@ import {
   createNotificationValidation,
   markAsReadValidation,
 } from '../validations/notificationValidation';
+import { idParam, listQuery } from '../validations/common';
 
 const router = express.Router();
 
@@ -88,7 +89,7 @@ router.use(tenantFilter);
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  */
-router.get('/', getAllNotifications);
+router.get('/', listQuery(), validationHandler, getAllNotifications);
 
 /**
  * @swagger

@@ -1,12 +1,11 @@
 import { useState, useEffect } from 'react';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import Table from '@/components/ui/Table';
 import Modal from '@/components/ui/Modal';
-import SearchInput from '@/components/ui/SearchInput';
+import ExpandableSearch from '@/components/ui/ExpandableSearch';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import EmptyState from '@/components/ui/EmptyState';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
@@ -15,6 +14,8 @@ import { Pagination as PaginationType, TableColumn } from '@/types';
 import { facilityService, LocalityFacility } from '@/services/surveyService';
 import { useDebounce } from '@/hooks/useDebounce';
 import { toast } from '@/store/toastStore';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
 
 const TYPE_OPTIONS = [
   { value: 'school', label: 'School' },
@@ -72,7 +73,7 @@ export default function FacilitiesList() {
       setRows(result.data);
       setPagination(result.pagination);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to load facilities');
+      setError(loadErrorMessage(err, 'facilities'));
     } finally {
       setLoading(false);
     }
@@ -119,7 +120,7 @@ export default function FacilitiesList() {
       setFieldErrors({});
       fetchRows();
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to save facility');
+      toast.error(errorMessage(err, { action: 'save facility' }));
     } finally {
       setSaving(false);
     }
@@ -141,7 +142,7 @@ export default function FacilitiesList() {
       setDeletingName('');
       fetchRows();
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to delete facility');
+      toast.error(errorMessage(err, { action: 'delete facility' }));
     }
   };
 
@@ -172,31 +173,21 @@ export default function FacilitiesList() {
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">Locality Facilities</h1>
-          <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-            Schools, hospitals and institutions serving the Mahallu
-          </p>
-        </div>
-        <Breadcrumb
-          items={[
-            { label: 'Dashboard', path: '/dashboard' },
-            { label: 'Survey', path: '/survey' },
-            { label: 'Facilities' },
-          ]}
-        />
-      </div>
+      <PageHeader
+        title="Locality Facilities"
+        description="Schools, hospitals and institutions serving the Mahallu"
+        breadcrumbs={[{ label: 'Survey', path: '/survey' }]}
+      />
 
       <Card>
         <div className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto_auto] sm:items-center">
-          <SearchInput
+          <ExpandableSearch
             value={searchQuery}
-            onChange={(e) => {
-              setSearchQuery(e.target.value);
+            onChange={(value) => {
+              setSearchQuery(value);
               setCurrentPage(1);
             }}
-            placeholder="Search facilities..."
+            entity="facilities"
           />
           <Select
             options={[{ value: '', label: 'All types' }, ...TYPE_OPTIONS]}
@@ -269,7 +260,9 @@ export default function FacilitiesList() {
               }}
               required
             />
-            {fieldErrors.name && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{fieldErrors.name}</p>}
+            {fieldErrors.name && (
+              <p className="mt-1 text-sm text-red-600 dark:text-red-400">{fieldErrors.name}</p>
+            )}
           </div>
           <Input
             label="Name (Malayalam)"
@@ -322,6 +315,7 @@ export default function FacilitiesList() {
       </Modal>
 
       <ConfirmDialog
+        isLoading={saving}
         isOpen={isConfirmDeleteOpen}
         title="Delete Facility"
         message={`Delete the facility "${deletingName}"?`}

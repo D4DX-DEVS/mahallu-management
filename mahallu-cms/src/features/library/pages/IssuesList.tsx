@@ -9,6 +9,8 @@ import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { libraryService, BookIssue } from '@/services/libraryService';
 import { toast } from '@/store/toastStore';
 import { FiPlus, FiCheckCircle } from 'react-icons/fi';
+import { errorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
 
 export default function IssuesList() {
   const navigate = useNavigate();
@@ -35,7 +37,7 @@ export default function IssuesList() {
         setIssues(result.data);
         setPagination(result.pagination);
       } catch (error) {
-        console.error('Failed to fetch issues:', error);
+        console.error("Couldn't load issues:", error);
       } finally {
         setLoading(false);
       }
@@ -53,7 +55,7 @@ export default function IssuesList() {
       setConfirmReturn(false);
       setReturnId(null);
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to return book');
+      toast.error(errorMessage(error, { action: 'return book' }));
       setConfirmReturn(false);
       setReturnId(null);
     }
@@ -90,7 +92,9 @@ export default function IssuesList() {
       label: 'Member',
       render: (_: any, issue: BookIssue) => (
         <div className="text-sm">
-          {typeof issue.memberId === 'object' && issue.memberId && 'name' in issue.memberId ? (issue.memberId as any).name : 'N/A'}
+          {typeof issue.memberId === 'object' && issue.memberId && 'name' in issue.memberId
+            ? (issue.memberId as any).name
+            : 'N/A'}
         </div>
       ),
     },
@@ -119,7 +123,7 @@ export default function IssuesList() {
     {
       key: 'actions',
       label: 'Actions',
-      render: (_: any, issue: BookIssue) => (
+      render: (_: any, issue: BookIssue) =>
         issue.status !== 'returned' && (
           <Button
             size="sm"
@@ -131,15 +135,14 @@ export default function IssuesList() {
             <FiCheckCircle className="h-4 w-4 mr-1" />
             Return
           </Button>
-        )
-      ),
+        ),
     },
   ];
 
   return (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <h1 className="text-2xl font-bold">Book Issues</h1>
+        <PageHeader title="Book Issues" />
         <Button onClick={() => navigate('/library/issues/create')}>
           <FiPlus className="h-4 w-4 mr-2" />
           Issue Book
@@ -185,6 +188,7 @@ export default function IssuesList() {
       )}
 
       <ConfirmDialog
+        isLoading={loading}
         isOpen={confirmReturn}
         title="Return Book"
         message="Mark this book as returned?"

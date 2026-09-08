@@ -3,6 +3,10 @@ import { memberPortalService, Certificate } from '@/services/memberPortalService
 import Card from '@/components/ui/Card';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import Pagination from '@/components/ui/Pagination';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
+import SortableTh from '@/components/ui/SortableTh';
+import { useSortableRows } from '@/hooks/useSortableRows';
 
 export default function MemberCertificates() {
   const [certificates, setCertificates] = useState<Certificate[]>([]);
@@ -26,7 +30,7 @@ export default function MemberCertificates() {
         setTotalItems(total);
         setTotalPages(Math.ceil(total / limit));
       } catch (err: any) {
-        setError(err.response?.data?.message || 'Failed to load certificates');
+        setError(loadErrorMessage(err, 'certificates'));
       } finally {
         setLoading(false);
       }
@@ -41,22 +45,25 @@ export default function MemberCertificates() {
       const urlData = await memberPortalService.getCertificateUrl(cert.id);
       window.open(urlData.url, '_blank');
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to download certificate');
+      setError(errorMessage(err, { action: 'download certificate' }));
     } finally {
       setDownloading(null);
     }
   };
 
+  const {
+    rows: sortedCertificates,
+    sort,
+    toggleSort,
+  } = useSortableRows(certificates);
+
   if (loading) {
-    return (
-      <PageSkeleton />
-    );
+    return <PageSkeleton />;
   }
 
   return (
     <div className="space-y-6 max-w-4xl w-full mx-auto">
-      <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">My Certificates</h1>
-
+      <PageHeader title="My Certificates" />
       {error && (
         <Card>
           <p className="text-red-600 dark:text-red-400 text-sm">{error}</p>
@@ -79,15 +86,23 @@ export default function MemberCertificates() {
               <table className="min-w-full text-sm">
                 <thead>
                   <tr className="text-left border-b border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-400">
-                    <th className="py-2 pr-4">Certificate Number</th>
-                    <th className="py-2 pr-4">Type</th>
-                    <th className="py-2 pr-4">Issue Date</th>
-                    <th className="py-2 pr-4">Status</th>
-                    <th className="py-2">Action</th>
+                    <SortableTh sortKey="certificateNo" sort={sort} onSort={toggleSort} className="py-2 pr-4">
+                      Certificate Number
+                    </SortableTh>
+                    <SortableTh sortKey="type" sort={sort} onSort={toggleSort} className="py-2 pr-4">
+                      Type
+                    </SortableTh>
+                    <SortableTh sortKey="issueDate" sort={sort} onSort={toggleSort} className="py-2 pr-4">
+                      Issue Date
+                    </SortableTh>
+                    <SortableTh sortKey="status" sort={sort} onSort={toggleSort} className="py-2 pr-4">
+                      Status
+                    </SortableTh>
+                    <th className="py-2 text-label font-semibold text-muted-foreground">Action</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {certificates.map((cert, index) => (
+                  {sortedCertificates.map((cert, index) => (
                     <tr
                       key={cert.id || index}
                       className="border-b border-gray-100 dark:border-gray-900 text-gray-900 dark:text-gray-100"

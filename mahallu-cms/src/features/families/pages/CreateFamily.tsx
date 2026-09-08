@@ -4,7 +4,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useNavigate } from 'react-router-dom';
 import { FiSave, FiX } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -17,30 +16,32 @@ import WelfareSection from '../components/WelfareSection';
 import { tenantService } from '@/services/tenantService';
 import { useAuthStore } from '@/store/authStore';
 import { getTenantId } from '@/utils/tenantHelper';
+import { errorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
 
 const familySchema = z.object({
-  varisangyaGrade: z.string().optional(),
-  houseName: z.string().min(1, 'House Name is required'),
-  houseNameMl: z.string().optional(),
-  familyHead: z.string().optional(),
-  familyHeadMl: z.string().optional(),
-  contactNo: z.string().optional().refine(
-    (val) => !val || /^\d{10}$/.test(val),
-    { message: 'Contact number must be exactly 10 digits' }
-  ),
-  wardNumber: z.string().optional().refine(
-    (val) => !val || /^\d+$/.test(val),
-    { message: 'Ward number must contain only digits' }
-  ),
-  houseNo: z.string().optional(),
-  area: z.string().optional(),
-  areaMl: z.string().optional(),
-  place: z.string().optional(),
-  placeMl: z.string().optional(),
+  varisangyaGrade: z.string().max(200, 'Please keep the varisangya grade to 200 characters or less.').optional(),
+  houseName: z.string().max(200, 'Please keep the house name to 200 characters or less.').min(1, 'House Name is required'),
+  houseNameMl: z.string().max(200, 'Please keep the house name to 200 characters or less.').optional(),
+  familyHead: z.string().max(200, 'Please keep the family head to 200 characters or less.').optional(),
+  familyHeadMl: z.string().max(200, 'Please keep the family head to 200 characters or less.').optional(),
+  contactNo: z
+    .string()
+    .optional()
+    .refine((val) => !val || /^\d{10}$/.test(val), { message: 'Contact number must be exactly 10 digits' }),
+  wardNumber: z
+    .string()
+    .optional()
+    .refine((val) => !val || /^\d+$/.test(val), { message: 'Ward number must contain only digits' }),
+  houseNo: z.string().max(200, 'Please keep the house no to 200 characters or less.').optional(),
+  area: z.string().max(200, 'Please keep the area to 200 characters or less.').optional(),
+  areaMl: z.string().max(200, 'Please keep the area to 200 characters or less.').optional(),
+  place: z.string().max(300, 'Please keep the place to 300 characters or less.').optional(),
+  placeMl: z.string().max(300, 'Please keep the place to 300 characters or less.').optional(),
   economicStatus: z.enum(['stable', 'struggling', 'needs_assistance']).optional().or(z.literal('')),
   welfareStatus: z.enum(['none', 'receiving', 'applied', 'needs_review']).optional().or(z.literal('')),
   housingType: z.enum(['own', 'rented', 'shared', 'none']).optional().or(z.literal('')),
-  specialRequirements: z.string().optional(),
+  specialRequirements: z.string().max(200, 'Please keep the special requirements to 200 characters or less.').optional(),
 });
 
 type FamilyFormData = z.infer<typeof familySchema>;
@@ -91,43 +92,31 @@ export default function CreateFamily() {
       await familyService.create(cleanedData);
       navigate(ROUTES.FAMILIES.LIST);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to create family. Please try again.');
+      setError(errorMessage(err, { action: 'create family. please try again' }));
       console.error('Error creating family:', err);
     }
   };
 
   const gradeOptions = [
     { value: '', label: 'Select grade...' },
-    ...grades.map(grade => ({
+    ...grades.map((grade) => ({
       value: grade.name,
-      label: `${grade.name} - ₹${grade.amount}`
-    }))
+      label: `${grade.name} - ₹${grade.amount}`,
+    })),
   ];
 
   const areaSelectOptions = [
     { value: '', label: 'Select an area...' },
-    ...areaOptions.map(area => ({ value: area, label: area }))
+    ...areaOptions.map((area) => ({ value: area, label: area })),
   ];
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-            Create Family
-          </h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            Add a new family with complete information
-          </p>
-        </div>
-        <Breadcrumb
-          items={[
-            { label: 'Dashboard', path: '/dashboard' },
-            { label: 'Families', path: ROUTES.FAMILIES.LIST },
-            { label: 'Create' },
-          ]}
-        />
-      </div>
+      <PageHeader
+        title="Create Family"
+        description="Add a new family with complete information"
+        breadcrumbs={[{ label: 'Families', path: ROUTES.FAMILIES.LIST }]}
+      />
 
       <Card padding="lg">
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
@@ -154,25 +143,23 @@ export default function CreateFamily() {
               placeholder="House Name"
             />
             <div className="hidden">
-            <Input
-              label="House Name (Malayalam)"
-              {...register('houseNameMl')}
-              placeholder="വീട് പേര്"              className="font-malayalam"            />
+              <Input
+                label="House Name (Malayalam)"
+                {...register('houseNameMl')}
+                placeholder="വീട് പേര്"
+                className="font-malayalam"
+              />
             </div>
             <div className="hidden">
-            <Input
-              label="Family Head"
-              {...register('familyHead')}
-              placeholder="Family Head Name"
-            />
+              <Input label="Family Head" {...register('familyHead')} placeholder="Family Head Name" />
             </div>
             <div className="hidden">
-            <Input
-              label="Family Head (Malayalam)"
-              {...register('familyHeadMl')}
-              placeholder="കുടുംബ നാഥൻ"
-              className="font-malayalam"
-            />
+              <Input
+                label="Family Head (Malayalam)"
+                {...register('familyHeadMl')}
+                placeholder="കുടുംബ നാഥൻ"
+                className="font-malayalam"
+              />
             </div>
             <Input
               label="Contact No."
@@ -190,11 +177,7 @@ export default function CreateFamily() {
               type="number"
               min={1}
             />
-            <Input
-              label="House No."
-              {...register('houseNo')}
-              placeholder="House No."
-            />
+            <Input label="House No." {...register('houseNo')} placeholder="House No." />
             <Select
               label="Area"
               options={areaSelectOptions}
@@ -204,25 +187,21 @@ export default function CreateFamily() {
               {...register('area')}
             />
             <div className="hidden">
-            <Input
-              label="Area (Malayalam)"
-              {...register('areaMl')}
-              placeholder="പ്രദേശം"
-              className="font-malayalam"
-            />
+              <Input
+                label="Area (Malayalam)"
+                {...register('areaMl')}
+                placeholder="പ്രദേശം"
+                className="font-malayalam"
+              />
             </div>
-            <Input
-              label="Place"
-              {...register('place')}
-              placeholder="Place"
-            />
+            <Input label="Place" {...register('place')} placeholder="Place" />
             <div className="hidden">
-            <Input
-              label="Place (Malayalam)"
-              {...register('placeMl')}
-              placeholder="സ്ഥലം"
-              className="font-malayalam"
-            />
+              <Input
+                label="Place (Malayalam)"
+                {...register('placeMl')}
+                placeholder="സ്ഥലം"
+                className="font-malayalam"
+              />
             </div>
           </div>
 
@@ -230,12 +209,8 @@ export default function CreateFamily() {
             <WelfareSection register={register} />
           </div>
 
-          <div className="flex justify-end gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => navigate(ROUTES.FAMILIES.LIST)}
-            >
+          <div className="flex gap-2 flex-col-reverse sm:flex-row sm:justify-end sm:gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+            <Button type="button" variant="outline" onClick={() => navigate(ROUTES.FAMILIES.LIST)}>
               <FiX className="h-4 w-4 mr-2" />
               Cancel
             </Button>
@@ -275,4 +250,3 @@ export default function CreateFamily() {
     </div>
   );
 }
-

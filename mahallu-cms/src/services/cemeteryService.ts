@@ -41,12 +41,7 @@ export interface PaginationMeta {
 
 export const cemeteryService = {
   // Get all cemeteries
-  getAllCemeteries: async (
-    page: number = 1,
-    limit: number = 10,
-    search?: string,
-    status?: string
-  ) => {
+  getAllCemeteries: async (page: number = 1, limit: number = 10, search?: string, status?: string) => {
     const params = { page, limit };
     if (search) (params as any).search = search;
     if (status) (params as any).status = status;
@@ -79,12 +74,7 @@ export const cemeteryService = {
   },
 
   // Get graves in a cemetery
-  getCemeteryGraves: async (
-    cemeteryId: string,
-    page: number = 1,
-    limit: number = 10,
-    search?: string
-  ) => {
+  getCemeteryGraves: async (cemeteryId: string, page: number = 1, limit: number = 10, search?: string) => {
     const params = { page, limit };
     if (search) (params as any).search = search;
     const response = await api.get(`/cemeteries/${cemeteryId}/graves`, { params });
@@ -94,12 +84,7 @@ export const cemeteryService = {
   // ==================== GRAVE RECORDS ENDPOINTS ====================
 
   // Get all grave records
-  getAllGraveRecords: async (
-    page: number = 1,
-    limit: number = 10,
-    cemeteryId?: string,
-    search?: string
-  ) => {
+  getAllGraveRecords: async (page: number = 1, limit: number = 10, cemeteryId?: string, search?: string) => {
     const params = { page, limit };
     if (cemeteryId) (params as any).cemeteryId = cemeteryId;
     if (search) (params as any).search = search;

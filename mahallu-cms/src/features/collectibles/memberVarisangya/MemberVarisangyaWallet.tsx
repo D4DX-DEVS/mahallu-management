@@ -15,6 +15,7 @@ import { ROUTES } from '@/constants/routes';
 import { exportToCSV, exportToJSON } from '@/utils/exportUtils';
 import { exportInvoicesToPdf, InvoiceDetails } from '@/utils/invoiceUtils';
 import { toast } from '@/store/toastStore';
+import { loadErrorMessage } from '@/utils/errors';
 
 const MEMBER_BASE = ROUTES.COLLECTIBLES.MEMBER_VARISANGYA.BASE;
 
@@ -58,7 +59,7 @@ export default function MemberVarisangyaWallet() {
         setWallets(walletsData.sort((a, b) => (b.balance || 0) - (a.balance || 0)));
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch wallets');
+      setError(loadErrorMessage(err, 'wallets'));
       console.error('Error fetching wallets:', err);
     } finally {
       setLoading(false);
@@ -103,14 +104,13 @@ export default function MemberVarisangyaWallet() {
       }
     } catch (error: any) {
       console.error('Export error:', error);
-      toast.error(error?.message || 'Failed to export wallet data');
+      toast.error(error?.message || "Couldn't export wallet data");
     } finally {
       setIsExporting(false);
     }
   };
 
   const columns: TableColumn<Wallet & { member?: any }>[] = [
-    { key: 'id', label: 'No.', render: (_, __, index) => index + 1 },
     {
       key: 'member',
       label: 'Member',
@@ -122,7 +122,9 @@ export default function MemberVarisangyaWallet() {
           >
             {member.name}
           </Link>
-        ) : '-',
+        ) : (
+          '-'
+        ),
     },
     {
       key: 'balance',
@@ -158,7 +160,11 @@ export default function MemberVarisangyaWallet() {
   const stats = [
     { title: 'Total Wallets', value: wallets.length, icon: <FiCreditCard className="h-5 w-5" /> },
     { title: 'Active Wallets', value: activeWallets, icon: <FiCheckCircle className="h-5 w-5" /> },
-    { title: 'Total Balance', value: `₹${totalBalance.toLocaleString()}`, icon: <FiDollarSign className="h-5 w-5" /> },
+    {
+      title: 'Total Balance',
+      value: `₹${totalBalance.toLocaleString()}`,
+      icon: <FiDollarSign className="h-5 w-5" />,
+    },
   ];
 
   return (
@@ -168,11 +174,9 @@ export default function MemberVarisangyaWallet() {
           Member Varisangya Wallets
           {wallets[0]?.member && ` - ${wallets[0].member.name}`}
         </h2>
-        <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
-          View wallet balances for members
-        </p>
+        <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">View wallet balances for members</p>
       </div>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         {stats.map((stat, index) => (
           <StatCard key={index} {...stat} />
         ))}

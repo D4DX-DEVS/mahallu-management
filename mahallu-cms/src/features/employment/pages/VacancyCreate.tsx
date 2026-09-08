@@ -3,6 +3,22 @@ import { useNavigate } from 'react-router-dom';
 import { employmentService } from '@/services/employmentService';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
+import { errorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
+import { useFormValidation } from '@/hooks/useFormValidation';
+import { FieldRule, LIMITS, firstError, validateForm } from '@/utils/validation';
+
+/**
+ * The same limits the API applies, so a form that passes here is not
+ * refused there. Required matches what each input already declares.
+ */
+const RULES: Record<string, FieldRule> = {
+  title: { label: 'title', required: true, maxLength: LIMITS.title.max },
+  employerName: { label: 'employer name', maxLength: LIMITS.title.max },
+  location: { label: 'location', maxLength: LIMITS.shortText.max },
+  salaryRange: { label: 'salary range', maxLength: LIMITS.shortText.max },
+  description: { label: 'description', maxLength: LIMITS.description.max },
+};
 
 export default function VacancyCreate() {
   const navigate = useNavigate();
@@ -16,6 +32,7 @@ export default function VacancyCreate() {
     skillsRequired: '',
     description: '',
   });
+  const { errors, setErrors } = useFormValidation(RULES);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -24,6 +41,14 @@ export default function VacancyCreate() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    // Every field checked at once. Fields rendered with this app's
+    // inputs mark themselves; the rest report through the banner.
+    const problems = validateForm(formData, RULES);
+    if (Object.keys(problems).length > 0) {
+      setErrors(problems);
+      setError(firstError(problems));
+      return;
+    }
     setLoading(true);
     setError('');
 
@@ -43,7 +68,7 @@ export default function VacancyCreate() {
 
       navigate('/employment/vacancies');
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to create vacancy');
+      setError(errorMessage(err, { action: 'create vacancy' }));
     } finally {
       setLoading(false);
     }
@@ -52,20 +77,26 @@ export default function VacancyCreate() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <button onClick={() => navigate('/employment/vacancies')} className="p-2 hover:bg-gray-100 rounded text-lg">
+        <button
+          onClick={() => navigate('/employment/vacancies')}
+          className="p-2 hover:bg-gray-100 rounded text-lg"
+        >
           ←
         </button>
-        <h1 className="text-2xl font-bold text-gray-900">Post New Job Vacancy</h1>
+        <PageHeader title="Post New Job Vacancy" />
       </div>
 
       <Card>
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          {error && <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">{error}</div>}
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">{error}</div>
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm font-medium text-gray-900 mb-2">Job Title *</label>
               <input
+                aria-label="Job Title"
                 type="text"
                 name="title"
                 value={formData.title}
@@ -79,6 +110,7 @@ export default function VacancyCreate() {
             <div>
               <label className="block text-sm font-medium text-gray-900 mb-2">Employer Name</label>
               <input
+                aria-label="Employer Name"
                 type="text"
                 name="employerName"
                 value={formData.employerName}
@@ -91,6 +123,7 @@ export default function VacancyCreate() {
             <div>
               <label className="block text-sm font-medium text-gray-900 mb-2">Location</label>
               <input
+                aria-label="Location"
                 type="text"
                 name="location"
                 value={formData.location}
@@ -103,6 +136,7 @@ export default function VacancyCreate() {
             <div>
               <label className="block text-sm font-medium text-gray-900 mb-2">Salary Range</label>
               <input
+                aria-label="Salary Range"
                 type="text"
                 name="salaryRange"
                 value={formData.salaryRange}
@@ -116,6 +150,7 @@ export default function VacancyCreate() {
           <div>
             <label className="block text-sm font-medium text-gray-900 mb-2">Required Skills</label>
             <input
+              aria-label="Required Skills"
               type="text"
               name="skillsRequired"
               value={formData.skillsRequired}
@@ -129,6 +164,7 @@ export default function VacancyCreate() {
           <div>
             <label className="block text-sm font-medium text-gray-900 mb-2">Job Description</label>
             <textarea
+              aria-label="Job Description"
               name="description"
               value={formData.description}
               onChange={handleChange}
@@ -138,7 +174,7 @@ export default function VacancyCreate() {
             />
           </div>
 
-          <div className="flex gap-3 justify-end">
+          <div className="flex gap-2 flex-col-reverse sm:flex-row sm:justify-end sm:gap-3">
             <Button
               type="button"
               onClick={() => navigate('/employment/vacancies')}

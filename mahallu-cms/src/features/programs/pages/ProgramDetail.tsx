@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { FiEdit2, FiArrowLeft } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import { PageSkeleton } from '@/components/ui/Skeleton';
@@ -10,6 +9,8 @@ import { ROUTES } from '@/constants/routes';
 import { programService } from '@/services/programService';
 import { formatDate } from '@/utils/format';
 import ProgramRegistrations from '../components/ProgramRegistrations';
+import { loadErrorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
 
 export default function ProgramDetail() {
   const { id } = useParams<{ id: string }>();
@@ -31,7 +32,7 @@ export default function ProgramDetail() {
       const data = await programService.getById(id);
       setProgram(data);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch program');
+      setError(loadErrorMessage(err, 'program'));
       console.error('Error fetching program:', err);
     } finally {
       setLoading(false);
@@ -39,9 +40,7 @@ export default function ProgramDetail() {
   };
 
   if (loading) {
-    return (
-      <PageSkeleton />
-    );
+    return <PageSkeleton />;
   }
 
   if (error || !program) {
@@ -57,20 +56,14 @@ export default function ProgramDetail() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{program.name}</h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Program Details</p>
-        </div>
-        <div className="flex items-center gap-4">
-          <Breadcrumb
-            items={[
-              { label: 'Dashboard', path: '/dashboard' },
-              { label: 'Programs', path: ROUTES.PROGRAMS.LIST },
-              { label: program.name },
-            ]}
+      <div className="flex flex-wrap gap-2 items-center justify-between">
+        <div className="flex flex-wrap items-center gap-4">
+          <PageHeader
+            description="Program Details"
+            title={program.name}
+            breadcrumbs={[{ label: 'Programs', path: ROUTES.PROGRAMS.LIST }]}
           />
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Link to={ROUTES.PROGRAMS.LIST}>
               <Button variant="outline">
                 <FiArrowLeft className="h-4 w-4 mr-2" />
@@ -151,17 +144,23 @@ export default function ProgramDetail() {
             <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">Event</h2>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
               <div>
-                <label className="text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400">Event Date</label>
+                <label className="text-label sm:text-sm font-medium text-gray-500 dark:text-gray-400">
+                  Event Date
+                </label>
                 <p className="mt-1 text-gray-900 dark:text-gray-100">
                   {program.eventDate ? formatDate(program.eventDate) : '—'}
                 </p>
               </div>
               <div>
-                <label className="text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400">Awards</label>
+                <label className="text-label sm:text-sm font-medium text-gray-500 dark:text-gray-400">
+                  Awards
+                </label>
                 <p className="mt-1 text-gray-900 dark:text-gray-100">{program.awards || '—'}</p>
               </div>
               <div className="col-span-2 md:col-span-1">
-                <label className="text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400">Competitions</label>
+                <label className="text-label sm:text-sm font-medium text-gray-500 dark:text-gray-400">
+                  Competitions
+                </label>
                 <p className="mt-1 text-gray-900 dark:text-gray-100">
                   {program.competitions?.length
                     ? program.competitions
@@ -181,4 +180,3 @@ export default function ProgramDetail() {
     </div>
   );
 }
-

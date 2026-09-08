@@ -4,7 +4,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useNavigate } from 'react-router-dom';
 import { FiSave, FiUpload, FiX } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -12,11 +11,16 @@ import Select from '@/components/ui/Select';
 import { ROUTES } from '@/constants/routes';
 import { socialService } from '@/services/socialService';
 import { useAuthStore } from '@/store/authStore';
+import PageHeader from '@/components/layout/PageHeader';
+import { safeApiMessage } from '@/utils/errors';
 
 const feedSchema = z.object({
-  title: z.string().min(2, 'Title must be between 2 and 200 characters').max(200, 'Title must be between 2 and 200 characters'),
-  content: z.string().min(1, 'Content is required'),
-  image: z.string().optional(),
+  title: z
+    .string()
+    .min(2, 'Title must be between 2 and 200 characters')
+    .max(200, 'Title must be between 2 and 200 characters'),
+  content: z.string().max(3000, 'Please keep the content to 3000 characters or less.').min(1, 'Content is required'),
+  image: z.string().max(200, 'Please keep the image to 200 characters or less.').optional(),
   isSuperFeed: z.enum(['true', 'false']),
   status: z.enum(['draft', 'published', 'archived']),
 });
@@ -132,8 +136,8 @@ export default function CreateFeed() {
       await socialService.createFeed(feedData);
       navigate(ROUTES.SOCIAL.FEEDS);
     } catch (err: unknown) {
-      const apiMessage = (err as any)?.response?.data?.message;
-      setError(apiMessage || 'Failed to create feed. Please try again.');
+      const apiMessage = safeApiMessage(err, '');
+      setError(apiMessage || "Couldn't create feed. Please try again.");
     } finally {
       setIsUploadingImage(false);
     }
@@ -141,19 +145,11 @@ export default function CreateFeed() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Create Feed</h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Post a new feed update</p>
-        </div>
-        <Breadcrumb
-          items={[
-            { label: 'Dashboard', path: '/dashboard' },
-            { label: 'Feeds', path: ROUTES.SOCIAL.FEEDS },
-            { label: 'Create' },
-          ]}
-        />
-      </div>
+      <PageHeader
+        title="Create Feed"
+        description="Post a new feed update"
+        breadcrumbs={[{ label: 'Feeds', path: ROUTES.SOCIAL.FEEDS }]}
+      />
 
       <form onSubmit={handleSubmit(onSubmit)}>
         <Card className="space-y-6">
@@ -178,6 +174,7 @@ export default function CreateFeed() {
                 Content <span className="text-red-500">*</span>
               </label>
               <textarea
+                aria-label="Content"
                 {...register('content')}
                 placeholder="Write the feed content..."
                 rows={6}
@@ -220,9 +217,12 @@ export default function CreateFeed() {
               ) : (
                 <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:border-primary-400 dark:hover:border-primary-500 transition-colors bg-gray-50 dark:bg-gray-800/50">
                   <FiUpload className="h-8 w-8 text-gray-400 mb-2" />
-                  <span className="text-sm text-gray-500 dark:text-gray-400">Click to choose image from your computer</span>
+                  <span className="text-sm text-gray-500 dark:text-gray-400">
+                    Click to choose image from your computer
+                  </span>
                   <span className="text-xs text-gray-400 mt-1">JPEG, PNG, WebP or GIF · max 5 MB</span>
                   <input
+                    aria-label="Choose a file"
                     ref={fileInputRef}
                     type="file"
                     accept="image/jpeg,image/png,image/webp,image/gif"
@@ -233,7 +233,9 @@ export default function CreateFeed() {
               )}
 
               {imageUrl && !imageFile && (
-                <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">Using image URL from the field above.</p>
+                <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                  Using image URL from the field above.
+                </p>
               )}
             </div>
 
@@ -256,7 +258,7 @@ export default function CreateFeed() {
             />
           </div>
 
-          <div className="flex justify-end gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+          <div className="flex gap-2 flex-col-reverse sm:flex-row sm:justify-end sm:gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
             <Button type="button" variant="outline" onClick={() => navigate(ROUTES.SOCIAL.FEEDS)}>
               <FiX className="h-4 w-4 mr-2" />
               Cancel

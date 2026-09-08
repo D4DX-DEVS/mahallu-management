@@ -1,4 +1,4 @@
-import api from './api';
+import api, { asList } from './api';
 
 export type ClassType = 'weekend_madrasa' | 'tuition' | 'adult_quran' | 'remedial' | 'other';
 export type EnrollmentStatus = 'active' | 'completed' | 'dropped';
@@ -86,21 +86,16 @@ export const madrasaService = {
       '/madrasa/classes',
       { params }
     );
-    return { data: response.data.data, pagination: response.data.pagination || null };
+    return { data: asList(response.data.data), pagination: response.data.pagination || null };
   },
 
   getClass: async (id: string) => {
-    const response = await api.get<{ success: boolean; data: MadrasaClass }>(
-      `/madrasa/classes/${id}`
-    );
+    const response = await api.get<{ success: boolean; data: MadrasaClass }>(`/madrasa/classes/${id}`);
     return response.data.data;
   },
 
   createClass: async (payload: Record<string, any>) => {
-    const response = await api.post<{ success: boolean; data: MadrasaClass }>(
-      '/madrasa/classes',
-      payload
-    );
+    const response = await api.post<{ success: boolean; data: MadrasaClass }>('/madrasa/classes', payload);
     return response.data.data;
   },
 
@@ -122,7 +117,7 @@ export const madrasaService = {
       data: StudentEnrollment[];
       pagination?: any;
     }>(`/madrasa/classes/${id}/students`, { params });
-    return { data: response.data.data, pagination: response.data.pagination || null };
+    return { data: asList(response.data.data), pagination: response.data.pagination || null };
   },
 
   createEnrollment: async (payload: Record<string, any>) => {

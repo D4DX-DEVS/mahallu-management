@@ -9,7 +9,9 @@
     "start": "node dist/index.js",
     "dev": "ts-node src/index.ts",
     "create-test-user": "ts-node src/scripts/createTestUser.ts",
-    "migrate-multi-mosque": "ts-node src/scripts/migrateMultiMosque.ts"
+    "migrate-multi-mosque": "ts-node src/scripts/migrateMultiMosque.ts",
+    "seed-categories": "ts-node src/scripts/seedCategories.ts",
+    "cleanup-health-status": "ts-node src/scripts/cleanupHealthStatus.ts"
   },
   "keywords": [],
   "author": "",

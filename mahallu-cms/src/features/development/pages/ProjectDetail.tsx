@@ -5,6 +5,8 @@ import Card from '@/components/ui/Card';
 import Pagination from '@/components/ui/Pagination';
 import { toast } from '@/store/toastStore';
 import { developmentService, DevelopmentProject, ProjectExpenditure } from '@/services/developmentService';
+import PageHeader from '@/components/layout/PageHeader';
+import { errorMessage } from '@/utils/errors';
 
 const PROJECT_AREAS: Record<string, string> = {
   roads: 'Roads',
@@ -48,7 +50,7 @@ export default function ProjectDetail() {
       });
       setExpenditure(expenditureData);
     } catch (error) {
-      console.error('Failed to load project:', error);
+      console.error("Couldn't load project:", error);
     } finally {
       setLoading(false);
     }
@@ -66,8 +68,8 @@ export default function ProjectDetail() {
       setProject((prev) => (prev ? { ...prev, progressPercent, status: status as any } : null));
       toast.success('Project progress updated');
     } catch (error) {
-      console.error('Failed to update project:', error);
-      toast.error((error as any).response?.data?.message || 'Failed to update project progress');
+      console.error("Couldn't update project:", error);
+      toast.error(errorMessage(error, { action: 'update project progress' }));
     } finally {
       setUpdating(false);
     }
@@ -79,10 +81,10 @@ export default function ProjectDetail() {
   const areaLabel = PROJECT_AREAS[project.area] || project.area;
 
   return (
-    <div className="p-4">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">{project.name}</h1>
-        <div className="flex gap-2">
+    <div>
+      <div className="flex flex-wrap gap-2 justify-between items-center mb-6">
+        <PageHeader title={project.name} />
+        <div className="flex flex-wrap gap-2">
           <Button onClick={() => navigate(`/development/${id}/edit`)}>Edit</Button>
           <Button variant="secondary" onClick={() => navigate('/development')}>
             Back
@@ -92,7 +94,7 @@ export default function ProjectDetail() {
 
       {/* Project Info Card */}
       <Card className="mb-6">
-        <div className="p-4">
+        <div>
           <h2 className="font-semibold mb-4">Project Information</h2>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
             <div>
@@ -143,13 +145,14 @@ export default function ProjectDetail() {
 
       {/* Progress Update Form */}
       <Card className="mb-6">
-        <div className="p-4">
+        <div>
           <h2 className="font-semibold mb-4">Update Progress</h2>
           <form onSubmit={handleUpdate} className="space-y-4">
             <div>
               <label className="block text-sm font-medium mb-2">Progress Percent</label>
               <div className="flex items-center gap-4">
                 <input
+                  aria-label="Progress Percent"
                   type="range"
                   min="0"
                   max="100"
@@ -170,6 +173,7 @@ export default function ProjectDetail() {
             <div>
               <label className="block text-sm font-medium mb-1">Status</label>
               <select
+                aria-label="Status"
                 value={status}
                 onChange={(e) => setStatus(e.target.value)}
                 className="w-full px-3 py-2 border rounded"
@@ -191,7 +195,7 @@ export default function ProjectDetail() {
 
       {/* Expenditure Section */}
       <Card>
-        <div className="p-4">
+        <div>
           <h2 className="font-semibold mb-4">Project Expenditure</h2>
           {expenditure ? (
             <>
@@ -201,7 +205,9 @@ export default function ProjectDetail() {
               </div>
 
               {expenditure.items.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">No expenditure items linked to this project</div>
+                <div className="text-center py-8 text-gray-500">
+                  No expenditure items linked to this project
+                </div>
               ) : (
                 <>
                   <div className="overflow-x-auto">

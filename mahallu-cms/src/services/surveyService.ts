@@ -1,4 +1,4 @@
-import api from './api';
+import api, { asList } from './api';
 
 export interface SurveyStats {
   totalHouseholds: number;
@@ -46,7 +46,7 @@ export const surveyService = {
       '/surveys',
       { params }
     );
-    return { data: response.data.data, pagination: response.data.pagination || null };
+    return { data: asList(response.data.data), pagination: response.data.pagination || null };
   },
 
   getById: async (id: string) => {
@@ -82,7 +82,7 @@ export const facilityService = {
       '/locality-facilities',
       { params }
     );
-    return { data: response.data.data, pagination: response.data.pagination || null };
+    return { data: asList(response.data.data), pagination: response.data.pagination || null };
   },
 
   create: async (payload: Partial<LocalityFacility>) => {

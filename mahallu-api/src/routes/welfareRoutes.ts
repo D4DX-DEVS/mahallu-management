@@ -15,6 +15,13 @@ import {
 } from '../controllers/welfareController';
 import { authMiddleware, allowRoles } from '../middleware/authMiddleware';
 import { tenantMiddleware, tenantFilter } from '../middleware/tenantMiddleware';
+import { validationHandler } from '../middleware/validationHandler';
+import { validCategoryValue } from '../validations/categoryValueValidation';
+import { idParam, listQuery } from '../validations/common';
+import {
+  createWelfareApplicationValidation,
+  updateWelfareApplicationValidation,
+} from '../validations/moduleValidation';
 
 const router = express.Router();
 
@@ -55,7 +62,7 @@ router.use(tenantFilter);
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  */
-router.get('/schemes', getAllSchemes);
+router.get('/schemes', listQuery(), validationHandler, getAllSchemes);
 
 /**
  * @swagger
@@ -69,7 +76,7 @@ router.get('/schemes', getAllSchemes);
  *       200:
  *         description: Summary card data
  */
-router.get('/summary', getWelfareSummary);
+router.get('/summary', listQuery(), validationHandler, getWelfareSummary);
 
 /**
  * @swagger
@@ -103,7 +110,7 @@ router.get('/summary', getWelfareSummary);
  *       200:
  *         description: Application list
  */
-router.get('/applications', getAllApplications);
+router.get('/applications', listQuery(), validationHandler, getAllApplications);
 
 /**
  * @swagger
@@ -125,7 +132,7 @@ router.get('/applications', getAllApplications);
  *       404:
  *         $ref: '#/components/responses/NotFound'
  */
-router.get('/applications/:id', getApplicationById);
+router.get('/applications/:id', idParam('id', 'record'), validationHandler, getApplicationById);
 
 /**
  * @swagger
@@ -145,7 +152,7 @@ router.get('/applications/:id', getApplicationById);
  *       200:
  *         description: Scheme
  */
-router.get('/schemes/:id', getSchemeById);
+router.get('/schemes/:id', idParam('id', 'record'), validationHandler, getSchemeById);
 
 /**
  * @swagger
@@ -179,7 +186,13 @@ router.get('/schemes/:id', getSchemeById);
  *       403:
  *         description: Role not allowed
  */
-router.post('/schemes', allowRoles(['mahall']), createScheme);
+router.post(
+  '/schemes',
+  allowRoles(['mahall']),
+  validCategoryValue('welfare_category', 'category'),
+  validationHandler,
+  createScheme
+);
 
 /**
  * @swagger
@@ -240,8 +253,14 @@ router.post('/schemes', allowRoles(['mahall']), createScheme);
  *       404:
  *         description: Scheme not found
  */
-router.put('/schemes/:id', allowRoles(['mahall']), updateScheme);
-router.delete('/schemes/:id', allowRoles(['mahall']), deleteScheme);
+router.put(
+  '/schemes/:id', idParam('id', 'record'),
+  allowRoles(['mahall']),
+  validCategoryValue('welfare_category', 'category'),
+  validationHandler,
+  updateScheme
+);
+router.delete('/schemes/:id', idParam('id', 'record'), validationHandler, allowRoles(['mahall']), deleteScheme);
 
 /**
  * @swagger
@@ -279,7 +298,7 @@ router.delete('/schemes/:id', allowRoles(['mahall']), deleteScheme);
  *       201:
  *         description: Created
  */
-router.post('/applications', allowRoles(['mahall', 'survey']), createApplication);
+router.post('/applications', createWelfareApplicationValidation, validationHandler, allowRoles(['mahall', 'survey']), createApplication);
 
 /**
  * @swagger
@@ -345,7 +364,7 @@ router.post('/applications', allowRoles(['mahall', 'survey']), createApplication
  *       404:
  *         description: Application not found
  */
-router.put('/applications/:id', allowRoles(['mahall']), updateApplication);
+router.put('/applications/:id', updateWelfareApplicationValidation, validationHandler, allowRoles(['mahall']), updateApplication);
 
 /**
  * @swagger
@@ -392,7 +411,7 @@ router.put('/applications/:id', allowRoles(['mahall']), updateApplication);
  *       400:
  *         description: Illegal status transition
  */
-router.put('/applications/:id/status', allowRoles(['mahall']), updateApplicationStatus);
-router.delete('/applications/:id', allowRoles(['mahall']), deleteApplication);
+router.put('/applications/:id/status', idParam('id', 'record'), validationHandler, allowRoles(['mahall']), updateApplicationStatus);
+router.delete('/applications/:id', idParam('id', 'record'), validationHandler, allowRoles(['mahall']), deleteApplication);
 
 export default router;

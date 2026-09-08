@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { FiTrash2, FiCheckCircle, FiXCircle, FiEye, FiX, FiGlobe, FiAlertCircle } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
@@ -18,6 +17,8 @@ import { formatDate } from '@/utils/format';
 import { useDebounce } from '@/hooks/useDebounce';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
 import { toast } from '@/store/toastStore';
+import { errorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
 
 export default function TenantsList() {
   const { isSuperAdmin } = useAuthStore();
@@ -74,17 +75,26 @@ export default function TenantsList() {
       if (debouncedSearch) params.search = debouncedSearch;
       const response = await tenantService.getAll(params);
       const dataToExport = response.data || [];
-      if (dataToExport.length === 0) { toast.info('No data to export'); return; }
+      if (dataToExport.length === 0) {
+        toast.info('No data to export');
+        return;
+      }
       const filename = 'tenants';
       const title = 'All Tenants';
       switch (type) {
-        case 'csv': exportToCSV(columns, dataToExport, filename); break;
-        case 'json': exportToJSON(columns, dataToExport, filename); break;
-        case 'pdf': exportToPDF(columns, dataToExport, filename, title); break;
+        case 'csv':
+          exportToCSV(columns, dataToExport, filename);
+          break;
+        case 'json':
+          exportToJSON(columns, dataToExport, filename);
+          break;
+        case 'pdf':
+          exportToPDF(columns, dataToExport, filename, title);
+          break;
       }
     } catch (error: any) {
       console.error('Export error:', error);
-      toast.error(error?.response?.data?.message || 'Failed to export data');
+      toast.error(errorMessage(error, { action: 'export data' }));
     } finally {
       setIsExporting(false);
     }
@@ -103,7 +113,7 @@ export default function TenantsList() {
         setSelectedTenant(null);
         toast.success(`${name} suspended`);
       } catch (error: any) {
-        toast.error(error.response?.data?.message || `Failed to suspend ${name}`);
+        toast.error(errorMessage(error, { action: `suspend ${name}` }));
       }
     }
   };
@@ -114,7 +124,7 @@ export default function TenantsList() {
       await loadTenants();
       toast.success(`${tenant.name} activated`);
     } catch (error: any) {
-      toast.error(error.response?.data?.message || `Failed to activate ${tenant.name}`);
+      toast.error(errorMessage(error, { action: `activate ${tenant.name}` }));
     }
   };
 
@@ -128,13 +138,12 @@ export default function TenantsList() {
         setSelectedTenant(null);
         toast.success(`${name} deleted`);
       } catch (error: any) {
-        toast.error(error.response?.data?.message || `Failed to delete ${name}`);
+        toast.error(errorMessage(error, { action: `delete ${name}` }));
       }
     }
   };
 
   const columns: TableColumn<Tenant>[] = [
-    { key: 'id', label: 'No.', render: (_, __, index) => index + 1 },
     { key: 'name', label: 'Tenant Name', sortable: true },
     { key: 'code', label: 'Code' },
     {
@@ -165,8 +174,8 @@ export default function TenantsList() {
             status === 'active'
               ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
               : status === 'suspended'
-              ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-              : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
+                ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+                : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
           }`}
         >
           {status}
@@ -190,6 +199,7 @@ export default function TenantsList() {
             }}
             className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
             title="View Details"
+            aria-label="View Details"
           >
             <FiEye className="h-4 w-4" />
           </button>
@@ -202,6 +212,7 @@ export default function TenantsList() {
               }}
               className="p-1.5 rounded-md hover:bg-yellow-50 dark:hover:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400 transition-colors"
               title="Suspend"
+              aria-label="Suspend"
             >
               <FiXCircle className="h-4 w-4" />
             </button>
@@ -213,6 +224,7 @@ export default function TenantsList() {
               }}
               className="p-1.5 rounded-md hover:bg-green-50 dark:hover:bg-green-900/20 text-green-600 dark:text-green-400 transition-colors"
               title="Activate"
+              aria-label="Activate"
             >
               <FiCheckCircle className="h-4 w-4" />
             </button>
@@ -225,6 +237,7 @@ export default function TenantsList() {
             }}
             className="p-1.5 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 transition-colors"
             title="Delete"
+            aria-label="Delete"
           >
             <FiTrash2 className="h-4 w-4" />
           </button>
@@ -255,9 +268,7 @@ export default function TenantsList() {
   if (!isSuperAdmin) {
     return (
       <div className="flex items-center justify-center h-64">
-        <p className="text-gray-500 dark:text-gray-400">
-          Super admin access required
-        </p>
+        <p className="text-gray-500 dark:text-gray-400">Super admin access required</p>
       </div>
     );
   }
@@ -265,20 +276,10 @@ export default function TenantsList() {
   return (
     <div className="space-y-4">
       <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">
-              Tenants Management
-            </h1>
-            <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
-              Manage all tenants (Mahalls) in the system
-            </p>
-          </div>
-          <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Tenants Management' }]} />
-        </div>
+        <PageHeader title="Tenants Management" description="Manage all tenants (Mahalls) in the system" />
 
         {/* Statistics Cards */}
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           {stats.map((stat, index) => (
             <StatCard key={index} {...stat} />
           ))}
@@ -304,14 +305,15 @@ export default function TenantsList() {
         />
 
         {isFilterVisible && (
-          <div className="relative flex flex-wrap items-center gap-4 mb-6 p-4 border border-gray-200 rounded-lg bg-white dark:bg-gray-800 dark:border-gray-700">
+          <div className="relative flex flex-wrap items-center gap-4 mb-6 p-4 border border-gray-200 rounded-lg max-sm:border-0 max-sm:bg-transparent max-sm:p-0 bg-white dark:bg-gray-800 dark:border-gray-700">
             <button
               onClick={() => setIsFilterVisible(false)}
               className="absolute right-4 top-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              aria-label="Close"
             >
               <FiX className="h-4 w-4" />
             </button>
-            <div className="w-40">
+            <div className="w-full sm:w-40">
               <Select
                 options={[
                   { value: 'all', label: 'All Status' },
@@ -376,7 +378,8 @@ export default function TenantsList() {
         }
       >
         <p className="text-gray-600 dark:text-gray-400">
-          Are you sure you want to suspend <strong>{selectedTenant?.name}</strong>? This will prevent all users from accessing this tenant.
+          Are you sure you want to suspend <strong>{selectedTenant?.name}</strong>? This will prevent all
+          users from accessing this tenant.
         </p>
       </Modal>
 
@@ -406,10 +409,10 @@ export default function TenantsList() {
         }
       >
         <p className="text-gray-600 dark:text-gray-400">
-          Are you sure you want to delete <strong>{selectedTenant?.name}</strong>? This action cannot be undone and will delete all associated data.
+          Are you sure you want to delete <strong>{selectedTenant?.name}</strong>? This action cannot be
+          undone and will delete all associated data.
         </p>
       </Modal>
     </div>
   );
 }
-

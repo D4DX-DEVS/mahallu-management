@@ -14,6 +14,14 @@ import {
 } from '../controllers/libraryController';
 import { authMiddleware, allowRoles } from '../middleware/authMiddleware';
 import { tenantMiddleware, tenantFilter } from '../middleware/tenantMiddleware';
+import { validationHandler } from '../middleware/validationHandler';
+import { idParam, listQuery } from '../validations/common';
+import {
+  createBookValidation,
+  createBookIssueValidation,
+  updateBookValidation,
+  bulkImportBooksValidation,
+} from '../validations/moduleValidation';
 
 const router = express.Router();
 
@@ -31,7 +39,7 @@ router.use(tenantFilter);
  *       200:
  *         description: Summary data
  */
-router.get('/summary', getSummary);
+router.get('/summary', listQuery(), validationHandler, getSummary);
 
 /**
  * @swagger
@@ -62,7 +70,7 @@ router.get('/summary', getSummary);
  *       200:
  *         description: Books list
  */
-router.get('/', getAllBooks);
+router.get('/', listQuery(), validationHandler, getAllBooks);
 
 /**
  * @swagger
@@ -83,7 +91,7 @@ router.get('/', getAllBooks);
  *       400:
  *         description: Invalid input
  */
-router.post('/', allowRoles(['mahall', 'super_admin']), createBook);
+router.post('/', createBookValidation, validationHandler, allowRoles(['mahall', 'super_admin']), createBook);
 
 /**
  * @swagger
@@ -133,7 +141,7 @@ router.post('/', allowRoles(['mahall', 'super_admin']), createBook);
  *       400:
  *         description: Validation errors with row numbers
  */
-router.post('/bulk-import', allowRoles(['mahall', 'super_admin']), bulkImportBooks);
+router.post('/bulk-import', bulkImportBooksValidation, validationHandler, allowRoles(['mahall', 'super_admin']), bulkImportBooks);
 
 /**
  * @swagger
@@ -152,7 +160,7 @@ router.post('/bulk-import', allowRoles(['mahall', 'super_admin']), bulkImportBoo
  *       404:
  *         description: Book not found
  */
-router.get('/:id', getBookById);
+router.get('/:id', idParam('id', 'book'), validationHandler, getBookById);
 
 /**
  * @swagger
@@ -169,7 +177,7 @@ router.get('/:id', getBookById);
  *       200:
  *         description: Book updated
  */
-router.put('/:id', allowRoles(['mahall', 'super_admin']), updateBook);
+router.put('/:id', updateBookValidation, validationHandler, allowRoles(['mahall', 'super_admin']), updateBook);
 
 /**
  * @swagger
@@ -186,7 +194,7 @@ router.put('/:id', allowRoles(['mahall', 'super_admin']), updateBook);
  *       200:
  *         description: Book deleted
  */
-router.delete('/:id', allowRoles(['mahall', 'super_admin']), deleteBook);
+router.delete('/:id', idParam('id', 'book'), validationHandler, allowRoles(['mahall', 'super_admin']), deleteBook);
 
 export const booksRouter = router;
 
@@ -224,7 +232,7 @@ issuesRouter.use(tenantFilter);
  *       200:
  *         description: Issues list
  */
-issuesRouter.get('/', getAllIssues);
+issuesRouter.get('/', listQuery(), validationHandler, getAllIssues);
 
 /**
  * @swagger
@@ -243,7 +251,7 @@ issuesRouter.get('/', getAllIssues);
  *       201:
  *         description: Issue created
  */
-issuesRouter.post('/', allowRoles(['mahall', 'super_admin']), createIssue);
+issuesRouter.post('/', createBookIssueValidation, validationHandler, allowRoles(['mahall', 'super_admin']), createIssue);
 
 /**
  * @swagger
@@ -260,7 +268,7 @@ issuesRouter.post('/', allowRoles(['mahall', 'super_admin']), createIssue);
  *       200:
  *         description: Issue data
  */
-issuesRouter.get('/:id', getIssueById);
+issuesRouter.get('/:id', idParam('id', 'record'), validationHandler, getIssueById);
 
 /**
  * @swagger
@@ -277,6 +285,6 @@ issuesRouter.get('/:id', getIssueById);
  *       200:
  *         description: Book returned
  */
-issuesRouter.post('/:id/return', allowRoles(['mahall', 'super_admin']), returnIssue);
+issuesRouter.post('/:id/return', idParam('id', 'record'), validationHandler, allowRoles(['mahall', 'super_admin']), returnIssue);
 
 export { issuesRouter };

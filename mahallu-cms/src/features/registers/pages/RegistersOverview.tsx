@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import { registerService, RegisterSummaryRow } from '@/services/registerService';
 import { REGISTER_CONFIGS } from '../registerConfigs';
+import PageHeader from '@/components/layout/PageHeader';
 
 /** Count cards for every register - 2-up on mobile, wider on desktop. */
 export default function RegistersOverview() {
@@ -23,23 +23,18 @@ export default function RegistersOverview() {
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">Community Registers</h1>
-          <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-            Live views derived from family and member records
-          </p>
-        </div>
-        <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Registers' }]} />
-      </div>
+      <PageHeader
+        title="Community Registers"
+        description="Live views derived from family and member records"
+      />
 
       {loading ? (
         <PageSkeleton variant="section" />
       ) : (
-        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3 lg:grid-cols-4 xl:grid-cols-6">
+        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3 sm:gap-3 lg:grid-cols-4 xl:grid-cols-6">
           {REGISTER_CONFIGS.map((config) => (
             <Link key={config.key} to={`/registers/${config.key}`}>
-              <Card className="h-full p-3 transition-shadow hover:shadow-md sm:p-4">
+              <Card className="h-full transition-shadow hover:shadow-md">
                 <p className="text-xs font-medium leading-tight text-gray-500 dark:text-gray-400 sm:text-sm">
                   {config.title}
                 </p>

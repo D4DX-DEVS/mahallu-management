@@ -3,6 +3,9 @@ import { Asset, AssetMaintenance } from '../models/Asset';
 import { AuthRequest } from '../middleware/authMiddleware';
 import { getPaginationParams, createPaginationResponse } from '../utils/pagination';
 
+import { sendFailure } from '../utils/userMessages';
+import { regexLiteral } from '../utils/queryGuard';
+
 // ==================== ASSET CRUD ====================
 
 export const getAllAssets = async (req: AuthRequest, res: Response) => {
@@ -23,9 +26,9 @@ export const getAllAssets = async (req: AuthRequest, res: Response) => {
     if (mosqueId) query.mosqueId = mosqueId;
     if (search) {
       query.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { description: { $regex: search, $options: 'i' } },
-        { location: { $regex: search, $options: 'i' } },
+        { name: { $regex: regexLiteral(search), $options: 'i' } },
+        { description: { $regex: regexLiteral(search), $options: 'i' } },
+        { location: { $regex: regexLiteral(search), $options: 'i' } },
       ];
     }
 
@@ -36,7 +39,7 @@ export const getAllAssets = async (req: AuthRequest, res: Response) => {
 
     res.json(createPaginationResponse(assets, total, page, limit));
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the assets right now. Please try again.');
   }
 };
 
@@ -44,11 +47,11 @@ export const getAssetById = async (req: Request, res: Response) => {
   try {
     const asset = await Asset.findById(req.params.id).populate('mosqueId', 'name');
     if (!asset) {
-      return res.status(404).json({ success: false, message: 'Asset not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that asset. It may have been removed." });
     }
     res.json({ success: true, data: asset });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the asset right now. Please try again.');
   }
 };
 
@@ -62,7 +65,7 @@ export const createAsset = async (req: AuthRequest, res: Response) => {
     if (!assetData.tenantId && !req.isSuperAdmin) {
       return res.status(400).json({
         success: false,
-        message: 'Tenant ID is required',
+        message: 'Please select a Mahallu before continuing.',
       });
     }
 
@@ -72,7 +75,7 @@ export const createAsset = async (req: AuthRequest, res: Response) => {
   } catch (error: any) {
     console.error('Create asset error:', error);
     const statusCode = error.name === 'ValidationError' ? 400 : 500;
-    res.status(statusCode).json({ success: false, message: error.message || 'Failed to create asset' });
+    sendFailure(res, error, 'We couldn\'t save the asset. Please try again.', statusCode);
   }
 };
 
@@ -84,11 +87,11 @@ export const updateAsset = async (req: Request, res: Response) => {
       { new: true, runValidators: true }
     );
     if (!asset) {
-      return res.status(404).json({ success: false, message: 'Asset not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that asset. It may have been removed." });
     }
     res.json({ success: true, data: asset });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t update the asset. Please try again.');
   }
 };
 
@@ -96,13 +99,13 @@ export const deleteAsset = async (req: Request, res: Response) => {
   try {
     const asset = await Asset.findByIdAndDelete(req.params.id);
     if (!asset) {
-      return res.status(404).json({ success: false, message: 'Asset not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that asset. It may have been removed." });
     }
     // Also delete all maintenance records for this asset
     await AssetMaintenance.deleteMany({ assetId: req.params.id });
-    res.json({ success: true, message: 'Asset deleted successfully' });
+    res.json({ success: true, message: 'Asset deleted' });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t delete the asset. Please try again.');
   }
 };
 
@@ -125,7 +128,7 @@ export const getAssetMaintenanceRecords = async (req: AuthRequest, res: Response
 
     res.json(createPaginationResponse(records, total, page, limit));
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the asset maintenance records right now. Please try again.');
   }
 };
 
@@ -134,7 +137,7 @@ export const createMaintenanceRecord = async (req: AuthRequest, res: Response) =
     // Verify asset exists
     const asset = await Asset.findById(req.params.id);
     if (!asset) {
-      return res.status(404).json({ success: false, message: 'Asset not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that asset. It may have been removed." });
     }
 
     const maintenanceData = {
@@ -147,7 +150,7 @@ export const createMaintenanceRecord = async (req: AuthRequest, res: Response) =
     await record.save();
     res.status(201).json({ success: true, data: record });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t save the maintenance record. Please try again.');
   }
 };
 
@@ -159,11 +162,11 @@ export const updateMaintenanceRecord = async (req: Request, res: Response) => {
       { new: true, runValidators: true }
     );
     if (!record) {
-      return res.status(404).json({ success: false, message: 'Maintenance record not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that maintenance record. It may have been removed." });
     }
     res.json({ success: true, data: record });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t update the maintenance record. Please try again.');
   }
 };
 
@@ -174,10 +177,10 @@ export const deleteMaintenanceRecord = async (req: Request, res: Response) => {
       assetId: req.params.id,
     });
     if (!record) {
-      return res.status(404).json({ success: false, message: 'Maintenance record not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that maintenance record. It may have been removed." });
     }
-    res.json({ success: true, message: 'Maintenance record deleted successfully' });
+    res.json({ success: true, message: 'Maintenance record deleted' });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t delete the maintenance record. Please try again.');
   }
 };

@@ -10,6 +10,7 @@ import Select from '@/components/ui/Select';
 import { committeeService } from '@/services/committeeService';
 import { memberService } from '@/services/memberService';
 import { Member } from '@/types';
+import { errorMessage } from '@/utils/errors';
 
 const committeeSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -48,7 +49,8 @@ export default function QuickAddCommittee({ open, onClose, onCreated }: Props) {
   useEffect(() => {
     if (open) {
       setLoadingMembers(true);
-      memberService.getAll()
+      memberService
+        .getAll()
         .then((result) => setMembers(result.data || []))
         .catch(console.error)
         .finally(() => setLoadingMembers(false));
@@ -61,9 +63,10 @@ export default function QuickAddCommittee({ open, onClose, onCreated }: Props) {
   };
 
   const filteredMembers = memberSearch
-    ? members.filter((m) =>
-        m.name.toLowerCase().includes(memberSearch.toLowerCase()) ||
-        m.familyName.toLowerCase().includes(memberSearch.toLowerCase())
+    ? members.filter(
+        (m) =>
+          m.name.toLowerCase().includes(memberSearch.toLowerCase()) ||
+          m.familyName.toLowerCase().includes(memberSearch.toLowerCase())
       )
     : members;
 
@@ -79,7 +82,7 @@ export default function QuickAddCommittee({ open, onClose, onCreated }: Props) {
       onCreated({ id: created.id, label: created.name });
       onClose();
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to create committee. Please try again.');
+      setError(errorMessage(err, { action: 'create committee. please try again' }));
     }
   };
 
@@ -144,6 +147,7 @@ export default function QuickAddCommittee({ open, onClose, onCreated }: Props) {
                       className="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 p-2 rounded"
                     >
                       <input
+                        aria-label="Select row"
                         type="checkbox"
                         checked={selectedMembers.includes(member.id)}
                         onChange={() => toggleMember(member.id)}
@@ -160,7 +164,7 @@ export default function QuickAddCommittee({ open, onClose, onCreated }: Props) {
           )}
         </div>
 
-        <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+        <div className="flex gap-2 flex-col-reverse sm:flex-row sm:justify-end sm:gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
           <Button type="button" variant="outline" onClick={onClose}>
             <FiX className="h-4 w-4 mr-2" />
             Cancel

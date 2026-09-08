@@ -1,159 +1,106 @@
-import { useState, useRef, useEffect, ReactNode } from 'react';
-import { FiFilter, FiSearch, FiRefreshCw, FiDownload, FiX, FiFileText, FiFile } from 'react-icons/fi';
+import { ReactNode } from 'react';
+import { FiFilter, FiRefreshCw, FiDownload, FiFileText, FiFile } from 'react-icons/fi';
 import Button from './Button';
+import ExpandableSearch from './ExpandableSearch';
+import Badge from './Badge';
 import Dropdown, { DropdownItem } from './Dropdown';
 import { cn } from '@/utils/cn';
-
 interface TableToolbarProps {
   searchQuery: string;
   onSearchChange: (value: string) => void;
+  /*
+   * What is being searched, e.g. "families". Written into the placeholder. */
+  searchEntity?: string;
   onFilterClick?: () => void;
   isFilterVisible?: boolean;
-  hasFilters?: boolean; // Show filter button only if filters exist
+  hasFilters?: boolean;
+  /*
+   * Number of filters currently applied. Shown as a count on the button. */
+  activeFilterCount?: number;
   onRefresh?: () => void;
-  onExport?: (type: 'csv' | 'json' | 'pdf') => void;
+  /*
+   * JSON is a developer format and is no longer offered to end users. */
+  onExport?: (type: 'csv' | 'pdf') => void;
+  isExporting?: boolean;
   actionButtons?: ReactNode;
   className?: string;
-  isExporting?: boolean;
 }
-
 export default function TableToolbar({
   searchQuery,
   onSearchChange,
+  searchEntity,
   onFilterClick,
   isFilterVisible = false,
   hasFilters = false,
+  activeFilterCount = 0,
   onRefresh,
   onExport,
+  isExporting,
   actionButtons,
   className,
-  isExporting,
 }: TableToolbarProps) {
-  const [isSearchExpanded, setIsSearchExpanded] = useState(false);
-  const searchInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (isSearchExpanded && searchInputRef.current) {
-      searchInputRef.current.focus();
-    }
-  }, [isSearchExpanded]);
-
-  const handleSearchClick = () => {
-    setIsSearchExpanded(true);
-  };
-
-  const handleSearchBlur = () => {
-    if (!searchQuery) {
-      setIsSearchExpanded(false);
-    }
-  };
-
-  const handleClearSearch = () => {
-    onSearchChange('');
-    if (searchInputRef.current) {
-      searchInputRef.current.focus();
-    }
-  };
-
   const exportItems: DropdownItem[] = [
-    {
-      label: 'Export CSV',
-      icon: <FiFileText />,
-      onClick: () => onExport?.('csv'),
-      disabled: isExporting,
-    },
-    {
-      label: 'Export JSON',
-      icon: <FiFile />,
-      onClick: () => onExport?.('json'),
-      disabled: isExporting,
-    },
-    {
-      label: 'Export PDF',
-      icon: <FiDownload />,
-      onClick: () => onExport?.('pdf'),
-      disabled: isExporting,
-    },
+    { label: 'Export as CSV', icon: <FiFileText />, onClick: () => onExport?.('csv'), disabled: isExporting },
+    { label: 'Export as PDF', icon: <FiFile />, onClick: () => onExport?.('pdf'), disabled: isExporting },
   ];
-
   return (
-    <div className={cn('mb-4 flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center', className)}>
-      <div className="flex flex-1 items-center gap-1.5">
-        {/* Filter Toggle - Only show if filters exist */}
+    <div
+      className={cn(
+        'mb-4 flex flex-col items-stretch justify-between gap-2 sm:flex-row sm:items-center',
+        className
+      )}
+    >
+      <div className="flex flex-1 items-center gap-2">
+        {/* Search rests as an icon and opens into a field. The collapsed state
+            is a real button with an accessible name, so it stays in the tab
+            order; a query holds the field open so no filter is ever hidden. */}
+        <ExpandableSearch
+          value={searchQuery}
+          onChange={onSearchChange}
+          entity={searchEntity}
+        />
         {hasFilters && onFilterClick && (
           <Button
-            variant={isFilterVisible ? 'primary' : 'outline'}
-            size="sm"
+            variant="outline"
             onClick={onFilterClick}
-            className="flex items-center gap-1.5"
+            aria-expanded={isFilterVisible}
+            className="flex-shrink-0"
           >
-            <FiFilter className="h-3.5 w-3.5" />
-            Filter
-          </Button>
-        )}
-
-        {/* Refresh Button */}
-        {onRefresh && (
-          <Button variant="outline" size="sm" onClick={onRefresh} className="px-2.5">
-            <FiRefreshCw className="h-3.5 w-3.5" />
-          </Button>
-        )}
-
-        {/* Search */}
-        <div className={cn(
-          "relative flex h-9 items-center overflow-hidden rounded-lg border border-gray-200 bg-white transition-all duration-300 ease-in-out dark:border-gray-700 dark:bg-gray-800",
-          isSearchExpanded ? "w-56" : "w-9 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50"
-        )} onClick={!isSearchExpanded ? handleSearchClick : undefined}>
-          <div className="flex h-full w-9 flex-shrink-0 items-center justify-center text-gray-500 dark:text-gray-400">
-            <FiSearch className="h-3.5 w-3.5" />
-          </div>
-          
-          <input
-            ref={searchInputRef}
-            type="text"
-            value={searchQuery}
-            onChange={(e) => onSearchChange(e.target.value)}
-            onBlur={handleSearchBlur}
-            placeholder="Search"
-            className={cn(
-              "h-full w-full border-none bg-transparent pr-8 text-[0.82rem] text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-0 dark:text-gray-100",
-              !isSearchExpanded && "pointer-events-none opacity-0"
+            <FiFilter className="h-4 w-4" aria-hidden="true" />
+            <span className="hidden sm:inline">Filter</span>
+            {activeFilterCount > 0 && (
+              <Badge variant="primary" className="ml-1">
+                {activeFilterCount}
+              </Badge>
             )}
-            tabIndex={isSearchExpanded ? 0 : -1}
-          />
-          
-          {searchQuery && isSearchExpanded && (
-            <button 
-              onClick={(e) => {
-                e.stopPropagation();
-                handleClearSearch();
-              }}
-              className="absolute right-3 flex items-center text-gray-400 hover:text-gray-600"
-            >
-              <FiX className="h-3 w-3" />
-            </button>
-          )}
-        </div>
+          </Button>
+        )}
+        {onRefresh && (
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={onRefresh}
+            aria-label="Refresh list"
+            className="flex-shrink-0"
+          >
+            <FiRefreshCw className="h-4 w-4" />
+          </Button>
+        )}
       </div>
-
-      <div className="flex items-center gap-1.5">
-         {/* Export Dropdown */}
+      <div className="flex items-center gap-2">
         {onExport && (
           <Dropdown
             trigger={
-              <Button variant="outline" size="sm" isLoading={isExporting}>
-                {!isExporting && <FiDownload className="h-3.5 w-3.5 sm:mr-1.5" />}
+              <Button variant="outline" isLoading={isExporting} loadingText="Exporting">
+                <FiDownload className="h-4 w-4" aria-hidden="true" />
                 <span className="hidden sm:inline">Export</span>
               </Button>
             }
             items={exportItems}
           />
         )}
-        
-        {/* Action Buttons */}
         {actionButtons}
       </div>
     </div>
   );
 }
-

@@ -11,24 +11,25 @@ import { PageSkeleton } from '@/components/ui/Skeleton';
 import { libraryService, LibraryBook } from '@/services/libraryService';
 import { toast } from '@/store/toastStore';
 import { FiArrowLeft } from 'react-icons/fi';
+import { errorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
 
-const bookSchema = z.object({
-  title: z.string().min(1, 'Title is required'),
-  titleMl: z.string().optional(),
-  author: z.string().min(1, 'Author is required'),
-  category: z.enum(['quran', 'hadith', 'fiqh', 'history', 'children', 'women', 'youth', 'general']),
-  resourceType: z.enum(['physical', 'digital']),
-  resourceUrl: z.string().optional(),
-  isbn: z.string().optional(),
-  copies: z.number().optional(),
-  status: z.enum(['active', 'inactive']),
-}).refine(
-  (data) => data.resourceType !== 'digital' || data.resourceUrl,
-  {
+const bookSchema = z
+  .object({
+    title: z.string().max(200, 'Please keep the title to 200 characters or less.').min(1, 'Title is required'),
+    titleMl: z.string().max(200, 'Please keep the title to 200 characters or less.').optional(),
+    author: z.string().max(200, 'Please keep the author to 200 characters or less.').min(1, 'Author is required'),
+    category: z.enum(['quran', 'hadith', 'fiqh', 'history', 'children', 'women', 'youth', 'general']),
+    resourceType: z.enum(['physical', 'digital']),
+    resourceUrl: z.string().max(200, 'Please keep the resource url to 200 characters or less.').optional(),
+    isbn: z.string().max(200, 'Please keep the isbn to 200 characters or less.').optional(),
+    copies: z.number().optional(),
+    status: z.enum(['active', 'inactive']),
+  })
+  .refine((data) => data.resourceType !== 'digital' || data.resourceUrl, {
     message: 'Resource URL is required for digital books',
     path: ['resourceUrl'],
-  }
-);
+  });
 
 type BookFormData = z.infer<typeof bookSchema>;
 
@@ -78,8 +79,8 @@ export default function BookForm({ isEdit = false }: BookFormProps) {
           });
           setResourceType(book.resourceType);
         } catch (error) {
-          console.error('Failed to fetch book:', error);
-          toast.error('Failed to load book');
+          console.error("Couldn't load book:", error);
+          toast.error("Couldn't load book. Please try again.");
           navigate('/library/books');
         } finally {
           setLoading(false);
@@ -96,18 +97,18 @@ export default function BookForm({ isEdit = false }: BookFormProps) {
 
       if (isEdit && id) {
         await libraryService.updateBook(id, data);
-        toast.success('Book updated successfully');
+        toast.success('Book updated');
       } else {
         await libraryService.createBook({
           ...data,
           availableCopies: data.copies,
         });
-        toast.success('Book created successfully');
+        toast.success('Book created');
       }
 
       navigate('/library/books');
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to save book');
+      toast.error(errorMessage(error, { action: 'save book' }));
     } finally {
       setSubmitting(false);
     }
@@ -125,21 +126,14 @@ export default function BookForm({ isEdit = false }: BookFormProps) {
         Back to Books
       </button>
 
-      <Card className="p-6">
-        <h1 className="text-2xl font-bold mb-6">
-          {isEdit ? 'Edit Book' : 'Add New Book'}
-        </h1>
-
+      <Card padding="lg">
+        <PageHeader title={isEdit ? 'Edit Book' : 'Add New Book'} />
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           {/* Title */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium mb-2">Title *</label>
-              <Input
-                {...register('title')}
-                placeholder="Book title"
-                error={errors.title?.message}
-              />
+              <Input {...register('title')} placeholder="Book title" error={errors.title?.message} />
             </div>
             <div>
               <label className="block text-sm font-medium mb-2">Title (Malayalam)</label>
@@ -150,11 +144,7 @@ export default function BookForm({ isEdit = false }: BookFormProps) {
           {/* Author */}
           <div>
             <label className="block text-sm font-medium mb-2">Author *</label>
-            <Input
-              {...register('author')}
-              placeholder="Author name"
-              error={errors.author?.message}
-            />
+            <Input {...register('author')} placeholder="Author name" error={errors.author?.message} />
           </div>
 
           {/* Category & Resource Type */}
@@ -237,19 +227,11 @@ export default function BookForm({ isEdit = false }: BookFormProps) {
           </div>
 
           {/* Buttons */}
-          <div className="flex gap-3 pt-4">
-            <Button
-              type="submit"
-              disabled={submitting}
-              onClick={handleSubmit(onSubmit)}
-            >
+          <div className="flex flex-wrap gap-3 pt-4">
+            <Button type="submit" disabled={submitting} onClick={handleSubmit(onSubmit)}>
               {submitting ? 'Saving...' : isEdit ? 'Update Book' : 'Create Book'}
             </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => navigate('/library/books')}
-            >
+            <Button type="button" variant="secondary" onClick={() => navigate('/library/books')}>
               Cancel
             </Button>
           </div>

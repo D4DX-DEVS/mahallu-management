@@ -1,7 +1,7 @@
 export const ROUTES = {
   // Auth
   LOGIN: '/login',
-  
+
   // Dashboard
   DASHBOARD: '/dashboard',
 
@@ -19,7 +19,7 @@ export const ROUTES = {
     PROFILE: '/member/profile',
     FAMILY: '/member/family',
   },
-  
+
   // Users
   USERS: {
     MAHALL: '/users/mahall',
@@ -28,7 +28,7 @@ export const ROUTES = {
     CREATE_MAHALL: '/users/mahall/create',
     EDIT_MAHALL: (id: string) => `/users/mahall/${id}/edit`,
   },
-  
+
   // Families
   FAMILIES: {
     LIST: '/families',
@@ -37,7 +37,7 @@ export const ROUTES = {
     DETAIL: (id: string) => `/families/${id}`,
     EDIT: (id: string) => `/families/${id}/edit`,
   },
-  
+
   // Members
   MEMBERS: {
     LIST: '/members',
@@ -45,21 +45,21 @@ export const ROUTES = {
     DETAIL: (id: string) => `/members/${id}`,
     EDIT: (id: string) => `/members/${id}/edit`,
   },
-  
+
   // Institutes
   INSTITUTES: {
     LIST: '/institutes',
     CREATE: '/institutes/create',
     DETAIL: (id: string) => `/institutes/${id}`,
   },
-  
+
   // Programs
   PROGRAMS: {
     LIST: '/programs',
     CREATE: '/programs/create',
     DETAIL: (id: string) => `/programs/${id}`,
   },
-  
+
   // Employees
   EMPLOYEES: {
     LIST: '/employees',
@@ -67,7 +67,7 @@ export const ROUTES = {
     DETAIL: (id: string) => `/employees/${id}`,
     EDIT: (id: string) => `/employees/${id}/edit`,
   },
-  
+
   // Salary
   SALARY: {
     LIST: '/salary',
@@ -76,7 +76,7 @@ export const ROUTES = {
     EDIT: (id: string) => `/salary/${id}/edit`,
     SUMMARY: '/salary/summary',
   },
-  
+
   // Accounting Reports
   ACCOUNTING: {
     DAY_BOOK: '/accounting/day-book',
@@ -88,14 +88,14 @@ export const ROUTES = {
     PETTY_CASH: '/accounting/petty-cash',
     PETTY_CASH_DETAIL: (id: string) => `/petty-cash/${id}`,
   },
-  
+
   // Committees
   COMMITTEES: {
     LIST: '/committees',
     MEETINGS: '/committees/meetings',
     DETAIL: (id: string) => `/committees/${id}`,
   },
-  
+
   // Registrations
   REGISTRATIONS: {
     NIKAH: '/registrations/nikah',
@@ -113,7 +113,7 @@ export const ROUTES = {
 
   // Change Requests
   CHANGE_REQUESTS: '/admin/change-requests',
-  
+
   // Collectibles
   COLLECTIBLES: {
     OVERVIEW: '/collections',
@@ -133,7 +133,7 @@ export const ROUTES = {
     ZAKAT: '/collectibles/zakat',
     DUES: '/collectibles/dues',
   },
-  
+
   // Social
   SOCIAL: {
     BANNERS: '/social/banners',
@@ -147,7 +147,7 @@ export const ROUTES = {
     CREATE_SUPPORT: '/social/support/create',
     SUPPORT_DETAIL: (id: string) => `/social/support/${id}`,
   },
-  
+
   // Master Accounts
   MASTER_ACCOUNTS: {
     INSTITUTE_ACCOUNTS: '/master-accounts/institute',
@@ -177,14 +177,14 @@ export const ROUTES = {
     INCOME_EXPENDITURE: '/mahallu-finance/income-expenditure',
     COMBINED: '/mahallu-finance/combined',
   },
-  
+
   // Notifications
   NOTIFICATIONS: {
     INDIVIDUAL: '/notifications/individual',
     COLLECTION: '/notifications/collection',
     SEND: '/notifications/send',
   },
-  
+
   // Reports
   REPORTS: {
     AREA: '/reports/area',
@@ -192,10 +192,10 @@ export const ROUTES = {
     ORPHANS: '/reports/orphans',
     DATA_QUALITY: '/admin/data-quality',
   },
-  
+
   // Mahall Main
   MAHALL_MAIN: '/mahall-main',
-  
+
   // Assets
   ASSETS: {
     LIST: '/assets',
@@ -211,4 +211,3 @@ export const ROUTES = {
     KHATEEBS: '/religious/khateebs',
   },
 } as const;
-

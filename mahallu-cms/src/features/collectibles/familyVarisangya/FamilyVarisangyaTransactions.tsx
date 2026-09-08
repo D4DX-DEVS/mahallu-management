@@ -12,6 +12,7 @@ import { formatDate } from '@/utils/format';
 import { exportToCSV, exportToJSON } from '@/utils/exportUtils';
 import { exportInvoicesToPdf, InvoiceDetails } from '@/utils/invoiceUtils';
 import { toast } from '@/store/toastStore';
+import { loadErrorMessage } from '@/utils/errors';
 
 /** Map varisangya payment to transaction-like shape (list shows varisangya, so transactions view must match). */
 function varisangyaToTransaction(v: Varisangya): Transaction {
@@ -69,7 +70,7 @@ export default function FamilyVarisangyaTransactions() {
       }
       const walletData = await collectibleService.getWallet({ familyId: familyId || undefined });
       const walletId = walletData && ((walletData as any).id ?? (walletData as any)._id);
-      setWallet(walletId ? { ...walletData!, id: String(walletId) } as Wallet : null);
+      setWallet(walletId ? ({ ...walletData!, id: String(walletId) } as Wallet) : null);
 
       // Always use varisangya records (they have populated family names).
       // The API already sorts by paymentDate desc, so no client-side re-sort.
@@ -81,7 +82,7 @@ export default function FamilyVarisangyaTransactions() {
       setTransactions((varisangyasResult.data || []).map(varisangyaToTransaction));
       setPagination(varisangyasResult.pagination);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch transactions');
+      setError(loadErrorMessage(err, 'transactions'));
       console.error('Error fetching data:', err);
     } finally {
       setLoading(false);
@@ -101,7 +102,7 @@ export default function FamilyVarisangyaTransactions() {
       setTransactions((varisangyasResult.data || []).map(varisangyaToTransaction));
       setPagination(varisangyasResult.pagination);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch transactions');
+      setError(loadErrorMessage(err, 'transactions'));
       console.error('Error fetching transactions:', err);
     } finally {
       setLoading(false);
@@ -150,7 +151,7 @@ export default function FamilyVarisangyaTransactions() {
       }
     } catch (error: any) {
       console.error('Export error:', error);
-      toast.error(error?.message || 'Failed to export transactions');
+      toast.error(error?.message || "Couldn't export transactions");
     } finally {
       setIsExporting(false);
     }
@@ -244,7 +245,13 @@ export default function FamilyVarisangyaTransactions() {
           </div>
         ) : (
           <>
-            <Table columns={columns} data={transactions} isLoading={loading} emptyMessage="No transactions found" showExport={false} />
+            <Table
+              columns={columns}
+              data={transactions}
+              isLoading={loading}
+              emptyMessage="No transactions found"
+              showExport={false}
+            />
             {pagination && pagination.totalPages > 1 && (
               <div className="mt-4">
                 <Pagination

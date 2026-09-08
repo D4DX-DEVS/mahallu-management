@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { FiEdit2, FiX, FiEye, FiUsers, FiUser, FiUserCheck } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
@@ -17,6 +16,9 @@ import { useDebounce } from '@/hooks/useDebounce';
 import { ROUTES } from '@/constants/routes';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
 import { toast } from '@/store/toastStore';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
+import ActionsMenu from '@/components/ui/ActionsMenu';
 
 export default function MembersList() {
   const navigate = useNavigate();
@@ -30,7 +32,7 @@ export default function MembersList() {
   const [itemsPerPage] = useState(10);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
   const [isExporting, setIsExporting] = useState(false);
-  
+
   const debouncedSearch = useDebounce(searchQuery, 500);
 
   useEffect(() => {
@@ -57,7 +59,7 @@ export default function MembersList() {
         setPagination(result.pagination);
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch members');
+      setError(loadErrorMessage(err, 'members'));
       console.error('Error fetching members:', err);
     } finally {
       setLoading(false);
@@ -79,20 +81,25 @@ export default function MembersList() {
       const filename = 'members';
       const title = 'All Members';
       switch (type) {
-        case 'csv': exportToCSV(columns, dataToExport, filename); break;
-        case 'json': exportToJSON(columns, dataToExport, filename); break;
-        case 'pdf': exportToPDF(columns, dataToExport, filename, title); break;
+        case 'csv':
+          exportToCSV(columns, dataToExport, filename);
+          break;
+        case 'json':
+          exportToJSON(columns, dataToExport, filename);
+          break;
+        case 'pdf':
+          exportToPDF(columns, dataToExport, filename, title);
+          break;
       }
     } catch (error: any) {
       console.error('Export error:', error);
-      toast.error(error?.response?.data?.message || 'Failed to export data');
+      toast.error(errorMessage(error, { action: 'export data' }));
     } finally {
       setIsExporting(false);
     }
   };
 
   const columns: TableColumn<Member>[] = [
-    { key: 'id', label: 'No.', render: (_, __, index) => index + 1 },
     { key: 'mahallId', label: 'Mahall ID', render: (id) => id || '-' },
     { key: 'name', label: 'Name', sortable: true },
     { key: 'familyName', label: 'Family Name' },
@@ -121,34 +128,34 @@ export default function MembersList() {
       key: 'actions',
       label: 'Actions',
       render: (_, row) => (
-        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(ROUTES.MEMBERS.DETAIL(row.id));
-            }}
-            className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
-            title="View"
-          >
-            <FiEye className="h-4 w-4" />
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(ROUTES.MEMBERS.EDIT(row.id));
-            }}
-            className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
-            title="Edit"
-          >
-            <FiEdit2 className="h-4 w-4" />
-          </button>
-        </div>
+        <ActionsMenu
+          items={[
+            {
+              label: 'View',
+              icon: <FiEye className="h-4 w-4" />,
+              onClick: () => {
+                navigate(ROUTES.MEMBERS.DETAIL(row.id));
+              },
+            },
+            {
+              label: 'Edit',
+              icon: <FiEdit2 className="h-4 w-4" />,
+              onClick: () => {
+                navigate(ROUTES.MEMBERS.EDIT(row.id));
+              },
+            },
+          ]}
+        />
       ),
     },
   ];
 
   const stats = [
-    { title: 'Total Family Members', value: pagination?.total || members.length, icon: <FiUsers className="h-5 w-5" /> },
+    {
+      title: 'Total Family Members',
+      value: pagination?.total || members.length,
+      icon: <FiUsers className="h-5 w-5" />,
+    },
     {
       title: 'Total Males',
       value: members.filter((m) => m.gender === 'male').length,
@@ -164,20 +171,10 @@ export default function MembersList() {
   return (
     <div className="space-y-4">
       <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">
-              All Family Members
-            </h1>
-            <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
-              Manage family members and their information
-            </p>
-          </div>
-          <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'All Family Members' }]} />
-        </div>
+        <PageHeader title="All Family Members" description="Manage family members and their information" />
 
         {/* Statistics Cards */}
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           {stats.map((stat, index) => (
             <StatCard key={index} {...stat} />
           ))}
@@ -204,14 +201,15 @@ export default function MembersList() {
           />
 
           {isFilterVisible && (
-            <div className="relative flex flex-wrap items-center gap-4 mb-6 p-4 border border-gray-200 rounded-lg bg-white dark:bg-gray-800 dark:border-gray-700">
+            <div className="relative flex flex-wrap items-center gap-4 mb-6 p-4 border border-gray-200 rounded-lg max-sm:border-0 max-sm:bg-transparent max-sm:p-0 bg-white dark:bg-gray-800 dark:border-gray-700">
               <button
                 onClick={() => setIsFilterVisible(false)}
                 className="absolute right-4 top-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                aria-label="Close"
               >
                 <FiX className="h-4 w-4" />
               </button>
-              <div className="w-40">
+              <div className="w-full sm:w-40">
                 <Select
                   options={[
                     { value: 'date', label: 'Date' },
@@ -224,7 +222,6 @@ export default function MembersList() {
               </div>
             </div>
           )}
-
         </div>
 
         {loading ? (
@@ -280,4 +277,3 @@ export default function MembersList() {
     </div>
   );
 }
-

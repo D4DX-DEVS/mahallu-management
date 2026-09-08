@@ -1,4 +1,4 @@
-import api from './api';
+import api, { asList } from './api';
 
 export interface ICounsellingCase {
   id: string;
@@ -83,7 +83,7 @@ export const getCounsellingCases = async (
   if (search) params.append('search', search);
 
   const response = await api.get(`/counselling-cases?${params.toString()}`);
-  return response.data;
+  return { ...response.data, data: asList(response.data?.data) };
 };
 
 export const getCounsellingCaseById = async (
@@ -138,12 +138,10 @@ export const getDisputeCases = async (
   if (search) params.append('search', search);
 
   const response = await api.get(`/dispute-cases?${params.toString()}`);
-  return response.data;
+  return { ...response.data, data: asList(response.data?.data) };
 };
 
-export const getDisputeCaseById = async (
-  id: string
-): Promise<{ success: boolean; data: IDisputeCase }> => {
+export const getDisputeCaseById = async (id: string): Promise<{ success: boolean; data: IDisputeCase }> => {
   const response = await api.get(`/dispute-cases/${id}`);
   return response.data;
 };
@@ -183,7 +181,7 @@ export const getInheritanceCases = async (
   if (search) params.append('search', search);
 
   const response = await api.get(`/inheritance-cases?${params.toString()}`);
-  return response.data;
+  return { ...response.data, data: asList(response.data?.data) };
 };
 
 export const getInheritanceCaseById = async (

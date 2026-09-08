@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -9,6 +8,22 @@ import SearchableSelect from '@/components/ui/SearchableSelect';
 import { welfareService, WelfareScheme } from '@/services/welfareService';
 import { familyService } from '@/services/familyService';
 import { toast } from '@/store/toastStore';
+import { errorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
+import { useFormValidation } from '@/hooks/useFormValidation';
+import { FieldRule, LIMITS } from '@/utils/validation';
+
+/**
+ * The same limits the API applies, so a form that passes here is not
+ * refused there. Required matches what each input already declares.
+ */
+const RULES: Record<string, FieldRule> = {
+  schemeId: { label: 'scheme', required: true, type: 'id' },
+  familyId: { label: 'family', type: 'id' },
+  requestedAmount: { label: 'requested amount', required: true, type: 'number', min: 1, max: LIMITS.amount.max },
+  priority: { label: 'priority', maxLength: LIMITS.shortText.max },
+  reason: { label: 'reason', maxLength: LIMITS.notes.max },
+};
 
 export default function ApplicationCreate() {
   const navigate = useNavigate();
@@ -23,6 +38,7 @@ export default function ApplicationCreate() {
     priority: 'medium',
     reason: '',
   });
+  const { errors, validate } = useFormValidation(RULES);
 
   useEffect(() => {
     welfareService
@@ -37,17 +53,8 @@ export default function ApplicationCreate() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const newErrors: Record<string, string> = {};
-    if (!form.schemeId) {
-      newErrors.schemeId = 'Scheme is required';
-    }
-    if (!form.requestedAmount) {
-      newErrors.requestedAmount = 'Requested amount is required';
-    }
-    if (Object.keys(newErrors).length > 0) {
-      setFieldErrors(newErrors);
-      return;
-    }
+    // Every field checked at once, each message on its own field.
+    if (!validate(form)) return;
     try {
       setSaving(true);
       const application = await welfareService.createApplication({
@@ -60,7 +67,7 @@ export default function ApplicationCreate() {
       toast.success('Application created');
       navigate(`/welfare/applications/${application.id}`);
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to create application');
+      toast.error(errorMessage(err, { action: 'create application' }));
     } finally {
       setSaving(false);
     }
@@ -68,32 +75,23 @@ export default function ApplicationCreate() {
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">New Welfare Application</h1>
-          <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-            Applications always start as pending and move through verification
-          </p>
-        </div>
-        <Breadcrumb
-          items={[
-            { label: 'Dashboard', path: '/dashboard' },
-            { label: 'Welfare', path: '/welfare/applications' },
-            { label: 'New' },
-          ]}
-        />
-      </div>
+      <PageHeader
+        title="New Welfare Application"
+        description="Applications always start as pending and move through verification"
+        breadcrumbs={[{ label: 'Welfare', path: '/welfare/applications' }]}
+      />
 
       <form onSubmit={handleSubmit}>
-        <Card className="p-3 sm:p-4">
+        <Card>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div>
               <Select
                 label="Scheme"
                 value={form.schemeId}
+                error={errors.schemeId}
                 onChange={(e) => {
                   setForm({ ...form, schemeId: e.target.value });
-                  if (fieldErrors.schemeId) {
+                  if (errors.schemeId) {
                     setFieldErrors({ ...fieldErrors, schemeId: '' });
                   }
                 }}
@@ -103,12 +101,15 @@ export default function ApplicationCreate() {
                 ]}
                 required
               />
-              {fieldErrors.schemeId && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{fieldErrors.schemeId}</p>}
+              {errors.schemeId && (
+                <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.schemeId}</p>
+              )}
             </div>
 
             <SearchableSelect
               label="Family"
               value={form.familyId}
+              error={errors.familyId}
               onChange={(value) => setForm({ ...form, familyId: value })}
               options={families.map((family: any) => ({
                 value: family._id || family.id,
@@ -122,20 +123,24 @@ export default function ApplicationCreate() {
                 label="Requested Amount"
                 type="number"
                 value={form.requestedAmount}
+                error={errors.requestedAmount}
                 onChange={(e) => {
                   setForm({ ...form, requestedAmount: e.target.value });
-                  if (fieldErrors.requestedAmount) {
+                  if (errors.requestedAmount) {
                     setFieldErrors({ ...fieldErrors, requestedAmount: '' });
                   }
                 }}
                 required
               />
-              {fieldErrors.requestedAmount && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{fieldErrors.requestedAmount}</p>}
+              {errors.requestedAmount && (
+                <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.requestedAmount}</p>
+              )}
             </div>
 
             <Select
               label="Priority"
               value={form.priority}
+              error={errors.priority}
               onChange={(e) => setForm({ ...form, priority: e.target.value })}
               options={[
                 { value: 'low', label: 'Low' },
@@ -149,6 +154,7 @@ export default function ApplicationCreate() {
               <Input
                 label="Reason"
                 value={form.reason}
+                error={errors.reason}
                 onChange={(e) => setForm({ ...form, reason: e.target.value })}
                 placeholder="Why is this assistance needed?"
               />

@@ -3,6 +3,7 @@ import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import { reportService, type AnnualReport as AnnualReportData } from '@/services/reportService';
 import { exportToPDF } from '@/utils/exportUtils';
+import PageHeader from '@/components/layout/PageHeader';
 
 const currentYear = new Date().getFullYear();
 const years = Array.from({ length: 6 }, (_, i) => currentYear - i);
@@ -11,7 +12,7 @@ const money = (n: number) => `₹${(n || 0).toLocaleString('en-IN')}`;
 
 function Stat({ label, value }: { label: string; value: string | number }) {
   return (
-    <Card className="p-3 sm:p-4">
+    <Card>
       <div className="text-xs sm:text-sm text-gray-600">{label}</div>
       <div className="text-base sm:text-xl font-bold">{value}</div>
     </Card>
@@ -22,7 +23,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   return (
     <div className="mb-6">
       <h2 className="text-lg font-semibold mb-3">{title}</h2>
-      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">{children}</div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">{children}</div>
     </div>
   );
 }
@@ -41,7 +42,7 @@ export default function AnnualReport() {
         if (!cancelled) setData(res);
       })
       .catch((error) => {
-        console.error('Failed to load annual report:', error);
+        console.error("Couldn't load annual report:", error);
         if (!cancelled) setData(null);
       })
       .finally(() => {
@@ -90,11 +91,12 @@ export default function AnnualReport() {
   };
 
   return (
-    <div className="p-4">
+    <div>
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
-        <h1 className="text-2xl font-bold">State of the Mahallu</h1>
+        <PageHeader title="State of the Mahallu" />
         <div className="flex items-center gap-2">
           <select
+            aria-label="Filter"
             value={year}
             onChange={(e) => setYear(Number(e.target.value))}
             className="border rounded-md px-3 py-2 text-sm"
@@ -112,7 +114,7 @@ export default function AnnualReport() {
       </div>
 
       {loading && <div>Loading...</div>}
-      {!loading && !data && <div>Failed to load report</div>}
+      {!loading && !data && <div>Couldn't load report</div>}
 
       {!loading && data && (
         <>

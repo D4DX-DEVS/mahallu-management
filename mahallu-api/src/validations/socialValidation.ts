@@ -5,35 +5,35 @@ export const createBannerValidation = [
   body('title')
     .trim()
     .notEmpty()
-    .withMessage('Banner title is required')
+    .withMessage('Please enter the banner title.')
     .isLength({ min: 2, max: 200 })
-    .withMessage('Banner title must be between 2 and 200 characters'),
+    .withMessage('Please keep the banner title between 2 and 200 characters.'),
   body('image')
     .trim()
     .notEmpty()
-    .withMessage('Banner image is required'),
+    .withMessage('Please enter the banner image.'),
   body('link').optional().trim(),
   body('status')
     .optional()
     .isIn(['active', 'inactive'])
-    .withMessage('Invalid status'),
+    .withMessage('Please choose a valid status.'),
   body('startDate')
     .optional()
     .isISO8601()
-    .withMessage('Start date must be a valid date'),
+    .withMessage('Please choose a valid start date.'),
   body('endDate')
     .optional()
     .isISO8601()
-    .withMessage('End date must be a valid date'),
+    .withMessage('Please choose a valid end date.'),
 ];
 
 export const updateBannerValidation = [
-  param('id').isMongoId().withMessage('Invalid banner ID'),
+  param('id').isMongoId().withMessage('Please select a valid banner.'),
   body('title')
     .optional()
     .trim()
     .isLength({ min: 2, max: 200 })
-    .withMessage('Banner title must be between 2 and 200 characters'),
+    .withMessage('Please keep the banner title between 2 and 200 characters.'),
   body('image')
     .optional()
     .trim()
@@ -43,19 +43,19 @@ export const updateBannerValidation = [
   body('status')
     .optional()
     .isIn(['active', 'inactive'])
-    .withMessage('Invalid status'),
+    .withMessage('Please choose a valid status.'),
   body('startDate')
     .optional()
     .isISO8601()
-    .withMessage('Start date must be a valid date'),
+    .withMessage('Please choose a valid start date.'),
   body('endDate')
     .optional()
     .isISO8601()
-    .withMessage('End date must be a valid date'),
+    .withMessage('Please choose a valid end date.'),
 ];
 
 export const bannerIdParamValidation = [
-  param('id').isMongoId().withMessage('Invalid banner ID'),
+  param('id').isMongoId().withMessage('Please select a valid banner.'),
 ];
 
 // Feed Validations
@@ -63,29 +63,29 @@ export const createFeedValidation = [
   body('title')
     .trim()
     .notEmpty()
-    .withMessage('Feed title is required')
+    .withMessage('Please enter the feed title.')
     .isLength({ min: 2, max: 200 })
-    .withMessage('Feed title must be between 2 and 200 characters'),
+    .withMessage('Please keep the feed title between 2 and 200 characters.'),
   body('content')
     .trim()
     .notEmpty()
-    .withMessage('Feed content is required')
+    .withMessage('Please enter the feed content.')
     .isLength({ min: 1 })
-    .withMessage('Feed content is required'),
+    .withMessage('Please enter the feed content.'),
   body('image').optional().trim(),
   body('authorId')
     .notEmpty()
-    .withMessage('Author ID is required')
+    .withMessage('Please enter the author ID.')
     .isMongoId()
-    .withMessage('Invalid author ID'),
+    .withMessage('Please select a valid author.'),
   body('isSuperFeed')
     .optional()
     .isBoolean()
-    .withMessage('isSuperFeed must be a boolean'),
+    .withMessage('Please choose yes or no for issuperfeed.'),
   body('status')
     .optional()
     .isIn(['draft', 'published', 'archived'])
-    .withMessage('Invalid status'),
+    .withMessage('Please choose a valid status.'),
 ];
 
 // Support Validations
@@ -93,31 +93,31 @@ export const createSupportValidation = [
   body('subject')
     .trim()
     .notEmpty()
-    .withMessage('Support subject is required')
+    .withMessage('Please enter the support subject.')
     .isLength({ min: 2, max: 200 })
-    .withMessage('Support subject must be between 2 and 200 characters'),
+    .withMessage('Please keep the support subject between 2 and 200 characters.'),
   body('message')
     .trim()
     .notEmpty()
-    .withMessage('Support message is required')
+    .withMessage('Please enter the support message.')
     .isLength({ min: 10 })
-    .withMessage('Support message must be at least 10 characters'),
+    .withMessage('Please use at least 10 characters for the support message.'),
   body('priority')
     .optional()
     .isIn(['low', 'medium', 'high'])
-    .withMessage('Invalid priority'),
+    .withMessage('Please choose a valid priority.'),
 ];
 
 export const updateSupportValidation = [
-  param('id').isMongoId().withMessage('Invalid support ID'),
+  param('id').isMongoId().withMessage('Please select a valid support.'),
   body('status')
     .optional()
     .isIn(['open', 'in_progress', 'resolved', 'closed'])
-    .withMessage('Invalid status'),
+    .withMessage('Please choose a valid status.'),
   body('priority')
     .optional()
     .isIn(['low', 'medium', 'high'])
-    .withMessage('Invalid priority'),
+    .withMessage('Please choose a valid priority.'),
   body('response').optional().trim(),
 ];
 

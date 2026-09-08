@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { FiEdit2, FiTrash2, FiX, FiEye, FiUsers, FiCheckCircle, FiXCircle } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
@@ -18,6 +17,9 @@ import { employeeService } from '@/services/employeeService';
 import { instituteService } from '@/services/instituteService';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useAuthStore } from '@/store/authStore';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
+import ActionsMenu from '@/components/ui/ActionsMenu';
 
 export default function EmployeesList() {
   const navigate = useNavigate();
@@ -70,7 +72,7 @@ export default function EmployeesList() {
       setEmployees(result.data);
       if (result.pagination) setPagination(result.pagination);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch employees');
+      setError(loadErrorMessage(err, 'employees'));
     } finally {
       setLoading(false);
     }
@@ -85,14 +87,13 @@ export default function EmployeesList() {
       setShowDeleteModal(false);
       setSelectedEmployee(null);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to delete employee');
+      setError(errorMessage(err, { action: 'delete employee' }));
     } finally {
       setDeleting(false);
     }
   };
 
   const columns: TableColumn<Employee>[] = [
-    { key: 'id', label: 'No.', render: (_, __, index) => index + 1 },
     { key: 'name', label: 'Name', sortable: true },
     { key: 'designation', label: 'Designation' },
     { key: 'department', label: 'Department' },
@@ -100,17 +101,21 @@ export default function EmployeesList() {
     {
       key: 'salary',
       label: 'Salary',
-      render: (salary) => salary ? `₹${Number(salary).toLocaleString()}` : '-',
+      render: (salary) => (salary ? `₹${Number(salary).toLocaleString()}` : '-'),
     },
     {
       key: 'status',
       label: 'Status',
       render: (status) => (
-        <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-          status === 'active' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-            : status === 'on_leave' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-            : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
-        }`}>
+        <span
+          className={`px-2 py-1 text-xs font-medium rounded-full ${
+            status === 'active'
+              ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+              : status === 'on_leave'
+                ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+                : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
+          }`}
+        >
           {status === 'on_leave' ? 'On Leave' : status || 'active'}
         </span>
       ),
@@ -119,39 +124,59 @@ export default function EmployeesList() {
       key: 'actions',
       label: 'Actions',
       render: (_, row) => (
-        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-          <button onClick={() => navigate(ROUTES.EMPLOYEES.DETAIL(row.id))} className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400" title="View">
-            <FiEye className="h-4 w-4" />
-          </button>
-          <button onClick={() => navigate(ROUTES.EMPLOYEES.EDIT(row.id))} className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400" title="Edit">
-            <FiEdit2 className="h-4 w-4" />
-          </button>
-          <button onClick={() => { setSelectedEmployee(row); setShowDeleteModal(true); }} className="p-1.5 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400" title="Delete">
-            <FiTrash2 className="h-4 w-4" />
-          </button>
-        </div>
+        <ActionsMenu
+          items={[
+            {
+              label: 'View',
+              icon: <FiEye className="h-4 w-4" />,
+              onClick: () => navigate(ROUTES.EMPLOYEES.DETAIL(row.id)),
+            },
+            {
+              label: 'Edit',
+              icon: <FiEdit2 className="h-4 w-4" />,
+              onClick: () => navigate(ROUTES.EMPLOYEES.EDIT(row.id)),
+            },
+            {
+              label: 'Delete',
+              icon: <FiTrash2 className="h-4 w-4" />,
+              onClick: () => {
+                setSelectedEmployee(row);
+                setShowDeleteModal(true);
+              },
+              variant: 'danger',
+            },
+          ]}
+        />
       ),
     },
   ];
 
   const stats = [
-    { title: 'Total Employees', value: pagination?.total || employees.length, icon: <FiUsers className="h-5 w-5" /> },
-    { title: 'Active', value: employees.filter(e => e.status === 'active' || !e.status).length, icon: <FiCheckCircle className="h-5 w-5" /> },
-    { title: 'Inactive/Left', value: employees.filter(e => e.status === 'resigned' || e.status === 'terminated').length, icon: <FiXCircle className="h-5 w-5" /> },
+    {
+      title: 'Total Employees',
+      value: pagination?.total || employees.length,
+      icon: <FiUsers className="h-5 w-5" />,
+    },
+    {
+      title: 'Active',
+      value: employees.filter((e) => e.status === 'active' || !e.status).length,
+      icon: <FiCheckCircle className="h-5 w-5" />,
+    },
+    {
+      title: 'Inactive/Left',
+      value: employees.filter((e) => e.status === 'resigned' || e.status === 'terminated').length,
+      icon: <FiXCircle className="h-5 w-5" />,
+    },
   ];
 
   return (
     <div className="space-y-4">
       <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Employees</h1>
-            <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">Manage institute employees</p>
-          </div>
-          <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Employees' }]} />
-        </div>
+        <PageHeader title="Employees" description="Manage institute employees" />
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          {stats.map((stat, index) => (<StatCard key={index} {...stat} />))}
+          {stats.map((stat, index) => (
+            <StatCard key={index} {...stat} />
+          ))}
         </div>
       </div>
 
@@ -171,11 +196,15 @@ export default function EmployeesList() {
         />
 
         {isFilterVisible && (
-          <div className="relative flex flex-wrap items-center gap-4 mb-6 p-4 border border-gray-200 rounded-lg bg-white dark:bg-gray-800 dark:border-gray-700">
-            <button onClick={() => setIsFilterVisible(false)} className="absolute right-4 top-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+          <div className="relative flex flex-wrap items-center gap-4 mb-6 p-4 border border-gray-200 rounded-lg max-sm:border-0 max-sm:bg-transparent max-sm:p-0 bg-white dark:bg-gray-800 dark:border-gray-700">
+            <button
+              onClick={() => setIsFilterVisible(false)}
+              className="absolute right-4 top-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              aria-label="Close"
+            >
               <FiX className="h-4 w-4" />
             </button>
-            <div className="w-40">
+            <div className="w-full sm:w-40">
               <Select
                 options={[
                   { value: 'all', label: 'All Status' },
@@ -189,11 +218,11 @@ export default function EmployeesList() {
               />
             </div>
             {!userInstituteId && (
-              <div className="w-48">
+              <div className="w-full sm:w-48">
                 <Select
                   options={[
                     { value: 'all', label: 'All Institutes' },
-                    ...institutes.map(i => ({ value: i.id, label: i.name })),
+                    ...institutes.map((i) => ({ value: i.id, label: i.name })),
                   ]}
                   value={instituteFilter}
                   onChange={(e) => setInstituteFilter(e.target.value)}
@@ -208,7 +237,9 @@ export default function EmployeesList() {
         ) : error ? (
           <div className="text-center py-12">
             <p className="text-red-600 dark:text-red-400">{error}</p>
-            <Button onClick={fetchEmployees} className="mt-4" variant="outline">Retry</Button>
+            <Button onClick={fetchEmployees} className="mt-4" variant="outline">
+              Retry
+            </Button>
           </div>
         ) : (
           <Table
@@ -235,17 +266,31 @@ export default function EmployeesList() {
 
       <Modal
         isOpen={showDeleteModal}
-        onClose={() => { setShowDeleteModal(false); setSelectedEmployee(null); }}
+        onClose={() => {
+          setShowDeleteModal(false);
+          setSelectedEmployee(null);
+        }}
         title="Delete Employee"
         footer={
           <>
-            <Button variant="outline" onClick={() => { setShowDeleteModal(false); setSelectedEmployee(null); }}>Cancel</Button>
-            <Button variant="danger" onClick={handleDelete} isLoading={deleting}>Delete</Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowDeleteModal(false);
+                setSelectedEmployee(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button variant="danger" onClick={handleDelete} isLoading={deleting}>
+              Delete
+            </Button>
           </>
         }
       >
         <p className="text-gray-600 dark:text-gray-400">
-          Are you sure you want to delete <strong>{selectedEmployee?.name}</strong>? This action cannot be undone.
+          Are you sure you want to delete <strong>{selectedEmployee?.name}</strong>? This action cannot be
+          undone.
         </p>
       </Modal>
     </div>

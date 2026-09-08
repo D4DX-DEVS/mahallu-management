@@ -52,7 +52,10 @@ export default function PhaseAInsights({ children }: PhaseAInsightsProps) {
   const [activeVolunteerCount, setActiveVolunteerCount] = useState(0);
 
   useEffect(() => {
-    registerService.getSummary().then(setRegisters).catch(() => setRegisters([]));
+    registerService
+      .getSummary()
+      .then(setRegisters)
+      .catch(() => setRegisters([]));
     surveyService
       .getStatus()
       .then((status) => setSurveyOverdue(status.isOverdue))
@@ -87,7 +90,7 @@ export default function PhaseAInsights({ children }: PhaseAInsightsProps) {
   return (
     <div className="space-y-3">
       {(surveyOverdue || expiringCommittees > 0) && (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {surveyOverdue && (
             <Link to="/survey">
               <Card className="border-l-4 border-amber-500 p-3">
@@ -123,7 +126,7 @@ export default function PhaseAInsights({ children }: PhaseAInsightsProps) {
               View all
             </Link>
           </div>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
             {topRegisters.map((row) => {
               const { icon, accent } = REGISTER_ICONS[row.key] || DEFAULT_REGISTER_ICON;
               return (

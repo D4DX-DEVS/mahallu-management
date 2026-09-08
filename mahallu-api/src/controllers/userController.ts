@@ -5,6 +5,9 @@ import bcrypt from 'bcryptjs';
 import { AuthRequest } from '../middleware/authMiddleware';
 import { getPaginationParams, createPaginationResponse } from '../utils/pagination';
 
+import { sendFailure } from '../utils/userMessages';
+import { regexLiteral } from '../utils/queryGuard';
+
 export const getAllUsers = async (req: AuthRequest, res: Response) => {
   try {
     const { role, status, search, tenantId } = req.query;
@@ -34,9 +37,9 @@ export const getAllUsers = async (req: AuthRequest, res: Response) => {
     }
     if (search) {
       query.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { phone: { $regex: search, $options: 'i' } },
-        { email: { $regex: search, $options: 'i' } },
+        { name: { $regex: regexLiteral(search), $options: 'i' } },
+        { phone: { $regex: regexLiteral(search), $options: 'i' } },
+        { email: { $regex: regexLiteral(search), $options: 'i' } },
       ];
     }
 
@@ -52,7 +55,7 @@ export const getAllUsers = async (req: AuthRequest, res: Response) => {
 
     res.json(createPaginationResponse(users, total, page, limit));
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the users right now. Please try again.');
   }
 };
 
@@ -60,11 +63,11 @@ export const getUserById = async (req: Request, res: Response) => {
   try {
     const user = await User.findById(req.params.id).select('-password');
     if (!user) {
-      return res.status(404).json({ success: false, message: 'User not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that user. It may have been removed." });
     }
     res.json({ success: true, data: user });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the user right now. Please try again.');
   }
 };
 
@@ -88,7 +91,7 @@ export const createUser = async (req: AuthRequest, res: Response) => {
         if (!tenantId) {
           return res.status(400).json({
             success: false,
-            message: 'Tenant ID is required when creating non-super-admin users',
+            message: 'Please select a Mahallu for this user.',
           });
         }
         finalTenantId = tenantId;
@@ -101,7 +104,7 @@ export const createUser = async (req: AuthRequest, res: Response) => {
       if (finalRole === 'super_admin') {
         return res.status(403).json({
           success: false,
-          message: 'Only super admin can create super admin users',
+          message: "You don't have permission to create this type of user.",
         });
       }
     }
@@ -111,7 +114,7 @@ export const createUser = async (req: AuthRequest, res: Response) => {
       if (!memberId) {
         return res.status(400).json({
           success: false,
-          message: 'Member ID is required for member users',
+          message: 'Please select a member for this account.',
         });
       }
 
@@ -121,7 +124,7 @@ export const createUser = async (req: AuthRequest, res: Response) => {
       if (!member) {
         return res.status(404).json({
           success: false,
-          message: 'Member not found',
+          message: "We couldn't find that member. It may have been removed.",
         });
       }
 
@@ -129,7 +132,7 @@ export const createUser = async (req: AuthRequest, res: Response) => {
       if (member.tenantId.toString() !== finalTenantId?.toString()) {
         return res.status(403).json({
           success: false,
-          message: 'Member does not belong to this tenant',
+          message: 'This member belongs to another Mahallu.',
         });
       }
 
@@ -138,7 +141,7 @@ export const createUser = async (req: AuthRequest, res: Response) => {
       if (!finalPhone) {
         return res.status(400).json({
           success: false,
-          message: 'Member phone number is required',
+          message: "Please enter the member's phone number.",
         });
       }
 
@@ -147,7 +150,7 @@ export const createUser = async (req: AuthRequest, res: Response) => {
       if (existingMemberUser) {
         return res.status(400).json({
           success: false,
-          message: 'Member user account already exists for this member',
+          message: 'This member already has a login account.',
         });
       }
 
@@ -156,7 +159,7 @@ export const createUser = async (req: AuthRequest, res: Response) => {
       if (existingUser) {
         return res.status(400).json({
           success: false,
-          message: 'User with this phone number already exists for this tenant',
+          message: 'An account with this phone number already exists in this Mahallu.',
         });
       }
 
@@ -193,7 +196,7 @@ export const createUser = async (req: AuthRequest, res: Response) => {
     if (finalRole === 'institute' && !instituteId) {
       return res.status(400).json({
         success: false,
-        message: 'Institute ID is required for institute users',
+        message: 'Please select an institute for this user.',
       });
     }
 
@@ -202,7 +205,7 @@ export const createUser = async (req: AuthRequest, res: Response) => {
     if (existingUser) {
       return res.status(400).json({
         success: false,
-        message: 'User with this phone number already exists for this tenant',
+        message: 'An account with this phone number already exists in this Mahallu.',
       });
     }
 
@@ -233,7 +236,7 @@ export const createUser = async (req: AuthRequest, res: Response) => {
       .populate('instituteId', 'name type');
     res.status(201).json({ success: true, data: userResponse });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t save the user. Please try again.');
   }
 };
 
@@ -247,12 +250,12 @@ export const updateUser = async (req: Request, res: Response) => {
     ).select('-password');
 
     if (!user) {
-      return res.status(404).json({ success: false, message: 'User not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that user. It may have been removed." });
     }
 
     res.json({ success: true, data: user });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t update the user. Please try again.');
   }
 };
 
@@ -263,13 +266,13 @@ export const updateUserStatus = async (req: Request, res: Response) => {
     if (!status || !['active', 'inactive'].includes(status)) {
       return res.status(400).json({
         success: false,
-        message: 'Valid status is required (active or inactive)',
+        message: 'Please choose either active or inactive.',
       });
     }
 
     const user = await User.findById(req.params.id);
     if (!user) {
-      return res.status(404).json({ success: false, message: 'User not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that user. It may have been removed." });
     }
 
     // Update user status
@@ -297,11 +300,11 @@ export const updateUserStatus = async (req: Request, res: Response) => {
     
     res.json({ 
       success: true, 
-      message: `User status updated to ${status} successfully`,
+      message: 'User status updated',
       data: updatedUser,
     });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t update the user status. Please try again.');
   }
 };
 
@@ -309,7 +312,7 @@ export const deleteUser = async (req: Request, res: Response) => {
   try {
     const user = await User.findById(req.params.id);
     if (!user) {
-      return res.status(404).json({ success: false, message: 'User not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that user. It may have been removed." });
     }
 
     // Update status to inactive instead of deleting
@@ -329,11 +332,11 @@ export const deleteUser = async (req: Request, res: Response) => {
     res.json({ 
       success: true, 
       message: user.role === 'member' 
-        ? 'Member user and linked member record status updated successfully' 
+        ? 'Member user and linked member record status updated' 
         : 'User status updated to inactive successfully' 
     });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t delete the user. Please try again.');
   }
 };
 

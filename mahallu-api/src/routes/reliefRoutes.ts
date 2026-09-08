@@ -10,6 +10,12 @@ import {
 } from '../controllers/reliefController';
 import { authMiddleware, allowRoles } from '../middleware/authMiddleware';
 import { tenantMiddleware, tenantFilter } from '../middleware/tenantMiddleware';
+import { validationHandler } from '../middleware/validationHandler';
+import { idParam, listQuery } from '../validations/common';
+import {
+  createReliefCaseValidation,
+  updateReliefCaseValidation,
+} from '../validations/moduleValidation';
 
 const router = express.Router();
 
@@ -34,7 +40,7 @@ router.use(tenantFilter);
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  */
-router.get('/summary', getReliefSummary);
+router.get('/summary', listQuery(), validationHandler, getReliefSummary);
 
 /**
  * @swagger
@@ -106,8 +112,8 @@ router.get('/summary', getReliefSummary);
  *       400:
  *         description: Referenced member or family belongs to another tenant
  */
-router.get('/cases', getAllReliefCases);
-router.post('/cases', allowRoles(['mahall', 'survey']), createReliefCase);
+router.get('/cases', listQuery(), validationHandler, getAllReliefCases);
+router.post('/cases', createReliefCaseValidation, validationHandler, allowRoles(['mahall', 'survey']), createReliefCase);
 
 /**
  * @swagger
@@ -189,9 +195,9 @@ router.post('/cases', allowRoles(['mahall', 'survey']), createReliefCase);
  *       404:
  *         description: Relief case not found
  */
-router.get('/cases/:id', getReliefCaseById);
-router.put('/cases/:id', allowRoles(['mahall']), updateReliefCase);
-router.delete('/cases/:id', allowRoles(['mahall']), deleteReliefCase);
+router.get('/cases/:id', idParam('id', 'relief case'), validationHandler, getReliefCaseById);
+router.put('/cases/:id', updateReliefCaseValidation, validationHandler, allowRoles(['mahall']), updateReliefCase);
+router.delete('/cases/:id', idParam('id', 'relief case'), validationHandler, allowRoles(['mahall']), deleteReliefCase);
 
 /**
  * @swagger
@@ -240,6 +246,6 @@ router.delete('/cases/:id', allowRoles(['mahall']), deleteReliefCase);
  *       404:
  *         description: Relief case not found
  */
-router.put('/cases/:id/status', allowRoles(['mahall']), updateReliefStatus);
+router.put('/cases/:id/status', idParam('id', 'relief case'), validationHandler, allowRoles(['mahall']), updateReliefStatus);
 
 export default router;

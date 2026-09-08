@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import { surveyService, SurveySnapshot, SurveyStats } from '@/services/surveyService';
+import { loadErrorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
 
 const STAT_LABELS: Array<{ key: keyof SurveyStats; label: string }> = [
   { key: 'totalHouseholds', label: 'Households' },
@@ -42,14 +43,12 @@ export default function SurveyDetail() {
         setSnapshot(data.snapshot);
         setPrevious(data.previous);
       })
-      .catch((err) => setError(err.response?.data?.message || 'Failed to load survey'))
+      .catch((err) => setError(loadErrorMessage(err, 'survey')))
       .finally(() => setLoading(false));
   }, [id]);
 
   if (loading) {
-    return (
-      <PageSkeleton variant="section" />
-    );
+    return <PageSkeleton variant="section" />;
   }
 
   if (error || !snapshot) {
@@ -69,33 +68,20 @@ export default function SurveyDetail() {
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">
-            {snapshot.type === 'comprehensive' ? 'Comprehensive Survey' : 'Annual Survey'}
-          </h1>
-          <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-            Taken {formatDate(snapshot.surveyDate)} &middot; next review {formatDate(snapshot.nextReviewDate)}
-            {isOverdue ? ' (overdue)' : ''}
-          </p>
-        </div>
-        <Breadcrumb
-          items={[
-            { label: 'Dashboard', path: '/dashboard' },
-            { label: 'Survey', path: '/survey' },
-            { label: formatDate(snapshot.surveyDate) },
-          ]}
-        />
-      </div>
+      <PageHeader
+        title={snapshot.type === 'comprehensive' ? 'Comprehensive Survey' : 'Annual Survey'}
+        description={`Taken ${formatDate(snapshot.surveyDate)} · next review ${formatDate(snapshot.nextReviewDate)}${isOverdue ? ' (overdue)' : ''}`}
+        breadcrumbs={[{ label: 'Survey', path: '/survey' }]}
+      />
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 xl:grid-cols-4">
         {STAT_LABELS.map(({ key, label }) => {
           const value = snapshot.stats?.[key] ?? 0;
           const before = previous?.stats?.[key];
           const delta = typeof before === 'number' ? value - before : null;
 
           return (
-            <Card key={key} className="p-3 sm:p-4">
+            <Card key={key}>
               <p className="text-xs font-medium leading-tight text-gray-500 dark:text-gray-400 sm:text-sm">
                 {label}
               </p>
@@ -103,7 +89,7 @@ export default function SurveyDetail() {
               {delta !== null && delta !== 0 && (
                 <p
                   className={[
-                    'mt-0.5 text-[0.65rem] sm:text-xs',
+                    'mt-0.5 text-xs sm:text-xs',
                     delta > 0 ? 'text-emerald-600' : 'text-red-600',
                   ].join(' ')}
                 >
@@ -117,7 +103,7 @@ export default function SurveyDetail() {
       </div>
 
       {snapshot.notes && (
-        <Card className="p-3 sm:p-4">
+        <Card>
           <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Notes</h2>
           <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">{snapshot.notes}</p>
         </Card>

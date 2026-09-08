@@ -6,6 +6,9 @@ import { AuthRequest } from '../middleware/authMiddleware';
 import { getPaginationParams, createPaginationResponse } from '../utils/pagination';
 import { stripImmutable, refBelongsToTenant } from '../utils/sanitizeUpdate';
 
+import { sendFailure } from '../utils/userMessages';
+import { regexLiteral } from '../utils/queryGuard';
+
 const tenantScope = (req: AuthRequest) => {
   if (req.tenantId) return req.tenantId;
   if (req.isSuperAdmin && req.query.tenantId) return req.query.tenantId as string;
@@ -56,7 +59,7 @@ export const getAllProjects = async (req: AuthRequest, res: Response) => {
     const query: any = scopedQuery(req);
     if (area) query.area = area;
     if (status) query.status = status;
-    if (search) query.name = { $regex: search, $options: 'i' };
+    if (search) query.name = { $regex: regexLiteral(search), $options: 'i' };
 
     const [data, total] = await Promise.all([
       DevelopmentProject.find(query)
@@ -68,7 +71,7 @@ export const getAllProjects = async (req: AuthRequest, res: Response) => {
     ]);
     res.json(createPaginationResponse(data, total, page, limit));
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the projects right now. Please try again.');
   }
 };
 
@@ -96,11 +99,11 @@ export const getProjectById = async (req: AuthRequest, res: Response) => {
   try {
     const project = await DevelopmentProject.findById(req.params.id).populate('committeeId', 'name');
     if (!project || (req.tenantId && project.tenantId.toString() !== req.tenantId)) {
-      return res.status(404).json({ success: false, message: 'Project not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that project. It may have been removed." });
     }
     res.json({ success: true, data: project });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the project right now. Please try again.');
   }
 };
 
@@ -151,11 +154,11 @@ export const getProjectById = async (req: AuthRequest, res: Response) => {
 export const createProject = async (req: AuthRequest, res: Response) => {
   try {
     const tenantId = tenantScope(req) || req.body.tenantId;
-    if (!tenantId) return res.status(400).json({ success: false, message: 'Tenant ID is required' });
+    if (!tenantId) return res.status(400).json({ success: false, message: 'Please select a Mahallu before continuing.' });
     const project = await DevelopmentProject.create({ ...req.body, tenantId });
     res.status(201).json({ success: true, data: project });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t save the project. Please try again.');
   }
 };
 
@@ -203,7 +206,7 @@ export const updateProject = async (req: AuthRequest, res: Response) => {
   try {
     const existing = await DevelopmentProject.findById(req.params.id);
     if (!existing || (req.tenantId && existing.tenantId.toString() !== req.tenantId)) {
-      return res.status(404).json({ success: false, message: 'Project not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that project. It may have been removed." });
     }
     const project = await DevelopmentProject.findByIdAndUpdate(req.params.id, stripImmutable(req.body), {
       new: true,
@@ -211,7 +214,7 @@ export const updateProject = async (req: AuthRequest, res: Response) => {
     }).populate('committeeId', 'name');
     res.json({ success: true, data: project });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t update the project. Please try again.');
   }
 };
 
@@ -239,12 +242,12 @@ export const deleteProject = async (req: AuthRequest, res: Response) => {
   try {
     const existing = await DevelopmentProject.findById(req.params.id);
     if (!existing || (req.tenantId && existing.tenantId.toString() !== req.tenantId)) {
-      return res.status(404).json({ success: false, message: 'Project not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that project. It may have been removed." });
     }
     await existing.deleteOne();
     res.json({ success: true, message: 'Project deleted' });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t delete the project. Please try again.');
   }
 };
 
@@ -284,7 +287,7 @@ export const getProjectExpenditure = async (req: AuthRequest, res: Response) => 
     // Verify project exists and belongs to tenant
     const project = await DevelopmentProject.findById(projectId);
     if (!project || (req.tenantId && project.tenantId.toString() !== req.tenantId)) {
-      return res.status(404).json({ success: false, message: 'Project not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that project. It may have been removed." });
     }
 
     const query = { projectId: new mongoose.Types.ObjectId(projectId), type: 'expense' };
@@ -313,6 +316,6 @@ export const getProjectExpenditure = async (req: AuthRequest, res: Response) => 
       },
     });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the project expenditure right now. Please try again.');
   }
 };

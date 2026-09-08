@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { FiEye, FiEdit2, FiX, FiFileText, FiClock, FiCheckCircle } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
@@ -16,6 +15,10 @@ import { registrationService, NikahRegistration } from '@/services/registrationS
 import { useDebounce } from '@/hooks/useDebounce';
 import { formatDate } from '@/utils/format';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
+import { loadErrorMessage } from '@/utils/errors';
+import StatusBadge from '@/components/ui/StatusBadge';
+import PageHeader from '@/components/layout/PageHeader';
+import ActionsMenu from '@/components/ui/ActionsMenu';
 
 export default function NikahRegistrationsList() {
   const navigate = useNavigate();
@@ -56,7 +59,7 @@ export default function NikahRegistrationsList() {
         setPagination(result.pagination);
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch nikah registrations');
+      setError(loadErrorMessage(err, 'nikah registrations'));
       console.error('Error fetching registrations:', err);
     } finally {
       setLoading(false);
@@ -66,11 +69,11 @@ export default function NikahRegistrationsList() {
   const handleExport = async (type: 'csv' | 'json' | 'pdf') => {
     try {
       setIsExporting(true);
-      
+
       const params: any = { limit: 10000 };
       if (debouncedSearch) params.search = debouncedSearch;
       if (statusFilter !== 'all') params.status = statusFilter;
-      
+
       const result = await registrationService.getAllNikah(params);
       const dataToExport = result.data;
 
@@ -95,14 +98,13 @@ export default function NikahRegistrationsList() {
       }
     } catch (error: any) {
       console.error('Export error:', error);
-      toast.error(error?.message || 'Failed to export nikah registrations');
+      toast.error(error?.message || "Couldn't export nikah registrations");
     } finally {
       setIsExporting(false);
     }
   };
 
   const columns: TableColumn<NikahRegistration>[] = [
-    { key: 'id', label: 'No.', render: (_, __, index) => index + 1 },
     { key: 'groomName', label: 'Groom', sortable: true },
     { key: 'brideName', label: 'Bride', sortable: true },
     {
@@ -114,50 +116,41 @@ export default function NikahRegistrationsList() {
       key: 'status',
       label: 'Status',
       render: (status) => {
-        const statusColors: Record<string, string> = {
-          pending: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
-          approved: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-          rejected: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
-        };
-        return (
-          <span className={`px-2 py-1 text-xs font-medium rounded-full ${statusColors[status || 'pending']}`}>
-            {status || 'pending'}
-          </span>
-        );
+        return <StatusBadge status={status} />;
       },
     },
     {
       key: 'actions',
       label: 'Actions',
       render: (_, row) => (
-        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(`/registrations/nikah/${row.id}`);
-            }}
-            className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
-            title="View"
-          >
-            <FiEye className="h-4 w-4" />
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(`/registrations/nikah/${row.id}/edit`);
-            }}
-            className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-blue-600 dark:text-blue-400 transition-colors"
-            title="Edit"
-          >
-            <FiEdit2 className="h-4 w-4" />
-          </button>
-        </div>
+        <ActionsMenu
+          items={[
+            {
+              label: 'View',
+              icon: <FiEye className="h-4 w-4" />,
+              onClick: () => {
+                navigate(`/registrations/nikah/${row.id}`);
+              },
+            },
+            {
+              label: 'Edit',
+              icon: <FiEdit2 className="h-4 w-4" />,
+              onClick: () => {
+                navigate(`/registrations/nikah/${row.id}/edit`);
+              },
+            },
+          ]}
+        />
       ),
     },
   ];
 
   const stats = [
-    { title: 'Total Registrations', value: pagination?.total || registrations.length, icon: <FiFileText className="h-5 w-5" /> },
+    {
+      title: 'Total Registrations',
+      value: pagination?.total || registrations.length,
+      icon: <FiFileText className="h-5 w-5" />,
+    },
     {
       title: 'Pending',
       value: registrations.filter((r) => r.status === 'pending' || !r.status).length,
@@ -173,13 +166,7 @@ export default function NikahRegistrationsList() {
   return (
     <div className="space-y-4">
       <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Nikah Registrations</h1>
-            <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">Manage nikah registrations</p>
-          </div>
-          <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Nikah Registrations' }]} />
-        </div>
+        <PageHeader title="Nikah Registrations" description="Manage nikah registrations" />
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           {stats.map((stat, index) => (
@@ -200,22 +187,21 @@ export default function NikahRegistrationsList() {
           isExporting={isExporting}
           actionButtons={
             <Link to="/registrations/nikah/create">
-              <Button size="md">
-                + New Registration
-              </Button>
+              <Button size="md">+ New Registration</Button>
             </Link>
           }
         />
 
         {isFilterVisible && (
-          <div className="relative flex flex-wrap items-center gap-4 mb-6 p-4 border border-gray-200 rounded-lg bg-white dark:bg-gray-800 dark:border-gray-700">
+          <div className="relative flex flex-wrap items-center gap-4 mb-6 p-4 border border-gray-200 rounded-lg max-sm:border-0 max-sm:bg-transparent max-sm:p-0 bg-white dark:bg-gray-800 dark:border-gray-700">
             <button
               onClick={() => setIsFilterVisible(false)}
               className="absolute right-4 top-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              aria-label="Close"
             >
               <FiX className="h-4 w-4" />
             </button>
-            <div className="w-40">
+            <div className="w-full sm:w-40">
               <Select
                 options={[
                   { value: 'all', label: 'All Status' },
@@ -267,4 +253,3 @@ export default function NikahRegistrationsList() {
     </div>
   );
 }
-

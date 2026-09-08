@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { FiEye, FiEdit2, FiUsers, FiCheckCircle, FiXCircle } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import StatCard from '@/components/ui/StatCard';
@@ -15,6 +14,9 @@ import { useDebounce } from '@/hooks/useDebounce';
 import { formatDate } from '@/utils/format';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
 import { toast } from '@/store/toastStore';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
+import ActionsMenu from '@/components/ui/ActionsMenu';
 
 export default function SurveyUsersList() {
   const navigate = useNavigate();
@@ -51,7 +53,7 @@ export default function SurveyUsersList() {
       setUsers(result.data || []);
       setPagination(result.pagination);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch survey users');
+      setError(loadErrorMessage(err, 'survey users'));
       console.error('Error fetching users:', err);
     } finally {
       setLoading(false);
@@ -61,10 +63,10 @@ export default function SurveyUsersList() {
   const handleExport = async (type: 'csv' | 'json' | 'pdf') => {
     try {
       setIsExporting(true);
-      
+
       const params: any = { role: 'survey', limit: 10000 };
       if (debouncedSearch) params.search = debouncedSearch;
-      
+
       const result = await userService.getAll(params);
       const dataToExport = result.data;
 
@@ -89,14 +91,13 @@ export default function SurveyUsersList() {
       }
     } catch (error: any) {
       console.error('Export error:', error);
-      toast.error(error?.response?.data?.message || 'Failed to export data');
+      toast.error(errorMessage(error, { action: 'export data' }));
     } finally {
       setIsExporting(false);
     }
   };
 
   const columns: TableColumn<User>[] = [
-    { key: 'id', label: 'No.', render: (_, __, index) => index + 1 },
     { key: 'name', label: 'Name', sortable: true },
     { key: 'phone', label: 'Phone' },
     { key: 'email', label: 'Email', render: (email) => email || '-' },
@@ -124,35 +125,35 @@ export default function SurveyUsersList() {
       key: 'actions',
       label: 'Actions',
       render: (_, row) => (
-        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(`/users/survey/${row.id}`);
-            }}
-            className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
-            title="View"
-          >
-            <FiEye className="h-4 w-4" />
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(`/users/survey/${row.id}/edit`);
-            }}
-            className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
-            title="Edit"
-          >
-            <FiEdit2 className="h-4 w-4" />
-          </button>
-        </div>
+        <ActionsMenu
+          items={[
+            {
+              label: 'View',
+              icon: <FiEye className="h-4 w-4" />,
+              onClick: () => {
+                navigate(`/users/survey/${row.id}`);
+              },
+            },
+            {
+              label: 'Edit',
+              icon: <FiEdit2 className="h-4 w-4" />,
+              onClick: () => {
+                navigate(`/users/survey/${row.id}/edit`);
+              },
+            },
+          ]}
+        />
       ),
     },
   ];
 
   const stats = [
     // ponytail: total comes from the server; Active/Inactive still count the current page
-    { title: 'Total Survey Users', value: pagination?.total ?? users.length, icon: <FiUsers className="h-5 w-5" /> },
+    {
+      title: 'Total Survey Users',
+      value: pagination?.total ?? users.length,
+      icon: <FiUsers className="h-5 w-5" />,
+    },
     {
       title: 'Active',
       value: users.filter((u) => u.status === 'active' || !u.status).length,
@@ -168,15 +169,9 @@ export default function SurveyUsersList() {
   return (
     <div className="space-y-4">
       <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Survey Users</h1>
-            <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">Manage survey users</p>
-          </div>
-          <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Survey Users' }]} />
-        </div>
+        <PageHeader title="Survey Users" description="Manage survey users" />
 
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           {stats.map((stat, index) => (
             <StatCard key={index} {...stat} />
           ))}
@@ -195,9 +190,7 @@ export default function SurveyUsersList() {
           isExporting={isExporting}
           actionButtons={
             <Link to="/users/survey/create">
-              <Button size="md">
-                + New Survey User
-              </Button>
+              <Button size="md">+ New Survey User</Button>
             </Link>
           }
         />
@@ -240,4 +233,3 @@ export default function SurveyUsersList() {
     </div>
   );
 }
-

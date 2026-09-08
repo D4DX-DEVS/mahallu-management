@@ -4,32 +4,32 @@ export const createNotificationValidation = [
   body('recipientId')
     .optional()
     .isMongoId()
-    .withMessage('Invalid recipient ID'),
+    .withMessage('Please select a valid recipient.'),
   body('recipientType')
     .isIn(['user', 'member', 'all'])
-    .withMessage('Invalid recipient type'),
+    .withMessage('Please choose a valid recipient type.'),
   body('title')
     .trim()
     .notEmpty()
-    .withMessage('Notification title is required')
+    .withMessage('Please enter the notification title.')
     .isLength({ min: 2, max: 200 })
-    .withMessage('Notification title must be between 2 and 200 characters'),
+    .withMessage('Please keep the notification title between 2 and 200 characters.'),
   body('titleMl').optional().trim(),
   body('message')
     .trim()
     .notEmpty()
-    .withMessage('Notification message is required')
+    .withMessage('Please enter the notification message.')
     .isLength({ min: 1 })
-    .withMessage('Notification message is required'),
+    .withMessage('Please enter the notification message.'),
   body('messageMl').optional().trim(),
   body('type')
     .optional()
     .isIn(['info', 'warning', 'success', 'error'])
-    .withMessage('Invalid notification type'),
+    .withMessage('Please choose a valid notification type.'),
   body('link').optional().trim(),
 ];
 
 export const markAsReadValidation = [
-  param('id').isMongoId().withMessage('Invalid notification ID'),
+  param('id').isMongoId().withMessage('Please select a valid notification.'),
 ];
 

@@ -17,9 +17,7 @@ export const KERALA_DISTRICTS = [
 ];
 
 // States (currently only Kerala)
-export const STATES = [
-  { value: 'Kerala', label: 'Kerala' },
-];
+export const STATES = [{ value: 'Kerala', label: 'Kerala' }];
 
 // District mapping by state (for future expansion)
 export const DISTRICTS_BY_STATE: Record<string, Array<{ value: string; label: string }>> = {
@@ -30,4 +28,3 @@ export const DISTRICTS_BY_STATE: Record<string, Array<{ value: string; label: st
 export const getDistrictsByState = (state: string): Array<{ value: string; label: string }> => {
   return DISTRICTS_BY_STATE[state] || [];
 };
-

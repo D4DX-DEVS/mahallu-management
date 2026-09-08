@@ -1,30 +1,43 @@
 import { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import { demographicsReportService, DemographicsReport as ReportData } from '@/services/reportService';
+import { loadErrorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
 
-const Section = ({ title, data }: { title: string; data: Array<{ label: string; count: number }> }) => (
-  <Card className="p-3 sm:p-4">
+const Section = ({ title, data }: { title: string; data: Array<{ label: string; count: number }> }) => {
+  // A report that comes back without one of its sections is a report with an
+  // empty section, not a broken page.
+  const rows = Array.isArray(data) ? data : [];
+  return (
+  <Card>
     <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">{title}</h2>
-    {data.length === 0 ? (
+    {rows.length === 0 ? (
       <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">No data</p>
     ) : (
       <div className="mt-2 h-56 w-full">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} margin={{ top: 4, right: 8, left: -20, bottom: 4 }}>
+          <BarChart data={rows} margin={{ top: 4, right: 8, left: -20, bottom: 4 }}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} />
-            <XAxis dataKey="label" tick={{ fontSize: 10 }} interval={0} angle={-20} textAnchor="end" height={50} />
+            <XAxis
+              dataKey="label"
+              tick={{ fontSize: 10 }}
+              interval={0}
+              angle={-20}
+              textAnchor="end"
+              height={50}
+            />
             <YAxis tick={{ fontSize: 10 }} allowDecimals={false} />
             <Tooltip />
-            <Bar dataKey="count" fill="#2563eb" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="count" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>
     )}
   </Card>
-);
+  );
+};
 
 export default function DemographicsReport() {
   const [report, setReport] = useState<ReportData | null>(null);
@@ -35,14 +48,12 @@ export default function DemographicsReport() {
     demographicsReportService
       .get()
       .then(setReport)
-      .catch((err) => setError(err.response?.data?.message || 'Failed to load report'))
+      .catch((err) => setError(loadErrorMessage(err, 'report')))
       .finally(() => setLoading(false));
   }, []);
 
   if (loading) {
-    return (
-      <PageSkeleton variant="section" />
-    );
+    return <PageSkeleton variant="section" />;
   }
 
   if (error || !report) {
@@ -65,21 +76,15 @@ export default function DemographicsReport() {
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">Demographics Report</h1>
-          <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-            Age, education, employment and welfare breakdown
-          </p>
-        </div>
-        <Breadcrumb
-          items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Reports' }, { label: 'Demographics' }]}
-        />
-      </div>
+      <PageHeader
+        title="Demographics Report"
+        description="Age, education, employment and welfare breakdown"
+        breadcrumbs={[{ label: 'Reports' }]}
+      />
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {totals.map((item) => (
-          <Card key={item.label} className="p-3 sm:p-4">
+          <Card key={item.label}>
             <p className="text-xs font-medium text-gray-500 dark:text-gray-400 sm:text-sm">{item.label}</p>
             <p className="mt-1 text-base font-bold text-gray-900 dark:text-gray-100 sm:text-xl">
               {item.value}

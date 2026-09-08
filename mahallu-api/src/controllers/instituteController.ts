@@ -4,6 +4,9 @@ import { AuthRequest } from '../middleware/authMiddleware';
 import { getPaginationParams, createPaginationResponse } from '../utils/pagination';
 import { verifyTenantOwnership } from '../utils/tenantCheck';
 
+import { sendFailure } from '../utils/userMessages';
+import { regexLiteral } from '../utils/queryGuard';
+
 export const getAllInstitutes = async (req: AuthRequest, res: Response) => {
   try {
     const { type, status, search, tenantId } = req.query;
@@ -21,8 +24,8 @@ export const getAllInstitutes = async (req: AuthRequest, res: Response) => {
     if (status) query.status = status;
     if (search) {
       query.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { place: { $regex: search, $options: 'i' } },
+        { name: { $regex: regexLiteral(search), $options: 'i' } },
+        { place: { $regex: regexLiteral(search), $options: 'i' } },
       ];
     }
 
@@ -33,7 +36,7 @@ export const getAllInstitutes = async (req: AuthRequest, res: Response) => {
 
     res.json(createPaginationResponse(institutes, total, page, limit));
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the institutes right now. Please try again.');
   }
 };
 
@@ -41,7 +44,7 @@ export const getInstituteById = async (req: AuthRequest, res: Response) => {
   try {
     const institute = await Institute.findById(req.params.id);
     if (!institute) {
-      return res.status(404).json({ success: false, message: 'Institute not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that institute. It may have been removed." });
     }
     
     // Verify tenant ownership
@@ -51,7 +54,7 @@ export const getInstituteById = async (req: AuthRequest, res: Response) => {
     
     res.json({ success: true, data: institute });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the institute right now. Please try again.');
   }
 };
 
@@ -65,7 +68,7 @@ export const createInstitute = async (req: AuthRequest, res: Response) => {
     if (!instituteData.tenantId && !req.isSuperAdmin) {
       return res.status(400).json({
         success: false,
-        message: 'Tenant ID is required',
+        message: 'Please select a Mahallu before continuing.',
       });
     }
 
@@ -73,7 +76,7 @@ export const createInstitute = async (req: AuthRequest, res: Response) => {
     await institute.save();
     res.status(201).json({ success: true, data: institute });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t save the institute. Please try again.');
   }
 };
 
@@ -82,7 +85,7 @@ export const updateInstitute = async (req: AuthRequest, res: Response) => {
     // First check if institute exists and belongs to tenant
     const existingInstitute = await Institute.findById(req.params.id);
     if (!existingInstitute) {
-      return res.status(404).json({ success: false, message: 'Institute not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that institute. It may have been removed." });
     }
     
     // Verify tenant ownership
@@ -96,11 +99,11 @@ export const updateInstitute = async (req: AuthRequest, res: Response) => {
       { new: true, runValidators: true }
     );
     if (!institute) {
-      return res.status(404).json({ success: false, message: 'Institute not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that institute. It may have been removed." });
     }
     res.json({ success: true, data: institute });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t update the institute. Please try again.');
   }
 };
 
@@ -109,7 +112,7 @@ export const deleteInstitute = async (req: AuthRequest, res: Response) => {
     // First check if institute exists and belongs to tenant
     const institute = await Institute.findById(req.params.id);
     if (!institute) {
-      return res.status(404).json({ success: false, message: 'Institute not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that institute. It may have been removed." });
     }
     
     // Verify tenant ownership
@@ -118,9 +121,9 @@ export const deleteInstitute = async (req: AuthRequest, res: Response) => {
     }
 
     await Institute.findByIdAndDelete(req.params.id);
-    res.json({ success: true, message: 'Institute deleted successfully' });
+    res.json({ success: true, message: 'Institute deleted' });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t delete the institute. Please try again.');
   }
 };
 

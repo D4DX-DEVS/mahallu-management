@@ -7,6 +7,12 @@ import {
 } from '../controllers/clusterController';
 import { authMiddleware, allowRoles } from '../middleware/authMiddleware';
 import { tenantMiddleware, tenantFilter } from '../middleware/tenantMiddleware';
+import { validationHandler } from '../middleware/validationHandler';
+import { idParam, listQuery } from '../validations/common';
+import {
+  createClusterVisitValidation,
+  updateClusterVisitValidation,
+} from '../validations/moduleValidation';
 
 const router = express.Router();
 
@@ -45,7 +51,7 @@ router.use(tenantFilter);
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  */
-router.get('/', getAllVisits);
+router.get('/', listQuery(), validationHandler, getAllVisits);
 
 /**
  * @swagger
@@ -82,7 +88,7 @@ router.get('/', getAllVisits);
  *       201:
  *         description: Created
  */
-router.post('/', allowRoles(['mahall', 'survey']), createVisit);
+router.post('/', createClusterVisitValidation, validationHandler, allowRoles(['mahall', 'survey']), createVisit);
 
 /**
  * @swagger
@@ -102,7 +108,7 @@ router.post('/', allowRoles(['mahall', 'survey']), createVisit);
  *       200:
  *         description: Updated
  */
-router.put('/:id', allowRoles(['mahall', 'survey']), updateVisit);
+router.put('/:id', updateClusterVisitValidation, validationHandler, allowRoles(['mahall', 'survey']), updateVisit);
 
 /**
  * @swagger
@@ -122,6 +128,6 @@ router.put('/:id', allowRoles(['mahall', 'survey']), updateVisit);
  *       200:
  *         description: Deleted
  */
-router.delete('/:id', allowRoles(['mahall']), deleteVisit);
+router.delete('/:id', idParam('id', 'visit'), validationHandler, allowRoles(['mahall']), deleteVisit);
 
 export default router;

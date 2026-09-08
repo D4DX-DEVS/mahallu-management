@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { FiEdit2, FiArrowLeft, FiTrash2 } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import { PageSkeleton } from '@/components/ui/Skeleton';
@@ -10,6 +9,8 @@ import { ROUTES } from '@/constants/routes';
 import { userService } from '@/services/userService';
 import { User } from '@/types';
 import { formatDate, formatDateTime } from '@/utils/format';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
 
 export default function UserDetail() {
   const { id } = useParams<{ id: string }>();
@@ -32,7 +33,7 @@ export default function UserDetail() {
       const data = await userService.getById(id!);
       setUser(data);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to load user');
+      setError(loadErrorMessage(err, 'user'));
     } finally {
       setLoading(false);
     }
@@ -45,15 +46,13 @@ export default function UserDetail() {
       await userService.delete(id);
       navigate(ROUTES.USERS.MAHALL);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to delete user');
+      setError(errorMessage(err, { action: 'delete user' }));
       setDeleting(false);
     }
   };
 
   if (loading) {
-    return (
-      <PageSkeleton />
-    );
+    return <PageSkeleton />;
   }
 
   if (error || !user) {
@@ -69,24 +68,14 @@ export default function UserDetail() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-            {user.name}
-          </h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            User Details
-          </p>
-        </div>
-        <div className="flex items-center gap-4">
-          <Breadcrumb
-            items={[
-              { label: 'Dashboard', path: '/dashboard' },
-              { label: 'Mahall Users', path: ROUTES.USERS.MAHALL },
-              { label: user.name },
-            ]}
+      <div className="flex flex-wrap gap-2 items-center justify-between">
+        <div className="flex flex-wrap items-center gap-4">
+          <PageHeader
+            description="User Details"
+            title={user.name}
+            breadcrumbs={[{ label: 'Mahall Users', path: ROUTES.USERS.MAHALL }]}
           />
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Link to={ROUTES.USERS.EDIT_MAHALL(user.id)}>
               <Button variant="outline">
                 <FiEdit2 className="h-4 w-4 mr-2" />
@@ -103,9 +92,7 @@ export default function UserDetail() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card>
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
-            Basic Information
-          </h2>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Basic Information</h2>
           <div className="space-y-3">
             <div>
               <span className="text-sm text-gray-500 dark:text-gray-400">Name</span>
@@ -166,33 +153,23 @@ export default function UserDetail() {
 
         {user.permissions && (
           <Card className="md:col-span-2">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
-              Permissions
-            </h2>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Permissions</h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div>
                 <span className="text-sm text-gray-500 dark:text-gray-400">View</span>
-                <p className="text-gray-900 dark:text-gray-100">
-                  {user.permissions.view ? 'Yes' : 'No'}
-                </p>
+                <p className="text-gray-900 dark:text-gray-100">{user.permissions.view ? 'Yes' : 'No'}</p>
               </div>
               <div>
                 <span className="text-sm text-gray-500 dark:text-gray-400">Add</span>
-                <p className="text-gray-900 dark:text-gray-100">
-                  {user.permissions.add ? 'Yes' : 'No'}
-                </p>
+                <p className="text-gray-900 dark:text-gray-100">{user.permissions.add ? 'Yes' : 'No'}</p>
               </div>
               <div>
                 <span className="text-sm text-gray-500 dark:text-gray-400">Edit</span>
-                <p className="text-gray-900 dark:text-gray-100">
-                  {user.permissions.edit ? 'Yes' : 'No'}
-                </p>
+                <p className="text-gray-900 dark:text-gray-100">{user.permissions.edit ? 'Yes' : 'No'}</p>
               </div>
               <div>
                 <span className="text-sm text-gray-500 dark:text-gray-400">Delete</span>
-                <p className="text-gray-900 dark:text-gray-100">
-                  {user.permissions.delete ? 'Yes' : 'No'}
-                </p>
+                <p className="text-gray-900 dark:text-gray-100">{user.permissions.delete ? 'Yes' : 'No'}</p>
               </div>
             </div>
           </Card>
@@ -221,4 +198,3 @@ export default function UserDetail() {
     </div>
   );
 }
-

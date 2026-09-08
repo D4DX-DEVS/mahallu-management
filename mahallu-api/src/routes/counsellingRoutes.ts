@@ -20,6 +20,16 @@ import {
 import { authMiddleware, allowRoles } from '../middleware/authMiddleware';
 import { tenantMiddleware, tenantFilter } from '../middleware/tenantMiddleware';
 import { sensitiveAccess } from '../middleware/sensitiveAccess';
+import { validationHandler } from '../middleware/validationHandler';
+import { idParam, listQuery } from '../validations/common';
+import {
+  createCounsellingCaseValidation,
+  createDisputeCaseValidation,
+  createInheritanceCaseValidation,
+  updateCounsellingCaseValidation,
+  updateDisputeCaseValidation,
+  updateInheritanceCaseValidation,
+} from '../validations/moduleValidation';
 
 /**
  * Counselling Routes — all behind sensitiveAccess middleware
@@ -65,7 +75,7 @@ counsellingRouter.use(
  *         name: search
  *         type: string
  */
-counsellingRouter.get('/counselling-cases', getAllCounsellingCases);
+counsellingRouter.get('/counselling-cases', listQuery(), validationHandler, getAllCounsellingCases);
 
 /**
  * @swagger
@@ -74,7 +84,7 @@ counsellingRouter.get('/counselling-cases', getAllCounsellingCases);
  *     summary: Create a new counselling case
  *     tags: [Counselling]
  */
-counsellingRouter.post('/counselling-cases', allowRoles(['mahall', 'super_admin']), createCounsellingCase);
+counsellingRouter.post('/counselling-cases', createCounsellingCaseValidation, validationHandler, allowRoles(['mahall', 'super_admin']), createCounsellingCase);
 
 /**
  * @swagger
@@ -83,7 +93,7 @@ counsellingRouter.post('/counselling-cases', allowRoles(['mahall', 'super_admin'
  *     summary: Get a counselling case by ID
  *     tags: [Counselling]
  */
-counsellingRouter.get('/counselling-cases/:id', getCounsellingCaseById);
+counsellingRouter.get('/counselling-cases/:id', idParam('id', 'case'), validationHandler, getCounsellingCaseById);
 
 /**
  * @swagger
@@ -92,7 +102,7 @@ counsellingRouter.get('/counselling-cases/:id', getCounsellingCaseById);
  *     summary: Update a counselling case
  *     tags: [Counselling]
  */
-counsellingRouter.put('/counselling-cases/:id', allowRoles(['mahall', 'super_admin']), updateCounsellingCase);
+counsellingRouter.put('/counselling-cases/:id', updateCounsellingCaseValidation, validationHandler, allowRoles(['mahall', 'super_admin']), updateCounsellingCase);
 
 /**
  * @swagger
@@ -101,7 +111,7 @@ counsellingRouter.put('/counselling-cases/:id', allowRoles(['mahall', 'super_adm
  *     summary: Delete a counselling case
  *     tags: [Counselling]
  */
-counsellingRouter.delete('/counselling-cases/:id', allowRoles(['mahall', 'super_admin']), deleteCounsellingCase);
+counsellingRouter.delete('/counselling-cases/:id', idParam('id', 'case'), validationHandler, allowRoles(['mahall', 'super_admin']), deleteCounsellingCase);
 
 /**
  * @swagger
@@ -110,7 +120,7 @@ counsellingRouter.delete('/counselling-cases/:id', allowRoles(['mahall', 'super_
  *     summary: Add a session note to a counselling case
  *     tags: [Counselling]
  */
-counsellingRouter.post('/counselling-cases/:id/notes', allowRoles(['mahall', 'super_admin']), addCounsellingNote);
+counsellingRouter.post('/counselling-cases/:id/notes', idParam('id', 'case'), validationHandler, allowRoles(['mahall', 'super_admin']), addCounsellingNote);
 
 // ====== DISPUTE CASES (MASLAHAT) ======
 
@@ -130,7 +140,7 @@ disputeRouter.use(
  *     summary: Get all dispute cases (paginated)
  *     tags: [Maslahat]
  */
-disputeRouter.get('/dispute-cases', getAllDisputeCases);
+disputeRouter.get('/dispute-cases', listQuery(), validationHandler, getAllDisputeCases);
 
 /**
  * @swagger
@@ -139,7 +149,7 @@ disputeRouter.get('/dispute-cases', getAllDisputeCases);
  *     summary: Create a new dispute case
  *     tags: [Maslahat]
  */
-disputeRouter.post('/dispute-cases', allowRoles(['mahall', 'super_admin']), createDisputeCase);
+disputeRouter.post('/dispute-cases', createDisputeCaseValidation, validationHandler, allowRoles(['mahall', 'super_admin']), createDisputeCase);
 
 /**
  * @swagger
@@ -148,7 +158,7 @@ disputeRouter.post('/dispute-cases', allowRoles(['mahall', 'super_admin']), crea
  *     summary: Get a dispute case by ID
  *     tags: [Maslahat]
  */
-disputeRouter.get('/dispute-cases/:id', getDisputeCaseById);
+disputeRouter.get('/dispute-cases/:id', idParam('id', 'case'), validationHandler, getDisputeCaseById);
 
 /**
  * @swagger
@@ -157,7 +167,7 @@ disputeRouter.get('/dispute-cases/:id', getDisputeCaseById);
  *     summary: Update a dispute case
  *     tags: [Maslahat]
  */
-disputeRouter.put('/dispute-cases/:id', allowRoles(['mahall', 'super_admin']), updateDisputeCase);
+disputeRouter.put('/dispute-cases/:id', updateDisputeCaseValidation, validationHandler, allowRoles(['mahall', 'super_admin']), updateDisputeCase);
 
 /**
  * @swagger
@@ -166,7 +176,7 @@ disputeRouter.put('/dispute-cases/:id', allowRoles(['mahall', 'super_admin']), u
  *     summary: Delete a dispute case
  *     tags: [Maslahat]
  */
-disputeRouter.delete('/dispute-cases/:id', allowRoles(['mahall', 'super_admin']), deleteDisputeCase);
+disputeRouter.delete('/dispute-cases/:id', idParam('id', 'case'), validationHandler, allowRoles(['mahall', 'super_admin']), deleteDisputeCase);
 
 // ====== INHERITANCE CASES ======
 
@@ -186,7 +196,7 @@ inheritanceRouter.use(
  *     summary: Get all inheritance cases (paginated)
  *     tags: [Inheritance]
  */
-inheritanceRouter.get('/inheritance-cases', getAllInheritanceCases);
+inheritanceRouter.get('/inheritance-cases', listQuery(), validationHandler, getAllInheritanceCases);
 
 /**
  * @swagger
@@ -195,7 +205,7 @@ inheritanceRouter.get('/inheritance-cases', getAllInheritanceCases);
  *     summary: Create a new inheritance case
  *     tags: [Inheritance]
  */
-inheritanceRouter.post('/inheritance-cases', allowRoles(['mahall', 'super_admin']), createInheritanceCase);
+inheritanceRouter.post('/inheritance-cases', createInheritanceCaseValidation, validationHandler, allowRoles(['mahall', 'super_admin']), createInheritanceCase);
 
 /**
  * @swagger
@@ -204,7 +214,7 @@ inheritanceRouter.post('/inheritance-cases', allowRoles(['mahall', 'super_admin'
  *     summary: Get an inheritance case by ID
  *     tags: [Inheritance]
  */
-inheritanceRouter.get('/inheritance-cases/:id', getInheritanceCaseById);
+inheritanceRouter.get('/inheritance-cases/:id', idParam('id', 'case'), validationHandler, getInheritanceCaseById);
 
 /**
  * @swagger
@@ -213,7 +223,7 @@ inheritanceRouter.get('/inheritance-cases/:id', getInheritanceCaseById);
  *     summary: Update an inheritance case
  *     tags: [Inheritance]
  */
-inheritanceRouter.put('/inheritance-cases/:id', allowRoles(['mahall', 'super_admin']), updateInheritanceCase);
+inheritanceRouter.put('/inheritance-cases/:id', updateInheritanceCaseValidation, validationHandler, allowRoles(['mahall', 'super_admin']), updateInheritanceCase);
 
 /**
  * @swagger
@@ -222,7 +232,7 @@ inheritanceRouter.put('/inheritance-cases/:id', allowRoles(['mahall', 'super_adm
  *     summary: Delete an inheritance case
  *     tags: [Inheritance]
  */
-inheritanceRouter.delete('/inheritance-cases/:id', allowRoles(['mahall', 'super_admin']), deleteInheritanceCase);
+inheritanceRouter.delete('/inheritance-cases/:id', idParam('id', 'case'), validationHandler, allowRoles(['mahall', 'super_admin']), deleteInheritanceCase);
 
 export { counsellingRouter, disputeRouter, inheritanceRouter };
 export default Router();

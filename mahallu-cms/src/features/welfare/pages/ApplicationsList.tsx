@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
@@ -10,6 +9,8 @@ import EmptyState from '@/components/ui/EmptyState';
 import Pagination from '@/components/ui/Pagination';
 import { Pagination as PaginationType, TableColumn } from '@/types';
 import { welfareService, WelfareApplication, WelfareSummary, WelfareScheme } from '@/services/welfareService';
+import { loadErrorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
 
 const STATUS_TABS = [
   { value: '', label: 'All' },
@@ -39,8 +40,12 @@ export default function ApplicationsList() {
   }, [statusFilter, schemeFilter, currentPage]);
 
   useEffect(() => {
-    welfareService.getSummary().then(setSummary).catch(() => setSummary(null));
-    welfareService.getSchemes({ page: 1, limit: 100, status: 'active' })
+    welfareService
+      .getSummary()
+      .then(setSummary)
+      .catch(() => setSummary(null));
+    welfareService
+      .getSchemes({ page: 1, limit: 100, status: 'active' })
       .then((result) => setSchemes(result.data))
       .catch(() => setSchemes([]));
   }, []);
@@ -56,7 +61,7 @@ export default function ApplicationsList() {
       setRows(result.data);
       setPagination(result.pagination);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to load applications');
+      setError(loadErrorMessage(err, 'applications'));
     } finally {
       setLoading(false);
     }
@@ -80,19 +85,11 @@ export default function ApplicationsList() {
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">Welfare Applications</h1>
-          <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-            Assistance requests and their approval trail
-          </p>
-        </div>
-        <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Welfare' }]} />
-      </div>
+      <PageHeader title="Welfare Applications" description="Assistance requests and their approval trail" />
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {summaryCards.map((card) => (
-          <Card key={card.label} className="p-3 sm:p-4">
+          <Card key={card.label}>
             <p className="text-xs font-medium text-gray-500 dark:text-gray-400 sm:text-sm">{card.label}</p>
             <p className="mt-1 text-base font-bold text-gray-900 dark:text-gray-100 sm:text-xl">
               {card.value}

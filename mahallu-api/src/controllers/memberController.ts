@@ -7,6 +7,30 @@ import { AuthRequest } from '../middleware/authMiddleware';
 import { getPaginationParams, createPaginationResponse } from '../utils/pagination';
 import { verifyTenantOwnership } from '../utils/tenantCheck';
 import { refBelongsToTenant } from '../utils/sanitizeUpdate';
+import { calculateAge } from '../utils/age';
+import { sendFailure } from '../utils/userMessages';
+import { regexLiteral } from '../utils/queryGuard';
+
+/**
+ * Keeps the conditional companion fields honest: a relationship that is no
+ * longer 'other' and a health status back to 'healthy' must not keep dragging
+ * their old free-text along, and a supplied date of birth wins over any age
+ * the client sent. Only touches keys the payload actually carries, so partial
+ * updates stay partial.
+ */
+const normalizeMemberFields = (data: Record<string, any>) => {
+  if ('relationship' in data && data.relationship !== 'other') {
+    data.relationshipOther = '';
+  }
+  if ('healthStatus' in data && (!data.healthStatus || data.healthStatus === 'healthy')) {
+    data.healthNotes = '';
+  }
+  if (data.dateOfBirth) {
+    const derived = calculateAge(data.dateOfBirth);
+    if (derived !== undefined) data.age = derived;
+  }
+  return data;
+};
 
 export const getAllMembers = async (req: AuthRequest, res: Response) => {
   try {
@@ -45,10 +69,10 @@ export const getAllMembers = async (req: AuthRequest, res: Response) => {
     }
     if (search) {
       query.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { mahallId: { $regex: search, $options: 'i' } },
-        { familyName: { $regex: search, $options: 'i' } },
-        { phone: { $regex: search, $options: 'i' } },
+        { name: { $regex: regexLiteral(search), $options: 'i' } },
+        { mahallId: { $regex: regexLiteral(search), $options: 'i' } },
+        { familyName: { $regex: regexLiteral(search), $options: 'i' } },
+        { phone: { $regex: regexLiteral(search), $options: 'i' } },
       ];
     }
 
@@ -68,7 +92,7 @@ export const getAllMembers = async (req: AuthRequest, res: Response) => {
 
     res.json(createPaginationResponse(members, total, page, limit));
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the members right now. Please try again.');
   }
 };
 
@@ -76,7 +100,7 @@ export const getMemberById = async (req: AuthRequest, res: Response) => {
   try {
     const member = await Member.findById(req.params.id).populate('familyId', 'houseName mahallId');
     if (!member) {
-      return res.status(404).json({ success: false, message: 'Member not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that member. It may have been removed." });
     }
     
     // Verify tenant ownership
@@ -86,13 +110,14 @@ export const getMemberById = async (req: AuthRequest, res: Response) => {
     
     res.json({ success: true, data: member });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the member right now. Please try again.');
   }
 };
 
 export const createMember = async (req: AuthRequest, res: Response) => {
   try {
-    const { familyId, familyName, ...memberData } = req.body;
+    const { familyId, familyName, ...rest } = req.body;
+    const memberData = normalizeMemberFields(rest);
 
     // Ensure tenantId is set
     const finalTenantId = req.tenantId || req.body.tenantId;
@@ -100,7 +125,7 @@ export const createMember = async (req: AuthRequest, res: Response) => {
     if (!finalTenantId && !req.isSuperAdmin) {
       return res.status(400).json({
         success: false,
-        message: 'Tenant ID is required',
+        message: 'Please select a Mahallu before continuing.',
       });
     }
 
@@ -111,7 +136,7 @@ export const createMember = async (req: AuthRequest, res: Response) => {
       if (!family) {
         return res.status(404).json({
           success: false,
-          message: 'Family not found',
+          message: "We couldn't find that family. It may have been removed.",
         });
       }
 
@@ -119,7 +144,7 @@ export const createMember = async (req: AuthRequest, res: Response) => {
       if (family.tenantId.toString() !== finalTenantId) {
         return res.status(403).json({
           success: false,
-          message: 'Family does not belong to this tenant',
+          message: 'This family belongs to another Mahallu.',
         });
       }
 
@@ -147,7 +172,7 @@ export const createMember = async (req: AuthRequest, res: Response) => {
     if (!familyName) {
       return res.status(400).json({
         success: false,
-        message: 'Family name is required',
+        message: 'Please enter the family name.',
       });
     }
 
@@ -169,7 +194,7 @@ export const createMember = async (req: AuthRequest, res: Response) => {
       if (existingMemberUser) {
         return res.status(400).json({
           success: false,
-          message: 'A member with this phone number already exists for this tenant. Use a different phone number.',
+          message: 'A member with this phone number already exists in this Mahallu. Please use a different number.',
         });
       }
     }
@@ -225,7 +250,7 @@ export const createMember = async (req: AuthRequest, res: Response) => {
       memberUserMessage,
     });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t save the member. Please try again.');
   }
 };
 
@@ -234,7 +259,7 @@ export const updateMember = async (req: AuthRequest, res: Response) => {
     // First check if member exists and belongs to tenant
     const existingMember = await Member.findById(req.params.id);
     if (!existingMember) {
-      return res.status(404).json({ success: false, message: 'Member not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that member. It may have been removed." });
     }
     
     // Verify tenant ownership
@@ -242,7 +267,8 @@ export const updateMember = async (req: AuthRequest, res: Response) => {
       return;
     }
 
-    const { familyId, familyName, ...updateData } = req.body;
+    const { familyId, familyName, ...rest } = req.body;
+    const updateData = normalizeMemberFields(rest);
 
     // If familyId is being updated, verify the family exists and belongs to same tenant
     if (familyId) {
@@ -250,7 +276,7 @@ export const updateMember = async (req: AuthRequest, res: Response) => {
       if (!family) {
         return res.status(404).json({
           success: false,
-          message: 'Family not found',
+          message: "We couldn't find that family. It may have been removed.",
         });
       }
 
@@ -272,12 +298,12 @@ export const updateMember = async (req: AuthRequest, res: Response) => {
     ).populate('familyId', 'houseName mahallId');
 
     if (!member) {
-      return res.status(404).json({ success: false, message: 'Member not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that member. It may have been removed." });
     }
 
     res.json({ success: true, data: member });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t update the member. Please try again.');
   }
 };
 
@@ -288,14 +314,14 @@ export const updateMemberStatus = async (req: AuthRequest, res: Response) => {
     if (!status || !['active', 'inactive', 'deleted'].includes(status)) {
       return res.status(400).json({
         success: false,
-        message: 'Valid status is required (active, inactive, or deleted)',
+        message: 'Please choose active, inactive or deleted.',
       });
     }
 
     // First check if member exists and belongs to tenant
     const member = await Member.findById(req.params.id);
     if (!member) {
-      return res.status(404).json({ success: false, message: 'Member not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that member. It may have been removed." });
     }
     
     // Verify tenant ownership
@@ -330,11 +356,11 @@ export const updateMemberStatus = async (req: AuthRequest, res: Response) => {
     
     res.json({ 
       success: true, 
-      message: `Member status updated to ${status} successfully`,
+      message: 'Member status updated',
       data: updatedMember,
     });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t update the member status. Please try again.');
   }
 };
 
@@ -343,7 +369,7 @@ export const deleteMember = async (req: AuthRequest, res: Response) => {
     // First check if member exists and belongs to tenant
     const member = await Member.findById(req.params.id);
     if (!member) {
-      return res.status(404).json({ success: false, message: 'Member not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that member. It may have been removed." });
     }
     
     // Verify tenant ownership
@@ -365,10 +391,10 @@ export const deleteMember = async (req: AuthRequest, res: Response) => {
     
     res.json({ 
       success: true, 
-      message: 'Member status updated to deleted successfully' 
+      message: 'Member marked as deleted' 
     });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t delete the member. Please try again.');
   }
 };
 
@@ -395,7 +421,7 @@ export const getMembersByFamily = async (req: Request, res: Response) => {
       .sort({ createdAt: -1 });
     res.json({ success: true, data: members });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the members right now. Please try again.');
   }
 };
 
@@ -405,26 +431,26 @@ export const bulkImportMembers = async (req: AuthRequest, res: Response) => {
     const { familyId, members } = req.body;
 
     if (!familyId) {
-      return res.status(400).json({ success: false, message: 'familyId is required' });
+      return res.status(400).json({ success: false, message: 'Please select a family.' });
     }
 
     if (!Array.isArray(members) || members.length === 0) {
-      return res.status(400).json({ success: false, message: 'members array is required' });
+      return res.status(400).json({ success: false, message: 'Please add at least one member.' });
     }
 
     if (members.length > 500) {
-      return res.status(400).json({ success: false, message: 'Maximum 500 members per import' });
+      return res.status(400).json({ success: false, message: 'You can import up to 500 members at a time. Please split the file.' });
     }
 
     // Verify family exists and belongs to tenant
     const familyBelongs = await refBelongsToTenant(Family, familyId, req.tenantId);
     if (!familyBelongs) {
-      return res.status(403).json({ success: false, message: 'Family does not belong to this tenant or does not exist' });
+      return res.status(403).json({ success: false, message: "We couldn't find that family in this Mahallu." });
     }
 
     const family = await Family.findById(familyId).select('houseName mahallId').lean();
     if (!family) {
-      return res.status(404).json({ success: false, message: 'Family not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that family. It may have been removed." });
     }
 
     const errors: { row: number; message: string }[] = [];
@@ -435,7 +461,7 @@ export const bulkImportMembers = async (req: AuthRequest, res: Response) => {
 
     members.forEach((m: any, i: number) => {
       if (!m.name || typeof m.name !== 'string' || !m.name.trim()) {
-        errors.push({ row: i + 1, message: 'name is required' });
+        errors.push({ row: i + 1, message: 'Please enter a name.' });
         return;
       }
 
@@ -458,13 +484,13 @@ export const bulkImportMembers = async (req: AuthRequest, res: Response) => {
     });
 
     if (errors.length) {
-      return res.status(400).json({ success: false, message: 'Validation failed', errors });
+      return res.status(400).json({ success: false, message: 'Some details are missing or incorrect. Please check the form and try again.', errors });
     }
 
     const created = await Member.insertMany(docs);
     res.status(201).json({ success: true, data: { imported: created.length } });
   } catch (error: any) {
-    res.status(400).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t import the members. Please try again.', 400);
   }
 };
 

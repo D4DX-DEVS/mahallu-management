@@ -11,6 +11,15 @@ import { VolunteerProfile } from '../models/VolunteerProfile';
 import Institute from '../models/Institute';
 import Announcement from '../models/Announcement';
 
+import { sendFailure } from '../utils/userMessages';
+
+/**
+ * Every member-facing report counts living people only. Kept in one place so
+ * the reports cannot drift apart from each other - and from the family stat
+ * cards, survey and registers, which apply the same rule.
+ */
+const LIVE_MEMBER = { status: { $nin: ['inactive', 'deleted'] }, isDead: { $ne: true } };
+
 export const getAreaReport = async (req: AuthRequest, res: Response) => {
   try {
     const { area, tenantId } = req.query;
@@ -27,10 +36,7 @@ export const getAreaReport = async (req: AuthRequest, res: Response) => {
 
     const families = await Family.find(query);
     const familyIds = families.map((f) => f._id);
-    const members = await Member.find({
-      familyId: { $in: familyIds },
-      status: { $nin: ['inactive', 'deleted'] },
-    });
+    const members = await Member.find({ familyId: { $in: familyIds }, ...LIVE_MEMBER });
 
     const report = {
       totalFamilies: families.length,
@@ -47,7 +53,7 @@ export const getAreaReport = async (req: AuthRequest, res: Response) => {
 
     res.json({ success: true, data: report });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the area report right now. Please try again.');
   }
 };
 
@@ -64,6 +70,7 @@ export const getBloodBankReport = async (req: AuthRequest, res: Response) => {
     }
 
     if (bloodGroup) query.bloodGroup = bloodGroup;
+    Object.assign(query, LIVE_MEMBER);
 
     const members = await Member.find(query).select('name bloodGroup phone age gender');
 
@@ -83,7 +90,7 @@ export const getBloodBankReport = async (req: AuthRequest, res: Response) => {
       },
     });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the blood bank report right now. Please try again.');
   }
 };
 
@@ -99,13 +106,16 @@ export const getOrphansReport = async (req: AuthRequest, res: Response) => {
       query.tenantId = tenantId;
     }
 
+    Object.assign(query, LIVE_MEMBER);
+
     // This is a simplified version - in reality, you'd need to identify orphans based on family structure
     const members = await Member.find(query)
       .populate('familyId', 'houseName')
       .select('name age gender familyId');
 
-    // Filter members who might be orphans (age < 18, or based on other criteria)
-    const orphans = members.filter((m) => (m.age || 0) < 18);
+    // Minors only. An unrecorded age is unknown, not zero - counting those as
+    // orphans put every age-less member on the list.
+    const orphans = members.filter((m) => typeof m.age === 'number' && m.age < 18);
 
     res.json({
       success: true,
@@ -121,7 +131,7 @@ export const getOrphansReport = async (req: AuthRequest, res: Response) => {
       },
     });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the orphans report right now. Please try again.');
   }
 };
 
@@ -134,7 +144,7 @@ export const getEducationReport = async (req: AuthRequest, res: Response) => {
   try {
     const tenantId = req.tenantId || (req.isSuperAdmin ? (req.query.tenantId as string) : undefined);
     if (!tenantId) {
-      return res.status(400).json({ success: false, message: 'Tenant ID is required' });
+      return res.status(400).json({ success: false, message: 'Please select a Mahallu before continuing.' });
     }
 
     // Import models needed for education report
@@ -218,7 +228,7 @@ export const getEducationReport = async (req: AuthRequest, res: Response) => {
       },
     });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the education report right now. Please try again.');
   }
 };
 
@@ -230,7 +240,7 @@ export const getDemographicsReport = async (req: AuthRequest, res: Response) => 
   try {
     const tenantId = req.tenantId || (req.isSuperAdmin ? (req.query.tenantId as string) : undefined);
     if (!tenantId) {
-      return res.status(400).json({ success: false, message: 'Tenant ID is required' });
+      return res.status(400).json({ success: false, message: 'Please select a Mahallu before continuing.' });
     }
 
     // Missing status on legacy records predates the field's default and should count as active.
@@ -280,7 +290,7 @@ export const getDemographicsReport = async (req: AuthRequest, res: Response) => 
       },
     });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the demographics report right now. Please try again.');
   }
 };
 
@@ -291,7 +301,7 @@ export const getWelfareReport = async (req: AuthRequest, res: Response) => {
   try {
     const tenantId = req.tenantId || (req.isSuperAdmin ? (req.query.tenantId as string) : undefined);
     if (!tenantId) {
-      return res.status(400).json({ success: false, message: 'Tenant ID is required' });
+      return res.status(400).json({ success: false, message: 'Please select a Mahallu before continuing.' });
     }
 
     const tenantObjectId = new mongoose.Types.ObjectId(tenantId as string);
@@ -362,7 +372,7 @@ export const getWelfareReport = async (req: AuthRequest, res: Response) => {
       },
     });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the welfare report right now. Please try again.');
   }
 };
 
@@ -373,7 +383,7 @@ export const getCommunityReport = async (req: AuthRequest, res: Response) => {
   try {
     const tenantId = req.tenantId || (req.isSuperAdmin ? (req.query.tenantId as string) : undefined);
     if (!tenantId) {
-      return res.status(400).json({ success: false, message: 'Tenant ID is required' });
+      return res.status(400).json({ success: false, message: 'Please select a Mahallu before continuing.' });
     }
 
     const tenantObjectId = new mongoose.Types.ObjectId(tenantId as string);
@@ -430,7 +440,7 @@ export const getCommunityReport = async (req: AuthRequest, res: Response) => {
       },
     });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the community report right now. Please try again.');
   }
 };
 
@@ -440,7 +450,7 @@ export const getDataQualityReport = async (req: AuthRequest, res: Response) => {
   try {
     const tenantId = req.tenantId;
     if (!tenantId) {
-      return res.status(400).json({ success: false, message: 'Tenant context required' });
+      return res.status(400).json({ success: false, message: 'Please select a Mahallu before continuing.' });
     }
     const tid = new mongoose.Types.ObjectId(tenantId);
 
@@ -493,7 +503,7 @@ export const getDataQualityReport = async (req: AuthRequest, res: Response) => {
       },
     });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the data quality report right now. Please try again.');
   }
 };
 
@@ -502,7 +512,7 @@ export const getDuplicatesReport = async (req: AuthRequest, res: Response) => {
   try {
     const tenantId = req.tenantId;
     if (!tenantId) {
-      return res.status(400).json({ success: false, message: 'Tenant context required' });
+      return res.status(400).json({ success: false, message: 'Please select a Mahallu before continuing.' });
     }
     const tid = new mongoose.Types.ObjectId(tenantId);
 
@@ -523,6 +533,6 @@ export const getDuplicatesReport = async (req: AuthRequest, res: Response) => {
 
     res.json({ success: true, data: { byPhone, byNameAge } });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the duplicates report right now. Please try again.');
   }
 };

@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Table from '@/components/ui/Table';
@@ -14,6 +13,8 @@ import { Pagination as PaginationType, TableColumn } from '@/types';
 import { formatDate } from '@/utils/format';
 import { examService, Exam, ExamStatus } from '@/services/attendanceService';
 import { madrasaService } from '@/services/madrasaService';
+import { errorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
 
 const STATUS_OPTIONS = [
   { value: '', label: 'All status' },
@@ -46,7 +47,7 @@ export default function ExamsList() {
     try {
       setCls(await madrasaService.getClass(classId));
     } catch (err: any) {
-      console.error('Failed to load class', err);
+      console.error("Couldn't load class", err);
     }
   };
 
@@ -64,7 +65,7 @@ export default function ExamsList() {
       setExams(result.data);
       setPagination(result.pagination);
     } catch (err: any) {
-      console.error('Failed to load exams', err);
+      console.error("Couldn't load exams", err);
     } finally {
       setLoading(false);
     }
@@ -82,7 +83,7 @@ export default function ExamsList() {
         fetchExams(classId);
       }
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to delete exam');
+      toast.error(errorMessage(err, { action: 'delete exam' }));
     } finally {
       setDeleting(false);
     }
@@ -102,9 +103,7 @@ export default function ExamsList() {
           cancelled: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
         };
         return (
-          <span className={`inline-block rounded px-2 py-1 text-xs font-medium ${colors[v] || ''}`}>
-            {v}
-          </span>
+          <span className={`inline-block rounded px-2 py-1 text-xs font-medium ${colors[v] || ''}`}>{v}</span>
         );
       },
     },
@@ -133,27 +132,22 @@ export default function ExamsList() {
 
   return (
     <div>
-      <Breadcrumb
-        items={[
+      <PageHeader
+        description={cls?.name}
+        title="Exams"
+        breadcrumbs={[
           { label: 'Services' },
           { label: 'Education', path: '/education' },
           { label: cls?.name || 'Class', path: `/education/classes/${classId}` },
-          { label: 'Exams' },
         ]}
       />
 
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Exams</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400">{cls?.name}</p>
-        </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button variant="secondary" onClick={() => navigate(`/education/classes/${classId}`)}>
             Back
           </Button>
-          <Button onClick={() => navigate(`/education/exams/create?classId=${classId}`)}>
-            New exam
-          </Button>
+          <Button onClick={() => navigate(`/education/exams/create?classId=${classId}`)}>New exam</Button>
         </div>
       </div>
 

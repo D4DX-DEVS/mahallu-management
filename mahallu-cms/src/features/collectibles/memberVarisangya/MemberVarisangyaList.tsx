@@ -19,6 +19,7 @@ import { ROUTES } from '@/constants/routes';
 import { exportToCSV, exportToJSON } from '@/utils/exportUtils';
 import { exportInvoicesToPdf, InvoiceDetails } from '@/utils/invoiceUtils';
 import { toast } from '@/store/toastStore';
+import { loadErrorMessage } from '@/utils/errors';
 
 interface MemberVarisangyaData extends Member {
   totalVarisangya?: number;
@@ -28,7 +29,8 @@ interface MemberVarisangyaData extends Member {
 
 const MEMBER_BASE = ROUTES.COLLECTIBLES.MEMBER_VARISANGYA.BASE;
 
-const getMemberId = (v: any) => (typeof v.memberId === 'object' && v.memberId != null ? v.memberId.id : v.memberId);
+const getMemberId = (v: any) =>
+  typeof v.memberId === 'object' && v.memberId != null ? v.memberId.id : v.memberId;
 
 export default function MemberVarisangyaList() {
   const navigate = useNavigate();
@@ -75,7 +77,7 @@ export default function MemberVarisangyaList() {
       setMembers(membersWithVarisangya);
       if (membersResult.pagination) setPagination(membersResult.pagination);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch members');
+      setError(loadErrorMessage(err, 'members'));
       console.error('Error fetching members:', err);
     } finally {
       setLoading(false);
@@ -133,13 +135,16 @@ export default function MemberVarisangyaList() {
                 });
               }
             }
-            await exportInvoicesToPdf(invoices, `member-varisangya-invoices-${new Date().toISOString().split('T')[0]}`);
+            await exportInvoicesToPdf(
+              invoices,
+              `member-varisangya-invoices-${new Date().toISOString().split('T')[0]}`
+            );
           }
           break;
       }
     } catch (error: any) {
       console.error('Export error:', error);
-      toast.error(error?.message || 'Failed to export member varisangya data');
+      toast.error(error?.message || "Couldn't export member varisangya data");
     } finally {
       setIsExporting(false);
     }
@@ -181,26 +186,32 @@ export default function MemberVarisangyaList() {
       }
     } catch (error: any) {
       console.error('Row export error:', error);
-      toast.error(error?.message || 'Failed to export member varisangya records');
+      toast.error(error?.message || "Couldn't export member varisangya records");
     } finally {
       setExportingRowId(null);
     }
   };
 
   const columns: TableColumn<MemberVarisangyaData>[] = [
-    { key: 'id', label: 'No.', render: (_, __, index) => index + 1 },
     {
       key: 'name',
       label: 'Member Name',
       render: (name, row) => (
-        <Link to={ROUTES.MEMBERS.DETAIL(row.id)} className="text-primary-600 hover:text-primary-700 dark:text-primary-400">
+        <Link
+          to={ROUTES.MEMBERS.DETAIL(row.id)}
+          className="text-primary-600 hover:text-primary-700 dark:text-primary-400"
+        >
           {name}
         </Link>
       ),
     },
     { key: 'familyName', label: 'Family' },
     { key: 'varisangyaCount', label: 'Payments', render: (count) => count || 0 },
-    { key: 'totalVarisangya', label: 'Total Amount', render: (amount) => `₹${(amount || 0).toLocaleString()}` },
+    {
+      key: 'totalVarisangya',
+      label: 'Total Amount',
+      render: (amount) => `₹${(amount || 0).toLocaleString()}`,
+    },
     { key: 'lastPaymentDate', label: 'Last Payment', render: (date) => (date ? formatDate(date) : '-') },
     {
       key: 'actions',
@@ -214,6 +225,7 @@ export default function MemberVarisangyaList() {
             }}
             className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
             title="View Transactions"
+            aria-label="View Transactions"
           >
             <FiEye className="h-4 w-4" />
           </button>
@@ -224,6 +236,7 @@ export default function MemberVarisangyaList() {
             }}
             className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
             title="View Wallet"
+            aria-label="View Wallet"
           >
             <FiDollarSign className="h-4 w-4" />
           </button>
@@ -235,8 +248,13 @@ export default function MemberVarisangyaList() {
                 disabled={exportingRowId === row.id}
                 className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors disabled:opacity-50"
                 title="Export"
+                aria-label="Export"
               >
-                {exportingRowId === row.id ? <LoadingSpinner size="sm" /> : <FiDownload className="h-4 w-4" />}
+                {exportingRowId === row.id ? (
+                  <LoadingSpinner size="sm" />
+                ) : (
+                  <FiDownload className="h-4 w-4" />
+                )}
               </button>
             }
             items={[
@@ -253,14 +271,22 @@ export default function MemberVarisangyaList() {
   const totalAmount = members.reduce((sum, m) => sum + (m.totalVarisangya || 0), 0);
   const totalPayments = members.reduce((sum, m) => sum + (m.varisangyaCount || 0), 0);
   const stats = [
-    { title: 'Total Members', value: pagination?.total || members.length, icon: <FiUsers className="h-5 w-5" /> },
+    {
+      title: 'Total Members',
+      value: pagination?.total || members.length,
+      icon: <FiUsers className="h-5 w-5" />,
+    },
     { title: 'Total Payments', value: totalPayments, icon: <FiCreditCard className="h-5 w-5" /> },
-    { title: 'Total Amount', value: `₹${totalAmount.toLocaleString()}`, icon: <FiDollarSign className="h-5 w-5" /> },
+    {
+      title: 'Total Amount',
+      value: `₹${totalAmount.toLocaleString()}`,
+      icon: <FiDollarSign className="h-5 w-5" />,
+    },
   ];
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         {stats.map((stat, index) => (
           <StatCard key={index} {...stat} />
         ))}

@@ -1,10 +1,10 @@
-import api from './api';
+import api, { asList } from './api';
 
 export type VerificationStatus = 'pending' | 'verified' | 'rejected';
 
 export interface ZakatBeneficiary {
   id: string;
-  memberId?: { _id: string; name: string; phone?: string; familyName?: string } | string;
+  memberId?: { id: string; name: string; phone?: string; familyName?: string } | string;
   familyId?: { _id: string; houseName: string } | string;
   name?: string;
   category: string;
@@ -73,7 +73,7 @@ export const zakatDistributionService = {
       '/zakat/beneficiaries',
       { params }
     );
-    return { data: response.data.data, pagination: response.data.pagination || null };
+    return { data: asList(response.data.data), pagination: response.data.pagination || null };
   },
 
   getBeneficiary: async (id: string) => {
@@ -92,7 +92,18 @@ export const zakatDistributionService = {
     return response.data.data;
   },
 
-  verifyBeneficiary: async (id: string, payload: { verificationStatus: VerificationStatus; notes?: string }) => {
+  updateBeneficiary: async (id: string, payload: Record<string, any>) => {
+    const response = await api.put<{ success: boolean; data: ZakatBeneficiary }>(
+      `/zakat/beneficiaries/${id}`,
+      payload
+    );
+    return response.data.data;
+  },
+
+  verifyBeneficiary: async (
+    id: string,
+    payload: { verificationStatus: VerificationStatus; notes?: string }
+  ) => {
     const response = await api.put<{ success: boolean; data: ZakatBeneficiary }>(
       `/zakat/beneficiaries/${id}/verify`,
       payload
@@ -105,7 +116,7 @@ export const zakatDistributionService = {
       '/zakat/distributions',
       { params }
     );
-    return { data: response.data.data, pagination: response.data.pagination || null };
+    return { data: asList(response.data.data), pagination: response.data.pagination || null };
   },
 
   createDistribution: async (payload: Record<string, any>) => {

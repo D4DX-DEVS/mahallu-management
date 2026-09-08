@@ -1,15 +1,16 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Table from '@/components/ui/Table';
-import SearchInput from '@/components/ui/SearchInput';
+import ExpandableSearch from '@/components/ui/ExpandableSearch';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import Pagination from '@/components/ui/Pagination';
 import { Pagination as PaginationType, TableColumn } from '@/types';
 import { announcementService, Announcement } from '@/services/announcementService';
 import { useDebounce } from '@/hooks/useDebounce';
+import { loadErrorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
 
 const STATUS_TABS = [
   { value: '', label: 'All' },
@@ -44,7 +45,7 @@ export default function AnnouncementsList() {
       setRows(result.data);
       setPagination(result.pagination);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to load announcements');
+      setError(loadErrorMessage(err, 'announcements'));
     } finally {
       setLoading(false);
     }
@@ -65,15 +66,7 @@ export default function AnnouncementsList() {
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">Announcements</h1>
-          <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-            Broadcast messages to the community
-          </p>
-        </div>
-        <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Announcements' }]} />
-      </div>
+      <PageHeader title="Announcements" description="Broadcast messages to the community" />
 
       <Card>
         <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -98,13 +91,13 @@ export default function AnnouncementsList() {
           </div>
           <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
             <div className="w-full sm:w-56">
-              <SearchInput
+              <ExpandableSearch
                 value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value);
+                onChange={(value) => {
+                  setSearchQuery(value);
                   setCurrentPage(1);
                 }}
-                placeholder="Search..."
+                entity="announcements"
               />
             </div>
             <Link to="/announcements/create">

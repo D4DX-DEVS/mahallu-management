@@ -10,6 +10,8 @@ import { normalizeIndianPhone, sendWhatsAppMessage } from '../services/dxingServ
 import Tenant from '../models/Tenant';
 import Institute from '../models/Institute';
 
+import { sendFailure } from '../utils/userMessages';
+
 // App Store Review test account — OTP is always 123456 for this number
 const APP_STORE_TEST_PHONE = '918877665544';
 
@@ -44,11 +46,12 @@ const getPhoneVariants = (input: string): string[] => {
 export const sendOTP = async (req: Request, res: Response) => {
   try {
     const { phone } = req.body;
+    const isDevelopment = process.env.NODE_ENV !== 'production';
 
     if (!phone) {
       return res.status(400).json({
         success: false,
-        message: 'Phone number is required',
+        message: 'Please enter your phone number.',
       });
     }
 
@@ -59,7 +62,7 @@ export const sendOTP = async (req: Request, res: Response) => {
       normalizedPhone = normalized.normalized;
       localPhone = normalized.local;
     } catch (err: any) {
-      return res.status(400).json({ success: false, message: err.message || 'Invalid phone number' });
+      return sendFailure(res, err, 'Please enter a valid 10-digit mobile number.', 400);
     }
 
     console.info(`[OTP] send-otp requested for phone=${phone} normalized=${normalizedPhone} env=${process.env.NODE_ENV}`);
@@ -82,15 +85,23 @@ export const sendOTP = async (req: Request, res: Response) => {
             address: { state: 'Kerala', district: 'Kozhikode', lsgName: 'Kozhikode Corporation', village: 'Kozhikode' },
             status: 'active',
             subscription: { plan: 'standard', startDate: new Date(), isActive: true },
-            settings: { varisangyaAmount: 100, varisangyaGrades: [], educationOptions: [], areaOptions: [], features: {} },
+            settings: { varisangyaAmount: 100, educationOptions: [], features: {} },
           });
         }
         const tenantId = (tenant as any)._id;
         const hashedPw = await bcrypt.hash('123456', 10);
         const fullPerms = { view: true, add: true, edit: true, delete: true };
 
-        // super_admin user
-        await User.create({ name: 'Test User (Super Admin)', phone: testLocalPhone, role: 'super_admin', status: 'active', isSuperAdmin: true, permissions: fullPerms, password: hashedPw });
+        /*
+         * No super_admin here.
+         *
+         * This branch hands out a fixed, publicly documented OTP to anyone who
+         * asks for it, so every account it creates is effectively open. A
+         * super_admin among them meant that anyone who knew the review phone
+         * number could take control of every Mahallu on the platform, not just
+         * the test one. App Store review needs the three roles the seed script
+         * creates — mahall, institute and member — and those still work.
+         */
 
         // mahall user
         await User.create({ name: 'Test User (Mahall)', phone: testLocalPhone, role: 'mahall', tenantId, status: 'active', isSuperAdmin: false, permissions: fullPerms, password: hashedPw });
@@ -108,21 +119,23 @@ export const sendOTP = async (req: Request, res: Response) => {
         await User.create({ name: 'Test User (Member)', phone: testLocalPhone, role: 'member', tenantId, memberId: (member as any)._id, status: 'active', isSuperAdmin: false, permissions: fullPerms, password: hashedPw });
 
         console.info('[OTP] App Store test accounts auto-created');
-      } else {
-        // Ensure super_admin exists for existing test accounts
-        const hasSuperAdmin = await User.findOne({ phone: { $in: testVariants }, role: 'super_admin' });
-        if (!hasSuperAdmin) {
-          const hashedPw = await bcrypt.hash('123456', 10);
-          const fullPerms = { view: true, add: true, edit: true, delete: true };
-          await User.create({ name: 'Test User (Super Admin)', phone: testLocalPhone, role: 'super_admin', status: 'active', isSuperAdmin: true, permissions: fullPerms, password: hashedPw });
-          console.info('[OTP] App Store super_admin account auto-created for existing test user');
-        }
       }
+      // Existing test accounts previously had a super_admin created for them
+      // here on every sign-in. Same reason as above: a fixed OTP must never
+      // reach a cross-tenant account.
 
       await OTP.updateMany({ phone: normalizedPhone, isUsed: false }, { isUsed: true });
       await new OTP({ phone: normalizedPhone, code: '123456', expiresAt: new Date(Date.now() + 60 * 60 * 1000) }).save();
       console.info(`[OTP] App Store test account: fixed OTP issued for ${normalizedPhone}`);
-      return res.json({ success: true, message: 'OTP sent successfully', otp: '123456' });
+      // The code for this account is the fixed, documented 123456 — echoing it
+      // in the response added nothing and handed it to anyone who asked. The
+      // general branch below already gates its echo on development; this one
+      // did not, so the leak was live in production.
+      return res.json({
+        success: true,
+        message: 'OTP sent',
+        ...(isDevelopment && { otp: '123456' }),
+      });
     }
     // ────────────────────────────────────────────────────────────────────────────
 
@@ -177,7 +190,7 @@ export const sendOTP = async (req: Request, res: Response) => {
       } else {
         return res.status(404).json({
           success: false,
-          message: 'User not found with this phone number',
+          message: "We couldn't find an account with this phone number.",
         });
       }
     }
@@ -185,7 +198,7 @@ export const sendOTP = async (req: Request, res: Response) => {
     if (!users.some(u => u.status === 'active')) {
       return res.status(403).json({
         success: false,
-        message: 'Account is inactive',
+        message: 'Your account is inactive. Please contact your Mahallu admin.',
       });
     }
 
@@ -198,11 +211,10 @@ export const sendOTP = async (req: Request, res: Response) => {
     if (recentOTP) {
       return res.status(429).json({
         success: false,
-        message: 'Please wait before requesting another OTP',
+        message: 'Please wait a moment before requesting another OTP.',
       });
     }
 
-    const isDevelopment = process.env.NODE_ENV !== 'production';
 
     // Invalidate previous unused OTPs for this phone
     await OTP.updateMany(
@@ -281,7 +293,7 @@ export const sendOTP = async (req: Request, res: Response) => {
         // Return user-friendly error
         return res.status(500).json({
           success: false,
-          message: 'Failed to send OTP via WhatsApp. Please try again or contact support if the problem persists.',
+          message: "We couldn't send the OTP right now. Please try again in a moment.",
         });
       }
     } else {
@@ -301,11 +313,11 @@ export const sendOTP = async (req: Request, res: Response) => {
 
     res.json({
       success: true,
-      message: 'OTP sent successfully',
+      message: 'OTP sent',
       ...(isDevelopment && { otp: otpCode }),
     });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t send the OTP. Please try again.');
   }
 };
 
@@ -317,7 +329,7 @@ export const verifyOTP = async (req: Request, res: Response) => {
     if (!phone || !otp) {
       return res.status(400).json({
         success: false,
-        message: 'Phone and OTP are required',
+        message: 'Please enter your phone number and the OTP.',
       });
     }
 
@@ -328,7 +340,7 @@ export const verifyOTP = async (req: Request, res: Response) => {
       normalizedPhone = normalized.normalized;
       localPhone = normalized.local;
     } catch (err: any) {
-      return res.status(400).json({ success: false, message: err.message || 'Invalid phone number' });
+      return sendFailure(res, err, 'Please enter a valid 10-digit mobile number.', 400);
     }
 
     // Find the latest valid OTP for this phone
@@ -341,14 +353,14 @@ export const verifyOTP = async (req: Request, res: Response) => {
     if (!otpRecord) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid or expired OTP',
+        message: 'That OTP is incorrect or has expired. Please request a new one.',
       });
     }
 
     if (otpRecord.attempts >= 5) {
       return res.status(429).json({
         success: false,
-        message: 'Too many failed attempts. Please request a new OTP',
+        message: 'Too many incorrect attempts. Please request a new OTP.',
       });
     }
 
@@ -359,13 +371,13 @@ export const verifyOTP = async (req: Request, res: Response) => {
       if (otpRecord.attempts >= 5) {
         return res.status(429).json({
           success: false,
-          message: 'Too many failed attempts. Please request a new OTP',
+          message: 'Too many incorrect attempts. Please request a new OTP.',
         });
       }
 
       return res.status(401).json({
         success: false,
-        message: 'Invalid or expired OTP',
+        message: 'That OTP is incorrect or has expired. Please request a new one.',
       });
     }
 
@@ -384,14 +396,14 @@ export const verifyOTP = async (req: Request, res: Response) => {
         if (!memberUser) {
           return res.status(404).json({
             success: false,
-            message: 'Member account not found. Please contact admin to create your account.',
+            message: "We couldn't find a member account for you. Please contact your Mahallu admin.",
           });
         }
         users = [memberUser];
       } else {
         return res.status(404).json({
           success: false,
-          message: 'User not found',
+          message: "We couldn't find that user. It may have been removed.",
         });
       }
     }
@@ -400,7 +412,7 @@ export const verifyOTP = async (req: Request, res: Response) => {
     if (activeUsers.length === 0) {
       return res.status(403).json({
         success: false,
-        message: 'Account is inactive',
+        message: 'Your account is inactive. Please contact your Mahallu admin.',
       });
     }
 
@@ -411,7 +423,7 @@ export const verifyOTP = async (req: Request, res: Response) => {
     // Multiple active accounts — prompt the user to choose which role to log in as
     if (activeUsers.length > 1) {
       if (!process.env.JWT_SECRET) {
-        return res.status(500).json({ success: false, message: 'Missing JWT secret' });
+        return res.status(500).json({ success: false, message: 'Something went wrong on our side. Please try again in a moment.' });
       }
 
       const tenantMap = new Map<string, string>();
@@ -461,7 +473,7 @@ export const verifyOTP = async (req: Request, res: Response) => {
 
     // Generate JWT token
     if (!process.env.JWT_SECRET) {
-      return res.status(500).json({ success: false, message: 'Missing JWT secret' });
+      return res.status(500).json({ success: false, message: 'Something went wrong on our side. Please try again in a moment.' });
     }
 
     const token = jwt.sign(
@@ -481,7 +493,7 @@ export const verifyOTP = async (req: Request, res: Response) => {
       },
     });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t verify the OTP. Please try again.');
   }
 };
 

@@ -15,6 +15,7 @@ import {
   getEmployeeValidation,
   deleteEmployeeValidation,
 } from '../validations/employeeValidation';
+import { idParam, listQuery } from '../validations/common';
 
 const router = express.Router();
 
@@ -64,7 +65,7 @@ router.use(tenantFilter);
  *       200:
  *         description: List of employees retrieved successfully
  */
-router.get('/', getAllEmployees);
+router.get('/', listQuery(), validationHandler, getAllEmployees);
 
 /**
  * @swagger

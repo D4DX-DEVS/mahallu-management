@@ -7,15 +7,20 @@ import {
   updateChangeRequest,
   deleteChangeRequest,
 } from '../controllers/changeRequestController';
+import { validationHandler } from '../middleware/validationHandler';
+import { idParam, listQuery } from '../validations/common';
+import {
+  createChangeRequestValidation,
+} from '../validations/moduleValidation';
 
 const router = express.Router();
 
 router.use(authMiddleware);
 
-router.post('/', createChangeRequest);
-router.get('/', listChangeRequests);
-router.put('/:id/review', allowRoles(['super_admin', 'mahall']), reviewChangeRequest);
-router.put('/:id', updateChangeRequest);
-router.delete('/:id', deleteChangeRequest);
+router.post('/', createChangeRequestValidation, validationHandler, createChangeRequest);
+router.get('/', listQuery(), validationHandler, listChangeRequests);
+router.put('/:id/review', idParam('id', 'request'), validationHandler, allowRoles(['super_admin', 'mahall']), reviewChangeRequest);
+router.put('/:id', idParam('id', 'request'), validationHandler, updateChangeRequest);
+router.delete('/:id', idParam('id', 'request'), validationHandler, deleteChangeRequest);
 
 export default router;

@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import { FiDownload } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import { reportService } from '@/services/reportService';
 import api from '@/services/api';
+import { loadErrorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
+import { errorMessage } from '@/utils/errors';
 
 interface DataQualityStat {
   label: string;
@@ -14,13 +16,14 @@ interface DataQualityStat {
 }
 
 interface DuplicatePhoneGroup {
-  _id: string;
+  id: string;
   count: number;
   members: Array<{ name: string; familyName: string }>;
 }
 
 interface DuplicateNameAge {
-  _id: string;
+  /** `$group` key: `{ name, age }`, not a scalar id. */
+  id: { name?: string; age?: number };
   count: number;
   members: Array<{ name: string; familyName: string; age?: number }>;
 }
@@ -46,7 +49,7 @@ export default function DataQualityPage() {
       setStats(statsRes.data.data);
       setDuplicates(duplicatesRes.data.data);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch data quality report');
+      setError(loadErrorMessage(err, 'data quality report'));
       console.error('Error fetching data quality:', err);
     } finally {
       setLoading(false);
@@ -55,7 +58,7 @@ export default function DataQualityPage() {
 
   const exportToCSV = async (entity: string) => {
     try {
-      setExporting(prev => ({ ...prev, [entity]: true }));
+      setExporting((prev) => ({ ...prev, [entity]: true }));
       const response = await api.get(`/export/${entity}`, {
         responseType: 'blob',
       });
@@ -71,22 +74,19 @@ export default function DataQualityPage() {
       link.click();
       document.body.removeChild(link);
     } catch (err: any) {
-      setError(err.response?.data?.message || `Failed to export ${entity}`);
+      setError(errorMessage(err, { action: `export ${entity}` }));
     } finally {
-      setExporting(prev => ({ ...prev, [entity]: false }));
+      setExporting((prev) => ({ ...prev, [entity]: false }));
     }
   };
 
   if (loading) {
-    return (
-      <PageSkeleton />
-    );
+    return <PageSkeleton />;
   }
 
   if (error) {
     return (
       <div className="space-y-6">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Data Quality Report</h1>
         <Card>
           <p className="text-red-600 dark:text-red-400">{error}</p>
         </Card>
@@ -96,20 +96,10 @@ export default function DataQualityPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Data Quality Report</h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            Monitor data quality metrics and identify duplicates
-          </p>
-        </div>
-        <Breadcrumb
-          items={[
-            { label: 'Dashboard', path: '/dashboard' },
-            { label: 'Data Quality' },
-          ]}
-        />
-      </div>
+      <PageHeader
+        title="Data Quality Report"
+        description="Monitor data quality metrics and identify duplicates"
+      />
 
       {/* Data Quality Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -146,7 +136,10 @@ export default function DataQualityPage() {
             {stats?.data?.members?.missingPhone || 0}
           </p>
           <p className="text-xs text-gray-600 dark:text-gray-400 mt-2">
-            {((stats?.data?.members?.missingPhone || 0) / (stats?.data?.members?.total || 1) * 100).toFixed(1)}% of total
+            {(((stats?.data?.members?.missingPhone || 0) / (stats?.data?.members?.total || 1)) * 100).toFixed(
+              1
+            )}
+            % of total
           </p>
         </Card>
 
@@ -156,7 +149,10 @@ export default function DataQualityPage() {
             {stats?.data?.members?.missingAge || 0}
           </p>
           <p className="text-xs text-gray-600 dark:text-gray-400 mt-2">
-            {((stats?.data?.members?.missingAge || 0) / (stats?.data?.members?.total || 1) * 100).toFixed(1)}% of total
+            {(((stats?.data?.members?.missingAge || 0) / (stats?.data?.members?.total || 1)) * 100).toFixed(
+              1
+            )}
+            % of total
           </p>
         </Card>
 
@@ -183,16 +179,27 @@ export default function DataQualityPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-gray-200 dark:border-gray-700">
-                    <th className="text-left py-2 px-3 font-medium text-gray-700 dark:text-gray-300">Phone</th>
-                    <th className="text-left py-2 px-3 font-medium text-gray-700 dark:text-gray-300">Count</th>
-                    <th className="text-left py-2 px-3 font-medium text-gray-700 dark:text-gray-300">Members</th>
+                    <th className="text-left py-2 px-3 font-medium text-gray-700 dark:text-gray-300">
+                      Phone
+                    </th>
+                    <th className="text-left py-2 px-3 font-medium text-gray-700 dark:text-gray-300">
+                      Count
+                    </th>
+                    <th className="text-left py-2 px-3 font-medium text-gray-700 dark:text-gray-300">
+                      Members
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {duplicates.data.byPhone.map((group: DuplicatePhoneGroup) => (
-                    <tr key={group._id} className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50">
-                      <td className="py-3 px-3 font-mono text-gray-900 dark:text-gray-100">{group._id}</td>
-                      <td className="py-3 px-3 text-gray-900 dark:text-gray-100 font-semibold">{group.count}</td>
+                    <tr
+                      key={group.id}
+                      className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50"
+                    >
+                      <td className="py-3 px-3 font-mono text-gray-900 dark:text-gray-100">{group.id}</td>
+                      <td className="py-3 px-3 text-gray-900 dark:text-gray-100 font-semibold">
+                        {group.count}
+                      </td>
                       <td className="py-3 px-3 text-gray-600 dark:text-gray-400">
                         {group.members.map((m, idx) => (
                           <div key={idx} className="text-xs">
@@ -218,16 +225,30 @@ export default function DataQualityPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-gray-200 dark:border-gray-700">
-                    <th className="text-left py-2 px-3 font-medium text-gray-700 dark:text-gray-300">Name & Age</th>
-                    <th className="text-left py-2 px-3 font-medium text-gray-700 dark:text-gray-300">Count</th>
-                    <th className="text-left py-2 px-3 font-medium text-gray-700 dark:text-gray-300">Members</th>
+                    <th className="text-left py-2 px-3 font-medium text-gray-700 dark:text-gray-300">
+                      Name & Age
+                    </th>
+                    <th className="text-left py-2 px-3 font-medium text-gray-700 dark:text-gray-300">
+                      Count
+                    </th>
+                    <th className="text-left py-2 px-3 font-medium text-gray-700 dark:text-gray-300">
+                      Members
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {duplicates.data.byNameAge.map((group: DuplicateNameAge) => (
-                    <tr key={group._id} className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50">
-                      <td className="py-3 px-3 text-gray-900 dark:text-gray-100 font-mono text-xs">{group._id}</td>
-                      <td className="py-3 px-3 text-gray-900 dark:text-gray-100 font-semibold">{group.count}</td>
+                    <tr
+                      key={(group.id?.name ?? '') + '-' + (group.id?.age ?? '')}
+                      className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50"
+                    >
+                      <td className="py-3 px-3 text-gray-900 dark:text-gray-100 font-mono text-xs">
+                        {group.id?.name}
+                        {group.id?.age != null ? ', age ' + group.id.age : ''}
+                      </td>
+                      <td className="py-3 px-3 text-gray-900 dark:text-gray-100 font-semibold">
+                        {group.count}
+                      </td>
                       <td className="py-3 px-3 text-gray-600 dark:text-gray-400">
                         {group.members.map((m, idx) => (
                           <div key={idx} className="text-xs">
@@ -247,9 +268,7 @@ export default function DataQualityPage() {
       {/* Export Section */}
       <Card>
         <h3 className="text-md font-medium text-gray-900 dark:text-gray-100 mb-4">Export Data</h3>
-        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-          Download CSV files for all entities
-        </p>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">Download CSV files for all entities</p>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
           {['families', 'members', 'varisangya', 'zakat', 'nikah', 'death', 'noc'].map((entity) => (
             <Button

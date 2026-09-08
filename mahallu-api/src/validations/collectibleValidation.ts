@@ -5,21 +5,21 @@ export const createVarisangyaValidation = [
   body('familyId')
     .optional()
     .isMongoId()
-    .withMessage('Invalid family ID'),
+    .withMessage('Please select a valid family.'),
   body('memberId')
     .optional()
     .isMongoId()
-    .withMessage('Invalid member ID'),
+    .withMessage('Please select a valid member.'),
   body('amount')
     .notEmpty()
-    .withMessage('Amount is required')
+    .withMessage('Please enter the amount.')
     .isFloat({ min: 0 })
-    .withMessage('Amount must be a positive number'),
+    .withMessage('Please enter an amount greater than zero.'),
   body('paymentDate')
     .notEmpty()
-    .withMessage('Payment date is required')
+    .withMessage('Please select the payment date.')
     .isISO8601()
-    .withMessage('Payment date must be a valid date'),
+    .withMessage('Please choose a valid payment date.'),
   body('paymentMethod').optional().trim(),
   body('receiptNo').optional().trim(),
   body('remarks').optional().trim(),
@@ -27,15 +27,15 @@ export const createVarisangyaValidation = [
 ];
 
 export const updateVarisangyaValidation = [
-  param('id').isMongoId().withMessage('Invalid varisangya ID'),
+  param('id').isMongoId().withMessage('Please select a valid varisangya.'),
   body('amount')
     .optional()
     .isFloat({ min: 0 })
-    .withMessage('Amount must be a positive number'),
+    .withMessage('Please enter an amount greater than zero.'),
   body('paymentDate')
     .optional()
     .isISO8601()
-    .withMessage('Payment date must be a valid date'),
+    .withMessage('Please choose a valid payment date.'),
   body('paymentMethod').optional().trim(),
   body('remarks').optional().trim(),
   body('remarksMl').optional().trim(),
@@ -46,23 +46,23 @@ export const createZakatValidation = [
   body('payerName')
     .trim()
     .notEmpty()
-    .withMessage('Payer name is required')
+    .withMessage('Please enter the payer name.')
     .isLength({ min: 2, max: 100 })
-    .withMessage('Payer name must be between 2 and 100 characters'),
+    .withMessage('Please keep the payer name between 2 and 100 characters.'),
   body('payerId')
     .optional()
     .isMongoId()
-    .withMessage('Invalid payer member ID'),
+    .withMessage('Please select a valid payer member.'),
   body('amount')
     .notEmpty()
-    .withMessage('Amount is required')
+    .withMessage('Please enter the amount.')
     .isFloat({ min: 0 })
-    .withMessage('Amount must be a positive number'),
+    .withMessage('Please enter an amount greater than zero.'),
   body('paymentDate')
     .notEmpty()
-    .withMessage('Payment date is required')
+    .withMessage('Please select the payment date.')
     .isISO8601()
-    .withMessage('Payment date must be a valid date'),
+    .withMessage('Please choose a valid payment date.'),
   body('paymentMethod').optional().trim(),
   body('receiptNo').optional().trim(),
   body('category').optional().trim(),
@@ -72,8 +72,8 @@ export const createZakatValidation = [
 
 // Wallet Validations
 export const getWalletTransactionsValidation = [
-  param('walletId').isMongoId().withMessage('Invalid wallet ID'),
-  query('page').optional().isInt({ min: 1 }).withMessage('Page must be a positive integer'),
-  query('limit').optional().isInt({ min: 1, max: 100 }).withMessage('Limit must be between 1 and 100'),
+  param('walletId').isMongoId().withMessage('Please select a valid wallet.'),
+  query('page').optional().isInt({ min: 1 }).withMessage('Please enter a whole page greater than zero.'),
+  query('limit').optional().isInt({ min: 1, max: 100 }).withMessage('Please enter a limit between 1 and 100.'),
 ];
 

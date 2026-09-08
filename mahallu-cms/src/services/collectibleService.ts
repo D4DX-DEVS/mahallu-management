@@ -1,4 +1,4 @@
-import api from './api';
+import api, { asList } from './api';
 
 export interface Varisangya {
   id: string;
@@ -74,7 +74,12 @@ export interface DuesSummary {
 }
 
 export const collectibleService = {
-  getFamilyDues: async (params?: { search?: string; onlyPending?: boolean; page?: number; limit?: number }) => {
+  getFamilyDues: async (params?: {
+    search?: string;
+    onlyPending?: boolean;
+    page?: number;
+    limit?: number;
+  }) => {
     const response = await api.get<{
       success: boolean;
       data: { dues: FamilyDue[]; summary: DuesSummary };
@@ -86,13 +91,25 @@ export const collectibleService = {
   },
 
   // Varisangya
-  getAllVarisangyas: async (params?: { familyId?: string; memberId?: string; hasFamily?: boolean; hasMember?: boolean; page?: number; limit?: number; dateFrom?: string; dateTo?: string }) => {
-    const response = await api.get<{ success: boolean; data: Varisangya[]; pagination?: any }>('/collectibles/varisangya', { params });
+  getAllVarisangyas: async (params?: {
+    familyId?: string;
+    memberId?: string;
+    hasFamily?: boolean;
+    hasMember?: boolean;
+    page?: number;
+    limit?: number;
+    dateFrom?: string;
+    dateTo?: string;
+  }) => {
+    const response = await api.get<{ success: boolean; data: Varisangya[]; pagination?: any }>(
+      '/collectibles/varisangya',
+      { params }
+    );
     // Handle both paginated and non-paginated responses
     if (response.data.pagination) {
-      return { data: response.data.data, pagination: response.data.pagination };
+      return { data: asList(response.data.data), pagination: response.data.pagination };
     }
-    return { data: response.data.data, pagination: null };
+    return { data: asList(response.data.data), pagination: null };
   },
 
   createVarisangya: async (data: Partial<Varisangya>) => {
@@ -100,18 +117,29 @@ export const collectibleService = {
     return response.data.data;
   },
 
-  updateVarisangya: async (id: string, data: Partial<Pick<Varisangya, 'amount' | 'paymentDate' | 'paymentMethod' | 'remarks'>>) => {
-    const response = await api.put<{ success: boolean; data: Varisangya }>(`/collectibles/varisangya/${id}`, data);
+  updateVarisangya: async (
+    id: string,
+    data: Partial<Pick<Varisangya, 'amount' | 'paymentDate' | 'paymentMethod' | 'remarks'>>
+  ) => {
+    const response = await api.put<{ success: boolean; data: Varisangya }>(
+      `/collectibles/varisangya/${id}`,
+      data
+    );
     return response.data.data;
   },
 
   deleteVarisangya: async (id: string) => {
-    const response = await api.delete<{ success: boolean; message: string }>(`/collectibles/varisangya/${id}`);
+    const response = await api.delete<{ success: boolean; message: string }>(
+      `/collectibles/varisangya/${id}`
+    );
     return response.data;
   },
 
   verifyVarisangya: async (id: string) => {
-    const response = await api.put<{ success: boolean; data: Varisangya }>(`/collectibles/varisangya/${id}/verify`, {});
+    const response = await api.put<{ success: boolean; data: Varisangya }>(
+      `/collectibles/varisangya/${id}/verify`,
+      {}
+    );
     return response.data.data;
   },
 
@@ -125,12 +153,15 @@ export const collectibleService = {
 
   // Zakat
   getAllZakats: async (params?: { search?: string; page?: number; limit?: number }) => {
-    const response = await api.get<{ success: boolean; data: Zakat[]; pagination?: any }>('/collectibles/zakat', { params });
+    const response = await api.get<{ success: boolean; data: Zakat[]; pagination?: any }>(
+      '/collectibles/zakat',
+      { params }
+    );
     // Handle both paginated and non-paginated responses
     if (response.data.pagination) {
-      return { data: response.data.data, pagination: response.data.pagination };
+      return { data: asList(response.data.data), pagination: response.data.pagination };
     }
-    return { data: response.data.data, pagination: null };
+    return { data: asList(response.data.data), pagination: null };
   },
 
   createZakat: async (data: Partial<Zakat>) => {
@@ -155,7 +186,10 @@ export const collectibleService = {
 
   // Wallet – API returns MongoDB docs with _id; normalize to id for frontend
   getWallet: async (params?: { familyId?: string; memberId?: string }) => {
-    const response = await api.get<{ success: boolean; data: Wallet & { _id?: string } }>('/collectibles/wallet', { params });
+    const response = await api.get<{ success: boolean; data: Wallet & { _id?: string } }>(
+      '/collectibles/wallet',
+      { params }
+    );
     const data = response.data.data;
     if (!data) return data;
     const id = (data as any).id ?? (data as any)._id;
@@ -176,4 +210,3 @@ export const collectibleService = {
     });
   },
 };
-

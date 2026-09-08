@@ -1,14 +1,22 @@
-import api from './api';
+import api, { asList } from './api';
 import { Institute } from '@/types';
 
 export const instituteService = {
-  getAll: async (params?: { type?: string; status?: string; search?: string; page?: number; limit?: number }) => {
-    const response = await api.get<{ success: boolean; data: Institute[]; pagination?: any }>('/institutes', { params });
+  getAll: async (params?: {
+    type?: string;
+    status?: string;
+    search?: string;
+    page?: number;
+    limit?: number;
+  }) => {
+    const response = await api.get<{ success: boolean; data: Institute[]; pagination?: any }>('/institutes', {
+      params,
+    });
     // Handle both paginated and non-paginated responses
     if (response.data.pagination) {
-      return { data: response.data.data, pagination: response.data.pagination };
+      return { data: asList(response.data.data), pagination: response.data.pagination };
     }
-    return { data: response.data.data, pagination: null };
+    return { data: asList(response.data.data), pagination: null };
   },
 
   getById: async (id: string) => {
@@ -31,4 +39,3 @@ export const instituteService = {
     return response.data;
   },
 };
-

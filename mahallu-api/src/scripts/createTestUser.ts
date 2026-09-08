@@ -58,9 +58,7 @@ async function getOrCreateTenant(): Promise<mongoose.Types.ObjectId> {
     subscription: { plan: 'standard', startDate: new Date(), isActive: true },
     settings: {
       varisangyaAmount: 100,
-      varisangyaGrades: [],
       educationOptions: [],
-      areaOptions: [],
       features: {},
     },
   });

@@ -4,6 +4,9 @@ import { DeathRegistration } from '../models/Registration';
 import { AuthRequest } from '../middleware/authMiddleware';
 import { getPaginationParams, createPaginationResponse } from '../utils/pagination';
 
+import { sendFailure } from '../utils/userMessages';
+import { regexLiteral } from '../utils/queryGuard';
+
 // ==================== CEMETERY CRUD ====================
 
 export const getAllCemeteries = async (req: AuthRequest, res: Response) => {
@@ -21,7 +24,7 @@ export const getAllCemeteries = async (req: AuthRequest, res: Response) => {
 
     if (status) query.status = status;
     if (search) {
-      query.name = { $regex: search, $options: 'i' };
+      query.name = { $regex: regexLiteral(search), $options: 'i' };
     }
 
     const [cemeteries, total] = await Promise.all([
@@ -45,7 +48,7 @@ export const getAllCemeteries = async (req: AuthRequest, res: Response) => {
 
     res.json(createPaginationResponse(enriched, total, page, limit));
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the cemeteries right now. Please try again.');
   }
 };
 
@@ -53,7 +56,7 @@ export const getCemeteryById = async (req: Request, res: Response) => {
   try {
     const cemetery = await Cemetery.findById(req.params.id);
     if (!cemetery) {
-      return res.status(404).json({ success: false, message: 'Cemetery not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that cemetery. It may have been removed." });
     }
 
     // Count graves in this cemetery
@@ -69,7 +72,7 @@ export const getCemeteryById = async (req: Request, res: Response) => {
       },
     });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the cemetery right now. Please try again.');
   }
 };
 
@@ -83,7 +86,7 @@ export const createCemetery = async (req: AuthRequest, res: Response) => {
     if (!cemeteryData.tenantId && !req.isSuperAdmin) {
       return res.status(400).json({
         success: false,
-        message: 'Tenant ID is required',
+        message: 'Please select a Mahallu before continuing.',
       });
     }
 
@@ -98,7 +101,7 @@ export const createCemetery = async (req: AuthRequest, res: Response) => {
     });
   } catch (error: any) {
     const statusCode = error.name === 'ValidationError' ? 400 : 500;
-    res.status(statusCode).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t save the cemetery. Please try again.', statusCode);
   }
 };
 
@@ -109,7 +112,7 @@ export const updateCemetery = async (req: Request, res: Response) => {
       runValidators: true,
     });
     if (!cemetery) {
-      return res.status(404).json({ success: false, message: 'Cemetery not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that cemetery. It may have been removed." });
     }
 
     // Count graves in this cemetery
@@ -125,7 +128,7 @@ export const updateCemetery = async (req: Request, res: Response) => {
       },
     });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t update the cemetery. Please try again.');
   }
 };
 
@@ -133,7 +136,7 @@ export const deleteCemetery = async (req: Request, res: Response) => {
   try {
     const cemetery = await Cemetery.findById(req.params.id);
     if (!cemetery) {
-      return res.status(404).json({ success: false, message: 'Cemetery not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that cemetery. It may have been removed." });
     }
 
     // Check if cemetery has graves
@@ -144,14 +147,14 @@ export const deleteCemetery = async (req: Request, res: Response) => {
     if (graveCount > 0) {
       return res.status(400).json({
         success: false,
-        message: `Cannot delete cemetery with ${graveCount} grave record(s). Remove all graves first.`,
+        message: `This cemetery has ${graveCount} grave record(s), so it can't be deleted. Please remove the graves first.`,
       });
     }
 
     await Cemetery.findByIdAndDelete(req.params.id);
-    res.json({ success: true, message: 'Cemetery deleted successfully' });
+    res.json({ success: true, message: 'Cemetery deleted' });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t delete the cemetery. Please try again.');
   }
 };
 
@@ -174,8 +177,8 @@ export const getAllGraveRecords = async (req: AuthRequest, res: Response) => {
 
     if (search) {
       query.$or = [
-        { deceasedName: { $regex: search, $options: 'i' } },
-        { graveNo: { $regex: search, $options: 'i' } },
+        { deceasedName: { $regex: regexLiteral(search), $options: 'i' } },
+        { graveNo: { $regex: regexLiteral(search), $options: 'i' } },
       ];
     }
 
@@ -192,7 +195,7 @@ export const getAllGraveRecords = async (req: AuthRequest, res: Response) => {
 
     res.json(createPaginationResponse(records, total, page, limit));
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the grave records right now. Please try again.');
   }
 };
 
@@ -203,11 +206,11 @@ export const getGraveRecordById = async (req: Request, res: Response) => {
       .populate('deceasedMemberId', 'name')
       .populate('familyId', 'houseName');
     if (!record) {
-      return res.status(404).json({ success: false, message: 'Grave record not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that grave record. It may have been removed." });
     }
     res.json({ success: true, data: record });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the grave record right now. Please try again.');
   }
 };
 
@@ -221,7 +224,7 @@ export const createGraveRecord = async (req: AuthRequest, res: Response) => {
     if (!graveData.tenantId && !req.isSuperAdmin) {
       return res.status(400).json({
         success: false,
-        message: 'Tenant ID is required',
+        message: 'Please select a Mahallu before continuing.',
       });
     }
 
@@ -233,7 +236,7 @@ export const createGraveRecord = async (req: AuthRequest, res: Response) => {
     if (!cemetery) {
       return res.status(400).json({
         success: false,
-        message: 'Cemetery not found or does not belong to your tenant',
+        message: "We couldn't find that cemetery in this Mahallu.",
       });
     }
 
@@ -246,7 +249,7 @@ export const createGraveRecord = async (req: AuthRequest, res: Response) => {
     if (existing) {
       return res.status(400).json({
         success: false,
-        message: `Grave number "${graveData.graveNo}" already exists in this cemetery`,
+        message: `Grave number "${graveData.graveNo}" is already used in this cemetery. Please choose a different number.`,
       });
     }
 
@@ -261,7 +264,7 @@ export const createGraveRecord = async (req: AuthRequest, res: Response) => {
         if (!member) {
           return res.status(400).json({
             success: false,
-            message: 'Member not found or does not belong to your tenant',
+            message: "We couldn't find that member in this Mahallu.",
           });
         }
         // If member exists, use their name if deceasedName not provided
@@ -284,7 +287,7 @@ export const createGraveRecord = async (req: AuthRequest, res: Response) => {
         if (!family) {
           return res.status(400).json({
             success: false,
-            message: 'Family not found or does not belong to your tenant',
+            message: "We couldn't find that family in this Mahallu.",
           });
         }
       } catch (e) {
@@ -301,7 +304,7 @@ export const createGraveRecord = async (req: AuthRequest, res: Response) => {
     res.status(201).json({ success: true, data: populated });
   } catch (error: any) {
     const statusCode = error.name === 'ValidationError' ? 400 : 500;
-    res.status(statusCode).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t save the grave record. Please try again.', statusCode);
   }
 };
 
@@ -319,11 +322,11 @@ export const updateGraveRecord = async (req: Request, res: Response) => {
       .populate('familyId', 'houseName');
 
     if (!record) {
-      return res.status(404).json({ success: false, message: 'Grave record not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that grave record. It may have been removed." });
     }
     res.json({ success: true, data: record });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t update the grave record. Please try again.');
   }
 };
 
@@ -331,7 +334,7 @@ export const deleteGraveRecord = async (req: Request, res: Response) => {
   try {
     const record = await GraveRecord.findByIdAndDelete(req.params.id);
     if (!record) {
-      return res.status(404).json({ success: false, message: 'Grave record not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that grave record. It may have been removed." });
     }
 
     // Remove graveRecordId from linked DeathRegistration if any
@@ -340,9 +343,9 @@ export const deleteGraveRecord = async (req: Request, res: Response) => {
       { $unset: { graveRecordId: 1 } }
     );
 
-    res.json({ success: true, message: 'Grave record deleted successfully' });
+    res.json({ success: true, message: 'Grave record deleted' });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t delete the grave record. Please try again.');
   }
 };
 
@@ -365,8 +368,8 @@ export const getCemeteryGraves = async (req: AuthRequest, res: Response) => {
 
     if (search) {
       query.$or = [
-        { deceasedName: { $regex: search, $options: 'i' } },
-        { graveNo: { $regex: search, $options: 'i' } },
+        { deceasedName: { $regex: regexLiteral(search), $options: 'i' } },
+        { graveNo: { $regex: regexLiteral(search), $options: 'i' } },
       ];
     }
 
@@ -382,6 +385,6 @@ export const getCemeteryGraves = async (req: AuthRequest, res: Response) => {
 
     res.json(createPaginationResponse(records, total, page, limit));
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the cemetery graves right now. Please try again.');
   }
 };

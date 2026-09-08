@@ -9,6 +9,7 @@ import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import { familyService } from '@/services/familyService';
 import { tenantService } from '@/services/tenantService';
+import { errorMessage } from '@/utils/errors';
 
 const familySchema = z.object({
   varisangyaGrade: z.string().optional(),
@@ -16,14 +17,14 @@ const familySchema = z.object({
   houseNameMl: z.string().optional(),
   familyHead: z.string().optional(),
   familyHeadMl: z.string().optional(),
-  contactNo: z.string().optional().refine(
-    (val) => !val || /^\d{10}$/.test(val),
-    { message: 'Contact number must be exactly 10 digits' }
-  ),
-  wardNumber: z.string().optional().refine(
-    (val) => !val || /^\d+$/.test(val),
-    { message: 'Ward number must contain only digits' }
-  ),
+  contactNo: z
+    .string()
+    .optional()
+    .refine((val) => !val || /^\d{10}$/.test(val), { message: 'Contact number must be exactly 10 digits' }),
+  wardNumber: z
+    .string()
+    .optional()
+    .refine((val) => !val || /^\d+$/.test(val), { message: 'Ward number must contain only digits' }),
   houseNo: z.string().optional(),
   area: z.string().optional(),
   areaMl: z.string().optional(),
@@ -55,7 +56,8 @@ export default function QuickAddFamily({ open, onClose, onCreated, tenantId }: P
 
   useEffect(() => {
     if (open && tenantId) {
-      tenantService.getById(tenantId)
+      tenantService
+        .getById(tenantId)
         .then((tenant) => {
           setGrades(tenant.settings?.varisangyaGrades || []);
           setAreaOptions(tenant.settings?.areaOptions || []);
@@ -74,7 +76,7 @@ export default function QuickAddFamily({ open, onClose, onCreated, tenantId }: P
       onCreated({ id: created.id, label: created.houseName });
       onClose();
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to create family. Please try again.');
+      setError(errorMessage(err, { action: 'create family. please try again' }));
     }
   };
 
@@ -98,11 +100,7 @@ export default function QuickAddFamily({ open, onClose, onCreated, tenantId }: P
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Select
-            label="Varisangya Grade"
-            options={gradeOptions}
-            {...register('varisangyaGrade')}
-          />
+          <Select label="Varisangya Grade" options={gradeOptions} {...register('varisangyaGrade')} />
           <Input
             label="House Name"
             {...register('houseName')}
@@ -111,25 +109,21 @@ export default function QuickAddFamily({ open, onClose, onCreated, tenantId }: P
             placeholder="House Name"
           />
           <div className="hidden">
-          <Input
-            label="House Name (Malayalam)"
-            {...register('houseNameMl')}
-            placeholder="വീട് പേര്"
-            className="font-malayalam"
-          />
+            <Input
+              label="House Name (Malayalam)"
+              {...register('houseNameMl')}
+              placeholder="വീട് പേര്"
+              className="font-malayalam"
+            />
           </div>
-          <Input
-            label="Family Head"
-            {...register('familyHead')}
-            placeholder="Family Head Name"
-          />
+          <Input label="Family Head" {...register('familyHead')} placeholder="Family Head Name" />
           <div className="hidden">
-          <Input
-            label="Family Head (Malayalam)"
-            {...register('familyHeadMl')}
-            placeholder="കുടുംബ നാഥൻ"
-            className="font-malayalam"
-          />
+            <Input
+              label="Family Head (Malayalam)"
+              {...register('familyHeadMl')}
+              placeholder="കുടുംബ നാഥൻ"
+              className="font-malayalam"
+            />
           </div>
           <Input
             label="Contact No."
@@ -145,40 +139,28 @@ export default function QuickAddFamily({ open, onClose, onCreated, tenantId }: P
             error={errors.wardNumber?.message}
             placeholder="Ward Number"
           />
-          <Input
-            label="House No."
-            {...register('houseNo')}
-            placeholder="House No."
-          />
-          <Select
-            label="Area"
-            options={areaSelectOptions}
-            {...register('area')}
-          />
+          <Input label="House No." {...register('houseNo')} placeholder="House No." />
+          <Select label="Area" options={areaSelectOptions} {...register('area')} />
           <div className="hidden">
-          <Input
-            label="Area (Malayalam)"
-            {...register('areaMl')}
-            placeholder="പ്രദേശം"
-            className="font-malayalam"
-          />
+            <Input
+              label="Area (Malayalam)"
+              {...register('areaMl')}
+              placeholder="പ്രദേശം"
+              className="font-malayalam"
+            />
           </div>
-          <Input
-            label="Place"
-            {...register('place')}
-            placeholder="Place"
-          />
+          <Input label="Place" {...register('place')} placeholder="Place" />
           <div className="hidden">
-          <Input
-            label="Place (Malayalam)"
-            {...register('placeMl')}
-            placeholder="സ്ഥലം"
-            className="font-malayalam"
-          />
+            <Input
+              label="Place (Malayalam)"
+              {...register('placeMl')}
+              placeholder="സ്ഥലം"
+              className="font-malayalam"
+            />
           </div>
         </div>
 
-        <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+        <div className="flex gap-2 flex-col-reverse sm:flex-row sm:justify-end sm:gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
           <Button type="button" variant="outline" onClick={onClose}>
             <FiX className="h-4 w-4 mr-2" />
             Cancel

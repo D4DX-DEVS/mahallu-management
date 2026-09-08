@@ -2,6 +2,8 @@ import express from 'express';
 import { getDevelopmentIndex } from '../controllers/developmentIndexController';
 import { authMiddleware, allowRoles } from '../middleware/authMiddleware';
 import { tenantMiddleware, tenantFilter } from '../middleware/tenantMiddleware';
+import { validationHandler } from '../middleware/validationHandler';
+import { idParam, listQuery } from '../validations/common';
 
 const router = express.Router();
 
@@ -34,6 +36,6 @@ router.use(tenantFilter);
  *       403:
  *         description: Role not permitted
  */
-router.get('/', allowRoles(['super_admin', 'mahall']), getDevelopmentIndex);
+router.get('/', listQuery(), validationHandler, allowRoles(['super_admin', 'mahall']), getDevelopmentIndex);
 
 export default router;

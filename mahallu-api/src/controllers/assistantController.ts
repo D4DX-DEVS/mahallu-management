@@ -306,21 +306,21 @@ export const queryAssistant = async (req: AuthRequest, res: Response) => {
       return res.status(503).json({
         success: false,
         code: 'not_configured',
-        message: 'AI assistant is not configured. Set OPENROUTER_API_KEY on the server.',
+        message: "The assistant isn't available right now. Please try again later.",
       });
     }
 
     const tenantId = req.tenantId || (req.isSuperAdmin ? (req.query.tenantId as string) : undefined);
     if (!tenantId) {
-      return res.status(400).json({ success: false, message: 'Tenant ID is required' });
+      return res.status(400).json({ success: false, message: 'Please select a Mahallu before continuing.' });
     }
 
     const question = (req.body?.question || '').toString().trim();
     if (!question) {
-      return res.status(400).json({ success: false, message: 'question is required' });
+      return res.status(400).json({ success: false, message: 'Please enter a question.' });
     }
     if (question.length > 1000) {
-      return res.status(400).json({ success: false, message: 'question is too long (max 1000 characters)' });
+      return res.status(400).json({ success: false, message: 'That question is too long. Please keep it under 1000 characters.' });
     }
 
     const userKey = String(req.user?._id || 'anonymous');
@@ -329,7 +329,7 @@ export const queryAssistant = async (req: AuthRequest, res: Response) => {
       return res.status(429).json({
         success: false,
         code: 'daily_limit',
-        message: `Daily assistant limit reached (${DAILY_LIMIT()} questions). Try again tomorrow. — ദിവസ പരിധി കഴിഞ്ഞു, നാളെ വീണ്ടും ശ്രമിക്കൂ.`,
+        message: `You've reached today's limit of ${DAILY_LIMIT()} questions. Please try again tomorrow. — ദിവസ പരിധി കഴിഞ്ഞു, നാളെ വീണ്ടും ശ്രമിക്കൂ.`,
       });
     }
 
@@ -351,7 +351,7 @@ export const queryAssistant = async (req: AuthRequest, res: Response) => {
       const data = await callModel(apiKey, model, messages);
       const choice = data?.choices?.[0]?.message;
       if (!choice) {
-        return res.status(502).json({ success: false, message: 'AI provider returned no message' });
+        return res.status(502).json({ success: false, message: "The assistant couldn't answer that. Please try again." });
       }
 
       const calls = choice.tool_calls || [];
@@ -390,7 +390,7 @@ export const queryAssistant = async (req: AuthRequest, res: Response) => {
       }
     }
 
-    res.status(504).json({ success: false, message: 'Assistant could not finish within the tool-call limit' });
+    res.status(504).json({ success: false, message: "The assistant couldn't finish that request. Please try a simpler question." });
   } catch (error: any) {
     const msg: string = error?.message || '';
     if (msg.startsWith('AI provider error')) {

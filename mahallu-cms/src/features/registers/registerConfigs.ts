@@ -32,7 +32,12 @@ export const columnsFor = (source: 'member' | 'family'): TableColumn<any>[] =>
 
 /** Mirrors the REGISTERS map in mahallu-api/src/controllers/registerController.ts */
 export const REGISTER_CONFIGS: RegisterConfig[] = [
-  { key: 'zakat-payers', title: 'Zakat Payers', description: 'Members flagged as zakat contributors', source: 'member' },
+  {
+    key: 'zakat-payers',
+    title: 'Zakat Payers',
+    description: 'Members flagged as zakat contributors',
+    source: 'member',
+  },
   {
     key: 'zakat-beneficiaries',
     title: 'Zakat Beneficiaries',
@@ -40,7 +45,12 @@ export const REGISTER_CONFIGS: RegisterConfig[] = [
     source: 'member',
   },
   { key: 'job-seekers', title: 'Job Seekers', description: 'Members looking for work', source: 'member' },
-  { key: 'skilled-workers', title: 'Skilled Workers', description: 'Members with recorded skills', source: 'member' },
+  {
+    key: 'skilled-workers',
+    title: 'Skilled Workers',
+    description: 'Members with recorded skills',
+    source: 'member',
+  },
   { key: 'students', title: 'Students', description: 'Members currently studying', source: 'member' },
   {
     key: 'marriageable',
@@ -59,10 +69,20 @@ export const REGISTER_CONFIGS: RegisterConfig[] = [
       },
     ],
   },
-  { key: 'volunteers', title: 'Volunteers', description: 'Members available for volunteer service', source: 'member' },
+  {
+    key: 'volunteers',
+    title: 'Volunteers',
+    description: 'Members available for volunteer service',
+    source: 'member',
+  },
   { key: 'widows', title: 'Widows', description: 'Widowed members', source: 'member' },
   { key: 'orphans', title: 'Orphans', description: 'Orphan members', source: 'member' },
-  { key: 'disabled', title: 'Members with Disability', description: 'Members needing accessibility support', source: 'member' },
+  {
+    key: 'disabled',
+    title: 'Members with Disability',
+    description: 'Members needing accessibility support',
+    source: 'member',
+  },
   { key: 'elderly', title: 'Senior Citizens', description: 'Members aged 60 and above', source: 'member' },
   { key: 'unemployed', title: 'Unemployed', description: 'Members without employment', source: 'member' },
   {

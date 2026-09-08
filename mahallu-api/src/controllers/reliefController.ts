@@ -7,6 +7,9 @@ import { AuthRequest } from '../middleware/authMiddleware';
 import { getPaginationParams, createPaginationResponse } from '../utils/pagination';
 import { stripImmutable, refBelongsToTenant } from '../utils/sanitizeUpdate';
 
+import { sendFailure } from '../utils/userMessages';
+import { regexLiteral } from '../utils/queryGuard';
+
 const tenantScope = (req: AuthRequest): Record<string, any> =>
   req.tenantId ? { tenantId: req.tenantId } : {};
 
@@ -14,7 +17,7 @@ const tenantScope = (req: AuthRequest): Record<string, any> =>
 const validateRefs = async (req: AuthRequest): Promise<string | null> => {
   const { memberId, familyId } = req.body;
   if (memberId && !(await refBelongsToTenant(Member, memberId, req.tenantId))) {
-    return 'Member does not belong to this Mahallu';
+    return 'This member belongs to another Mahallu.';
   }
   if (familyId && !(await refBelongsToTenant(Family, familyId, req.tenantId))) {
     return 'Family does not belong to this Mahallu';
@@ -30,7 +33,7 @@ export const getAllReliefCases = async (req: AuthRequest, res: Response) => {
     if (req.query.status) query.status = req.query.status;
     if (req.query.urgency) query.urgency = req.query.urgency;
     if (req.query.familyId) query.familyId = req.query.familyId;
-    if (req.query.search) query.title = { $regex: String(req.query.search), $options: 'i' };
+    if (req.query.search) query.title = { $regex: regexLiteral(String(req.query.search)), $options: 'i' };
 
     const [cases, total] = await Promise.all([
       ReliefCase.find(query)
@@ -44,7 +47,7 @@ export const getAllReliefCases = async (req: AuthRequest, res: Response) => {
 
     res.json(createPaginationResponse(cases, total, page, limit));
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the relief cases right now. Please try again.');
   }
 };
 
@@ -55,11 +58,11 @@ export const getReliefCaseById = async (req: AuthRequest, res: Response) => {
       .populate('familyId', 'houseName mahallId');
 
     if (!reliefCase) {
-      return res.status(404).json({ success: false, message: 'Relief case not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that relief case. It may have been removed." });
     }
     res.json({ success: true, data: reliefCase });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the relief case right now. Please try again.');
   }
 };
 
@@ -79,7 +82,7 @@ export const createReliefCase = async (req: AuthRequest, res: Response) => {
 
     res.status(201).json({ success: true, data: reliefCase });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t save the relief case. Please try again.');
   }
 };
 
@@ -87,7 +90,7 @@ export const updateReliefCase = async (req: AuthRequest, res: Response) => {
   try {
     const existing = await ReliefCase.findOne({ _id: req.params.id, ...tenantScope(req) });
     if (!existing) {
-      return res.status(404).json({ success: false, message: 'Relief case not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that relief case. It may have been removed." });
     }
 
     const refError = await validateRefs(req);
@@ -106,7 +109,7 @@ export const updateReliefCase = async (req: AuthRequest, res: Response) => {
 
     res.json({ success: true, data: reliefCase });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t update the relief case. Please try again.');
   }
 };
 
@@ -116,7 +119,7 @@ export const updateReliefStatus = async (req: AuthRequest, res: Response) => {
 
     const reliefCase = await ReliefCase.findOne({ _id: req.params.id, ...tenantScope(req) });
     if (!reliefCase) {
-      return res.status(404).json({ success: false, message: 'Relief case not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that relief case. It may have been removed." });
     }
 
     const next = status as ReliefStatus;
@@ -133,7 +136,7 @@ export const updateReliefStatus = async (req: AuthRequest, res: Response) => {
     if (next === 'assisted' && !assistanceGiven && !reliefCase.assistanceGiven) {
       return res.status(400).json({
         success: false,
-        message: 'Record what assistance was given before marking the case assisted',
+        message: 'Please record what assistance was given before marking this case as assisted.',
       });
     }
 
@@ -146,7 +149,7 @@ export const updateReliefStatus = async (req: AuthRequest, res: Response) => {
 
     res.json({ success: true, data: reliefCase });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t update the relief status. Please try again.');
   }
 };
 
@@ -157,11 +160,11 @@ export const deleteReliefCase = async (req: AuthRequest, res: Response) => {
       ...tenantScope(req),
     });
     if (!reliefCase) {
-      return res.status(404).json({ success: false, message: 'Relief case not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that relief case. It may have been removed." });
     }
     res.json({ success: true, message: 'Relief case deleted' });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t delete the relief case. Please try again.');
   }
 };
 
@@ -202,6 +205,6 @@ export const getReliefSummary = async (req: AuthRequest, res: Response) => {
       },
     });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the relief summary right now. Please try again.');
   }
 };

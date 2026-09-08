@@ -52,12 +52,14 @@ const WelfareSchemeSchema = new Schema<IWelfareScheme>(
     tenantId: {
       type: Schema.Types.ObjectId,
       ref: 'Tenant',
-      required: [true, 'Tenant ID is required'],
+      required: [true, 'Please select a Mahallu before continuing.'],
       index: true,
     },
     name: { type: String, required: [true, 'Scheme name is required'], trim: true },
     nameMl: { type: String, trim: true },
-    category: { type: String, enum: WELFARE_CATEGORIES, default: 'other' },
+    // Category key: 'welfare_category'. WELFARE_CATEGORIES above now only
+    // feeds the Category seed script, not schema validation.
+    category: { type: String, default: 'other' },
     description: { type: String, trim: true },
     budgetAmount: { type: Number, min: 0, default: 0 },
     status: { type: String, enum: ['active', 'closed'], default: 'active' },
@@ -99,7 +101,7 @@ const WelfareApplicationSchema = new Schema<IWelfareApplication>(
     tenantId: {
       type: Schema.Types.ObjectId,
       ref: 'Tenant',
-      required: [true, 'Tenant ID is required'],
+      required: [true, 'Please select a Mahallu before continuing.'],
       index: true,
     },
     schemeId: {

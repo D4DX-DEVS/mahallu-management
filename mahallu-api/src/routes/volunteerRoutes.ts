@@ -15,6 +15,14 @@ import {
 } from '../controllers/volunteerController';
 import { authMiddleware, allowRoles } from '../middleware/authMiddleware';
 import { tenantMiddleware, tenantFilter } from '../middleware/tenantMiddleware';
+import { validationHandler } from '../middleware/validationHandler';
+import { idParam, listQuery } from '../validations/common';
+import {
+  createVolunteerValidation,
+  createAssignmentValidation,
+  updateVolunteerValidation,
+  updateAssignmentValidation,
+} from '../validations/moduleValidation';
 
 // Middleware stack
 const applyAuth = (router: express.Router) => {
@@ -51,7 +59,7 @@ applyAuth(assignmentsRouter);
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  */
-volunteersRouter.get('/summary', getVolunteerSummary);
+volunteersRouter.get('/summary', listQuery(), validationHandler, getVolunteerSummary);
 
 /**
  * @swagger
@@ -147,8 +155,8 @@ volunteersRouter.get('/summary', getVolunteerSummary);
  *       400:
  *         description: Member does not belong to this Mahallu or validation error
  */
-volunteersRouter.get('/', getAllVolunteers);
-volunteersRouter.post('/', allowRoles(['mahall']), createVolunteer);
+volunteersRouter.get('/', listQuery(), validationHandler, getAllVolunteers);
+volunteersRouter.post('/', createVolunteerValidation, validationHandler, allowRoles(['mahall']), createVolunteer);
 
 /**
  * @swagger
@@ -227,9 +235,9 @@ volunteersRouter.post('/', allowRoles(['mahall']), createVolunteer);
  *       404:
  *         description: Volunteer not found
  */
-volunteersRouter.get('/:id', getVolunteerById);
-volunteersRouter.put('/:id', allowRoles(['mahall']), updateVolunteer);
-volunteersRouter.delete('/:id', allowRoles(['mahall']), deleteVolunteer);
+volunteersRouter.get('/:id', idParam('id', 'volunteer'), validationHandler, getVolunteerById);
+volunteersRouter.put('/:id', updateVolunteerValidation, validationHandler, allowRoles(['mahall']), updateVolunteer);
+volunteersRouter.delete('/:id', idParam('id', 'volunteer'), validationHandler, allowRoles(['mahall']), deleteVolunteer);
 
 /**
  * @swagger
@@ -264,7 +272,7 @@ volunteersRouter.delete('/:id', allowRoles(['mahall']), deleteVolunteer);
  *       404:
  *         description: Volunteer not found
  */
-volunteersRouter.get('/:id/assignments', getVolunteerAssignments);
+volunteersRouter.get('/:id/assignments', idParam('id', 'volunteer'), validationHandler, getVolunteerAssignments);
 
 // ============= VOLUNTEER ASSIGNMENTS ENDPOINTS =============
 
@@ -353,8 +361,8 @@ volunteersRouter.get('/:id/assignments', getVolunteerAssignments);
  *       400:
  *         description: One or more volunteers belong to another Mahallu or validation error
  */
-assignmentsRouter.get('/', getAllAssignments);
-assignmentsRouter.post('/', allowRoles(['mahall']), createAssignment);
+assignmentsRouter.get('/', listQuery(), validationHandler, getAllAssignments);
+assignmentsRouter.post('/', createAssignmentValidation, validationHandler, allowRoles(['mahall']), createAssignment);
 
 /**
  * @swagger
@@ -433,9 +441,9 @@ assignmentsRouter.post('/', allowRoles(['mahall']), createAssignment);
  *       404:
  *         description: Assignment not found
  */
-assignmentsRouter.get('/:id', getAssignmentById);
-assignmentsRouter.put('/:id', allowRoles(['mahall']), updateAssignment);
-assignmentsRouter.delete('/:id', allowRoles(['mahall']), deleteAssignment);
+assignmentsRouter.get('/:id', idParam('id', 'assignment'), validationHandler, getAssignmentById);
+assignmentsRouter.put('/:id', updateAssignmentValidation, validationHandler, allowRoles(['mahall']), updateAssignment);
+assignmentsRouter.delete('/:id', idParam('id', 'assignment'), validationHandler, allowRoles(['mahall']), deleteAssignment);
 
 // Export all routers
 export { volunteersRouter, assignmentsRouter };

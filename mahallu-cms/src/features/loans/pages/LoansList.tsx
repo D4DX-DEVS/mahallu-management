@@ -1,11 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Table from '@/components/ui/Table';
 import StatCard from '@/components/ui/StatCard';
-import SearchInput from '@/components/ui/SearchInput';
+import ExpandableSearch from '@/components/ui/ExpandableSearch';
 import Pagination from '@/components/ui/Pagination';
 import EmptyState from '@/components/ui/EmptyState';
 import { Pagination as PaginationType, TableColumn } from '@/types';
@@ -20,6 +19,8 @@ import {
   loanApplicantName,
 } from '@/services/qardService';
 import LoanStatusBadge from '../components/LoanStatusBadge';
+import { loadErrorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
 
 export default function LoansList() {
   const navigate = useNavigate();
@@ -56,7 +57,7 @@ export default function LoansList() {
       setRows(result.data);
       setPagination(result.pagination);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to load loans');
+      setError(loadErrorMessage(err, 'loans'));
     } finally {
       setLoading(false);
     }
@@ -85,20 +86,18 @@ export default function LoansList() {
 
   return (
     <div>
-      <Breadcrumb items={[{ label: 'Services' }, { label: 'Qard Hasan' }]} />
+      <PageHeader
+        description="Interest-free loans, from application through repayment."
+        title="Qard Hasan"
+        breadcrumbs={[{ label: 'Services' }]}
+      />
 
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Qard Hasan</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            Interest-free loans, from application through repayment.
-          </p>
-        </div>
         <Button onClick={() => navigate('/loans/create')}>New application</Button>
       </div>
 
       {summary && (
-        <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
+        <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3 xl:grid-cols-5">
           <StatCard title="Disbursed" value={formatCurrency(summary.totalDisbursed)} />
           <StatCard title="Outstanding" value={formatCurrency(summary.totalOutstanding)} />
           <StatCard title="Repaid" value={formatCurrency(summary.totalRepaid)} />
@@ -109,12 +108,13 @@ export default function LoansList() {
 
       <Card>
         <div className="mb-3">
-          <SearchInput
+          <ExpandableSearch
             value={searchQuery}
-            onChange={(e) => {
-              setSearchQuery(e.target.value);
+            onChange={(value) => {
+              setSearchQuery(value);
               setCurrentPage(1);
             }}
+            entity="loan applications"
             placeholder="Search by applicant name"
           />
         </div>

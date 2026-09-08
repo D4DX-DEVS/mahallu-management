@@ -29,8 +29,11 @@ export const getFamilyName = (row: Varisangya): string => {
   return '-';
 };
 
-export const buildVarisangyaColumns = ({ openEdit, handleViewPdf, onVerify }: VarisangyaColumnDeps): TableColumn<Varisangya>[] => [
-  { key: 'id', label: 'No.', render: (_, __, index) => index + 1 },
+export const buildVarisangyaColumns = ({
+  openEdit,
+  handleViewPdf,
+  onVerify,
+}: VarisangyaColumnDeps): TableColumn<Varisangya>[] => [
   { key: 'name', label: 'Name', render: (_, row) => getPayerName(row) },
   { key: 'familyName', label: 'Family name', render: (_, row) => getFamilyName(row) },
   {
@@ -76,6 +79,7 @@ export const buildVarisangyaColumns = ({ openEdit, handleViewPdf, onVerify }: Va
           }}
           className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
           title="Edit payment"
+          aria-label="Edit payment"
         >
           <FiEdit2 className="h-4 w-4" />
         </button>
@@ -86,6 +90,7 @@ export const buildVarisangyaColumns = ({ openEdit, handleViewPdf, onVerify }: Va
           }}
           className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
           title="View/Download PDF"
+          aria-label="View/Download PDF"
         >
           <FiDownload className="h-4 w-4" />
         </button>
@@ -97,6 +102,7 @@ export const buildVarisangyaColumns = ({ openEdit, handleViewPdf, onVerify }: Va
             }}
             className="p-1.5 rounded-md hover:bg-green-100 dark:hover:bg-green-900 text-green-600 dark:text-green-400 transition-colors"
             title="Verify payment"
+            aria-label="Verify payment"
           >
             <FiCheckCircle className="h-4 w-4" />
           </button>

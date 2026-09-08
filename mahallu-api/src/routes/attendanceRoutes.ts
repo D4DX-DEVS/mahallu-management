@@ -7,6 +7,11 @@ import {
 } from '../controllers/attendanceController';
 import { authMiddleware, allowRoles } from '../middleware/authMiddleware';
 import { tenantMiddleware, tenantFilter } from '../middleware/tenantMiddleware';
+import { validationHandler } from '../middleware/validationHandler';
+import { idParam, listQuery } from '../validations/common';
+import {
+  upsertAttendanceValidation,
+} from '../validations/moduleValidation';
 
 const router = express.Router();
 
@@ -53,7 +58,7 @@ router.use(tenantFilter);
  *       400:
  *         description: Invalid input or references
  */
-router.post('/', allowRoles(['super_admin', 'mahall']), upsertAttendance);
+router.post('/', upsertAttendanceValidation, validationHandler, allowRoles(['super_admin', 'mahall']), upsertAttendance);
 
 /**
  * @swagger
@@ -90,7 +95,7 @@ router.post('/', allowRoles(['super_admin', 'mahall']), upsertAttendance);
  *       200:
  *         description: Paginated attendance records
  */
-router.get('/', listAttendance);
+router.get('/', listQuery(), validationHandler, listAttendance);
 
 /**
  * @swagger
@@ -112,6 +117,6 @@ router.get('/', listAttendance);
  *       404:
  *         description: Record not found
  */
-router.get('/:id', getAttendanceById);
+router.get('/:id', idParam('id', 'record'), validationHandler, getAttendanceById);
 
 export default router;

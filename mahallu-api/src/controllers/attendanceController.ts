@@ -5,6 +5,8 @@ import { AuthRequest } from '../middleware/authMiddleware';
 import { getPaginationParams, createPaginationResponse } from '../utils/pagination';
 import { refBelongsToTenant } from '../utils/sanitizeUpdate';
 
+import { sendFailure } from '../utils/userMessages';
+
 const tenantScope = (req: AuthRequest): Record<string, any> =>
   req.tenantId ? { tenantId: req.tenantId } : {};
 
@@ -62,12 +64,12 @@ export const upsertAttendance = async (req: AuthRequest, res: Response) => {
     const { classId, date, records } = req.body;
 
     if (!classId || !date) {
-      return res.status(400).json({ success: false, message: 'Class ID and date are required' });
+      return res.status(400).json({ success: false, message: 'Please choose a class and a date.' });
     }
 
     // Validate classId belongs to tenant
     if (!(await refBelongsToTenant(MadrasaClass, classId, req.tenantId))) {
-      return res.status(400).json({ success: false, message: 'Class does not belong to this Mahallu' });
+      return res.status(400).json({ success: false, message: 'This class belongs to another Mahallu.' });
     }
 
     // Validate all enrollmentIds belong to this class and tenant
@@ -82,7 +84,7 @@ export const upsertAttendance = async (req: AuthRequest, res: Response) => {
           if (!enrollment) {
             return res
               .status(400)
-              .json({ success: false, message: `Enrollment ${record.enrollmentId} not found in this class` });
+              .json({ success: false, message: "We couldn't find that student's enrolment in this class." });
           }
         }
       }
@@ -97,7 +99,7 @@ export const upsertAttendance = async (req: AuthRequest, res: Response) => {
 
     res.json({ success: true, data: attendance });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t save the attendance. Please try again.');
   }
 };
 
@@ -170,7 +172,7 @@ export const listAttendance = async (req: AuthRequest, res: Response) => {
 
     res.json(createPaginationResponse(records, total, page, limit));
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the attendance right now. Please try again.');
   }
 };
 
@@ -201,12 +203,12 @@ export const getAttendanceById = async (req: AuthRequest, res: Response) => {
       .populate('records.enrollmentId', 'rollNo memberId');
 
     if (!record) {
-      return res.status(404).json({ success: false, message: 'Attendance record not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that attendance record. It may have been removed." });
     }
 
     res.json({ success: true, data: record });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the attendance right now. Please try again.');
   }
 };
 
@@ -240,7 +242,7 @@ export const getClassProgress = async (req: AuthRequest, res: Response) => {
     // Verify class exists and belongs to tenant
     const cls = await MadrasaClass.findOne({ _id: classId, tenantId: req.tenantId });
     if (!cls) {
-      return res.status(404).json({ success: false, message: 'Class not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that class. It may have been removed." });
     }
 
     // Get all enrollments for the class
@@ -334,6 +336,6 @@ export const getClassProgress = async (req: AuthRequest, res: Response) => {
       },
     });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the class progress right now. Please try again.');
   }
 };

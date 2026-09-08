@@ -46,4 +46,3 @@ export function usePagination<T>({ data, itemsPerPage = 10 }: UsePaginationProps
     setCurrentPage,
   };
 }
-

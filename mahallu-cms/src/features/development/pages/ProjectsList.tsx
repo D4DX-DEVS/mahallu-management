@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Button from '@/components/ui/Button';
+import ExpandableSearch from '@/components/ui/ExpandableSearch';
 import Card from '@/components/ui/Card';
 import Pagination from '@/components/ui/Pagination';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { toast } from '@/store/toastStore';
 import { developmentService, DevelopmentProject } from '@/services/developmentService';
+import PageHeader from '@/components/layout/PageHeader';
 
 const PROJECT_AREAS = [
   { value: 'roads', label: 'Roads' },
@@ -60,7 +62,7 @@ export default function ProjectsList() {
         setTotalPages(pagination.totalPages);
       }
     } catch (error) {
-      console.error('Failed to load projects:', error);
+      console.error("Couldn't load projects:", error);
     } finally {
       setLoading(false);
     }
@@ -75,7 +77,7 @@ export default function ProjectsList() {
       setDeleteId(null);
       loadProjects();
     } catch (error) {
-      toast.error('Failed to delete project');
+      toast.error("Couldn't delete project. Please try again.");
       setConfirmDelete(false);
       setDeleteId(null);
     }
@@ -109,25 +111,24 @@ export default function ProjectsList() {
   };
 
   return (
-    <div className="p-4">
+    <div>
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Community Development Projects</h1>
+        <PageHeader title="Community Development Projects" />
         <Button onClick={() => navigate('/development/create')}>Create Project</Button>
       </div>
 
       {/* Filters */}
-      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-6">
-        <input
-          type="text"
-          placeholder="Search projects..."
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+        <ExpandableSearch
           value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
+          onChange={(value) => {
+            setSearch(value);
             setCurrentPage(1);
           }}
-          className="px-3 py-2 border rounded text-sm"
+          entity="projects"
         />
         <select
+          aria-label="Filter"
           value={selectedArea}
           onChange={(e) => {
             setSelectedArea(e.target.value);
@@ -143,6 +144,7 @@ export default function ProjectsList() {
           ))}
         </select>
         <select
+          aria-label="Filter"
           value={selectedStatus}
           onChange={(e) => {
             setSelectedStatus(e.target.value);
@@ -166,14 +168,14 @@ export default function ProjectsList() {
         <div className="text-center py-8 text-gray-500">No projects found</div>
       ) : (
         <>
-          <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
             {projects.map((project) => (
               <Card
                 key={project.id}
                 onClick={() => navigate(`/development/${project.id}`)}
                 className="cursor-pointer hover:shadow-lg transition"
               >
-                <div className="p-4">
+                <div>
                   <h3 className="font-semibold text-sm sm:text-base truncate">{project.name}</h3>
 
                   <div className="flex gap-2 mt-2 flex-wrap">
@@ -202,7 +204,7 @@ export default function ProjectsList() {
                     <div>Est. Cost: ₹{(project.estimatedCost || 0).toLocaleString()}</div>
                   </div>
 
-                  <div className="mt-3 flex gap-2">
+                  <div className="mt-3 flex flex-wrap gap-2">
                     <Button
                       size="sm"
                       onClick={(e) => {
@@ -243,6 +245,7 @@ export default function ProjectsList() {
       )}
 
       <ConfirmDialog
+        isLoading={loading}
         isOpen={confirmDelete}
         title="Delete Project"
         message="Delete this project? This action cannot be undone."

@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -18,6 +17,8 @@ import {
   ZakatBeneficiary,
   DISTRIBUTION_TYPE_OPTIONS,
 } from '@/services/zakatDistributionService';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
 
 const emptyForm = {
   beneficiaryId: '',
@@ -70,7 +71,7 @@ export default function DistributionsList() {
       setRows(result.data);
       setPagination(result.pagination);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to load distributions');
+      setError(loadErrorMessage(err, 'distributions'));
     } finally {
       setLoading(false);
     }
@@ -78,7 +79,7 @@ export default function DistributionsList() {
 
   const handleSave = async () => {
     if (!form.beneficiaryId || !form.amount) {
-      toast.error('Beneficiary and amount are required');
+      toast.error('Please select a beneficiary and enter an amount.');
       return;
     }
     try {
@@ -94,7 +95,7 @@ export default function DistributionsList() {
       setForm(emptyForm);
       fetchRows();
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to record distribution');
+      toast.error(errorMessage(err, { action: 'record distribution' }));
     } finally {
       setSaving(false);
     }
@@ -118,17 +119,11 @@ export default function DistributionsList() {
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">Zakat Distributions</h1>
-          <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-            Payments made to verified beneficiaries
-          </p>
-        </div>
-        <Breadcrumb
-          items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Zakat' }, { label: 'Distributions' }]}
-        />
-      </div>
+      <PageHeader
+        title="Zakat Distributions"
+        description="Payments made to verified beneficiaries"
+        breadcrumbs={[{ label: 'Zakat' }]}
+      />
 
       <Card>
         <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">

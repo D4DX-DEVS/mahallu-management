@@ -1,13 +1,21 @@
-import api from './api';
+import api, { asList } from './api';
 import { Employee } from '@/types';
 
 export const employeeService = {
-  getAll: async (params?: { instituteId?: string; status?: string; search?: string; page?: number; limit?: number }) => {
-    const response = await api.get<{ success: boolean; data: Employee[]; pagination?: any }>('/employees', { params });
+  getAll: async (params?: {
+    instituteId?: string;
+    status?: string;
+    search?: string;
+    page?: number;
+    limit?: number;
+  }) => {
+    const response = await api.get<{ success: boolean; data: Employee[]; pagination?: any }>('/employees', {
+      params,
+    });
     if (response.data.pagination) {
-      return { data: response.data.data, pagination: response.data.pagination };
+      return { data: asList(response.data.data), pagination: response.data.pagination };
     }
-    return { data: response.data.data, pagination: null };
+    return { data: asList(response.data.data), pagination: null };
   },
 
   getById: async (id: string) => {
