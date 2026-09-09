@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import Card from '@/components/ui/Card';
+import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import Table from '@/components/ui/Table';
 import Pagination from '@/components/ui/Pagination';
@@ -158,10 +159,11 @@ export default function MemberVarisangyaTransactions() {
   };
 
   const columns: TableColumn<Transaction>[] = [
-    { key: 'id', label: 'No.', render: (_, __, index) => (currentPage - 1) * itemsPerPage + index + 1 },
+    { key: 'id', label: 'No.', width: '6rem', render: (_, __, index) => (currentPage - 1) * itemsPerPage + index + 1 },
     {
       key: 'type',
       label: 'Type',
+      width: '6.25rem',
       render: (type) => (
         <span
           className={`px-2 py-1 text-xs font-medium rounded-full ${
@@ -174,21 +176,22 @@ export default function MemberVarisangyaTransactions() {
         </span>
       ),
     },
-    { key: 'amount', label: 'Amount', render: (amount) => `₹${amount?.toLocaleString() || 0}` },
-    { key: 'description', label: 'Description' },
-    { key: 'referenceType', label: 'Reference', render: (type) => type || '-' },
-    { key: 'createdAt', label: 'Date', render: (date) => formatDate(date) },
+    { key: 'amount', label: 'Amount', width: '7.75rem', render: (amount) => `₹${amount?.toLocaleString() || 0}` },
+    { key: 'description', label: 'Description', width: '9.25rem' },
+    { key: 'referenceType', label: 'Reference', width: '8.75rem', render: (type) => type || '-' },
+    { key: 'createdAt', label: 'Date', width: '6.25rem', render: (date) => formatDate(date) },
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div>
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+        <h2 className="text-lg font-semibold text-foreground">
           Member Varisangya Transactions
-          {member && ` - ${member.name}`}
+          {member && <span className="capitalize"> - {member.name}</span>}
         </h2>
         <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
-          View all varisangya transactions{member ? ` for ${member.name}` : ''}
+          View all varisangya transactions
+          {member ? <span className="capitalize"> for {member.name}</span> : ''}
         </p>
       </div>
 
@@ -197,7 +200,7 @@ export default function MemberVarisangyaTransactions() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-500 dark:text-gray-400">Wallet Balance</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+              <p className="text-2xl font-semibold tabular-nums text-foreground">
                 ₹{(wallet?.balance ?? 0).toLocaleString()}
               </p>
             </div>
@@ -213,7 +216,7 @@ export default function MemberVarisangyaTransactions() {
         </Card>
       )}
 
-      <Card>
+      <TableCard>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -225,7 +228,7 @@ export default function MemberVarisangyaTransactions() {
           isExporting={isExporting}
         />
         {error ? (
-          <div className="text-center py-12">
+          <div className="text-center py-10">
             <p className="text-red-600 dark:text-red-400">{error}</p>
             <Button onClick={memberId ? fetchData : fetchAllTransactions} className="mt-4" variant="outline">
               Retry
@@ -234,6 +237,8 @@ export default function MemberVarisangyaTransactions() {
         ) : (
           <>
             <Table
+              fixedLayout
+              striped
               columns={columns}
               data={transactions}
               isLoading={loading}
@@ -257,7 +262,7 @@ export default function MemberVarisangyaTransactions() {
             )}
           </>
         )}
-      </Card>
+      </TableCard>
     </div>
   );
 }

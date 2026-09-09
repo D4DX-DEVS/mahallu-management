@@ -61,7 +61,7 @@ export default function TenantSwitcher() {
     try {
       setIsLoading(true);
       setLoadError(null);
-      const response = await tenantService.getAll({ limit: 500 });
+      const response = await tenantService.getAll({ limit: 100 });
       setTenants(response.data || []);
     } catch (error: any) {
       console.error('Error loading tenants:', error);

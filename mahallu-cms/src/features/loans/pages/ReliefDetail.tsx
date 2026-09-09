@@ -100,7 +100,7 @@ export default function ReliefDetail() {
       </div>
 
       <Card className="mb-4">
-        <h2 className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100">Case</h2>
+        <h2 className="mb-3 text-sm font-semibold text-foreground">Case</h2>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
           <Field label="Title (Malayalam)" value={reliefCase.titleMl || '-'} />
           <Field
@@ -133,7 +133,7 @@ export default function ReliefDetail() {
       </Card>
 
       <Card>
-        <h2 className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100">Move this case</h2>
+        <h2 className="mb-3 text-sm font-semibold text-foreground">Move this case</h2>
 
         {options.length === 0 ? (
           <p className="text-sm text-gray-500 dark:text-gray-400">

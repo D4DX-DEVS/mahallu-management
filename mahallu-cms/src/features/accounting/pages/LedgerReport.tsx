@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import Card from '@/components/ui/Card';
+import StatCard from '@/components/ui/StatCard';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
@@ -83,14 +84,14 @@ export default function LedgerReport() {
   const entries: LedgerReportEntry[] = reportData?.entries || [];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <PageHeader
         title="Ledger Report"
         description="Detailed transactions for a specific ledger with running balance"
       />
 
       <Card>
-        <div className="flex flex-wrap items-end gap-4 mb-6">
+        <div className="flex flex-wrap items-end gap-4 mb-4">
           <div className="w-full sm:w-52">
             <Select
               label="Ledger"
@@ -139,50 +140,47 @@ export default function LedgerReport() {
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="text-center py-12">
+          <div className="text-center py-10">
             <p className="text-red-600 dark:text-red-400">{error}</p>
           </div>
         ) : !reportData ? (
-          <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+          <div className="text-center py-10 text-gray-500 dark:text-gray-400">
             Select a ledger and click "Generate" to view the report
           </div>
         ) : (
           <>
             {/* Summary Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-4">
               <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
                 <p className="text-sm text-gray-600 dark:text-gray-400">Ledger</p>
-                <p className="text-lg font-bold text-gray-900 dark:text-gray-100">
+                <p className="text-lg font-semibold text-gray-900 dark:text-gray-100 capitalize">
                   {reportData.ledger?.name || '-'}
                 </p>
                 <p className="text-xs text-gray-500">{reportData.ledger?.type}</p>
               </div>
-              <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                <p className="text-sm text-blue-600 dark:text-blue-400">Opening Balance</p>
-                <p className="text-xl font-bold text-blue-700 dark:text-blue-300">
-                  ₹{(reportData.openingBalance || 0).toLocaleString()}
-                </p>
-              </div>
-              <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                <p className="text-sm text-green-600 dark:text-green-400">Total Credit</p>
-                <p className="text-xl font-bold text-green-700 dark:text-green-300">
-                  ₹{(reportData.totalCredit || 0).toLocaleString()}
-                </p>
-              </div>
-              <div className="p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
-                <p className="text-sm text-purple-600 dark:text-purple-400">Closing Balance</p>
-                <p className="text-xl font-bold text-purple-700 dark:text-purple-300">
-                  ₹{(reportData.closingBalance || 0).toLocaleString()}
-                </p>
-              </div>
+              <StatCard
+                title="Opening Balance"
+                value={<>₹{(reportData.openingBalance || 0).toLocaleString()}</>}
+                tone="info"
+              />
+              <StatCard
+                title="Total Credit"
+                value={<>₹{(reportData.totalCredit || 0).toLocaleString()}</>}
+                tone="success"
+              />
+              <StatCard
+                title="Closing Balance"
+                value={<>₹{(reportData.closingBalance || 0).toLocaleString()}</>}
+                tone="info"
+              />
             </div>
 
             {entries.length === 0 ? (
               <div className="text-center py-8 text-gray-500">No transactions found for this period</div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                  <thead className="bg-gray-50 dark:bg-gray-800">
+                <table className="min-w-full divide-y divide-border">
+                  <thead className="bg-muted">
                     <tr>
                       <th className="px-4 py-3 text-left text-label font-medium text-gray-500 dark:text-gray-400 uppercase">
                         Date
@@ -204,7 +202,7 @@ export default function LedgerReport() {
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+                  <tbody className="bg-white dark:bg-gray-900 divide-y divide-border">
                     {/* Opening Balance Row */}
                     <tr className="bg-blue-50/50 dark:bg-blue-900/10">
                       <td
@@ -213,7 +211,7 @@ export default function LedgerReport() {
                       >
                         Opening Balance
                       </td>
-                      <td className="px-4 py-2 text-sm text-right font-bold text-blue-700 dark:text-blue-300">
+                      <td className="px-4 py-2 text-sm text-right font-semibold text-blue-700 dark:text-blue-300">
                         ₹{(reportData.openingBalance || 0).toLocaleString()}
                       </td>
                     </tr>
@@ -253,13 +251,13 @@ export default function LedgerReport() {
                       >
                         Closing Balance
                       </td>
-                      <td className="px-4 py-2 text-sm text-right font-bold text-red-700 dark:text-red-300">
+                      <td className="px-4 py-2 text-sm text-right font-semibold text-red-700 dark:text-red-300">
                         ₹{(reportData.totalDebit || 0).toLocaleString()}
                       </td>
-                      <td className="px-4 py-2 text-sm text-right font-bold text-green-700 dark:text-green-300">
+                      <td className="px-4 py-2 text-sm text-right font-semibold text-green-700 dark:text-green-300">
                         ₹{(reportData.totalCredit || 0).toLocaleString()}
                       </td>
-                      <td className="px-4 py-2 text-sm text-right font-bold text-purple-700 dark:text-purple-300">
+                      <td className="px-4 py-2 text-sm text-right font-semibold text-purple-700 dark:text-purple-300">
                         ₹{(reportData.closingBalance || 0).toLocaleString()}
                       </td>
                     </tr>

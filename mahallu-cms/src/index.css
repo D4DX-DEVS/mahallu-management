@@ -18,8 +18,8 @@
     --popover: 0 0% 100%;
     --popover-foreground: 200 18% 12%;
 
-    /* Brand — teal. The one primary. */
-    --primary: 175 84% 32%;
+    /* Brand — green. The one primary. */
+    --primary: 142 76% 36%;
     --primary-foreground: 0 0% 100%;
 
     /* Neutral supporting surfaces */
@@ -27,8 +27,8 @@
     --secondary-foreground: 200 18% 12%;
     --muted: 180 14% 96%;
     --muted-foreground: 200 9% 42%;
-    --accent: 175 40% 95%;
-    --accent-foreground: 175 84% 22%;
+    --accent: 142 40% 95%;
+    --accent-foreground: 142 84% 22%;
 
     /* Semantic state — four roles, one ramp each */
     --destructive: 0 72% 46%;
@@ -43,7 +43,7 @@
     /* Lines and focus */
     --border: 180 12% 88%;
     --input: 180 12% 85%;
-    --ring: 175 84% 32%;
+    --ring: 142 76% 36%;
 
     /* Geometry — three radii derived from one value */
     --radius: 0.5rem;
@@ -61,15 +61,15 @@
     --popover: 200 20% 12%;
     --popover-foreground: 180 12% 95%;
 
-    --primary: 172 66% 50%;
+    --primary: 142 71% 45%;
     --primary-foreground: 200 24% 8%;
 
     --secondary: 200 16% 17%;
     --secondary-foreground: 180 12% 95%;
     --muted: 200 16% 17%;
     --muted-foreground: 195 8% 64%;
-    --accent: 175 30% 18%;
-    --accent-foreground: 172 66% 72%;
+    --accent: 142 30% 18%;
+    --accent-foreground: 142 66% 72%;
 
     --destructive: 0 68% 56%;
     --destructive-foreground: 200 24% 8%;
@@ -82,7 +82,7 @@
 
     --border: 200 14% 22%;
     --input: 200 14% 26%;
-    --ring: 172 66% 50%;
+    --ring: 142 71% 45%;
 
     --shadow-sm: 0 1px 2px 0 hsl(0 0% 0% / 0.4);
     --shadow-md: 0 4px 12px -2px hsl(0 0% 0% / 0.5), 0 2px 4px -2px hsl(0 0% 0% / 0.4);

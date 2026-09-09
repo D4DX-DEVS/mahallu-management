@@ -46,9 +46,9 @@ export default function FormSection({
   );
 
   return (
-    <section className={cn('border-b border-border py-5 first:pt-0 last:border-b-0 last:pb-0', className)}>
+    <section className={cn('border-b border-border py-4 first:pt-0 last:border-b-0 last:pb-0', className)}>
       {alwaysOpen ? (
-        <div className="mb-4">{header}</div>
+        <div className="mb-3">{header}</div>
       ) : (
         <button
           type="button"
@@ -58,7 +58,7 @@ export default function FormSection({
           className={cn(
             'flex w-full items-center justify-between gap-3 rounded-md text-left',
             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-            open && 'mb-4'
+            open && 'mb-3'
           )}
         >
           {header}

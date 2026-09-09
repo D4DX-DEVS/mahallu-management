@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FiTrash2, FiCheckCircle, FiXCircle, FiEye, FiX, FiGlobe, FiAlertCircle } from 'react-icons/fi';
-import Card from '@/components/ui/Card';
+import { FiAlertCircle, FiCheckCircle, FiEye, FiGlobe, FiPlus, FiTrash2, FiXCircle } from 'react-icons/fi';
+import TableCard from '@/components/ui/TableCard';
+import { rowActionClass } from '@/components/ui/rowAction';
+import FilterPanel from '@/components/ui/FilterPanel';
 import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
 import StatCard from '@/components/ui/StatCard';
@@ -144,21 +146,30 @@ export default function TenantsList() {
   };
 
   const columns: TableColumn<Tenant>[] = [
-    { key: 'name', label: 'Tenant Name', sortable: true },
-    { key: 'code', label: 'Code' },
+    {
+      key: 'name',
+      label: 'Tenant Name',
+      width: '10.25rem',
+      sortable: true,
+      render: (value) => <span className="capitalize">{value}</span>,
+    },
+    { key: 'code', label: 'Code', width: '6.25rem' },
     {
       key: 'type',
       label: 'Type',
+      width: '6.25rem',
       render: (type) => (
         <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
           {type}
         </span>
       ),
     },
-    { key: 'location', label: 'Location' },
+    { key: 'location', label: 'Location', width: '8rem' },
     {
       key: 'userCount',
       label: 'Users',
+      width: '8.5rem',
+      align: 'center',
       render: (count) => (
         <span className="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200">
           {count ?? 0}
@@ -168,6 +179,7 @@ export default function TenantsList() {
     {
       key: 'status',
       label: 'Status',
+      width: '7.25rem',
       render: (status) => (
         <span
           className={`px-2 py-1 text-xs font-medium rounded-full ${
@@ -185,11 +197,14 @@ export default function TenantsList() {
     {
       key: 'since',
       label: 'Since',
+      width: '6.5rem',
       render: (since) => formatDate(since),
     },
     {
       key: 'actions',
       label: 'Actions',
+      width: '8rem',
+      align: 'center',
       render: (_, row) => (
         <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
           <button
@@ -197,7 +212,7 @@ export default function TenantsList() {
               e.stopPropagation();
               navigate(`/admin/tenants/${row.id}`);
             }}
-            className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
+            className={rowActionClass()}
             title="View Details"
             aria-label="View Details"
           >
@@ -210,7 +225,7 @@ export default function TenantsList() {
                 setSelectedTenant(row);
                 setShowSuspendModal(true);
               }}
-              className="p-1.5 rounded-md hover:bg-yellow-50 dark:hover:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400 transition-colors"
+              className={rowActionClass('warning')}
               title="Suspend"
               aria-label="Suspend"
             >
@@ -222,7 +237,7 @@ export default function TenantsList() {
                 e.stopPropagation();
                 handleActivate(row);
               }}
-              className="p-1.5 rounded-md hover:bg-green-50 dark:hover:bg-green-900/20 text-green-600 dark:text-green-400 transition-colors"
+              className={rowActionClass()}
               title="Activate"
               aria-label="Activate"
             >
@@ -235,7 +250,7 @@ export default function TenantsList() {
               setSelectedTenant(row);
               setShowDeleteModal(true);
             }}
-            className="p-1.5 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 transition-colors"
+            className={rowActionClass('danger')}
             title="Delete"
             aria-label="Delete"
           >
@@ -287,7 +302,7 @@ export default function TenantsList() {
       </div>
 
       {/* Actions and Table */}
-      <Card>
+      <TableCard>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -299,20 +314,13 @@ export default function TenantsList() {
           isExporting={isExporting}
           actionButtons={
             <Link to="/admin/tenants/create">
-              <Button size="md">+ New Tenant</Button>
+              <Button size="md" icon={<FiPlus />} collapseLabel>New Tenant</Button>
             </Link>
           }
         />
 
         {isFilterVisible && (
-          <div className="relative flex flex-wrap items-center gap-4 mb-6 p-4 border border-gray-200 rounded-lg max-sm:border-0 max-sm:bg-transparent max-sm:p-0 bg-white dark:bg-gray-800 dark:border-gray-700">
-            <button
-              onClick={() => setIsFilterVisible(false)}
-              className="absolute right-4 top-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-              aria-label="Close"
-            >
-              <FiX className="h-4 w-4" />
-            </button>
+          <FilterPanel onClose={() => setIsFilterVisible(false)}>
             <div className="w-full sm:w-40">
               <Select
                 options={[
@@ -325,10 +333,12 @@ export default function TenantsList() {
                 onChange={(e) => setStatusFilter(e.target.value)}
               />
             </div>
-          </div>
+          </FilterPanel>
         )}
 
         <Table
+          fixedLayout
+          striped
           columns={columns}
           data={tenants}
           isLoading={isLoading}
@@ -350,7 +360,7 @@ export default function TenantsList() {
             />
           </div>
         )}
-      </Card>
+      </TableCard>
 
       {/* Suspend Modal */}
       <Modal

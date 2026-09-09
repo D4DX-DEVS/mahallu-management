@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FiEdit2, FiTrash2, FiEye, FiCalendar, FiX, FiUsers, FiCheckCircle, FiXCircle } from 'react-icons/fi';
-import Card from '@/components/ui/Card';
+import { FiCalendar, FiCheckCircle, FiEdit2, FiEye, FiPlus, FiTrash2, FiUsers, FiXCircle } from 'react-icons/fi';
+import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
@@ -118,15 +118,24 @@ export default function CommitteesList() {
   };
 
   const columns: TableColumn<Committee>[] = [
-    { key: 'name', label: 'Name', sortable: true },
+    {
+      key: 'name',
+      label: 'Name',
+      width: '6.75rem',
+      sortable: true,
+      render: (v) => <span className="capitalize">{v}</span>,
+    },
     {
       key: 'members',
       label: 'Members',
+      width: '10rem',
+      align: 'center',
       render: (members) => (Array.isArray(members) ? members.length : 0),
     },
     {
       key: 'termEndDate',
       label: 'Term Ends',
+      width: '9.25rem',
       render: (value) => {
         if (!value) return '-';
         const endsOn = new Date(value);
@@ -148,6 +157,7 @@ export default function CommitteesList() {
     {
       key: 'status',
       label: 'Status',
+      width: '7.25rem',
       render: (status) => (
         <span
           className={`px-2 py-1 text-xs font-medium rounded-full ${
@@ -163,11 +173,14 @@ export default function CommitteesList() {
     {
       key: 'createdAt',
       label: 'Created',
+      width: '7.75rem',
       render: (date) => formatDate(date),
     },
     {
       key: 'actions',
       label: 'Actions',
+      width: '8rem',
+      align: 'center',
       render: (_, row) => (
         <ActionsMenu
           items={[
@@ -237,7 +250,7 @@ export default function CommitteesList() {
         </div>
       </div>
 
-      <Card>
+      <TableCard>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -250,13 +263,10 @@ export default function CommitteesList() {
           actionButtons={
             <>
               <Link to={ROUTES.COMMITTEES.MEETINGS}>
-                <Button variant="outline" size="md">
-                  <FiCalendar className="h-4 w-4 mr-2" />
-                  Meetings
-                </Button>
+                <Button variant="outline" size="md" icon={<FiCalendar />} collapseLabel>Meetings</Button>
               </Link>
               <Link to="/committees/create">
-                <Button size="md">+ New Committee</Button>
+                <Button size="md" icon={<FiPlus />} collapseLabel>New Committee</Button>
               </Link>
             </>
           }
@@ -265,7 +275,7 @@ export default function CommitteesList() {
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="text-center py-12">
+          <div className="text-center py-10">
             <p className="text-red-600 dark:text-red-400">{error}</p>
             <Button onClick={fetchCommittees} className="mt-4" variant="outline">
               Retry
@@ -273,6 +283,8 @@ export default function CommitteesList() {
           </div>
         ) : (
           <Table
+            fixedLayout
+            striped
             columns={columns}
             data={committees}
             emptyMessage="No committees found"
@@ -295,7 +307,7 @@ export default function CommitteesList() {
             />
           </div>
         )}
-      </Card>
+      </TableCard>
 
       <Modal
         isOpen={showDeleteModal}
@@ -322,7 +334,7 @@ export default function CommitteesList() {
         }
       >
         <p className="text-gray-600 dark:text-gray-400">
-          Are you sure you want to delete <strong>{selectedCommittee?.name}</strong>? This will also delete
+          Are you sure you want to delete <strong className="capitalize">{selectedCommittee?.name}</strong>? This will also delete
           all associated meetings. This action cannot be undone.
         </p>
       </Modal>

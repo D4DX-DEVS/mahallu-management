@@ -1,9 +1,11 @@
 import { useEffect, useState, useCallback } from 'react';
+import { FiPlus } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import { employmentService, type JobVacancy, type EmploymentSummary } from '@/services/employmentService';
 import Button from '@/components/ui/Button';
 import ExpandableSearch from '@/components/ui/ExpandableSearch';
 import Card from '@/components/ui/Card';
+import StatCard from '@/components/ui/StatCard';
 import Pagination from '@/components/ui/Pagination';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { toast } from '@/store/toastStore';
@@ -99,40 +101,24 @@ export default function VacanciesList() {
   });
 
   return (
-    <div className="space-y-6">
-      <PageHeader title="Vacancies" description="Open positions shared with job seekers." breadcrumbs={[{ label: 'Employment' }]} />
+    <div className="space-y-4">
+      <PageHeader
+        title="Vacancies"
+        description="Open positions shared with job seekers."
+        breadcrumbs={[{ label: 'Employment' }]}
+      />
       {/* Summary Cards */}
       {summary && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          <Card>
-            <div className="py-4 text-center">
-              <div className="text-2xl font-bold text-blue-600">{summary.openVacancies}</div>
-              <div className="text-xs sm:text-sm text-gray-600">Open Vacancies</div>
-            </div>
-          </Card>
-          <Card>
-            <div className="py-4 text-center">
-              <div className="text-2xl font-bold text-green-600">{summary.employersCount}</div>
-              <div className="text-xs sm:text-sm text-gray-600">Employers</div>
-            </div>
-          </Card>
-          <Card>
-            <div className="py-4 text-center">
-              <div className="text-2xl font-bold text-purple-600">{summary.trainingsCount}</div>
-              <div className="text-xs sm:text-sm text-gray-600">Trainings</div>
-            </div>
-          </Card>
-          <Card>
-            <div className="py-4 text-center">
-              <div className="text-2xl font-bold text-orange-600">{summary.registeredJobSeekers}</div>
-              <div className="text-xs sm:text-sm text-gray-600">Job Seekers</div>
-            </div>
-          </Card>
+          <StatCard title="Open Vacancies" value={summary.openVacancies} tone="info" />
+          <StatCard title="Employers" value={summary.employersCount} tone="success" />
+          <StatCard title="Trainings" value={summary.trainingsCount} tone="info" />
+          <StatCard title="Job Seekers" value={summary.registeredJobSeekers} tone="warning" />
         </div>
       )}
 
-      <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
-        <div className="flex-1 space-y-2">
+      <div className="space-y-2">
+        <div className="flex items-center gap-2">
           <ExpandableSearch
             value={search}
             onChange={(value) => {
@@ -142,28 +128,28 @@ export default function VacanciesList() {
             entity="vacancies"
             placeholder="Search by job title"
           />
-          <div className="flex gap-2 flex-wrap">
-            {['', 'open', 'filled', 'closed'].map((status) => (
-              <button
-                key={status}
-                onClick={() => {
-                  setStatusFilter(status);
-                  setCurrentPage(1);
-                }}
-                className={`px-3 py-1 text-xs rounded-full ${
-                  statusFilter === status
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                {status || 'All'} {status === 'open' && `(${summary?.openVacancies || 0})`}
-              </button>
-            ))}
-          </div>
+          <Button onClick={() => navigate('/employment/vacancies/create')} icon={<FiPlus />} collapseLabel>
+            New Vacancy
+          </Button>
         </div>
-        <Button onClick={() => navigate('/employment/vacancies/create')} className="w-full sm:w-auto">
-          + New Vacancy
-        </Button>
+        <div className="flex gap-2 flex-wrap">
+          {['', 'open', 'filled', 'closed'].map((status) => (
+            <button
+              key={status}
+              onClick={() => {
+                setStatusFilter(status);
+                setCurrentPage(1);
+              }}
+              className={`px-3 py-1 text-xs rounded-full ${
+                statusFilter === status
+                  ? 'bg-blue-500 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              {status || 'All'} {status === 'open' && `(${summary?.openVacancies || 0})`}
+            </button>
+          ))}
+        </div>
       </div>
 
       {loading ? (

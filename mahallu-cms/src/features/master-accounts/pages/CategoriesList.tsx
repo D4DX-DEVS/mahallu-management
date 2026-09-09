@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { FiTag, FiEdit2, FiTrash2, FiEye } from 'react-icons/fi';
-import Card from '@/components/ui/Card';
+import { FiEdit2, FiEye, FiPlus, FiTag, FiTrash2 } from 'react-icons/fi';
+import TableCard from '@/components/ui/TableCard';
+import FilterPanel from '@/components/ui/FilterPanel';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import Input from '@/components/ui/Input';
@@ -110,17 +111,26 @@ export default function CategoriesList() {
   };
 
   const columns: TableColumn<Category>[] = [
-    { key: 'name', label: 'Name', sortable: true },
-    { key: 'type', label: 'Type' },
-    { key: 'description', label: 'Description' },
+    {
+      key: 'name',
+      label: 'Name',
+      width: '6.75rem',
+      sortable: true,
+      render: (v) => <span className="capitalize">{v}</span>,
+    },
+    { key: 'type', label: 'Type', width: '6.25rem' },
+    { key: 'description', label: 'Description', width: '9.25rem' },
     {
       key: 'createdAt',
       label: 'Created',
+      width: '7.75rem',
       render: (date) => formatDate(date),
     },
     {
       key: 'actions',
       label: 'Actions',
+      width: '8rem',
+      align: 'center',
       render: (_, row) => (
         <ActionsMenu
           items={[
@@ -205,7 +215,7 @@ export default function CategoriesList() {
         </div>
       </div>
 
-      <Card>
+      <TableCard>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -217,12 +227,12 @@ export default function CategoriesList() {
           isExporting={isExporting}
           actionButtons={
             <Link to="/master-accounts/categories/create">
-              <Button size="md">+ New Category</Button>
+              <Button size="md" icon={<FiPlus />} collapseLabel>New Category</Button>
             </Link>
           }
         />
         {isFilterVisible && !userInstituteId && (
-          <div className="flex flex-wrap items-center gap-4 mb-6 p-4 border border-gray-200 rounded-lg max-sm:border-0 max-sm:bg-transparent max-sm:p-0 bg-white dark:bg-gray-800 dark:border-gray-700">
+          <FilterPanel>
             <div className="w-full sm:w-64">
               <Select
                 label="Institute"
@@ -234,12 +244,12 @@ export default function CategoriesList() {
                 onChange={(e) => setInstituteFilter(e.target.value)}
               />
             </div>
-          </div>
+          </FilterPanel>
         )}
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="text-center py-12">
+          <div className="text-center py-10">
             <p className="text-red-600 dark:text-red-400">{error}</p>
             <Button onClick={fetchCategories} className="mt-4" variant="outline">
               Retry
@@ -248,13 +258,15 @@ export default function CategoriesList() {
         ) : (
           <>
             <Table
+              fixedLayout
+              striped
               columns={columns}
               data={categories}
               emptyMessage="No categories found"
               showExport={false}
             />
             {pagination && pagination.totalPages > 1 && (
-              <div className="mt-6">
+              <div className="mt-4">
                 <Pagination
                   currentPage={currentPage}
                   totalPages={pagination.totalPages}
@@ -266,7 +278,7 @@ export default function CategoriesList() {
             )}
           </>
         )}
-      </Card>
+      </TableCard>
 
       {/* View Modal */}
       <Modal
@@ -292,7 +304,7 @@ export default function CategoriesList() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
             <div className="sm:col-span-2">
               <p className="text-xs text-gray-500 dark:text-gray-400">Name</p>
-              <p className="text-gray-900 dark:text-gray-100 font-medium">{selectedCategory.name}</p>
+              <p className="text-gray-900 dark:text-gray-100 font-medium capitalize">{selectedCategory.name}</p>
             </div>
             <div>
               <p className="text-xs text-gray-500 dark:text-gray-400">Type</p>
@@ -388,7 +400,7 @@ export default function CategoriesList() {
         }
       >
         <p className="text-gray-600 dark:text-gray-400">
-          Are you sure you want to delete <strong>{selectedCategory?.name}</strong>? This action cannot be
+          Are you sure you want to delete <strong className="capitalize">{selectedCategory?.name}</strong>? This action cannot be
           undone.
         </p>
       </Modal>

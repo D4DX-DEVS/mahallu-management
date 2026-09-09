@@ -56,7 +56,7 @@ export default function CreateMahalluLedger() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <PageHeader
         title="Add Ledger"
         description="Create a new ledger account for the Mahallu"
@@ -67,7 +67,7 @@ export default function CreateMahalluLedger() {
       />
 
       <form onSubmit={handleSubmit}>
-        <Card className="space-y-6">
+        <Card className="space-y-4">
           {error && (
             <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm dark:bg-red-900/30 dark:border-red-700 dark:text-red-300">
               {error}

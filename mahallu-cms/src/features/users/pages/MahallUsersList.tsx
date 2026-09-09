@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FiEdit2, FiUsers, FiCheckCircle, FiXCircle } from 'react-icons/fi';
-import Card from '@/components/ui/Card';
+import { FiCheckCircle, FiEdit2, FiPlus, FiUsers, FiXCircle } from 'react-icons/fi';
+import TableCard from '@/components/ui/TableCard';
+import { rowActionClass } from '@/components/ui/rowAction';
 import Button from '@/components/ui/Button';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
@@ -103,6 +104,7 @@ export default function MahallUsersList() {
     {
       key: 'name',
       label: 'Name',
+      width: '6.75rem',
       render: (name, row) => (
         <div>
           <div className="font-medium text-gray-900 dark:text-white">{name}</div>
@@ -121,31 +123,37 @@ export default function MahallUsersList() {
     {
       key: 'tenant',
       label: 'Tenant',
+      width: '7.25rem',
       render: (tenant, row: any) => {
         // Check both tenant and tenantId fields (populated reference)
         const tenantData = tenant || row.tenantId;
         return tenantData?.name || '-';
       },
     },
-    { key: 'phone', label: 'Phone' },
+    { key: 'phone', label: 'Phone', width: '6.75rem' },
     {
       key: 'email',
       label: 'Email',
+      width: '6.75rem',
       render: (email) => email || '-',
     },
     {
       key: 'joiningDate',
       label: 'Joining Date',
+      width: '10rem',
       render: (date) => (date ? formatDate(date) : '-'),
     },
     {
       key: 'lastLogin',
       label: 'Last Login',
+      width: '9.25rem',
       render: (lastLogin) => (lastLogin ? formatDateTime(lastLogin) : '-'),
     },
     {
       key: 'actions',
       label: 'Actions',
+      width: '8rem',
+      align: 'center',
       render: (_, row) => (
         <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
           <button
@@ -153,7 +161,7 @@ export default function MahallUsersList() {
               e.stopPropagation();
               navigate(ROUTES.USERS.EDIT_MAHALL(row.id));
             }}
-            className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
+            className={rowActionClass()}
             title="Edit"
             aria-label="Edit"
           >
@@ -192,7 +200,7 @@ export default function MahallUsersList() {
       </div>
 
       {/* Actions and Table */}
-      <Card>
+      <TableCard>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -204,7 +212,7 @@ export default function MahallUsersList() {
           isExporting={isExporting}
           actionButtons={
             <Link to={ROUTES.USERS.CREATE_MAHALL}>
-              <Button size="md">+ New User</Button>
+              <Button size="md" icon={<FiPlus />} collapseLabel>New User</Button>
             </Link>
           }
         />
@@ -212,7 +220,7 @@ export default function MahallUsersList() {
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="text-center py-12">
+          <div className="text-center py-10">
             <p className="text-red-600 dark:text-red-400">{error}</p>
             <Button onClick={fetchUsers} className="mt-4" variant="outline">
               Retry
@@ -220,6 +228,8 @@ export default function MahallUsersList() {
           </div>
         ) : (
           <Table
+            fixedLayout
+            striped
             columns={columns}
             data={users}
             emptyMessage="No users found"
@@ -242,7 +252,7 @@ export default function MahallUsersList() {
             />
           </div>
         )}
-      </Card>
+      </TableCard>
     </div>
   );
 }

@@ -71,7 +71,7 @@ export default function DoctorsDirectory() {
   return (
     <div>
       <div className="max-w-full">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
           <div>
             <PageHeader title="Doctors Directory" description={`${doctors.length} doctors found`} />
           </div>
@@ -80,7 +80,7 @@ export default function DoctorsDirectory() {
           </Button>
         </div>
 
-        <div className="mb-6">
+        <div className="mb-4">
           <ExpandableSearch
             value={search}
             onChange={(value) => setSearch(value)}
@@ -95,10 +95,10 @@ export default function DoctorsDirectory() {
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
               {doctors.map((doctor) => (
                 <div key={doctor.id} className="rounded-lg border border-border bg-card p-3 sm:p-4">
-                  <h3 className="text-base sm:text-lg font-semibold">{doctor.name}</h3>
+                  <h3 className="text-base sm:text-lg font-semibold capitalize">{doctor.name}</h3>
                   {doctor.specialty && (
                     <p className="text-xs sm:text-sm text-gray-600 mt-1">{doctor.specialty}</p>
                   )}
@@ -111,15 +111,12 @@ export default function DoctorsDirectory() {
                       Availability: {doctor.availability}
                     </p>
                   )}
-                  <div className="flex flex-wrap gap-2 mt-4">
+                  <div className="flex gap-2 mt-4 items-center">
                     <Button
                       variant="secondary"
                       size="sm"
                       onClick={() => navigate(`/health/doctors/${doctor.id}/edit`)}
-                      className="flex-1 flex items-center justify-center gap-1"
-                    >
-                      <FiEdit2 className="w-4 h-4" /> Edit
-                    </Button>
+                      className="flex-1 flex items-center justify-center gap-1" icon={<FiEdit2 />} collapseLabel>Edit</Button>
                     <Button
                       variant="danger"
                       size="sm"
@@ -127,10 +124,7 @@ export default function DoctorsDirectory() {
                         setDeleteId(doctor.id);
                         setConfirmDelete(true);
                       }}
-                      className="flex-1 flex items-center justify-center gap-1"
-                    >
-                      <FiTrash2 className="w-4 h-4" /> Delete
-                    </Button>
+                      className="flex-1 flex items-center justify-center gap-1" icon={<FiTrash2 />} collapseLabel>Delete</Button>
                   </div>
                 </div>
               ))}

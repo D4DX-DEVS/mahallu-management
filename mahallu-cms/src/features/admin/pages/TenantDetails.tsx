@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { FiEdit, FiArrowLeft, FiMail, FiPhone, FiMapPin, FiGlobe, FiCalendar, FiUser } from 'react-icons/fi';
+import { FiEdit, FiArrowLeft, FiMail, FiPhone, FiMapPin, FiGlobe, FiCalendar } from 'react-icons/fi';
 import PageHeader from '@/components/layout/PageHeader';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
@@ -53,7 +53,7 @@ export default function TenantDetails() {
       <div className="space-y-4">
         <PageHeader title={pageTitle} breadcrumbs={breadcrumbItems} />
         <Card>
-          <div className="text-center py-12">
+          <div className="text-center py-10">
             <p className="text-gray-500 dark:text-gray-400">Tenant not found</p>
             <Button variant="outline" onClick={() => navigate('/admin/tenants')} className="mt-4">
               Back to Tenants
@@ -109,14 +109,14 @@ export default function TenantDetails() {
 
       {/* Basic Information */}
       <Card title="Basic Information">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="flex items-start gap-3">
             <div className="p-2 bg-primary-50 dark:bg-primary-900/20 rounded-lg">
               <FiGlobe className="h-5 w-5 text-primary-600 dark:text-primary-400" />
             </div>
             <div>
               <p className="text-sm text-gray-500 dark:text-gray-400">Tenant Name</p>
-              <p className="font-medium text-gray-900 dark:text-white">{tenant.name}</p>
+              <p className="font-medium text-gray-900 dark:text-white capitalize">{tenant.name}</p>
             </div>
           </div>
 
@@ -178,7 +178,7 @@ export default function TenantDetails() {
 
       {/* Subscription Information */}
       <Card title="Subscription Details">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="flex items-start gap-3">
             <div className="p-2 bg-primary-50 dark:bg-primary-900/20 rounded-lg">
               <FiGlobe className="h-5 w-5 text-primary-600 dark:text-primary-400" />
@@ -233,7 +233,7 @@ export default function TenantDetails() {
 
       {/* System Information */}
       <Card title="System Information">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="flex items-start gap-3">
             <div className="p-2 bg-primary-50 dark:bg-primary-900/20 rounded-lg">
               <FiCalendar className="h-5 w-5 text-primary-600 dark:text-primary-400" />

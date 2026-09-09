@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { FiEdit2, FiTrash2, FiPlus, FiArrowLeft } from 'react-icons/fi';
-import Card from '@/components/ui/Card';
+import { FiArrowLeft, FiEdit2, FiPlus, FiToggleLeft, FiToggleRight, FiTrash2 } from 'react-icons/fi';
+import TableCard from '@/components/ui/TableCard';
+import { rowActionClass } from '@/components/ui/rowAction';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import Input from '@/components/ui/Input';
@@ -137,10 +138,11 @@ export default function CategoryDetail() {
     }
   };
   const columns: TableColumn<CategoryValue>[] = [
-    { key: 'label', label: 'Label', sortable: true },
+    { key: 'label', label: 'Label', width: '6.5rem', sortable: true },
     {
       key: 'code',
       label: 'Code',
+      width: '6.25rem',
       render: (v) => <code className="text-xs text-gray-500 dark:text-gray-400">{v}</code>,
     },
     ...(usesAmount
@@ -149,6 +151,7 @@ export default function CategoryDetail() {
     {
       key: 'status',
       label: 'Status',
+      width: '7.25rem',
       render: (v) => (
         <Badge variant={v === 'active' ? 'success' : 'secondary'} size="sm">
           {v}
@@ -158,25 +161,36 @@ export default function CategoryDetail() {
     {
       key: 'actions',
       label: 'Actions',
+      width: '8rem',
+      align: 'center',
       render: (_, row) => (
         <div className="flex items-center gap-2">
           <button
             onClick={() => openEditModal(row)}
-            className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400"
+            className={rowActionClass()}
             title="Edit"
             aria-label="Edit"
           >
             <FiEdit2 className="h-4 w-4" />
           </button>
-          <Button variant="outline" size="sm" onClick={() => handleToggleStatus(row)}>
-            {row.status === 'active' ? 'Deactivate' : 'Activate'}
-          </Button>
+          <button
+            onClick={() => handleToggleStatus(row)}
+            className={rowActionClass()}
+            title={row.status === 'active' ? 'Deactivate' : 'Activate'}
+            aria-label={row.status === 'active' ? 'Deactivate' : 'Activate'}
+          >
+            {row.status === 'active' ? (
+              <FiToggleRight className="h-4 w-4" />
+            ) : (
+              <FiToggleLeft className="h-4 w-4" />
+            )}
+          </button>
           <button
             onClick={() => {
               setSelectedValue(row);
               setShowDeleteDialog(true);
             }}
-            className="p-1.5 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400"
+            className={rowActionClass('danger')}
             title="Delete"
             aria-label="Delete"
           >
@@ -191,7 +205,7 @@ export default function CategoryDetail() {
   }
   if (error || !category) {
     return (
-      <div className="text-center py-12">
+      <div className="text-center py-10">
         <p className="text-red-600 dark:text-red-400">{error || 'Category not found'}</p>
         <Button onClick={() => navigate('/admin/categories')} className="mt-4" variant="outline">
           <FiArrowLeft className="mr-2 h-4 w-4" /> Back to Categories
@@ -206,7 +220,7 @@ export default function CategoryDetail() {
         description={category.description || `Manage values for the "${category.key}" category`}
         breadcrumbs={[{ label: 'Categories', path: '/admin/categories' }]}
       />
-      <Card>
+      <TableCard>
         <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Badge variant={category.status === 'active' ? 'success' : 'secondary'} size="sm">
@@ -229,8 +243,8 @@ export default function CategoryDetail() {
             <FiPlus className="mr-1.5 h-4 w-4" /> Add Value
           </Button>
         </div>
-        <Table columns={columns} data={values} emptyMessage="No values yet" showExport={false} />
-      </Card>
+        <Table fixedLayout striped columns={columns} data={values} emptyMessage="No values yet" showExport={false} />
+      </TableCard>
       {/* Add Modal */}
       <Modal
         isOpen={showAddModal}

@@ -85,7 +85,7 @@ export default function SurveyDetail() {
               <p className="text-xs font-medium leading-tight text-gray-500 dark:text-gray-400 sm:text-sm">
                 {label}
               </p>
-              <p className="mt-1 text-base font-bold text-gray-900 dark:text-gray-100 sm:text-xl">{value}</p>
+              <p className="mt-1 text-base font-semibold text-gray-900 dark:text-gray-100 sm:text-xl">{value}</p>
               {delta !== null && delta !== 0 && (
                 <p
                   className={[
@@ -104,7 +104,7 @@ export default function SurveyDetail() {
 
       {snapshot.notes && (
         <Card>
-          <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Notes</h2>
+          <h2 className="text-sm font-semibold text-foreground">Notes</h2>
           <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">{snapshot.notes}</p>
         </Card>
       )}

@@ -105,7 +105,7 @@ export default function SalarySummary() {
   });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex flex-wrap gap-2 items-center justify-between">
         <div className="flex flex-wrap items-center gap-4">
           <PageHeader
@@ -123,7 +123,7 @@ export default function SalarySummary() {
       </div>
 
       <Card>
-        <div className="flex flex-wrap items-center gap-4 mb-6">
+        <div className="flex flex-wrap items-center gap-4 mb-4">
           {!userInstituteId && (
             <div className="w-full sm:w-48">
               <Select
@@ -148,21 +148,21 @@ export default function SalarySummary() {
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="text-center py-12">
+          <div className="text-center py-10">
             <p className="text-red-600 dark:text-red-400">{error}</p>
             <Button onClick={fetchSummary} className="mt-4" variant="outline">
               Retry
             </Button>
           </div>
         ) : summary.length === 0 ? (
-          <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+          <div className="text-center py-10 text-gray-500 dark:text-gray-400">
             No salary data found for the selected period
           </div>
         ) : (
           <>
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                <thead className="bg-gray-50 dark:bg-gray-800">
+              <table className="min-w-full divide-y divide-border">
+                <thead className="bg-muted">
                   <tr>
                     <SortableTh
                       sortKey="period"
@@ -223,7 +223,7 @@ export default function SalarySummary() {
                     </th>
                   </tr>
                 </thead>
-                <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+                <tbody className="bg-white dark:bg-gray-900 divide-y divide-border">
                   {sortedSummary.map((item, idx) => (
                     <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-800">
                       <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
@@ -253,12 +253,12 @@ export default function SalarySummary() {
                     </tr>
                   ))}
                 </tbody>
-                <tfoot className="bg-gray-50 dark:bg-gray-800">
+                <tfoot className="bg-muted">
                   <tr>
-                    <td className="px-4 py-3 text-sm font-bold text-gray-900 dark:text-gray-100" colSpan={5}>
+                    <td className="px-4 py-3 text-sm font-semibold text-gray-900 dark:text-gray-100" colSpan={5}>
                       Grand Total
                     </td>
-                    <td className="px-4 py-3 text-sm text-right font-bold text-gray-900 dark:text-gray-100">
+                    <td className="px-4 py-3 text-sm text-right font-semibold text-gray-900 dark:text-gray-100">
                       ₹{grandTotal.toLocaleString()}
                     </td>
                     <td></td>

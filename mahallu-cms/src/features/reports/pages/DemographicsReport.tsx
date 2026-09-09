@@ -12,7 +12,7 @@ const Section = ({ title, data }: { title: string; data: Array<{ label: string; 
   const rows = Array.isArray(data) ? data : [];
   return (
   <Card>
-    <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">{title}</h2>
+    <h2 className="text-sm font-semibold text-foreground">{title}</h2>
     {rows.length === 0 ? (
       <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">No data</p>
     ) : (
@@ -86,7 +86,7 @@ export default function DemographicsReport() {
         {totals.map((item) => (
           <Card key={item.label}>
             <p className="text-xs font-medium text-gray-500 dark:text-gray-400 sm:text-sm">{item.label}</p>
-            <p className="mt-1 text-base font-bold text-gray-900 dark:text-gray-100 sm:text-xl">
+            <p className="mt-1 text-base font-semibold text-gray-900 dark:text-gray-100 sm:text-xl">
               {item.value}
             </p>
           </Card>

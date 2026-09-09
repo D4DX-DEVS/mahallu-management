@@ -14,14 +14,14 @@ function Stat({ label, value }: { label: string; value: string | number }) {
   return (
     <Card>
       <div className="text-xs sm:text-sm text-gray-600">{label}</div>
-      <div className="text-base sm:text-xl font-bold">{value}</div>
+      <div className="text-base sm:text-lg font-semibold tabular-nums">{value}</div>
     </Card>
   );
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="mb-6">
+    <div className="mb-4">
       <h2 className="text-lg font-semibold mb-3">{title}</h2>
       <div className="grid grid-cols-1 sm:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">{children}</div>
     </div>
@@ -92,7 +92,7 @@ export default function AnnualReport() {
 
   return (
     <div>
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <PageHeader title="State of the Mahallu" />
         <div className="flex items-center gap-2">
           <select

@@ -81,7 +81,7 @@ export default function ScholarshipsList() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <PageHeader title="Scholarships" />
         <Button onClick={() => navigate('/education/scholarships/create')}>New Scholarship</Button>
@@ -174,7 +174,7 @@ export default function ScholarshipsList() {
                         <td className="py-2 font-medium">
                           <button
                             onClick={() => navigate(`/education/scholarships/${s.id}`)}
-                            className="text-blue-600 hover:underline"
+                            className="text-blue-600 hover:underline capitalize"
                           >
                             {s.name}
                           </button>
@@ -210,7 +210,7 @@ export default function ScholarshipsList() {
               </div>
 
               {pagination && (
-                <div className="mt-6">
+                <div className="mt-4">
                   <Pagination
                     currentPage={pagination.page}
                     totalPages={pagination.totalPages}

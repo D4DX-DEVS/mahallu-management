@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
-import Card from '@/components/ui/Card';
+import ActionsMenu from '@/components/ui/ActionsMenu';
+import { FiEdit2, FiPlus, FiTrash2 } from 'react-icons/fi';
+import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
@@ -147,26 +149,32 @@ export default function FacilitiesList() {
   };
 
   const columns: TableColumn<LocalityFacility>[] = [
-    { key: 'name', label: 'Name' },
+    { key: 'name', label: 'Name', width: '6.75rem', render: (v) => <span className="capitalize">{v}</span> },
     {
       key: 'type',
       label: 'Type',
+      width: '6.25rem',
       render: (v) => TYPE_OPTIONS.find((option) => option.value === v)?.label || v || '-',
     },
-    { key: 'address', label: 'Address', render: (v) => v || '-' },
-    { key: 'contactNo', label: 'Contact', render: (v) => v || '-' },
+    { key: 'address', label: 'Address', width: '7.75rem', render: (v) => v || '-' },
+    { key: 'contactNo', label: 'Contact', width: '7.75rem', render: (v) => v || '-' },
     {
       key: 'actions',
       label: 'Actions',
+      width: '8rem',
+      align: 'center',
       render: (_v, row) => (
-        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-          <button className="text-primary-600 hover:underline" onClick={() => openEdit(row)}>
-            Edit
-          </button>
-          <button className="text-red-600 hover:underline" onClick={() => openDeleteConfirm(row)}>
-            Delete
-          </button>
-        </div>
+        <ActionsMenu
+          items={[
+            { label: 'Edit', icon: <FiEdit2 className="h-4 w-4" />, onClick: () => openEdit(row) },
+            {
+              label: 'Delete',
+              icon: <FiTrash2 className="h-4 w-4" />,
+              onClick: () => openDeleteConfirm(row),
+              variant: 'danger' as const,
+            },
+          ]}
+        />
       ),
     },
   ];
@@ -179,7 +187,7 @@ export default function FacilitiesList() {
         breadcrumbs={[{ label: 'Survey', path: '/survey' }]}
       />
 
-      <Card>
+      <TableCard>
         <div className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto_auto] sm:items-center">
           <ExpandableSearch
             value={searchQuery}
@@ -197,15 +205,13 @@ export default function FacilitiesList() {
               setCurrentPage(1);
             }}
           />
-          <Button size="md" onClick={openCreate}>
-            + New Facility
-          </Button>
+          <Button size="md" onClick={openCreate} icon={<FiPlus />} collapseLabel>New Facility</Button>
         </div>
 
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="py-12 text-center">
+          <div className="py-10 text-center">
             <p className="text-red-600 dark:text-red-400">{error}</p>
             <Button onClick={fetchRows} className="mt-4" variant="outline">
               Retry
@@ -221,9 +227,7 @@ export default function FacilitiesList() {
             }}
           />
         ) : (
-          <div className="overflow-x-auto">
-            <Table columns={columns} data={rows} emptyMessage="No facilities recorded" showExport={false} />
-          </div>
+          <Table fixedLayout striped columns={columns} data={rows} emptyMessage="No facilities recorded" showExport={false} />
         )}
 
         {pagination && (
@@ -237,7 +241,7 @@ export default function FacilitiesList() {
             />
           </div>
         )}
-      </Card>
+      </TableCard>
 
       <Modal
         isOpen={isFormOpen}

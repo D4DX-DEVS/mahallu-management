@@ -40,39 +40,47 @@ export interface PageHeaderProps {
  * always read as the same destination. Detail and form routes inherit their
  * module's icon.
  *
+ * One title size at every width: 18px, the same step as the product name in
+ * the sidebar, with the same 36px icon tile beside it. The page title and the
+ * application it belongs to now read as one line across the top of the window
+ * rather than as two competing headings. The description under it stays 13px
+ * at every width so the pair keeps a visible step.
+ *
  * There is no breadcrumb. The trail it printed — "Dashboard › Families" above
  * an <h1> reading "Families" — restated the page title under a link to a
  * destination the sidebar already shows, on a product whose navigation is
  * never more than two levels deep.
  */
-export default function PageHeader({
-  title,
-  description,
-  icon,
-  actions,
-  className,
-}: PageHeaderProps) {
+export default function PageHeader({ title, description, icon, actions, className }: PageHeaderProps) {
   const { pathname } = useLocation();
   const Icon = icon === undefined ? resolveNavIcon(pathname) : icon;
 
   return (
-    <div className={cn('mb-6', className)}>
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex min-w-0 items-start gap-3">
+    <div className={cn('mb-4', className)}>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
+        <div className="flex min-w-0 items-center gap-2.5">
           {Icon && (
             <span
               aria-hidden="true"
-              className="mt-0.5 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary sm:h-10 sm:w-10"
+              className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary"
             >
               <Icon className="h-5 w-5" />
             </span>
           )}
           <div className="min-w-0">
-            <h1 className="text-2xl font-semibold tracking-tight text-foreground">{title}</h1>
-            {description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}
+            {/* No `truncate`: a page title that does not fit wraps. Cutting
+                it off is how a phone ends up headed "Family Varisangya Tran…". */}
+            <h1 className="text-lg font-semibold leading-tight tracking-tight text-foreground">
+              {title}
+            </h1>
+            {description && <p className="mt-0.5 text-label text-muted-foreground">{description}</p>}
           </div>
         </div>
-        {actions && <div className="flex flex-shrink-0 flex-wrap items-center gap-2">{actions}</div>}
+        {/* One row, at every width. A header's actions are two or three
+            controls; wrapping them turned a phone header into three lines of
+            chrome. Pass them as `Button`s with `icon` + `collapseLabel` so
+            they collapse to their glyphs instead of folding onto a new row. */}
+        {actions && <div className="flex flex-shrink-0 items-center gap-2">{actions}</div>}
       </div>
     </div>
   );

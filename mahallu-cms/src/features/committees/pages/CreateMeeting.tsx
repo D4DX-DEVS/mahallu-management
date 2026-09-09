@@ -126,7 +126,7 @@ export default function CreateMeeting() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <PageHeader
         title="Create Meeting"
         description="Schedule a new committee meeting"
@@ -134,7 +134,7 @@ export default function CreateMeeting() {
       />
 
       <form onSubmit={handleSubmit(onSubmit)}>
-        <Card className="space-y-6">
+        <Card className="space-y-4">
           {error && (
             <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm dark:bg-red-900 dark:border-red-700 dark:text-red-200">
               {error}
@@ -227,7 +227,7 @@ export default function CreateMeeting() {
                           onChange={() => toggleAttendance(member.id)}
                           className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
                         />
-                        <span className="text-sm text-gray-700 dark:text-gray-300">
+                        <span className="text-sm text-gray-700 dark:text-gray-300 capitalize">
                           {member.name} ({member.familyName})
                         </span>
                       </label>

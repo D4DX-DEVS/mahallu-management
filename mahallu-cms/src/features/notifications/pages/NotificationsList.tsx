@@ -91,7 +91,7 @@ export default function NotificationsList() {
       </div>
 
       <Card>
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <Select
             options={[
               { value: 'all', label: 'All Notifications' },
@@ -107,7 +107,7 @@ export default function NotificationsList() {
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="text-center py-12">
+          <div className="text-center py-10">
             <p className="text-red-600 dark:text-red-400">{error}</p>
             <Button onClick={fetchNotifications} className="mt-4" variant="outline">
               Retry
@@ -116,7 +116,7 @@ export default function NotificationsList() {
         ) : (
           <div className="space-y-2">
             {notifications.length === 0 ? (
-              <p className="text-center py-12 text-gray-500 dark:text-gray-400">No notifications found</p>
+              <p className="text-center py-10 text-gray-500 dark:text-gray-400">No notifications found</p>
             ) : (
               notifications.map((notification) => (
                 <div
@@ -131,7 +131,7 @@ export default function NotificationsList() {
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
                         <FiBell className="h-4 w-4 text-gray-500" />
-                        <h3 className="font-semibold text-gray-900 dark:text-gray-100">
+                        <h3 className="font-semibold text-foreground">
                           {notification.title}
                         </h3>
                         {!notification.isRead && (

@@ -57,7 +57,7 @@ export default function MemberDetail() {
 
   if (error || !member) {
     return (
-      <div className="text-center py-12">
+      <div className="text-center py-10">
         <p className="text-red-600 dark:text-red-400">{error || 'Member not found'}</p>
         <Button onClick={() => navigate(ROUTES.MEMBERS.LIST)} className="mt-4" variant="outline">
           Back to Members
@@ -67,42 +67,36 @@ export default function MemberDetail() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap gap-2 items-center justify-between">
-        <div className="flex flex-wrap items-center gap-4">
+    <div className="space-y-4">
+      <div className="flex gap-2 items-center justify-between">
+        <div className="flex items-center gap-4">
           <PageHeader
             description="Member Details"
             title={member.name}
             breadcrumbs={[{ label: 'Members', path: ROUTES.MEMBERS.LIST }]}
           />
-          <div className="flex flex-wrap gap-2">
+          <div className="flex gap-2 items-center">
             <Link to={ROUTES.MEMBERS.EDIT(member.id)}>
-              <Button variant="outline">
-                <FiEdit2 className="h-4 w-4 mr-2" />
-                Edit
-              </Button>
+              <Button variant="outline" icon={<FiEdit2 />} collapseLabel>Edit</Button>
             </Link>
-            <Button variant="danger" onClick={() => setShowDeleteModal(true)}>
-              <FiTrash2 className="h-4 w-4 mr-2" />
-              Delete
-            </Button>
+            <Button variant="danger" onClick={() => setShowDeleteModal(true)} icon={<FiTrash2 />} collapseLabel>Delete</Button>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card>
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Basic Information</h2>
+          <h2 className="text-lg font-semibold mb-3 text-foreground">Basic Information</h2>
           <div className="space-y-3">
             <div>
               <span className="text-sm text-gray-500 dark:text-gray-400">Name</span>
-              <p className="text-gray-900 dark:text-gray-100">{member.name}</p>
+              <p className="text-gray-900 dark:text-gray-100 capitalize">{member.name}</p>
             </div>
             <div>
               <span className="text-sm text-gray-500 dark:text-gray-400">Family</span>
               <Link
                 to={ROUTES.FAMILIES.DETAIL(member.familyId)}
-                className="text-primary-600 hover:text-primary-700 dark:text-primary-400"
+                className="text-primary-600 hover:text-primary-700 dark:text-primary-400 capitalize"
               >
                 {member.familyName}
               </Link>
@@ -159,7 +153,7 @@ export default function MemberDetail() {
         </Card>
 
         <Card>
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+          <h2 className="text-lg font-semibold mb-3 text-foreground">
             Additional Information
           </h2>
           <div className="space-y-3">
@@ -205,7 +199,7 @@ export default function MemberDetail() {
         }
       >
         <p className="text-gray-600 dark:text-gray-400">
-          Are you sure you want to delete <strong>{member.name}</strong>? This action cannot be undone.
+          Are you sure you want to delete <strong className="capitalize">{member.name}</strong>? This action cannot be undone.
         </p>
       </Modal>
     </div>

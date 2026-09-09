@@ -124,14 +124,14 @@ export default function ApplicationDetail() {
 
       {application.reason && (
         <Card>
-          <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Reason</h2>
+          <h2 className="text-sm font-semibold text-foreground">Reason</h2>
           <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">{application.reason}</p>
         </Card>
       )}
 
       {nextOptions.length > 0 && (
         <Card>
-          <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Move to</h2>
+          <h2 className="text-sm font-semibold text-foreground">Move to</h2>
           <div className="mt-2 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
             {nextOptions.map((status) => (
               <Button
@@ -151,7 +151,7 @@ export default function ApplicationDetail() {
       )}
 
       <Card>
-        <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Timeline</h2>
+        <h2 className="text-sm font-semibold text-foreground">Timeline</h2>
         <ol className="mt-2 space-y-2">
           {(application.history || []).map((entry, index) => (
             <li key={index} className="flex items-start gap-2">

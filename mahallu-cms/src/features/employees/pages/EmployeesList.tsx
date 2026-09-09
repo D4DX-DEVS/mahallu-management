@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FiEdit2, FiTrash2, FiX, FiEye, FiUsers, FiCheckCircle, FiXCircle } from 'react-icons/fi';
-import Card from '@/components/ui/Card';
+import { FiCheckCircle, FiEdit2, FiEye, FiPlus, FiTrash2, FiUsers, FiXCircle } from 'react-icons/fi';
+import TableCard from '@/components/ui/TableCard';
+import FilterPanel from '@/components/ui/FilterPanel';
 import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
 import StatCard from '@/components/ui/StatCard';
@@ -94,18 +95,27 @@ export default function EmployeesList() {
   };
 
   const columns: TableColumn<Employee>[] = [
-    { key: 'name', label: 'Name', sortable: true },
-    { key: 'designation', label: 'Designation' },
-    { key: 'department', label: 'Department' },
-    { key: 'phone', label: 'Phone' },
+    {
+      key: 'name',
+      label: 'Name',
+      width: '6.75rem',
+      sortable: true,
+      render: (v) => <span className="capitalize">{v}</span>,
+    },
+    { key: 'designation', label: 'Designation', width: '9.25rem' },
+    { key: 'department', label: 'Department', width: '9.75rem' },
+    { key: 'phone', label: 'Phone', width: '6.75rem' },
     {
       key: 'salary',
       label: 'Salary',
+      width: '8.75rem',
+      align: 'center',
       render: (salary) => (salary ? `₹${Number(salary).toLocaleString()}` : '-'),
     },
     {
       key: 'status',
       label: 'Status',
+      width: '7.25rem',
       render: (status) => (
         <span
           className={`px-2 py-1 text-xs font-medium rounded-full ${
@@ -123,6 +133,8 @@ export default function EmployeesList() {
     {
       key: 'actions',
       label: 'Actions',
+      width: '8rem',
+      align: 'center',
       render: (_, row) => (
         <ActionsMenu
           items={[
@@ -180,7 +192,7 @@ export default function EmployeesList() {
         </div>
       </div>
 
-      <Card>
+      <TableCard>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -190,20 +202,13 @@ export default function EmployeesList() {
           onRefresh={fetchEmployees}
           actionButtons={
             <Link to={ROUTES.EMPLOYEES.CREATE}>
-              <Button size="md">+ New Employee</Button>
+              <Button size="md" icon={<FiPlus />} collapseLabel>New Employee</Button>
             </Link>
           }
         />
 
         {isFilterVisible && (
-          <div className="relative flex flex-wrap items-center gap-4 mb-6 p-4 border border-gray-200 rounded-lg max-sm:border-0 max-sm:bg-transparent max-sm:p-0 bg-white dark:bg-gray-800 dark:border-gray-700">
-            <button
-              onClick={() => setIsFilterVisible(false)}
-              className="absolute right-4 top-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-              aria-label="Close"
-            >
-              <FiX className="h-4 w-4" />
-            </button>
+          <FilterPanel onClose={() => setIsFilterVisible(false)}>
             <div className="w-full sm:w-40">
               <Select
                 options={[
@@ -229,13 +234,13 @@ export default function EmployeesList() {
                 />
               </div>
             )}
-          </div>
+          </FilterPanel>
         )}
 
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="text-center py-12">
+          <div className="text-center py-10">
             <p className="text-red-600 dark:text-red-400">{error}</p>
             <Button onClick={fetchEmployees} className="mt-4" variant="outline">
               Retry
@@ -243,6 +248,8 @@ export default function EmployeesList() {
           </div>
         ) : (
           <Table
+            fixedLayout
+            striped
             columns={columns}
             data={employees}
             emptyMessage="No employees found"
@@ -262,7 +269,7 @@ export default function EmployeesList() {
             />
           </div>
         )}
-      </Card>
+      </TableCard>
 
       <Modal
         isOpen={showDeleteModal}
@@ -289,7 +296,7 @@ export default function EmployeesList() {
         }
       >
         <p className="text-gray-600 dark:text-gray-400">
-          Are you sure you want to delete <strong>{selectedEmployee?.name}</strong>? This action cannot be
+          Are you sure you want to delete <strong className="capitalize">{selectedEmployee?.name}</strong>? This action cannot be
           undone.
         </p>
       </Modal>

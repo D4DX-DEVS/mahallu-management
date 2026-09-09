@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { FiEdit2, FiTrash2 } from 'react-icons/fi';
 import { useParams, useNavigate } from 'react-router-dom';
 import { employmentService, type JobVacancy } from '@/services/employmentService';
 import Button from '@/components/ui/Button';
@@ -104,12 +105,12 @@ export default function VacancyDetail() {
   };
 
   if (loading) {
-    return <Card className="p-8 text-center">Loading vacancy details...</Card>;
+    return <Card className="p-5 text-center">Loading vacancy details...</Card>;
   }
 
   if (!vacancy) {
     return (
-      <Card className="p-8 text-center text-gray-500">
+      <Card className="p-5 text-center text-gray-500">
         <p>Vacancy not found</p>
       </Card>
     );
@@ -121,7 +122,7 @@ export default function VacancyDetail() {
       : vacancy.employerName || 'One-off post';
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex flex-wrap items-center gap-3">
           <button
@@ -132,15 +133,11 @@ export default function VacancyDetail() {
           </button>
           <PageHeader title={vacancy.title} />
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex gap-2 items-center">
           {!isEditing && (
             <>
-              <Button onClick={() => setIsEditing(true)} className="bg-blue-600 text-white">
-                Edit
-              </Button>
-              <Button onClick={() => setShowDeleteConfirm(true)} className="bg-red-600 text-white">
-                Delete
-              </Button>
+              <Button onClick={() => setIsEditing(true)} className="bg-blue-600 text-white" icon={<FiEdit2 />} collapseLabel>Edit</Button>
+              <Button onClick={() => setShowDeleteConfirm(true)} className="bg-red-600 text-white" icon={<FiTrash2 />} collapseLabel>Delete</Button>
             </>
           )}
         </div>
@@ -163,8 +160,8 @@ export default function VacancyDetail() {
 
       <Card>
         {isEditing ? (
-          <form onSubmit={handleSave} className="p-6 space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <form onSubmit={handleSave} className="p-4 space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-900 mb-2">Job Title</label>
                 <input
@@ -255,9 +252,9 @@ export default function VacancyDetail() {
             </div>
           </form>
         ) : (
-          <div className="p-6 space-y-6">
+          <div className="p-4 space-y-4">
             <div>
-              <h3 className="font-semibold text-gray-900 mb-2">Description</h3>
+              <h3 className="font-semibold mb-2 text-foreground">Description</h3>
               <p className="text-gray-700 whitespace-pre-wrap">
                 {vacancy.description || 'No description provided'}
               </p>
@@ -265,7 +262,7 @@ export default function VacancyDetail() {
 
             {vacancy.skillsRequired && vacancy.skillsRequired.length > 0 && (
               <div>
-                <h3 className="font-semibold text-gray-900 mb-2">Required Skills</h3>
+                <h3 className="font-semibold mb-2 text-foreground">Required Skills</h3>
                 <div className="flex flex-wrap gap-2">
                   {vacancy.skillsRequired.map((skill, idx) => (
                     <span key={idx} className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm">

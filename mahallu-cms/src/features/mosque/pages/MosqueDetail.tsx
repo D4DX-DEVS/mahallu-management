@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { FiEdit2, FiPackage, FiSave, FiTrash2 } from 'react-icons/fi';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
@@ -137,14 +138,21 @@ export default function MosqueDetail() {
         breadcrumbs={[{ label: 'Mosque', path: '/mosque' }]}
       />
 
-      <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
-        <Link to={`${ROUTES.ASSETS.LIST}?mosqueId=${profile.id}`}>
-          <Button variant="outline" size="md" className="w-full sm:w-auto">
+      <div className="flex items-center justify-end gap-2">
+        <Link to={`${ROUTES.ASSETS.LIST}?mosqueId=${profile.id}`} className="flex-shrink-0">
+          <Button variant="outline" size="md" icon={<FiPackage />} collapseLabel>
             Maintenance &amp; Assets
           </Button>
         </Link>
         {editing ? (
-          <Button size="md" onClick={handleSave} disabled={saving} className="w-full sm:w-auto">
+          <Button
+            size="md"
+            onClick={handleSave}
+            disabled={saving}
+            icon={<FiSave />}
+            collapseLabel
+            title="Save profile"
+          >
             {saving ? 'Saving...' : 'Save Profile'}
           </Button>
         ) : (
@@ -152,12 +160,13 @@ export default function MosqueDetail() {
             <Button
               variant="outline"
               size="md"
-              className="w-full sm:w-auto"
               onClick={() => setConfirmDeleteOpen(true)}
+              icon={<FiTrash2 />}
+              collapseLabel
             >
               Delete Mosque
             </Button>
-            <Button size="md" onClick={() => setEditing(true)} className="w-full sm:w-auto">
+            <Button size="md" onClick={() => setEditing(true)} icon={<FiEdit2 />} collapseLabel>
               Edit Profile
             </Button>
           </>
@@ -250,7 +259,11 @@ export default function MosqueDetail() {
                 <p className="text-xs font-medium text-gray-500 dark:text-gray-400 sm:text-sm">
                   {card.label}
                 </p>
-                <p className="mt-1 break-words text-sm font-semibold text-gray-900 dark:text-gray-100 sm:text-base">
+                <p
+                  className={`mt-1 break-words text-sm font-semibold text-gray-900 dark:text-gray-100 sm:text-base${
+                    card.label !== 'Capacity' ? ' capitalize' : ''
+                  }`}
+                >
                   {card.value}
                 </p>
               </Card>

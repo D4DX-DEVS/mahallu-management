@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiEdit2, FiTrash2, FiBriefcase } from 'react-icons/fi';
-import Card from '@/components/ui/Card';
+import TableCard from '@/components/ui/TableCard';
+import { rowActionClass } from '@/components/ui/rowAction';
+import StatCard from '@/components/ui/StatCard';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import Table from '@/components/ui/Table';
@@ -98,15 +100,16 @@ export default function MahalluAccountsList() {
   const totalBalance = accounts.reduce((s, a) => s + (a.balance || 0), 0);
 
   const columns: TableColumn<MahalluAccount>[] = [
-    { key: 'id', label: 'No.', render: (_, __, i) => i + 1 },
-    { key: 'accountName', label: 'Account Name' },
-    { key: 'accountNumber', label: 'Account Number' },
-    { key: 'bankName', label: 'Bank Name' },
-    { key: 'ifscCode', label: 'IFSC Code' },
-    { key: 'balance', label: 'Balance', render: (b) => `₹${(b || 0).toLocaleString()}` },
+    { key: 'id', label: 'No.', width: '6rem', render: (_, __, i) => i + 1 },
+    { key: 'accountName', label: 'Account Name', width: '10.75rem' },
+    { key: 'accountNumber', label: 'Account Number', width: '11.75rem' },
+    { key: 'bankName', label: 'Bank Name', width: '9.25rem' },
+    { key: 'ifscCode', label: 'IFSC Code', width: '9.25rem' },
+    { key: 'balance', label: 'Balance', width: '7.5rem', render: (b) => `₹${(b || 0).toLocaleString()}` },
     {
       key: 'status',
       label: 'Status',
+      width: '7.25rem',
       render: (s) => (
         <span
           className={`px-2 py-0.5 rounded-full text-xs font-medium ${s === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}
@@ -115,17 +118,19 @@ export default function MahalluAccountsList() {
         </span>
       ),
     },
-    { key: 'createdAt', label: 'Created', render: (d) => formatDate(d) },
+    { key: 'createdAt', label: 'Created', width: '7.75rem', render: (d) => formatDate(d) },
     {
       key: 'actions',
       label: 'Actions',
+      width: '8rem',
+      align: 'center',
       render: (_, row) => (
         <div className="flex items-center gap-2">
           <button
             onClick={() =>
               navigate(ROUTES.MAHALLU_FINANCE.ACCOUNTS_EDIT(row.id), { state: { account: row } })
             }
-            className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400"
+            className={rowActionClass()}
             aria-label="Edit"
           >
             <FiEdit2 className="h-4 w-4" />
@@ -135,7 +140,7 @@ export default function MahalluAccountsList() {
               setSelectedAccount(row);
               setShowDeleteModal(true);
             }}
-            className="p-1.5 rounded-md hover:bg-red-50 text-red-600"
+            className={rowActionClass('danger')}
             aria-label="Delete"
           >
             <FiTrash2 className="h-4 w-4" />
@@ -146,35 +151,31 @@ export default function MahalluAccountsList() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <PageHeader
         title="Mahallu Bank Accounts"
         description="Manage the Mahallu's own bank accounts"
         breadcrumbs={[{ label: 'Mahallu Finance', path: '/mahallu-finance/accounts' }]}
       />
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-          <p className="text-sm text-blue-600 dark:text-blue-400">Total Accounts</p>
-          <p className="text-2xl font-bold text-blue-700 dark:text-blue-300">{accounts.length}</p>
-        </div>
-        <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
-          <p className="text-sm text-green-600 dark:text-green-400">Total Balance</p>
-          <p className="text-2xl font-bold text-green-700 dark:text-green-300">
-            ₹{totalBalance.toLocaleString()}
-          </p>
-        </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <StatCard title="Total Accounts" value={accounts.length} tone="info" />
+        <StatCard title="Total Balance" value={<>₹{totalBalance.toLocaleString()}</>} tone="success" />
       </div>
 
-      <Card>
+      <TableCard>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
           onExport={handleExport}
           isExporting={isExporting}
           actionButtons={
-            <Button onClick={() => navigate(ROUTES.MAHALLU_FINANCE.ACCOUNTS_CREATE)} size="sm">
-              <FiBriefcase className="h-4 w-4 mr-2" />
+            <Button
+              onClick={() => navigate(ROUTES.MAHALLU_FINANCE.ACCOUNTS_CREATE)}
+              size="sm"
+              icon={<FiBriefcase />}
+              collapseLabel
+            >
               Add Account
             </Button>
           }
@@ -185,7 +186,7 @@ export default function MahalluAccountsList() {
           <p className="text-center py-8 text-red-600">{error}</p>
         ) : (
           <>
-            <Table columns={columns} data={filteredAccounts} emptyMessage="No accounts found" />
+            <Table fixedLayout striped columns={columns} data={filteredAccounts} emptyMessage="No accounts found" />
             {pagination && (
               <Pagination
                 currentPage={currentPage}
@@ -197,10 +198,10 @@ export default function MahalluAccountsList() {
             )}
           </>
         )}
-      </Card>
+      </TableCard>
 
       <Modal isOpen={showDeleteModal} onClose={() => setShowDeleteModal(false)} title="Delete Account">
-        <p className="text-gray-600 dark:text-gray-400 mb-6">
+        <p className="text-gray-600 dark:text-gray-400 mb-4">
           Are you sure you want to delete <strong>{selectedAccount?.accountName}</strong>?
         </p>
         <div className="flex gap-2 flex-col-reverse sm:flex-row sm:justify-end sm:gap-3">

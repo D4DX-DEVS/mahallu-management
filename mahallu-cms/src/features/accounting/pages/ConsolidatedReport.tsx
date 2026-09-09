@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import Card from '@/components/ui/Card';
+import StatCard from '@/components/ui/StatCard';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import { PageSkeleton } from '@/components/ui/Skeleton';
@@ -46,14 +47,14 @@ export default function ConsolidatedReport() {
   const grandTotals = reportData?.grandTotals;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <PageHeader
         title="Consolidated Report"
         description="Franchise-level view of all institutes' financial summary"
       />
 
       <Card>
-        <div className="flex flex-wrap items-end gap-4 mb-6">
+        <div className="flex flex-wrap items-end gap-4 mb-4">
           <div className="w-full sm:w-44">
             <Input
               label="Start Date"
@@ -78,42 +79,38 @@ export default function ConsolidatedReport() {
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="text-center py-12">
+          <div className="text-center py-10">
             <p className="text-red-600 dark:text-red-400">{error}</p>
           </div>
         ) : !reportData ? (
-          <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+          <div className="text-center py-10 text-gray-500 dark:text-gray-400">
             Select a date range and click "Generate" to view the consolidated report
           </div>
         ) : (
           <>
             {/* Grand Totals */}
             {grandTotals && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                  <p className="text-sm text-green-600 dark:text-green-400">Total Income</p>
-                  <p className="text-xl font-bold text-green-700 dark:text-green-300">
-                    ₹{grandTotals.totalIncome.toLocaleString()}
-                  </p>
-                </div>
-                <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg">
-                  <p className="text-sm text-red-600 dark:text-red-400">Total Expense</p>
-                  <p className="text-xl font-bold text-red-700 dark:text-red-300">
-                    ₹{grandTotals.totalExpense.toLocaleString()}
-                  </p>
-                </div>
-                <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                  <p className="text-sm text-blue-600 dark:text-blue-400">Net Balance</p>
-                  <p className="text-xl font-bold text-blue-700 dark:text-blue-300">
-                    ₹{grandTotals.netBalance.toLocaleString()}
-                  </p>
-                </div>
-                <div className="p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
-                  <p className="text-sm text-purple-600 dark:text-purple-400">Bank Balance</p>
-                  <p className="text-xl font-bold text-purple-700 dark:text-purple-300">
-                    ₹{grandTotals.bankBalance.toLocaleString()}
-                  </p>
-                </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                <StatCard
+                  title="Total Income"
+                  value={<>₹{grandTotals.totalIncome.toLocaleString()}</>}
+                  tone="success"
+                />
+                <StatCard
+                  title="Total Expense"
+                  value={<>₹{grandTotals.totalExpense.toLocaleString()}</>}
+                  tone="destructive"
+                />
+                <StatCard
+                  title="Net Balance"
+                  value={<>₹{grandTotals.netBalance.toLocaleString()}</>}
+                  tone="info"
+                />
+                <StatCard
+                  title="Bank Balance"
+                  value={<>₹{grandTotals.bankBalance.toLocaleString()}</>}
+                  tone="info"
+                />
               </div>
             )}
 
@@ -121,8 +118,8 @@ export default function ConsolidatedReport() {
               <div className="text-center py-8 text-gray-500">No data found for this period</div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                  <thead className="bg-gray-50 dark:bg-gray-800">
+                <table className="min-w-full divide-y divide-border">
+                  <thead className="bg-muted">
                     <tr>
                       <th className="px-4 py-3 text-left text-label font-medium text-gray-500 dark:text-gray-400 uppercase">
                         Institute
@@ -144,10 +141,10 @@ export default function ConsolidatedReport() {
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+                  <tbody className="bg-white dark:bg-gray-900 divide-y divide-border">
                     {institutes.map((inst) => (
                       <tr key={inst.instituteId} className="hover:bg-gray-50 dark:hover:bg-gray-800">
-                        <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100">
+                        <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100 capitalize">
                           {inst.instituteName}
                         </td>
                         <td className="px-4 py-3 text-sm text-right text-green-600 dark:text-green-400">
@@ -171,7 +168,7 @@ export default function ConsolidatedReport() {
                     ))}
                     {/* Grand Total Row */}
                     {grandTotals && (
-                      <tr className="bg-gray-100 dark:bg-gray-800 font-bold">
+                      <tr className="bg-gray-100 dark:bg-gray-800 font-semibold">
                         <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">Grand Total</td>
                         <td className="px-4 py-3 text-sm text-right text-green-700 dark:text-green-300">
                           ₹{grandTotals.totalIncome.toLocaleString()}

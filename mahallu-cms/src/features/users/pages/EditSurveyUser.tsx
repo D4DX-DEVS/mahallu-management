@@ -100,7 +100,7 @@ export default function EditSurveyUser() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <PageHeader
         description="Update survey user information"
         title="Edit"
@@ -108,14 +108,14 @@ export default function EditSurveyUser() {
       />
 
       <form onSubmit={handleSubmit(onSubmit)}>
-        <Card className="space-y-6">
+        <Card className="space-y-4">
           {error && (
             <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm dark:bg-red-900 dark:border-red-700 dark:text-red-200">
               {error}
             </div>
           )}
           <div>
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Basic Information</h2>
+            <h2 className="text-lg font-semibold mb-3 text-foreground">Basic Information</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Input
                 label="Full Name"
@@ -168,7 +168,7 @@ export default function EditSurveyUser() {
           </div>
 
           <div>
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">Permissions</h2>
+            <h2 className="text-lg font-semibold mb-2 text-foreground">Permissions</h2>
             <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
               Check The Required Permissions Below
             </p>

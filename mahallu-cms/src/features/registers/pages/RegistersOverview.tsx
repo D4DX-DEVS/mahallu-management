@@ -38,7 +38,7 @@ export default function RegistersOverview() {
                 <p className="text-xs font-medium leading-tight text-gray-500 dark:text-gray-400 sm:text-sm">
                   {config.title}
                 </p>
-                <p className="mt-1 text-base font-bold text-gray-900 dark:text-gray-100 sm:text-xl">
+                <p className="mt-1 text-base font-semibold text-gray-900 dark:text-gray-100 sm:text-xl">
                   {countFor(config.key)}
                 </p>
               </Card>

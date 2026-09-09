@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { memberPortalService, MemberOverviewResponse, ChangeRequest } from '@/services/memberPortalService';
 import { authService } from '@/services/authService';
 import Card from '@/components/ui/Card';
+import { rowActionClass } from '@/components/ui/rowAction';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import Pagination from '@/components/ui/Pagination';
 import Modal from '@/components/ui/Modal';
@@ -274,15 +275,15 @@ export default function MemberProfile() {
   }
 
   return (
-    <div className="space-y-6 max-w-2xl w-full mx-auto">
+    <div className="space-y-4 max-w-2xl w-full mx-auto">
       <PageHeader title="My Profile" />
       {/* Current Profile */}
       <Card>
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Member Details</h2>
+        <h2 className="text-lg font-semibold mb-3 text-foreground">Member Details</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
           <div>
             <p className="text-gray-500 dark:text-gray-400">Name</p>
-            <p className="text-gray-900 dark:text-gray-100 font-medium">{overview.member.name}</p>
+            <p className="text-gray-900 dark:text-gray-100 font-medium capitalize">{overview.member.name}</p>
           </div>
           {overview.varusankhyaDetails.memberMahallId && (
             <div>
@@ -311,7 +312,7 @@ export default function MemberProfile() {
 
       {/* Edit Profile */}
       <Card>
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+        <h2 className="text-lg font-semibold mb-3 text-foreground">
           Update Contact Information
         </h2>
         <div className="space-y-4">
@@ -363,7 +364,7 @@ export default function MemberProfile() {
 
       {/* Request Field Changes */}
       <Card>
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Request Field Changes</h2>
+        <h2 className="text-lg font-semibold mb-3 text-foreground">Request Field Changes</h2>
         <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
           Request changes to other fields that require admin approval.
         </p>
@@ -460,7 +461,7 @@ export default function MemberProfile() {
 
       {/* Change Requests History */}
       <Card>
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+        <h2 className="text-lg font-semibold mb-3 text-foreground">
           Change Request History
         </h2>
         {loadingRequests ? (
@@ -506,7 +507,7 @@ export default function MemberProfile() {
                           onClick={() => openEditRequest(req)}
                           title="Edit"
                           aria-label="Edit change request"
-                          className="p-1.5 rounded-lg text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors"
+                          className={rowActionClass()}
                         >
                           <FiEdit2 size={14} />
                         </button>
@@ -515,7 +516,7 @@ export default function MemberProfile() {
                         onClick={() => setViewRequest(req)}
                         title="View"
                         aria-label="View change request"
-                        className="p-1.5 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                        className={rowActionClass()}
                       >
                         <FiEye size={14} />
                       </button>
@@ -527,7 +528,7 @@ export default function MemberProfile() {
                           }}
                           title="Delete"
                           aria-label="Delete change request"
-                          className="p-1.5 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                          className={rowActionClass('danger')}
                         >
                           <FiTrash2 size={14} />
                         </button>

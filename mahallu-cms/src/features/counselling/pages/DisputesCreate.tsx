@@ -81,7 +81,7 @@ export default function DisputesCreate() {
       <div className="max-w-2xl">
         <PageHeader title="Create Dispute Case" />
         <Card padding="lg">
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-800 text-sm p-3 rounded">{error}</div>
             )}
@@ -125,7 +125,7 @@ export default function DisputesCreate() {
             {/* Parties */}
             <div className="border-t pt-6">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-bold">Parties Involved *</h3>
+                <h3 className="font-semibold">Parties Involved *</h3>
                 <Button
                   type="button"
                   variant="secondary"
@@ -168,7 +168,7 @@ export default function DisputesCreate() {
             {/* Mediators */}
             <div className="border-t pt-6">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-bold">Mediators (Optional)</h3>
+                <h3 className="font-semibold">Mediators (Optional)</h3>
                 <Button
                   type="button"
                   variant="secondary"

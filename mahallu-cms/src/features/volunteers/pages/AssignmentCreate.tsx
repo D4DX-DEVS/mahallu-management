@@ -134,12 +134,12 @@ export default function AssignmentCreate() {
       <PageHeader title="New assignment" breadcrumbs={[{ label: 'Volunteers', path: '/volunteers' }]} />
       <Card>
         <div>
-          <h2 className="text-xl font-semibold mb-6">{isEdit ? 'Edit Assignment' : 'Create Assignment'}</h2>
+          <h2 className="text-lg font-semibold mb-4">{isEdit ? 'Edit Assignment' : 'Create Assignment'}</h2>
 
           {loadingAssignment ? (
             <p className="text-gray-500">Loading assignment...</p>
           ) : (
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-4">
               {/* Volunteer Selection */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-3">Select Volunteers *</label>
@@ -159,7 +159,7 @@ export default function AssignmentCreate() {
                           className="w-4 h-4 rounded border-gray-300"
                         />
                         <span className="text-sm text-gray-700">
-                          {volunteerName(volunteer)}
+                          <span className="capitalize">{volunteerName(volunteer)}</span>
                           {volunteer.wings && (
                             <span className="text-xs text-gray-500 ml-2">({volunteer.wings.join(', ')})</span>
                           )}

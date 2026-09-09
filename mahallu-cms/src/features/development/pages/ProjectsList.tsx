@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { FiTrash2 } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import Button from '@/components/ui/Button';
 import ExpandableSearch from '@/components/ui/ExpandableSearch';
@@ -112,13 +113,13 @@ export default function ProjectsList() {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex justify-between items-center mb-4">
         <PageHeader title="Community Development Projects" />
         <Button onClick={() => navigate('/development/create')}>Create Project</Button>
       </div>
 
       {/* Filters */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-4">
         <ExpandableSearch
           value={search}
           onChange={(value) => {
@@ -176,7 +177,7 @@ export default function ProjectsList() {
                 className="cursor-pointer hover:shadow-lg transition"
               >
                 <div>
-                  <h3 className="font-semibold text-sm sm:text-base truncate">{project.name}</h3>
+                  <h3 className="font-semibold text-sm sm:text-base truncate capitalize">{project.name}</h3>
 
                   <div className="flex gap-2 mt-2 flex-wrap">
                     <span className={`text-xs px-2 py-1 rounded ${getAreaBadgeColor(project.area)}`}>
@@ -204,7 +205,7 @@ export default function ProjectsList() {
                     <div>Est. Cost: ₹{(project.estimatedCost || 0).toLocaleString()}</div>
                   </div>
 
-                  <div className="mt-3 flex flex-wrap gap-2">
+                  <div className="mt-3 flex gap-2 items-center">
                     <Button
                       size="sm"
                       onClick={(e) => {
@@ -222,17 +223,14 @@ export default function ProjectsList() {
                         e.stopPropagation();
                         setDeleteId(project.id);
                         setConfirmDelete(true);
-                      }}
-                    >
-                      Delete
-                    </Button>
+                      }} icon={<FiTrash2 />} collapseLabel>Delete</Button>
                   </div>
                 </div>
               </Card>
             ))}
           </div>
 
-          <div className="mt-6">
+          <div className="mt-4">
             <Pagination
               currentPage={currentPage}
               totalPages={totalPages}

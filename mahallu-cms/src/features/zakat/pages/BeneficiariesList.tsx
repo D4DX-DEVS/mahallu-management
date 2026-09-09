@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
+import ActionsMenu from '@/components/ui/ActionsMenu';
+import { FiCheck, FiPlus, FiX } from 'react-icons/fi';
 import { Link, useNavigate } from 'react-router-dom';
 import { FiSend } from 'react-icons/fi';
-import Card from '@/components/ui/Card';
+import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import Table from '@/components/ui/Table';
 import ExpandableSearch from '@/components/ui/ExpandableSearch';
@@ -98,49 +100,54 @@ export default function BeneficiariesList() {
   };
 
   const columns: TableColumn<ZakatBeneficiary>[] = [
-    { key: 'name', label: 'Beneficiary', render: (_v, row) => beneficiaryName(row) },
+    { key: 'name', label: 'Beneficiary', width: '9.25rem', render: (_v, row) => beneficiaryName(row) },
     {
       key: 'category',
       label: 'Category',
+      width: '8.25rem',
       render: (v) => ZAKAT_CATEGORY_OPTIONS.find((o) => o.value === v)?.label || v,
     },
-    { key: 'priorityArea', label: 'Priority', render: (v) => v || '-' },
-    { key: 'verificationStatus', label: 'Verification' },
+    { key: 'priorityArea', label: 'Priority', width: '7.75rem', render: (v) => v || '-' },
+    { key: 'verificationStatus', label: 'Verification', width: '9.5rem' },
     {
       key: 'actions',
-      label: '',
+      label: 'Actions',
+      width: '8rem',
+      align: 'center',
       render: (_v, row) => (
-        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-          {row.verificationStatus === 'verified' && (
-            <button
-              className="text-blue-600 hover:text-blue-800 disabled:opacity-50"
-              disabled={busyId === row.id}
-              onClick={() => navigate('/zakat/distributions/create', { state: { beneficiaryId: row.id } })}
-              title="Record a distribution for this beneficiary"
-              aria-label="Record a distribution for this beneficiary"
-            >
-              <FiSend size={16} />
-            </button>
-          )}
-          {row.verificationStatus !== 'verified' && (
-            <button
-              className="text-emerald-600 hover:underline disabled:opacity-50"
-              disabled={busyId === row.id}
-              onClick={() => setVerification(row, 'verified')}
-            >
-              {busyId === row.id ? 'Working...' : 'Verify'}
-            </button>
-          )}
-          {row.verificationStatus === 'pending' && (
-            <button
-              className="text-red-600 hover:underline disabled:opacity-50"
-              disabled={busyId === row.id}
-              onClick={() => setRejectConfirm(row)}
-            >
-              {busyId === row.id ? 'Working...' : 'Reject'}
-            </button>
-          )}
-        </div>
+        <ActionsMenu
+          items={[
+            ...(row.verificationStatus === 'verified'
+              ? [
+                  {
+                    label: 'Record a distribution',
+                    icon: <FiSend className="h-4 w-4" />,
+                    onClick: () =>
+                      navigate('/zakat/distributions/create', { state: { beneficiaryId: row.id } }),
+                    disabled: busyId === row.id,
+                  },
+                ]
+              : [
+                  {
+                    label: 'Verify',
+                    icon: <FiCheck className="h-4 w-4" />,
+                    onClick: () => setVerification(row, 'verified'),
+                    disabled: busyId === row.id,
+                  },
+                ]),
+            ...(row.verificationStatus === 'pending'
+              ? [
+                  {
+                    label: 'Reject',
+                    icon: <FiX className="h-4 w-4" />,
+                    onClick: () => setRejectConfirm(row),
+                    disabled: busyId === row.id,
+                    variant: 'danger' as const,
+                  },
+                ]
+              : []),
+          ]}
+        />
       ),
     },
   ];
@@ -153,7 +160,7 @@ export default function BeneficiariesList() {
         breadcrumbs={[{ label: 'Zakat' }]}
       />
 
-      <Card>
+      <TableCard>
         <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div className="grid grid-cols-4 gap-1.5 sm:flex">
             {STATUS_TABS.map((tab) => (
@@ -174,8 +181,8 @@ export default function BeneficiariesList() {
               </button>
             ))}
           </div>
-          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-            <div className="w-full sm:w-56">
+          <div className="flex min-w-0 items-center gap-2">
+            <div className="min-w-0 flex-1 sm:w-56 sm:flex-none">
               <ExpandableSearch
                 value={searchQuery}
                 onChange={(value) => {
@@ -187,8 +194,8 @@ export default function BeneficiariesList() {
               />
             </div>
             <Link to="/zakat/beneficiaries/create">
-              <Button size="md" className="w-full sm:w-auto">
-                + New Beneficiary
+              <Button size="md" icon={<FiPlus />} collapseLabel>
+                New Beneficiary
               </Button>
             </Link>
           </div>
@@ -197,7 +204,7 @@ export default function BeneficiariesList() {
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="py-12 text-center">
+          <div className="py-10 text-center">
             <p className="text-red-600 dark:text-red-400">{error}</p>
             <Button onClick={fetchRows} className="mt-4" variant="outline">
               Retry
@@ -210,9 +217,7 @@ export default function BeneficiariesList() {
             action={{ label: '+ New Beneficiary', onClick: () => navigate('/zakat/beneficiaries/create') }}
           />
         ) : (
-          <div className="overflow-x-auto">
-            <Table columns={columns} data={rows} showExport={false} />
-          </div>
+          <Table fixedLayout striped columns={columns} data={rows} showExport={false} />
         )}
 
         {pagination && (
@@ -226,7 +231,7 @@ export default function BeneficiariesList() {
             />
           </div>
         )}
-      </Card>
+      </TableCard>
 
       <ConfirmDialog
         isOpen={!!rejectConfirm}

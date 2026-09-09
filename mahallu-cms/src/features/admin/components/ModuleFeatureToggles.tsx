@@ -18,7 +18,7 @@ export default function ModuleFeatureToggles({ value, onChange, disabled }: Modu
 
   return (
     <Card>
-      <h3 className="text-sm sm:text-base font-semibold text-gray-900">Enabled Modules</h3>
+      <h3 className="text-sm sm:text-base font-semibold text-foreground">Enabled Modules</h3>
       <p className="mt-1 text-xs sm:text-sm text-gray-500">
         Defaults come from the Mahallu classification. Turn individual modules on or off here.
       </p>

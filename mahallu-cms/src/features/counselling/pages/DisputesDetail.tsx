@@ -69,17 +69,17 @@ export default function DisputesDetail() {
       <div>
         <Button
           variant="ghost"
-          className="mb-6 flex items-center gap-2"
+          className="mb-4 flex items-center gap-2"
           onClick={() => navigate('/maslahat')}
         >
           <FiArrowLeft size={18} />
           Back
         </Button>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           {/* Case Info */}
           <Card>
-            <h2 className="text-lg font-bold mb-4">Case Information</h2>
+            <h2 className="text-lg font-semibold mb-3">Case Information</h2>
             <div className="space-y-3">
               <div>
                 <p className="text-xs text-gray-600">Case Number</p>
@@ -105,7 +105,7 @@ export default function DisputesDetail() {
           {/* Status & Notes */}
           <Card>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold">Status & Resolution</h2>
+              <h2 className="text-lg font-semibold">Status & Resolution</h2>
               {!isEditing && (
                 <Button
                   variant="secondary"
@@ -191,7 +191,7 @@ export default function DisputesDetail() {
 
         {/* Description */}
         <Card>
-          <h3 className="font-bold mb-2">Description</h3>
+          <h3 className="font-semibold mb-2">Description</h3>
           <p className="text-sm text-gray-700">{caseRecord.description}</p>
         </Card>
       </div>

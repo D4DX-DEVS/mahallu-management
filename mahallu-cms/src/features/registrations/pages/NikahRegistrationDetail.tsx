@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { FiArrowLeft, FiFilePlus } from 'react-icons/fi';
+import { FiArrowLeft, FiCheck, FiFilePlus, FiRotateCcw, FiXCircle } from 'react-icons/fi';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
@@ -90,10 +90,10 @@ export default function NikahRegistrationDetail() {
 
   if (error || !registration) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-4">
         <PageHeader description="Nikah registration details" title="Nikah Registrations" />
         <Card>
-          <div className="text-center py-12">
+          <div className="text-center py-10">
             <p className="text-red-600 dark:text-red-400">{error || 'Nikah registration not found'}</p>
             <Button onClick={() => navigate(ROUTES.REGISTRATIONS.NIKAH)} className="mt-4" variant="outline">
               Back to Nikah Registrations
@@ -105,32 +105,26 @@ export default function NikahRegistrationDetail() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <PageHeader
         title={`${registration.groomName} & ${registration.brideName}`}
         breadcrumbs={[{ label: 'Nikah Registrations', path: ROUTES.REGISTRATIONS.NIKAH }]}
       />
 
-      <div className="flex flex-wrap gap-2 items-center justify-between">
-        <div className="flex flex-wrap gap-2">
+      <div className="flex gap-2 items-center justify-between">
+        <div className="flex gap-2 items-center">
           {registration.status === 'approved' && (
-            <Button onClick={() => setShowCertModal(true)} className="bg-green-600 hover:bg-green-700">
-              <FiFilePlus className="h-4 w-4 mr-2" />
-              Issue Certificate
-            </Button>
+            <Button onClick={() => setShowCertModal(true)} className="bg-green-600 hover:bg-green-700" icon={<FiFilePlus />} collapseLabel>Issue Certificate</Button>
           )}
           <Link to={ROUTES.REGISTRATIONS.NIKAH}>
-            <Button variant="outline">
-              <FiArrowLeft className="h-4 w-4 mr-2" />
-              Back to List
-            </Button>
+            <Button variant="outline" icon={<FiArrowLeft />} collapseLabel>Back to List</Button>
           </Link>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card>
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Groom Information</h2>
+          <h2 className="text-lg font-semibold mb-3 text-foreground">Groom Information</h2>
           <div className="space-y-3">
             <div>
               <span className="text-sm text-gray-500 dark:text-gray-400">Groom Name</span>
@@ -146,7 +140,7 @@ export default function NikahRegistrationDetail() {
         </Card>
 
         <Card>
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Bride Information</h2>
+          <h2 className="text-lg font-semibold mb-3 text-foreground">Bride Information</h2>
           <div className="space-y-3">
             <div>
               <span className="text-sm text-gray-500 dark:text-gray-400">Bride Name</span>
@@ -163,7 +157,7 @@ export default function NikahRegistrationDetail() {
       </div>
 
       <Card>
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Nikah Details</h2>
+        <h2 className="text-lg font-semibold mb-3 text-foreground">Nikah Details</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <span className="text-sm text-gray-500 dark:text-gray-400">Nikah Date</span>
@@ -192,7 +186,7 @@ export default function NikahRegistrationDetail() {
 
       {(registration.witness1 || registration.witness2) && (
         <Card>
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Witnesses</h2>
+          <h2 className="text-lg font-semibold mb-3 text-foreground">Witnesses</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {registration.witness1 && (
               <div>
@@ -212,7 +206,7 @@ export default function NikahRegistrationDetail() {
 
       {(registration.mahrAmount || registration.mahrDescription) && (
         <Card>
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Mahr Details</h2>
+          <h2 className="text-lg font-semibold mb-3 text-foreground">Mahr Details</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {registration.mahrAmount && (
               <div>
@@ -234,13 +228,13 @@ export default function NikahRegistrationDetail() {
 
       {registration.remarks && (
         <Card>
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Remarks</h2>
+          <h2 className="text-lg font-semibold mb-3 text-foreground">Remarks</h2>
           <p className="text-gray-700 dark:text-gray-300">{registration.remarks}</p>
         </Card>
       )}
 
       <Card>
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+        <h2 className="text-lg font-semibold mb-3 text-foreground">
           Registration Information
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -256,38 +250,29 @@ export default function NikahRegistrationDetail() {
       </Card>
 
       <Card>
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Attached Documents</h2>
+        <h2 className="text-lg font-semibold mb-3 text-foreground">Attached Documents</h2>
         <DocumentsPanel ownerType="nikah" ownerId={registration.id} isAdmin={true} />
       </Card>
 
       {registration.status === 'pending' && (
         <Card>
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Review Status</h2>
-          <div className="flex flex-wrap gap-2">
+          <h2 className="text-lg font-semibold mb-3 text-foreground">Review Status</h2>
+          <div className="flex gap-2 items-center">
             <Button
               onClick={() => handleUpdateStatus('approved')}
-              className="bg-green-600 hover:bg-green-700"
-            >
-              Approve
-            </Button>
+              className="bg-green-600 hover:bg-green-700" icon={<FiCheck />} collapseLabel>Approve</Button>
             <Button
               onClick={() => {
                 setStatusRemark('');
                 setShowStatusModal(true);
               }}
-              className="bg-blue-600 hover:bg-blue-700"
-            >
-              Request Correction
-            </Button>
+              className="bg-blue-600 hover:bg-blue-700" icon={<FiRotateCcw />} collapseLabel>Request Correction</Button>
             <Button
               onClick={() => {
                 setStatusRemark('');
                 setShowStatusModal(true);
               }}
-              className="bg-red-600 hover:bg-red-700"
-            >
-              Reject
-            </Button>
+              className="bg-red-600 hover:bg-red-700" icon={<FiXCircle />} collapseLabel>Reject</Button>
           </div>
         </Card>
       )}

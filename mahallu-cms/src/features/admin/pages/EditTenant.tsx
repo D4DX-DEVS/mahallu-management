@@ -126,7 +126,7 @@ export default function EditTenant() {
       <div className="space-y-4">
         <PageHeader title={pageTitle} breadcrumbs={breadcrumbItems} />
         <Card>
-          <div className="text-center py-12">
+          <div className="text-center py-10">
             <p className="text-red-500 dark:text-red-400 mb-4">{error}</p>
             <Button variant="outline" onClick={() => navigate('/admin/tenants')}>
               Back to Tenants
@@ -255,7 +255,7 @@ export default function EditTenant() {
 
             {/* Address Section */}
             <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
-              <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-4">Address Details</h3>
+              <h3 className="text-sm font-semibold mb-3 text-foreground">Address Details</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Input
                   label="Village"
@@ -303,7 +303,7 @@ export default function EditTenant() {
           </div>
 
           {/* Form Actions */}
-          <div className="flex gap-2 flex-col-reverse sm:flex-row sm:justify-end sm:gap-3 mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+          <div className="flex gap-2 flex-col-reverse sm:flex-row sm:justify-end sm:gap-3 mt-4 pt-6 border-t border-gray-200 dark:border-gray-700">
             <Button type="button" variant="outline" onClick={() => navigate(`/admin/tenants/${id}`)}>
               Cancel
             </Button>

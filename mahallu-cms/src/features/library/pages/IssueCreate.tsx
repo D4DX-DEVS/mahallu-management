@@ -133,7 +133,7 @@ export default function IssueCreate() {
 
       <Card padding="lg" className="max-w-2xl">
         <PageHeader title="Issue Book to Member" />
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           {/* Book Selection */}
           <div>
             <label className="block text-sm font-medium mb-2">Select Book *</label>

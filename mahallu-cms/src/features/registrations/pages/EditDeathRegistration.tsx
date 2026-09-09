@@ -150,7 +150,7 @@ export default function EditDeathRegistration() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <PageHeader
         title="Edit Death Registration"
         description="Update death registration details"
@@ -158,7 +158,7 @@ export default function EditDeathRegistration() {
       />
 
       <form onSubmit={handleSubmit(onSubmit)}>
-        <Card className="space-y-6">
+        <Card className="space-y-4">
           {error && (
             <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm dark:bg-red-900 dark:border-red-700 dark:text-red-200">
               {error}
@@ -172,7 +172,7 @@ export default function EditDeathRegistration() {
           )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <h3 className="md:col-span-2 text-lg font-semibold text-gray-900 dark:text-gray-100">
+            <h3 className="md:col-span-2 text-lg font-semibold text-foreground">
               Member Selection
             </h3>
             <Select
@@ -205,7 +205,7 @@ export default function EditDeathRegistration() {
             <Input label="Place of Death" {...register('placeOfDeath')} placeholder="Place of Death" />
             <Input label="Cause of Death" {...register('causeOfDeath')} placeholder="Cause of Death" />
             <Input label="Mahall ID" {...register('mahallId')} placeholder="Mahall ID" />
-            <h3 className="md:col-span-2 text-lg font-semibold text-gray-900 dark:text-gray-100 mt-4">
+            <h3 className="md:col-span-2 text-lg font-semibold mt-4 text-foreground">
               Informant Information
             </h3>
             <Input label="Informant Name" {...register('informantName')} placeholder="Informant Name" />

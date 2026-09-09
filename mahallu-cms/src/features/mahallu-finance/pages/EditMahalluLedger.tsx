@@ -92,7 +92,7 @@ export default function EditMahalluLedger() {
   if (loading) return <PageSkeleton variant="section" />;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <PageHeader
         title="Edit Ledger"
         description="Update the ledger account details"
@@ -103,7 +103,7 @@ export default function EditMahalluLedger() {
       />
 
       <form onSubmit={handleSubmit}>
-        <Card className="space-y-6">
+        <Card className="space-y-4">
           {error && (
             <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm dark:bg-red-900/30 dark:border-red-700 dark:text-red-300">
               {error}

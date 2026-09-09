@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { FiEye, FiDollarSign, FiUsers, FiCreditCard, FiDownload } from 'react-icons/fi';
-import Card from '@/components/ui/Card';
+import TableCard from '@/components/ui/TableCard';
+import { rowActionClass } from '@/components/ui/rowAction';
 import Button from '@/components/ui/Button';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
@@ -196,6 +197,7 @@ export default function MemberVarisangyaList() {
     {
       key: 'name',
       label: 'Member Name',
+      width: '10.75rem',
       render: (name, row) => (
         <Link
           to={ROUTES.MEMBERS.DETAIL(row.id)}
@@ -205,17 +207,21 @@ export default function MemberVarisangyaList() {
         </Link>
       ),
     },
-    { key: 'familyName', label: 'Family' },
-    { key: 'varisangyaCount', label: 'Payments', render: (count) => count || 0 },
+    { key: 'familyName', label: 'Family', width: '7.25rem' },
+    { key: 'varisangyaCount', label: 'Payments', width: '8.75rem', render: (count) => count || 0 },
     {
       key: 'totalVarisangya',
       label: 'Total Amount',
+      width: '12rem',
+      align: 'center',
       render: (amount) => `₹${(amount || 0).toLocaleString()}`,
     },
-    { key: 'lastPaymentDate', label: 'Last Payment', render: (date) => (date ? formatDate(date) : '-') },
+    { key: 'lastPaymentDate', label: 'Last Payment', width: '10.75rem', render: (date) => (date ? formatDate(date) : '-') },
     {
       key: 'actions',
       label: 'Actions',
+      width: '8rem',
+      align: 'center',
       render: (_, row) => (
         <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
           <button
@@ -223,7 +229,7 @@ export default function MemberVarisangyaList() {
               e.stopPropagation();
               navigate(`${MEMBER_BASE}?view=transactions&memberId=${row.id}`);
             }}
-            className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
+            className={rowActionClass()}
             title="View Transactions"
             aria-label="View Transactions"
           >
@@ -234,7 +240,7 @@ export default function MemberVarisangyaList() {
               e.stopPropagation();
               navigate(`${MEMBER_BASE}?view=wallet&memberId=${row.id}`);
             }}
-            className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
+            className={rowActionClass()}
             title="View Wallet"
             aria-label="View Wallet"
           >
@@ -246,7 +252,7 @@ export default function MemberVarisangyaList() {
               <button
                 onClick={(e) => e.stopPropagation()}
                 disabled={exportingRowId === row.id}
-                className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors disabled:opacity-50"
+                className={rowActionClass('default', 'disabled:opacity-50')}
                 title="Export"
                 aria-label="Export"
               >
@@ -291,7 +297,7 @@ export default function MemberVarisangyaList() {
           <StatCard key={index} {...stat} />
         ))}
       </div>
-      <Card>
+      <TableCard>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -305,14 +311,14 @@ export default function MemberVarisangyaList() {
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="text-center py-12">
+          <div className="text-center py-10">
             <p className="text-red-600 dark:text-red-400">{error}</p>
             <Button onClick={fetchMembers} className="mt-4" variant="outline">
               Retry
             </Button>
           </div>
         ) : (
-          <Table columns={columns} data={members} emptyMessage="No members found" showExport={false} />
+          <Table fixedLayout striped columns={columns} data={members} emptyMessage="No members found" showExport={false} />
         )}
         {pagination && (
           <div className="mt-4">
@@ -325,7 +331,7 @@ export default function MemberVarisangyaList() {
             />
           </div>
         )}
-      </Card>
+      </TableCard>
     </div>
   );
 }

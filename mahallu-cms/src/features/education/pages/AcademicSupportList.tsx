@@ -89,7 +89,7 @@ export default function AcademicSupportList() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <PageHeader title="Academic Support Cases" />
         <Button onClick={() => navigate('/education/support/create')}>New Case</Button>
@@ -192,7 +192,7 @@ export default function AcademicSupportList() {
                   <tbody>
                     {sortedCases.map((c) => (
                       <tr key={c.id} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
-                        <td className="py-2 font-medium">{memberName(c.memberId)}</td>
+                        <td className="py-2 font-medium capitalize">{memberName(c.memberId)}</td>
                         <td className="py-2 hidden sm:table-cell text-xs">{supportCaseTypeLabel(c.type)}</td>
                         <td className="py-2 hidden md:table-cell text-xs">
                           <button
@@ -202,7 +202,9 @@ export default function AcademicSupportList() {
                             {c.description}
                           </button>
                         </td>
-                        <td className="py-2 hidden lg:table-cell text-xs">{c.mentorName || '—'}</td>
+                        <td className="py-2 hidden lg:table-cell text-xs capitalize">
+                          {c.mentorName || '—'}
+                        </td>
                         <td className="py-2">
                           <span className="text-xs px-2 py-1 rounded bg-gray-100 dark:bg-gray-800">
                             {supportCaseStatusLabel(c.status)}
@@ -231,7 +233,7 @@ export default function AcademicSupportList() {
               </div>
 
               {pagination && (
-                <div className="mt-6">
+                <div className="mt-4">
                   <Pagination
                     currentPage={pagination.page}
                     totalPages={pagination.totalPages}

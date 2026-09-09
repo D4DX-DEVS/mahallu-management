@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FiEdit2, FiX, FiEye, FiUsers, FiUser, FiUserCheck } from 'react-icons/fi';
-import Card from '@/components/ui/Card';
+import { FiEdit2, FiEye, FiPlus, FiUser, FiUserCheck, FiUsers } from 'react-icons/fi';
+import TableCard from '@/components/ui/TableCard';
+import FilterPanel from '@/components/ui/FilterPanel';
 import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
 import StatCard from '@/components/ui/StatCard';
@@ -100,33 +101,39 @@ export default function MembersList() {
   };
 
   const columns: TableColumn<Member>[] = [
-    { key: 'mahallId', label: 'Mahall ID', render: (id) => id || '-' },
-    { key: 'name', label: 'Name', sortable: true },
-    { key: 'familyName', label: 'Family Name' },
+    { key: 'mahallId', label: 'Mahall ID', width: '8.75rem', render: (id) => id || '-' },
+    { key: 'name', label: 'Name', width: '6.75rem', sortable: true },
+    { key: 'familyName', label: 'Family Name', width: '10rem' },
     {
       key: 'age',
       label: 'Age / Gender',
+      width: '12rem',
+      align: 'center',
       render: (_, row) => {
         const age = row.age ? `${row.age}` : '-';
         const gender = row.gender || '-';
         return `${age} / ${gender}`;
       },
     },
-    { key: 'bloodGroup', label: 'Blood Group', render: (bg) => bg || '-' },
+    { key: 'bloodGroup', label: 'Blood Group', width: '9.75rem', render: (bg) => bg || '-' },
     {
       key: 'healthStatus',
       label: 'Health Status',
+      width: '10.75rem',
       render: (status) => status || '-',
     },
-    { key: 'phone', label: 'Phone', render: (phone) => phone || '-' },
+    { key: 'phone', label: 'Phone', width: '6.75rem', render: (phone) => phone || '-' },
     {
       key: 'education',
       label: 'Educations',
+      width: '9rem',
       render: (edu) => edu || '-',
     },
     {
       key: 'actions',
       label: 'Actions',
+      width: '8rem',
+      align: 'center',
       render: (_, row) => (
         <ActionsMenu
           items={[
@@ -182,8 +189,8 @@ export default function MembersList() {
       </div>
 
       {/* Actions and Filters */}
-      <Card>
-        <div className="flex flex-col gap-4 mb-6">
+      <TableCard>
+        <div className="flex flex-col gap-4 mb-4">
           <TableToolbar
             searchQuery={searchQuery}
             onSearchChange={setSearchQuery}
@@ -195,20 +202,13 @@ export default function MembersList() {
             isExporting={isExporting}
             actionButtons={
               <Link to={ROUTES.MEMBERS.CREATE}>
-                <Button size="md">+ New Member</Button>
+                <Button size="md" icon={<FiPlus />} collapseLabel>New Member</Button>
               </Link>
             }
           />
 
           {isFilterVisible && (
-            <div className="relative flex flex-wrap items-center gap-4 mb-6 p-4 border border-gray-200 rounded-lg max-sm:border-0 max-sm:bg-transparent max-sm:p-0 bg-white dark:bg-gray-800 dark:border-gray-700">
-              <button
-                onClick={() => setIsFilterVisible(false)}
-                className="absolute right-4 top-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                aria-label="Close"
-              >
-                <FiX className="h-4 w-4" />
-              </button>
+            <FilterPanel onClose={() => setIsFilterVisible(false)}>
               <div className="w-full sm:w-40">
                 <Select
                   options={[
@@ -220,14 +220,14 @@ export default function MembersList() {
                   onChange={(e) => setSortBy(e.target.value)}
                 />
               </div>
-            </div>
+            </FilterPanel>
           )}
         </div>
 
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="text-center py-12">
+          <div className="text-center py-10">
             <p className="text-red-600 dark:text-red-400">{error}</p>
             <Button onClick={fetchMembers} className="mt-4" variant="outline">
               Retry
@@ -235,6 +235,8 @@ export default function MembersList() {
           </div>
         ) : (
           <Table
+            fixedLayout
+            striped
             columns={columns}
             data={members}
             emptyMessage="No Members Yet"
@@ -273,7 +275,7 @@ export default function MembersList() {
             />
           </div>
         )}
-      </Card>
+      </TableCard>
     </div>
   );
 }

@@ -158,14 +158,14 @@ export default function EditMeeting() {
     return <PageSkeleton />;
   }
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <PageHeader
         title="Edit Meeting"
         description="Update the meeting details and attendance"
         breadcrumbs={[{ label: 'Meetings', path: ROUTES.COMMITTEES.MEETINGS }]}
       />
       <form onSubmit={handleSubmit(onSubmit)}>
-        <Card className="space-y-6">
+        <Card className="space-y-4">
           {error && (
             <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm dark:bg-red-900 dark:border-red-700 dark:text-red-200">
               {error}
@@ -266,7 +266,7 @@ export default function EditMeeting() {
                           onChange={() => toggleAttendance(member.id)}
                           className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
                         />
-                        <span className="text-sm text-gray-700 dark:text-gray-300">
+                        <span className="text-sm text-gray-700 dark:text-gray-300 capitalize">
                           {member.name} ({member.familyName})
                         </span>
                       </label>

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
+import { FiPlus } from 'react-icons/fi';
 import { Link, useNavigate } from 'react-router-dom';
-import Card from '@/components/ui/Card';
+import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import Table from '@/components/ui/Table';
 import ExpandableSearch from '@/components/ui/ExpandableSearch';
@@ -52,14 +53,15 @@ export default function AnnouncementsList() {
   };
 
   const columns: TableColumn<Announcement>[] = [
-    { key: 'title', label: 'Title' },
-    { key: 'category', label: 'Category' },
-    { key: 'audience', label: 'Audience' },
-    { key: 'channels', label: 'Channels', render: (v) => (Array.isArray(v) ? v.join(', ') : '-') },
-    { key: 'status', label: 'Status' },
+    { key: 'title', label: 'Title', width: '6.25rem' },
+    { key: 'category', label: 'Category', width: '8.25rem' },
+    { key: 'audience', label: 'Audience', width: '8rem' },
+    { key: 'channels', label: 'Channels', width: '8rem', render: (v) => (Array.isArray(v) ? v.join(', ') : '-') },
+    { key: 'status', label: 'Status', width: '7.25rem' },
     {
       key: 'sentAt',
       label: 'Sent',
+      width: '6.25rem',
       render: (v) => (v ? new Date(v).toLocaleDateString() : '-'),
     },
   ];
@@ -68,7 +70,7 @@ export default function AnnouncementsList() {
     <div className="space-y-3">
       <PageHeader title="Announcements" description="Broadcast messages to the community" />
 
-      <Card>
+      <TableCard>
         <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div className="grid grid-cols-3 gap-1.5 sm:flex">
             {STATUS_TABS.map((tab) => (
@@ -89,8 +91,8 @@ export default function AnnouncementsList() {
               </button>
             ))}
           </div>
-          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-            <div className="w-full sm:w-56">
+          <div className="flex min-w-0 items-center gap-2">
+            <div className="min-w-0 flex-1 sm:w-56 sm:flex-none">
               <ExpandableSearch
                 value={searchQuery}
                 onChange={(value) => {
@@ -100,9 +102,9 @@ export default function AnnouncementsList() {
                 entity="announcements"
               />
             </div>
-            <Link to="/announcements/create">
-              <Button size="md" className="w-full sm:w-auto">
-                + New Announcement
+            <Link to="/announcements/create" className="flex-shrink-0">
+              <Button size="md" icon={<FiPlus />} collapseLabel>
+                New Announcement
               </Button>
             </Link>
           </div>
@@ -111,22 +113,22 @@ export default function AnnouncementsList() {
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="py-12 text-center">
+          <div className="py-10 text-center">
             <p className="text-red-600 dark:text-red-400">{error}</p>
             <Button onClick={fetchRows} className="mt-4" variant="outline">
               Retry
             </Button>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <Table
-              columns={columns}
-              data={rows}
-              emptyMessage="No announcements yet"
-              showExport={false}
-              onRowClick={(row) => navigate(`/announcements/${row.id}`)}
-            />
-          </div>
+          <Table
+            fixedLayout
+            striped
+            columns={columns}
+            data={rows}
+            emptyMessage="No announcements yet"
+            showExport={false}
+            onRowClick={(row) => navigate(`/announcements/${row.id}`)}
+          />
         )}
 
         {pagination && (
@@ -140,7 +142,7 @@ export default function AnnouncementsList() {
             />
           </div>
         )}
-      </Card>
+      </TableCard>
     </div>
   );
 }

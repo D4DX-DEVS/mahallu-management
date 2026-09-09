@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import Card from '@/components/ui/Card';
+import StatCard from '@/components/ui/StatCard';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import { PageSkeleton } from '@/components/ui/Skeleton';
@@ -32,7 +33,7 @@ export default function MahalluBalanceSheet() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <PageHeader
         title="Mahallu Balance Sheet"
         description="Financial position of the Mahallu"
@@ -40,7 +41,7 @@ export default function MahalluBalanceSheet() {
       />
 
       <Card>
-        <div className="flex flex-wrap items-end gap-4 mb-6">
+        <div className="flex flex-wrap items-end gap-4 mb-4">
           <div className="w-full sm:w-44">
             <Input
               label="Start Date"
@@ -67,27 +68,26 @@ export default function MahalluBalanceSheet() {
         ) : error ? (
           <p className="text-center py-8 text-red-600">{error}</p>
         ) : !data ? (
-          <p className="text-center py-12 text-gray-500">Select a date range and click "Generate"</p>
+          <p className="text-center py-10 text-gray-500">Select a date range and click "Generate"</p>
         ) : (
-          <div className="space-y-6">
+          <div className="space-y-4">
             {/* Summary Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                <p className="text-sm text-blue-600">Bank Balance</p>
-                <p className="text-xl font-bold text-blue-700">
-                  ₹{(data.totalBankBalance || 0).toLocaleString()}
-                </p>
-              </div>
-              <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                <p className="text-sm text-green-600">Total Income</p>
-                <p className="text-xl font-bold text-green-700">
-                  ₹{(data.totalIncome || 0).toLocaleString()}
-                </p>
-              </div>
-              <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg">
-                <p className="text-sm text-red-600">Total Expense</p>
-                <p className="text-xl font-bold text-red-700">₹{(data.totalExpense || 0).toLocaleString()}</p>
-              </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+              <StatCard
+                title="Bank Balance"
+                value={<>₹{(data.totalBankBalance || 0).toLocaleString()}</>}
+                tone="info"
+              />
+              <StatCard
+                title="Total Income"
+                value={<>₹{(data.totalIncome || 0).toLocaleString()}</>}
+                tone="success"
+              />
+              <StatCard
+                title="Total Expense"
+                value={<>₹{(data.totalExpense || 0).toLocaleString()}</>}
+                tone="destructive"
+              />
               <div
                 className={`p-4 rounded-lg ${(data.netBalance || 0) >= 0 ? 'bg-green-50 dark:bg-green-900/20' : 'bg-red-50 dark:bg-red-900/20'}`}
               >
@@ -95,7 +95,7 @@ export default function MahalluBalanceSheet() {
                   Net Balance
                 </p>
                 <p
-                  className={`text-xl font-bold ${(data.netBalance || 0) >= 0 ? 'text-green-700' : 'text-red-700'}`}
+                  className={`text-lg font-semibold tabular-nums ${(data.netBalance || 0) >= 0 ? 'text-green-700' : 'text-red-700'}`}
                 >
                   ₹{(data.netBalance || 0).toLocaleString()}
                 </p>
@@ -105,7 +105,7 @@ export default function MahalluBalanceSheet() {
             {/* Bank Accounts */}
             {data.bankBalances.length > 0 && (
               <div>
-                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase mb-3">
+                <h3 className="text-sm font-semibold mb-3 text-foreground">
                   Bank Accounts (Assets)
                 </h3>
                 <div className="divide-y divide-gray-100 dark:divide-gray-700 border border-gray-200 dark:border-gray-700 rounded-lg">
@@ -122,7 +122,7 @@ export default function MahalluBalanceSheet() {
             {/* Income */}
             {data.incomeByCategory.length > 0 && (
               <div>
-                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase mb-3">
+                <h3 className="text-sm font-semibold mb-3 text-foreground">
                   Income
                 </h3>
                 <div className="divide-y divide-gray-100 dark:divide-gray-700 border border-gray-200 dark:border-gray-700 rounded-lg">
@@ -141,7 +141,7 @@ export default function MahalluBalanceSheet() {
             {/* Expenses */}
             {data.expenseByCategory.length > 0 && (
               <div>
-                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase mb-3">
+                <h3 className="text-sm font-semibold mb-3 text-foreground">
                   Expenses
                 </h3>
                 <div className="divide-y divide-gray-100 dark:divide-gray-700 border border-gray-200 dark:border-gray-700 rounded-lg">

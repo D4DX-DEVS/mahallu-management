@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { FiCreditCard, FiDollarSign, FiEdit2, FiTrash2, FiEye } from 'react-icons/fi';
-import Card from '@/components/ui/Card';
+import { FiCreditCard, FiDollarSign, FiEdit2, FiEye, FiPlus, FiTrash2 } from 'react-icons/fi';
+import TableCard from '@/components/ui/TableCard';
+import FilterPanel from '@/components/ui/FilterPanel';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import Input from '@/components/ui/Input';
@@ -117,22 +118,27 @@ export default function InstituteAccountsList() {
   };
 
   const columns: TableColumn<InstituteAccount>[] = [
-    { key: 'accountNumber', label: 'Account Number' },
-    { key: 'bankName', label: 'Bank Name' },
-    { key: 'ifscCode', label: 'IFSC Code' },
+    { key: 'accountNumber', label: 'Account Number', width: '11.75rem' },
+    { key: 'bankName', label: 'Bank Name', width: '9.25rem' },
+    { key: 'ifscCode', label: 'IFSC Code', width: '9.25rem' },
     {
       key: 'balance',
       label: 'Balance',
+      width: '9.25rem',
+      align: 'center',
       render: (balance) => `₹${balance?.toLocaleString() || 0}`,
     },
     {
       key: 'createdAt',
       label: 'Created',
+      width: '7.75rem',
       render: (date) => formatDate(date),
     },
     {
       key: 'actions',
       label: 'Actions',
+      width: '8rem',
+      align: 'center',
       render: (_, row) => (
         <ActionsMenu
           items={[
@@ -225,7 +231,7 @@ export default function InstituteAccountsList() {
         </div>
       </div>
 
-      <Card>
+      <TableCard>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -237,12 +243,12 @@ export default function InstituteAccountsList() {
           isExporting={isExporting}
           actionButtons={
             <Link to="/master-accounts/institute/create">
-              <Button size="md">+ New Account</Button>
+              <Button size="md" icon={<FiPlus />} collapseLabel>New Account</Button>
             </Link>
           }
         />
         {isFilterVisible && !userInstituteId && (
-          <div className="flex flex-wrap items-center gap-4 mb-6 p-4 border border-gray-200 rounded-lg max-sm:border-0 max-sm:bg-transparent max-sm:p-0 bg-white dark:bg-gray-800 dark:border-gray-700">
+          <FilterPanel>
             <div className="w-full sm:w-64">
               <Select
                 label="Institute"
@@ -254,12 +260,12 @@ export default function InstituteAccountsList() {
                 onChange={(e) => setInstituteFilter(e.target.value)}
               />
             </div>
-          </div>
+          </FilterPanel>
         )}
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="text-center py-12">
+          <div className="text-center py-10">
             <p className="text-red-600 dark:text-red-400">{error}</p>
             <Button onClick={fetchAccounts} className="mt-4" variant="outline">
               Retry
@@ -268,13 +274,15 @@ export default function InstituteAccountsList() {
         ) : (
           <>
             <Table
+              fixedLayout
+              striped
               columns={columns}
               data={accounts}
               emptyMessage="No institute accounts found"
               showExport={false}
             />
             {pagination && pagination.totalPages > 1 && (
-              <div className="mt-6">
+              <div className="mt-4">
                 <Pagination
                   currentPage={currentPage}
                   totalPages={pagination.totalPages}
@@ -286,7 +294,7 @@ export default function InstituteAccountsList() {
             )}
           </>
         )}
-      </Card>
+      </TableCard>
 
       {/* View Modal */}
       <Modal

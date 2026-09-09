@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { FiEdit2, FiTrash2, FiPlus, FiX } from 'react-icons/fi';
+import ActionsMenu from '@/components/ui/ActionsMenu';
+import { FiEdit2, FiTrash2, FiPlus } from 'react-icons/fi';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import Card from '@/components/ui/Card';
+import TableCard from '@/components/ui/TableCard';
 import ExpandableSearch from '@/components/ui/ExpandableSearch';
 import Button from '@/components/ui/Button';
 import Table from '@/components/ui/Table';
@@ -163,7 +164,7 @@ export default function KhateebsList() {
       label: 'Name',
       render: (_: any, khateeb: Khateeb) => (
         <div>
-          <p className="font-medium">{khateeb.name}</p>
+          <p className="font-medium capitalize">{khateeb.name}</p>
           {khateeb.nameMl && <p className="text-sm text-gray-600">{khateeb.nameMl}</p>}
         </div>
       ),
@@ -194,24 +195,27 @@ export default function KhateebsList() {
     {
       key: 'actions',
       label: 'Actions',
+      align: 'center',
       render: (_: any, khateeb: Khateeb) => (
-        <div className="flex flex-wrap gap-2">
-          <Button size="sm" variant="outline" onClick={() => handleOpenModal(khateeb)}>
-            <FiEdit2 className="inline mr-1" />
-            Edit
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => {
-              setSelectedKhateeb(khateeb);
-              setShowDeleteModal(true);
-            }}
-          >
-            <FiTrash2 className="inline mr-1" />
-            Delete
-          </Button>
-        </div>
+        <ActionsMenu
+          label={'Actions for ' + khateeb.name}
+          items={[
+            {
+              label: 'Edit',
+              icon: <FiEdit2 className="h-4 w-4" />,
+              onClick: () => handleOpenModal(khateeb),
+            },
+            {
+              label: 'Delete',
+              icon: <FiTrash2 className="h-4 w-4" />,
+              onClick: () => {
+                setSelectedKhateeb(khateeb);
+                setShowDeleteModal(true);
+              },
+              variant: 'danger' as const,
+            },
+          ]}
+        />
       ),
     },
   ];
@@ -219,12 +223,12 @@ export default function KhateebsList() {
   if (loading) return <PageSkeleton />;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <PageHeader title="Khateebs" />
 
       {error && <div className="p-4 bg-red-100 text-red-800 rounded">{error}</div>}
 
-      <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
+      <div className="flex gap-4 justify-between items-center">
         <ExpandableSearch
           value={searchQuery}
           onChange={(value) => {
@@ -234,15 +238,12 @@ export default function KhateebsList() {
           entity="khateebs"
           placeholder="Search khateebs by name"
         />
-        <Button onClick={() => handleOpenModal()}>
-          <FiPlus className="inline mr-2" />
-          New Khateeb
-        </Button>
+        <Button onClick={() => handleOpenModal()} icon={<FiPlus />} collapseLabel>New Khateeb</Button>
       </div>
 
-      <Card>
-        <Table columns={columns} data={khateebs} />
-      </Card>
+      <TableCard>
+        <Table fixedLayout striped columns={columns} data={khateebs} />
+      </TableCard>
 
       {pagination && (
         <Pagination

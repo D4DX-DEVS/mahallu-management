@@ -79,17 +79,17 @@ export default function CounsellingDetail() {
       <div>
         <Button
           variant="ghost"
-          className="mb-6 flex items-center gap-2"
+          className="mb-4 flex items-center gap-2"
           onClick={() => navigate('/counselling')}
         >
           <FiArrowLeft size={18} />
           Back
         </Button>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           {/* Case Info */}
           <Card>
-            <h2 className="text-lg font-bold mb-4">Case Information</h2>
+            <h2 className="text-lg font-semibold mb-3">Case Information</h2>
             <div className="space-y-3">
               <div>
                 <p className="text-xs text-gray-600">Case Number</p>
@@ -119,7 +119,7 @@ export default function CounsellingDetail() {
           {/* Status */}
           <Card>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold">Status</h2>
+              <h2 className="text-lg font-semibold">Status</h2>
               {!isEditing && (
                 <Button
                   variant="secondary"
@@ -161,9 +161,9 @@ export default function CounsellingDetail() {
         </div>
 
         {/* Session Notes Timeline */}
-        <Card className="mb-6">
-          <h2 className="text-lg font-bold mb-4">Session Notes</h2>
-          <div className="space-y-4 mb-6 max-h-96 overflow-y-auto">
+        <Card className="mb-4">
+          <h2 className="text-lg font-semibold mb-3">Session Notes</h2>
+          <div className="space-y-4 mb-4 max-h-96 overflow-y-auto">
             {caseRecord.sessionNotes && caseRecord.sessionNotes.length > 0 ? (
               caseRecord.sessionNotes.map((sessionNote, idx) => (
                 <div key={idx} className="border-l-2 border-gray-300 pl-4">
@@ -204,7 +204,7 @@ export default function CounsellingDetail() {
         {/* Closure Notes */}
         {caseRecord.closureNotes && (
           <Card className="bg-amber-50 border border-amber-200">
-            <h3 className="font-bold mb-2">Closure Notes</h3>
+            <h3 className="font-semibold mb-2">Closure Notes</h3>
             <p className="text-sm">{caseRecord.closureNotes}</p>
           </Card>
         )}

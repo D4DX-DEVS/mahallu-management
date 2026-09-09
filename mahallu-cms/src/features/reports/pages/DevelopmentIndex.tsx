@@ -49,15 +49,15 @@ export default function DevelopmentIndex() {
 
   return (
     <div>
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <PageHeader title="Development Index" />
         <div className="text-right">
           <div className="text-xs sm:text-sm text-gray-600">Overall score</div>
-          <div className={`text-2xl font-bold ${scoreColor(data.totalScore)}`}>{data.totalScore}/100</div>
+          <div className={`text-2xl font-semibold tabular-nums ${scoreColor(data.totalScore)}`}>{data.totalScore}/100</div>
         </div>
       </div>
 
-      <Card className="mb-6">
+      <Card className="mb-4">
         <div className="h-72 sm:h-96">
           <ResponsiveContainer width="100%" height="100%">
             <RadarChart data={chartData} outerRadius="75%">
@@ -81,7 +81,7 @@ export default function DevelopmentIndex() {
           <Card key={d.key}>
             <div className="flex items-baseline justify-between gap-2">
               <div className="text-xs sm:text-sm text-gray-600">{d.label}</div>
-              <div className={`text-base sm:text-xl font-bold ${scoreColor(d.score)}`}>{d.score}</div>
+              <div className={`text-base sm:text-lg font-semibold tabular-nums ${scoreColor(d.score)}`}>{d.score}</div>
             </div>
             <div className="mt-2 h-1.5 w-full rounded bg-gray-200">
               <div className={`h-1.5 rounded ${barColor(d.score)}`} style={{ width: `${d.score}%` }} />

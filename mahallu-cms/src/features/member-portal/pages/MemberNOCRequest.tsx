@@ -217,7 +217,7 @@ export default function MemberNOCRequest() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
+    <div className="max-w-2xl mx-auto space-y-4">
       <div className="flex items-center gap-4">
         <button
           onClick={() => navigate(ROUTES.MEMBER.NOC_LIST)}
@@ -242,7 +242,7 @@ export default function MemberNOCRequest() {
               <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-xl bg-primary-50 text-primary-600 dark:bg-primary-500/10 dark:text-primary-300">
                 <FiHeart className="h-5 w-5" />
               </div>
-              <h3 className="font-semibold text-gray-900 dark:text-gray-100">Nikah (Marriage) NOC</h3>
+              <h3 className="font-semibold text-foreground">Nikah (Marriage) NOC</h3>
               <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">For marriage (nikah) ceremony</p>
             </button>
             <button
@@ -252,7 +252,7 @@ export default function MemberNOCRequest() {
               <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-xl bg-primary-50 text-primary-600 dark:bg-primary-500/10 dark:text-primary-300">
                 <FiFileText className="h-5 w-5" />
               </div>
-              <h3 className="font-semibold text-gray-900 dark:text-gray-100">Common NOC</h3>
+              <h3 className="font-semibold text-foreground">Common NOC</h3>
               <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">For general or other purposes</p>
             </button>
           </div>
@@ -263,7 +263,7 @@ export default function MemberNOCRequest() {
       {selectedType === 'nikah' && (
         <Card>
           <div className="flex items-center justify-between mb-4">
-            <h2 className="flex items-center gap-2 text-lg font-semibold text-gray-900 dark:text-gray-100">
+            <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
               <FiHeart className="h-4 w-4 text-primary-600 dark:text-primary-400" /> Nikah NOC Details
             </h2>
             <button
@@ -273,7 +273,7 @@ export default function MemberNOCRequest() {
               Change type
             </button>
           </div>
-          <div className="space-y-6">
+          <div className="space-y-4">
             {/* Nikah Side Selection */}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
@@ -585,7 +585,7 @@ export default function MemberNOCRequest() {
               {errorMsg}
             </p>
           )}
-          <div className="flex gap-3 mt-6">
+          <div className="flex gap-3 mt-4">
             <button
               onClick={handleSubmit}
               disabled={submitting}
@@ -607,7 +607,7 @@ export default function MemberNOCRequest() {
       {selectedType === 'common' && (
         <Card>
           <div className="flex items-center justify-between mb-4">
-            <h2 className="flex items-center gap-2 text-lg font-semibold text-gray-900 dark:text-gray-100">
+            <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
               <FiFileText className="h-4 w-4 text-primary-600 dark:text-primary-400" /> Common NOC Details
             </h2>
             <button
@@ -666,7 +666,7 @@ export default function MemberNOCRequest() {
               {errorMsg}
             </p>
           )}
-          <div className="flex gap-3 mt-6">
+          <div className="flex gap-3 mt-4">
             <button
               onClick={handleSubmit}
               disabled={submitting}

@@ -103,13 +103,13 @@ export default function VolunteerDetail() {
   const volunteerContact = typeof volunteer.memberId === 'object' ? volunteer.memberId.contactNo : '-';
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <PageHeader title="Volunteer" breadcrumbs={[{ label: 'Volunteers', path: '/volunteers' }]} />
       {/* Profile Card */}
       <Card>
         <div>
           <div className="flex justify-between items-start mb-4">
-            <h2 className="text-xl font-semibold">{volunteerName}</h2>
+            <h2 className="text-lg font-semibold">{volunteerName}</h2>
             {!editMode ? (
               <button
                 onClick={() => {
@@ -131,7 +131,7 @@ export default function VolunteerDetail() {
           </div>
 
           {editMode && formData ? (
-            <div className="space-y-6">
+            <div className="space-y-4">
               {/* Wings */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-3">Wings</label>
@@ -283,7 +283,7 @@ export default function VolunteerDetail() {
       {/* Service History */}
       <Card>
         <div>
-          <h3 className="text-lg font-semibold mb-4">Service History</h3>
+          <h3 className="text-lg font-semibold mb-3">Service History</h3>
 
           {assignments.length === 0 ? (
             <p className="text-gray-500 text-sm">No assignments yet</p>

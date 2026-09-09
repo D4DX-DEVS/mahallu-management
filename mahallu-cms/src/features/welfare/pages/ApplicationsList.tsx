@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
+import { FiList, FiPlus } from 'react-icons/fi';
 import { Link, useNavigate } from 'react-router-dom';
 import Card from '@/components/ui/Card';
+import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
 import Table from '@/components/ui/Table';
@@ -68,12 +70,12 @@ export default function ApplicationsList() {
   };
 
   const columns: TableColumn<WelfareApplication>[] = [
-    { key: 'schemeId', label: 'Scheme', render: (v) => nameOf(v, 'name') },
-    { key: 'familyId', label: 'Family', render: (v) => nameOf(v, 'houseName') },
-    { key: 'requestedAmount', label: 'Requested', render: (v) => `Rs ${v ?? 0}` },
-    { key: 'approvedAmount', label: 'Approved', render: (v) => (v ? `Rs ${v}` : '-') },
-    { key: 'priority', label: 'Priority' },
-    { key: 'status', label: 'Status' },
+    { key: 'schemeId', label: 'Scheme', width: '7.75rem', render: (v) => nameOf(v, 'name') },
+    { key: 'familyId', label: 'Family', width: '7.25rem', render: (v) => nameOf(v, 'houseName') },
+    { key: 'requestedAmount', label: 'Requested', width: '8.75rem', render: (v) => `Rs ${v ?? 0}` },
+    { key: 'approvedAmount', label: 'Approved', width: '8.25rem', render: (v) => (v ? `Rs ${v}` : '-') },
+    { key: 'priority', label: 'Priority', width: '7.75rem' },
+    { key: 'status', label: 'Status', width: '7.25rem' },
   ];
 
   const summaryCards = [
@@ -91,14 +93,14 @@ export default function ApplicationsList() {
         {summaryCards.map((card) => (
           <Card key={card.label}>
             <p className="text-xs font-medium text-gray-500 dark:text-gray-400 sm:text-sm">{card.label}</p>
-            <p className="mt-1 text-base font-bold text-gray-900 dark:text-gray-100 sm:text-xl">
+            <p className="mt-1 text-base font-semibold text-gray-900 dark:text-gray-100 sm:text-xl">
               {card.value}
             </p>
           </Card>
         ))}
       </div>
 
-      <Card>
+      <TableCard>
         <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div className="grid grid-cols-3 gap-1.5 sm:flex sm:flex-wrap sm:items-center">
             {STATUS_TABS.map((tab) => (
@@ -131,15 +133,15 @@ export default function ApplicationsList() {
               className="text-xs"
             />
           </div>
-          <div className="flex flex-col gap-2 sm:flex-row">
+          <div className="flex flex-shrink-0 items-center gap-2">
             <Link to="/welfare/schemes">
-              <Button variant="outline" size="md" className="w-full sm:w-auto">
+              <Button variant="outline" size="md" icon={<FiList />} collapseLabel>
                 Schemes
               </Button>
             </Link>
             <Link to="/welfare/applications/create">
-              <Button size="md" className="w-full sm:w-auto">
-                + New Application
+              <Button size="md" icon={<FiPlus />} collapseLabel>
+                New Application
               </Button>
             </Link>
           </div>
@@ -148,7 +150,7 @@ export default function ApplicationsList() {
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="py-12 text-center">
+          <div className="py-10 text-center">
             <p className="text-red-600 dark:text-red-400">{error}</p>
             <Button onClick={fetchRows} className="mt-4" variant="outline">
               Retry
@@ -164,15 +166,15 @@ export default function ApplicationsList() {
             }}
           />
         ) : (
-          <div className="overflow-x-auto">
-            <Table
-              columns={columns}
-              data={rows}
-              emptyMessage="No applications found"
-              showExport={false}
-              onRowClick={(row) => navigate(`/welfare/applications/${row.id}`)}
-            />
-          </div>
+          <Table
+            fixedLayout
+            striped
+            columns={columns}
+            data={rows}
+            emptyMessage="No applications found"
+            showExport={false}
+            onRowClick={(row) => navigate(`/welfare/applications/${row.id}`)}
+          />
         )}
 
         {pagination && (
@@ -186,7 +188,7 @@ export default function ApplicationsList() {
             />
           </div>
         )}
-      </Card>
+      </TableCard>
     </div>
   );
 }

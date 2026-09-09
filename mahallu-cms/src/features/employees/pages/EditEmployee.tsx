@@ -139,7 +139,7 @@ export default function EditEmployee() {
   if (loading) return <PageSkeleton />;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <PageHeader
         title="Edit Employee"
         description="Update employee information"
@@ -147,14 +147,14 @@ export default function EditEmployee() {
       />
 
       <form onSubmit={handleSubmit(onSubmit)}>
-        <Card className="space-y-6">
+        <Card className="space-y-4">
           {error && (
             <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm dark:bg-red-900 dark:border-red-700 dark:text-red-200">
               {error}
             </div>
           )}
 
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Basic Information</h3>
+          <h3 className="text-lg font-semibold text-foreground">Basic Information</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {!userInstituteId ? (
               <Select
@@ -224,7 +224,7 @@ export default function EditEmployee() {
             />
           </div>
 
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 pt-4 border-t border-gray-200 dark:border-gray-700">
+          <h3 className="text-lg font-semibold pt-4 border-t border-gray-200 dark:border-gray-700 text-foreground">
             Bank Account (Optional)
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

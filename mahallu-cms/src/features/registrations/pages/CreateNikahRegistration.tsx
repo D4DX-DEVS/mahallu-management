@@ -162,7 +162,7 @@ export default function CreateNikahRegistration() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <PageHeader
         title="Create Nikah Registration"
         description="Register a new nikah"
@@ -170,7 +170,7 @@ export default function CreateNikahRegistration() {
       />
 
       <form onSubmit={handleSubmit(onSubmit)}>
-        <Card className="space-y-6">
+        <Card className="space-y-4">
           {error && (
             <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm dark:bg-red-900 dark:border-red-700 dark:text-red-200">
               {error}
@@ -178,7 +178,7 @@ export default function CreateNikahRegistration() {
           )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <h3 className="md:col-span-2 text-lg font-semibold text-gray-900 dark:text-gray-100">
+            <h3 className="md:col-span-2 text-lg font-semibold text-foreground">
               Mahall Member Selection
             </h3>
             <Select
@@ -204,7 +204,7 @@ export default function CreateNikahRegistration() {
                 className="md:col-span-2"
               />
             )}
-            <h3 className="md:col-span-2 text-lg font-semibold text-gray-900 dark:text-gray-100">
+            <h3 className="md:col-span-2 text-lg font-semibold text-foreground">
               Groom Information
             </h3>
             <Input
@@ -229,7 +229,7 @@ export default function CreateNikahRegistration() {
               error={errors.groomAge?.message}
               placeholder="Age"
             />
-            <h3 className="md:col-span-2 text-lg font-semibold text-gray-900 dark:text-gray-100 mt-4">
+            <h3 className="md:col-span-2 text-lg font-semibold mt-4 text-foreground">
               Bride Information
             </h3>
             <Input
@@ -254,7 +254,7 @@ export default function CreateNikahRegistration() {
               error={errors.brideAge?.message}
               placeholder="Age"
             />
-            <h3 className="md:col-span-2 text-lg font-semibold text-gray-900 dark:text-gray-100 mt-4">
+            <h3 className="md:col-span-2 text-lg font-semibold mt-4 text-foreground">
               Nikah Details
             </h3>
             <Input

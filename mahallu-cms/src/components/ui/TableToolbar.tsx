@@ -22,6 +22,12 @@ interface TableToolbarProps {
    * JSON is a developer format and is no longer offered to end users. */
   onExport?: (type: 'csv' | 'pdf') => void;
   isExporting?: boolean;
+  /**
+   * The page's own actions, e.g. "New Family". Give every one of them an
+   * `icon` and `collapseLabel` so the row still fits a 320px phone — the
+   * toolbar no longer wraps, so a named button that cannot shrink is a button
+   * that pushes the row past the viewport.
+   */
   actionButtons?: ReactNode;
   className?: string;
 }
@@ -44,35 +50,38 @@ export default function TableToolbar({
     { label: 'Export as PDF', icon: <FiFile />, onClick: () => onExport?.('pdf'), disabled: isExporting },
   ];
   return (
-    <div
-      className={cn(
-        'mb-4 flex flex-col items-stretch justify-between gap-2 sm:flex-row sm:items-center',
-        className
-      )}
-    >
-      <div className="flex flex-1 items-center gap-2">
+    /* One row at every width.
+     *
+     * This used to stack into a column below `sm` and let both halves wrap, so
+     * a phone got search / filter / refresh on one line and export / "+ New
+     * Committee" on the next — two rows of chrome above a list, and the count
+     * of rows changed with the page. Nothing wraps now: the controls that have
+     * a label collapse to their glyph below `sm` (see `Button.collapseLabel`),
+     * which is what makes six controls fit across 320px — 6 x 40px plus five
+     * 8px gaps is 280px, inside the 296px a 320px phone leaves after the
+     * page's own gutters. */
+    <div className={cn('mb-4 flex items-center gap-2', className)}>
+      <div className="flex min-w-0 flex-1 items-center gap-2">
         {/* Search rests as an icon and opens into a field. The collapsed state
             is a real button with an accessible name, so it stays in the tab
-            order; a query holds the field open so no filter is ever hidden. */}
-        <ExpandableSearch
-          value={searchQuery}
-          onChange={onSearchChange}
-          entity={searchEntity}
-        />
+            order; a query holds the field open so no filter is ever hidden.
+            Expanded, it is the one control in the row that gives up width. */}
+        <ExpandableSearch value={searchQuery} onChange={onSearchChange} entity={searchEntity} />
         {hasFilters && onFilterClick && (
           <Button
             variant="outline"
             onClick={onFilterClick}
             aria-expanded={isFilterVisible}
             className="flex-shrink-0"
+            icon={<FiFilter />}
+            collapseLabel
+            /* The count survives the collapse: "filtered" is the one thing the
+             * funnel glyph cannot say by itself. */
+            trailing={
+              activeFilterCount > 0 ? <Badge variant="primary">{activeFilterCount}</Badge> : undefined
+            }
           >
-            <FiFilter className="h-4 w-4" aria-hidden="true" />
-            <span className="hidden sm:inline">Filter</span>
-            {activeFilterCount > 0 && (
-              <Badge variant="primary" className="ml-1">
-                {activeFilterCount}
-              </Badge>
-            )}
+            Filter
           </Button>
         )}
         {onRefresh && (
@@ -87,13 +96,18 @@ export default function TableToolbar({
           </Button>
         )}
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex flex-shrink-0 items-center gap-2">
         {onExport && (
           <Dropdown
             trigger={
-              <Button variant="outline" isLoading={isExporting} loadingText="Exporting">
-                <FiDownload className="h-4 w-4" aria-hidden="true" />
-                <span className="hidden sm:inline">Export</span>
+              <Button
+                variant="outline"
+                isLoading={isExporting}
+                loadingText="Exporting"
+                icon={<FiDownload />}
+                collapseLabel
+              >
+                Export
               </Button>
             }
             items={exportItems}

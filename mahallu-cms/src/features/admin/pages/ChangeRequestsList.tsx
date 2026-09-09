@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { FiCheckCircle, FiXCircle } from 'react-icons/fi';
-import Card from '@/components/ui/Card';
+import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
 import Table from '@/components/ui/Table';
@@ -134,7 +134,7 @@ export default function ChangeRequestsList() {
     createdAt: formatDate(req.createdAt),
     actions:
       req.status === 'pending' ? (
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-2">
           <Button
             size="sm"
             variant="outline"
@@ -160,12 +160,12 @@ export default function ChangeRequestsList() {
   }));
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <PageHeader description="Review and manage pending member change requests" title="Change Requests" />
 
       <div className="flex items-center justify-between"></div>
 
-      <Card>
+      <TableCard>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -203,7 +203,7 @@ export default function ChangeRequestsList() {
           </div>
         ) : (
           <>
-            <Table columns={columns} data={rows} />
+            <Table fixedLayout striped columns={columns} data={rows} />
             {pagination && (
               <Pagination
                 currentPage={currentPage}
@@ -215,7 +215,7 @@ export default function ChangeRequestsList() {
             )}
           </>
         )}
-      </Card>
+      </TableCard>
 
       {/* Review Modal */}
       <Modal

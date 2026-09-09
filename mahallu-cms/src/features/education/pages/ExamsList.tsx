@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react';
+import ActionsMenu from '@/components/ui/ActionsMenu';
+import { FiArrowLeft, FiEye, FiPlus, FiTrash2 } from 'react-icons/fi';
 import { useParams, useNavigate } from 'react-router-dom';
 import Card from '@/components/ui/Card';
+import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import Table from '@/components/ui/Table';
 import Pagination from '@/components/ui/Pagination';
@@ -90,12 +93,13 @@ export default function ExamsList() {
   };
 
   const columns: TableColumn<Exam>[] = [
-    { key: 'name', label: 'Exam', render: (v) => v },
-    { key: 'examDate', label: 'Date', render: (v) => formatDate(v) },
-    { key: 'maxMarks', label: 'Max Marks', render: (v) => v },
+    { key: 'name', label: 'Exam', width: '6.75rem', render: (v) => <span className="capitalize">{v}</span> },
+    { key: 'examDate', label: 'Date', width: '6.25rem', render: (v) => formatDate(v) },
+    { key: 'maxMarks', label: 'Max Marks', width: '9.5rem', render: (v) => v },
     {
       key: 'status',
       label: 'Status',
+      width: '7.25rem',
       render: (v: ExamStatus) => {
         const colors: Record<ExamStatus, string> = {
           scheduled: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
@@ -109,23 +113,27 @@ export default function ExamsList() {
     },
     {
       key: 'actions',
-      label: '',
+      label: 'Actions',
+      width: '8rem',
+      align: 'center',
       render: (_v, row) => (
-        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-          <button
-            onClick={() => navigate(`/education/exams/${row.id}`)}
-            className="text-xs font-medium text-blue-600 hover:underline dark:text-blue-400"
-          >
-            View
-          </button>
-          <button
-            onClick={() => setDeleteConfirm({ id: row.id, name: row.name })}
-            disabled={deleting}
-            className="text-xs font-medium text-red-600 hover:underline disabled:opacity-50 dark:text-red-400"
-          >
-            Delete
-          </button>
-        </div>
+        <ActionsMenu
+          label={'Actions for ' + row.name}
+          items={[
+            {
+              label: 'View',
+              icon: <FiEye className="h-4 w-4" />,
+              onClick: () => navigate(`/education/exams/${row.id}`),
+            },
+            {
+              label: 'Delete',
+              icon: <FiTrash2 className="h-4 w-4" />,
+              onClick: () => setDeleteConfirm({ id: row.id, name: row.name }),
+              disabled: deleting,
+              variant: 'danger' as const,
+            },
+          ]}
+        />
       ),
     },
   ];
@@ -142,12 +150,10 @@ export default function ExamsList() {
         ]}
       />
 
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap gap-2">
-          <Button variant="secondary" onClick={() => navigate(`/education/classes/${classId}`)}>
-            Back
-          </Button>
-          <Button onClick={() => navigate(`/education/exams/create?classId=${classId}`)}>New exam</Button>
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <div className="flex gap-2 items-center">
+          <Button variant="secondary" onClick={() => navigate(`/education/classes/${classId}`)} icon={<FiArrowLeft />} collapseLabel>Back</Button>
+          <Button onClick={() => navigate(`/education/exams/create?classId=${classId}`)} icon={<FiPlus />} collapseLabel>New exam</Button>
         </div>
       </div>
 
@@ -169,8 +175,8 @@ export default function ExamsList() {
           <EmptyState title="No exams yet" description="Create an exam to start recording results." />
         </Card>
       ) : (
-        <Card>
-          <Table columns={columns} data={exams} />
+        <TableCard>
+          <Table fixedLayout striped columns={columns} data={exams} />
           {pagination && pagination.totalPages > 1 && (
             <Pagination
               currentPage={pagination.page}
@@ -180,7 +186,7 @@ export default function ExamsList() {
               onPageChange={setCurrentPage}
             />
           )}
-        </Card>
+        </TableCard>
       )}
 
       <ConfirmDialog

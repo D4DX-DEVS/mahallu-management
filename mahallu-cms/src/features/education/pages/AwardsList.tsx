@@ -88,13 +88,13 @@ export default function AwardsList() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <PageHeader title="Scholarship Awards" />
           {scholarship && (
             <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-              {scholarship.name} ({scholarship.academicYear})
+              <span className="capitalize">{scholarship.name}</span> ({scholarship.academicYear})
             </p>
           )}
         </div>
@@ -173,7 +173,7 @@ export default function AwardsList() {
                   <tbody>
                     {sortedAwards.map((award) => (
                       <tr key={award.id} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
-                        <td className="py-2 font-medium">{memberName(award.memberId)}</td>
+                        <td className="py-2 font-medium capitalize">{memberName(award.memberId)}</td>
                         <td className="py-2 hidden sm:table-cell text-xs">
                           {new Date(award.awardedDate).toLocaleDateString()}
                         </td>
@@ -202,7 +202,7 @@ export default function AwardsList() {
               </div>
 
               {pagination && (
-                <div className="mt-6">
+                <div className="mt-4">
                   <Pagination
                     currentPage={pagination.page}
                     totalPages={pagination.totalPages}

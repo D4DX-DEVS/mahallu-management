@@ -1,6 +1,8 @@
 import { useState, useEffect, ReactNode } from 'react';
+import { FiEdit2, FiPlus } from 'react-icons/fi';
 import { useParams, useNavigate } from 'react-router-dom';
 import Card from '@/components/ui/Card';
+import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import Table from '@/components/ui/Table';
 import StatCard from '@/components/ui/StatCard';
@@ -55,22 +57,24 @@ export default function LoanDetail() {
   };
 
   const scheduleColumns: TableColumn<Installment>[] = [
-    { key: 'dueDate', label: 'Due', render: (v) => formatDate(v) },
-    { key: 'amount', label: 'Amount', render: (v) => formatCurrency(v) },
-    { key: 'paidAmount', label: 'Paid', render: (v) => formatCurrency(v) },
+    { key: 'dueDate', label: 'Due', width: '6rem', render: (v) => formatDate(v) },
+    { key: 'amount', label: 'Amount', width: '7.75rem', render: (v) => formatCurrency(v) },
+    { key: 'paidAmount', label: 'Paid', width: '6rem', render: (v) => formatCurrency(v) },
     {
       key: 'balance',
       label: 'Balance',
+      width: '9.25rem',
+      align: 'center',
       render: (_v, row) => formatCurrency(Math.max(0, row.amount - row.paidAmount)),
     },
-    { key: 'status', label: 'Status', render: (v) => <InstallmentBadge status={v} /> },
+    { key: 'status', label: 'Status', width: '7.25rem', render: (v) => <InstallmentBadge status={v} /> },
   ];
 
   const repaymentColumns: TableColumn<QardRepayment>[] = [
-    { key: 'paymentDate', label: 'Paid on', render: (v) => formatDate(v) },
-    { key: 'amount', label: 'Amount', render: (v) => formatCurrency(v) },
-    { key: 'receiptNo', label: 'Receipt', render: (v) => v || '-' },
-    { key: 'remarks', label: 'Remarks', render: (v) => v || '-' },
+    { key: 'paymentDate', label: 'Paid on', width: '7.5rem', render: (v) => formatDate(v) },
+    { key: 'amount', label: 'Amount', width: '7.75rem', render: (v) => formatCurrency(v) },
+    { key: 'receiptNo', label: 'Receipt', width: '7.5rem', render: (v) => v || '-' },
+    { key: 'remarks', label: 'Remarks', width: '8.25rem', render: (v) => v || '-' },
   ];
 
   if (loading) return <PageSkeleton />;
@@ -102,17 +106,15 @@ export default function LoanDetail() {
         breadcrumbs={[{ label: 'Services' }, { label: 'Qard Hasan', path: '/loans' }]}
       />
 
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+      <div className="mb-4 flex items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-3">
           <LoanStatusBadge status={loan.status} />
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex gap-2 items-center">
           {canMove && (
-            <Button variant="secondary" onClick={() => setStatusOpen(true)}>
-              Change status
-            </Button>
+            <Button variant="secondary" onClick={() => setStatusOpen(true)} icon={<FiEdit2 />} collapseLabel>Change status</Button>
           )}
-          {canRepay && <Button onClick={() => setRepayOpen(true)}>Add repayment</Button>}
+          {canRepay && <Button onClick={() => setRepayOpen(true)} icon={<FiPlus />} collapseLabel>Add repayment</Button>}
         </div>
       </div>
 
@@ -124,7 +126,7 @@ export default function LoanDetail() {
       </div>
 
       <Card className="mb-4">
-        <h2 className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100">Application</h2>
+        <h2 className="mb-3 text-sm font-semibold text-foreground">Application</h2>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
           <Field label="Purpose" value={purpose} />
           <Field label="Details" value={loan.purposeDetails || '-'} />
@@ -143,23 +145,27 @@ export default function LoanDetail() {
         </div>
       </Card>
 
-      <Card className="mb-4">
-        <h2 className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100">Repayment schedule</h2>
+      <TableCard className="mb-4">
+        <h2 className="mb-3 text-sm font-semibold text-foreground">Repayment schedule</h2>
         <Table
+          fixedLayout
+          striped
           columns={scheduleColumns}
           data={loan.repaymentSchedule || []}
           emptyMessage="The schedule is generated when the loan is disbursed"
         />
-      </Card>
+      </TableCard>
 
-      <Card>
-        <h2 className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100">Repayment history</h2>
+      <TableCard>
+        <h2 className="mb-3 text-sm font-semibold text-foreground">Repayment history</h2>
         <Table
+          fixedLayout
+          striped
           columns={repaymentColumns}
           data={loan.repayments || []}
           emptyMessage="No repayments recorded yet"
         />
-      </Card>
+      </TableCard>
 
       <RepaymentModal
         isOpen={repayOpen}

@@ -390,7 +390,7 @@ export default function CreateMember() {
 
               {/* These two checkboxes were rendered twice, registering the same
                   fields twice. Labels read as language, not as booleans. */}
-              <div className="flex flex-wrap items-center gap-6 md:col-span-2">
+              <div className="flex flex-wrap items-center gap-4 md:col-span-2">
                 <Checkbox label="Orphan" {...register('isOrphan')} />
                 <Checkbox label="Deceased" {...register('isDead')} />
               </div>

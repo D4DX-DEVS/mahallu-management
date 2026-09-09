@@ -72,7 +72,7 @@ export function CemeteriesList() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <PageHeader title="Cemeteries" description="Manage cemetery records and grave allocations" />
@@ -100,7 +100,7 @@ export function CemeteriesList() {
       {loading ? (
         <PageSkeleton variant="section" />
       ) : cemeteries.length === 0 ? (
-        <div className="text-center py-12">
+        <div className="text-center py-10">
           <div className="text-gray-500">No cemeteries found</div>
         </div>
       ) : (
@@ -114,7 +114,7 @@ export function CemeteriesList() {
               <div className="space-y-4">
                 <div className="flex items-start justify-between">
                   <div className="flex-1 min-w-0">
-                    <h3 className="text-base sm:text-lg font-semibold truncate">{cemetery.name}</h3>
+                    <h3 className="text-base sm:text-lg font-semibold truncate capitalize">{cemetery.name}</h3>
                     {cemetery.location && (
                       <p className="text-xs sm:text-sm text-gray-600 truncate mt-1">{cemetery.location}</p>
                     )}
@@ -159,7 +159,7 @@ export function CemeteriesList() {
                   />
                 </div>
 
-                <div className="flex flex-wrap gap-2 pt-2 border-t">
+                <div className="flex gap-2 pt-2 border-t items-center">
                   <Button
                     variant="outline"
                     size="sm"
@@ -180,11 +180,7 @@ export function CemeteriesList() {
                       e.stopPropagation();
                       setDeleteId(cemetery.id!);
                       setConfirmDelete(true);
-                    }}
-                  >
-                    <FiTrash2 className="w-3 h-3" />
-                    Delete
-                  </Button>
+                    }} icon={<FiTrash2 />} collapseLabel>Delete</Button>
                 </div>
               </div>
             </Card>

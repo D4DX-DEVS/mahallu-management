@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import Card from '@/components/ui/Card';
+import TableCard from '@/components/ui/TableCard';
 import Table from '@/components/ui/Table';
 import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
@@ -88,6 +88,7 @@ export default function ActivityLogsList() {
     {
       key: 'httpMethod',
       label: 'Method',
+      width: '7.5rem',
       render: (method) => {
         const methodColors: Record<string, string> = {
           GET: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
@@ -111,6 +112,7 @@ export default function ActivityLogsList() {
     {
       key: 'statusCode',
       label: 'Status',
+      width: '7.25rem',
       render: (statusCode) => {
         if (!statusCode) return '-';
         const statusRange =
@@ -129,6 +131,7 @@ export default function ActivityLogsList() {
     {
       key: 'action',
       label: 'Action',
+      width: '7rem',
       render: (action, row) => (
         <div>
           <div className="font-medium text-gray-900 dark:text-gray-100">{action}</div>
@@ -139,6 +142,7 @@ export default function ActivityLogsList() {
     {
       key: 'endpoint',
       label: 'Endpoint',
+      width: '8rem',
       render: (endpoint) => (
         <span className="font-mono text-xs text-gray-600 dark:text-gray-400">{endpoint || '-'}</span>
       ),
@@ -146,6 +150,7 @@ export default function ActivityLogsList() {
     {
       key: 'userName',
       label: 'User',
+      width: '6.25rem',
       render: (userName) => (
         <span className="text-sm text-gray-900 dark:text-gray-100">{userName || '-'}</span>
       ),
@@ -153,6 +158,7 @@ export default function ActivityLogsList() {
     {
       key: 'ipAddress',
       label: 'IP Address',
+      width: '9.5rem',
       render: (ipAddress) => (
         <span className="font-mono text-xs text-gray-600 dark:text-gray-400">{ipAddress || '-'}</span>
       ),
@@ -160,6 +166,7 @@ export default function ActivityLogsList() {
     {
       key: 'details',
       label: 'Response Time',
+      width: '11rem',
       render: (details) => (
         <span className="text-xs text-gray-600 dark:text-gray-400">{details?.responseTime || '-'}</span>
       ),
@@ -167,11 +174,13 @@ export default function ActivityLogsList() {
     {
       key: 'createdAt',
       label: 'Timestamp',
+      width: '9.25rem',
       render: (date) => <span className="text-sm text-gray-600 dark:text-gray-400">{formatDate(date)}</span>,
     },
     {
       key: 'errorMessage',
       label: 'Error',
+      width: '6.75rem',
       render: (errorMessage) => {
         if (!errorMessage) return '-';
         return (
@@ -185,9 +194,9 @@ export default function ActivityLogsList() {
 
   if (error) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-4">
         <PageHeader description="View system activity logs" title="Activity Logs" />
-        <div className="text-center py-12">
+        <div className="text-center py-10">
           <p className="text-red-600 dark:text-red-400">{error}</p>
         </div>
       </div>
@@ -195,10 +204,10 @@ export default function ActivityLogsList() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <PageHeader title="Activity Logs" />
 
-      <Card>
+      <TableCard>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -211,6 +220,8 @@ export default function ActivityLogsList() {
         />
 
         <Table
+          fixedLayout
+          striped
           columns={columns}
           data={logs}
           isLoading={loading}
@@ -218,7 +229,7 @@ export default function ActivityLogsList() {
           showExport={false}
         />
         {pagination && pagination.totalPages > 1 && (
-          <div className="mt-6">
+          <div className="mt-4">
             <Pagination
               currentPage={currentPage}
               totalPages={pagination.totalPages}
@@ -228,7 +239,7 @@ export default function ActivityLogsList() {
             />
           </div>
         )}
-      </Card>
+      </TableCard>
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import Card from '@/components/ui/Card';
+import StatCard from '@/components/ui/StatCard';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
@@ -85,7 +86,7 @@ export default function MahalluCombinedReport() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <PageHeader
         title="Combined Report"
         description="Merge Mahallu and Institute financials into a single view"
@@ -94,11 +95,11 @@ export default function MahalluCombinedReport() {
 
       {/* Filters */}
       <Card>
-        <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-4">
+        <h2 className="text-base font-semibold mb-3 text-foreground">
           Report Configuration
         </h2>
 
-        <div className="flex flex-wrap items-end gap-4 mb-6">
+        <div className="flex flex-wrap items-end gap-4 mb-4">
           <div className="w-full sm:w-52">
             <Select
               label="Report Type"
@@ -131,7 +132,7 @@ export default function MahalluCombinedReport() {
         </div>
 
         {/* Entity Selection */}
-        <div className="mb-6">
+        <div className="mb-4">
           <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
             Select Entities to Combine
           </p>
@@ -160,7 +161,7 @@ export default function MahalluCombinedReport() {
                     : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:border-blue-400'
                 }`}
               >
-                <span className="inline-flex items-center gap-1.5">
+                <span className="inline-flex items-center gap-1.5 capitalize">
                   <FiBook className="h-3.5 w-3.5" /> {inst.name}
                 </span>
               </button>
@@ -169,7 +170,7 @@ export default function MahalluCombinedReport() {
           {selectedEntities.length > 0 && (
             <p className="mt-2 text-xs text-gray-500">
               Combining:
-              <span className="font-medium text-gray-700 dark:text-gray-300">
+              <span className="font-medium text-gray-700 dark:text-gray-300 capitalize">
                 {selectedNames.join(' + ')}
               </span>
             </p>
@@ -192,8 +193,8 @@ export default function MahalluCombinedReport() {
 
       {!loading && !error && reportData && (
         <Card>
-          <div className="flex items-center gap-2 mb-6">
-            <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">
+          <div className="flex items-center gap-2 mb-4">
+            <h2 className="text-base font-semibold text-foreground">
               {reportType === 'day-book'
                 ? 'Day Book'
                 : reportType === 'trial-balance'
@@ -202,7 +203,7 @@ export default function MahalluCombinedReport() {
                     ? 'Balance Sheet'
                     : 'Income & Expenditure'}
             </h2>
-            <span className="text-xs text-gray-500">— {selectedNames.join(' + ')}</span>
+            <span className="text-xs text-gray-500 capitalize">— {selectedNames.join(' + ')}</span>
           </div>
 
           {reportType === 'day-book' && Array.isArray(reportData) && <DayBookView entries={reportData} />}
@@ -225,23 +226,18 @@ function DayBookView({ entries }: { entries: DayBookEntry[] }) {
   const totalExpense = entries.filter((e) => e.type !== 'income').reduce((s, e) => s + e.amount, 0);
   return (
     <>
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
-          <p className="text-sm text-green-600">Total Income</p>
-          <p className="text-xl font-bold text-green-700">₹{totalIncome.toLocaleString()}</p>
-        </div>
-        <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg">
-          <p className="text-sm text-red-600">Total Expense</p>
-          <p className="text-xl font-bold text-red-700">₹{totalExpense.toLocaleString()}</p>
-        </div>
-        <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-          <p className="text-sm text-blue-600">Net Balance</p>
-          <p className="text-xl font-bold text-blue-700">₹{(totalIncome - totalExpense).toLocaleString()}</p>
-        </div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+        <StatCard title="Total Income" value={<>₹{totalIncome.toLocaleString()}</>} tone="success" />
+        <StatCard title="Total Expense" value={<>₹{totalExpense.toLocaleString()}</>} tone="destructive" />
+        <StatCard
+          title="Net Balance"
+          value={<>₹{(totalIncome - totalExpense).toLocaleString()}</>}
+          tone="info"
+        />
       </div>
       <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-          <thead className="bg-gray-50 dark:bg-gray-800">
+        <table className="min-w-full divide-y divide-border">
+          <thead className="bg-muted">
             <tr>
               {['Date', 'Description', 'Type', 'Ledger', 'Category', 'Amount'].map((h) => (
                 <th key={h} className="px-4 py-3 text-left text-label font-medium text-gray-500 uppercase">
@@ -250,7 +246,7 @@ function DayBookView({ entries }: { entries: DayBookEntry[] }) {
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+          <tbody className="divide-y divide-border">
             {entries.map((entry, i) => (
               <tr key={i} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
                 <td className="px-4 py-3 text-sm whitespace-nowrap">
@@ -264,8 +260,8 @@ function DayBookView({ entries }: { entries: DayBookEntry[] }) {
                     {entry.type}
                   </span>
                 </td>
-                <td className="px-4 py-3 text-sm text-gray-600">{entry.ledgerName}</td>
-                <td className="px-4 py-3 text-sm text-gray-600">{entry.categoryName}</td>
+                <td className="px-4 py-3 text-sm text-gray-600 capitalize">{entry.ledgerName}</td>
+                <td className="px-4 py-3 text-sm text-gray-600 capitalize">{entry.categoryName}</td>
                 <td
                   className={`px-4 py-3 text-sm font-medium ${entry.type === 'income' ? 'text-green-600' : 'text-red-600'}`}
                 >
@@ -285,25 +281,14 @@ function TrialBalanceView({ entries }: { entries: TrialBalanceEntry[] }) {
   const totalCredit = entries.reduce((s, e) => s + e.credit, 0);
   return (
     <>
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg">
-          <p className="text-sm text-red-600">Total Debit</p>
-          <p className="text-xl font-bold text-red-700">₹{totalDebit.toLocaleString()}</p>
-        </div>
-        <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
-          <p className="text-sm text-green-600">Total Credit</p>
-          <p className="text-xl font-bold text-green-700">₹{totalCredit.toLocaleString()}</p>
-        </div>
-        <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-          <p className="text-sm text-gray-600">Difference</p>
-          <p className="text-xl font-bold text-gray-700">
-            ₹{Math.abs(totalCredit - totalDebit).toLocaleString()}
-          </p>
-        </div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+        <StatCard title="Total Debit" value={<>₹{totalDebit.toLocaleString()}</>} tone="destructive" />
+        <StatCard title="Total Credit" value={<>₹{totalCredit.toLocaleString()}</>} tone="success" />
+        <StatCard title="Difference" value={<>₹{Math.abs(totalCredit - totalDebit).toLocaleString()}</>} />
       </div>
       <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-          <thead className="bg-gray-50 dark:bg-gray-800">
+        <table className="min-w-full divide-y divide-border">
+          <thead className="bg-muted">
             <tr>
               {['Ledger', 'Type', 'Debit', 'Credit'].map((h) => (
                 <th key={h} className="px-4 py-3 text-left text-label font-medium text-gray-500 uppercase">
@@ -312,10 +297,10 @@ function TrialBalanceView({ entries }: { entries: TrialBalanceEntry[] }) {
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+          <tbody className="divide-y divide-border">
             {entries.map((entry, i) => (
               <tr key={i} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
-                <td className="px-4 py-3 text-sm font-medium">{entry.ledgerName}</td>
+                <td className="px-4 py-3 text-sm font-medium capitalize">{entry.ledgerName}</td>
                 <td className="px-4 py-3">
                   <span
                     className={`px-2 py-0.5 rounded-full text-xs font-medium ${entry.type === 'income' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}
@@ -341,33 +326,33 @@ function TrialBalanceView({ entries }: { entries: TrialBalanceEntry[] }) {
 function BalanceSheetView({ data }: { data: any }) {
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-          <p className="text-sm text-blue-600">Bank Balance</p>
-          <p className="text-xl font-bold text-blue-700">₹{(data.totalBankBalance || 0).toLocaleString()}</p>
-        </div>
-        <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
-          <p className="text-sm text-green-600">Total Income</p>
-          <p className="text-xl font-bold text-green-700">₹{(data.totalIncome || 0).toLocaleString()}</p>
-        </div>
-        <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg">
-          <p className="text-sm text-red-600">Total Expense</p>
-          <p className="text-xl font-bold text-red-700">₹{(data.totalExpense || 0).toLocaleString()}</p>
-        </div>
-        <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-          <p className="text-sm text-gray-600">Net Balance</p>
-          <p className="text-xl font-bold text-gray-700">₹{(data.netBalance || 0).toLocaleString()}</p>
-        </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+        <StatCard
+          title="Bank Balance"
+          value={<>₹{(data.totalBankBalance || 0).toLocaleString()}</>}
+          tone="info"
+        />
+        <StatCard
+          title="Total Income"
+          value={<>₹{(data.totalIncome || 0).toLocaleString()}</>}
+          tone="success"
+        />
+        <StatCard
+          title="Total Expense"
+          value={<>₹{(data.totalExpense || 0).toLocaleString()}</>}
+          tone="destructive"
+        />
+        <StatCard title="Net Balance" value={<>₹{(data.netBalance || 0).toLocaleString()}</>} />
       </div>
       {(data.bankBalances || []).length > 0 && (
         <div>
-          <h3 className="text-sm font-semibold text-gray-700 uppercase mb-2">Bank Accounts</h3>
+          <h3 className="text-sm font-semibold mb-2 text-foreground">Bank Accounts</h3>
           {(data.bankBalances || []).map((b: any, i: number) => (
             <div
               key={i}
               className="flex justify-between px-4 py-2 border-b border-gray-100 dark:border-gray-700"
             >
-              <span className="text-sm text-gray-700">{b.ledgerName}</span>
+              <span className="text-sm text-gray-700 capitalize">{b.ledgerName}</span>
               <span className="text-sm font-medium text-blue-700">₹{b.balance.toLocaleString()}</span>
             </div>
           ))}
@@ -380,37 +365,39 @@ function BalanceSheetView({ data }: { data: any }) {
 function IncomeExpenditureView({ data }: { data: any }) {
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
-          <p className="text-sm text-green-600">Total Income</p>
-          <p className="text-2xl font-bold text-green-700">₹{(data.totalIncome || 0).toLocaleString()}</p>
-        </div>
-        <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg">
-          <p className="text-sm text-red-600">Total Expense</p>
-          <p className="text-2xl font-bold text-red-700">₹{(data.totalExpense || 0).toLocaleString()}</p>
-        </div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <StatCard
+          title="Total Income"
+          value={<>₹{(data.totalIncome || 0).toLocaleString()}</>}
+          tone="success"
+        />
+        <StatCard
+          title="Total Expense"
+          value={<>₹{(data.totalExpense || 0).toLocaleString()}</>}
+          tone="destructive"
+        />
         <div className={`p-4 rounded-lg ${(data.surplus || 0) >= 0 ? 'bg-green-50' : 'bg-red-50'}`}>
           <p className="text-sm text-gray-600">{(data.surplus || 0) >= 0 ? 'Surplus' : 'Deficit'}</p>
-          <p className="text-2xl font-bold text-gray-700">₹{Math.abs(data.surplus || 0).toLocaleString()}</p>
+          <p className="text-2xl font-semibold tabular-nums text-gray-700">₹{Math.abs(data.surplus || 0).toLocaleString()}</p>
         </div>
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div>
-          <h3 className="text-sm font-semibold text-green-700 uppercase mb-2">Income</h3>
+          <h3 className="text-sm font-semibold text-green-700 mb-2">Income</h3>
           {(data.income || []).map((ledger: any, i: number) => (
             <div
               key={i}
               className="border border-green-200 dark:border-green-800 rounded-lg mb-2 overflow-hidden"
             >
               <div className="flex justify-between px-4 py-2 bg-green-50 dark:bg-green-900/20">
-                <span className="text-sm font-semibold text-green-800">{ledger.ledgerName}</span>
-                <span className="text-sm font-bold text-green-700">
+                <span className="text-sm font-semibold text-green-800 capitalize">{ledger.ledgerName}</span>
+                <span className="text-sm font-semibold text-green-700">
                   ₹{(ledger.ledgerTotal || ledger.total || 0).toLocaleString()}
                 </span>
               </div>
               {(ledger.categories || []).map((cat: any, j: number) => (
                 <div key={j} className="flex justify-between px-4 py-1.5 border-t border-green-100">
-                  <span className="text-xs text-gray-600 pl-4">{cat.categoryName}</span>
+                  <span className="text-xs text-gray-600 pl-4 capitalize">{cat.categoryName}</span>
                   <span className="text-xs text-gray-700">₹{(cat.total || 0).toLocaleString()}</span>
                 </div>
               ))}
@@ -418,21 +405,21 @@ function IncomeExpenditureView({ data }: { data: any }) {
           ))}
         </div>
         <div>
-          <h3 className="text-sm font-semibold text-red-700 uppercase mb-2">Expenses</h3>
+          <h3 className="text-sm font-semibold text-red-700 mb-2">Expenses</h3>
           {(data.expenses || []).map((ledger: any, i: number) => (
             <div
               key={i}
               className="border border-red-200 dark:border-red-800 rounded-lg mb-2 overflow-hidden"
             >
               <div className="flex justify-between px-4 py-2 bg-red-50 dark:bg-red-900/20">
-                <span className="text-sm font-semibold text-red-800">{ledger.ledgerName}</span>
-                <span className="text-sm font-bold text-red-700">
+                <span className="text-sm font-semibold text-red-800 capitalize">{ledger.ledgerName}</span>
+                <span className="text-sm font-semibold text-red-700">
                   ₹{(ledger.ledgerTotal || ledger.total || 0).toLocaleString()}
                 </span>
               </div>
               {(ledger.categories || []).map((cat: any, j: number) => (
                 <div key={j} className="flex justify-between px-4 py-1.5 border-t border-red-100">
-                  <span className="text-xs text-gray-600 pl-4">{cat.categoryName}</span>
+                  <span className="text-xs text-gray-600 pl-4 capitalize">{cat.categoryName}</span>
                   <span className="text-xs text-gray-700">₹{(cat.total || 0).toLocaleString()}</span>
                 </div>
               ))}

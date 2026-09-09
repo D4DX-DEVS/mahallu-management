@@ -111,7 +111,7 @@ export default function CreateFamily() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <PageHeader
         title="Create Family"
         description="Add a new family with complete information"
@@ -119,7 +119,7 @@ export default function CreateFamily() {
       />
 
       <Card padding="lg">
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           {error && (
             <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm dark:bg-red-900 dark:border-red-700 dark:text-red-200">
               {error}

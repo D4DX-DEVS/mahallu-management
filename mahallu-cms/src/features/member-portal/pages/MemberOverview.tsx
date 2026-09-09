@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Card from '@/components/ui/Card';
+import StatCard from '@/components/ui/StatCard';
 import { FiHeart, FiAlertCircle, FiClipboard, FiFileText, FiUser, FiUsers } from 'react-icons/fi';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import { memberPortalService, MemberOverviewResponse } from '@/services/memberPortalService';
@@ -48,36 +49,19 @@ export default function MemberOverview() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <PageHeader title="My Dashboard" />
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-4">
-        <Card padding="sm">
-          <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 leading-tight">Mahallu Users</p>
-          <p className="text-xl sm:text-2xl font-semibold text-gray-900 dark:text-gray-100">
-            {overview.mahalluStatistics.users}
-          </p>
-        </Card>
-        <Card padding="sm">
-          <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 leading-tight">
-            Mahallu Families
-          </p>
-          <p className="text-xl sm:text-2xl font-semibold text-gray-900 dark:text-gray-100">
-            {overview.mahalluStatistics.families}
-          </p>
-        </Card>
-        <Card padding="sm">
-          <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 leading-tight">Mahallu Members</p>
-          <p className="text-xl sm:text-2xl font-semibold text-gray-900 dark:text-gray-100">
-            {overview.mahalluStatistics.members}
-          </p>
-        </Card>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <StatCard title="Mahallu Users" value={overview.mahalluStatistics.users} />
+        <StatCard title="Mahallu Families" value={overview.mahalluStatistics.families} />
+        <StatCard title="Mahallu Members" value={overview.mahalluStatistics.members} />
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
         <Link to={ROUTES.MEMBER.PROFILE}>
           <Card className="h-full cursor-pointer hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100">
+              <h2 className="text-base sm:text-lg font-semibold text-foreground">
                 My Details
               </h2>
               <span className="text-primary-600 dark:text-primary-400 text-sm">→</span>
@@ -85,7 +69,7 @@ export default function MemberOverview() {
             <div className="space-y-2 text-sm">
               <p>
                 <span className="text-gray-500 dark:text-gray-400">Name:</span>
-                <span className="text-gray-900 dark:text-gray-100">{overview.member.name}</span>
+                <span className="text-gray-900 dark:text-gray-100 capitalize">{overview.member.name}</span>
               </p>
               {overview.member.phone && (
                 <p>
@@ -108,7 +92,7 @@ export default function MemberOverview() {
         <Link to={ROUTES.MEMBER.FAMILY}>
           <Card className="h-full cursor-pointer hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100">
+              <h2 className="text-base sm:text-lg font-semibold text-foreground">
                 Family Details
               </h2>
               <span className="text-primary-600 dark:text-primary-400 text-sm">→</span>
@@ -117,7 +101,7 @@ export default function MemberOverview() {
               {overview.family.details?.houseName && (
                 <p>
                   <span className="text-gray-500 dark:text-gray-400">House Name:</span>
-                  <span className="text-gray-900 dark:text-gray-100">
+                  <span className="text-gray-900 dark:text-gray-100 capitalize">
                     {overview.family.details.houseName}
                   </span>
                 </p>
@@ -154,7 +138,7 @@ export default function MemberOverview() {
       <Link to={ROUTES.MEMBER.VARISANGYA} className="block">
         <Card className="cursor-pointer hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100">
+            <h2 className="text-base sm:text-lg font-semibold text-foreground">
               Family Financial Summary
             </h2>
             <span className="text-primary-600 dark:text-primary-400 text-sm">→</span>
@@ -207,7 +191,7 @@ export default function MemberOverview() {
             <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-xl bg-primary-50 text-primary-600 dark:bg-primary-500/10 dark:text-primary-300">
               <FiHeart className="h-5 w-5" />
             </div>
-            <h3 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-gray-100">
+            <h3 className="text-sm sm:text-base font-semibold text-foreground">
               Nikah Registration
             </h3>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Register a marriage</p>
@@ -219,7 +203,7 @@ export default function MemberOverview() {
             <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-xl bg-primary-50 text-primary-600 dark:bg-primary-500/10 dark:text-primary-300">
               <FiAlertCircle className="h-5 w-5" />
             </div>
-            <h3 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-gray-100">
+            <h3 className="text-sm sm:text-base font-semibold text-foreground">
               Report Death
             </h3>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Report a death in family</p>
@@ -231,7 +215,7 @@ export default function MemberOverview() {
             <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-xl bg-primary-50 text-primary-600 dark:bg-primary-500/10 dark:text-primary-300">
               <FiClipboard className="h-5 w-5" />
             </div>
-            <h3 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-gray-100">
+            <h3 className="text-sm sm:text-base font-semibold text-foreground">
               My Requests
             </h3>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">View all registrations</p>
@@ -243,7 +227,7 @@ export default function MemberOverview() {
             <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-xl bg-primary-50 text-primary-600 dark:bg-primary-500/10 dark:text-primary-300">
               <FiFileText className="h-5 w-5" />
             </div>
-            <h3 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-gray-100">
+            <h3 className="text-sm sm:text-base font-semibold text-foreground">
               Certificates
             </h3>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Approved certificates</p>
@@ -255,7 +239,7 @@ export default function MemberOverview() {
             <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-xl bg-primary-50 text-primary-600 dark:bg-primary-500/10 dark:text-primary-300">
               <FiUser className="h-5 w-5" />
             </div>
-            <h3 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-gray-100">
+            <h3 className="text-sm sm:text-base font-semibold text-foreground">
               My Profile
             </h3>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Edit your details</p>
@@ -267,14 +251,14 @@ export default function MemberOverview() {
             <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-xl bg-primary-50 text-primary-600 dark:bg-primary-500/10 dark:text-primary-300">
               <FiUsers className="h-5 w-5" />
             </div>
-            <h3 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-gray-100">My Family</h3>
+            <h3 className="text-sm sm:text-base font-semibold text-foreground">My Family</h3>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Family details</p>
           </Card>
         </Link>
       </div>
 
       <Card>
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">Family Members</h2>
+        <h2 className="text-lg font-semibold mb-3 text-foreground">Family Members</h2>
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead>
@@ -291,7 +275,7 @@ export default function MemberOverview() {
                   key={member.id}
                   className="border-b border-gray-100 dark:border-gray-900 text-gray-900 dark:text-gray-100"
                 >
-                  <td className="py-2 pr-3">{member.name}</td>
+                  <td className="py-2 pr-3 capitalize">{member.name}</td>
                   <td className="py-2 pr-3">{member.phone || '-'}</td>
                   <td className="py-2 pr-3">{member.gender || '-'}</td>
                   <td className="py-2 pr-3">{member.mahallId || '-'}</td>

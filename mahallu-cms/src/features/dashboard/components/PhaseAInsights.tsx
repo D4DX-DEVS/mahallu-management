@@ -121,7 +121,7 @@ export default function PhaseAInsights({ children }: PhaseAInsightsProps) {
       {(topRegisters.length > 0 || children) && (
         <div>
           <div className="mb-2 flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Community Registers</h2>
+            <h2 className="text-sm font-semibold text-foreground">Community Registers</h2>
             <Link to="/registers" className="text-xs text-primary-600 hover:underline">
               View all
             </Link>

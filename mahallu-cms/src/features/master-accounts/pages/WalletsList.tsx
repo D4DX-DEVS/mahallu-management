@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { FiCreditCard, FiDollarSign } from 'react-icons/fi';
-import Card from '@/components/ui/Card';
+import { FiCreditCard, FiDollarSign, FiPlus } from 'react-icons/fi';
+import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
@@ -80,16 +80,19 @@ export default function WalletsList() {
   };
 
   const columns: TableColumn<MasterWallet>[] = [
-    { key: 'name', label: 'Name', sortable: true },
-    { key: 'type', label: 'Type' },
+    { key: 'name', label: 'Name', width: '6.75rem', sortable: true },
+    { key: 'type', label: 'Type', width: '6.25rem' },
     {
       key: 'balance',
       label: 'Balance',
+      width: '9.25rem',
+      align: 'center',
       render: (balance) => `₹${balance?.toLocaleString() || 0}`,
     },
     {
       key: 'createdAt',
       label: 'Created',
+      width: '7.75rem',
       render: (date) => formatDate(date),
     },
   ];
@@ -121,7 +124,7 @@ export default function WalletsList() {
         </div>
       </div>
 
-      <Card>
+      <TableCard>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -133,14 +136,14 @@ export default function WalletsList() {
           isExporting={isExporting}
           actionButtons={
             <Link to="/master-accounts/wallets/create">
-              <Button size="md">+ New Wallet</Button>
+              <Button size="md" icon={<FiPlus />} collapseLabel>New Wallet</Button>
             </Link>
           }
         />
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="text-center py-12">
+          <div className="text-center py-10">
             <p className="text-red-600 dark:text-red-400">{error}</p>
             <Button onClick={fetchWallets} className="mt-4" variant="outline">
               Retry
@@ -148,9 +151,9 @@ export default function WalletsList() {
           </div>
         ) : (
           <>
-            <Table columns={columns} data={wallets} emptyMessage="No wallets found" showExport={false} />
+            <Table fixedLayout striped columns={columns} data={wallets} emptyMessage="No wallets found" showExport={false} />
             {pagination && pagination.totalPages > 1 && (
-              <div className="mt-6">
+              <div className="mt-4">
                 <Pagination
                   currentPage={currentPage}
                   totalPages={pagination.totalPages}
@@ -162,7 +165,7 @@ export default function WalletsList() {
             )}
           </>
         )}
-      </Card>
+      </TableCard>
     </div>
   );
 }

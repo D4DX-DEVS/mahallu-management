@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { FiEdit2, FiArrowLeft, FiTrash2, FiPlus, FiEye, FiUpload } from 'react-icons/fi';
+import { FiEdit2, FiTrash2, FiPlus, FiEye, FiUpload } from 'react-icons/fi';
 import Card from '@/components/ui/Card';
+import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import Modal from '@/components/ui/Modal';
@@ -94,7 +95,7 @@ export default function FamilyDetail() {
 
   if (error || !family) {
     return (
-      <div className="text-center py-12">
+      <div className="text-center py-10">
         <p className="text-red-600 dark:text-red-400">{error || 'Family not found'}</p>
         <Button onClick={() => navigate(ROUTES.FAMILIES.LIST)} className="mt-4" variant="outline">
           Back to Families
@@ -128,21 +129,25 @@ export default function FamilyDetail() {
   };
 
   const memberColumns: TableColumn<Member>[] = [
-    { key: 'name', label: 'Name' },
+    { key: 'name', label: 'Name', width: '6.75rem', render: (v) => <span className="capitalize">{v}</span> },
     {
       key: 'age',
       label: 'Age / Gender',
+      width: '12rem',
+      align: 'center',
       render: (_, row) => {
         const age = row.age ? `${row.age}` : '-';
         const gender = row.gender || '-';
         return `${age} / ${gender}`;
       },
     },
-    { key: 'bloodGroup', label: 'Blood Group', render: (bg) => bg || '-' },
-    { key: 'phone', label: 'Phone', render: (phone) => phone || '-' },
+    { key: 'bloodGroup', label: 'Blood Group', width: '9.75rem', render: (bg) => bg || '-' },
+    { key: 'phone', label: 'Phone', width: '6.75rem', render: (phone) => phone || '-' },
     {
       key: 'actions',
       label: 'Actions',
+      width: '8rem',
+      align: 'center',
       render: (_, row) => (
         <ActionsMenu
           items={[
@@ -175,32 +180,26 @@ export default function FamilyDetail() {
   ];
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap gap-2 items-center justify-between">
-        <div className="flex flex-wrap items-center gap-4">
+    <div className="space-y-4">
+      <div className="flex gap-2 items-center justify-between">
+        <div className="flex items-center gap-4">
           <PageHeader
             description="Family Details"
             title={family.houseName}
             breadcrumbs={[{ label: 'Families', path: ROUTES.FAMILIES.LIST }]}
           />
-          <div className="flex flex-wrap gap-2">
+          <div className="flex gap-2 items-center">
             <Link to={ROUTES.FAMILIES.EDIT(family.id)}>
-              <Button variant="outline">
-                <FiEdit2 className="h-4 w-4 mr-2" />
-                Edit
-              </Button>
+              <Button variant="outline" icon={<FiEdit2 />} collapseLabel>Edit</Button>
             </Link>
-            <Button variant="danger" onClick={() => setShowDeleteModal(true)}>
-              <FiTrash2 className="h-4 w-4 mr-2" />
-              Delete
-            </Button>
+            <Button variant="danger" onClick={() => setShowDeleteModal(true)} icon={<FiTrash2 />} collapseLabel>Delete</Button>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card>
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Basic Information</h2>
+          <h2 className="text-lg font-semibold mb-3 text-foreground">Basic Information</h2>
           <div className="space-y-3">
             {family.mahallId && (
               <div>
@@ -210,12 +209,12 @@ export default function FamilyDetail() {
             )}
             <div>
               <span className="text-sm text-gray-500 dark:text-gray-400">House Name</span>
-              <p className="text-gray-900 dark:text-gray-100">{family.houseName}</p>
+              <p className="text-gray-900 dark:text-gray-100 capitalize">{family.houseName}</p>
             </div>
             {family.familyHead && (
               <div>
                 <span className="text-sm text-gray-500 dark:text-gray-400">Family Head</span>
-                <p className="text-gray-900 dark:text-gray-100">{family.familyHead}</p>
+                <p className="text-gray-900 dark:text-gray-100 capitalize">{family.familyHead}</p>
               </div>
             )}
             {family.contactNo && (
@@ -250,7 +249,7 @@ export default function FamilyDetail() {
         </Card>
 
         <Card>
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Address Information</h2>
+          <h2 className="text-lg font-semibold mb-3 text-foreground">Address Information</h2>
           <div className="space-y-3">
             <div>
               <span className="text-sm text-gray-500 dark:text-gray-400">State</span>
@@ -283,32 +282,26 @@ export default function FamilyDetail() {
           </div>
         </Card>
 
-        <Card className="md:col-span-2">
-          <div className="flex flex-wrap gap-2 items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+        <TableCard className="md:col-span-2">
+          <div className="flex gap-2 items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-foreground">
               Family Members ({members.length})
             </h2>
-            <div className="flex flex-wrap gap-2">
-              <Button size="sm" variant="outline" onClick={() => setIsImportOpen(true)}>
-                <FiUpload className="h-4 w-4 mr-2" />
-                Import Members
-              </Button>
+            <div className="flex gap-2 items-center">
+              <Button size="sm" variant="outline" onClick={() => setIsImportOpen(true)} icon={<FiUpload />} collapseLabel>Import Members</Button>
               <Link to={ROUTES.MEMBERS.CREATE}>
-                <Button size="sm">
-                  <FiPlus className="h-4 w-4 mr-2" />
-                  Add Member
-                </Button>
+                <Button size="sm" icon={<FiPlus />} collapseLabel>Add Member</Button>
               </Link>
             </div>
           </div>
           {members.length > 0 ? (
-            <Table columns={memberColumns} data={members} />
+            <Table fixedLayout striped columns={memberColumns} data={members} />
           ) : (
             <p className="text-gray-500 dark:text-gray-400 text-center py-8">
               No members found. Add a member to get started.
             </p>
           )}
-        </Card>
+        </TableCard>
       </div>
 
       <Modal
@@ -327,7 +320,7 @@ export default function FamilyDetail() {
         }
       >
         <p className="text-gray-600 dark:text-gray-400">
-          Are you sure you want to delete <strong>{family.houseName}</strong>? This will also delete all
+          Are you sure you want to delete <strong className="capitalize">{family.houseName}</strong>? This will also delete all
           associated members. This action cannot be undone.
         </p>
       </Modal>

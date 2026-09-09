@@ -55,11 +55,11 @@ export default function VerifyCertificate() {
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         {/* Header */}
-        <div className="text-center mb-8">
+        <div className="text-center mb-4">
           <div className="inline-block mb-4">
             <img src={LOGO_PATH} alt={BRAND_NAME} className="h-12 w-auto" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{BRAND_NAME}</h1>
+          <h1 className="text-2xl font-semibold text-foreground">{BRAND_NAME}</h1>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Certificate Verification</p>
         </div>
 
@@ -72,7 +72,7 @@ export default function VerifyCertificate() {
               <h2 className="text-lg font-semibold text-red-900 dark:text-red-100 mb-2">
                 Certificate Not Found
               </h2>
-              <p className="text-sm text-red-700 dark:text-red-300 mb-6">{error}</p>
+              <p className="text-sm text-red-700 dark:text-red-300 mb-4">{error}</p>
               <Button onClick={() => navigate('/')} variant="outline" className="w-full">
                 <FiArrowLeft className="h-4 w-4 mr-2" />
                 Go to Home
@@ -109,7 +109,7 @@ export default function VerifyCertificate() {
               </h2>
 
               {/* Certificate Details */}
-              <div className="mt-6 w-full space-y-4 text-left">
+              <div className="mt-4 w-full space-y-4 text-left">
                 <div className="pb-4 border-b border-gray-200 dark:border-gray-700">
                   <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
                     Certificate Number
@@ -157,7 +157,7 @@ export default function VerifyCertificate() {
               </div>
 
               {/* Footer */}
-              <div className="mt-6 w-full pt-4 border-t border-gray-200 dark:border-gray-700">
+              <div className="mt-4 w-full pt-4 border-t border-gray-200 dark:border-gray-700">
                 <p className="text-xs text-gray-500 dark:text-gray-400">
                   This certificate has been verified in the official registry
                 </p>

@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { FiEye, FiEdit2, FiTrash2, FiX, FiDollarSign, FiCheckCircle, FiClock } from 'react-icons/fi';
-import Card from '@/components/ui/Card';
+import { FiBarChart2, FiCheckCircle, FiClock, FiDollarSign, FiEdit2, FiEye, FiPlus, FiTrash2 } from 'react-icons/fi';
+import TableCard from '@/components/ui/TableCard';
+import FilterPanel from '@/components/ui/FilterPanel';
 import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
 import StatCard from '@/components/ui/StatCard';
@@ -117,19 +118,23 @@ export default function SalaryList() {
     {
       key: 'employeeId',
       label: 'Employee',
+      width: '8.5rem',
       render: (emp) => (typeof emp === 'object' && emp?.name ? emp.name : emp || '-'),
     },
-    { key: 'month', label: 'Period', render: (_, row) => `${getMonthName(row.month)} ${row.year}` },
-    { key: 'baseSalary', label: 'Base', render: (v) => `₹${Number(v || 0).toLocaleString()}` },
+    { key: 'month', label: 'Period', width: '7rem', render: (_, row) => `${getMonthName(row.month)} ${row.year}` },
+    { key: 'baseSalary', label: 'Base', width: '6.25rem', render: (v) => `₹${Number(v || 0).toLocaleString()}` },
     {
       key: 'netAmount',
       label: 'Net Amount',
+      width: '11.5rem',
+      align: 'center',
       render: (v) => <span className="font-semibold">₹{Number(v || 0).toLocaleString()}</span>,
     },
-    { key: 'paymentMethod', label: 'Method', render: (v) => v || '-' },
+    { key: 'paymentMethod', label: 'Method', width: '7.5rem', render: (v) => v || '-' },
     {
       key: 'status',
       label: 'Status',
+      width: '7.25rem',
       render: (status) => (
         <span
           className={`px-2 py-1 text-xs font-medium rounded-full ${
@@ -147,6 +152,8 @@ export default function SalaryList() {
     {
       key: 'actions',
       label: 'Actions',
+      width: '8rem',
+      align: 'center',
       render: (_, row) => {
         const empLabel =
           typeof row.employeeId === 'object' && row.employeeId?.name ? row.employeeId.name : 'this employee';
@@ -213,7 +220,7 @@ export default function SalaryList() {
         </div>
       </div>
 
-      <Card>
+      <TableCard>
         <TableToolbar
           searchQuery=""
           onSearchChange={() => {}}
@@ -222,28 +229,19 @@ export default function SalaryList() {
           hasFilters={true}
           onRefresh={fetchPayments}
           actionButtons={
-            <div className="flex flex-wrap gap-2">
+            <div className="flex items-center gap-2">
               <Link to={ROUTES.SALARY.SUMMARY}>
-                <Button size="md" variant="outline">
-                  Summary
-                </Button>
+                <Button size="md" variant="outline" icon={<FiBarChart2 />} collapseLabel>Summary</Button>
               </Link>
               <Link to={ROUTES.SALARY.CREATE}>
-                <Button size="md">+ New Payment</Button>
+                <Button size="md" icon={<FiPlus />} collapseLabel>New Payment</Button>
               </Link>
             </div>
           }
         />
 
         {isFilterVisible && (
-          <div className="relative flex flex-wrap items-center gap-4 mb-6 p-4 border border-gray-200 rounded-lg max-sm:border-0 max-sm:bg-transparent max-sm:p-0 bg-white dark:bg-gray-800 dark:border-gray-700">
-            <button
-              onClick={() => setIsFilterVisible(false)}
-              className="absolute right-4 top-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-              aria-label="Close"
-            >
-              <FiX className="h-4 w-4" />
-            </button>
+          <FilterPanel onClose={() => setIsFilterVisible(false)}>
             <div className="w-full sm:w-36">
               <Select
                 options={[
@@ -282,13 +280,13 @@ export default function SalaryList() {
                 />
               </div>
             )}
-          </div>
+          </FilterPanel>
         )}
 
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="text-center py-12">
+          <div className="text-center py-10">
             <p className="text-red-600 dark:text-red-400">{error}</p>
             <Button onClick={fetchPayments} className="mt-4" variant="outline">
               Retry
@@ -296,6 +294,8 @@ export default function SalaryList() {
           </div>
         ) : (
           <Table
+            fixedLayout
+            striped
             columns={columns}
             data={payments}
             emptyMessage="No salary payments found"
@@ -315,7 +315,7 @@ export default function SalaryList() {
             />
           </div>
         )}
-      </Card>
+      </TableCard>
 
       <ConfirmDialog
         isOpen={deleteConfirm !== null}

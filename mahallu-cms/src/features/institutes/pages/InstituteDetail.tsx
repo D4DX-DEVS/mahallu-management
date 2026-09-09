@@ -44,7 +44,7 @@ export default function InstituteDetail() {
 
   if (error || !institute) {
     return (
-      <div className="text-center py-12">
+      <div className="text-center py-10">
         <p className="text-red-600 dark:text-red-400">{error || 'Institute not found'}</p>
         <Link to={ROUTES.INSTITUTES.LIST} className="mt-4 inline-block">
           <Button variant="outline">Back to Institutes</Button>
@@ -54,38 +54,32 @@ export default function InstituteDetail() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap gap-2 items-center justify-between">
-        <div className="flex flex-wrap items-center gap-4">
+    <div className="space-y-4">
+      <div className="flex gap-2 items-center justify-between">
+        <div className="flex items-center gap-4">
           <PageHeader
             description="Institute Details"
             title={institute.name}
             breadcrumbs={[{ label: 'Institutes', path: ROUTES.INSTITUTES.LIST }]}
           />
-          <div className="flex flex-wrap gap-2">
+          <div className="flex gap-2 items-center">
             <Link to={ROUTES.INSTITUTES.LIST}>
-              <Button variant="outline">
-                <FiArrowLeft className="h-4 w-4 mr-2" />
-                Back
-              </Button>
+              <Button variant="outline" icon={<FiArrowLeft />} collapseLabel>Back</Button>
             </Link>
             <Link to={`/institutes/${institute.id}/edit`}>
-              <Button>
-                <FiEdit2 className="h-4 w-4 mr-2" />
-                Edit
-              </Button>
+              <Button icon={<FiEdit2 />} collapseLabel>Edit</Button>
             </Link>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card>
-          <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">Basic Information</h2>
+          <h2 className="text-lg font-semibold mb-3 text-foreground">Basic Information</h2>
           <div className="space-y-4">
             <div>
               <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Name</label>
-              <p className="mt-1 text-gray-900 dark:text-gray-100">{institute.name}</p>
+              <p className="mt-1 text-gray-900 dark:text-gray-100 capitalize">{institute.name}</p>
             </div>
             <div>
               <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Place</label>
@@ -121,7 +115,7 @@ export default function InstituteDetail() {
         </Card>
 
         <Card>
-          <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">Contact Information</h2>
+          <h2 className="text-lg font-semibold mb-3 text-foreground">Contact Information</h2>
           <div className="space-y-4">
             {institute.contactNo && (
               <div>
@@ -143,7 +137,7 @@ export default function InstituteDetail() {
 
         {institute.description && (
           <Card className="md:col-span-2">
-            <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">Description</h2>
+            <h2 className="text-lg font-semibold mb-3 text-foreground">Description</h2>
             <p className="text-gray-700 dark:text-gray-300">{institute.description}</p>
           </Card>
         )}

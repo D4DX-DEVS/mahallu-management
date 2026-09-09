@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiTag, FiEdit2, FiTrash2, FiEye, FiLock } from 'react-icons/fi';
-import Card from '@/components/ui/Card';
+import { FiEdit2, FiEye, FiLock, FiPlus, FiTag, FiTrash2 } from 'react-icons/fi';
+import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import Input from '@/components/ui/Input';
@@ -125,16 +125,24 @@ export default function CategoriesList() {
     }
   };
   const columns: TableColumn<Category>[] = [
-    { key: 'name', label: 'Name', sortable: true },
+    {
+      key: 'name',
+      label: 'Name',
+      width: '6.75rem',
+      sortable: true,
+      render: (value) => <span className="capitalize">{value}</span>,
+    },
     {
       key: 'key',
       label: 'Key',
+      width: '6rem',
       render: (v) => <code className="text-xs text-gray-500 dark:text-gray-400">{v}</code>,
     },
-    { key: 'valueCount', label: 'Values', render: (v) => v ?? 0 },
+    { key: 'valueCount', label: 'Values', width: '7rem', render: (v) => v ?? 0 },
     {
       key: 'isSystem',
       label: 'System',
+      width: '7.75rem',
       render: (v) =>
         v ? (
           <Badge variant="info" size="sm">
@@ -149,6 +157,7 @@ export default function CategoriesList() {
     {
       key: 'status',
       label: 'Status',
+      width: '7.25rem',
       render: (v) => (
         <Badge variant={v === 'active' ? 'success' : 'secondary'} size="sm">
           {v}
@@ -158,6 +167,8 @@ export default function CategoriesList() {
     {
       key: 'actions',
       label: 'Actions',
+      width: '8rem',
+      align: 'center',
       render: (_, row) => (
         <ActionsMenu
           items={[
@@ -198,7 +209,7 @@ export default function CategoriesList() {
           />
         </div>
       </div>
-      <Card>
+      <TableCard>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -211,15 +222,17 @@ export default function CategoriesList() {
                 setFormError(null);
                 setShowCreateModal(true);
               }}
+              icon={<FiPlus />}
+              collapseLabel
             >
-              + New Category
+              New Category
             </Button>
           }
         />
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="text-center py-12">
+          <div className="text-center py-10">
             <p className="text-red-600 dark:text-red-400">{error}</p>
             <Button onClick={fetchCategories} className="mt-4" variant="outline">
               Retry
@@ -228,6 +241,8 @@ export default function CategoriesList() {
         ) : (
           <>
             <Table
+              fixedLayout
+              striped
               columns={columns}
               data={categories}
               emptyMessage="No categories found"
@@ -235,7 +250,7 @@ export default function CategoriesList() {
               onRowClick={(row) => navigate(`/admin/categories/${row.id}`)}
             />
             {pagination && pagination.totalPages > 1 && (
-              <div className="mt-6">
+              <div className="mt-4">
                 <Pagination
                   currentPage={currentPage}
                   totalPages={pagination.totalPages}
@@ -247,7 +262,7 @@ export default function CategoriesList() {
             )}
           </>
         )}
-      </Card>
+      </TableCard>
       {/* Create Modal */}
       <Modal
         isOpen={showCreateModal}

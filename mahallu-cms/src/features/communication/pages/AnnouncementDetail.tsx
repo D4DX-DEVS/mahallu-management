@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { FiSend, FiTrash2 } from 'react-icons/fi';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
@@ -111,14 +112,14 @@ export default function AnnouncementDetail() {
       </div>
 
       <Card>
-        <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Message</h2>
+        <h2 className="text-sm font-semibold text-foreground">Message</h2>
         <p className="mt-1 whitespace-pre-wrap text-sm text-gray-600 dark:text-gray-300">
           {announcement.body}
         </p>
       </Card>
 
       <Card>
-        <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Channels</h2>
+        <h2 className="text-sm font-semibold text-foreground">Channels</h2>
         <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
           {announcement.channels.map((channel) => (
             <div
@@ -134,12 +135,18 @@ export default function AnnouncementDetail() {
         </div>
       </Card>
 
-      <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
-        <Button variant="outline" onClick={() => setConfirmDelete(true)}>
+      <div className="flex items-center justify-end gap-2">
+        <Button variant="outline" onClick={() => setConfirmDelete(true)} icon={<FiTrash2 />} collapseLabel>
           Delete
         </Button>
         {announcement.status === 'draft' && (
-          <Button onClick={() => setConfirmSend(true)} disabled={sending}>
+          <Button
+            onClick={() => setConfirmSend(true)}
+            disabled={sending}
+            icon={<FiSend />}
+            collapseLabel
+            title="Send now"
+          >
             {sending ? 'Sending...' : 'Send Now'}
           </Button>
         )}

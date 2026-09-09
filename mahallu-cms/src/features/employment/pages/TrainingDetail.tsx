@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { FiPlus } from 'react-icons/fi';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   employmentService,
@@ -184,19 +185,19 @@ export default function TrainingDetail() {
   };
 
   if (loading) {
-    return <Card className="p-8 text-center">Loading training details...</Card>;
+    return <Card className="p-5 text-center">Loading training details...</Card>;
   }
 
   if (!training) {
     return (
-      <Card className="p-8 text-center text-gray-500">
+      <Card className="p-5 text-center text-gray-500">
         <p>Training not found</p>
       </Card>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <button
@@ -216,8 +217,8 @@ export default function TrainingDetail() {
 
       <Card>
         {isEditing ? (
-          <form onSubmit={handleSave} className="p-6 space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <form onSubmit={handleSave} className="p-4 space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-900 mb-2">Training Name</label>
                 <input
@@ -285,11 +286,11 @@ export default function TrainingDetail() {
             </div>
           </form>
         ) : (
-          <div className="p-6 space-y-4">
+          <div className="p-4 space-y-4">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <div>
                 <div className="text-xs text-gray-600">Trainer</div>
-                <div className="font-semibold text-gray-900">{training.trainerName || '—'}</div>
+                <div className="font-semibold text-gray-900 capitalize">{training.trainerName || '—'}</div>
               </div>
               <div>
                 <div className="text-xs text-gray-600">Start Date</div>
@@ -316,16 +317,13 @@ export default function TrainingDetail() {
       <Card>
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-gray-900">
+            <h3 className="text-lg font-semibold text-foreground">
               Participants ({training.participants?.length || 0})
             </h3>
             <Button
               onClick={() => setShowAddParticipant(!showAddParticipant)}
               size="sm"
-              className="bg-blue-600 text-white"
-            >
-              + Add Member
-            </Button>
+              className="bg-blue-600 text-white" icon={<FiPlus />} collapseLabel>Add Member</Button>
           </div>
 
           {showAddParticipant && (
@@ -340,7 +338,7 @@ export default function TrainingDetail() {
                 >
                   <option value="">Choose a member...</option>
                   {members.map((member) => (
-                    <option key={member.id} value={member.id}>
+                    <option key={member.id} value={member.id} className="capitalize">
                       {member.name} ({member.familyName})
                     </option>
                   ))}
@@ -377,7 +375,7 @@ export default function TrainingDetail() {
                 <tbody>
                   {training.participants.map((participant) => (
                     <tr key={getMemberId(participant)} className="border-b hover:bg-gray-50">
-                      <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                      <td className="px-4 py-3 text-sm font-medium text-gray-900 capitalize">
                         {getMemberName(participant)}
                       </td>
                       <td className="px-4 py-3 text-sm">

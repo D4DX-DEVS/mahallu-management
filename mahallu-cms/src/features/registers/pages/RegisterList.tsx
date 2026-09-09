@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import Card from '@/components/ui/Card';
+import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
 import Table from '@/components/ui/Table';
@@ -87,7 +88,7 @@ export default function RegisterList() {
         breadcrumbs={[{ label: 'Registers', path: '/registers' }]}
       />
 
-      <Card>
+      <TableCard>
         <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div className="w-full sm:max-w-xs">
             <ExpandableSearch
@@ -124,7 +125,7 @@ export default function RegisterList() {
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="py-12 text-center">
+          <div className="py-10 text-center">
             <p className="text-red-600 dark:text-red-400">{error}</p>
             <Button onClick={fetchRows} className="mt-4" variant="outline">
               Retry
@@ -152,14 +153,14 @@ export default function RegisterList() {
             }
           />
         ) : (
-          <div className="overflow-x-auto">
-            <Table
-              columns={columnsFor(config.source)}
-              data={rows}
-              emptyMessage="No records found"
-              showExport={false}
-            />
-          </div>
+          <Table
+            fixedLayout
+            striped
+            columns={columnsFor(config.source)}
+            data={rows}
+            emptyMessage="No records found"
+            showExport={false}
+          />
         )}
 
         {pagination && (
@@ -173,7 +174,7 @@ export default function RegisterList() {
             />
           </div>
         )}
-      </Card>
+      </TableCard>
     </div>
   );
 }

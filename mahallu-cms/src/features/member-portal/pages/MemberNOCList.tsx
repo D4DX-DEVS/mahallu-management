@@ -4,6 +4,7 @@ import { memberPortalService } from '@/services/memberPortalService';
 import { downloadNocPdf } from '@/utils/nocPdf';
 import { ROUTES } from '@/constants/routes';
 import Card from '@/components/ui/Card';
+import { rowActionClass } from '@/components/ui/rowAction';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import RequestDetailModal, { RequestType } from '../components/RequestDetailModal';
@@ -142,7 +143,7 @@ export default function MemberNOCList() {
   }
 
   return (
-    <div className="space-y-6 max-w-4xl w-full mx-auto">
+    <div className="space-y-4 max-w-4xl w-full mx-auto">
       <div className="flex items-center justify-between">
         <PageHeader title="My NOCs" />
         <div className="flex items-center gap-3">
@@ -165,7 +166,7 @@ export default function MemberNOCList() {
 
       {nocs.length === 0 ? (
         <Card>
-          <div className="text-center py-12 space-y-3">
+          <div className="text-center py-10 space-y-3">
             <p className="text-gray-500 dark:text-gray-400">No NOC requests found.</p>
             <Link
               to={ROUTES.MEMBER.NOC_REQUEST}
@@ -250,7 +251,7 @@ export default function MemberNOCList() {
                               onClick={() => openModal(noc, 'edit')}
                               title="Edit & resubmit"
                               aria-label="Edit and resubmit"
-                              className="p-1.5 rounded-lg text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors"
+                              className={rowActionClass()}
                             >
                               <FiEdit2 size={14} />
                             </button>
@@ -259,7 +260,7 @@ export default function MemberNOCList() {
                             onClick={() => openModal(noc, 'view')}
                             title="View"
                             aria-label="View details"
-                            className="p-1.5 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                            className={rowActionClass()}
                           >
                             <FiEye size={14} />
                           </button>
@@ -271,7 +272,7 @@ export default function MemberNOCList() {
                               }}
                               title="Delete"
                               aria-label="Delete NOC request"
-                              className="p-1.5 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                              className={rowActionClass('danger')}
                             >
                               <FiTrash2 size={14} />
                             </button>

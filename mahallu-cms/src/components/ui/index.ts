@@ -3,6 +3,7 @@ export { default as Button } from './Button';
 export { default as Input } from './Input';
 export { default as Select } from './Select';
 export { default as Card } from './Card';
+export { default as TableCard } from './TableCard';
 export { default as Table } from './Table';
 export { default as StatCard } from './StatCard';
 export { default as ExpandableSearch } from './ExpandableSearch';
@@ -11,6 +12,7 @@ export { default as Pagination } from './Pagination';
 export { default as Modal } from './Modal';
 export { default as LoadingSpinner } from './LoadingSpinner';
 export { default as EmptyState } from './EmptyState';
+export { default as FilterPanel } from './FilterPanel';
 export { default as Skeleton, TableSkeleton } from './Skeleton';
 export {
   default as ErrorBoundary,
@@ -24,9 +26,11 @@ export type { ButtonProps } from './Button';
 export type { InputProps } from './Input';
 export type { SelectProps } from './Select';
 export type { CardProps } from './Card';
+export type { TableCardProps } from './TableCard';
 export type { TableProps } from './Table';
 export type { StatCardProps } from './StatCard';
 export type { ExpandableSearchProps } from './ExpandableSearch';
 export type { CheckboxProps } from './Checkbox';
 export type { PaginationProps } from './Pagination';
 export type { ModalProps } from './Modal';
+export type { FilterPanelProps } from './FilterPanel';

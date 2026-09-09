@@ -79,7 +79,7 @@ export default function BloodDonors() {
   return (
     <div>
       <div className="max-w-full">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
           <div>
             <PageHeader title="Blood Donors" description={`${donors.length} donors found`} />
           </div>
@@ -88,7 +88,7 @@ export default function BloodDonors() {
           </Button>
         </div>
 
-        <div className="mb-6 space-y-4">
+        <div className="mb-4 space-y-4">
           <ExpandableSearch
             value={search}
             onChange={(value) => setSearch(value)}
@@ -129,13 +129,13 @@ export default function BloodDonors() {
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
               {donors.map((donor) => (
                 <div key={donor.id} className="rounded-lg border border-border bg-card p-3 sm:p-4">
                   <div className="flex items-start justify-between mb-3">
-                    <h3 className="text-base sm:text-lg font-semibold">{donor.name}</h3>
+                    <h3 className="text-base sm:text-lg font-semibold capitalize">{donor.name}</h3>
                     {donor.bloodGroup && (
-                      <span className="bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm font-bold">
+                      <span className="bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm font-semibold">
                         {donor.bloodGroup}
                       </span>
                     )}
@@ -149,15 +149,12 @@ export default function BloodDonors() {
                       Availability: {donor.availability}
                     </p>
                   )}
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex gap-2 items-center">
                     <Button
                       variant="secondary"
                       size="sm"
                       onClick={() => navigate(`/health/donors/${donor.id}/edit`)}
-                      className="flex-1 flex items-center justify-center gap-1"
-                    >
-                      <FiEdit2 className="w-4 h-4" /> Edit
-                    </Button>
+                      className="flex-1 flex items-center justify-center gap-1" icon={<FiEdit2 />} collapseLabel>Edit</Button>
                     <Button
                       variant="danger"
                       size="sm"
@@ -165,10 +162,7 @@ export default function BloodDonors() {
                         setDeleteId(donor.id);
                         setConfirmDelete(true);
                       }}
-                      className="flex-1 flex items-center justify-center gap-1"
-                    >
-                      <FiTrash2 className="w-4 h-4" /> Delete
-                    </Button>
+                      className="flex-1 flex items-center justify-center gap-1" icon={<FiTrash2 />} collapseLabel>Delete</Button>
                   </div>
                 </div>
               ))}
@@ -188,7 +182,7 @@ export default function BloodDonors() {
       </div>
 
       <Modal isOpen={confirmDelete} title="Delete Blood Donor" onClose={() => setConfirmDelete(false)}>
-        <p className="text-gray-700 mb-6">Are you sure you want to delete this blood donor?</p>
+        <p className="text-gray-700 mb-4">Are you sure you want to delete this blood donor?</p>
         <div className="flex gap-2 flex-col-reverse sm:flex-row sm:justify-end sm:gap-3">
           <Button variant="secondary" onClick={() => setConfirmDelete(false)}>
             Cancel

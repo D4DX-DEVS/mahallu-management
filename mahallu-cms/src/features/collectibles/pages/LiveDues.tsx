@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { FiAlertCircle, FiCheckCircle, FiDollarSign, FiHome } from 'react-icons/fi';
-import Card from '@/components/ui/Card';
+import TableCard from '@/components/ui/TableCard';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
 import Pagination from '@/components/ui/Pagination';
@@ -61,16 +61,18 @@ export default function LiveDues() {
 
   const columns: TableColumn<FamilyDue>[] = [
     // Row number must account for the page offset, not just the index in the slice
-    { key: 'familyId', label: 'No.', render: (_, __, index) => (currentPage - 1) * itemsPerPage + index + 1 },
-    { key: 'houseName', label: 'House Name' },
-    { key: 'familyHead', label: 'Family Head', render: (v) => v || '-' },
-    { key: 'varisangyaGrade', label: 'Grade', render: (v) => v || '-' },
-    { key: 'monthlyAmount', label: 'Monthly', render: (v) => `₹${(v || 0).toLocaleString()}` },
-    { key: 'expectedAmount', label: 'Expected (YTD)', render: (v) => `₹${(v || 0).toLocaleString()}` },
-    { key: 'paidAmount', label: 'Paid', render: (v) => `₹${(v || 0).toLocaleString()}` },
+    { key: 'familyId', label: 'No.', width: '6rem', render: (_, __, index) => (currentPage - 1) * itemsPerPage + index + 1 },
+    { key: 'houseName', label: 'House Name', width: '9.75rem' },
+    { key: 'familyHead', label: 'Family Head', width: '9.75rem', render: (v) => v || '-' },
+    { key: 'varisangyaGrade', label: 'Grade', width: '6.75rem', render: (v) => v || '-' },
+    { key: 'monthlyAmount', label: 'Monthly', width: '7.75rem', render: (v) => `₹${(v || 0).toLocaleString()}` },
+    { key: 'expectedAmount', label: 'Expected (YTD)', width: '11rem', render: (v) => `₹${(v || 0).toLocaleString()}` },
+    { key: 'paidAmount', label: 'Paid', width: '6rem', render: (v) => `₹${(v || 0).toLocaleString()}` },
     {
       key: 'dueAmount',
       label: 'Due',
+      width: '7.5rem',
+      align: 'center',
       render: (v) =>
         v > 0 ? (
           <span className="font-semibold text-red-600 dark:text-red-400">₹{v.toLocaleString()}</span>
@@ -81,13 +83,13 @@ export default function LiveDues() {
   ];
 
   const exportColumns: TableColumn<FamilyDue>[] = [
-    { key: 'houseName', label: 'House Name' },
-    { key: 'familyHead', label: 'Family Head' },
-    { key: 'varisangyaGrade', label: 'Grade' },
-    { key: 'monthlyAmount', label: 'Monthly' },
-    { key: 'expectedAmount', label: 'Expected (YTD)' },
-    { key: 'paidAmount', label: 'Paid' },
-    { key: 'dueAmount', label: 'Due' },
+    { key: 'houseName', label: 'House Name', width: '9.75rem' },
+    { key: 'familyHead', label: 'Family Head', width: '9.75rem' },
+    { key: 'varisangyaGrade', label: 'Grade', width: '6.75rem' },
+    { key: 'monthlyAmount', label: 'Monthly', width: '7.75rem' },
+    { key: 'expectedAmount', label: 'Expected (YTD)', width: '11rem' },
+    { key: 'paidAmount', label: 'Paid', width: '6rem' },
+    { key: 'dueAmount', label: 'Due', width: '6rem' },
   ];
 
   // Export covers every matching row, not just the page on screen
@@ -101,13 +103,13 @@ export default function LiveDues() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div>
         <PageHeader title="Live Dues" description="Varisangya expected vs paid for the current year" />
       </div>
 
       {summary && (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard title="Families" value={summary.totalFamilies} icon={<FiHome className="h-5 w-5" />} />
           <StatCard
             title="With Dues"
@@ -127,7 +129,7 @@ export default function LiveDues() {
         </div>
       )}
 
-      <Card>
+      <TableCard>
         <TableToolbar searchQuery={searchQuery} onSearchChange={setSearchQuery} onExport={handleExport} />
 
         <div className="mb-4 flex items-center gap-2 px-1">
@@ -151,6 +153,8 @@ export default function LiveDues() {
         )}
 
         <Table
+          fixedLayout
+          striped
           columns={columns}
           data={dues}
           isLoading={loading}
@@ -172,7 +176,7 @@ export default function LiveDues() {
             />
           </div>
         )}
-      </Card>
+      </TableCard>
     </div>
   );
 }

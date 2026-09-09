@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiEdit2, FiTrash2, FiList } from 'react-icons/fi';
-import Card from '@/components/ui/Card';
+import TableCard from '@/components/ui/TableCard';
+import { rowActionClass } from '@/components/ui/rowAction';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import Table from '@/components/ui/Table';
@@ -93,11 +94,12 @@ export default function MahalluCategoriesList() {
   );
 
   const columns: TableColumn<Category>[] = [
-    { key: 'id', label: 'No.', render: (_, __, i) => i + 1 },
-    { key: 'name', label: 'Name' },
+    { key: 'id', label: 'No.', width: '6rem', render: (_, __, i) => i + 1 },
+    { key: 'name', label: 'Name', width: '6.75rem', render: (v) => <span className="capitalize">{v}</span> },
     {
       key: 'type',
       label: 'Type',
+      width: '6.25rem',
       render: (t) => (
         <span
           className={`px-2 py-0.5 rounded-full text-xs font-medium ${t === 'income' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}
@@ -106,18 +108,20 @@ export default function MahalluCategoriesList() {
         </span>
       ),
     },
-    { key: 'description', label: 'Description' },
-    { key: 'createdAt', label: 'Created', render: (d) => formatDate(d) },
+    { key: 'description', label: 'Description', width: '9.25rem' },
+    { key: 'createdAt', label: 'Created', width: '7.75rem', render: (d) => formatDate(d) },
     {
       key: 'actions',
       label: 'Actions',
+      width: '8rem',
+      align: 'center',
       render: (_, row) => (
         <div className="flex items-center gap-2">
           <button
             onClick={() =>
               navigate(ROUTES.MAHALLU_FINANCE.CATEGORIES_EDIT(row.id), { state: { category: row } })
             }
-            className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600"
+            className={rowActionClass()}
             aria-label="Edit"
           >
             <FiEdit2 className="h-4 w-4" />
@@ -127,7 +131,7 @@ export default function MahalluCategoriesList() {
               setSelected(row);
               setShowDeleteModal(true);
             }}
-            className="p-1.5 rounded-md hover:bg-red-50 text-red-600"
+            className={rowActionClass('danger')}
             aria-label="Delete"
           >
             <FiTrash2 className="h-4 w-4" />
@@ -138,22 +142,26 @@ export default function MahalluCategoriesList() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <PageHeader
         title="Mahallu Categories"
         description="Income and expense categories for the Mahallu"
         breadcrumbs={[{ label: 'Mahallu Finance', path: '/mahallu-finance/accounts' }]}
       />
 
-      <Card>
+      <TableCard>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
           onExport={handleExport}
           isExporting={isExporting}
           actionButtons={
-            <Button onClick={() => navigate(ROUTES.MAHALLU_FINANCE.CATEGORIES_CREATE)} size="sm">
-              <FiList className="h-4 w-4 mr-2" />
+            <Button
+              onClick={() => navigate(ROUTES.MAHALLU_FINANCE.CATEGORIES_CREATE)}
+              size="sm"
+              icon={<FiList />}
+              collapseLabel
+            >
               Add Category
             </Button>
           }
@@ -164,7 +172,7 @@ export default function MahalluCategoriesList() {
           <p className="text-center py-8 text-red-600">{error}</p>
         ) : (
           <>
-            <Table columns={columns} data={filtered} emptyMessage="No categories found" />
+            <Table fixedLayout striped columns={columns} data={filtered} emptyMessage="No categories found" />
             {pagination && (
               <Pagination
                 currentPage={currentPage}
@@ -176,11 +184,11 @@ export default function MahalluCategoriesList() {
             )}
           </>
         )}
-      </Card>
+      </TableCard>
 
       <Modal isOpen={showDeleteModal} onClose={() => setShowDeleteModal(false)} title="Delete Category">
-        <p className="text-gray-600 dark:text-gray-400 mb-6">
-          Delete category <strong>{selected?.name}</strong>?
+        <p className="text-gray-600 dark:text-gray-400 mb-4">
+          Delete category <strong className="capitalize">{selected?.name}</strong>?
         </p>
         <div className="flex gap-2 flex-col-reverse sm:flex-row sm:justify-end sm:gap-3">
           <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>

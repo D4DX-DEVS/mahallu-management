@@ -80,7 +80,7 @@ export default function CampsList() {
   return (
     <div>
       <div className="max-w-full">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
           <div>
             <PageHeader title="Medical Camps" description={`${camps.length} camps found`} />
           </div>
@@ -89,7 +89,7 @@ export default function CampsList() {
           </Button>
         </div>
 
-        <div className="mb-6 space-y-3">
+        <div className="mb-4 space-y-3">
           <ExpandableSearch
             value={search}
             onChange={(value) => setSearch(value)}
@@ -119,12 +119,12 @@ export default function CampsList() {
           </div>
         ) : (
           <>
-            <div className="space-y-3 mb-6">
+            <div className="space-y-3 mb-4">
               {camps.map((camp) => (
                 <div key={camp.id} className="rounded-lg border border-border bg-card p-3 sm:p-4">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <div className="flex-1">
-                      <h3 className="text-base sm:text-lg font-semibold">{camp.name}</h3>
+                      <h3 className="text-base sm:text-lg font-semibold capitalize">{camp.name}</h3>
                       <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 mt-2 text-xs sm:text-sm text-gray-600">
                         <div className="flex items-center gap-1">
                           <FiCalendar className="text-blue-600" />
@@ -136,18 +136,17 @@ export default function CampsList() {
                         </div>
                       </div>
                       {camp.organizer && (
-                        <p className="text-xs sm:text-sm text-gray-600 mt-2">Organizer: {camp.organizer}</p>
+                        <p className="text-xs sm:text-sm text-gray-600 mt-2">
+                          Organizer: <span className="capitalize">{camp.organizer}</span>
+                        </p>
                       )}
                     </div>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex gap-2 items-center">
                       <Button
                         variant="secondary"
                         size="sm"
                         onClick={() => navigate(`/health/camps/${camp.id}/edit`)}
-                        className="flex items-center gap-1"
-                      >
-                        <FiEdit2 className="w-4 h-4" /> Edit
-                      </Button>
+                        className="flex items-center gap-1" icon={<FiEdit2 />} collapseLabel>Edit</Button>
                       <Button
                         variant="danger"
                         size="sm"
@@ -155,10 +154,7 @@ export default function CampsList() {
                           setDeleteId(camp.id);
                           setConfirmDelete(true);
                         }}
-                        className="flex items-center gap-1"
-                      >
-                        <FiTrash2 className="w-4 h-4" /> Delete
-                      </Button>
+                        className="flex items-center gap-1" icon={<FiTrash2 />} collapseLabel>Delete</Button>
                     </div>
                   </div>
                 </div>

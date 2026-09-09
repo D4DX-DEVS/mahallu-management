@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { FiEdit2, FiArrowLeft, FiPlus, FiTrash2, FiTool } from 'react-icons/fi';
 import Card from '@/components/ui/Card';
+import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import Modal from '@/components/ui/Modal';
@@ -168,18 +169,21 @@ export default function AssetDetail() {
     {
       key: 'maintenanceDate',
       label: 'Date',
+      width: '6.25rem',
       render: (date) => formatDate(date),
     },
-    { key: 'description', label: 'Description' },
+    { key: 'description', label: 'Description', width: '9.25rem' },
     {
       key: 'cost',
       label: 'Cost (₹)',
+      width: '7.75rem',
       render: (cost) => (cost ? cost.toLocaleString('en-IN') : '-'),
     },
-    { key: 'performedBy', label: 'Performed By', render: (val) => val || '-' },
+    { key: 'performedBy', label: 'Performed By', width: '10.75rem', render: (val) => val || '-' },
     {
       key: 'status',
       label: 'Status',
+      width: '7.25rem',
       render: (status) => (
         <span
           className={`px-2 py-1 text-xs font-medium rounded-full ${maintenanceStatusColors[status] || 'bg-gray-100 text-gray-800'}`}
@@ -191,11 +195,14 @@ export default function AssetDetail() {
     {
       key: 'nextMaintenanceDate',
       label: 'Next Due',
+      width: '8.5rem',
       render: (date) => (date ? formatDate(date) : '-'),
     },
     {
       key: 'actions',
       label: 'Actions',
+      width: '8rem',
+      align: 'center',
       render: (_, row) => (
         <ActionsMenu
           items={[
@@ -227,7 +234,7 @@ export default function AssetDetail() {
 
   if (error || !asset) {
     return (
-      <div className="text-center py-12">
+      <div className="text-center py-10">
         <p className="text-red-600 dark:text-red-400">{error || 'Asset not found'}</p>
         <Link to={ROUTES.ASSETS.LIST} className="mt-4 inline-block">
           <Button variant="outline">Back to Assets</Button>
@@ -237,40 +244,34 @@ export default function AssetDetail() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Header */}
-      <div className="flex flex-wrap gap-2 items-center justify-between">
-        <div className="flex flex-wrap items-center gap-4">
+      <div className="flex gap-2 items-center justify-between">
+        <div className="flex items-center gap-4">
           <PageHeader
             description="Asset Details"
             title={asset.name}
             breadcrumbs={[{ label: 'Assets', path: ROUTES.ASSETS.LIST }]}
           />
-          <div className="flex flex-wrap gap-2">
+          <div className="flex gap-2 items-center">
             <Link to={ROUTES.ASSETS.LIST}>
-              <Button variant="outline">
-                <FiArrowLeft className="h-4 w-4 mr-2" />
-                Back
-              </Button>
+              <Button variant="outline" icon={<FiArrowLeft />} collapseLabel>Back</Button>
             </Link>
             <Link to={ROUTES.ASSETS.EDIT(asset.id)}>
-              <Button>
-                <FiEdit2 className="h-4 w-4 mr-2" />
-                Edit
-              </Button>
+              <Button icon={<FiEdit2 />} collapseLabel>Edit</Button>
             </Link>
           </div>
         </div>
       </div>
 
       {/* Asset Info */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card>
-          <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">Basic Information</h2>
+          <h2 className="text-lg font-semibold mb-3 text-foreground">Basic Information</h2>
           <div className="space-y-4">
             <div>
               <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Name</label>
-              <p className="mt-1 text-gray-900 dark:text-gray-100">{asset.name}</p>
+              <p className="mt-1 text-gray-900 dark:text-gray-100 capitalize">{asset.name}</p>
             </div>
             <div>
               <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Category</label>
@@ -280,7 +281,7 @@ export default function AssetDetail() {
             </div>
             <div>
               <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Mosque</label>
-              <p className="mt-1 text-gray-900 dark:text-gray-100">
+              <p className="mt-1 text-gray-900 dark:text-gray-100 capitalize">
                 {typeof asset.mosqueId === 'object' && asset.mosqueId ? asset.mosqueId.name : 'Unassigned'}
               </p>
             </div>
@@ -298,7 +299,7 @@ export default function AssetDetail() {
         </Card>
 
         <Card>
-          <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">Value & Location</h2>
+          <h2 className="text-lg font-semibold mb-3 text-foreground">Value & Location</h2>
           <div className="space-y-4">
             <div>
               <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Estimated Value</label>
@@ -327,18 +328,18 @@ export default function AssetDetail() {
 
         {asset.description && (
           <Card className="md:col-span-2">
-            <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">Description</h2>
+            <h2 className="text-lg font-semibold mb-3 text-foreground">Description</h2>
             <p className="text-gray-700 dark:text-gray-300">{asset.description}</p>
           </Card>
         )}
       </div>
 
       {/* Maintenance Records Section */}
-      <Card>
+      <TableCard>
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <FiTool className="h-5 w-5 text-gray-600 dark:text-gray-400" />
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Maintenance Records</h2>
+            <h2 className="text-lg font-semibold text-foreground">Maintenance Records</h2>
             <span className="ml-2 px-2 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200">
               {maintenanceRecords.length}
             </span>
@@ -353,13 +354,15 @@ export default function AssetDetail() {
           <PageSkeleton variant="section" />
         ) : (
           <Table
+            fixedLayout
+            striped
             columns={maintenanceColumns}
             data={maintenanceRecords}
             emptyMessage="No maintenance records found"
             showExport={false}
           />
         )}
-      </Card>
+      </TableCard>
 
       {/* Add/Edit Maintenance Modal */}
       <Modal

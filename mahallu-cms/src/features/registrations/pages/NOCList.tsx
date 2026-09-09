@@ -3,8 +3,9 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { FiEye, FiEdit2, FiX, FiFileText, FiClock, FiCheckCircle, FiDownload } from 'react-icons/fi';
-import Card from '@/components/ui/Card';
+import { FiCheckCircle, FiClock, FiFileText, FiPlus } from 'react-icons/fi';
+import TableCard from '@/components/ui/TableCard';
+import FilterPanel from '@/components/ui/FilterPanel';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
@@ -252,15 +253,15 @@ export default function NOCList() {
         </div>
       </div>
 
-      <Card>
-        <div className="mb-6">
+      <TableCard>
+        <div className="mb-4">
           <Button variant="outline" onClick={() => setShowCreate(!showCreate)}>
             {showCreate ? 'Close NOC Form' : '+ Create NOC'}
           </Button>
         </div>
 
         {showCreate && (
-          <div className="mb-8 p-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800">
+          <div className="mb-4 p-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800">
             <form onSubmit={handleSubmit(handleCreateNoc)} className="space-y-4">
               {createError && (
                 <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm dark:bg-red-900 dark:border-red-700 dark:text-red-200">
@@ -358,21 +359,14 @@ export default function NOCList() {
           onExport={handleExport}
           isExporting={isExporting}
           actionButtons={
-            <Button size="md" onClick={() => setShowCreate(true)}>
-              + New NOC
+            <Button size="md" onClick={() => setShowCreate(true)} icon={<FiPlus />} collapseLabel>
+              New NOC
             </Button>
           }
         />
 
         {isFilterVisible && (
-          <div className="relative flex flex-wrap items-center gap-4 mb-6 p-4 border border-gray-200 rounded-lg max-sm:border-0 max-sm:bg-transparent max-sm:p-0 bg-white dark:bg-gray-800 dark:border-gray-700">
-            <button
-              onClick={() => setIsFilterVisible(false)}
-              className="absolute right-4 top-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-              aria-label="Close"
-            >
-              <FiX className="h-4 w-4" />
-            </button>
+          <FilterPanel onClose={() => setIsFilterVisible(false)}>
             {!isNikahNOC && !isCommonNOC && (
               <div className="w-full sm:w-32">
                 <Select
@@ -398,13 +392,13 @@ export default function NOCList() {
                 onChange={(e) => setStatusFilter(e.target.value)}
               />
             </div>
-          </div>
+          </FilterPanel>
         )}
 
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="text-center py-12">
+          <div className="text-center py-10">
             <p className="text-red-600 dark:text-red-400">{error}</p>
             <Button onClick={fetchNOCs} className="mt-4" variant="outline">
               Retry
@@ -412,6 +406,8 @@ export default function NOCList() {
           </div>
         ) : (
           <Table
+            fixedLayout
+            striped
             columns={columns}
             data={nocs}
             emptyMessage="No NOCs found"
@@ -434,7 +430,7 @@ export default function NOCList() {
             />
           </div>
         )}
-      </Card>
+      </TableCard>
     </div>
   );
 }

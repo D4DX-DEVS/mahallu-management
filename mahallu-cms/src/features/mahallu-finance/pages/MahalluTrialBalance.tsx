@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import Card from '@/components/ui/Card';
+import StatCard from '@/components/ui/StatCard';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import { PageSkeleton } from '@/components/ui/Skeleton';
@@ -35,7 +36,7 @@ export default function MahalluTrialBalance() {
   const totalCredit = entries.reduce((s, e) => s + e.credit, 0);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <PageHeader
         title="Mahallu Trial Balance"
         description="Summary of all Mahallu ledger balances"
@@ -43,7 +44,7 @@ export default function MahalluTrialBalance() {
       />
 
       <Card>
-        <div className="flex flex-wrap items-end gap-4 mb-6">
+        <div className="flex flex-wrap items-end gap-4 mb-4">
           <div className="w-full sm:w-44">
             <Input
               label="Start Date"
@@ -70,18 +71,20 @@ export default function MahalluTrialBalance() {
         ) : error ? (
           <p className="text-center py-8 text-red-600">{error}</p>
         ) : entries.length === 0 ? (
-          <p className="text-center py-12 text-gray-500">Select a date range and click "Generate"</p>
+          <p className="text-center py-10 text-gray-500">Select a date range and click "Generate"</p>
         ) : (
           <>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-              <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg">
-                <p className="text-sm text-red-600">Total Debit (Expense)</p>
-                <p className="text-xl font-bold text-red-700">₹{totalDebit.toLocaleString()}</p>
-              </div>
-              <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                <p className="text-sm text-green-600">Total Credit (Income)</p>
-                <p className="text-xl font-bold text-green-700">₹{totalCredit.toLocaleString()}</p>
-              </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+              <StatCard
+                title="Total Debit (Expense)"
+                value={<>₹{totalDebit.toLocaleString()}</>}
+                tone="destructive"
+              />
+              <StatCard
+                title="Total Credit (Income)"
+                value={<>₹{totalCredit.toLocaleString()}</>}
+                tone="success"
+              />
               <div
                 className={`p-4 rounded-lg ${Math.abs(totalCredit - totalDebit) < 0.01 ? 'bg-green-50 dark:bg-green-900/20' : 'bg-yellow-50 dark:bg-yellow-900/20'}`}
               >
@@ -91,15 +94,15 @@ export default function MahalluTrialBalance() {
                   Difference
                 </p>
                 <p
-                  className={`text-xl font-bold ${Math.abs(totalCredit - totalDebit) < 0.01 ? 'text-green-700' : 'text-yellow-700'}`}
+                  className={`text-lg font-semibold tabular-nums ${Math.abs(totalCredit - totalDebit) < 0.01 ? 'text-green-700' : 'text-yellow-700'}`}
                 >
                   ₹{Math.abs(totalCredit - totalDebit).toLocaleString()}
                 </p>
               </div>
             </div>
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                <thead className="bg-gray-50 dark:bg-gray-800">
+              <table className="min-w-full divide-y divide-border">
+                <thead className="bg-muted">
                   <tr>
                     {['Ledger', 'Type', 'Debit', 'Credit'].map((h) => (
                       <th
@@ -111,7 +114,7 @@ export default function MahalluTrialBalance() {
                     ))}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                <tbody className="divide-y divide-border">
                   {entries.map((entry, i) => (
                     <tr key={i} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
                       <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100">

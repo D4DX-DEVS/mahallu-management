@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FiEye, FiTrash2, FiCalendar, FiX, FiClock, FiCheckCircle } from 'react-icons/fi';
-import Card from '@/components/ui/Card';
+import { FiCalendar, FiCheckCircle, FiClock, FiEye, FiPlus, FiTrash2 } from 'react-icons/fi';
+import TableCard from '@/components/ui/TableCard';
+import FilterPanel from '@/components/ui/FilterPanel';
 import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
 import StatCard from '@/components/ui/StatCard';
@@ -130,20 +131,23 @@ export default function MeetingsList() {
   };
 
   const columns: TableColumn<Meeting>[] = [
-    { key: 'title', label: 'Title', sortable: true },
+    { key: 'title', label: 'Title', width: '6.25rem', sortable: true },
     {
       key: 'committeeName',
       label: 'Committee',
+      width: '9.25rem',
       render: (name, row) => name || (row.committeeId as any)?.name || '-',
     },
     {
       key: 'meetingDate',
       label: 'Date',
+      width: '6.25rem',
       render: (date) => formatDate(date),
     },
     {
       key: 'status',
       label: 'Status',
+      width: '7.25rem',
       render: (status) => {
         return <StatusBadge status={status} />;
       },
@@ -151,11 +155,14 @@ export default function MeetingsList() {
     {
       key: 'attendancePercent',
       label: 'Attendance',
+      width: '9.25rem',
       render: (percent) => `${percent || 0}%`,
     },
     {
       key: 'actions',
       label: 'Actions',
+      width: '8rem',
+      align: 'center',
       render: (_, row) => (
         <ActionsMenu
           items={[
@@ -211,7 +218,7 @@ export default function MeetingsList() {
         </div>
       </div>
 
-      <Card>
+      <TableCard>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -223,20 +230,13 @@ export default function MeetingsList() {
           isExporting={isExporting}
           actionButtons={
             <Link to="/committees/meetings/create">
-              <Button size="md">+ New Meeting</Button>
+              <Button size="md" icon={<FiPlus />} collapseLabel>New Meeting</Button>
             </Link>
           }
         />
 
         {isFilterVisible && (
-          <div className="relative flex flex-wrap items-center gap-4 mb-6 p-4 border border-gray-200 rounded-lg max-sm:border-0 max-sm:bg-transparent max-sm:p-0 bg-white dark:bg-gray-800 dark:border-gray-700">
-            <button
-              onClick={() => setIsFilterVisible(false)}
-              className="absolute right-4 top-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-              aria-label="Close"
-            >
-              <FiX className="h-4 w-4" />
-            </button>
+          <FilterPanel onClose={() => setIsFilterVisible(false)}>
             <div className="w-full sm:w-64">
               <Select
                 options={[
@@ -250,13 +250,13 @@ export default function MeetingsList() {
                 onChange={(e) => setCommitteeFilter(e.target.value)}
               />
             </div>
-          </div>
+          </FilterPanel>
         )}
 
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="text-center py-12">
+          <div className="text-center py-10">
             <p className="text-red-600 dark:text-red-400">{error}</p>
             <Button onClick={fetchMeetings} className="mt-4" variant="outline">
               Retry
@@ -264,6 +264,8 @@ export default function MeetingsList() {
           </div>
         ) : (
           <Table
+            fixedLayout
+            striped
             columns={columns}
             data={meetings}
             emptyMessage="No meetings found"
@@ -286,7 +288,7 @@ export default function MeetingsList() {
             />
           </div>
         )}
-      </Card>
+      </TableCard>
 
       <Modal
         isOpen={showDeleteModal}

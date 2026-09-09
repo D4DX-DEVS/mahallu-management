@@ -105,24 +105,24 @@ export default function KhutbahEdit() {
   }));
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <PageHeader
         title="Edit Khutbah"
         breadcrumbs={[{ label: 'Khutbah Schedule', path: ROUTES.RELIGIOUS.KHUTBAHS }]}
       />
 
       <Card>
-        <div className="flex justify-between items-center mb-6">
+        <div className="flex justify-between items-center mb-4">
           <Button variant="outline" onClick={() => navigate(ROUTES.RELIGIOUS.KHUTBAHS)}>
             <FiX className="inline mr-2" />
             Cancel
           </Button>
         </div>
 
-        {error && <div className="p-4 bg-red-100 text-red-800 rounded mb-6">{error}</div>}
+        {error && <div className="p-4 bg-red-100 text-red-800 rounded mb-4">{error}</div>}
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <Select
                 label="Khateeb *"

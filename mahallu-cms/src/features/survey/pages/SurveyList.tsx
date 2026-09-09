@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Card from '@/components/ui/Card';
+import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
 import Table from '@/components/ui/Table';
@@ -68,11 +69,11 @@ export default function SurveyList() {
   };
 
   const columns: TableColumn<SurveySnapshot>[] = [
-    { key: 'surveyDate', label: 'Survey Date', render: (v) => formatDate(v) },
-    { key: 'type', label: 'Type', render: (v) => (v === 'comprehensive' ? 'Comprehensive' : 'Annual') },
-    { key: 'stats', label: 'Households', render: (stats) => stats?.totalHouseholds ?? 0 },
-    { key: 'population', label: 'Population', render: (_v, row) => row.stats?.totalPopulation ?? 0 },
-    { key: 'nextReviewDate', label: 'Next Review', render: (v) => formatDate(v) },
+    { key: 'surveyDate', label: 'Survey Date', width: '10rem', render: (v) => formatDate(v) },
+    { key: 'type', label: 'Type', width: '6.25rem', render: (v) => (v === 'comprehensive' ? 'Comprehensive' : 'Annual') },
+    { key: 'stats', label: 'Households', width: '9rem', align: 'center', render: (stats) => stats?.totalHouseholds ?? 0 },
+    { key: 'population', label: 'Population', width: '8.75rem', align: 'center', render: (_v, row) => row.stats?.totalPopulation ?? 0 },
+    { key: 'nextReviewDate', label: 'Next Review', width: '10rem', render: (v) => formatDate(v) },
   ];
 
   return (
@@ -92,7 +93,7 @@ export default function SurveyList() {
         </Card>
       )}
 
-      <Card>
+      <TableCard>
         <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-xs text-gray-500 dark:text-gray-400">{pagination?.total ?? 0} snapshot(s)</p>
           <Button size="md" onClick={() => setGenerateOpen(true)}>
@@ -103,7 +104,7 @@ export default function SurveyList() {
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="py-12 text-center">
+          <div className="py-10 text-center">
             <p className="text-red-600 dark:text-red-400">{error}</p>
             <Button onClick={fetchRows} className="mt-4" variant="outline">
               Retry
@@ -119,15 +120,15 @@ export default function SurveyList() {
             }}
           />
         ) : (
-          <div className="overflow-x-auto">
-            <Table
-              columns={columns}
-              data={rows}
-              emptyMessage="No survey snapshots yet"
-              showExport={false}
-              onRowClick={(row) => navigate(`/survey/${row.id}`)}
-            />
-          </div>
+          <Table
+            fixedLayout
+            striped
+            columns={columns}
+            data={rows}
+            emptyMessage="No survey snapshots yet"
+            showExport={false}
+            onRowClick={(row) => navigate(`/survey/${row.id}`)}
+          />
         )}
 
         {pagination && (
@@ -141,7 +142,7 @@ export default function SurveyList() {
             />
           </div>
         )}
-      </Card>
+      </TableCard>
 
       <Modal isOpen={isGenerateOpen} onClose={() => setGenerateOpen(false)} title="Generate Survey Snapshot">
         <div className="space-y-3">

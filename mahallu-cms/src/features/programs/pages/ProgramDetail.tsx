@@ -45,7 +45,7 @@ export default function ProgramDetail() {
 
   if (error || !program) {
     return (
-      <div className="text-center py-12">
+      <div className="text-center py-10">
         <p className="text-red-600 dark:text-red-400">{error || 'Program not found'}</p>
         <Link to={ROUTES.PROGRAMS.LIST} className="mt-4 inline-block">
           <Button variant="outline">Back to Programs</Button>
@@ -55,38 +55,32 @@ export default function ProgramDetail() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap gap-2 items-center justify-between">
-        <div className="flex flex-wrap items-center gap-4">
+    <div className="space-y-4">
+      <div className="flex gap-2 items-center justify-between">
+        <div className="flex items-center gap-4">
           <PageHeader
             description="Program Details"
             title={program.name}
             breadcrumbs={[{ label: 'Programs', path: ROUTES.PROGRAMS.LIST }]}
           />
-          <div className="flex flex-wrap gap-2">
+          <div className="flex gap-2 items-center">
             <Link to={ROUTES.PROGRAMS.LIST}>
-              <Button variant="outline">
-                <FiArrowLeft className="h-4 w-4 mr-2" />
-                Back
-              </Button>
+              <Button variant="outline" icon={<FiArrowLeft />} collapseLabel>Back</Button>
             </Link>
             <Link to={`/programs/${program.id}/edit`}>
-              <Button>
-                <FiEdit2 className="h-4 w-4 mr-2" />
-                Edit
-              </Button>
+              <Button icon={<FiEdit2 />} collapseLabel>Edit</Button>
             </Link>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card>
-          <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">Basic Information</h2>
+          <h2 className="text-lg font-semibold mb-3 text-foreground">Basic Information</h2>
           <div className="space-y-4">
             <div>
               <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Name</label>
-              <p className="mt-1 text-gray-900 dark:text-gray-100">{program.name}</p>
+              <p className="mt-1 text-gray-900 dark:text-gray-100 capitalize">{program.name}</p>
             </div>
             <div>
               <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Place</label>
@@ -114,7 +108,7 @@ export default function ProgramDetail() {
         </Card>
 
         <Card>
-          <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">Contact Information</h2>
+          <h2 className="text-lg font-semibold mb-3 text-foreground">Contact Information</h2>
           <div className="space-y-4">
             {program.contactNo && (
               <div>
@@ -133,7 +127,7 @@ export default function ProgramDetail() {
 
         {program.description && (
           <Card className="md:col-span-2">
-            <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">Description</h2>
+            <h2 className="text-lg font-semibold mb-3 text-foreground">Description</h2>
             <p className="text-gray-700 dark:text-gray-300">{program.description}</p>
           </Card>
         )}
@@ -141,7 +135,7 @@ export default function ProgramDetail() {
         {/* Event details (Task C3) — only meaningful once a program is run as an event */}
         {(program.eventDate || program.competitions?.length || program.awards) && (
           <Card className="md:col-span-2">
-            <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">Event</h2>
+            <h2 className="text-lg font-semibold mb-3 text-foreground">Event</h2>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
               <div>
                 <label className="text-label sm:text-sm font-medium text-gray-500 dark:text-gray-400">

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { FiDownload } from 'react-icons/fi';
 import Card from '@/components/ui/Card';
+import StatCard from '@/components/ui/StatCard';
 import Button from '@/components/ui/Button';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import { reportService } from '@/services/reportService';
@@ -86,7 +87,7 @@ export default function DataQualityPage() {
 
   if (error) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-4">
         <Card>
           <p className="text-red-600 dark:text-red-400">{error}</p>
         </Card>
@@ -95,84 +96,65 @@ export default function DataQualityPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <PageHeader
         title="Data Quality Report"
         description="Monitor data quality metrics and identify duplicates"
       />
 
       {/* Data Quality Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
         {/* Families Stats */}
-        <Card>
-          <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Total Families</h3>
-          <p className="text-3xl font-bold text-gray-900 dark:text-gray-100">
-            {stats?.data?.families?.total || 0}
-          </p>
-          <p className="text-xs text-gray-600 dark:text-gray-400 mt-2">
-            {stats?.data?.families?.pendingApproval || 0} pending approval
-          </p>
-        </Card>
+        <StatCard
+          title="Total Families"
+          value={stats?.data?.families?.total || 0}
+          hint={<>{stats?.data?.families?.pendingApproval || 0} pending approval</>}
+        />
 
-        <Card>
-          <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Families without Head</h3>
-          <p className="text-3xl font-bold text-amber-600 dark:text-amber-400">
-            {stats?.data?.families?.withoutHead || 0}
-          </p>
-          <p className="text-xs text-gray-600 dark:text-gray-400 mt-2">Action required</p>
-        </Card>
+        <StatCard
+          title="Families without Head"
+          value={stats?.data?.families?.withoutHead || 0}
+          hint="Action required"
+          tone="warning"
+        />
 
         {/* Members Stats */}
-        <Card>
-          <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Total Members</h3>
-          <p className="text-3xl font-bold text-gray-900 dark:text-gray-100">
-            {stats?.data?.members?.total || 0}
-          </p>
-        </Card>
+        <StatCard title="Total Members" value={stats?.data?.members?.total || 0} />
 
-        <Card>
-          <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Missing Phone</h3>
-          <p className="text-3xl font-bold text-red-600 dark:text-red-400">
-            {stats?.data?.members?.missingPhone || 0}
-          </p>
-          <p className="text-xs text-gray-600 dark:text-gray-400 mt-2">
-            {(((stats?.data?.members?.missingPhone || 0) / (stats?.data?.members?.total || 1)) * 100).toFixed(
-              1
-            )}
-            % of total
-          </p>
-        </Card>
+        <StatCard
+          title="Missing Phone"
+          value={stats?.data?.members?.missingPhone || 0}
+          hint={`${(((stats?.data?.members?.missingPhone || 0) / (stats?.data?.members?.total || 1)) * 100).toFixed(
+            1
+          )}% of total`}
+          tone="destructive"
+        />
 
-        <Card>
-          <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Missing Age</h3>
-          <p className="text-3xl font-bold text-red-600 dark:text-red-400">
-            {stats?.data?.members?.missingAge || 0}
-          </p>
-          <p className="text-xs text-gray-600 dark:text-gray-400 mt-2">
-            {(((stats?.data?.members?.missingAge || 0) / (stats?.data?.members?.total || 1)) * 100).toFixed(
-              1
-            )}
-            % of total
-          </p>
-        </Card>
+        <StatCard
+          title="Missing Age"
+          value={stats?.data?.members?.missingAge || 0}
+          hint={`${(((stats?.data?.members?.missingAge || 0) / (stats?.data?.members?.total || 1)) * 100).toFixed(
+            1
+          )}% of total`}
+          tone="destructive"
+        />
 
-        <Card>
-          <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Unenrolled Students</h3>
-          <p className="text-3xl font-bold text-orange-600 dark:text-orange-400">
-            {stats?.data?.members?.unenrolledStudents || 0}
-          </p>
-          <p className="text-xs text-gray-600 dark:text-gray-400 mt-2">Missing education info</p>
-        </Card>
+        <StatCard
+          title="Unenrolled Students"
+          value={stats?.data?.members?.unenrolledStudents || 0}
+          hint="Missing education info"
+          tone="warning"
+        />
       </div>
 
       {/* Duplicates Section */}
       <div className="space-y-4">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Suspected Duplicates</h2>
+        <h2 className="text-lg font-semibold text-foreground">Suspected Duplicates</h2>
 
         {/* Duplicates by Phone */}
         {duplicates?.data?.byPhone && duplicates.data.byPhone.length > 0 && (
           <Card>
-            <h3 className="text-md font-medium text-gray-900 dark:text-gray-100 mb-4">
+            <h3 className="text-base font-semibold mb-3 text-foreground">
               Duplicate Phone Numbers ({duplicates.data.byPhone.length})
             </h3>
             <div className="overflow-x-auto">
@@ -202,7 +184,7 @@ export default function DataQualityPage() {
                       </td>
                       <td className="py-3 px-3 text-gray-600 dark:text-gray-400">
                         {group.members.map((m, idx) => (
-                          <div key={idx} className="text-xs">
+                          <div key={idx} className="text-xs capitalize">
                             {m.name} ({m.familyName})
                           </div>
                         ))}
@@ -218,7 +200,7 @@ export default function DataQualityPage() {
         {/* Duplicates by Name & Age */}
         {duplicates?.data?.byNameAge && duplicates.data.byNameAge.length > 0 && (
           <Card>
-            <h3 className="text-md font-medium text-gray-900 dark:text-gray-100 mb-4">
+            <h3 className="text-base font-semibold mb-3 text-foreground">
               Duplicate Names & Age ({duplicates.data.byNameAge.length})
             </h3>
             <div className="overflow-x-auto">
@@ -242,7 +224,7 @@ export default function DataQualityPage() {
                       key={(group.id?.name ?? '') + '-' + (group.id?.age ?? '')}
                       className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50"
                     >
-                      <td className="py-3 px-3 text-gray-900 dark:text-gray-100 font-mono text-xs">
+                      <td className="py-3 px-3 text-gray-900 dark:text-gray-100 font-mono text-xs capitalize">
                         {group.id?.name}
                         {group.id?.age != null ? ', age ' + group.id.age : ''}
                       </td>
@@ -251,7 +233,7 @@ export default function DataQualityPage() {
                       </td>
                       <td className="py-3 px-3 text-gray-600 dark:text-gray-400">
                         {group.members.map((m, idx) => (
-                          <div key={idx} className="text-xs">
+                          <div key={idx} className="text-xs capitalize">
                             {m.name} ({m.familyName}){m.age ? `, age ${m.age}` : ''}
                           </div>
                         ))}
@@ -267,7 +249,7 @@ export default function DataQualityPage() {
 
       {/* Export Section */}
       <Card>
-        <h3 className="text-md font-medium text-gray-900 dark:text-gray-100 mb-4">Export Data</h3>
+        <h3 className="text-base font-semibold mb-3 text-foreground">Export Data</h3>
         <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">Download CSV files for all entities</p>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
           {['families', 'members', 'varisangya', 'zakat', 'nikah', 'death', 'noc'].map((entity) => (

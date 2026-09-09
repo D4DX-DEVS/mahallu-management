@@ -41,7 +41,7 @@ export default function EmployeeDetail() {
 
   if (error || !employee) {
     return (
-      <div className="text-center py-12">
+      <div className="text-center py-10">
         <p className="text-red-600 dark:text-red-400">{error || 'Employee not found'}</p>
         <Link to={ROUTES.EMPLOYEES.LIST} className="mt-4 inline-block">
           <Button variant="outline">Back to Employees</Button>
@@ -51,41 +51,32 @@ export default function EmployeeDetail() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap gap-2 items-center justify-between">
-        <div className="flex flex-wrap items-center gap-4">
+    <div className="space-y-4">
+      <div className="flex gap-2 items-center justify-between">
+        <div className="flex items-center gap-4">
           <PageHeader
             title={employee.name}
             breadcrumbs={[{ label: 'Employees', path: ROUTES.EMPLOYEES.LIST }]}
           />
-          <div className="flex flex-wrap gap-2">
+          <div className="flex gap-2 items-center">
             <Link to={ROUTES.EMPLOYEES.LIST}>
-              <Button variant="outline">
-                <FiArrowLeft className="h-4 w-4 mr-2" />
-                Back
-              </Button>
+              <Button variant="outline" icon={<FiArrowLeft />} collapseLabel>Back</Button>
             </Link>
-            <Button variant="outline" onClick={() => navigate(`/salary?employeeId=${employee.id}`)}>
-              <FiDollarSign className="h-4 w-4 mr-2" />
-              Salary History
-            </Button>
+            <Button variant="outline" onClick={() => navigate(`/salary?employeeId=${employee.id}`)} icon={<FiDollarSign />} collapseLabel>Salary History</Button>
             <Link to={ROUTES.EMPLOYEES.EDIT(employee.id)}>
-              <Button>
-                <FiEdit2 className="h-4 w-4 mr-2" />
-                Edit
-              </Button>
+              <Button icon={<FiEdit2 />} collapseLabel>Edit</Button>
             </Link>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card>
-          <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">Basic Information</h2>
+          <h2 className="text-lg font-semibold mb-3 text-foreground">Basic Information</h2>
           <div className="space-y-4">
             <div>
               <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Name</label>
-              <p className="mt-1 text-gray-900 dark:text-gray-100">{employee.name}</p>
+              <p className="mt-1 text-gray-900 dark:text-gray-100 capitalize">{employee.name}</p>
             </div>
             <div>
               <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Designation</label>
@@ -100,7 +91,7 @@ export default function EmployeeDetail() {
             {employee.instituteName && (
               <div>
                 <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Institute</label>
-                <p className="mt-1 text-gray-900 dark:text-gray-100">{employee.instituteName}</p>
+                <p className="mt-1 text-gray-900 dark:text-gray-100 capitalize">{employee.instituteName}</p>
               </div>
             )}
             <div>
@@ -123,7 +114,7 @@ export default function EmployeeDetail() {
         </Card>
 
         <Card>
-          <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">Contact & Financial</h2>
+          <h2 className="text-lg font-semibold mb-3 text-foreground">Contact & Financial</h2>
           <div className="space-y-4">
             {employee.phone && (
               <div>
@@ -147,7 +138,7 @@ export default function EmployeeDetail() {
               (employee.bankAccount.accountNumber || employee.bankAccount.bankName) && (
                 <>
                   <div className="pt-3 border-t border-gray-200 dark:border-gray-700">
-                    <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                    <h3 className="text-sm font-semibold mb-2 text-foreground">
                       Bank Account
                     </h3>
                   </div>

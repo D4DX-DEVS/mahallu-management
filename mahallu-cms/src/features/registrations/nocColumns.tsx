@@ -12,15 +12,17 @@ interface NocColumnDeps {
 
 /** Column config for the NOC table, split out to keep NOCList under the 500-line rule. */
 export const buildNocColumns = ({ navigate }: NocColumnDeps): TableColumn<NOC>[] => [
-  { key: 'applicantName', label: 'Applicant', sortable: true },
+  { key: 'applicantName', label: 'Applicant', width: '8.25rem', sortable: true },
   {
     key: 'purposeTitle',
     label: 'Purpose',
+    width: '7.75rem',
     render: (value, row) => value || row.purpose || '-',
   },
   {
     key: 'type',
     label: 'Type',
+    width: '6.25rem',
     render: (type) => (
       <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 capitalize">
         {type}
@@ -30,6 +32,7 @@ export const buildNocColumns = ({ navigate }: NocColumnDeps): TableColumn<NOC>[]
   {
     key: 'status',
     label: 'Status',
+    width: '7.25rem',
     render: (status) => {
       return <StatusBadge status={status} />;
     },
@@ -37,11 +40,14 @@ export const buildNocColumns = ({ navigate }: NocColumnDeps): TableColumn<NOC>[]
   {
     key: 'createdAt',
     label: 'Created',
+    width: '7.75rem',
     render: (date) => formatDate(date),
   },
   {
     key: 'actions',
     label: 'Actions',
+    width: '8rem',
+    align: 'center',
     render: (_, row) => (
       <ActionsMenu
         items={[

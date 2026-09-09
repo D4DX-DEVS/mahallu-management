@@ -3,6 +3,7 @@ import { memberPortalService, PaymentRecord } from '@/services/memberPortalServi
 import { downloadPaymentReceiptPdf } from '@/utils/paymentReceiptPdf';
 import { useAuthStore } from '@/store/authStore';
 import Card from '@/components/ui/Card';
+import StatCard from '@/components/ui/StatCard';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import { loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
@@ -77,28 +78,20 @@ export default function MemberPayments() {
   }
 
   return (
-    <div className="space-y-6 max-w-4xl w-full mx-auto">
+    <div className="space-y-4 max-w-4xl w-full mx-auto">
       <PageHeader title="My Payments &amp; Receipts" />
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Card>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Total Varisangya Paid</p>
-          <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100 mt-1">
-            {currency.format(varisangyaTotal)}
-          </p>
-          <p className="text-xs text-gray-400 mt-1">
-            {payments.filter((p) => p.type === 'varisangya').length} payments
-          </p>
-        </Card>
-        <Card>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Total Zakat Paid</p>
-          <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100 mt-1">
-            {currency.format(zakatTotal)}
-          </p>
-          <p className="text-xs text-gray-400 mt-1">
-            {payments.filter((p) => p.type === 'zakat').length} payments
-          </p>
-        </Card>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <StatCard
+          title="Total Varisangya Paid"
+          value={currency.format(varisangyaTotal)}
+          hint={<>{payments.filter((p) => p.type === 'varisangya').length} payments</>}
+        />
+        <StatCard
+          title="Total Zakat Paid"
+          value={currency.format(zakatTotal)}
+          hint={<>{payments.filter((p) => p.type === 'zakat').length} payments</>}
+        />
       </div>
 
       {/* Tab Filter */}
@@ -121,7 +114,7 @@ export default function MemberPayments() {
       {/* Payments Table */}
       {filtered.length === 0 ? (
         <Card>
-          <div className="text-center py-12">
+          <div className="text-center py-10">
             <p className="text-gray-500 dark:text-gray-400">No payment records found.</p>
           </div>
         </Card>

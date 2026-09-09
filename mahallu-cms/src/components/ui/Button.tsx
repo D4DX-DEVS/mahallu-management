@@ -11,6 +11,27 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
    * icon cannot. `title` is not a substitute — it never appears on touch.
    */
   'aria-label'?: string;
+  /**
+   * Leading glyph. Sized by the button, so pass it bare — `<FiPlus />`, not
+   * `<FiPlus className="h-4 w-4 mr-2" />`. The gap is the button's own.
+   */
+  icon?: ReactNode;
+  /**
+   * Below `sm`, show the icon and drop the label to a square button.
+   *
+   * A phone toolbar holds six controls across 320px; a single "+ New
+   * Committee" spends half of that, which is what pushed the row onto a second
+   * line. The label is still in the accessibility tree — `sr-only`, not
+   * `hidden` — so the button keeps its name for a screen reader and its
+   * tooltip for a pointer. Requires `icon`; without one there would be nothing
+   * left to press.
+   */
+  collapseLabel?: boolean;
+  /**
+   * Rendered after the label and never collapsed — a count, a status dot.
+   * Use it for the one piece of state a glyph cannot carry on its own.
+   */
+  trailing?: ReactNode;
   children?: ReactNode;
 }
 const Spinner = () => (
@@ -37,9 +58,13 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       size = 'md',
       isLoading,
       loadingText,
+      icon,
+      collapseLabel = false,
+      trailing,
       children,
       disabled,
       type = 'button',
+      title,
       ...props
     },
     ref
@@ -65,26 +90,72 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       icon: 'h-10 w-10 p-0',
       'icon-sm': 'h-8 w-8 p-0',
     };
+    /* A square of the same height below `sm`, the ordinary button from `sm`.
+     * The label is absolutely positioned while collapsed, so it is not a flex
+     * item, contributes no width and takes no gap — the glyph sits dead
+     * centre without a second rule to re-centre it. */
+    const collapsedSizes = {
+      sm: 'h-8 w-8 p-0 sm:w-auto sm:px-3 text-sm',
+      md: 'h-10 w-10 p-0 sm:w-auto sm:px-4 text-sm',
+      lg: 'h-12 w-12 p-0 sm:w-auto sm:px-6 text-base',
+      icon: 'h-10 w-10 p-0',
+      'icon-sm': 'h-8 w-8 p-0',
+    };
     const iconOnly = size === 'icon' || size === 'icon-sm';
+    const collapsed = collapseLabel && Boolean(icon) && !iconOnly;
     if (import.meta.env.DEV && iconOnly && !props['aria-label']) {
       // eslint-disable-next-line no-console
       console.warn('Button: icon-only buttons require an aria-label.');
     }
+    if (import.meta.env.DEV && collapseLabel && !icon) {
+      // eslint-disable-next-line no-console
+      console.warn('Button: collapseLabel needs an icon — a collapsed button would be empty.');
+    }
+    /* Every glyph the same size, whatever the call site passed. */
+    const glyph = icon && (
+      <span className="flex h-4 w-4 flex-shrink-0 items-center justify-center [&>svg]:h-4 [&>svg]:w-4">
+        {icon}
+      </span>
+    );
+    const label = collapsed ? <span className="sr-only sm:not-sr-only">{children}</span> : children;
+    /* Stays visible when the label collapses. For the one thing a glyph cannot
+     * carry on its own — a count. The button gives up its fixed square width
+     * to make room. */
+    const suffix = trailing && <span className="flex flex-shrink-0 items-center">{trailing}</span>;
     return (
       <button
         ref={ref}
         type={type}
-        className={cn(base, variants[variant], sizes[size], className)}
+        /* Collapsed, the visible control is a bare glyph: the tooltip is the
+         * only thing a pointer has to go on. */
+        title={title ?? (collapsed && typeof children === 'string' ? children : undefined)}
+        className={cn(
+          base,
+          variants[variant],
+          collapsed ? collapsedSizes[size] : sizes[size],
+          /* A trailing badge needs room the fixed square does not have. */
+          collapsed && trailing && 'w-auto gap-1 px-2 sm:gap-2 sm:px-4',
+          className
+        )}
         disabled={disabled || isLoading}
         aria-busy={isLoading || undefined}
         {...props}
       >
         {isLoading ? (
           <>
-            <Spinner /> {!iconOnly && <span>{loadingText ?? children}</span>}
+            <Spinner />{' '}
+            {!iconOnly && (
+              <span className={collapsed ? 'sr-only sm:not-sr-only' : undefined}>
+                {loadingText ?? children}
+              </span>
+            )}
           </>
         ) : (
-          children
+          <>
+            {glyph}
+            {label}
+            {suffix}
+          </>
         )}
       </button>
     );

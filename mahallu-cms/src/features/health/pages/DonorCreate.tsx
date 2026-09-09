@@ -57,18 +57,18 @@ export default function DonorCreate() {
       <div className="max-w-2xl">
         <button
           onClick={() => navigate('/health/donors')}
-          className="flex items-center gap-2 text-blue-600 hover:text-blue-800 mb-6"
+          className="flex items-center gap-2 text-blue-600 hover:text-blue-800 mb-4"
         >
           <FiArrowLeft /> Back to Blood Donors
         </button>
 
         <PageHeader title="Add New Blood Donor" />
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 text-red-700">{error}</div>
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4 text-red-700">{error}</div>
         )}
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 sm:space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 sm:space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Name *</label>
               <Input

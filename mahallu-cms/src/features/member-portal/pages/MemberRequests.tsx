@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import Button from '@/components/ui/Button';
 import { Link } from 'react-router-dom';
 import {
   memberPortalService,
@@ -11,7 +12,7 @@ import Card from '@/components/ui/Card';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import Pagination from '@/components/ui/Pagination';
 import RequestDetailModal, { RequestType } from '../components/RequestDetailModal';
-import { FiEdit2, FiEye, FiHeart, FiAlertCircle, FiFileText } from 'react-icons/fi';
+import { FiAlertCircle, FiEdit2, FiEye, FiFileText, FiHeart, FiPlus } from 'react-icons/fi';
 import { loadErrorMessage } from '@/utils/errors';
 import StatusBadge from '@/components/ui/StatusBadge';
 import PageHeader from '@/components/layout/PageHeader';
@@ -135,24 +136,22 @@ export default function MemberRequests() {
   }
 
   return (
-    <div className="space-y-6 max-w-4xl w-full mx-auto">
+    <div className="space-y-4 max-w-4xl w-full mx-auto">
       <div className="flex flex-wrap gap-2 items-center justify-between">
         <PageHeader title="My Requests" />
-        <div className="flex flex-wrap gap-2">
+        <div className="flex items-center gap-2">
           {activeTab === 'nikah' && (
-            <Link
-              to={ROUTES.MEMBER.NIKAH_REQUEST}
-              className="py-2 px-4 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg text-sm transition-colors"
-            >
-              + New Nikah Registration
+            <Link to={ROUTES.MEMBER.NIKAH_REQUEST} className="flex-shrink-0">
+              <Button icon={<FiPlus />} collapseLabel>
+                New Nikah Registration
+              </Button>
             </Link>
           )}
           {activeTab === 'death' && (
-            <Link
-              to={ROUTES.MEMBER.DEATH_REQUEST}
-              className="py-2 px-4 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg text-sm transition-colors"
-            >
-              + Report Death
+            <Link to={ROUTES.MEMBER.DEATH_REQUEST} className="flex-shrink-0">
+              <Button icon={<FiPlus />} collapseLabel>
+                Report Death
+              </Button>
             </Link>
           )}
         </div>
@@ -192,7 +191,7 @@ export default function MemberRequests() {
 
       {requests.length === 0 ? (
         <Card>
-          <div className="text-center py-12 space-y-3">
+          <div className="text-center py-10 space-y-3">
             <p className="text-gray-500 dark:text-gray-400">No {activeTab} registrations found.</p>
             {activeTab === 'nikah' && (
               <Link

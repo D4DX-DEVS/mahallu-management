@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import Card from '@/components/ui/Card';
+import StatCard from '@/components/ui/StatCard';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
@@ -81,14 +82,14 @@ export default function IncomeExpenditure() {
           className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden"
         >
           <div className={`px-4 py-2 ${colorClass} flex justify-between items-center`}>
-            <span className="font-semibold text-sm">{group.ledgerName}</span>
-            <span className="font-bold text-sm">₹{group.total.toLocaleString()}</span>
+            <span className="font-semibold text-sm capitalize">{group.ledgerName}</span>
+            <span className="font-semibold text-sm">₹{group.total.toLocaleString()}</span>
           </div>
           {group.categories.length > 0 && (
             <div className="divide-y divide-gray-100 dark:divide-gray-800">
               {group.categories.map((cat, idx) => (
                 <div key={idx} className="px-6 py-2 flex justify-between text-sm">
-                  <span className="text-gray-700 dark:text-gray-300">{cat.categoryName}</span>
+                  <span className="text-gray-700 dark:text-gray-300 capitalize">{cat.categoryName}</span>
                   <span className="text-gray-900 dark:text-gray-100 font-medium">
                     ₹{cat.total.toLocaleString()}
                   </span>
@@ -102,14 +103,14 @@ export default function IncomeExpenditure() {
   );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <PageHeader
         title="Income & Expenditure"
         description="Detailed breakdown of income and expenses by ledger and category"
       />
 
       <Card>
-        <div className="flex flex-wrap items-end gap-4 mb-6">
+        <div className="flex flex-wrap items-end gap-4 mb-4">
           <div className="w-full sm:w-44">
             <Input
               label="Start Date"
@@ -147,29 +148,23 @@ export default function IncomeExpenditure() {
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="text-center py-12">
+          <div className="text-center py-10">
             <p className="text-red-600 dark:text-red-400">{error}</p>
           </div>
         ) : !reportData ? (
-          <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+          <div className="text-center py-10 text-gray-500 dark:text-gray-400">
             Select a date range and click "Generate" to view the report
           </div>
         ) : (
           <>
             {/* Summary */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-              <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                <p className="text-sm text-green-600 dark:text-green-400">Total Income</p>
-                <p className="text-xl font-bold text-green-700 dark:text-green-300">
-                  ₹{totalIncome.toLocaleString()}
-                </p>
-              </div>
-              <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg">
-                <p className="text-sm text-red-600 dark:text-red-400">Total Expenditure</p>
-                <p className="text-xl font-bold text-red-700 dark:text-red-300">
-                  ₹{totalExpense.toLocaleString()}
-                </p>
-              </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+              <StatCard title="Total Income" value={<>₹{totalIncome.toLocaleString()}</>} tone="success" />
+              <StatCard
+                title="Total Expenditure"
+                value={<>₹{totalExpense.toLocaleString()}</>}
+                tone="destructive"
+              />
               <div
                 className={`p-4 rounded-lg ${surplus >= 0 ? 'bg-blue-50 dark:bg-blue-900/20' : 'bg-orange-50 dark:bg-orange-900/20'}`}
               >
@@ -179,14 +174,14 @@ export default function IncomeExpenditure() {
                   {surplus >= 0 ? 'Surplus' : 'Deficit'}
                 </p>
                 <p
-                  className={`text-xl font-bold ${surplus >= 0 ? 'text-blue-700 dark:text-blue-300' : 'text-orange-700 dark:text-orange-300'}`}
+                  className={`text-lg font-semibold tabular-nums ${surplus >= 0 ? 'text-blue-700 dark:text-blue-300' : 'text-orange-700 dark:text-orange-300'}`}
                 >
                   ₹{Math.abs(surplus).toLocaleString()}
                 </p>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               {/* Income Section */}
               <div>
                 <h3 className="text-lg font-semibold text-green-700 dark:text-green-400 mb-3 flex items-center gap-2">
@@ -203,7 +198,7 @@ export default function IncomeExpenditure() {
                 )}
                 <div className="mt-3 px-4 py-2 bg-green-100 dark:bg-green-900/30 rounded-lg flex justify-between">
                   <span className="font-semibold text-green-800 dark:text-green-200">Total Income</span>
-                  <span className="font-bold text-green-800 dark:text-green-200">
+                  <span className="font-semibold text-green-800 dark:text-green-200">
                     ₹{totalIncome.toLocaleString()}
                   </span>
                 </div>
@@ -225,7 +220,7 @@ export default function IncomeExpenditure() {
                 )}
                 <div className="mt-3 px-4 py-2 bg-red-100 dark:bg-red-900/30 rounded-lg flex justify-between">
                   <span className="font-semibold text-red-800 dark:text-red-200">Total Expenditure</span>
-                  <span className="font-bold text-red-800 dark:text-red-200">
+                  <span className="font-semibold text-red-800 dark:text-red-200">
                     ₹{totalExpense.toLocaleString()}
                   </span>
                 </div>
@@ -234,14 +229,14 @@ export default function IncomeExpenditure() {
 
             {/* Final Surplus/Deficit */}
             <div
-              className={`mt-6 p-4 rounded-lg border-2 ${surplus >= 0 ? 'border-blue-300 bg-blue-50 dark:border-blue-700 dark:bg-blue-900/20' : 'border-orange-300 bg-orange-50 dark:border-orange-700 dark:bg-orange-900/20'}`}
+              className={`mt-4 p-4 rounded-lg border-2 ${surplus >= 0 ? 'border-blue-300 bg-blue-50 dark:border-blue-700 dark:bg-blue-900/20' : 'border-orange-300 bg-orange-50 dark:border-orange-700 dark:bg-orange-900/20'}`}
             >
               <div className="flex justify-between items-center">
                 <span className="text-lg font-semibold text-gray-900 dark:text-gray-100">
                   Net {surplus >= 0 ? 'Surplus' : 'Deficit'}
                 </span>
                 <span
-                  className={`text-2xl font-bold ${surplus >= 0 ? 'text-blue-700 dark:text-blue-300' : 'text-orange-700 dark:text-orange-300'}`}
+                  className={`text-2xl font-semibold tabular-nums ${surplus >= 0 ? 'text-blue-700 dark:text-blue-300' : 'text-orange-700 dark:text-orange-300'}`}
                 >
                   ₹{Math.abs(surplus).toLocaleString()}
                 </span>

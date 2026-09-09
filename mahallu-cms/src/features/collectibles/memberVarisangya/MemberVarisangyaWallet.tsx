@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
-import { useSearchParams, Link } from 'react-router-dom';
+import ActionsMenu from '@/components/ui/ActionsMenu';
+import { FiList } from 'react-icons/fi';
+import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { FiDollarSign, FiCreditCard, FiCheckCircle } from 'react-icons/fi';
-import Card from '@/components/ui/Card';
+import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
@@ -20,6 +22,7 @@ import { loadErrorMessage } from '@/utils/errors';
 const MEMBER_BASE = ROUTES.COLLECTIBLES.MEMBER_VARISANGYA.BASE;
 
 export default function MemberVarisangyaWallet() {
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const memberId = searchParams.get('memberId');
 
@@ -114,11 +117,12 @@ export default function MemberVarisangyaWallet() {
     {
       key: 'member',
       label: 'Member',
+      width: '8rem',
       render: (member) =>
         member ? (
           <Link
             to={ROUTES.MEMBERS.DETAIL(member.id)}
-            className="text-primary-600 hover:text-primary-700 dark:text-primary-400"
+            className="text-primary-600 hover:text-primary-700 dark:text-primary-400 capitalize"
           >
             {member.name}
           </Link>
@@ -129,6 +133,8 @@ export default function MemberVarisangyaWallet() {
     {
       key: 'balance',
       label: 'Balance',
+      width: '9.25rem',
+      align: 'center',
       render: (balance) => (
         <span className="font-semibold text-gray-900 dark:text-gray-100">
           ₹{(balance || 0).toLocaleString()}
@@ -138,19 +144,25 @@ export default function MemberVarisangyaWallet() {
     {
       key: 'lastTransactionDate',
       label: 'Last Transaction',
+      width: '12.25rem',
       render: (date) => (date ? formatDate(date) : '-'),
     },
     {
       key: 'actions',
       label: 'Actions',
+      width: '8rem',
+      align: 'center',
       render: (_, row) => (
-        <Link
-          to={`${MEMBER_BASE}?view=transactions&memberId=${row.member?.id || ''}`}
-          className="text-primary-600 hover:text-primary-700 dark:text-primary-400"
-          title="View Transactions"
-        >
-          View Transactions
-        </Link>
+        <ActionsMenu
+          items={[
+            {
+              label: 'View transactions',
+              icon: <FiList className="h-4 w-4" />,
+              onClick: () =>
+                navigate(`${MEMBER_BASE}?view=transactions&memberId=${row.member?.id || ''}`),
+            },
+          ]}
+        />
       ),
     },
   ];
@@ -170,9 +182,9 @@ export default function MemberVarisangyaWallet() {
   return (
     <div className="space-y-4">
       <div>
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+        <h2 className="text-lg font-semibold text-foreground">
           Member Varisangya Wallets
-          {wallets[0]?.member && ` - ${wallets[0].member.name}`}
+          {wallets[0]?.member && <span className="capitalize"> - {wallets[0].member.name}</span>}
         </h2>
         <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">View wallet balances for members</p>
       </div>
@@ -181,7 +193,7 @@ export default function MemberVarisangyaWallet() {
           <StatCard key={index} {...stat} />
         ))}
       </div>
-      <Card>
+      <TableCard>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -195,16 +207,16 @@ export default function MemberVarisangyaWallet() {
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="text-center py-12">
+          <div className="text-center py-10">
             <p className="text-red-600 dark:text-red-400">{error}</p>
             <Button onClick={fetchWallets} className="mt-4" variant="outline">
               Retry
             </Button>
           </div>
         ) : (
-          <Table columns={columns} data={wallets} emptyMessage="No wallets found" showExport={false} />
+          <Table fixedLayout striped columns={columns} data={wallets} emptyMessage="No wallets found" showExport={false} />
         )}
-      </Card>
+      </TableCard>
     </div>
   );
 }

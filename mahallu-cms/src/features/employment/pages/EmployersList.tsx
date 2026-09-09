@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
+import { FiPlus } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import { employmentService, type Employer } from '@/services/employmentService';
 import Button from '@/components/ui/Button';
@@ -77,17 +78,17 @@ export default function EmployersList() {
     }
   }, [deleteId]);
 
-  const {
-    rows: sortedEmployers,
-    sort,
-    toggleSort,
-  } = useSortableRows(employers);
+  const { rows: sortedEmployers, sort, toggleSort } = useSortableRows(employers);
 
   return (
-    <div className="space-y-6">
-      <PageHeader title="Employers" description="Local employers registered with the mahallu." breadcrumbs={[{ label: 'Employment' }]} />
-      <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
-        <div className="flex-1 space-y-2">
+    <div className="space-y-4">
+      <PageHeader
+        title="Employers"
+        description="Local employers registered with the mahallu."
+        breadcrumbs={[{ label: 'Employment' }]}
+      />
+      <div className="space-y-2">
+        <div className="flex items-center gap-2">
           <ExpandableSearch
             value={search}
             onChange={(value) => {
@@ -97,28 +98,28 @@ export default function EmployersList() {
             entity="employers"
             placeholder="Search by employer name"
           />
-          <div className="flex gap-2 flex-wrap">
-            {['', 'active', 'inactive'].map((status) => (
-              <button
-                key={status}
-                onClick={() => {
-                  setStatusFilter(status);
-                  setCurrentPage(1);
-                }}
-                className={`px-3 py-1 text-xs rounded-full ${
-                  statusFilter === status
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                {status || 'All'}
-              </button>
-            ))}
-          </div>
+          <Button onClick={() => navigate('/employment/employers/create')} icon={<FiPlus />} collapseLabel>
+            New Employer
+          </Button>
         </div>
-        <Button onClick={() => navigate('/employment/employers/create')} className="w-full sm:w-auto">
-          + New Employer
-        </Button>
+        <div className="flex gap-2 flex-wrap">
+          {['', 'active', 'inactive'].map((status) => (
+            <button
+              key={status}
+              onClick={() => {
+                setStatusFilter(status);
+                setCurrentPage(1);
+              }}
+              className={`px-3 py-1 text-xs rounded-full ${
+                statusFilter === status
+                  ? 'bg-blue-500 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              {status || 'All'}
+            </button>
+          ))}
+        </div>
       </div>
 
       {loading ? (
@@ -168,10 +169,10 @@ export default function EmployersList() {
                 {sortedEmployers.map((employer) => (
                   <tr key={employer.id} className="border-b hover:bg-gray-50">
                     <td className="px-4 py-3 text-sm">
-                      <div className="font-medium text-gray-900">{employer.name}</div>
+                      <div className="font-medium text-gray-900 capitalize">{employer.name}</div>
                       <div className="text-xs text-gray-500">{employer.businessType || '—'}</div>
                     </td>
-                    <td className="px-4 py-3 text-sm hidden sm:table-cell text-gray-700">
+                    <td className="px-4 py-3 text-sm hidden sm:table-cell text-gray-700 capitalize">
                       {employer.contactPerson || '—'}
                     </td>
                     <td className="px-4 py-3 text-sm hidden md:table-cell text-gray-700">

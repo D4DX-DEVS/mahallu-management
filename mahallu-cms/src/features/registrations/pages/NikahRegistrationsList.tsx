@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FiEye, FiEdit2, FiX, FiFileText, FiClock, FiCheckCircle } from 'react-icons/fi';
-import Card from '@/components/ui/Card';
+import { FiCheckCircle, FiClock, FiEdit2, FiEye, FiFileText, FiPlus } from 'react-icons/fi';
+import TableCard from '@/components/ui/TableCard';
+import FilterPanel from '@/components/ui/FilterPanel';
 import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
 import StatCard from '@/components/ui/StatCard';
@@ -105,16 +106,18 @@ export default function NikahRegistrationsList() {
   };
 
   const columns: TableColumn<NikahRegistration>[] = [
-    { key: 'groomName', label: 'Groom', sortable: true },
-    { key: 'brideName', label: 'Bride', sortable: true },
+    { key: 'groomName', label: 'Groom', width: '7.25rem', sortable: true },
+    { key: 'brideName', label: 'Bride', width: '6.5rem', sortable: true },
     {
       key: 'nikahDate',
       label: 'Nikah Date',
+      width: '9.25rem',
       render: (date) => formatDate(date),
     },
     {
       key: 'status',
       label: 'Status',
+      width: '7.25rem',
       render: (status) => {
         return <StatusBadge status={status} />;
       },
@@ -122,6 +125,8 @@ export default function NikahRegistrationsList() {
     {
       key: 'actions',
       label: 'Actions',
+      width: '8rem',
+      align: 'center',
       render: (_, row) => (
         <ActionsMenu
           items={[
@@ -175,7 +180,7 @@ export default function NikahRegistrationsList() {
         </div>
       </div>
 
-      <Card>
+      <TableCard>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -187,20 +192,13 @@ export default function NikahRegistrationsList() {
           isExporting={isExporting}
           actionButtons={
             <Link to="/registrations/nikah/create">
-              <Button size="md">+ New Registration</Button>
+              <Button size="md" icon={<FiPlus />} collapseLabel>New Registration</Button>
             </Link>
           }
         />
 
         {isFilterVisible && (
-          <div className="relative flex flex-wrap items-center gap-4 mb-6 p-4 border border-gray-200 rounded-lg max-sm:border-0 max-sm:bg-transparent max-sm:p-0 bg-white dark:bg-gray-800 dark:border-gray-700">
-            <button
-              onClick={() => setIsFilterVisible(false)}
-              className="absolute right-4 top-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-              aria-label="Close"
-            >
-              <FiX className="h-4 w-4" />
-            </button>
+          <FilterPanel onClose={() => setIsFilterVisible(false)}>
             <div className="w-full sm:w-40">
               <Select
                 options={[
@@ -213,13 +211,13 @@ export default function NikahRegistrationsList() {
                 onChange={(e) => setStatusFilter(e.target.value)}
               />
             </div>
-          </div>
+          </FilterPanel>
         )}
 
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="text-center py-12">
+          <div className="text-center py-10">
             <p className="text-red-600 dark:text-red-400">{error}</p>
             <Button onClick={fetchRegistrations} className="mt-4" variant="outline">
               Retry
@@ -227,6 +225,8 @@ export default function NikahRegistrationsList() {
           </div>
         ) : (
           <Table
+            fixedLayout
+            striped
             columns={columns}
             data={registrations}
             emptyMessage="No nikah registrations found"
@@ -249,7 +249,7 @@ export default function NikahRegistrationsList() {
             />
           </div>
         )}
-      </Card>
+      </TableCard>
     </div>
   );
 }

@@ -54,7 +54,7 @@ export default function SalaryDetail() {
 
   if (error || !payment) {
     return (
-      <div className="text-center py-12">
+      <div className="text-center py-10">
         <p className="text-red-600 dark:text-red-400">{error || 'Payment not found'}</p>
         <Link to={ROUTES.SALARY.LIST} className="mt-4 inline-block">
           <Button variant="outline">Back to Salary</Button>
@@ -64,7 +64,7 @@ export default function SalaryDetail() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex flex-wrap gap-2 items-center justify-between">
         <div className="flex flex-wrap items-center gap-4">
           <PageHeader title="Detail" breadcrumbs={[{ label: 'Salary', path: ROUTES.SALARY.LIST }]} />
@@ -77,18 +77,18 @@ export default function SalaryDetail() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card>
-          <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">Payment Information</h2>
+          <h2 className="text-lg font-semibold mb-3 text-foreground">Payment Information</h2>
           <div className="space-y-4">
             <div>
               <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Employee</label>
-              <p className="mt-1 text-gray-900 dark:text-gray-100">{payment.employeeName || '-'}</p>
+              <p className="mt-1 text-gray-900 dark:text-gray-100 capitalize">{payment.employeeName || '-'}</p>
             </div>
             {payment.instituteName && (
               <div>
                 <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Institute</label>
-                <p className="mt-1 text-gray-900 dark:text-gray-100">{payment.instituteName}</p>
+                <p className="mt-1 text-gray-900 dark:text-gray-100 capitalize">{payment.instituteName}</p>
               </div>
             )}
             <div>
@@ -129,7 +129,7 @@ export default function SalaryDetail() {
         </Card>
 
         <Card>
-          <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">Amount Breakdown</h2>
+          <h2 className="text-lg font-semibold mb-3 text-foreground">Amount Breakdown</h2>
           <div className="space-y-4">
             <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
               <span className="text-gray-600 dark:text-gray-400">Base Salary</span>
@@ -151,7 +151,7 @@ export default function SalaryDetail() {
             </div>
             <div className="flex justify-between items-center py-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg px-4">
               <span className="text-lg font-semibold text-blue-900 dark:text-blue-200">Net Amount</span>
-              <span className="text-2xl font-bold text-blue-900 dark:text-blue-200">
+              <span className="text-2xl font-semibold tabular-nums text-blue-900 dark:text-blue-200">
                 ₹{Number(payment.netAmount || 0).toLocaleString()}
               </span>
             </div>

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import Card from '@/components/ui/Card';
+import StatCard from '@/components/ui/StatCard';
 import { reportService } from '@/services/reportService';
 import PageHeader from '@/components/layout/PageHeader';
 
@@ -57,29 +58,17 @@ export default function WelfareReport() {
     <div>
       <PageHeader title="Welfare Report" />
       {/* Welfare Stats */}
-      <div className="mb-8">
-        <h2 className="text-lg font-semibold mb-4">Welfare Applications</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-          <Card>
-            <div className="text-sm text-gray-600">Total Applications</div>
-            <div className="text-2xl font-bold">{data.welfare.applications.total}</div>
-          </Card>
-          <Card>
-            <div className="text-sm text-gray-600">Requested</div>
-            <div className="text-2xl font-bold">₹{(data.welfare.requested || 0).toLocaleString()}</div>
-          </Card>
-          <Card>
-            <div className="text-sm text-gray-600">Approved</div>
-            <div className="text-2xl font-bold">₹{(data.welfare.approved || 0).toLocaleString()}</div>
-          </Card>
-          <Card>
-            <div className="text-sm text-gray-600">Disbursed</div>
-            <div className="text-2xl font-bold">₹{(data.welfare.disbursed || 0).toLocaleString()}</div>
-          </Card>
+      <div className="mb-4">
+        <h2 className="text-lg font-semibold mb-3">Welfare Applications</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <StatCard title="Total Applications" value={data.welfare.applications.total} />
+          <StatCard title="Requested" value={<>₹{(data.welfare.requested || 0).toLocaleString()}</>} />
+          <StatCard title="Approved" value={<>₹{(data.welfare.approved || 0).toLocaleString()}</>} />
+          <StatCard title="Disbursed" value={<>₹{(data.welfare.disbursed || 0).toLocaleString()}</>} />
         </div>
 
         <Card className="mt-4">
-          <h3 className="font-semibold mb-4">Applications by Status</h3>
+          <h3 className="font-semibold mb-3">Applications by Status</h3>
           <div className="space-y-3">
             {Object.entries(data.welfare.applications.byStatus).map(([status, count]) => (
               <div key={status} className="flex justify-between items-center">
@@ -92,41 +81,27 @@ export default function WelfareReport() {
       </div>
 
       {/* Zakat Stats */}
-      <div className="mb-8">
-        <h2 className="text-lg font-semibold mb-4">Zakat</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-          <Card>
-            <div className="text-sm text-gray-600">Total Beneficiaries</div>
-            <div className="text-2xl font-bold">{data.zakat.beneficiaries.total}</div>
-          </Card>
-          <Card>
-            <div className="text-sm text-gray-600">Verified</div>
-            <div className="text-2xl font-bold">{data.zakat.beneficiaries.verified}</div>
-          </Card>
-          <Card>
-            <div className="text-sm text-gray-600">Distributions</div>
-            <div className="text-2xl font-bold">{data.zakat.distributions.total}</div>
-          </Card>
-          <Card>
-            <div className="text-sm text-gray-600">Total Distributed</div>
-            <div className="text-2xl font-bold">
-              ₹{(data.zakat.distributions.totalAmount || 0).toLocaleString()}
-            </div>
-          </Card>
+      <div className="mb-4">
+        <h2 className="text-lg font-semibold mb-3">Zakat</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <StatCard title="Total Beneficiaries" value={data.zakat.beneficiaries.total} />
+          <StatCard title="Verified" value={data.zakat.beneficiaries.verified} />
+          <StatCard title="Distributions" value={data.zakat.distributions.total} />
+          <StatCard
+            title="Total Distributed"
+            value={<>₹{(data.zakat.distributions.totalAmount || 0).toLocaleString()}</>}
+          />
         </div>
       </div>
 
       {/* Relief Stats */}
-      <div className="mb-8">
-        <h2 className="text-lg font-semibold mb-4">Emergency Relief</h2>
+      <div className="mb-4">
+        <h2 className="text-lg font-semibold mb-3">Emergency Relief</h2>
         <Card>
-          <h3 className="font-semibold mb-4">Relief Cases by Status</h3>
+          <h3 className="font-semibold mb-3">Relief Cases by Status</h3>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {Object.entries(data.relief.cases.byStatus).map(([status, count]) => (
-              <div key={status} className="p-3 bg-gray-50 rounded">
-                <div className="text-sm capitalize text-gray-600">{status}</div>
-                <div className="text-xl font-bold">{count}</div>
-              </div>
+              <StatCard key={status} title={status} value={count} className="capitalize" />
             ))}
           </div>
         </Card>

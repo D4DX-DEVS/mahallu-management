@@ -1,15 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import {
-  FiEdit2,
-  FiTrash2,
-  FiEye,
-  FiPackage,
-  FiCheckCircle,
-  FiAlertTriangle,
-  FiXCircle,
-} from 'react-icons/fi';
-import Card from '@/components/ui/Card';
+import { FiAlertTriangle, FiCheckCircle, FiEdit2, FiEye, FiPackage, FiPlus, FiTrash2, FiXCircle } from 'react-icons/fi';
+import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
@@ -165,35 +157,50 @@ export default function AssetsList() {
   };
 
   const columns: TableColumn<Asset>[] = [
-    { key: 'name', label: 'Name', sortable: true },
+    {
+      key: 'name',
+      label: 'Name',
+      width: '6.75rem',
+      sortable: true,
+      render: (value) => <span className="capitalize">{value}</span>,
+    },
     {
       key: 'category',
       label: 'Category',
+      width: '8.25rem',
       render: (category) => categoryLabels[category] || category,
     },
     {
       key: 'mosqueId',
       label: 'Mosque',
-      render: (value) => (typeof value === 'object' && value ? value.name : mosqueName(value) || '-'),
+      width: '7.5rem',
+      render: (value) => (
+        <span className="capitalize">{typeof value === 'object' && value ? value.name : mosqueName(value) || '-'}</span>
+      ),
     },
     {
       key: 'estimatedValue',
       label: 'Value (₹)',
+      width: '8rem',
       render: (value) => value?.toLocaleString('en-IN') || '0',
     },
     {
       key: 'purchaseDate',
       label: 'Purchase Date',
+      width: '11rem',
       render: (date) => formatDate(date),
     },
     {
       key: 'status',
       label: 'Status',
+      width: '7.25rem',
       render: (status) => <StatusBadge status={status} />,
     },
     {
       key: 'actions',
       label: 'Actions',
+      width: '8rem',
+      align: 'center',
       render: (_, row) => (
         <ActionsMenu
           items={[
@@ -261,7 +268,7 @@ export default function AssetsList() {
         </div>
       </div>
 
-      <Card>
+      <TableCard>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -275,7 +282,7 @@ export default function AssetsList() {
             <Link
               to={mosqueFilter ? `${ROUTES.ASSETS.CREATE}?mosqueId=${mosqueFilter}` : ROUTES.ASSETS.CREATE}
             >
-              <Button size="md">+ New Asset</Button>
+              <Button size="md" icon={<FiPlus />} collapseLabel>New Asset</Button>
             </Link>
           }
         />
@@ -353,7 +360,7 @@ export default function AssetsList() {
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="text-center py-12">
+          <div className="text-center py-10">
             <p className="text-red-600 dark:text-red-400">{error}</p>
             <Button onClick={fetchAssets} className="mt-4" variant="outline">
               Retry
@@ -361,6 +368,8 @@ export default function AssetsList() {
           </div>
         ) : (
           <Table
+            fixedLayout
+            striped
             columns={columns}
             data={assets}
             emptyMessage="No assets found"
@@ -382,7 +391,7 @@ export default function AssetsList() {
             />
           </div>
         )}
-      </Card>
+      </TableCard>
 
       <Modal
         isOpen={showDeleteModal}

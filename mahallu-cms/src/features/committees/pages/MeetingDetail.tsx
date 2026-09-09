@@ -39,7 +39,7 @@ export default function MeetingDetail() {
 
   if (error || !meeting) {
     return (
-      <div className="text-center py-12">
+      <div className="text-center py-10">
         <p className="text-red-600 dark:text-red-400">{error || 'Meeting not found'}</p>
         <Button onClick={() => navigate(ROUTES.COMMITTEES.MEETINGS)} className="mt-4" variant="outline">
           Back to Meetings
@@ -53,7 +53,7 @@ export default function MeetingDetail() {
     : '-';
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <PageHeader
         title={meeting.title}
         description="Meeting Details"

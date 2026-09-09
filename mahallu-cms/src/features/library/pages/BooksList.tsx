@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import ActionsMenu from '@/components/ui/ActionsMenu';
 import { useNavigate } from 'react-router-dom';
 import Button from '@/components/ui/Button';
 import ExpandableSearch from '@/components/ui/ExpandableSearch';
@@ -120,53 +121,47 @@ export default function BooksList() {
     {
       key: 'actions',
       label: 'Actions',
+      align: 'center',
       render: (_: any, book: LibraryBook) => (
-        <div className="flex gap-2">
-          {book.resourceType === 'physical' && book.availableCopies! > 0 && (
-            <button
-              onClick={() => navigate('/library/issues/create', { state: { bookId: book.id } })}
-              className="text-green-600 hover:text-green-800"
-              title="Issue this book to a member"
-              aria-label="Issue this book to a member"
-            >
-              <FiFileText size={16} />
-            </button>
-          )}
-          <button
-            onClick={() => navigate(`/library/books/${book.id}/edit`)}
-            className="text-blue-600 hover:text-blue-800"
-            aria-label="Edit"
-          >
-            <FiEdit2 size={16} />
-          </button>
-          <button
-            onClick={() => {
-              setDeleteId(book.id);
-              setConfirmDelete(true);
-            }}
-            className="text-red-600 hover:text-red-800"
-            aria-label="Delete"
-          >
-            <FiTrash2 size={16} />
-          </button>
-        </div>
+        <ActionsMenu
+          label={'Actions for ' + book.title}
+          items={[
+            ...(book.resourceType === 'physical' && book.availableCopies! > 0
+              ? [
+                  {
+                    label: 'Issue to a member',
+                    icon: <FiFileText className="h-4 w-4" />,
+                    onClick: () => navigate('/library/issues/create', { state: { bookId: book.id } }),
+                  },
+                ]
+              : []),
+            {
+              label: 'Edit',
+              icon: <FiEdit2 className="h-4 w-4" />,
+              onClick: () => navigate(`/library/books/${book.id}/edit`),
+            },
+            {
+              label: 'Delete',
+              icon: <FiTrash2 className="h-4 w-4" />,
+              onClick: () => {
+                setDeleteId(book.id);
+                setConfirmDelete(true);
+              },
+              variant: 'danger' as const,
+            },
+          ]}
+        />
       ),
     },
   ];
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="flex justify-between gap-4 items-center">
         <PageHeader title="Library Books" />
-        <div className="flex flex-wrap gap-2">
-          <Button variant="secondary" onClick={() => setImportOpen(true)}>
-            <FiUpload className="h-4 w-4 mr-2" />
-            Import CSV
-          </Button>
-          <Button onClick={() => navigate('/library/books/create')}>
-            <FiPlus className="h-4 w-4 mr-2" />
-            Add Book
-          </Button>
+        <div className="flex gap-2 items-center">
+          <Button variant="secondary" onClick={() => setImportOpen(true)} icon={<FiUpload />} collapseLabel>Import CSV</Button>
+          <Button onClick={() => navigate('/library/books/create')} icon={<FiPlus />} collapseLabel>Add Book</Button>
         </div>
       </div>
 
@@ -224,7 +219,7 @@ export default function BooksList() {
         <PageSkeleton variant="section" />
       ) : (
         <>
-          <Table columns={columns} data={books} />
+          <Table fixedLayout striped columns={columns} data={books} />
           {pagination && (
             <Pagination
               currentPage={pagination.page}

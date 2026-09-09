@@ -65,12 +65,12 @@ export default function EmptyState({
   const copy = defaultCopy(variant, entity);
   const Icon = DEFAULT_ICON[variant];
   return (
-    <div className={cn('flex flex-col items-center justify-center px-4 py-12 text-center', className)}>
-      {icon ?? <Icon className={cn('mb-4 h-8 w-8', ICON_TONE[variant])} aria-hidden="true" />}
+    <div className={cn('flex flex-col items-center justify-center px-4 py-10 text-center', className)}>
+      {icon ?? <Icon className={cn('mb-3 h-8 w-8', ICON_TONE[variant])} aria-hidden="true" />}
       <h3 className="text-base font-semibold text-foreground">{title ?? copy.title}</h3>
       <p className="mt-1 max-w-sm text-sm text-muted-foreground">{description ?? copy.description}</p>
       {(action || secondaryAction) && (
-        <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
+        <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
           {action && <Button onClick={action.onClick}>{action.label}</Button>}
           {secondaryAction && (
             <Button variant="outline" onClick={secondaryAction.onClick}>

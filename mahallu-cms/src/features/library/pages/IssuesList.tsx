@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import ActionsMenu from '@/components/ui/ActionsMenu';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import Button from '@/components/ui/Button';
 import Table from '@/components/ui/Table';
@@ -123,19 +124,25 @@ export default function IssuesList() {
     {
       key: 'actions',
       label: 'Actions',
-      render: (_: any, issue: BookIssue) =>
-        issue.status !== 'returned' && (
-          <Button
-            size="sm"
-            onClick={() => {
-              setReturnId(issue.id);
-              setConfirmReturn(true);
-            }}
-          >
-            <FiCheckCircle className="h-4 w-4 mr-1" />
-            Return
-          </Button>
-        ),
+      align: 'center',
+      render: (_: any, issue: BookIssue) => (
+        <ActionsMenu
+          items={
+            issue.status === 'returned'
+              ? []
+              : [
+                  {
+                    label: 'Mark returned',
+                    icon: <FiCheckCircle className="h-4 w-4" />,
+                    onClick: () => {
+                      setReturnId(issue.id);
+                      setConfirmReturn(true);
+                    },
+                  },
+                ]
+          }
+        />
+      ),
     },
   ];
 
@@ -174,7 +181,7 @@ export default function IssuesList() {
         <PageSkeleton variant="section" />
       ) : (
         <>
-          <Table columns={columns} data={issues} />
+          <Table fixedLayout striped columns={columns} data={issues} />
           {pagination && (
             <Pagination
               currentPage={pagination.page}

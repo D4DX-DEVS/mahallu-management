@@ -99,7 +99,7 @@ export default function CreateTenant() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <PageHeader
         title="Create Tenant"
         description="Add a new tenant (Mahall) to the system"
@@ -107,9 +107,9 @@ export default function CreateTenant() {
       />
 
       <form onSubmit={handleSubmit(onSubmit)}>
-        <Card className="space-y-6">
+        <Card className="space-y-4">
           <div>
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Basic Information</h2>
+            <h2 className="text-lg font-semibold mb-3 text-foreground">Basic Information</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Input
                 label="Tenant Name"
@@ -154,7 +154,7 @@ export default function CreateTenant() {
           </div>
 
           <div>
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Address</h2>
+            <h2 className="text-lg font-semibold mb-3 text-foreground">Address</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Select
                 label="State"
@@ -203,7 +203,7 @@ export default function CreateTenant() {
           </div>
 
           <div>
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Settings</h2>
+            <h2 className="text-lg font-semibold mb-3 text-foreground">Settings</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Input
                 label="Varisangya Amount"

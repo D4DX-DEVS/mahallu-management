@@ -140,7 +140,7 @@ export function GraveForm() {
    */
   if (!cemetery) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-4">
         <PageHeader title={graveId ? 'Edit grave' : 'Add grave'} />
         <EmptyState
           variant="error"
@@ -153,7 +153,7 @@ export function GraveForm() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex items-center gap-4">
         <Button
           variant="outline"
@@ -170,7 +170,7 @@ export function GraveForm() {
       )}
 
       <Card padding="lg">
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Grave Number *</label>
             <Input

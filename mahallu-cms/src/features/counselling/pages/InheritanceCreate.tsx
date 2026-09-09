@@ -85,14 +85,14 @@ export default function InheritanceCreate() {
       <div className="max-w-2xl">
         <PageHeader title="Create Inheritance Case" />
         <Card padding="lg">
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-800 text-sm p-3 rounded">{error}</div>
             )}
 
             {/* Deceased Information */}
             <div className="border-b pb-6">
-              <h3 className="font-bold mb-4">Deceased Information</h3>
+              <h3 className="font-semibold mb-3">Deceased Information</h3>
               <div className="space-y-4">
                 <div>
                   <Controller
@@ -145,7 +145,7 @@ export default function InheritanceCreate() {
             {/* Heirs */}
             <div className="border-b pb-6">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-bold">Heirs *</h3>
+                <h3 className="font-semibold">Heirs *</h3>
                 <Button
                   type="button"
                   variant="secondary"

@@ -53,10 +53,10 @@ export default function EducationReport() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <PageHeader title="Education Report" />
       {/* Main Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 xl:grid-cols-4 gap-3">
         <StatCard title="Active Students" value={data.studentsCount} icon={<FiUsers />} />
         <StatCard title="Active Classes" value={data.activeClassesCount} icon={<FiBook />} />
         <StatCard title="Attendance %" value={`${data.attendancePercentThisMonth}%`} icon={<FiPercent />} />
@@ -66,7 +66,7 @@ export default function EducationReport() {
       {/* Scholarships Section */}
       <Card>
         <div>
-          <h2 className="text-xl font-bold mb-4">Scholarships & Awards</h2>
+          <h2 className="text-lg font-semibold mb-3">Scholarships & Awards</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <StatCard
               title="Active Scholarships"
@@ -86,7 +86,7 @@ export default function EducationReport() {
                   {Object.entries(data.scholarships.awardsByStatus).map(([status, count]) => (
                     <div key={status} className="bg-gray-100 dark:bg-gray-800 p-2 rounded">
                       <div className="font-medium capitalize">{status}</div>
-                      <div className="text-lg font-bold">{count}</div>
+                      <div className="text-lg font-semibold">{count}</div>
                     </div>
                   ))}
                 </div>
@@ -99,11 +99,11 @@ export default function EducationReport() {
       {/* Support Cases Section */}
       <Card>
         <div>
-          <h2 className="text-xl font-bold mb-4">Academic Support Cases</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <h2 className="text-lg font-semibold mb-3">Academic Support Cases</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* By Type */}
             <div>
-              <h3 className="font-medium mb-3">By Type</h3>
+              <h3 className="font-semibold mb-3">By Type</h3>
               <div className="space-y-2">
                 {Object.entries(data.supportCases.byType).map(([type, count]) => (
                   <div
@@ -111,7 +111,7 @@ export default function EducationReport() {
                     className="flex justify-between items-center p-2 bg-gray-50 dark:bg-gray-800 rounded"
                   >
                     <span className="capitalize">{type.replace(/_/g, ' ')}</span>
-                    <span className="font-bold">{count}</span>
+                    <span className="font-semibold">{count}</span>
                   </div>
                 ))}
               </div>
@@ -119,7 +119,7 @@ export default function EducationReport() {
 
             {/* By Status */}
             <div>
-              <h3 className="font-medium mb-3">By Status</h3>
+              <h3 className="font-semibold mb-3">By Status</h3>
               <div className="space-y-2">
                 {Object.entries(data.supportCases.byStatus).map(([status, count]) => (
                   <div
@@ -127,7 +127,7 @@ export default function EducationReport() {
                     className="flex justify-between items-center p-2 bg-gray-50 dark:bg-gray-800 rounded"
                   >
                     <span className="capitalize">{status}</span>
-                    <span className="font-bold">{count}</span>
+                    <span className="font-semibold">{count}</span>
                   </div>
                 ))}
               </div>

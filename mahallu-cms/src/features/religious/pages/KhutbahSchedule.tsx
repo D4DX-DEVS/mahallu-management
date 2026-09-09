@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import ActionsMenu from '@/components/ui/ActionsMenu';
+import { Link, useNavigate } from 'react-router-dom';
 import { FiEdit2, FiTrash2, FiPlus, FiCalendar } from 'react-icons/fi';
 import Card from '@/components/ui/Card';
+import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import Table from '@/components/ui/Table';
 import Modal from '@/components/ui/Modal';
@@ -15,6 +17,7 @@ import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 
 export default function KhutbahSchedule() {
+  const navigate = useNavigate();
   const [khutbahs, setKhutbahs] = useState<Khutbah[]>([]);
   const [upcomingKhutbah, setUpcomingKhutbah] = useState<Khutbah | null>(null);
   const [loading, setLoading] = useState(true);
@@ -132,26 +135,26 @@ export default function KhutbahSchedule() {
     {
       key: 'actions',
       label: 'Actions',
+      align: 'center',
       render: (_: any, khutbah: Khutbah) => (
-        <div className="flex flex-wrap gap-2">
-          <Link to={`${ROUTES.RELIGIOUS.KHUTBAHS}/${khutbah.id}/edit`}>
-            <Button size="sm" variant="outline">
-              <FiEdit2 className="inline mr-1" />
-              Edit
-            </Button>
-          </Link>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => {
-              setSelectedKhutbah(khutbah);
-              setShowDeleteModal(true);
-            }}
-          >
-            <FiTrash2 className="inline mr-1" />
-            Delete
-          </Button>
-        </div>
+        <ActionsMenu
+          items={[
+            {
+              label: 'Edit',
+              icon: <FiEdit2 className="h-4 w-4" />,
+              onClick: () => navigate(`${ROUTES.RELIGIOUS.KHUTBAHS}/${khutbah.id}/edit`),
+            },
+            {
+              label: 'Delete',
+              icon: <FiTrash2 className="h-4 w-4" />,
+              onClick: () => {
+                setSelectedKhutbah(khutbah);
+                setShowDeleteModal(true);
+              },
+              variant: 'danger' as const,
+            },
+          ]}
+        />
       ),
     },
   ];
@@ -159,7 +162,7 @@ export default function KhutbahSchedule() {
   if (loading) return <PageSkeleton />;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <PageHeader title="Khutbah Schedule" />
 
       {error && <div className="p-4 bg-red-100 text-red-800 rounded">{error}</div>}
@@ -220,9 +223,9 @@ export default function KhutbahSchedule() {
       </div>
 
       {/* Khutbahs Table */}
-      <Card>
-        <Table columns={columns} data={khutbahs} />
-      </Card>
+      <TableCard>
+        <Table fixedLayout striped columns={columns} data={khutbahs} />
+      </TableCard>
 
       {pagination && (
         <Pagination

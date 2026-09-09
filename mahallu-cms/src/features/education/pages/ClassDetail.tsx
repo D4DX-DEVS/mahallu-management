@@ -1,6 +1,9 @@
 import { useState, useEffect, ReactNode } from 'react';
+import ActionsMenu from '@/components/ui/ActionsMenu';
+import { FiCalendar, FiCheckCircle, FiEdit2, FiList, FiPlus, FiSlash, FiTrash2 } from 'react-icons/fi';
 import { useParams, useNavigate } from 'react-router-dom';
 import Card from '@/components/ui/Card';
+import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import Table from '@/components/ui/Table';
 import Select from '@/components/ui/Select';
@@ -141,41 +144,50 @@ export default function ClassDetail() {
   };
 
   const columns: TableColumn<StudentEnrollment>[] = [
-    { key: 'rollNo', label: 'Roll', render: (v) => v || '-' },
-    { key: 'memberId', label: 'Student', render: (_v, row) => studentName(row) },
-    { key: 'enrollDate', label: 'Enrolled', render: (v) => formatDate(v) },
-    { key: 'status', label: 'Status' },
+    { key: 'rollNo', label: 'Roll', width: '6rem', render: (v) => v || '-' },
+    {
+      key: 'memberId',
+      label: 'Student',
+      width: '7.75rem',
+      render: (_v, row) => <span className="capitalize">{studentName(row)}</span>,
+    },
+    { key: 'enrollDate', label: 'Enrolled', width: '7.75rem', render: (v) => formatDate(v) },
+    { key: 'status', label: 'Status', width: '7.25rem' },
     {
       key: 'actions',
-      label: '',
+      label: 'Actions',
+      width: '8rem',
+      align: 'center',
       render: (_v, row) => (
-        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-          {row.status === 'active' && (
-            <button
-              onClick={() => changeStatus(row, 'completed')}
-              disabled={busyId === row.id}
-              className="text-xs font-medium text-green-600 hover:underline disabled:opacity-50 dark:text-green-400"
-            >
-              Complete
-            </button>
-          )}
-          {row.status === 'active' && (
-            <button
-              onClick={() => changeStatus(row, 'dropped')}
-              disabled={busyId === row.id}
-              className="text-xs font-medium text-amber-600 hover:underline disabled:opacity-50 dark:text-amber-400"
-            >
-              Drop
-            </button>
-          )}
-          <button
-            onClick={() => setRemoveConfirm({ id: row.id, name: studentName(row) })}
-            disabled={removing || busyId === row.id}
-            className="text-xs font-medium text-red-600 hover:underline disabled:opacity-50 dark:text-red-400"
-          >
-            Remove
-          </button>
-        </div>
+        <ActionsMenu
+          label={'Actions for ' + studentName(row)}
+          items={[
+            ...(row.status === 'active'
+              ? [
+                  {
+                    label: 'Mark completed',
+                    icon: <FiCheckCircle className="h-4 w-4" />,
+                    onClick: () => changeStatus(row, 'completed'),
+                    disabled: busyId === row.id,
+                  },
+                  {
+                    label: 'Mark dropped',
+                    icon: <FiSlash className="h-4 w-4" />,
+                    onClick: () => changeStatus(row, 'dropped'),
+                    disabled: busyId === row.id,
+                    variant: 'warning' as const,
+                  },
+                ]
+              : []),
+            {
+              label: 'Remove from class',
+              icon: <FiTrash2 className="h-4 w-4" />,
+              onClick: () => setRemoveConfirm({ id: row.id, name: studentName(row) }),
+              disabled: removing || busyId === row.id,
+              variant: 'danger' as const,
+            },
+          ]}
+        />
       ),
     },
   ];
@@ -209,29 +221,27 @@ export default function ClassDetail() {
         breadcrumbs={[{ label: 'Services' }, { label: 'Education', path: '/education' }]}
       />
 
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap gap-2">
-          <Button variant="secondary" onClick={() => navigate(`/education/classes/${cls.id}/attendance`)}>
-            Attendance
-          </Button>
-          <Button variant="secondary" onClick={() => navigate(`/education/classes/${cls.id}/exams`)}>
-            Exams
-          </Button>
-          <Button variant="secondary" onClick={() => navigate(`/education/classes/${cls.id}/edit`)}>
-            Edit class
-          </Button>
-          <Button onClick={() => setEnrollOpen(true)}>Enroll student</Button>
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <div className="flex gap-2 items-center">
+          <Button variant="secondary" onClick={() => navigate(`/education/classes/${cls.id}/attendance`)} icon={<FiCalendar />} collapseLabel>Attendance</Button>
+          <Button variant="secondary" onClick={() => navigate(`/education/classes/${cls.id}/exams`)} icon={<FiList />} collapseLabel>Exams</Button>
+          <Button variant="secondary" onClick={() => navigate(`/education/classes/${cls.id}/edit`)} icon={<FiEdit2 />} collapseLabel>Edit class</Button>
+          <Button onClick={() => setEnrollOpen(true)} icon={<FiPlus />} collapseLabel>Enroll student</Button>
         </div>
       </div>
 
       <Card className="mb-4">
-        <h2 className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100">Class</h2>
+        <h2 className="mb-3 text-sm font-semibold text-foreground">Class</h2>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
           <Field label="Name (Malayalam)" value={cls.nameMl || '-'} />
-          <Field label="Teacher" value={teacherName(cls)} />
+          <Field label="Teacher" value={<span className="capitalize">{teacherName(cls)}</span>} />
           <Field
             label="Institute"
-            value={cls.instituteId && typeof cls.instituteId === 'object' ? cls.instituteId.name : '-'}
+            value={
+              <span className="capitalize">
+                {cls.instituteId && typeof cls.instituteId === 'object' ? cls.instituteId.name : '-'}
+              </span>
+            }
           />
           <Field label="Schedule" value={cls.schedule || '-'} />
           <Field label="Active students" value={cls.studentCount ?? 0} />
@@ -248,7 +258,7 @@ export default function ClassDetail() {
         </Card>
       ) : progress ? (
         <Card className="mb-4">
-          <h2 className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100">Progress</h2>
+          <h2 className="mb-3 text-sm font-semibold text-foreground">Progress</h2>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -270,7 +280,7 @@ export default function ClassDetail() {
                     key={idx}
                     className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/30"
                   >
-                    <td className="px-4 py-3 text-gray-900 dark:text-gray-100">{student.studentName}</td>
+                    <td className="px-4 py-3 text-gray-900 dark:text-gray-100 capitalize">{student.studentName}</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
                         <div className="flex-1 max-w-xs h-2 bg-gray-200 rounded dark:bg-gray-700">
@@ -307,9 +317,9 @@ export default function ClassDetail() {
         </Card>
       ) : null}
 
-      <Card>
+      <TableCard>
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Students</h2>
+          <h2 className="text-sm font-semibold text-foreground">Students</h2>
           <Select
             value={statusFilter}
             onChange={(e) => {
@@ -321,6 +331,8 @@ export default function ClassDetail() {
         </div>
 
         <Table
+          fixedLayout
+          striped
           columns={columns}
           data={students}
           isLoading={studentsLoading}
@@ -336,7 +348,7 @@ export default function ClassDetail() {
             onPageChange={setCurrentPage}
           />
         )}
-      </Card>
+      </TableCard>
 
       <EnrollStudentModal
         isOpen={enrollOpen}

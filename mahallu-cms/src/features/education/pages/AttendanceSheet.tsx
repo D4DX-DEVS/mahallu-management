@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { FiArrowLeft } from 'react-icons/fi';
 import { useParams, useNavigate } from 'react-router-dom';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
@@ -142,6 +143,7 @@ export default function AttendanceSheet() {
       <PageHeader
         description={cls?.name}
         title="Attendance"
+        className="capitalize"
         breadcrumbs={[
           { label: 'Services' },
           { label: 'Education', path: '/education' },
@@ -149,10 +151,8 @@ export default function AttendanceSheet() {
         ]}
       />
 
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <Button variant="secondary" onClick={() => navigate(`/education/classes/${classId}`)}>
-          Back
-        </Button>
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <Button variant="secondary" onClick={() => navigate(`/education/classes/${classId}`)} icon={<FiArrowLeft />} collapseLabel>Back</Button>
       </div>
 
       {error && (
@@ -202,10 +202,12 @@ export default function AttendanceSheet() {
                           : 'border-gray-300 dark:border-gray-600'
                       }`}
                     >
-                      {isPresent && <span className="text-white text-xs font-bold">✓</span>}
+                      {isPresent && <span className="text-white text-xs font-semibold">✓</span>}
                     </button>
                     <div className="flex-1">
-                      <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{memberName}</div>
+                      <div className="text-sm font-medium text-gray-900 dark:text-gray-100 capitalize">
+                        {memberName}
+                      </div>
                       {student.rollNo && (
                         <div className="text-xs text-gray-500 dark:text-gray-400">Roll: {student.rollNo}</div>
                       )}

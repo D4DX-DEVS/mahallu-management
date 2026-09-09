@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiUsers, FiCalendar } from 'react-icons/fi';
+import { FiCalendar, FiPlus, FiUsers } from 'react-icons/fi';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import StatCard from '@/components/ui/StatCard';
@@ -80,8 +80,8 @@ export default function ClassesList() {
         breadcrumbs={[{ label: 'Services' }]}
       />
 
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <Button onClick={() => navigate('/education/classes/create')}>New class</Button>
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <Button onClick={() => navigate('/education/classes/create')} icon={<FiPlus />} collapseLabel>New class</Button>
       </div>
 
       {summary && (
@@ -144,7 +144,7 @@ export default function ClassesList() {
               onClick={() => navigate(`/education/classes/${cls.id}`)}
             >
               <div className="mb-2 flex items-start justify-between gap-2">
-                <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">{cls.name}</h3>
+                <h3 className="text-sm font-semibold text-foreground capitalize">{cls.name}</h3>
                 {cls.status === 'inactive' && (
                   <span className="whitespace-nowrap rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600 dark:bg-gray-700 dark:text-gray-300">
                     inactive
@@ -157,7 +157,7 @@ export default function ClassesList() {
               <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">{classTypeLabel(cls.classType)}</p>
 
               <div className="space-y-1 text-xs text-gray-600 dark:text-gray-300">
-                <p className="truncate">{teacherName(cls)}</p>
+                <p className="truncate capitalize">{teacherName(cls)}</p>
                 <p className="flex items-center gap-1">
                   <FiCalendar className="h-3 w-3 shrink-0" />
                   {cls.academicYear}

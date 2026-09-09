@@ -144,7 +144,7 @@ export default function Modal({
         )}
       >
         {title && (
-          <div className="flex items-start justify-between gap-3 border-b border-border p-4 sm:p-6">
+          <div className="flex items-start justify-between gap-3 border-b border-border p-4 sm:p-5">
             <div className="min-w-0">
               <h2 id={titleId} className="break-words text-lg font-semibold text-foreground">
                 {title}
@@ -167,10 +167,10 @@ export default function Modal({
           </div>
         )}
 
-        <div className="min-w-0 flex-1 overflow-y-auto p-4 sm:p-6">{children}</div>
+        <div className="min-w-0 flex-1 overflow-y-auto p-4 sm:p-5">{children}</div>
 
         {footer && (
-          <div className="flex flex-col-reverse items-stretch gap-2 border-t border-border p-4 sm:flex-row sm:items-center sm:justify-end sm:gap-3 sm:p-6">
+          <div className="flex flex-col-reverse items-stretch gap-2 border-t border-border p-4 sm:flex-row sm:items-center sm:justify-end sm:gap-3 sm:p-5">
             {footer}
           </div>
         )}

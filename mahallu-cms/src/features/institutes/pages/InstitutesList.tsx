@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FiEdit2, FiTrash2, FiX, FiEye, FiInbox, FiCheckCircle, FiXCircle } from 'react-icons/fi';
-import Card from '@/components/ui/Card';
+import { FiCheckCircle, FiEdit2, FiEye, FiInbox, FiPlus, FiTrash2, FiXCircle } from 'react-icons/fi';
+import TableCard from '@/components/ui/TableCard';
+import FilterPanel from '@/components/ui/FilterPanel';
 import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
 import StatCard from '@/components/ui/StatCard';
@@ -119,11 +120,18 @@ export default function InstitutesList() {
   };
 
   const columns: TableColumn<Institute>[] = [
-    { key: 'name', label: 'Name', sortable: true },
-    { key: 'place', label: 'Place' },
+    {
+      key: 'name',
+      label: 'Name',
+      width: '6.75rem',
+      sortable: true,
+      render: (v) => <span className="capitalize">{v}</span>,
+    },
+    { key: 'place', label: 'Place', width: '6.5rem' },
     {
       key: 'type',
       label: 'Type',
+      width: '6.25rem',
       render: (type) => (
         <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 capitalize">
           {type}
@@ -133,11 +141,13 @@ export default function InstitutesList() {
     {
       key: 'joinDate',
       label: 'Join Date',
+      width: '8.75rem',
       render: (date) => formatDate(date),
     },
     {
       key: 'status',
       label: 'Status',
+      width: '7.25rem',
       render: (status) => (
         <span
           className={`px-2 py-1 text-xs font-medium rounded-full ${
@@ -153,6 +163,8 @@ export default function InstitutesList() {
     {
       key: 'actions',
       label: 'Actions',
+      width: '8rem',
+      align: 'center',
       render: (_, row) => (
         <ActionsMenu
           items={[
@@ -215,7 +227,7 @@ export default function InstitutesList() {
         </div>
       </div>
 
-      <Card>
+      <TableCard>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -227,20 +239,13 @@ export default function InstitutesList() {
           isExporting={isExporting}
           actionButtons={
             <Link to={ROUTES.INSTITUTES.CREATE}>
-              <Button size="md">+ New Institute</Button>
+              <Button size="md" icon={<FiPlus />} collapseLabel>New Institute</Button>
             </Link>
           }
         />
 
         {isFilterVisible && (
-          <div className="relative flex flex-wrap items-center gap-4 mb-6 p-4 border border-gray-200 rounded-lg max-sm:border-0 max-sm:bg-transparent max-sm:p-0 bg-white dark:bg-gray-800 dark:border-gray-700">
-            <button
-              onClick={() => setIsFilterVisible(false)}
-              className="absolute right-4 top-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-              aria-label="Close"
-            >
-              <FiX className="h-4 w-4" />
-            </button>
+          <FilterPanel onClose={() => setIsFilterVisible(false)}>
             <div className="w-full sm:w-40">
               <Select
                 options={[
@@ -255,13 +260,13 @@ export default function InstitutesList() {
                 onChange={(e) => setTypeFilter(e.target.value)}
               />
             </div>
-          </div>
+          </FilterPanel>
         )}
 
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="text-center py-12">
+          <div className="text-center py-10">
             <p className="text-red-600 dark:text-red-400">{error}</p>
             <Button onClick={fetchInstitutes} className="mt-4" variant="outline">
               Retry
@@ -269,6 +274,8 @@ export default function InstitutesList() {
           </div>
         ) : (
           <Table
+            fixedLayout
+            striped
             columns={columns}
             data={institutes}
             emptyMessage="No institutes found"
@@ -306,7 +313,7 @@ export default function InstitutesList() {
             />
           </div>
         )}
-      </Card>
+      </TableCard>
 
       <Modal
         isOpen={showDeleteModal}
@@ -333,7 +340,7 @@ export default function InstitutesList() {
         }
       >
         <p className="text-gray-600 dark:text-gray-400">
-          Are you sure you want to delete <strong>{selectedInstitute?.name}</strong>? This action cannot be
+          Are you sure you want to delete <strong className="capitalize">{selectedInstitute?.name}</strong>? This action cannot be
           undone.
         </p>
       </Modal>

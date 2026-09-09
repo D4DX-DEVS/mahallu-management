@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
+import { FiPlus } from 'react-icons/fi';
 import { Link } from 'react-router-dom';
 import Card from '@/components/ui/Card';
+import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Modal from '@/components/ui/Modal';
@@ -128,8 +130,11 @@ export default function MosquesList() {
     <div className="space-y-3">
       <PageHeader title="Mosques" description="Capacity, facilities and religious staff for each mosque" />
 
-      <Card>
-        <div className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto] sm:items-center">
+      {/* No border/padding below `md` here — each mosque/cluster
+       * below is already its own bordered card, and a second frame
+       * around the whole list drew a box around boxes on a phone. */}
+      <TableCard>
+        <div className="mb-3 flex min-w-0 items-center gap-2">
           <ExpandableSearch
             value={searchQuery}
             onChange={(value) => {
@@ -138,15 +143,15 @@ export default function MosquesList() {
             }}
             entity="mosques"
           />
-          <Button size="md" onClick={() => setFormOpen(true)}>
-            + New Mosque
+          <Button size="md" onClick={() => setFormOpen(true)} icon={<FiPlus />} collapseLabel>
+            New Mosque
           </Button>
         </div>
 
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="py-12 text-center">
+          <div className="py-10 text-center">
             <p className="text-red-600 dark:text-red-400">{error}</p>
             <Button onClick={fetchRows} className="mt-4" variant="outline">
               Retry
@@ -164,7 +169,7 @@ export default function MosquesList() {
               <Card key={mosque.id} className="h-full transition-shadow hover:shadow-md">
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <Link to={`/mosque/${mosque.id}`} className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold leading-tight text-gray-900 dark:text-gray-100 sm:text-base">
+                    <p className="truncate text-sm font-semibold leading-tight text-gray-900 dark:text-gray-100 sm:text-base capitalize">
                       {mosque.name}
                     </p>
                   </Link>
@@ -176,16 +181,20 @@ export default function MosquesList() {
                   </button>
                 </div>
                 <Link to={`/mosque/${mosque.id}`}>
+                  {/* Capacity carries the same weight Clusters gives its
+                   * headline stat (Families) - large and semibold, not a line
+                   * of small print the same size as its own label. That one
+                   * field was what made this card read as smaller. */}
                   <dl className="mt-2 space-y-1">
                     <div className="flex items-baseline justify-between gap-2">
                       <dt className="text-xs text-gray-500 dark:text-gray-400">Capacity</dt>
-                      <dd className="text-xs font-medium text-gray-700 dark:text-gray-200">
+                      <dd className="text-base font-semibold text-gray-900 dark:text-gray-100 sm:text-xl">
                         {mosque.capacity ?? '-'}
                       </dd>
                     </div>
                     <div className="flex items-baseline justify-between gap-2">
                       <dt className="text-xs text-gray-500 dark:text-gray-400">Imam</dt>
-                      <dd className="truncate text-xs font-medium text-gray-700 dark:text-gray-200">
+                      <dd className="truncate text-xs font-medium text-gray-700 dark:text-gray-200 capitalize">
                         {mosque.imamName || '-'}
                       </dd>
                     </div>
@@ -207,7 +216,7 @@ export default function MosquesList() {
             />
           </div>
         )}
-      </Card>
+      </TableCard>
 
       <Modal
         isOpen={isFormOpen}

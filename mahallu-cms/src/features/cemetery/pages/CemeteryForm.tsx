@@ -85,7 +85,7 @@ export function CemeteryForm() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex items-center gap-4">
         <Button variant="outline" onClick={() => navigate('/cemetery')} className="flex items-center gap-2">
           <FiArrowLeft /> Back
@@ -98,7 +98,7 @@ export function CemeteryForm() {
       )}
 
       <Card padding="lg">
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Cemetery Name *</label>
             <Input

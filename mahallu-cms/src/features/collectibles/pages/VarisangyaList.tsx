@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { FiCreditCard, FiDollarSign, FiDownload, FiEdit2, FiX } from 'react-icons/fi';
-import Card from '@/components/ui/Card';
+import { FiCreditCard, FiDollarSign, FiPlus, FiX } from 'react-icons/fi';
+import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import StatCard from '@/components/ui/StatCard';
@@ -310,7 +310,7 @@ export default function VarisangyaList() {
         </div>
       </div>
 
-      <Card>
+      <TableCard>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -322,7 +322,7 @@ export default function VarisangyaList() {
           isExporting={isExporting}
           actionButtons={
             <Link to="/collectibles/varisangya/create">
-              <Button size="md">+ New Payment</Button>
+              <Button size="md" icon={<FiPlus />} collapseLabel>New Payment</Button>
             </Link>
           }
         />
@@ -418,7 +418,7 @@ export default function VarisangyaList() {
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="text-center py-12">
+          <div className="text-center py-10">
             <p className="text-red-600 dark:text-red-400">{error}</p>
             <Button onClick={fetchVarisangyas} className="mt-4" variant="outline">
               Retry
@@ -426,6 +426,8 @@ export default function VarisangyaList() {
           </div>
         ) : (
           <Table
+            fixedLayout
+            striped
             columns={columns}
             data={varisangyas}
             emptyMessage="No varisangya payments found"
@@ -447,7 +449,7 @@ export default function VarisangyaList() {
             />
           </div>
         )}
-      </Card>
+      </TableCard>
 
       <Modal
         isOpen={!!editingRow}

@@ -185,7 +185,7 @@ export default function MemberVarisangyaPage() {
             <VarisangyaTable records={records} />
 
             {count > 0 && (
-              <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-800 flex flex-wrap gap-6 text-sm">
+              <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-800 flex flex-wrap gap-4 text-sm">
                 <span className="text-gray-500 dark:text-gray-400">
                   Total records:
                   <span className="font-semibold text-gray-900 dark:text-gray-100">{count}</span>

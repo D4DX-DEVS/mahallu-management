@@ -72,7 +72,7 @@ export default function Security() {
   });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div>
         <PageHeader title="Security" description="Two-factor login and the access history for your account" />
       </div>
@@ -82,7 +82,7 @@ export default function Security() {
           <div className="flex gap-3">
             <FiShield className="mt-1 h-5 w-5 text-primary-600" />
             <div>
-              <h2 className="font-semibold text-gray-900 dark:text-gray-100">Two-factor login</h2>
+              <h2 className="font-semibold text-foreground">Two-factor login</h2>
               <p className="mt-1 max-w-xl text-sm text-gray-600 dark:text-gray-400">
                 When on, signing in with a password stops at an OTP step — the code goes to your registered
                 WhatsApp number. Keep that number reachable before switching this on.
@@ -106,7 +106,7 @@ export default function Security() {
 
       <Card>
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <h2 className="font-semibold text-gray-900 dark:text-gray-100">Access history</h2>
+          <h2 className="font-semibold text-foreground">Access history</h2>
           <span className="text-xs sm:text-sm text-gray-500">
             {pagination?.total ?? logs.length} recorded actions
           </span>

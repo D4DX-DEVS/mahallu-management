@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { FiEdit2, FiTrash2 } from 'react-icons/fi';
 import { useNavigate, useParams } from 'react-router-dom';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
@@ -122,16 +123,14 @@ export default function AcademicSupportDetail() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+    <div className="space-y-4">
+      <div className="flex justify-between gap-4 items-center">
         <PageHeader title="Academic Support Case" />
-        <div className="flex flex-wrap gap-2">
+        <div className="flex gap-2 items-center">
           {!editing && (
             <>
-              <Button onClick={() => setEditing(true)}>Edit</Button>
-              <Button variant="danger" onClick={() => setShowDeleteConfirm(true)} disabled={deleting}>
-                Delete
-              </Button>
+              <Button onClick={() => setEditing(true)} icon={<FiEdit2 />} collapseLabel>Edit</Button>
+              <Button variant="danger" onClick={() => setShowDeleteConfirm(true)} disabled={deleting} icon={<FiTrash2 />} collapseLabel>Delete</Button>
             </>
           )}
         </div>
@@ -139,7 +138,7 @@ export default function AcademicSupportDetail() {
 
       <Card>
         {editing ? (
-          <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          <form onSubmit={handleSubmit} className="p-4 space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium mb-2">Status</label>
@@ -195,25 +194,25 @@ export default function AcademicSupportDetail() {
             </div>
           </form>
         ) : (
-          <div className="p-6 space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="p-4 space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <h3 className="text-sm font-medium text-gray-600 dark:text-gray-400">Student</h3>
+                <h3 className="text-sm font-semibold text-foreground">Student</h3>
                 <p className="text-lg font-semibold mt-1">{memberName(supportCase.memberId)}</p>
               </div>
 
               <div>
-                <h3 className="text-sm font-medium text-gray-600 dark:text-gray-400">Type</h3>
+                <h3 className="text-sm font-semibold text-foreground">Type</h3>
                 <p className="text-lg font-semibold mt-1">{supportCaseTypeLabel(supportCase.type)}</p>
               </div>
 
               <div>
-                <h3 className="text-sm font-medium text-gray-600 dark:text-gray-400">Status</h3>
+                <h3 className="text-sm font-semibold text-foreground">Status</h3>
                 <p className="text-lg font-semibold mt-1">{supportCaseStatusLabel(supportCase.status)}</p>
               </div>
 
               <div>
-                <h3 className="text-sm font-medium text-gray-600 dark:text-gray-400">Start Date</h3>
+                <h3 className="text-sm font-semibold text-foreground">Start Date</h3>
                 <p className="text-lg font-semibold mt-1">
                   {new Date(supportCase.startDate).toLocaleDateString()}
                 </p>
@@ -222,27 +221,27 @@ export default function AcademicSupportDetail() {
 
             <div className="space-y-4 border-t border-gray-200 dark:border-gray-700 pt-6">
               <div>
-                <h3 className="text-sm font-medium text-gray-600 dark:text-gray-400">Description</h3>
+                <h3 className="text-sm font-semibold text-foreground">Description</h3>
                 <p className="mt-1">{supportCase.description}</p>
               </div>
 
               {supportCase.mentorName && (
                 <div>
-                  <h3 className="text-sm font-medium text-gray-600 dark:text-gray-400">Mentor</h3>
+                  <h3 className="text-sm font-semibold text-foreground">Mentor</h3>
                   <p className="mt-1">{supportCase.mentorName}</p>
                 </div>
               )}
 
               {supportCase.outcome && (
                 <div>
-                  <h3 className="text-sm font-medium text-gray-600 dark:text-gray-400">Outcome</h3>
+                  <h3 className="text-sm font-semibold text-foreground">Outcome</h3>
                   <p className="mt-1">{supportCase.outcome}</p>
                 </div>
               )}
 
               {supportCase.notes && (
                 <div>
-                  <h3 className="text-sm font-medium text-gray-600 dark:text-gray-400">Notes</h3>
+                  <h3 className="text-sm font-semibold text-foreground">Notes</h3>
                   <p className="mt-1">{supportCase.notes}</p>
                 </div>
               )}

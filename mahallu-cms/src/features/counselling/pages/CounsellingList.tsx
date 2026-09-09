@@ -120,20 +120,16 @@ export default function CounsellingList() {
           title="Counselling cases"
           description={`${totalItems} ${totalItems === 1 ? 'case' : 'cases'}`}
         />
-        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mb-4 flex gap-4 items-center">
           <Button
             variant="primary"
             size="sm"
             onClick={() => navigate('/counselling/create')}
-            className="flex items-center gap-2"
-          >
-            <FiPlus size={18} />
-            New Case
-          </Button>
+            className="flex items-center gap-2" icon={<FiPlus />} collapseLabel>New Case</Button>
         </div>
 
         {/* Filters */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
           <ExpandableSearch
             value={search}
             onChange={(value) => setSearch(value)}
@@ -170,7 +166,7 @@ export default function CounsellingList() {
         {/* Cases List */}
         {cases.length === 0 ? (
           <Card>
-            <div className="text-center py-12">
+            <div className="text-center py-10">
               <p className="text-gray-500 mb-4">No counselling cases found</p>
               <Button variant="primary" onClick={() => navigate('/counselling/create')}>
                 Create First Case
@@ -179,7 +175,7 @@ export default function CounsellingList() {
           </Card>
         ) : (
           <>
-            <div className="space-y-4 mb-6">
+            <div className="space-y-4 mb-4">
               {cases.map((caseRecord) => (
                 <Card key={caseRecord.id}>
                   <div className="flex flex-col sm:flex-row sm:items-center gap-4">
@@ -210,7 +206,7 @@ export default function CounsellingList() {
                         {new Date(caseRecord.appointmentDate).toLocaleDateString()}
                       </p>
                     </div>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex gap-2 items-center">
                       <Button
                         variant="secondary"
                         size="sm"

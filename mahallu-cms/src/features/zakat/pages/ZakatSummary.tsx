@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { FiSend, FiUsers } from 'react-icons/fi';
 import { Link } from 'react-router-dom';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
@@ -65,14 +66,14 @@ export default function ZakatSummary() {
         <div className="w-full sm:w-40">
           <Select options={YEAR_OPTIONS} value={year} onChange={(e) => setYear(e.target.value)} />
         </div>
-        <div className="flex flex-col gap-2 sm:flex-row">
+        <div className="flex flex-shrink-0 items-center gap-2">
           <Link to="/zakat/beneficiaries">
-            <Button variant="outline" size="md" className="w-full sm:w-auto">
+            <Button variant="outline" size="md" icon={<FiUsers />} collapseLabel>
               Beneficiaries
             </Button>
           </Link>
           <Link to="/zakat/distributions">
-            <Button size="md" className="w-full sm:w-auto">
+            <Button size="md" icon={<FiSend />} collapseLabel>
               Distributions
             </Button>
           </Link>
@@ -93,7 +94,7 @@ export default function ZakatSummary() {
                 <p className="text-xs font-medium text-gray-500 dark:text-gray-400 sm:text-sm">
                   {card.label}
                 </p>
-                <p className="mt-1 text-base font-bold text-gray-900 dark:text-gray-100 sm:text-xl">
+                <p className="mt-1 text-base font-semibold text-gray-900 dark:text-gray-100 sm:text-xl">
                   {card.value}
                 </p>
               </Card>
@@ -101,7 +102,7 @@ export default function ZakatSummary() {
           </div>
 
           <Card>
-            <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Distribution by Type</h2>
+            <h2 className="text-sm font-semibold text-foreground">Distribution by Type</h2>
             {(summary?.byType || []).length === 0 ? (
               <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
                 No distributions recorded for {year}

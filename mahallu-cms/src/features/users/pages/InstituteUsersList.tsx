@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FiEye, FiEdit2, FiUsers, FiCheckCircle, FiXCircle } from 'react-icons/fi';
-import Card from '@/components/ui/Card';
+import { FiCheckCircle, FiEdit2, FiEye, FiPlus, FiUsers, FiXCircle } from 'react-icons/fi';
+import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
@@ -98,12 +98,13 @@ export default function InstituteUsersList() {
   };
 
   const columns: TableColumn<User>[] = [
-    { key: 'name', label: 'Name', sortable: true },
-    { key: 'phone', label: 'Phone' },
-    { key: 'email', label: 'Email', render: (email) => email || '-' },
+    { key: 'name', label: 'Name', width: '6.75rem', sortable: true },
+    { key: 'phone', label: 'Phone', width: '6.75rem' },
+    { key: 'email', label: 'Email', width: '6.75rem', render: (email) => email || '-' },
     {
       key: 'status',
       label: 'Status',
+      width: '7.25rem',
       render: (status) => (
         <span
           className={`px-2 py-1 text-xs font-medium rounded-full ${
@@ -119,11 +120,14 @@ export default function InstituteUsersList() {
     {
       key: 'createdAt',
       label: 'Created',
+      width: '7.75rem',
       render: (date) => formatDate(date),
     },
     {
       key: 'actions',
       label: 'Actions',
+      width: '8rem',
+      align: 'center',
       render: (_, row) => (
         <ActionsMenu
           items={[
@@ -178,7 +182,7 @@ export default function InstituteUsersList() {
         </div>
       </div>
 
-      <Card>
+      <TableCard>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -190,13 +194,13 @@ export default function InstituteUsersList() {
           isExporting={isExporting}
           actionButtons={
             <Link to="/users/institute/create">
-              <Button size="md">+ New Institute User</Button>
+              <Button size="md" icon={<FiPlus />} collapseLabel>New Institute User</Button>
             </Link>
           }
         />
 
         {error ? (
-          <div className="text-center py-12">
+          <div className="text-center py-10">
             <p className="text-red-600 dark:text-red-400">{error}</p>
             <Button onClick={fetchUsers} className="mt-4" variant="outline">
               Retry
@@ -205,6 +209,8 @@ export default function InstituteUsersList() {
         ) : (
           <>
             <Table
+              fixedLayout
+              striped
               columns={columns}
               data={users}
               isLoading={loading}
@@ -229,7 +235,7 @@ export default function InstituteUsersList() {
             )}
           </>
         )}
-      </Card>
+      </TableCard>
     </div>
   );
 }

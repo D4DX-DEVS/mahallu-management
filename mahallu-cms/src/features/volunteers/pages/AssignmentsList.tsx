@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
+import { FiPlus } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import {
   volunteerService,
@@ -92,8 +93,12 @@ export default function AssignmentsList() {
   });
 
   return (
-    <div className="space-y-6">
-      <PageHeader title="Volunteer assignments" description="Who is doing what, and when." breadcrumbs={[{ label: 'Volunteers', path: '/volunteers' }]} />
+    <div className="space-y-4">
+      <PageHeader
+        title="Volunteer assignments"
+        description="Who is doing what, and when."
+        breadcrumbs={[{ label: 'Volunteers', path: '/volunteers' }]}
+      />
       <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
         <div className="flex-1">
           <div className="flex gap-2 flex-wrap">
@@ -115,8 +120,8 @@ export default function AssignmentsList() {
             ))}
           </div>
         </div>
-        <Button onClick={() => navigate('/volunteers/assignments/create')} className="w-full sm:w-auto">
-          + New Assignment
+        <Button onClick={() => navigate('/volunteers/assignments/create')} icon={<FiPlus />} collapseLabel>
+          New Assignment
         </Button>
       </div>
 

@@ -144,7 +144,7 @@ export default function CreateMarriageAssistance() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <PageHeader
         title="Create Marriage Assistance Request"
         description="Register a new marriage assistance request"
@@ -152,7 +152,7 @@ export default function CreateMarriageAssistance() {
       />
 
       <form onSubmit={handleSubmit(onSubmit)}>
-        <Card className="space-y-6">
+        <Card className="space-y-4">
           {error && (
             <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm dark:bg-red-900 dark:border-red-700 dark:text-red-200">
               {error}
@@ -160,7 +160,7 @@ export default function CreateMarriageAssistance() {
           )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <h3 className="md:col-span-2 text-lg font-semibold text-gray-900 dark:text-gray-100">
+            <h3 className="md:col-span-2 text-lg font-semibold text-foreground">
               Request Details
             </h3>
 

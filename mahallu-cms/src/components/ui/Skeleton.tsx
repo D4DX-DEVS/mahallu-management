@@ -43,7 +43,9 @@ export function PageSkeleton({ variant = 'page' }: PageSkeletonProps) {
           <Skeleton key={i} className="h-20 rounded-xl" />
         ))}
       </div>
-      <div className="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
+      {/* The list surface is only drawn from `md`, where the page draws one
+          too. Below it the loaded page has no outer frame. */}
+      <div className="md:rounded-lg md:border md:border-border md:p-4">
         <TableSkeleton columns={4} rows={7} />
       </div>
     </div>

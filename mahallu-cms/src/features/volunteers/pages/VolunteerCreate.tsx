@@ -106,9 +106,9 @@ export default function VolunteerCreate() {
       <PageHeader title="Add volunteer" breadcrumbs={[{ label: 'Volunteers', path: '/volunteers' }]} />
       <Card>
         <div>
-          <h2 className="text-xl font-semibold mb-6">Add Volunteer</h2>
+          <h2 className="text-lg font-semibold mb-4">Add Volunteer</h2>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-4">
             {/* Member Picker */}
             <div>
               <div className="flex items-end gap-2">

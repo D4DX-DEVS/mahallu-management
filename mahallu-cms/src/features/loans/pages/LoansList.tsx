@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
+import { FiPlus } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
-import Card from '@/components/ui/Card';
+import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import Table from '@/components/ui/Table';
 import StatCard from '@/components/ui/StatCard';
@@ -64,24 +65,29 @@ export default function LoansList() {
   };
 
   const columns: TableColumn<QardLoan>[] = [
-    { key: 'applicantName', label: 'Applicant', render: (_v, row) => loanApplicantName(row) },
+    { key: 'applicantName', label: 'Applicant', width: '8.25rem', render: (_v, row) => loanApplicantName(row) },
     {
       key: 'purpose',
       label: 'Purpose',
+      width: '7.75rem',
       render: (v) => LOAN_PURPOSE_OPTIONS.find((o) => o.value === v)?.label || v,
     },
     {
       key: 'amount',
       label: 'Amount',
+      width: '9.25rem',
+      align: 'center',
       render: (v, row) => formatCurrency(row.approvedAmount ?? v),
     },
     {
       key: 'outstandingBalance',
       label: 'Outstanding',
+      width: '11.25rem',
+      align: 'center',
       render: (v) => (v > 0 ? formatCurrency(v) : '-'),
     },
-    { key: 'appliedDate', label: 'Applied', render: (v) => formatDate(v) },
-    { key: 'status', label: 'Status', render: (v) => <LoanStatusBadge status={v} /> },
+    { key: 'appliedDate', label: 'Applied', width: '7.25rem', render: (v) => formatDate(v) },
+    { key: 'status', label: 'Status', width: '7.25rem', render: (v) => <LoanStatusBadge status={v} /> },
   ];
 
   return (
@@ -92,8 +98,8 @@ export default function LoansList() {
         breadcrumbs={[{ label: 'Services' }]}
       />
 
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <Button onClick={() => navigate('/loans/create')}>New application</Button>
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <Button onClick={() => navigate('/loans/create')} icon={<FiPlus />} collapseLabel>New application</Button>
       </div>
 
       {summary && (
@@ -106,7 +112,7 @@ export default function LoansList() {
         </div>
       )}
 
-      <Card>
+      <TableCard>
         <div className="mb-3">
           <ExpandableSearch
             value={searchQuery}
@@ -152,6 +158,8 @@ export default function LoansList() {
           />
         ) : (
           <Table
+            fixedLayout
+            striped
             columns={columns}
             data={rows}
             isLoading={loading}
@@ -168,7 +176,7 @@ export default function LoansList() {
             onPageChange={setCurrentPage}
           />
         )}
-      </Card>
+      </TableCard>
     </div>
   );
 }

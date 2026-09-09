@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { FiDownload, FiTrash2, FiEye } from 'react-icons/fi';
-import Card from '@/components/ui/Card';
+import { FiDownload, FiTrash2 } from 'react-icons/fi';
+import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
 import Table from '@/components/ui/Table';
@@ -138,7 +138,7 @@ export default function CertificatesList() {
     ),
     issuedBy: cert.issuedBy || '-',
     actions: (
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex items-center gap-2">
         <Button
           size="sm"
           variant="outline"
@@ -162,12 +162,12 @@ export default function CertificatesList() {
   }));
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <PageHeader description="Manage issued certificates" title="Certificates" />
 
       <div className="flex items-center justify-between"></div>
 
-      <Card>
+      <TableCard>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -218,7 +218,7 @@ export default function CertificatesList() {
           </div>
         ) : (
           <>
-            <Table columns={columns} data={rows} />
+            <Table fixedLayout striped columns={columns} data={rows} />
             {pagination && (
               <Pagination
                 currentPage={currentPage}
@@ -230,7 +230,7 @@ export default function CertificatesList() {
             )}
           </>
         )}
-      </Card>
+      </TableCard>
 
       {/* Revoke Modal */}
       <Modal

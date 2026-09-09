@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { FiDollarSign, FiCreditCard, FiCheckCircle } from 'react-icons/fi';
-import Card from '@/components/ui/Card';
+import { FiCheckCircle, FiCreditCard, FiDollarSign, FiPlus } from 'react-icons/fi';
+import TableCard from '@/components/ui/TableCard';
+import { rowActionClass } from '@/components/ui/rowAction';
 import Button from '@/components/ui/Button';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
@@ -119,26 +120,31 @@ export default function ZakatList() {
   };
 
   const columns: TableColumn<Zakat>[] = [
-    { key: 'payerName', label: 'Payer Name', sortable: true },
+    { key: 'payerName', label: 'Payer Name', width: '9.75rem', sortable: true },
     {
       key: 'amount',
       label: 'Amount',
+      width: '9.25rem',
+      align: 'center',
       render: (amount) => `₹${amount?.toLocaleString() || 0}`,
     },
     {
       key: 'paymentDate',
       label: 'Payment Date',
+      width: '10.75rem',
       render: (date) => formatDate(date),
     },
-    { key: 'category', label: 'Category' },
+    { key: 'category', label: 'Category', width: '8.25rem' },
     {
       key: 'receiptNo',
       label: 'Receipt No.',
+      width: '9.5rem',
       render: (receiptNo) => receiptNo || '-',
     },
     {
       key: 'status',
       label: 'Status',
+      width: '7.25rem',
       render: (status) => (
         <span
           className={`inline-block px-2 py-1 rounded text-xs font-semibold ${
@@ -154,6 +160,8 @@ export default function ZakatList() {
     {
       key: 'actions',
       label: 'Actions',
+      width: '8rem',
+      align: 'center',
       render: (_, row) => (
         <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
           {row.status === 'pending' && (
@@ -162,7 +170,7 @@ export default function ZakatList() {
                 e.stopPropagation();
                 handleVerify(row);
               }}
-              className="p-1.5 rounded-md hover:bg-green-100 dark:hover:bg-green-900 text-green-600 dark:text-green-400 transition-colors"
+              className={rowActionClass()}
               title="Verify payment"
               aria-label="Verify payment"
             >
@@ -201,7 +209,7 @@ export default function ZakatList() {
         </div>
       </div>
 
-      <Card>
+      <TableCard>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -213,7 +221,7 @@ export default function ZakatList() {
           isExporting={isExporting}
           actionButtons={
             <Link to="/collectibles/zakat/create">
-              <Button size="md">+ New Payment</Button>
+              <Button size="md" icon={<FiPlus />} collapseLabel>New Payment</Button>
             </Link>
           }
         />
@@ -221,14 +229,14 @@ export default function ZakatList() {
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="text-center py-12">
+          <div className="text-center py-10">
             <p className="text-red-600 dark:text-red-400">{error}</p>
             <Button onClick={fetchZakats} className="mt-4" variant="outline">
               Retry
             </Button>
           </div>
         ) : (
-          <Table columns={columns} data={zakats} emptyMessage="No zakat payments found" showExport={false} />
+          <Table fixedLayout striped columns={columns} data={zakats} emptyMessage="No zakat payments found" showExport={false} />
         )}
 
         {/* Pagination */}
@@ -245,7 +253,7 @@ export default function ZakatList() {
             />
           </div>
         )}
-      </Card>
+      </TableCard>
     </div>
   );
 }

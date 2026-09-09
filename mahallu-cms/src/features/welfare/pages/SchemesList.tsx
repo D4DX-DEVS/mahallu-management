@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
-import Card from '@/components/ui/Card';
+import ActionsMenu from '@/components/ui/ActionsMenu';
+import { FiEdit2, FiPlus } from 'react-icons/fi';
+import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
@@ -100,21 +102,24 @@ export default function SchemesList() {
   };
 
   const columns: TableColumn<WelfareScheme>[] = [
-    { key: 'name', label: 'Scheme' },
+    { key: 'name', label: 'Scheme', width: '7.75rem', render: (v) => <span className="capitalize">{v}</span> },
     {
       key: 'category',
       label: 'Category',
+      width: '8.25rem',
       render: (v) => WELFARE_CATEGORY_OPTIONS.find((o) => o.value === v)?.label || v,
     },
-    { key: 'budgetAmount', label: 'Budget', render: (v) => (v ? `Rs ${v}` : '-') },
-    { key: 'status', label: 'Status' },
+    { key: 'budgetAmount', label: 'Budget', width: '7.25rem', render: (v) => (v ? `Rs ${v}` : '-') },
+    { key: 'status', label: 'Status', width: '7.25rem' },
     {
       key: 'actions',
-      label: '',
+      label: 'Actions',
+      width: '8rem',
+      align: 'center',
       render: (_v, row) => (
-        <button className="text-primary-600 hover:underline" onClick={() => openEdit(row)}>
-          Edit
-        </button>
+        <ActionsMenu
+          items={[{ label: 'Edit', icon: <FiEdit2 className="h-4 w-4" />, onClick: () => openEdit(row) }]}
+        />
       ),
     },
   ];
@@ -127,7 +132,7 @@ export default function SchemesList() {
         breadcrumbs={[{ label: 'Welfare', path: '/welfare/applications' }]}
       />
 
-      <Card>
+      <TableCard>
         <div className="mb-3 flex items-center justify-between gap-2">
           <p className="text-xs text-gray-500 dark:text-gray-400">{pagination?.total ?? 0} scheme(s)</p>
           <Button
@@ -136,16 +141,13 @@ export default function SchemesList() {
               setEditingId(null);
               setForm(emptyForm);
               setFormOpen(true);
-            }}
-          >
-            + New Scheme
-          </Button>
+            }} icon={<FiPlus />} collapseLabel>New Scheme</Button>
         </div>
 
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="py-12 text-center">
+          <div className="py-10 text-center">
             <p className="text-red-600 dark:text-red-400">{error}</p>
             <Button onClick={fetchRows} className="mt-4" variant="outline">
               Retry
@@ -165,9 +167,7 @@ export default function SchemesList() {
             }}
           />
         ) : (
-          <div className="overflow-x-auto">
-            <Table columns={columns} data={rows} emptyMessage="No schemes yet" showExport={false} />
-          </div>
+          <Table fixedLayout striped columns={columns} data={rows} emptyMessage="No schemes yet" showExport={false} />
         )}
 
         {pagination && (
@@ -181,7 +181,7 @@ export default function SchemesList() {
             />
           </div>
         )}
-      </Card>
+      </TableCard>
 
       <Modal
         isOpen={isFormOpen}

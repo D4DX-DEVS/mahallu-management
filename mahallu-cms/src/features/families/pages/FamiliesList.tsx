@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { FiEye, FiEdit2, FiTrash2, FiHome, FiUsers, FiUpload, FiPlus } from 'react-icons/fi';
-import Card from '@/components/ui/Card';
+import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
 import StatCard from '@/components/ui/StatCard';
@@ -154,24 +154,52 @@ export default function FamiliesList() {
   /* Column priority is declared here and honoured by Table at every breakpoint,
    * so a phone shows the five that matter rather than nine crushed columns. */
   const columns: TableColumn<Family>[] = [
-    { key: 'mahallId', label: 'Family ID', sortable: true, width: '7rem' },
-    { key: 'houseName', label: 'House name', sortable: true, width: '12rem' },
-    { key: 'familyHead', label: 'Family head', render: (head) => head || '—', width: '11rem' },
+    /* Widths are each column's heading plus a constant, so the gap between one
+     * heading and the next is the same all the way across. A column wider than
+     * that would park its spare width beside its own heading and open a hole
+     * the neighbours do not have. */
+    { key: 'mahallId', label: 'Family ID', sortable: true, width: '8.75rem' },
+    {
+      key: 'houseName',
+      label: 'House name',
+      sortable: true,
+      render: (name) => <span className="capitalize">{name}</span>,
+      width: '9.75rem',
+    },
+    {
+      key: 'familyHead',
+      label: 'Family head',
+      render: (head) => (head ? <span className="capitalize">{head}</span> : '—'),
+      width: '8.125rem',
+    },
+    /* Heading and digits are both centred, so the count sits under the word
+     * that names it. A centred heading carries its slack on both sides, so the
+     * two widths either side of it are cut to absorb that and keep the gap
+     * between headings the same as everywhere else. */
     {
       key: 'members',
       label: 'Members',
-      align: 'right',
+      align: 'center',
       render: (members) => members?.length ?? 0,
-      width: '6rem',
+      width: '10.25rem',
     },
-    { key: 'area', label: 'Area', priority: 'secondary' },
-    { key: 'houseNo', label: 'House no.', priority: 'tertiary' },
-    { key: 'phone', label: 'Phone', priority: 'tertiary' },
+    {
+      key: 'area',
+      label: 'Area',
+      priority: 'secondary',
+      render: (area) => (area ? <span className="capitalize">{area}</span> : '—'),
+      width: '6.625rem',
+    },
+    { key: 'houseNo', label: 'House no.', priority: 'tertiary', width: '9.125rem' },
+    /* The field on Family is `contactNo`; `phone` read undefined on every
+     * row, so the column showed a dash for all of them. */
+    { key: 'contactNo', label: 'Phone', priority: 'secondary', width: '7rem' },
     {
       key: 'actions',
-      label: '',
-      align: 'right',
-      width: '4rem',
+      label: 'Actions',
+      align: 'center',
+      headerAlign: 'left',
+      width: '7.5rem',
       render: (_, row) => (
         <ActionsMenu
           label={`Actions for ${row.houseName}`}
@@ -240,7 +268,7 @@ export default function FamiliesList() {
         <StatCard title="Female" value={memberStats.femaleCount} />
       </div>
 
-      <Card padding="lg">
+      <TableCard padding="lg">
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -296,6 +324,11 @@ export default function FamiliesList() {
               data={families}
               isLoading={loading}
               entity="families"
+              /* Every column here declares a width, so the layout can be locked
+               * to them: a long family head name now clips to an ellipsis
+               * instead of stealing width from the columns beside it. */
+              fixedLayout
+              striped
               emptyVariant={isFiltered ? 'no-results' : 'empty'}
               emptyAction={
                 isFiltered
@@ -352,7 +385,7 @@ export default function FamiliesList() {
             )}
           </>
         )}
-      </Card>
+      </TableCard>
 
       <BulkImportCsv
         title="Import families from CSV"

@@ -53,11 +53,11 @@ export default function BalanceSheet() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <PageHeader title="Balance Sheet" description="Financial position overview" />
 
       <Card>
-        <div className="flex flex-wrap items-end gap-4 mb-6">
+        <div className="flex flex-wrap items-end gap-4 mb-4">
           <div className="w-full sm:w-44">
             <Input
               label="Start Date"
@@ -95,18 +95,18 @@ export default function BalanceSheet() {
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="text-center py-12">
+          <div className="text-center py-10">
             <p className="text-red-600 dark:text-red-400">{error}</p>
           </div>
         ) : !data ? (
-          <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+          <div className="text-center py-10 text-gray-500 dark:text-gray-400">
             Select a date range and click "Generate" to view the balance sheet
           </div>
         ) : (
-          <div className="space-y-8">
+          <div className="space-y-4">
             {/* Net Balance Summary */}
             <div
-              className={`p-6 rounded-lg ${data.netBalance >= 0 ? 'bg-green-50 dark:bg-green-900/20' : 'bg-red-50 dark:bg-red-900/20'}`}
+              className={`p-4 rounded-lg ${data.netBalance >= 0 ? 'bg-green-50 dark:bg-green-900/20' : 'bg-red-50 dark:bg-red-900/20'}`}
             >
               <p
                 className={`text-sm ${data.netBalance >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}
@@ -114,7 +114,7 @@ export default function BalanceSheet() {
                 Net Balance
               </p>
               <p
-                className={`text-3xl font-bold ${data.netBalance >= 0 ? 'text-green-700 dark:text-green-300' : 'text-red-700 dark:text-red-300'}`}
+                className={`text-2xl font-semibold tabular-nums ${data.netBalance >= 0 ? 'text-green-700 dark:text-green-300' : 'text-red-700 dark:text-red-300'}`}
               >
                 ₹{data.netBalance.toLocaleString()}
               </p>
@@ -124,11 +124,11 @@ export default function BalanceSheet() {
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Bank Balances */}
               {data.bankBalances && data.bankBalances.length > 0 && (
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">
+                  <h3 className="text-lg font-semibold mb-3 text-foreground">
                     Bank Balances
                   </h3>
                   <div className="space-y-2">
@@ -143,7 +143,7 @@ export default function BalanceSheet() {
                         </span>
                       </div>
                     ))}
-                    <div className="flex justify-between items-center p-3 bg-blue-100 dark:bg-blue-900/40 rounded-lg font-bold">
+                    <div className="flex justify-between items-center p-3 bg-blue-100 dark:bg-blue-900/40 rounded-lg font-semibold">
                       <span className="text-gray-900 dark:text-gray-100">Total Bank Balance</span>
                       <span className="text-blue-900 dark:text-blue-200">
                         ₹{data.totalBankBalance.toLocaleString()}
@@ -169,7 +169,7 @@ export default function BalanceSheet() {
                         </span>
                       </div>
                     ))}
-                  <div className="flex justify-between items-center p-3 bg-green-100 dark:bg-green-900/40 rounded-lg font-bold">
+                  <div className="flex justify-between items-center p-3 bg-green-100 dark:bg-green-900/40 rounded-lg font-semibold">
                     <span className="text-gray-900 dark:text-gray-100">Total Income</span>
                     <span className="text-green-900 dark:text-green-200">
                       ₹{data.totalIncome.toLocaleString()}
@@ -202,7 +202,7 @@ export default function BalanceSheet() {
                       </span>
                     </div>
                   )}
-                  <div className="flex justify-between items-center p-3 bg-red-100 dark:bg-red-900/40 rounded-lg font-bold">
+                  <div className="flex justify-between items-center p-3 bg-red-100 dark:bg-red-900/40 rounded-lg font-semibold">
                     <span className="text-gray-900 dark:text-gray-100">Total Expenses</span>
                     <span className="text-red-900 dark:text-red-200">
                       ₹{data.totalExpenseWithSalary.toLocaleString()}

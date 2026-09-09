@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FiLock, FiAlertCircle } from 'react-icons/fi';
+import { FiAlertCircle, FiLock, FiPlus, FiTrash2 } from 'react-icons/fi';
 import {
   getSensitiveHealthResources,
   deleteSensitiveHealthResource,
@@ -140,27 +140,27 @@ export default function RestrictedHealthPage({ title, type, subtitle }: Restrict
     <div>
       <div className="max-w-full">
         <PageHeader title={title} description={`${totalItems} ${totalItems === 1 ? 'record' : 'records'}`} />
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <Button onClick={() => setShowCreate(true)}>+ Add Record</Button>
+        <div className="flex gap-3 items-center">
+          <Button onClick={() => setShowCreate(true)} icon={<FiPlus />} collapseLabel>Add Record</Button>
         </div>
 
-        <div className="mt-6">
+        <div className="mt-4">
           {resources.length === 0 ? (
             <div className="text-center py-10">
               <p className="text-gray-600 font-medium">No {subtitle} yet</p>
               <p className="text-sm text-gray-500 mt-1 mb-4">
                 Add the first record to start tracking {subtitle}.
               </p>
-              <Button onClick={() => setShowCreate(true)}>+ Add Record</Button>
+              <Button onClick={() => setShowCreate(true)} icon={<FiPlus />} collapseLabel>Add Record</Button>
             </div>
           ) : (
             <>
-              <div className="space-y-3 mb-6">
+              <div className="space-y-3 mb-4">
                 {resources.map((resource) => (
                   <div key={resource.id} className="rounded-lg border border-border bg-card p-3 sm:p-4">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div className="flex gap-3 items-center">
                       <div className="flex-1">
-                        <h3 className="text-base sm:text-lg font-semibold">{resource.name}</h3>
+                        <h3 className="text-base sm:text-lg font-semibold capitalize">{resource.name}</h3>
                         <p className="text-xs sm:text-sm text-gray-600 mt-1">Contact: {resource.contactNo}</p>
                         {resource.notes && (
                           <p className="text-xs sm:text-sm text-gray-600 mt-2">{resource.notes}</p>
@@ -172,10 +172,7 @@ export default function RestrictedHealthPage({ title, type, subtitle }: Restrict
                         onClick={() => {
                           setDeleteId(resource.id);
                           setConfirmDelete(true);
-                        }}
-                      >
-                        Delete
-                      </Button>
+                        }} icon={<FiTrash2 />} collapseLabel>Delete</Button>
                     </div>
                   </div>
                 ))}

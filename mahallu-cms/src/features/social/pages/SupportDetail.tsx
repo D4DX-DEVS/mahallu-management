@@ -81,7 +81,7 @@ export default function SupportDetail() {
   const requesterName = typeof ticket.userId === 'object' ? ticket.userId?.name : ticket.userName;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <PageHeader
         title={ticket.subject}
         description={`${requesterName ? `From ${requesterName} · ` : ''}${formatDate(ticket.createdAt)}`}
@@ -95,8 +95,8 @@ export default function SupportDetail() {
         </div>
       </Card>
 
-      <Card className="space-y-6">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Respond</h2>
+      <Card className="space-y-4">
+        <h2 className="text-lg font-semibold text-foreground">Respond</h2>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Select

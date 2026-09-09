@@ -175,7 +175,7 @@ export default function MemberDeathRequest() {
   }
 
   return (
-    <div className="space-y-6 max-w-2xl w-full mx-auto">
+    <div className="space-y-4 max-w-2xl w-full mx-auto">
       <div className="flex items-center gap-4">
         <button
           type="button"
@@ -188,7 +188,7 @@ export default function MemberDeathRequest() {
       </div>
 
       <Card>
-        <div className="space-y-6">
+        <div className="space-y-4">
           {/* Deceased Member Selection */}
           {familyMembers.length > 0 && (
             <AppSelect
@@ -246,7 +246,7 @@ export default function MemberDeathRequest() {
 
           {/* Informant Details */}
           <div>
-            <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-4">Informant Details</h3>
+            <h3 className="text-sm font-semibold mb-3 text-foreground">Informant Details</h3>
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">

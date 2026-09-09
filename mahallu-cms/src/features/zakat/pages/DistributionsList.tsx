@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import Card from '@/components/ui/Card';
+import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
@@ -105,16 +105,18 @@ export default function DistributionsList() {
     {
       key: 'distributionDate',
       label: 'Date',
+      width: '6.25rem',
       render: (v) => (v ? new Date(v).toLocaleDateString() : '-'),
     },
-    { key: 'beneficiaryId', label: 'Beneficiary', render: (_v, row) => targetName(row) },
-    { key: 'amount', label: 'Amount', render: (v) => `Rs ${v ?? 0}` },
+    { key: 'beneficiaryId', label: 'Beneficiary', width: '9.25rem', render: (_v, row) => targetName(row) },
+    { key: 'amount', label: 'Amount', width: '7.75rem', render: (v) => `Rs ${v ?? 0}` },
     {
       key: 'type',
       label: 'Type',
+      width: '6.25rem',
       render: (v) => DISTRIBUTION_TYPE_OPTIONS.find((o) => o.value === v)?.label || v,
     },
-    { key: 'receiptNo', label: 'Receipt', render: (v) => v || '-' },
+    { key: 'receiptNo', label: 'Receipt', width: '7.5rem', render: (v) => v || '-' },
   ];
 
   return (
@@ -125,7 +127,7 @@ export default function DistributionsList() {
         breadcrumbs={[{ label: 'Zakat' }]}
       />
 
-      <Card>
+      <TableCard>
         <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div className="w-full sm:w-48">
             <Select
@@ -145,7 +147,7 @@ export default function DistributionsList() {
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="py-12 text-center">
+          <div className="py-10 text-center">
             <p className="text-red-600 dark:text-red-400">{error}</p>
             <Button onClick={fetchRows} className="mt-4" variant="outline">
               Retry
@@ -158,9 +160,7 @@ export default function DistributionsList() {
             action={{ label: '+ Record Distribution', onClick: () => setFormOpen(true) }}
           />
         ) : (
-          <div className="overflow-x-auto">
-            <Table columns={columns} data={rows} showExport={false} />
-          </div>
+          <Table fixedLayout striped columns={columns} data={rows} showExport={false} />
         )}
 
         {pagination && (
@@ -174,7 +174,7 @@ export default function DistributionsList() {
             />
           </div>
         )}
-      </Card>
+      </TableCard>
 
       <Modal isOpen={isFormOpen} onClose={() => setFormOpen(false)} title="Record Zakat Distribution">
         {verified.length === 0 ? (

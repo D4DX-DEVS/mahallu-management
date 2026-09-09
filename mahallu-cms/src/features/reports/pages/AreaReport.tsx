@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { FiDownload, FiPrinter } from 'react-icons/fi';
 import Card from '@/components/ui/Card';
+import StatCard from '@/components/ui/StatCard';
 import Button from '@/components/ui/Button';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import { reportService, AreaReport } from '@/services/reportService';
@@ -95,7 +96,7 @@ export default function AreaReportPage() {
 
   if (error || !report) {
     return (
-      <div className="text-center py-12">
+      <div className="text-center py-10">
         <p className="text-red-600 dark:text-red-400">{error || 'Report not available'}</p>
         <Button onClick={fetchReport} className="mt-4" variant="outline">
           Retry
@@ -105,68 +106,50 @@ export default function AreaReportPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <PageHeader description="Area-wise family and member statistics" title="Area Report" />
 
-      <div className="flex flex-wrap gap-2 items-center justify-between">
-        <div className="flex flex-wrap items-center gap-3">
-          <Button onClick={handleExportCSV} variant="outline" className="flex items-center gap-2">
-            <FiDownload className="h-4 w-4" />
-            Export CSV
-          </Button>
-          <Button onClick={handlePrintPDF} variant="outline" className="flex items-center gap-2">
-            <FiPrinter className="h-4 w-4" />
-            Print PDF
-          </Button>
+      <div className="flex gap-2 items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Button onClick={handleExportCSV} variant="outline" className="flex items-center gap-2" icon={<FiDownload />} collapseLabel>Export CSV</Button>
+          <Button onClick={handlePrintPDF} variant="outline" className="flex items-center gap-2" icon={<FiPrinter />} collapseLabel>Print PDF</Button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-        <Card>
-          <div className="text-sm text-gray-500 dark:text-gray-400">Total Families</div>
-          <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{report.totalFamilies}</div>
-        </Card>
-        <Card>
-          <div className="text-sm text-gray-500 dark:text-gray-400">Total Members</div>
-          <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{report.totalMembers}</div>
-        </Card>
-        <Card>
-          <div className="text-sm text-gray-500 dark:text-gray-400">Male</div>
-          <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{report.maleCount}</div>
-        </Card>
-        <Card>
-          <div className="text-sm text-gray-500 dark:text-gray-400">Female</div>
-          <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{report.femaleCount}</div>
-        </Card>
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+        <StatCard title="Total Families" value={report.totalFamilies} />
+        <StatCard title="Total Members" value={report.totalMembers} />
+        <StatCard title="Male" value={report.maleCount} />
+        <StatCard title="Female" value={report.femaleCount} />
       </div>
 
       <Card>
-        <h2 className="text-lg font-semibold mb-4">Family Details</h2>
+        <h2 className="text-lg font-semibold mb-3">Family Details</h2>
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-            <thead className="bg-gray-50 dark:bg-gray-800">
+          <table className="min-w-full divide-y divide-border">
+            <thead className="bg-muted">
               <tr>
-                <SortableTh sortKey="houseName" sort={sort} onSort={toggleSort} className="px-6 py-3 uppercase tracking-wider">
+                <SortableTh sortKey="houseName" sort={sort} onSort={toggleSort}>
                   House Name
                 </SortableTh>
-                <SortableTh sortKey="area" sort={sort} onSort={toggleSort} className="px-6 py-3 uppercase tracking-wider">
+                <SortableTh sortKey="area" sort={sort} onSort={toggleSort}>
                   Area
                 </SortableTh>
-                <SortableTh sortKey="memberCount" sort={sort} onSort={toggleSort} className="px-6 py-3 uppercase tracking-wider">
+                <SortableTh sortKey="memberCount" sort={sort} onSort={toggleSort}>
                   Members
                 </SortableTh>
               </tr>
             </thead>
-            <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+            <tbody className="bg-white dark:bg-gray-900 divide-y divide-border">
               {sortedFamilies.map((family) => (
                 <tr key={family.id}>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                  <td className="whitespace-nowrap px-3 py-2.5 text-sm text-foreground">
                     {family.houseName}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                  <td className="whitespace-nowrap px-3 py-2.5 text-sm text-muted-foreground">
                     {family.area || '-'}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                  <td className="whitespace-nowrap px-3 py-2.5 text-sm text-foreground">
                     {family.memberCount}
                   </td>
                 </tr>

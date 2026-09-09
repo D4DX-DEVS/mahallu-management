@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FiEye, FiEdit2, FiCheck, FiX, FiHome, FiUsers } from 'react-icons/fi';
-import Card from '@/components/ui/Card';
+import { FiEye, FiEdit2, FiCheck, FiHome, FiUsers } from 'react-icons/fi';
+import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
@@ -103,27 +103,33 @@ export default function UnapprovedFamiliesList() {
   };
 
   const columns: TableColumn<Family>[] = [
-    { key: 'mahallId', label: 'Mahall ID', render: (id) => id || '-' },
-    { key: 'houseName', label: 'House Name', sortable: true },
+    { key: 'mahallId', label: 'Mahall ID', width: '8.75rem', render: (id) => id || '-' },
+    { key: 'houseName', label: 'House Name', width: '9.75rem', sortable: true },
     {
       key: 'familyHead',
       label: 'Family Head',
+      width: '9.75rem',
       render: (head) => head || '-',
     },
     {
       key: 'members',
       label: 'Members',
+      width: '10rem',
+      align: 'center',
       render: (members) => members?.length || 0,
     },
-    { key: 'area', label: 'Area' },
+    { key: 'area', label: 'Area', width: '6.25rem' },
     {
       key: 'createdAt',
       label: 'Created',
+      width: '7.75rem',
       render: (date) => formatDate(date),
     },
     {
       key: 'actions',
       label: 'Actions',
+      width: '8rem',
+      align: 'center',
       render: (_, row) => (
         <ActionsMenu
           items={[
@@ -183,7 +189,7 @@ export default function UnapprovedFamiliesList() {
         </div>
       </div>
 
-      <Card>
+      <TableCard>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -196,7 +202,7 @@ export default function UnapprovedFamiliesList() {
         />
 
         {error ? (
-          <div className="text-center py-12">
+          <div className="text-center py-10">
             <p className="text-red-600 dark:text-red-400">{error}</p>
             <Button onClick={fetchFamilies} className="mt-4" variant="outline">
               Retry
@@ -205,6 +211,8 @@ export default function UnapprovedFamiliesList() {
         ) : (
           <>
             <Table
+              fixedLayout
+              striped
               columns={columns}
               data={families}
               isLoading={loading}
@@ -229,7 +237,7 @@ export default function UnapprovedFamiliesList() {
             )}
           </>
         )}
-      </Card>
+      </TableCard>
     </div>
   );
 }

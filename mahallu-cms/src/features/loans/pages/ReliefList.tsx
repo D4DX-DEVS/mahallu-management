@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
+import { FiPlus } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
-import Card from '@/components/ui/Card';
+import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import Table from '@/components/ui/Table';
 import StatCard from '@/components/ui/StatCard';
@@ -68,16 +69,17 @@ export default function ReliefList() {
   };
 
   const columns: TableColumn<ReliefCase>[] = [
-    { key: 'title', label: 'Case' },
+    { key: 'title', label: 'Case', width: '6.25rem' },
     {
       key: 'familyId',
       label: 'Family',
+      width: '7.25rem',
       render: (v) => (v && typeof v === 'object' ? v.houseName : '-'),
     },
-    { key: 'urgency', label: 'Urgency', render: (v) => <UrgencyBadge urgency={v} /> },
-    { key: 'amount', label: 'Assistance', render: (v) => (v ? formatCurrency(v) : '-') },
-    { key: 'createdAt', label: 'Reported', render: (v) => formatDate(v) },
-    { key: 'status', label: 'Status', render: (v) => <ReliefStatusBadge status={v} /> },
+    { key: 'urgency', label: 'Urgency', width: '7.75rem', render: (v) => <UrgencyBadge urgency={v} /> },
+    { key: 'amount', label: 'Assistance', width: '9rem', render: (v) => (v ? formatCurrency(v) : '-') },
+    { key: 'createdAt', label: 'Reported', width: '8.25rem', render: (v) => formatDate(v) },
+    { key: 'status', label: 'Status', width: '7.25rem', render: (v) => <ReliefStatusBadge status={v} /> },
   ];
 
   return (
@@ -88,8 +90,8 @@ export default function ReliefList() {
         breadcrumbs={[{ label: 'Services' }]}
       />
 
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <Button onClick={() => navigate('/relief/create')}>Report a case</Button>
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <Button onClick={() => navigate('/relief/create')} icon={<FiPlus />} collapseLabel>Report a case</Button>
       </div>
 
       {summary && (
@@ -101,7 +103,7 @@ export default function ReliefList() {
         </div>
       )}
 
-      <Card>
+      <TableCard>
         <div className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto] sm:items-end">
           <ExpandableSearch
             value={searchQuery}
@@ -155,6 +157,8 @@ export default function ReliefList() {
           />
         ) : (
           <Table
+            fixedLayout
+            striped
             columns={columns}
             data={rows}
             isLoading={loading}
@@ -171,7 +175,7 @@ export default function ReliefList() {
             onPageChange={setCurrentPage}
           />
         )}
-      </Card>
+      </TableCard>
     </div>
   );
 }

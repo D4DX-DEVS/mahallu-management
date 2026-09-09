@@ -62,7 +62,7 @@ export default function MemberCertificates() {
   }
 
   return (
-    <div className="space-y-6 max-w-4xl w-full mx-auto">
+    <div className="space-y-4 max-w-4xl w-full mx-auto">
       <PageHeader title="My Certificates" />
       {error && (
         <Card>
@@ -72,7 +72,7 @@ export default function MemberCertificates() {
 
       {certificates.length === 0 ? (
         <Card>
-          <div className="text-center py-12 space-y-3">
+          <div className="text-center py-10 space-y-3">
             <p className="text-gray-500 dark:text-gray-400">No certificates found.</p>
             <p className="text-xs text-gray-500 dark:text-gray-400">
               Certificates will appear here once your requests are approved.

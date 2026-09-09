@@ -215,6 +215,14 @@ export interface TableColumn<T = any> {
   priority?: 'primary' | 'secondary' | 'tertiary';
   /** Right-align numeric columns so digits line up. */
   align?: 'left' | 'right' | 'center';
+  /**
+   * Alignment for the heading alone; defaults to `align`.
+   *
+   * A centred heading carries slack on both sides, which reads as a wider gap
+   * than its neighbours have. Left-aligning the heading while the cells stay
+   * centred keeps the header row's spacing even.
+   */
+  headerAlign?: 'left' | 'right' | 'center';
   /** Minimum width, e.g. '12rem'. Keeps columns readable when the table scrolls. */
   width?: string;
 }

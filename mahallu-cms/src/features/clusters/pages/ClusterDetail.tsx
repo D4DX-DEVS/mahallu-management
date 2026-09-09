@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react';
+import ActionsMenu from '@/components/ui/ActionsMenu';
+import { FiUserMinus } from 'react-icons/fi';
 import { useParams, Link } from 'react-router-dom';
 import Card from '@/components/ui/Card';
+import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Modal from '@/components/ui/Modal';
@@ -162,36 +165,58 @@ export default function ClusterDetail() {
   };
 
   const familyColumns: TableColumn<any>[] = [
-    { key: 'houseName', label: 'House Name' },
-    { key: 'familyHead', label: 'Family Head', render: (v) => v || '-' },
-    { key: 'contactNo', label: 'Contact', render: (v) => v || '-' },
+    {
+      key: 'houseName',
+      label: 'House Name',
+      width: '9.75rem',
+      render: (v) => <span className="capitalize">{v}</span>,
+    },
+    {
+      key: 'familyHead',
+      label: 'Family Head',
+      width: '9.75rem',
+      render: (v) => <span className="capitalize">{v || '-'}</span>,
+    },
+    { key: 'contactNo', label: 'Contact', width: '7.75rem', render: (v) => v || '-' },
     {
       key: 'actions',
-      label: '',
+      label: 'Actions',
+      width: '8rem',
+      align: 'center',
       render: (_v, row) => (
-        <button
-          className="text-red-600 hover:underline"
-          onClick={() => {
-            setUnassignFamilyId(row._id || row.id);
-            setConfirmUnassign(true);
-          }}
-        >
-          Remove
-        </button>
+        <ActionsMenu
+          items={[
+            {
+              label: 'Remove from cluster',
+              icon: <FiUserMinus className="h-4 w-4" />,
+              onClick: () => {
+                setUnassignFamilyId(row._id || row.id);
+                setConfirmUnassign(true);
+              },
+              variant: 'danger' as const,
+            },
+          ]}
+        />
       ),
     },
   ];
 
   const visitColumns: TableColumn<ClusterVisit>[] = [
-    { key: 'visitDate', label: 'Date', render: (v) => (v ? new Date(v).toLocaleDateString() : '-') },
+    { key: 'visitDate', label: 'Date', width: '6.25rem', render: (v) => (v ? new Date(v).toLocaleDateString() : '-') },
     {
       key: 'familyId',
       label: 'Family',
-      render: (v) => (typeof v === 'object' && v ? v.houseName : '-'),
+      width: '7.25rem',
+      render: (v) => <span className="capitalize">{typeof v === 'object' && v ? v.houseName : '-'}</span>,
     },
-    { key: 'visitedBy', label: 'Visited By', render: (v) => v || '-' },
-    { key: 'issuesFound', label: 'Issues', render: (v) => v || '-' },
-    { key: 'followUpNeeded', label: 'Follow-up', render: (v) => (v ? 'Yes' : 'No') },
+    {
+      key: 'visitedBy',
+      label: 'Visited By',
+      width: '9rem',
+      render: (v) => <span className="capitalize">{v || '-'}</span>,
+    },
+    { key: 'issuesFound', label: 'Issues', width: '7.25rem', render: (v) => v || '-' },
+    { key: 'followUpNeeded', label: 'Follow-up', width: '8.75rem', render: (v) => (v ? 'Yes' : 'No') },
   ];
 
   if (loading) {
@@ -245,7 +270,7 @@ export default function ClusterDetail() {
       </div>
 
       {tab === 'families' ? (
-        <Card>
+        <TableCard>
           <div className="mb-3 flex items-center justify-between gap-2">
             <p className="text-xs text-gray-500 dark:text-gray-400">
               {familyPagination?.total ?? 0} assigned
@@ -254,14 +279,14 @@ export default function ClusterDetail() {
               + Assign Families
             </Button>
           </div>
-          <div className="overflow-x-auto">
-            <Table
-              columns={familyColumns}
-              data={families}
-              emptyMessage="No families assigned yet"
-              showExport={false}
-            />
-          </div>
+          <Table
+            fixedLayout
+            striped
+            columns={familyColumns}
+            data={families}
+            emptyMessage="No families assigned yet"
+            showExport={false}
+          />
           {familyPagination && (
             <div className="mt-4">
               <Pagination
@@ -273,23 +298,23 @@ export default function ClusterDetail() {
               />
             </div>
           )}
-        </Card>
+        </TableCard>
       ) : (
-        <Card>
+        <TableCard>
           <div className="mb-3 flex items-center justify-between gap-2">
             <p className="text-xs text-gray-500 dark:text-gray-400">{visitPagination?.total ?? 0} visit(s)</p>
             <Button size="md" onClick={() => setVisitOpen(true)}>
               + Record Visit
             </Button>
           </div>
-          <div className="overflow-x-auto">
-            <Table
-              columns={visitColumns}
-              data={visits}
-              emptyMessage="No visits recorded"
-              showExport={false}
-            />
-          </div>
+          <Table
+            fixedLayout
+            striped
+            columns={visitColumns}
+            data={visits}
+            emptyMessage="No visits recorded"
+            showExport={false}
+          />
           {visitPagination && (
             <div className="mt-4">
               <Pagination
@@ -301,7 +326,7 @@ export default function ClusterDetail() {
               />
             </div>
           )}
-        </Card>
+        </TableCard>
       )}
 
       <Modal isOpen={isAssignOpen} onClose={() => setAssignOpen(false)} title="Assign Families">
@@ -330,8 +355,8 @@ export default function ClusterDetail() {
                   />
                 </div>
                 <span className="min-w-0 flex-1 text-xs sm:text-sm">
-                  <span className="block truncate font-medium">{family.houseName}</span>
-                  <span className="block truncate text-gray-500">{family.familyHead || '-'}</span>
+                  <span className="block truncate font-medium capitalize">{family.houseName}</span>
+                  <span className="block truncate text-gray-500 capitalize">{family.familyHead || '-'}</span>
                 </span>
               </label>
             );

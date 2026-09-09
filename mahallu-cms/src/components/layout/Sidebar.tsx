@@ -376,7 +376,10 @@ export default function Sidebar() {
       <div className="flex h-full flex-col">
         <div
           className={cn(
-            'flex flex-shrink-0 items-center border-b border-border py-4',
+            /* h-16, the same height as the app header beside it, so the
+             * product name and the page chrome sit on one line across the top
+             * of the window instead of two that nearly agree. */
+            'flex h-16 flex-shrink-0 items-center border-b border-border',
             isDesktopSidebarCollapsed ? 'justify-center px-2' : 'gap-2.5 px-3'
           )}
         >
@@ -385,8 +388,12 @@ export default function Sidebar() {
           </div>
           {!isDesktopSidebarCollapsed && (
             <div className="min-w-0 flex-1">
-              <p className="truncate text-base font-semibold text-foreground">{BRAND_NAME}</p>
-              <p className="truncate text-label text-muted-foreground">
+              {/* 18px. The product name was 16px under 24px page titles, so
+                  the application read as a caption on its own screen. */}
+              <p className="truncate text-lg font-semibold leading-tight tracking-tight text-foreground">
+                {BRAND_NAME}
+              </p>
+              <p className="truncate text-xs text-muted-foreground">
                 {userRole === 'member' ? 'Member portal' : 'Admin'}
               </p>
             </div>

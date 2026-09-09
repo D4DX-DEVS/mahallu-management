@@ -136,7 +136,7 @@ export default function CreateZakat() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <PageHeader
         title="Create Zakat Payment"
         description="Record a new zakat payment"
@@ -144,7 +144,7 @@ export default function CreateZakat() {
       />
 
       <form onSubmit={handleSubmit(onSubmit)}>
-        <Card className="space-y-6">
+        <Card className="space-y-4">
           {submitError && (
             <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm dark:bg-red-900 dark:border-red-700 dark:text-red-200">
               {submitError}
@@ -232,7 +232,7 @@ export default function CreateZakat() {
         <Card className="space-y-3">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Created Invoices</h2>
+              <h2 className="text-lg font-semibold text-foreground">Created Invoices</h2>
               <p className="text-sm text-gray-500 dark:text-gray-400">
                 Download receipts for the new payments
               </p>
@@ -248,7 +248,7 @@ export default function CreateZakat() {
                 className="flex items-center justify-between rounded-lg border border-gray-200 dark:border-gray-700 px-4 py-3"
               >
                 <div>
-                  <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                  <div className="text-sm font-medium text-gray-900 dark:text-gray-100 capitalize">
                     {invoice.payerName}
                   </div>
                   <div className="text-xs text-gray-500 dark:text-gray-400">

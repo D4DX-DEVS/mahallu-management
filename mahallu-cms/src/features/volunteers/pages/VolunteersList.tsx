@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
+import { FiPlus } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import { volunteerService, type VolunteerProfile, VOLUNTEER_WINGS } from '@/services/volunteerService';
 import Button from '@/components/ui/Button';
@@ -74,7 +75,7 @@ export default function VolunteersList() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <PageHeader title="Volunteers" description="People who have signed up to help, by wing." />
       <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
         <div className="flex-1">
@@ -100,8 +101,8 @@ export default function VolunteersList() {
             ))}
           </div>
         </div>
-        <Button onClick={() => navigate('/volunteers/create')} className="w-full sm:w-auto">
-          + Add Volunteer
+        <Button onClick={() => navigate('/volunteers/create')} icon={<FiPlus />} collapseLabel>
+          Add Volunteer
         </Button>
       </div>
 
@@ -127,9 +128,11 @@ export default function VolunteersList() {
                 <div className="space-y-3">
                   <div className="flex justify-between items-start gap-2">
                     <div className="flex-1">
-                      <h3 className="font-medium text-gray-900">{volunteerName(volunteer)}</h3>
+                      <h3 className="font-semibold text-foreground">{volunteerName(volunteer)}</h3>
                       <p className="text-xs text-gray-500 mt-1">
-                        {(volunteer.wings ?? []).map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(', ')}
+                        {(volunteer.wings ?? [])
+                          .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+                          .join(', ')}
                       </p>
                     </div>
                     <StatusBadge status={volunteer.status} />
@@ -147,7 +150,9 @@ export default function VolunteersList() {
                         </span>
                       ))}
                       {(volunteer.serviceTypes ?? []).length > 3 && (
-                        <span className="text-xs text-gray-500">+{(volunteer.serviceTypes ?? []).length - 3}</span>
+                        <span className="text-xs text-gray-500">
+                          +{(volunteer.serviceTypes ?? []).length - 3}
+                        </span>
                       )}
                     </div>
                   </div>

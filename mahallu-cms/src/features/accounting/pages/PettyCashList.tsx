@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { FiPlus } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
@@ -74,11 +75,11 @@ export default function PettyCashList() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <PageHeader title="Petty Cash" description="Manage petty cash funds for daily expenses" />
 
       <Card>
-        <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
           <div className="flex w-full flex-wrap items-center gap-4 sm:w-auto">
             {!userInstituteId && (
               <div className="w-full sm:w-48">
@@ -94,12 +95,12 @@ export default function PettyCashList() {
               </div>
             )}
           </div>
-          <Button onClick={() => setShowCreate(true)}>+ New Fund</Button>
+          <Button onClick={() => setShowCreate(true)} icon={<FiPlus />} collapseLabel>New Fund</Button>
         </div>
 
         {/* Create Form */}
         {showCreate && (
-          <div className="mb-6 p-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800">
+          <div className="mb-4 p-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800">
             <h3 className="text-sm font-semibold mb-3">Create Petty Cash Fund</h3>
             <div className="flex flex-wrap items-end gap-4">
               {!userInstituteId && (
@@ -143,7 +144,7 @@ export default function PettyCashList() {
         {loading ? (
           <PageSkeleton variant="section" />
         ) : funds.length === 0 ? (
-          <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+          <div className="text-center py-10 text-gray-500 dark:text-gray-400">
             No petty cash funds found. Create one to get started.
           </div>
         ) : (
@@ -159,7 +160,7 @@ export default function PettyCashList() {
                 >
                   <div className="flex justify-between items-start mb-2">
                     <div>
-                      <h3 className="font-semibold text-gray-900 dark:text-gray-100">{fund.custodianName}</h3>
+                      <h3 className="font-semibold text-foreground">{fund.custodianName}</h3>
                       <p className="text-xs text-gray-500">{getInstituteName(fund)}</p>
                     </div>
                     <span
@@ -180,7 +181,7 @@ export default function PettyCashList() {
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-500">Balance</span>
                       <span
-                        className={`font-bold ${fund.currentBalance < fund.floatAmount * 0.2 ? 'text-red-600' : 'text-green-600'}`}
+                        className={`font-semibold ${fund.currentBalance < fund.floatAmount * 0.2 ? 'text-red-600' : 'text-green-600'}`}
                       >
                         ₹{fund.currentBalance.toLocaleString()}
                       </span>

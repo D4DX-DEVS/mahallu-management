@@ -136,19 +136,19 @@ export default function MemberFamily() {
   const isFamilyHead = overview.member.id === user?.id;
 
   return (
-    <div className="space-y-6 max-w-4xl w-full mx-auto">
+    <div className="space-y-4 max-w-4xl w-full mx-auto">
       <PageHeader title="My Family" />
       {/* Family Details */}
       {overview.family.details && (
         <Card>
           <div className="flex items-start justify-between">
             <div>
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Family Details</h2>
+              <h2 className="text-lg font-semibold mb-3 text-foreground">Family Details</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                 {overview.family.details.houseName && (
                   <div>
                     <p className="text-gray-500 dark:text-gray-400">House Name</p>
-                    <p className="text-gray-900 dark:text-gray-100 font-medium">
+                    <p className="text-gray-900 dark:text-gray-100 font-medium capitalize">
                       {overview.family.details.houseName}
                     </p>
                   </div>
@@ -207,8 +207,8 @@ export default function MemberFamily() {
 
           {/* Family Change Modal */}
           {isFamilyHead && familyChangeField && (
-            <div className="mt-6 p-4 border-t border-gray-200 dark:border-gray-800">
-              <h3 className="font-medium text-gray-900 dark:text-gray-100 mb-3">Request Family Change</h3>
+            <div className="mt-4 p-4 border-t border-gray-200 dark:border-gray-800">
+              <h3 className="font-semibold mb-3 text-foreground">Request Family Change</h3>
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -280,7 +280,7 @@ export default function MemberFamily() {
 
       {/* Family Members */}
       <Card>
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Family Members</h2>
+        <h2 className="text-lg font-semibold mb-3 text-foreground">Family Members</h2>
 
         {members.length === 0 ? (
           <p className="text-gray-500 dark:text-gray-400 text-sm">No family members found.</p>
@@ -290,7 +290,7 @@ export default function MemberFamily() {
               <div key={member.id} className="border border-gray-200 dark:border-gray-800 rounded-lg p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1">
-                    <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-2">{member.name}</h3>
+                    <h3 className="font-semibold mb-2 text-foreground capitalize">{member.name}</h3>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
                       {member.phone && (
                         <div>
@@ -343,7 +343,7 @@ export default function MemberFamily() {
                 {/* Member Change Modal */}
                 {isFamilyHead && selectedMemberId === member.id && (
                   <div className="mt-4 p-4 border-t border-gray-200 dark:border-gray-800">
-                    <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-3">
+                    <h4 className="font-semibold mb-3 text-foreground">
                       Request Member Change
                     </h4>
                     <div className="space-y-4">

@@ -3,7 +3,7 @@ import { FiChevronUp, FiChevronDown, FiChevronRight } from 'react-icons/fi';
 import { TableColumn, SortState } from '@/types';
 import { cn } from '@/utils/cn';
 import { nextSortState, sortRows } from '@/utils/sort';
-import { TableSkeleton } from './Skeleton';
+import Skeleton, { TableSkeleton } from './Skeleton';
 import EmptyState, { EmptyStateVariant } from './EmptyState';
 
 /**
@@ -81,6 +81,22 @@ export interface TableProps<T = any> {
   /** Minimum table width so columns scroll instead of crushing on phones. */
   minWidth?: string;
 
+  /**
+   * Locks every column to its declared `width` (`table-layout: fixed`) and
+   * clips any cell that overruns to an ellipsis, with the full text on hover.
+   *
+   * Without it a column is only as wide as its widest cell demands, so one
+   * long value - a family head with three names - stretches its column and
+   * squeezes every other one for the whole table.
+   *
+   * Only for a table whose columns all declare a `width`; a column without one
+   * is handed whatever space is left.
+   */
+  fixedLayout?: boolean;
+
+  /** Tints alternate rows, so the eye tracks a row across a wide table. */
+  striped?: boolean;
+
   /* ---- Removed ---------------------------------------------------------
    * Table used to ship its own CSV/JSON/PDF bar that duplicated TableToolbar's
    * export menu — pages that used both showed export twice. Export now lives
@@ -102,10 +118,21 @@ const PRIORITY_CLASS: Record<NonNullable<TableColumn['priority']>, string> = {
   tertiary: 'hidden lg:table-cell',
 };
 
+/* The two type sizes this component uses, as literal px rather than scale
+ * tokens: a token only reaches the browser once the dev server restarts, which
+ * left the size in the code disagreeing with the size on screen. Written here,
+ * what you read is what renders.
+ *
+ * Both views read from them — the table's headings and cells above `md`, and
+ * the card list's title, labels and values below it — so changing a number
+ * here moves desktop and phone together instead of leaving one behind. */
+const HEAD_FONT = { fontSize: '15px' };
+const CELL_FONT = { fontSize: '14px' };
+
 const ALIGN_CLASS = {
   left: 'text-left',
   right: 'text-right tabular-nums',
-  center: 'text-center',
+  center: 'text-center tabular-nums',
 };
 
 function Table<T extends Record<string, any>>({
@@ -128,6 +155,8 @@ function Table<T extends Record<string, any>>({
   emptyMessage,
   className,
   minWidth = '48rem',
+  fixedLayout = false,
+  striped = false,
   // Deprecated export props are intentionally destructured and unused.
   exportFilename: _exportFilename,
   exportTitle: _exportTitle,
@@ -212,9 +241,31 @@ function Table<T extends Record<string, any>>({
     column.render ? column.render(row[column.key], row, index) : (row[column.key] ?? '—');
 
   if (isLoading) {
+    /* The placeholder is shaped like what replaces it. Below `md` that is a
+     * list of bordered cards — the page no longer draws a surface around the
+     * table there, so a bare run of shimmer bars would sit on the background
+     * with no frame at all and the list would appear to jump into a box once
+     * it loaded. */
     return (
-      <div className={cn('space-y-3', className)}>
-        <TableSkeleton columns={columns.length + (selectable ? 1 : 0)} />
+      <div className={cn('space-y-3', className)} aria-busy="true">
+        <ul className="space-y-3 sm:space-y-4 md:hidden">
+          {Array.from({ length: 6 }).map((_, row) => (
+            <li key={row} className="rounded-lg border border-border bg-card p-3 sm:p-4">
+              <Skeleton className="h-4 w-2/5 max-w-full" />
+              <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1.5">
+                {Array.from({ length: Math.min(4, Math.max(2, cardColumns.length)) }).map((_, cell) => (
+                  <div key={cell} className="min-w-0 space-y-1">
+                    <Skeleton className="h-3 w-1/2 max-w-full" />
+                    <Skeleton className="h-3.5 w-3/4 max-w-full" />
+                  </div>
+                ))}
+              </div>
+            </li>
+          ))}
+        </ul>
+        <div className="hidden rounded-lg border border-border md:block">
+          <TableSkeleton columns={columns.length + (selectable ? 1 : 0)} />
+        </div>
       </div>
     );
   }
@@ -255,7 +306,7 @@ function Table<T extends Record<string, any>>({
           direction toggle, so a phone is not a read-only view of the list. */}
       {mobileSortColumns.length > 0 && (
         <div className="flex items-center gap-2 md:hidden">
-          <label htmlFor={sortFieldId} className="flex-shrink-0 text-label text-muted-foreground">
+          <label htmlFor={sortFieldId} style={CELL_FONT} className="flex-shrink-0 text-muted-foreground">
             Sort by
           </label>
           <select
@@ -300,7 +351,7 @@ function Table<T extends Record<string, any>>({
       )}
 
       {/* ---- Phone: one card per record ---------------------------------- */}
-      <ul className="space-y-2 md:hidden">
+      <ul className="space-y-3 sm:space-y-4 md:hidden">
         {rows.map((row, rowIndex) => {
           const key = keyOf(row, rowIndex);
           const selected = selectedKeys.includes(key);
@@ -321,7 +372,7 @@ function Table<T extends Record<string, any>>({
                     : undefined
                 }
                 className={cn(
-                  'rounded-lg border border-border bg-card p-3 transition-colors',
+                  'min-w-0 rounded-lg border border-border bg-card p-3 transition-colors sm:p-4',
                   selected && 'border-primary bg-accent/50',
                   onRowClick &&
                     'cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
@@ -345,7 +396,7 @@ function Table<T extends Record<string, any>>({
                        * <div> or a <p>. Inside a <p> the browser silently closes the
                        * paragraph early, so the content escaped this truncation box
                        * and the card layout broke on phones. A <div> nests anything. */
-                      <div className="truncate text-sm font-medium text-foreground">
+                      <div style={HEAD_FONT} className="truncate font-medium text-foreground">
                         {cellValue(titleColumn, row, rowIndex)}
                       </div>
                     )}
@@ -354,8 +405,10 @@ function Table<T extends Record<string, any>>({
                       <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1.5">
                         {cardColumns.map((column) => (
                           <div key={column.key} className="min-w-0">
-                            <dt className="text-label text-muted-foreground">{column.label}</dt>
-                            <dd className="truncate text-sm text-foreground">
+                            <dt style={CELL_FONT} className="text-muted-foreground">
+                              {column.label}
+                            </dt>
+                            <dd style={CELL_FONT} className="truncate text-foreground">
                               {cellValue(column, row, rowIndex)}
                             </dd>
                           </div>
@@ -392,11 +445,14 @@ function Table<T extends Record<string, any>>({
 
       {/* ---- Tablet and up: the table ------------------------------------ */}
       <div className="hidden overflow-x-auto rounded-lg border border-border md:block">
-        <table className="w-full border-collapse" style={{ minWidth }}>
+        <table
+          className="w-full border-collapse"
+          style={{ minWidth, ...(fixedLayout ? { tableLayout: 'fixed' as const } : {}) }}
+        >
           <thead className="sticky top-0 z-10 bg-muted">
             <tr className="border-b border-border">
               {selectable && (
-                <th scope="col" className="w-10 px-3 py-2.5">
+                <th scope="col" className="w-10 px-3 py-3">
                   <input
                     type="checkbox"
                     checked={allSelected}
@@ -413,6 +469,7 @@ function Table<T extends Record<string, any>>({
                 const isSorted = activeSort?.key === column.key;
                 const direction = isSorted ? activeSort!.direction : null;
                 const sortableColumn = canSort(column);
+                const headAlign = column.headerAlign ?? column.align ?? 'left';
                 return (
                   <th
                     key={column.key}
@@ -426,13 +483,21 @@ function Table<T extends Record<string, any>>({
                           : 'none'
                         : undefined
                     }
-                    style={column.width ? { minWidth: column.width } : undefined}
+                    /* A fixed layout reads `width`; an auto one only honours
+                     * `minWidth`, and would stretch the column past it. */
+                    style={{
+                      ...HEAD_FONT,
+                      ...(column.width
+                        ? fixedLayout
+                          ? { width: column.width }
+                          : { minWidth: column.width }
+                        : {}),
+                    }}
                     className={cn(
-                      /* 13px, not 12: a heading has to be as readable as the
-                       * cells it labels, and it carries the column's meaning
-                       * for every row under it. */
-                      'px-3 py-2.5 text-label font-semibold text-muted-foreground',
-                      ALIGN_CLASS[column.align ?? 'left'],
+                      /* Size comes from HEAD_FONT. `whitespace-nowrap` stops
+                       * a two-word heading folding into its neighbour. */
+                      'whitespace-nowrap px-3 py-3 font-semibold text-muted-foreground',
+                      ALIGN_CLASS[column.headerAlign ?? column.align ?? 'left'],
                       PRIORITY_CLASS[column.priority ?? 'primary']
                     )}
                   >
@@ -447,15 +512,26 @@ function Table<T extends Record<string, any>>({
                               ? 'Stop sorting by ' + column.label
                               : 'Sort ' + column.label + ' ascending'
                         }
+                        /* Full width, not `inline-flex`: the button then owns
+                         * the whole cell and its own justify decides where the
+                         * heading sits, so it lands on exactly the edge the
+                         * cells below use. Every heading carries the same
+                         * label-to-chevron gap, centred ones included - a
+                         * spacer that squared the centring off against the
+                         * digits made that column's gap read as the odd one. */
                         className={cn(
-                          'inline-flex max-w-full items-center gap-1 rounded-sm transition-colors',
+                          'flex w-full items-center gap-1.5 rounded-sm transition-colors',
                           'hover:text-foreground focus-visible:outline-none focus-visible:ring-2',
                           'focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-muted',
-                          column.align === 'right' && 'flex-row-reverse',
+                          headAlign === 'right'
+                            ? 'flex-row-reverse justify-start'
+                            : headAlign === 'center'
+                              ? 'justify-center'
+                              : 'justify-start',
                           isSorted && 'text-foreground'
                         )}
                       >
-                        <span className="truncate">{column.label}</span>
+                        <span className="min-w-0 truncate">{column.label}</span>
                         <SortIndicator direction={direction} />
                       </button>
                     ) : (
@@ -491,13 +567,18 @@ function Table<T extends Record<string, any>>({
                   }
                   className={cn(
                     'transition-colors',
-                    selected ? 'bg-accent/50' : 'hover:bg-accent/30',
+                    /* Selection, then the stripe, then hover - written as one
+                     * class rather than an `even:` variant, whose extra
+                     * specificity would have outranked the selected tint. */
+                    selected
+                      ? 'bg-accent/50'
+                      : cn(striped && rowIndex % 2 === 1 && 'bg-muted/40', 'hover:bg-accent/30'),
                     onRowClick &&
                       'cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring'
                   )}
                 >
                   {selectable && (
-                    <td className="w-10 px-3 py-2.5" onClick={(e) => e.stopPropagation()}>
+                    <td className="w-10 px-3 py-3" onClick={(e) => e.stopPropagation()}>
                       <input
                         type="checkbox"
                         checked={selected}
@@ -510,13 +591,39 @@ function Table<T extends Record<string, any>>({
                   {columns.map((column) => (
                     <td
                       key={column.key}
+                      style={CELL_FONT}
+                      /* The actions cell holds controls, not text - clipping it
+                       * would cut a menu button in half. */
+                      title={
+                        fixedLayout && typeof row[column.key] === 'string'
+                          ? (row[column.key] as string)
+                          : undefined
+                      }
                       className={cn(
-                        'px-3 py-2.5 text-sm text-foreground',
+                        'px-3 py-3 text-foreground',
                         ALIGN_CLASS[column.align ?? 'left'],
                         PRIORITY_CLASS[column.priority ?? 'primary']
                       )}
                     >
-                      {cellValue(column, row, rowIndex)}
+                      {/* Two lines, then an ellipsis. The clamp lives on an
+                        * inner div because it needs `display: -webkit-box`,
+                        * which on the cell itself would stop it behaving as a
+                        * table cell at all. */}
+                      {fixedLayout && column.key !== 'actions' ? (
+                        /* The clamp turns this into a `-webkit-box`, so it
+                         * repeats the cell's alignment rather than trusting it
+                         * to inherit through a box that is not a block. */
+                        <div
+                          className={cn(
+                            'line-clamp-2 break-words',
+                            ALIGN_CLASS[column.align ?? 'left']
+                          )}
+                        >
+                          {cellValue(column, row, rowIndex)}
+                        </div>
+                      ) : (
+                        cellValue(column, row, rowIndex)
+                      )}
                     </td>
                   ))}
                 </tr>

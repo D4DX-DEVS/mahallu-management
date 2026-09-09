@@ -73,17 +73,17 @@ export default function InheritanceDetail() {
       <div>
         <Button
           variant="ghost"
-          className="mb-6 flex items-center gap-2"
+          className="mb-4 flex items-center gap-2"
           onClick={() => navigate('/inheritance')}
         >
           <FiArrowLeft size={18} />
           Back
         </Button>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           {/* Deceased Info */}
           <Card>
-            <h2 className="text-lg font-bold mb-4">Deceased Information</h2>
+            <h2 className="text-lg font-semibold mb-3">Deceased Information</h2>
             <div className="space-y-3">
               <div>
                 <p className="text-xs text-gray-600">Case Number</p>
@@ -91,7 +91,7 @@ export default function InheritanceDetail() {
               </div>
               <div>
                 <p className="text-xs text-gray-600">Deceased Name</p>
-                <p className="font-medium">{caseRecord.deceasedName || 'Member Record'}</p>
+                <p className="font-medium capitalize">{caseRecord.deceasedName || 'Member Record'}</p>
               </div>
               {caseRecord.deathRegistrationId && (
                 <div>
@@ -105,7 +105,7 @@ export default function InheritanceDetail() {
           {/* Status & Scholar */}
           <Card>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold">Status & Scholar</h2>
+              <h2 className="text-lg font-semibold">Status & Scholar</h2>
               {!isEditing && (
                 <Button
                   variant="secondary"
@@ -165,7 +165,7 @@ export default function InheritanceDetail() {
                 {caseRecord.referredScholar && (
                   <div>
                     <p className="text-xs text-gray-600">Referred Scholar</p>
-                    <p className="font-medium">{caseRecord.referredScholar}</p>
+                    <p className="font-medium capitalize">{caseRecord.referredScholar}</p>
                   </div>
                 )}
               </div>
@@ -174,8 +174,8 @@ export default function InheritanceDetail() {
         </div>
 
         {/* Heirs Table */}
-        <Card className="mb-6">
-          <h2 className="text-lg font-bold mb-4">Heirs</h2>
+        <Card className="mb-4">
+          <h2 className="text-lg font-semibold mb-3">Heirs</h2>
           {caseRecord.heirs && caseRecord.heirs.length > 0 ? (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -189,7 +189,7 @@ export default function InheritanceDetail() {
                 <tbody>
                   {caseRecord.heirs.map((heir, idx) => (
                     <tr key={idx} className="border-b hover:bg-gray-50">
-                      <td className="py-2 px-3">{heir.name}</td>
+                      <td className="py-2 px-3 capitalize">{heir.name}</td>
                       <td className="py-2 px-3">{heir.relation}</td>
                       <td className="py-2 px-3">{heir.contactNo || '—'}</td>
                     </tr>
@@ -217,7 +217,7 @@ export default function InheritanceDetail() {
         ) : (
           caseRecord.notes && (
             <Card className="bg-amber-50 border border-amber-200">
-              <h3 className="font-bold mb-2">Notes</h3>
+              <h3 className="font-semibold mb-2">Notes</h3>
               <p className="text-sm text-gray-700">{caseRecord.notes}</p>
             </Card>
           )

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { FiArrowLeft } from 'react-icons/fi';
 import { useParams, useNavigate } from 'react-router-dom';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
@@ -128,6 +129,7 @@ export default function ExamDetail() {
     <div>
       <PageHeader
         title={exam.name}
+        className="capitalize"
         breadcrumbs={[
           { label: 'Services' },
           { label: 'Education', path: '/education' },
@@ -136,10 +138,8 @@ export default function ExamDetail() {
         ]}
       />
 
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <Button variant="secondary" onClick={() => navigate(`/education/classes/${classId}/exams`)}>
-          Back
-        </Button>
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <Button variant="secondary" onClick={() => navigate(`/education/classes/${classId}/exams`)} icon={<FiArrowLeft />} collapseLabel>Back</Button>
       </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 mb-4">
@@ -167,7 +167,7 @@ export default function ExamDetail() {
 
       <Card>
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Results</h2>
+          <h2 className="text-sm font-semibold text-foreground">Results</h2>
           {!isEditingResults && (
             <Button variant="secondary" size="sm" onClick={() => setIsEditingResults(true)}>
               Edit results
@@ -236,7 +236,9 @@ export default function ExamDetail() {
                           key={row.enrollmentId}
                           className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/30"
                         >
-                          <td className="px-4 py-3 text-gray-900 dark:text-gray-100">{row.studentName}</td>
+                          <td className="px-4 py-3 text-gray-900 dark:text-gray-100 capitalize">
+                            {row.studentName}
+                          </td>
                           <td className="px-4 py-3 text-gray-600 dark:text-gray-400">{row.rollNo}</td>
                           <td className="px-4 py-3">
                             {isEditingResults ? (

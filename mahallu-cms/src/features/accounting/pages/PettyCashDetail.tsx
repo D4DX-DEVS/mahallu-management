@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
+import { FiPlus, FiRefreshCw } from 'react-icons/fi';
 import { useParams, useNavigate } from 'react-router-dom';
 import Card from '@/components/ui/Card';
+import StatCard from '@/components/ui/StatCard';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import { PageSkeleton } from '@/components/ui/Skeleton';
@@ -106,7 +108,7 @@ export default function PettyCashDetail() {
 
   if (!fund) {
     return (
-      <div className="text-center py-12">
+      <div className="text-center py-10">
         <p className="text-gray-500">Petty cash fund not found</p>
         <Button onClick={() => navigate('/petty-cash')} className="mt-4">
           Back to List
@@ -125,7 +127,7 @@ export default function PettyCashDetail() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <PageHeader
         title={fund.custodianName}
         description={`${instituteName} — Petty Cash Fund`}
@@ -133,38 +135,35 @@ export default function PettyCashDetail() {
       />
 
       {/* Fund Summary */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-        <Card>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Float Amount</p>
-          <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-            ₹{fund.floatAmount.toLocaleString()}
-          </p>
-        </Card>
-        <Card>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Current Balance</p>
-          <p
-            className={`text-2xl font-bold ${fund.currentBalance < fund.floatAmount * 0.2 ? 'text-red-600' : 'text-green-600'}`}
-          >
-            ₹{fund.currentBalance.toLocaleString()}
-          </p>
-        </Card>
-        <Card>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Spent</p>
-          <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">₹{spent.toLocaleString()}</p>
-        </Card>
-        <Card>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Status</p>
-          <p className={`text-lg font-bold ${fund.status === 'active' ? 'text-green-600' : 'text-gray-600'}`}>
-            {fund.status}
-          </p>
-        </Card>
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+        <StatCard title="Float Amount" value={<>₹{fund.floatAmount.toLocaleString()}</>} />
+        <StatCard
+          title="Current Balance"
+          value={<>₹{fund.currentBalance.toLocaleString()}</>}
+          tone={fund.currentBalance < fund.floatAmount * 0.2 ? 'destructive' : 'success'}
+        />
+        <StatCard title="Spent" value={<>₹{spent.toLocaleString()}</>} tone="warning" />
+        <StatCard
+          title="Status"
+          value={<span className="capitalize">{fund.status}</span>}
+          tone={fund.status === 'active' ? 'success' : 'default'}
+        />
       </div>
 
       {/* Actions */}
       {fund.status === 'active' && (
-        <div className="flex flex-wrap gap-3">
-          <Button onClick={() => setShowExpense(true)}>Record Expense</Button>
-          <Button variant="outline" onClick={handleReplenish} disabled={replenishing || spent <= 0}>
+        <div className="flex items-center gap-2">
+          <Button onClick={() => setShowExpense(true)} icon={<FiPlus />} collapseLabel>
+            Record Expense
+          </Button>
+          <Button
+            variant="outline"
+            onClick={handleReplenish}
+            disabled={replenishing || spent <= 0}
+            icon={<FiRefreshCw />}
+            collapseLabel
+            title="Replenish the fund"
+          >
             {replenishing ? 'Replenishing...' : `Replenish (₹${spent.toLocaleString()})`}
           </Button>
         </div>
@@ -220,13 +219,13 @@ export default function PettyCashDetail() {
 
       {/* Transactions */}
       <Card>
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Transactions</h3>
+        <h3 className="text-lg font-semibold mb-3 text-foreground">Transactions</h3>
         {transactions.length === 0 ? (
           <p className="text-center py-8 text-gray-500">No transactions yet</p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-              <thead className="bg-gray-50 dark:bg-gray-800">
+            <table className="min-w-full divide-y divide-border">
+              <thead className="bg-muted">
                 <tr>
                   <th className="px-4 py-3 text-left text-label font-medium text-gray-500 dark:text-gray-400 uppercase">
                     Date
@@ -245,7 +244,7 @@ export default function PettyCashDetail() {
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+              <tbody className="bg-white dark:bg-gray-900 divide-y divide-border">
                 {transactions.map((txn) => (
                   <tr key={txn.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
                     <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap">

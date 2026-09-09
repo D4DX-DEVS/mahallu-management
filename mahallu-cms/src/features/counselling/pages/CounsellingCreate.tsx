@@ -53,7 +53,7 @@ export default function CounsellingCreate() {
       <div className="max-w-2xl">
         <PageHeader title="Create Counselling Case" />
         <Card padding="lg">
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-800 text-sm p-3 rounded">{error}</div>
             )}
@@ -117,7 +117,7 @@ export default function CounsellingCreate() {
 
             {/* Client Selection */}
             <div className="border-t pt-6">
-              <h3 className="font-bold mb-4">Client Information</h3>
+              <h3 className="font-semibold mb-3">Client Information</h3>
 
               <div className="space-y-4">
                 <div>

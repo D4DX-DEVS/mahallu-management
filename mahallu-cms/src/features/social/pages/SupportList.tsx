@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FiEye, FiX, FiHelpCircle, FiAlertCircle, FiCheckCircle } from 'react-icons/fi';
-import Card from '@/components/ui/Card';
+import { FiAlertCircle, FiCheckCircle, FiEye, FiHelpCircle, FiPlus } from 'react-icons/fi';
+import TableCard from '@/components/ui/TableCard';
+import { rowActionClass } from '@/components/ui/rowAction';
+import FilterPanel from '@/components/ui/FilterPanel';
 import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
 import StatCard from '@/components/ui/StatCard';
@@ -104,10 +106,11 @@ export default function SupportList() {
   };
 
   const columns: TableColumn<Support>[] = [
-    { key: 'subject', label: 'Subject', sortable: true },
+    { key: 'subject', label: 'Subject', width: '7.5rem', sortable: true },
     {
       key: 'priority',
       label: 'Priority',
+      width: '7.75rem',
       render: (priority) => {
         const priorityColors: Record<string, string> = {
           low: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
@@ -126,6 +129,7 @@ export default function SupportList() {
     {
       key: 'status',
       label: 'Status',
+      width: '7.25rem',
       render: (status) => {
         return <StatusBadge status={status} />;
       },
@@ -133,11 +137,14 @@ export default function SupportList() {
     {
       key: 'createdAt',
       label: 'Created',
+      width: '7.75rem',
       render: (date) => formatDate(date),
     },
     {
       key: 'actions',
       label: 'Actions',
+      width: '8rem',
+      align: 'center',
       render: (_, row) => (
         <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
           <button
@@ -145,7 +152,7 @@ export default function SupportList() {
               e.stopPropagation();
               navigate(ROUTES.SOCIAL.SUPPORT_DETAIL(row.id));
             }}
-            className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
+            className={rowActionClass()}
             title="View"
             aria-label="View"
           >
@@ -182,7 +189,7 @@ export default function SupportList() {
         </div>
       </div>
 
-      <Card>
+      <TableCard>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -194,20 +201,13 @@ export default function SupportList() {
           isExporting={isExporting}
           actionButtons={
             <Link to={ROUTES.SOCIAL.CREATE_SUPPORT}>
-              <Button size="md">+ New Ticket</Button>
+              <Button size="md" icon={<FiPlus />} collapseLabel>New Ticket</Button>
             </Link>
           }
         />
 
         {isFilterVisible && (
-          <div className="relative flex flex-wrap items-center gap-4 mb-6 p-4 border border-gray-200 rounded-lg max-sm:border-0 max-sm:bg-transparent max-sm:p-0 bg-white dark:bg-gray-800 dark:border-gray-700">
-            <button
-              onClick={() => setIsFilterVisible(false)}
-              className="absolute right-4 top-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-              aria-label="Close"
-            >
-              <FiX className="h-4 w-4" />
-            </button>
+          <FilterPanel onClose={() => setIsFilterVisible(false)}>
             <div className="w-full sm:w-40">
               <Select
                 options={[
@@ -233,13 +233,13 @@ export default function SupportList() {
                 onChange={(e) => setPriorityFilter(e.target.value)}
               />
             </div>
-          </div>
+          </FilterPanel>
         )}
 
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="text-center py-12">
+          <div className="text-center py-10">
             <p className="text-red-600 dark:text-red-400">{error}</p>
             <Button onClick={fetchSupport} className="mt-4" variant="outline">
               Retry
@@ -248,13 +248,15 @@ export default function SupportList() {
         ) : (
           <>
             <Table
+              fixedLayout
+              striped
               columns={columns}
               data={support}
               emptyMessage="No support tickets found"
               showExport={false}
             />
             {pagination && pagination.totalPages > 1 && (
-              <div className="mt-6">
+              <div className="mt-4">
                 <Pagination
                   currentPage={currentPage}
                   totalPages={pagination.totalPages}
@@ -266,7 +268,7 @@ export default function SupportList() {
             )}
           </>
         )}
-      </Card>
+      </TableCard>
     </div>
   );
 }

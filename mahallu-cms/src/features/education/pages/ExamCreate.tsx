@@ -111,7 +111,7 @@ export default function ExamCreate() {
             >
               <option value="">Select a class</option>
               {classes.map((cls) => (
-                <option key={cls.id} value={cls.id}>
+                <option key={cls.id} value={cls.id} className="capitalize">
                   {cls.name} ({cls.academicYear})
                 </option>
               ))}

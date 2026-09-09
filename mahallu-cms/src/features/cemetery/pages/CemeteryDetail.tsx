@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import StatCard from '@/components/ui/StatCard';
 import { useParams, useNavigate } from 'react-router-dom';
 import cemeteryService, { Cemetery, GraveRecord } from '../../../services/cemeteryService';
 import Button from '../../../components/ui/Button';
@@ -90,14 +91,14 @@ export function CemeteryDetail() {
 
   if (!cemetery) {
     return (
-      <div className="text-center py-12">
+      <div className="text-center py-10">
         <div className="text-red-500">Cemetery not found</div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex items-center gap-4">
         <Button variant="outline" onClick={() => navigate('/cemetery')} className="flex items-center gap-2">
           <FiArrowLeft /> Back
@@ -113,21 +114,10 @@ export function CemeteryDetail() {
       )}
 
       {/* Cemetery info cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-        <Card>
-          <div className="text-sm text-gray-600">Capacity</div>
-          <div className="text-2xl font-bold mt-2">{cemetery.capacity}</div>
-        </Card>
-        <Card>
-          <div className="text-sm text-gray-600">Used</div>
-          <div className="text-2xl font-bold mt-2">{cemetery.usedCount || 0}</div>
-        </Card>
-        <Card>
-          <div className="text-sm text-gray-600">Available</div>
-          <div className="text-2xl font-bold mt-2">
-            {(cemetery.capacity || 0) - (cemetery.usedCount || 0)}
-          </div>
-        </Card>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <StatCard title="Capacity" value={cemetery.capacity} />
+        <StatCard title="Used" value={cemetery.usedCount || 0} />
+        <StatCard title="Available" value={(cemetery.capacity || 0) - (cemetery.usedCount || 0)} />
       </div>
 
       {/* Occupancy bar */}
@@ -156,7 +146,7 @@ export function CemeteryDetail() {
       {/* Graves section */}
       <div className="space-y-4">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <h2 className="text-xl font-bold">Graves</h2>
+          <h2 className="text-lg font-semibold">Graves</h2>
           <Button
             onClick={() => navigate(`/cemetery/${id}/grave/create`)}
             className="flex items-center gap-2 w-full sm:w-auto justify-center"
@@ -214,7 +204,7 @@ export function CemeteryDetail() {
                 {sortedGraves.map((grave) => (
                   <tr key={grave.id} className="border-b hover:bg-gray-50">
                     <td className="p-3 text-sm font-medium">{grave.graveNo}</td>
-                    <td className="p-3 text-sm">{grave.deceasedName}</td>
+                    <td className="p-3 text-sm capitalize">{grave.deceasedName}</td>
                     <td className="p-3 text-sm hidden sm:table-cell text-gray-600">
                       {grave.dateOfDeath ? new Date(grave.dateOfDeath).toLocaleDateString() : '—'}
                     </td>
@@ -222,7 +212,7 @@ export function CemeteryDetail() {
                       {grave.rowLabel || '—'}
                     </td>
                     <td className="p-3 text-right">
-                      <div className="flex gap-2 flex-col-reverse sm:flex-row sm:justify-end sm:gap-2">
+                      <div className="flex gap-2 flex-col-reverse items-center">
                         <Button
                           variant="outline"
                           size="sm"

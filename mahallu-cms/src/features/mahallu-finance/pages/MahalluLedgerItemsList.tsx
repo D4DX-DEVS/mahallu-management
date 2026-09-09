@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiFileMinus, FiTrash2 } from 'react-icons/fi';
-import Card from '@/components/ui/Card';
+import TableCard from '@/components/ui/TableCard';
+import { rowActionClass } from '@/components/ui/rowAction';
+import StatCard from '@/components/ui/StatCard';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import Select from '@/components/ui/Select';
@@ -105,12 +107,13 @@ export default function MahalluLedgerItemsList() {
   const totalExpense = items.filter((i) => i.type === 'expense').reduce((s, i) => s + i.amount, 0);
 
   const columns: TableColumn<LedgerItem>[] = [
-    { key: 'id', label: 'No.', render: (_, __, idx) => idx + 1 },
-    { key: 'date', label: 'Date', render: (d) => formatDate(d) },
-    { key: 'description', label: 'Description' },
+    { key: 'id', label: 'No.', width: '6rem', render: (_, __, idx) => idx + 1 },
+    { key: 'date', label: 'Date', width: '6.25rem', render: (d) => formatDate(d) },
+    { key: 'description', label: 'Description', width: '9.25rem' },
     {
       key: 'type',
       label: 'Type',
+      width: '6.25rem',
       render: (t) => (
         <span
           className={`px-2 py-0.5 rounded-full text-xs font-medium ${t === 'income' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}
@@ -119,12 +122,14 @@ export default function MahalluLedgerItemsList() {
         </span>
       ),
     },
-    { key: 'amount', label: 'Amount', render: (a) => `₹${(a || 0).toLocaleString()}` },
-    { key: 'paymentMethod', label: 'Method' },
-    { key: 'source', label: 'Source', render: (s) => s || 'manual' },
+    { key: 'amount', label: 'Amount', width: '7.75rem', render: (a) => `₹${(a || 0).toLocaleString()}` },
+    { key: 'paymentMethod', label: 'Method', width: '7.5rem' },
+    { key: 'source', label: 'Source', width: '7.25rem', render: (s) => s || 'manual' },
     {
       key: 'actions',
       label: 'Actions',
+      width: '8rem',
+      align: 'center',
       render: (_, row) =>
         row.source === 'manual' ? (
           <button
@@ -132,7 +137,7 @@ export default function MahalluLedgerItemsList() {
               setSelected(row);
               setShowDeleteModal(true);
             }}
-            className="p-1.5 rounded-md hover:bg-red-50 text-red-600"
+            className={rowActionClass('danger')}
             aria-label="Delete"
           >
             <FiTrash2 className="h-4 w-4" />
@@ -142,29 +147,24 @@ export default function MahalluLedgerItemsList() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <PageHeader
         title="Mahallu Ledger Items"
         description="Manual journal entries for the Mahallu"
         breadcrumbs={[{ label: 'Mahallu Finance', path: '/mahallu-finance/accounts' }]}
       />
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
-          <p className="text-sm text-green-600">Total Income</p>
-          <p className="text-2xl font-bold text-green-700">₹{totalIncome.toLocaleString()}</p>
-        </div>
-        <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg">
-          <p className="text-sm text-red-600">Total Expense</p>
-          <p className="text-2xl font-bold text-red-700">₹{totalExpense.toLocaleString()}</p>
-        </div>
-        <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-          <p className="text-sm text-blue-600">Net Balance</p>
-          <p className="text-2xl font-bold text-blue-700">₹{(totalIncome - totalExpense).toLocaleString()}</p>
-        </div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <StatCard title="Total Income" value={<>₹{totalIncome.toLocaleString()}</>} tone="success" />
+        <StatCard title="Total Expense" value={<>₹{totalExpense.toLocaleString()}</>} tone="destructive" />
+        <StatCard
+          title="Net Balance"
+          value={<>₹{(totalIncome - totalExpense).toLocaleString()}</>}
+          tone="info"
+        />
       </div>
 
-      <Card>
+      <TableCard>
         <div className="flex flex-wrap items-center gap-3 mb-4">
           <div className="w-full sm:w-48">
             <Select
@@ -187,8 +187,12 @@ export default function MahalluLedgerItemsList() {
           onExport={handleExport}
           isExporting={isExporting}
           actionButtons={
-            <Button onClick={() => navigate(ROUTES.MAHALLU_FINANCE.LEDGER_ITEMS_CREATE)} size="sm">
-              <FiFileMinus className="h-4 w-4 mr-2" />
+            <Button
+              onClick={() => navigate(ROUTES.MAHALLU_FINANCE.LEDGER_ITEMS_CREATE)}
+              size="sm"
+              icon={<FiFileMinus />}
+              collapseLabel
+            >
               Add Entry
             </Button>
           }
@@ -199,7 +203,7 @@ export default function MahalluLedgerItemsList() {
           <p className="text-center py-8 text-red-600">{error}</p>
         ) : (
           <>
-            <Table columns={columns} data={filtered} emptyMessage="No entries found" />
+            <Table fixedLayout striped columns={columns} data={filtered} emptyMessage="No entries found" />
             {pagination && (
               <Pagination
                 currentPage={currentPage}
@@ -211,10 +215,10 @@ export default function MahalluLedgerItemsList() {
             )}
           </>
         )}
-      </Card>
+      </TableCard>
 
       <Modal isOpen={showDeleteModal} onClose={() => setShowDeleteModal(false)} title="Delete Entry">
-        <p className="text-gray-600 dark:text-gray-400 mb-6">
+        <p className="text-gray-600 dark:text-gray-400 mb-4">
           Delete entry: <strong>{selected?.description}</strong>?
         </p>
         <div className="flex gap-2 flex-col-reverse sm:flex-row sm:justify-end sm:gap-3">

@@ -54,7 +54,7 @@ export default function SelectUserType() {
                 {type.icon}
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{type.title}</h3>
+                <h3 className="text-lg font-semibold text-foreground">{type.title}</h3>
                 <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{type.description}</p>
               </div>
             </div>

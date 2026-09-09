@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { FiTrash2, FiImage, FiCheckCircle, FiEdit2 } from 'react-icons/fi';
-import Card from '@/components/ui/Card';
+import { FiCheckCircle, FiEdit2, FiImage, FiPlus, FiTrash2 } from 'react-icons/fi';
+import TableCard from '@/components/ui/TableCard';
+import { rowActionClass } from '@/components/ui/rowAction';
 import Button from '@/components/ui/Button';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
@@ -107,10 +108,11 @@ export default function BannersList() {
   };
 
   const columns: TableColumn<Banner>[] = [
-    { key: 'title', label: 'Title', sortable: true },
+    { key: 'title', label: 'Title', width: '6.25rem', sortable: true },
     {
       key: 'status',
       label: 'Status',
+      width: '7.25rem',
       render: (status) => (
         <span
           className={`px-2 py-1 text-xs font-medium rounded-full ${
@@ -126,16 +128,19 @@ export default function BannersList() {
     {
       key: 'createdAt',
       label: 'Created',
+      width: '7.75rem',
       render: (date) => formatDate(date),
     },
     {
       key: 'actions',
       label: 'Actions',
+      width: '8rem',
+      align: 'center',
       render: (_, row) => (
         <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
           <Link
             to={`/social/banners/${row.id}/edit`}
-            className="p-1.5 rounded-md hover:bg-blue-50 dark:hover:bg-blue-900/20 text-blue-600 dark:text-blue-400 transition-colors"
+            className={rowActionClass()}
             title="Edit"
           >
             <FiEdit2 className="h-4 w-4" />
@@ -147,7 +152,7 @@ export default function BannersList() {
               setSelectedBanner(row);
               setShowDeleteModal(true);
             }}
-            className="p-1.5 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 transition-colors"
+            className={rowActionClass('danger')}
             title="Delete"
             aria-label="Delete"
           >
@@ -183,7 +188,7 @@ export default function BannersList() {
         </div>
       </div>
 
-      <Card>
+      <TableCard>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -195,7 +200,7 @@ export default function BannersList() {
           isExporting={isExporting}
           actionButtons={
             <Link to="/social/banners/create">
-              <Button size="md">+ New Banner</Button>
+              <Button size="md" icon={<FiPlus />} collapseLabel>New Banner</Button>
             </Link>
           }
         />
@@ -203,14 +208,14 @@ export default function BannersList() {
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="text-center py-12">
+          <div className="text-center py-10">
             <p className="text-red-600 dark:text-red-400">{error}</p>
             <Button onClick={fetchBanners} className="mt-4" variant="outline">
               Retry
             </Button>
           </div>
         ) : (
-          <Table columns={columns} data={banners} emptyMessage="No banners found" showExport={false} />
+          <Table fixedLayout striped columns={columns} data={banners} emptyMessage="No banners found" showExport={false} />
         )}
 
         {/* Pagination */}
@@ -227,7 +232,7 @@ export default function BannersList() {
             />
           </div>
         )}
-      </Card>
+      </TableCard>
 
       <Modal
         isOpen={showDeleteModal}

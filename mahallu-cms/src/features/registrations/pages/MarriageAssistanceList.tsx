@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FiTrash2, FiFileText, FiClock, FiCheckCircle, FiX, FiPlus } from 'react-icons/fi';
-import Card from '@/components/ui/Card';
+import { FiCheckCircle, FiClock, FiFileText, FiList, FiPlus, FiTrash2 } from 'react-icons/fi';
+import TableCard from '@/components/ui/TableCard';
+import { rowActionClass } from '@/components/ui/rowAction';
+import FilterPanel from '@/components/ui/FilterPanel';
 import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
 import StatCard from '@/components/ui/StatCard';
@@ -114,6 +116,7 @@ export default function MarriageAssistanceList() {
     {
       key: 'memberId',
       label: 'Member/Family',
+      width: '11.25rem',
       render: (_, row) => {
         const member = typeof row.memberId === 'object' ? row.memberId?.name : '—';
         const family = typeof row.familyId === 'object' ? row.familyId?.houseName : '—';
@@ -123,16 +126,20 @@ export default function MarriageAssistanceList() {
     {
       key: 'type',
       label: 'Type',
+      width: '6.25rem',
       render: (type) => getTypeLabel(type as string),
     },
     {
       key: 'amount',
       label: 'Amount',
+      width: '9.25rem',
+      align: 'center',
       render: (amount) => (amount ? `₹${amount.toLocaleString()}` : '—'),
     },
     {
       key: 'status',
       label: 'Status',
+      width: '7.25rem',
       render: (status) => (
         <span
           className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusBadgeColor(status as string)}`}
@@ -144,6 +151,8 @@ export default function MarriageAssistanceList() {
     {
       key: 'actions',
       label: 'Actions',
+      width: '8rem',
+      align: 'center',
       render: (_, row) => {
         const label =
           typeof row.memberId === 'object'
@@ -156,7 +165,7 @@ export default function MarriageAssistanceList() {
             {row.type === 'premarital_counselling' && (
               <button
                 onClick={() => navigate('/counselling/create')}
-                className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-green-600 dark:text-green-400"
+                className={rowActionClass()}
                 title="Create Counselling Case"
                 aria-label="Create Counselling Case"
               >
@@ -165,7 +174,7 @@ export default function MarriageAssistanceList() {
             )}
             <button
               onClick={() => handleDeleteClick(row.id, label)}
-              className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-red-600 dark:text-red-400"
+              className={rowActionClass('danger')}
               title="Delete"
               aria-label="Delete"
             >
@@ -207,7 +216,7 @@ export default function MarriageAssistanceList() {
         </div>
       </div>
 
-      <Card>
+      <TableCard>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -216,28 +225,19 @@ export default function MarriageAssistanceList() {
           hasFilters={true}
           onRefresh={fetchRecords}
           actionButtons={
-            <div className="flex flex-wrap gap-2">
+            <div className="flex items-center gap-2">
               <Link to="/registers/marriageable">
-                <Button variant="outline" size="md">
-                  View Marriageable Register
-                </Button>
+                <Button variant="outline" size="md" icon={<FiList />} collapseLabel>View Marriageable Register</Button>
               </Link>
               <Link to="/registrations/marriage-assistance/create">
-                <Button size="md">+ New Request</Button>
+                <Button size="md" icon={<FiPlus />} collapseLabel>New Request</Button>
               </Link>
             </div>
           }
         />
 
         {isFilterVisible && (
-          <div className="relative flex flex-wrap items-center gap-4 mb-6 p-4 border border-gray-200 rounded-lg max-sm:border-0 max-sm:bg-transparent max-sm:p-0 bg-white dark:bg-gray-800 dark:border-gray-700">
-            <button
-              onClick={() => setIsFilterVisible(false)}
-              className="absolute right-4 top-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-              aria-label="Close"
-            >
-              <FiX className="h-4 w-4" />
-            </button>
+          <FilterPanel onClose={() => setIsFilterVisible(false)}>
             <div className="w-full sm:w-40">
               <Select
                 options={[
@@ -262,13 +262,13 @@ export default function MarriageAssistanceList() {
                 onChange={(e) => setStatusFilter(e.target.value)}
               />
             </div>
-          </div>
+          </FilterPanel>
         )}
 
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="text-center py-12">
+          <div className="text-center py-10">
             <p className="text-red-600 dark:text-red-400">{error}</p>
             <Button onClick={fetchRecords} className="mt-4" variant="outline">
               Retry
@@ -276,6 +276,8 @@ export default function MarriageAssistanceList() {
           </div>
         ) : (
           <Table
+            fixedLayout
+            striped
             columns={columns}
             data={records}
             emptyMessage="No marriage assistance records found"
@@ -294,7 +296,7 @@ export default function MarriageAssistanceList() {
             />
           </div>
         )}
-      </Card>
+      </TableCard>
 
       <ConfirmDialog
         isOpen={deleteConfirm !== null}

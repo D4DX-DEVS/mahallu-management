@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { FiDownload, FiPrinter } from 'react-icons/fi';
 import Card from '@/components/ui/Card';
+import StatCard from '@/components/ui/StatCard';
 import Button from '@/components/ui/Button';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import { reportService, OrphansReport } from '@/services/reportService';
@@ -98,7 +99,7 @@ export default function OrphansReportPage() {
 
   if (error || !report) {
     return (
-      <div className="text-center py-12">
+      <div className="text-center py-10">
         <p className="text-red-600 dark:text-red-400">{error || 'Report not available'}</p>
         <Button onClick={fetchReport} className="mt-4" variant="outline">
           Retry
@@ -108,50 +109,39 @@ export default function OrphansReportPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <PageHeader description="List of orphaned members (under 18 years)" title="Orphans Report" />
 
-      <div className="flex flex-wrap gap-2 items-center justify-between">
-        <div className="flex flex-wrap items-center gap-3">
-          <Button onClick={handleExportCSV} variant="outline" className="flex items-center gap-2">
-            <FiDownload className="h-4 w-4" />
-            Export CSV
-          </Button>
-          <Button onClick={handlePrintPDF} variant="outline" className="flex items-center gap-2">
-            <FiPrinter className="h-4 w-4" />
-            Print PDF
-          </Button>
+      <div className="flex gap-2 items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Button onClick={handleExportCSV} variant="outline" className="flex items-center gap-2" icon={<FiDownload />} collapseLabel>Export CSV</Button>
+          <Button onClick={handlePrintPDF} variant="outline" className="flex items-center gap-2" icon={<FiPrinter />} collapseLabel>Print PDF</Button>
         </div>
       </div>
 
-      <Card>
-        <div className="mb-4">
-          <div className="text-sm text-gray-500 dark:text-gray-400">Total Orphans</div>
-          <div className="text-3xl font-bold text-gray-900 dark:text-gray-100">{report.total}</div>
-        </div>
-      </Card>
+      <StatCard title="Total Orphans" value={report.total} />
 
       <Card>
-        <h2 className="text-lg font-semibold mb-4">Orphan Details</h2>
+        <h2 className="text-lg font-semibold mb-3">Orphan Details</h2>
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-            <thead className="bg-gray-50 dark:bg-gray-800">
+          <table className="min-w-full divide-y divide-border">
+            <thead className="bg-muted">
               <tr>
-                <SortableTh sortKey="name" sort={sort} onSort={toggleSort} className="px-6 py-3 uppercase tracking-wider">
+                <SortableTh sortKey="name" sort={sort} onSort={toggleSort}>
                   Name
                 </SortableTh>
-                <SortableTh sortKey="age" sort={sort} onSort={toggleSort} className="px-6 py-3 uppercase tracking-wider">
+                <SortableTh sortKey="age" sort={sort} onSort={toggleSort}>
                   Age
                 </SortableTh>
-                <SortableTh sortKey="gender" sort={sort} onSort={toggleSort} className="px-6 py-3 uppercase tracking-wider">
+                <SortableTh sortKey="gender" sort={sort} onSort={toggleSort}>
                   Gender
                 </SortableTh>
-                <SortableTh sortKey="family" sort={sort} onSort={toggleSort} className="px-6 py-3 uppercase tracking-wider">
+                <SortableTh sortKey="family" sort={sort} onSort={toggleSort}>
                   Family
                 </SortableTh>
               </tr>
             </thead>
-            <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+            <tbody className="bg-white dark:bg-gray-900 divide-y divide-border">
               {report.orphans.length === 0 ? (
                 <tr>
                   <td colSpan={4} className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
@@ -161,16 +151,16 @@ export default function OrphansReportPage() {
               ) : (
                 report.orphans.map((orphan) => (
                   <tr key={orphan.id}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                    <td className="whitespace-nowrap px-3 py-2.5 text-sm text-foreground capitalize">
                       {orphan.name}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                    <td className="whitespace-nowrap px-3 py-2.5 text-sm text-muted-foreground">
                       {orphan.age || '-'}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 capitalize">
+                    <td className="whitespace-nowrap px-3 py-2.5 text-sm text-muted-foreground capitalize">
                       {orphan.gender || '-'}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                    <td className="whitespace-nowrap px-3 py-2.5 text-sm text-muted-foreground capitalize">
                       {orphan.family || '-'}
                     </td>
                   </tr>

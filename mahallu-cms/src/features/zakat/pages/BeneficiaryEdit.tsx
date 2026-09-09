@@ -187,7 +187,7 @@ export default function BeneficiaryEdit() {
             </div>
           </div>
 
-          <div className="mt-6 flex flex-col gap-2 border-t border-border pt-4 sm:flex-row sm:justify-end">
+          <div className="mt-4 flex flex-col gap-2 border-t border-border pt-4 sm:flex-row sm:justify-end">
             <Button type="button" variant="outline" onClick={() => navigate('/zakat/beneficiaries')}>
               Cancel
             </Button>

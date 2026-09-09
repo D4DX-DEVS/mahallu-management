@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FiEdit2, FiTrash2, FiEye, FiX, FiLayers, FiCheckCircle, FiXCircle } from 'react-icons/fi';
-import Card from '@/components/ui/Card';
+import { FiCheckCircle, FiEdit2, FiEye, FiLayers, FiPlus, FiTrash2, FiXCircle } from 'react-icons/fi';
+import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
@@ -126,11 +126,18 @@ export default function ProgramsList() {
   };
 
   const columns: TableColumn<Institute>[] = [
-    { key: 'name', label: 'Name', sortable: true },
-    { key: 'place', label: 'Place' },
+    {
+      key: 'name',
+      label: 'Name',
+      width: '6.75rem',
+      sortable: true,
+      render: (v) => <span className="capitalize">{v}</span>,
+    },
+    { key: 'place', label: 'Place', width: '6.5rem' },
     {
       key: 'audience',
       label: 'Audience',
+      width: '8rem',
       render: (audience) => (
         <span className="text-sm">
           {audience ? audience.charAt(0).toUpperCase() + audience.slice(1) : '—'}
@@ -140,6 +147,7 @@ export default function ProgramsList() {
     {
       key: 'programType',
       label: 'Type',
+      width: '6.25rem',
       render: (type) => (
         <span className="text-sm">
           {type
@@ -155,11 +163,13 @@ export default function ProgramsList() {
     {
       key: 'joinDate',
       label: 'Join Date',
+      width: '8.75rem',
       render: (date) => formatDate(date),
     },
     {
       key: 'status',
       label: 'Status',
+      width: '7.25rem',
       render: (status) => (
         <span
           className={`px-2 py-1 text-xs font-medium rounded-full ${
@@ -175,6 +185,8 @@ export default function ProgramsList() {
     {
       key: 'actions',
       label: 'Actions',
+      width: '8rem',
+      align: 'center',
       render: (_, row) => (
         <ActionsMenu
           items={[
@@ -237,7 +249,7 @@ export default function ProgramsList() {
         </div>
       </div>
 
-      <Card>
+      <TableCard>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -249,7 +261,7 @@ export default function ProgramsList() {
           isExporting={isExporting}
           actionButtons={
             <Link to={ROUTES.PROGRAMS.CREATE}>
-              <Button size="md">+ New Program</Button>
+              <Button size="md" icon={<FiPlus />} collapseLabel>New Program</Button>
             </Link>
           }
         />
@@ -296,7 +308,7 @@ export default function ProgramsList() {
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="text-center py-12">
+          <div className="text-center py-10">
             <p className="text-red-600 dark:text-red-400">{error}</p>
             <Button onClick={fetchPrograms} className="mt-4" variant="outline">
               Retry
@@ -304,6 +316,8 @@ export default function ProgramsList() {
           </div>
         ) : (
           <Table
+            fixedLayout
+            striped
             columns={columns}
             data={programs}
             emptyMessage="No programs found"
@@ -326,7 +340,7 @@ export default function ProgramsList() {
             />
           </div>
         )}
-      </Card>
+      </TableCard>
 
       <Modal
         isOpen={showDeleteModal}
@@ -353,7 +367,7 @@ export default function ProgramsList() {
         }
       >
         <p className="text-gray-600 dark:text-gray-400">
-          Are you sure you want to delete <strong>{selectedProgram?.name}</strong>? This action cannot be
+          Are you sure you want to delete <strong className="capitalize">{selectedProgram?.name}</strong>? This action cannot be
           undone.
         </p>
       </Modal>

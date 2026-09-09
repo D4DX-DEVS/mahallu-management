@@ -1,9 +1,11 @@
 import { useEffect, useState, useCallback } from 'react';
+import { FiPlus } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import { employmentService, type SkillTraining, type EmploymentSummary } from '@/services/employmentService';
 import Button from '@/components/ui/Button';
 import ExpandableSearch from '@/components/ui/ExpandableSearch';
 import Card from '@/components/ui/Card';
+import StatCard from '@/components/ui/StatCard';
 import Pagination from '@/components/ui/Pagination';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { toast } from '@/store/toastStore';
@@ -93,10 +95,14 @@ export default function TrainingsList() {
   });
 
   return (
-    <div className="space-y-6">
-      <PageHeader title="Training programmes" description="Skills training run for the community." breadcrumbs={[{ label: 'Employment' }]} />
-      <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
-        <div className="flex-1 space-y-2">
+    <div className="space-y-4">
+      <PageHeader
+        title="Training programmes"
+        description="Skills training run for the community."
+        breadcrumbs={[{ label: 'Employment' }]}
+      />
+      <div className="space-y-2">
+        <div className="flex items-center gap-2">
           <ExpandableSearch
             value={search}
             onChange={(value) => {
@@ -106,57 +112,37 @@ export default function TrainingsList() {
             entity="training programmes"
             placeholder="Search by training name"
           />
-          <div className="flex gap-2 flex-wrap">
-            {['', 'planned', 'ongoing', 'completed', 'cancelled'].map((status) => (
-              <button
-                key={status}
-                onClick={() => {
-                  setStatusFilter(status);
-                  setCurrentPage(1);
-                }}
-                className={`px-3 py-1 text-xs rounded-full ${
-                  statusFilter === status
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                {status || 'All'}
-              </button>
-            ))}
-          </div>
+          <Button onClick={() => navigate('/employment/trainings/create')} icon={<FiPlus />} collapseLabel>
+            New Training
+          </Button>
         </div>
-        <Button onClick={() => navigate('/employment/trainings/create')} className="w-full sm:w-auto">
-          + New Training
-        </Button>
+        <div className="flex gap-2 flex-wrap">
+          {['', 'planned', 'ongoing', 'completed', 'cancelled'].map((status) => (
+            <button
+              key={status}
+              onClick={() => {
+                setStatusFilter(status);
+                setCurrentPage(1);
+              }}
+              className={`px-3 py-1 text-xs rounded-full ${
+                statusFilter === status
+                  ? 'bg-blue-500 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              {status || 'All'}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Summary Cards */}
       {summary && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          <Card>
-            <div className="py-4 text-center">
-              <div className="text-2xl font-bold text-blue-600">{summary.trainingsCount}</div>
-              <div className="text-xs sm:text-sm text-gray-600">Total Trainings</div>
-            </div>
-          </Card>
-          <Card>
-            <div className="py-4 text-center">
-              <div className="text-2xl font-bold text-green-600">{summary.skilledWorkers}</div>
-              <div className="text-xs sm:text-sm text-gray-600">Skilled Workers</div>
-            </div>
-          </Card>
-          <Card>
-            <div className="py-4 text-center">
-              <div className="text-2xl font-bold text-purple-600">{summary.registeredJobSeekers}</div>
-              <div className="text-xs sm:text-sm text-gray-600">Job Seekers</div>
-            </div>
-          </Card>
-          <Card>
-            <div className="py-4 text-center">
-              <div className="text-2xl font-bold text-orange-600">{summary.employersCount}</div>
-              <div className="text-xs sm:text-sm text-gray-600">Employers</div>
-            </div>
-          </Card>
+          <StatCard title="Total Trainings" value={summary.trainingsCount} tone="info" />
+          <StatCard title="Skilled Workers" value={summary.skilledWorkers} tone="success" />
+          <StatCard title="Job Seekers" value={summary.registeredJobSeekers} tone="info" />
+          <StatCard title="Employers" value={summary.employersCount} tone="warning" />
         </div>
       )}
 
@@ -202,8 +188,8 @@ export default function TrainingsList() {
                 {sortedTrainings.map((training) => (
                   <tr key={training.id} className="border-b hover:bg-gray-50">
                     <td className="px-4 py-3 text-sm">
-                      <div className="font-medium text-gray-900">{training.name}</div>
-                      <div className="text-xs text-gray-500">{training.trainerName || 'No trainer'}</div>
+                      <div className="font-medium text-gray-900 capitalize">{training.name}</div>
+                      <div className="text-xs text-gray-500 capitalize">{training.trainerName || 'No trainer'}</div>
                     </td>
                     <td className="px-4 py-3 text-sm hidden sm:table-cell text-gray-700">
                       {new Date(training.startDate).toLocaleDateString()} -{' '}
