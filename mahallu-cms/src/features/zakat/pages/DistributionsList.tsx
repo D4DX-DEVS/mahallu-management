@@ -17,8 +17,10 @@ import {
   ZakatBeneficiary,
   DISTRIBUTION_TYPE_OPTIONS,
 } from '@/services/zakatDistributionService';
+import { fetchAllPages } from '@/services/api';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 
 const emptyForm = {
   beneficiaryId: '',
@@ -33,7 +35,10 @@ const emptyForm = {
 
 const targetName = (row: ZakatDistribution) => {
   const b = row.beneficiaryId;
-  if (b && typeof b === 'object') return b.memberId?.name || b.name || '-';
+  if (b && typeof b === 'object') {
+    const name = b.memberId?.name || b.name;
+    return name ? toTitleCase(name) : '-';
+  }
   return '-';
 };
 
@@ -54,11 +59,17 @@ export default function DistributionsList() {
   }, [typeFilter, currentPage]);
 
   useEffect(() => {
-    // Only verified beneficiaries can be paid, so only those are offered
-    zakatDistributionService
-      .getBeneficiaries({ verificationStatus: 'verified', status: 'active', limit: 200 })
-      .then((result) => setVerified(result.data))
-      .catch(() => setVerified([]));
+    // Only verified beneficiaries can be paid, so only those are offered.
+    // /zakat/beneficiaries caps limit at 100 and 400s above it, so the old
+    // limit:200 request always failed and left this picker empty.
+    fetchAllPages<ZakatBeneficiary>((p) =>
+      zakatDistributionService.getBeneficiaries({ verificationStatus: 'verified', status: 'active', ...p })
+    )
+      .then((rows) => setVerified(rows))
+      .catch((err) => {
+        setVerified([]);
+        toast.error(loadErrorMessage(err, 'beneficiaries'));
+      });
   }, []);
 
   const fetchRows = async () => {
@@ -192,8 +203,9 @@ export default function DistributionsList() {
                   { value: '', label: 'Select a verified beneficiary' },
                   ...verified.map((b) => ({
                     value: b.id,
-                    label:
-                      (b.memberId && typeof b.memberId === 'object' ? b.memberId.name : b.name) || 'Unnamed',
+                    label: toTitleCase(
+                      (b.memberId && typeof b.memberId === 'object' ? b.memberId.name : b.name) || ''
+                    ) || 'Unnamed',
                   })),
                 ]}
                 required

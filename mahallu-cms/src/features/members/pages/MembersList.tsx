@@ -13,11 +13,14 @@ import TableToolbar from '@/components/ui/TableToolbar';
 import { TableColumn, Pagination as PaginationType } from '@/types';
 import { Member } from '@/types';
 import { memberService } from '@/services/memberService';
+import { familyService } from '@/services/familyService';
+import { fetchAllPages } from '@/services/api';
 import { useDebounce } from '@/hooks/useDebounce';
 import { ROUTES } from '@/constants/routes';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
 import { toast } from '@/store/toastStore';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import { toTitleCase } from '@/utils/format';
 import PageHeader from '@/components/layout/PageHeader';
 import ActionsMenu from '@/components/ui/ActionsMenu';
 
@@ -33,12 +36,20 @@ export default function MembersList() {
   const [itemsPerPage] = useState(10);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [memberStats, setMemberStats] = useState({ totalMembers: 0, maleCount: 0, femaleCount: 0 });
 
   const debouncedSearch = useDebounce(searchQuery, 500);
 
   useEffect(() => {
     fetchMembers();
   }, [debouncedSearch, sortBy, currentPage]);
+
+  useEffect(() => {
+    familyService
+      .getStats()
+      .then((stats) => stats && setMemberStats(stats))
+      .catch(() => undefined);
+  }, []);
 
   const fetchMembers = async () => {
     try {
@@ -51,8 +62,8 @@ export default function MembersList() {
       if (debouncedSearch) {
         params.search = debouncedSearch;
       }
-      if (sortBy) {
-        params.sortBy = sortBy === 'mahallId' ? 'mahallId' : 'date';
+      if (sortBy && sortBy !== 'date') {
+        params.sortBy = sortBy;
       }
       const result = await memberService.getAll(params);
       setMembers(result.data);
@@ -70,11 +81,12 @@ export default function MembersList() {
   const handleExport = async (type: 'csv' | 'json' | 'pdf') => {
     try {
       setIsExporting(true);
-      const params: any = { limit: 10000 };
+      const params: any = {};
       if (debouncedSearch) params.search = debouncedSearch;
-      if (sortBy) params.sortBy = sortBy === 'mahallId' ? 'mahallId' : 'date';
-      const result = await memberService.getAll(params);
-      const dataToExport = result.data;
+      if (sortBy && sortBy !== 'date') params.sortBy = sortBy;
+      const dataToExport = await fetchAllPages((pageParams) =>
+        memberService.getAll({ ...params, ...pageParams })
+      );
       if (dataToExport.length === 0) {
         toast.info('No members to export');
         return;
@@ -102,8 +114,8 @@ export default function MembersList() {
 
   const columns: TableColumn<Member>[] = [
     { key: 'mahallId', label: 'Mahall ID', width: '8.75rem', render: (id) => id || '-' },
-    { key: 'name', label: 'Name', width: '6.75rem', sortable: true },
-    { key: 'familyName', label: 'Family Name', width: '10rem' },
+    { key: 'name', label: 'Name', width: '6.75rem', sortable: true, render: (name) => toTitleCase(name) },
+    { key: 'familyName', label: 'Family Name', width: '10rem', render: (name) => toTitleCase(name) },
     {
       key: 'age',
       label: 'Age / Gender',
@@ -160,17 +172,17 @@ export default function MembersList() {
   const stats = [
     {
       title: 'Total Family Members',
-      value: pagination?.total || members.length,
+      value: memberStats.totalMembers || pagination?.total || members.length,
       icon: <FiUsers className="h-5 w-5" />,
     },
     {
       title: 'Total Males',
-      value: members.filter((m) => m.gender === 'male').length,
+      value: memberStats.maleCount,
       icon: <FiUser className="h-5 w-5" />,
     },
     {
       title: 'Total Females',
-      value: members.filter((m) => m.gender === 'female').length,
+      value: memberStats.femaleCount,
       icon: <FiUserCheck className="h-5 w-5" />,
     },
   ];
@@ -181,7 +193,7 @@ export default function MembersList() {
         <PageHeader title="All Family Members" description="Manage family members and their information" />
 
         {/* Statistics Cards */}
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {stats.map((stat, index) => (
             <StatCard key={index} {...stat} />
           ))}
@@ -217,7 +229,10 @@ export default function MembersList() {
                     { value: 'name', label: 'Name' },
                   ]}
                   value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value)}
+                  onChange={(e) => {
+                    setSortBy(e.target.value);
+                    setCurrentPage(1);
+                  }}
                 />
               </div>
             </FilterPanel>
@@ -245,18 +260,14 @@ export default function MembersList() {
             showExport={false}
             onRowClick={(row) => navigate(ROUTES.MEMBERS.DETAIL(row.id))}
             onExportAll={async () => {
-              // Fetch all filtered data without pagination
-              const params: any = {
-                limit: 10000, // Large limit to get all data
-              };
+              const params: any = {};
               if (debouncedSearch) {
                 params.search = debouncedSearch;
               }
-              if (sortBy) {
-                params.sortBy = sortBy === 'mahallId' ? 'mahallId' : 'date';
+              if (sortBy && sortBy !== 'date') {
+                params.sortBy = sortBy;
               }
-              const result = await memberService.getAll(params);
-              return result.data;
+              return fetchAllPages((pageParams) => memberService.getAll({ ...params, ...pageParams }));
             }}
           />
         )}

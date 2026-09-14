@@ -7,7 +7,7 @@ import { PageSkeleton } from '@/components/ui/Skeleton';
 import { Institute } from '@/types';
 import { ROUTES } from '@/constants/routes';
 import { instituteService } from '@/services/instituteService';
-import { formatDate } from '@/utils/format';
+import { formatDate, toTitleCase } from '@/utils/format';
 import { loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 
@@ -79,11 +79,11 @@ export default function InstituteDetail() {
           <div className="space-y-4">
             <div>
               <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Name</label>
-              <p className="mt-1 text-gray-900 dark:text-gray-100 capitalize">{institute.name}</p>
+              <p className="mt-1 text-gray-900 dark:text-gray-100">{toTitleCase(institute.name)}</p>
             </div>
             <div>
               <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Place</label>
-              <p className="mt-1 text-gray-900 dark:text-gray-100">{institute.place}</p>
+              <p className="mt-1 text-gray-900 dark:text-gray-100">{toTitleCase(institute.place)}</p>
             </div>
             <div>
               <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Type</label>

@@ -12,14 +12,17 @@ import MultiSelect from '@/components/ui/MultiSelect';
 import { collectibleService } from '@/services/collectibleService';
 import { familyService } from '@/services/familyService';
 import { memberService } from '@/services/memberService';
+import { fetchAllPages } from '@/services/api';
 import { tenantService } from '@/services/tenantService';
 import { Family, Member } from '@/types';
 import { Tenant } from '@/types/tenant';
 import { downloadInvoicePdf, InvoiceDetails } from '@/utils/invoiceUtils';
+import { toast } from '@/store/toastStore';
 import { useAuthStore } from '@/store/authStore';
 import { getTenantId as extractTenantId } from '@/utils/tenantHelper';
 import { errorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 
 const varisangyaSchema = z.object({
   familyIds: z.array(z.string()).max(500, 'Please choose 500 families or fewer at a time.').optional(),
@@ -101,20 +104,26 @@ export default function CreateVarisangya() {
 
   const fetchFamilies = async () => {
     try {
-      const result = await familyService.getAll();
-      setFamilies(result.data || []);
+      // No limit defaults to 10 rows server-side - fetch every page so this
+      // picker offers every family, not just the first page.
+      const all = await fetchAllPages<Family>((p) => familyService.getAll(p));
+      setFamilies(all);
     } catch (err) {
       console.error('Error fetching families:', err);
+      toast.error(errorMessage(err, { action: 'load families' }));
       setFamilies([]);
     }
   };
 
   const fetchMembers = async () => {
     try {
-      const result = await memberService.getAll({ limit: 10000 });
-      setMembers(result.data || []);
+      // /members caps limit at 100 and 400s above it, so the old limit:10000
+      // request always failed and left this payer picker empty.
+      const all = await fetchAllPages<Member>((p) => memberService.getAll(p));
+      setMembers(all);
     } catch (err) {
       console.error('Error fetching members:', err);
+      toast.error(errorMessage(err, { action: 'load members' }));
     }
   };
 
@@ -208,7 +217,7 @@ export default function CreateVarisangya() {
           title: 'Varisangya Invoice',
           receiptNo: entry.receiptNo,
           payerLabel: member ? 'Member' : 'Family',
-          payerName: member?.name || family?.houseName || 'Unknown',
+          payerName: toTitleCase(member?.name || family?.houseName) || 'Unknown',
           amount: entry.amount,
           paymentDate: entry.paymentDate,
           paymentMethod: entry.paymentMethod,
@@ -281,7 +290,7 @@ export default function CreateVarisangya() {
                     }
                     return {
                       value: family.id,
-                      label: `${family.houseName}${amountInfo}`,
+                      label: `${toTitleCase(family.houseName)}${amountInfo}`,
                     };
                   })}
                   value={field.value || []}
@@ -303,7 +312,7 @@ export default function CreateVarisangya() {
                     label={`Members (Optional)${memberAmount > 0 ? ` - ₹${memberAmount} each` : ''}`}
                     options={filteredMembers.map((member) => ({
                       value: member.id,
-                      label: `${member.name} (${member.familyName})`,
+                      label: `${toTitleCase(member.name)} (${toTitleCase(member.familyName)})`,
                     }))}
                     value={field.value || []}
                     onChange={field.onChange}
@@ -392,8 +401,8 @@ export default function CreateVarisangya() {
                 className="flex items-center justify-between rounded-lg border border-gray-200 dark:border-gray-700 px-4 py-3"
               >
                 <div>
-                  <div className="text-sm font-medium text-gray-900 dark:text-gray-100 capitalize">
-                    {invoice.payerName}
+                  <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                    {toTitleCase(invoice.payerName)}
                   </div>
                   <div className="text-xs text-gray-500 dark:text-gray-400">
                     Receipt: {invoice.receiptNo || 'Auto-generated'}

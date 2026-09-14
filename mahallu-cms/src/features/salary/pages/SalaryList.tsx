@@ -21,6 +21,7 @@ import { toast } from '@/store/toastStore';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import ActionsMenu from '@/components/ui/ActionsMenu';
+import { toTitleCase } from '@/utils/format';
 
 const MONTHS = [
   { value: '1', label: 'January' },
@@ -119,7 +120,7 @@ export default function SalaryList() {
       key: 'employeeId',
       label: 'Employee',
       width: '8.5rem',
-      render: (emp) => (typeof emp === 'object' && emp?.name ? emp.name : emp || '-'),
+      render: (emp) => (typeof emp === 'object' && emp?.name ? toTitleCase(emp.name) : emp || '-'),
     },
     { key: 'month', label: 'Period', width: '7rem', render: (_, row) => `${getMonthName(row.month)} ${row.year}` },
     { key: 'baseSalary', label: 'Base', width: '6.25rem', render: (v) => `₹${Number(v || 0).toLocaleString()}` },
@@ -156,7 +157,9 @@ export default function SalaryList() {
       align: 'center',
       render: (_, row) => {
         const empLabel =
-          typeof row.employeeId === 'object' && row.employeeId?.name ? row.employeeId.name : 'this employee';
+          typeof row.employeeId === 'object' && row.employeeId?.name
+            ? toTitleCase(row.employeeId.name)
+            : 'this employee';
         return (
           <ActionsMenu
             items={[
@@ -201,7 +204,7 @@ export default function SalaryList() {
     <div className="space-y-4">
       <div className="space-y-3">
         <PageHeader title="Salary Payments" description="Manage employee salary payments" />
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           <StatCard
             title="Total Payments"
             value={pagination?.total || payments.length}
@@ -251,21 +254,30 @@ export default function SalaryList() {
                   { value: 'cancelled', label: 'Cancelled' },
                 ]}
                 value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
+                onChange={(e) => {
+                  setStatusFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
               />
             </div>
             <div className="w-full sm:w-36">
               <Select
                 options={[{ value: 'all', label: 'All Months' }, ...MONTHS]}
                 value={monthFilter}
-                onChange={(e) => setMonthFilter(e.target.value)}
+                onChange={(e) => {
+                  setMonthFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
               />
             </div>
             <div className="w-28">
               <Select
                 options={[{ value: 'all', label: 'All Years' }, ...years]}
                 value={yearFilter}
-                onChange={(e) => setYearFilter(e.target.value)}
+                onChange={(e) => {
+                  setYearFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
               />
             </div>
             {!userInstituteId && (
@@ -273,10 +285,13 @@ export default function SalaryList() {
                 <Select
                   options={[
                     { value: 'all', label: 'All Institutes' },
-                    ...institutes.map((i) => ({ value: i.id, label: i.name })),
+                    ...institutes.map((i) => ({ value: i.id, label: toTitleCase(i.name) })),
                   ]}
                   value={instituteFilter}
-                  onChange={(e) => setInstituteFilter(e.target.value)}
+                  onChange={(e) => {
+                    setInstituteFilter(e.target.value);
+                    setCurrentPage(1);
+                  }}
                 />
               </div>
             )}

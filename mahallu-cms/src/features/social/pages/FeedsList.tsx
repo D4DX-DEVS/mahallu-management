@@ -12,6 +12,7 @@ import { PageSkeleton } from '@/components/ui/Skeleton';
 import TableToolbar from '@/components/ui/TableToolbar';
 import { TableColumn, Pagination as PaginationType } from '@/types';
 import { socialService, Feed } from '@/services/socialService';
+import { fetchAllPages } from '@/services/api';
 import { formatDate } from '@/utils/format';
 import { ROUTES } from '@/constants/routes';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
@@ -67,15 +68,16 @@ export default function FeedsList() {
     try {
       setIsExporting(true);
 
-      const params: any = { limit: 10000 };
+      const filters: any = {};
       if (typeFilter === 'super') {
-        params.isSuperFeed = true;
+        filters.isSuperFeed = true;
       } else if (typeFilter === 'regular') {
-        params.isSuperFeed = false;
+        filters.isSuperFeed = false;
       }
 
-      const result = await socialService.getAllFeeds(params);
-      const dataToExport = Array.isArray(result.data) ? result.data : [];
+      const dataToExport = await fetchAllPages<Feed>(({ page, limit }) =>
+        socialService.getAllFeeds({ ...filters, page, limit })
+      );
 
       if (dataToExport.length === 0) {
         toast.info('No data to export');
@@ -146,7 +148,7 @@ export default function FeedsList() {
       <div className="space-y-3">
         <PageHeader title="Feeds" description="Manage feeds and super feeds" />
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-2">
           {stats.map((stat, index) => (
             <StatCard key={index} {...stat} />
           ))}
@@ -180,7 +182,10 @@ export default function FeedsList() {
                   { value: 'super', label: 'Super Feeds' },
                 ]}
                 value={typeFilter}
-                onChange={(e) => setTypeFilter(e.target.value)}
+                onChange={(e) => {
+                  setTypeFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
               />
             </div>
           </FilterPanel>

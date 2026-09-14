@@ -12,6 +12,7 @@ import { toast } from '@/store/toastStore';
 import { FiPlus, FiEdit2, FiTrash2, FiArrowLeft } from 'react-icons/fi';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 import SortableTh from '@/components/ui/SortableTh';
 import { useSortableRows } from '@/hooks/useSortableRows';
 
@@ -104,8 +105,8 @@ export function CemeteryDetail() {
           <FiArrowLeft /> Back
         </Button>
         <div className="flex-1">
-          <PageHeader title={cemetery.name} />
-          {cemetery.location && <p className="text-sm text-gray-600">{cemetery.location}</p>}
+          <PageHeader title={toTitleCase(cemetery.name)} />
+          {cemetery.location && <p className="text-sm text-gray-600">{toTitleCase(cemetery.location)}</p>}
         </div>
       </div>
 
@@ -114,7 +115,7 @@ export function CemeteryDetail() {
       )}
 
       {/* Cemetery info cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         <StatCard title="Capacity" value={cemetery.capacity} />
         <StatCard title="Used" value={cemetery.usedCount || 0} />
         <StatCard title="Available" value={(cemetery.capacity || 0) - (cemetery.usedCount || 0)} />
@@ -204,7 +205,7 @@ export function CemeteryDetail() {
                 {sortedGraves.map((grave) => (
                   <tr key={grave.id} className="border-b hover:bg-gray-50">
                     <td className="p-3 text-sm font-medium">{grave.graveNo}</td>
-                    <td className="p-3 text-sm capitalize">{grave.deceasedName}</td>
+                    <td className="p-3 text-sm">{toTitleCase(grave.deceasedName)}</td>
                     <td className="p-3 text-sm hidden sm:table-cell text-gray-600">
                       {grave.dateOfDeath ? new Date(grave.dateOfDeath).toLocaleDateString() : '—'}
                     </td>

@@ -9,6 +9,7 @@ import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { toast } from '@/store/toastStore';
 import { useNavigate } from 'react-router-dom';
 import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 
 export default function CampsList() {
   const navigate = useNavigate();
@@ -124,7 +125,7 @@ export default function CampsList() {
                 <div key={camp.id} className="rounded-lg border border-border bg-card p-3 sm:p-4">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <div className="flex-1">
-                      <h3 className="text-base sm:text-lg font-semibold capitalize">{camp.name}</h3>
+                      <h3 className="text-base sm:text-lg font-semibold">{toTitleCase(camp.name)}</h3>
                       <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 mt-2 text-xs sm:text-sm text-gray-600">
                         <div className="flex items-center gap-1">
                           <FiCalendar className="text-blue-600" />
@@ -132,12 +133,12 @@ export default function CampsList() {
                         </div>
                         <div className="flex items-center gap-1">
                           <FiMapPin className="text-green-600" />
-                          {camp.location}
+                          {toTitleCase(camp.location)}
                         </div>
                       </div>
                       {camp.organizer && (
                         <p className="text-xs sm:text-sm text-gray-600 mt-2">
-                          Organizer: <span className="capitalize">{camp.organizer}</span>
+                          Organizer: <span>{toTitleCase(camp.organizer)}</span>
                         </p>
                       )}
                     </div>

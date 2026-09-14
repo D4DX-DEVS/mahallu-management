@@ -19,6 +19,7 @@ import { familyService } from '@/services/familyService';
 import { useDebounce } from '@/hooks/useDebounce';
 import { errorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 
 type Tab = 'families' | 'visits';
 
@@ -169,13 +170,13 @@ export default function ClusterDetail() {
       key: 'houseName',
       label: 'House Name',
       width: '9.75rem',
-      render: (v) => <span className="capitalize">{v}</span>,
+      render: (v) => <span>{toTitleCase(v)}</span>,
     },
     {
       key: 'familyHead',
       label: 'Family Head',
       width: '9.75rem',
-      render: (v) => <span className="capitalize">{v || '-'}</span>,
+      render: (v) => <span>{v ? toTitleCase(v) : '-'}</span>,
     },
     { key: 'contactNo', label: 'Contact', width: '7.75rem', render: (v) => v || '-' },
     {
@@ -207,13 +208,13 @@ export default function ClusterDetail() {
       key: 'familyId',
       label: 'Family',
       width: '7.25rem',
-      render: (v) => <span className="capitalize">{typeof v === 'object' && v ? v.houseName : '-'}</span>,
+      render: (v) => <span>{typeof v === 'object' && v ? toTitleCase(v.houseName) : '-'}</span>,
     },
     {
       key: 'visitedBy',
       label: 'Visited By',
       width: '9rem',
-      render: (v) => <span className="capitalize">{v || '-'}</span>,
+      render: (v) => <span>{v ? toTitleCase(v) : '-'}</span>,
     },
     { key: 'issuesFound', label: 'Issues', width: '7.25rem', render: (v) => v || '-' },
     { key: 'followUpNeeded', label: 'Follow-up', width: '8.75rem', render: (v) => (v ? 'Yes' : 'No') },
@@ -239,7 +240,7 @@ export default function ClusterDetail() {
   return (
     <div className="space-y-3">
       <PageHeader
-        title={cluster.name}
+        title={toTitleCase(cluster.name)}
         description={`${cluster.familyCount ?? 0} families${cluster.code ? ` · ${cluster.code}` : ''}`}
         breadcrumbs={[{ label: 'Clusters', path: '/clusters' }]}
       />
@@ -355,8 +356,8 @@ export default function ClusterDetail() {
                   />
                 </div>
                 <span className="min-w-0 flex-1 text-xs sm:text-sm">
-                  <span className="block truncate font-medium capitalize">{family.houseName}</span>
-                  <span className="block truncate text-gray-500 capitalize">{family.familyHead || '-'}</span>
+                  <span className="block truncate font-medium">{toTitleCase(family.houseName)}</span>
+                  <span className="block truncate text-gray-500">{toTitleCase(family.familyHead) || '-'}</span>
                 </span>
               </label>
             );

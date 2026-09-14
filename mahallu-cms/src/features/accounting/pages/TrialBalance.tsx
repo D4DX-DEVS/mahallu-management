@@ -9,6 +9,7 @@ import { instituteService } from '@/services/instituteService';
 import { useAuthStore } from '@/store/authStore';
 import { loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 
 export default function TrialBalance() {
   const { currentInstituteId: userInstituteId } = useAuthStore();
@@ -83,7 +84,7 @@ export default function TrialBalance() {
                 label="Institute"
                 options={[
                   { value: 'all', label: 'All Institutes' },
-                  ...institutes.map((i) => ({ value: i.id, label: i.name })),
+                  ...institutes.map((i) => ({ value: i.id, label: toTitleCase(i.name) })),
                 ]}
                 value={instituteFilter}
                 onChange={(e) => setInstituteFilter(e.target.value)}
@@ -128,7 +129,7 @@ export default function TrialBalance() {
                 {entries.map((entry, idx) => (
                   <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-800">
                     <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100 font-medium">
-                      {entry.ledgerName}
+                      {toTitleCase(entry.ledgerName)}
                     </td>
                     <td className="px-4 py-3 text-sm">
                       <span

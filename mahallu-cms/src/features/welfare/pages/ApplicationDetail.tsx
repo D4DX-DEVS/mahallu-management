@@ -11,6 +11,7 @@ import { welfareService, WelfareApplication, WelfareStatus } from '@/services/we
 import { toast } from '@/store/toastStore';
 import PageHeader from '@/components/layout/PageHeader';
 import { errorMessage } from '@/utils/errors';
+import { toTitleCase } from '@/utils/format';
 
 /** Mirrors WELFARE_TRANSITIONS on the API - the server is still the authority. */
 const NEXT_STATUSES: Record<WelfareStatus, WelfareStatus[]> = {
@@ -95,8 +96,8 @@ export default function ApplicationDetail() {
   const nextOptions = NEXT_STATUSES[application.status] || [];
 
   const infoCards = [
-    { label: 'Scheme', value: nameOf(application.schemeId, 'name') },
-    { label: 'Family', value: nameOf(application.familyId, 'houseName') },
+    { label: 'Scheme', value: toTitleCase(nameOf(application.schemeId, 'name')) },
+    { label: 'Family', value: toTitleCase(nameOf(application.familyId, 'houseName')) },
     { label: 'Requested', value: `Rs ${application.requestedAmount}` },
     { label: 'Approved', value: application.approvedAmount ? `Rs ${application.approvedAmount}` : '-' },
     { label: 'Priority', value: application.priority },
@@ -107,7 +108,7 @@ export default function ApplicationDetail() {
     <div className="space-y-3">
       <PageHeader
         title="Welfare Application"
-        description="Raised {formatDate(application.createdAt)}"
+        description={`Raised ${formatDate(application.createdAt)}`}
         breadcrumbs={[{ label: 'Welfare', path: '/welfare/applications' }]}
       />
 

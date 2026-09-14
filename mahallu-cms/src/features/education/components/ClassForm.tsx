@@ -13,10 +13,12 @@ import {
   currentAcademicYear,
 } from '@/services/madrasaService';
 import { employeeService } from '@/services/employeeService';
+import { fetchAllPages } from '@/services/api';
 import { errorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { useFormValidation } from '@/hooks/useFormValidation';
 import { FieldRule, LIMITS } from '@/utils/validation';
+import { toTitleCase } from '@/utils/format';
 
 /**
  * The same limits the API applies, so a form that passes here is not
@@ -68,9 +70,8 @@ export default function ClassForm({ existing }: ClassFormProps) {
   const { errors, validate } = useFormValidation(RULES);
 
   useEffect(() => {
-    employeeService
-      .getAll({ page: 1, limit: 200 })
-      .then((result: any) => setTeachers(result.data || []))
+    fetchAllPages((params) => employeeService.getAll(params) as any)
+      .then((rows) => setTeachers(rows))
       .catch(() => setTeachers([]));
   }, []);
 
@@ -169,7 +170,7 @@ export default function ClassForm({ existing }: ClassFormProps) {
               onChange={(value) => setForm({ ...form, teacherEmployeeId: value })}
               options={teachers.map((employee: any) => ({
                 value: employee._id || employee.id,
-                label: `${employee.name}${employee.designation ? ` - ${employee.designation}` : ''}`,
+                label: `${toTitleCase(employee.name)}${employee.designation ? ` - ${toTitleCase(employee.designation)}` : ''}`,
               }))}
               placeholder="Search employees..."
               helperText="Optional"

@@ -11,6 +11,7 @@ import Table from '@/components/ui/Table';
 import { Asset, AssetMaintenance, TableColumn } from '@/types';
 import { ROUTES } from '@/constants/routes';
 import { assetService } from '@/services/assetService';
+import { fetchAllPages } from '@/services/api';
 import { formatDate } from '@/utils/format';
 import { toast } from '@/store/toastStore';
 import {
@@ -25,6 +26,7 @@ import PageHeader from '@/components/layout/PageHeader';
 import ActionsMenu from '@/components/ui/ActionsMenu';
 import DatePicker from '@/components/ui/DatePicker';
 import Input from '@/components/ui/Input';
+import { toTitleCase } from '@/utils/format';
 
 export default function AssetDetail() {
   const { id } = useParams<{ id: string }>();
@@ -77,8 +79,11 @@ export default function AssetDetail() {
     if (!id) return;
     try {
       setMaintenanceLoading(true);
-      const result = await assetService.getMaintenanceRecords(id, { limit: 100 });
-      setMaintenanceRecords(result.data);
+      // This screen shows the full history with no pagination control, so fetch
+      // every page - the API caps `limit` at 100, which would silently truncate
+      // an asset with more than 100 maintenance records if fetched in one call.
+      const records = await fetchAllPages((params) => assetService.getMaintenanceRecords(id, params));
+      setMaintenanceRecords(records);
     } catch (err: any) {
       console.error('Error fetching maintenance records:', err);
     } finally {
@@ -179,7 +184,7 @@ export default function AssetDetail() {
       width: '7.75rem',
       render: (cost) => (cost ? cost.toLocaleString('en-IN') : '-'),
     },
-    { key: 'performedBy', label: 'Performed By', width: '10.75rem', render: (val) => val || '-' },
+    { key: 'performedBy', label: 'Performed By', width: '10.75rem', render: (val) => (val ? toTitleCase(val) : '-') },
     {
       key: 'status',
       label: 'Status',
@@ -250,7 +255,7 @@ export default function AssetDetail() {
         <div className="flex items-center gap-4">
           <PageHeader
             description="Asset Details"
-            title={asset.name}
+            title={toTitleCase(asset.name)}
             breadcrumbs={[{ label: 'Assets', path: ROUTES.ASSETS.LIST }]}
           />
           <div className="flex gap-2 items-center">
@@ -271,7 +276,7 @@ export default function AssetDetail() {
           <div className="space-y-4">
             <div>
               <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Name</label>
-              <p className="mt-1 text-gray-900 dark:text-gray-100 capitalize">{asset.name}</p>
+              <p className="mt-1 text-gray-900 dark:text-gray-100">{toTitleCase(asset.name)}</p>
             </div>
             <div>
               <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Category</label>
@@ -281,8 +286,10 @@ export default function AssetDetail() {
             </div>
             <div>
               <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Mosque</label>
-              <p className="mt-1 text-gray-900 dark:text-gray-100 capitalize">
-                {typeof asset.mosqueId === 'object' && asset.mosqueId ? asset.mosqueId.name : 'Unassigned'}
+              <p className="mt-1 text-gray-900 dark:text-gray-100">
+                {typeof asset.mosqueId === 'object' && asset.mosqueId
+                  ? toTitleCase(asset.mosqueId.name)
+                  : 'Unassigned'}
               </p>
             </div>
             <div>
@@ -310,7 +317,7 @@ export default function AssetDetail() {
             {asset.location && (
               <div>
                 <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Location</label>
-                <p className="mt-1 text-gray-900 dark:text-gray-100">{asset.location}</p>
+                <p className="mt-1 text-gray-900 dark:text-gray-100">{toTitleCase(asset.location)}</p>
               </div>
             )}
             <div>

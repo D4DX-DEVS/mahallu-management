@@ -5,10 +5,10 @@ import { PageSkeleton } from '@/components/ui/Skeleton';
 import { toast } from '@/store/toastStore';
 import { developmentService, DevelopmentProject } from '@/services/developmentService';
 import PageHeader from '@/components/layout/PageHeader';
-import { errorMessage } from '@/utils/errors';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import DatePicker from '@/components/ui/DatePicker';
 import { useFormValidation } from '@/hooks/useFormValidation';
-import { FieldRule, LIMITS } from '@/utils/validation';
+import { FieldRule, LIMITS, firstError, validateForm } from '@/utils/validation';
 
 /**
  * The same limits the API applies, so a form that passes here is not
@@ -45,6 +45,7 @@ export default function ProjectForm({ isEdit = false }: ProjectFormProps) {
   const { id } = useParams();
   const [loading, setLoading] = useState(isEdit);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
   const [formData, setFormData] = useState<Partial<DevelopmentProject>>({
     name: '',
     nameMl: '',
@@ -67,6 +68,7 @@ export default function ProjectForm({ isEdit = false }: ProjectFormProps) {
       setFormData(project);
     } catch (error) {
       console.error("Couldn't load project:", error);
+      toast.error(loadErrorMessage(error, 'the project'));
     } finally {
       setLoading(false);
     }
@@ -75,7 +77,11 @@ export default function ProjectForm({ isEdit = false }: ProjectFormProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     // Every field checked at once, each message on its own field.
-    if (!validate(formData)) return;
+    if (!validate(formData)) {
+      setError(firstError(validateForm(formData, RULES)));
+      return;
+    }
+    setError('');
     setSaving(true);
     try {
       if (isEdit && id) {
@@ -100,6 +106,9 @@ export default function ProjectForm({ isEdit = false }: ProjectFormProps) {
     <div className="max-w-2xl mx-auto">
       <PageHeader title={isEdit ? 'Edit Project' : 'Create Project'} />
       <form onSubmit={handleSubmit} className="space-y-4">
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">{error}</div>
+        )}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium mb-1">Project Name *</label>
@@ -111,6 +120,7 @@ export default function ProjectForm({ isEdit = false }: ProjectFormProps) {
               required
               className="w-full px-3 py-2 border rounded"
             />
+            {errors.name && <p className="text-red-600 text-sm mt-1">{errors.name}</p>}
           </div>
           <div>
             <label className="block text-sm font-medium mb-1">Malayalam Name</label>
@@ -151,6 +161,7 @@ export default function ProjectForm({ isEdit = false }: ProjectFormProps) {
               min="0"
               className="w-full px-3 py-2 border rounded"
             />
+            {errors.estimatedCost && <p className="text-red-600 text-sm mt-1">{errors.estimatedCost}</p>}
           </div>
         </div>
 

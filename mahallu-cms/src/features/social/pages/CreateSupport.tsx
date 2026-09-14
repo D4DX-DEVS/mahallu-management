@@ -18,7 +18,7 @@ const supportSchema = z.object({
     .string()
     .min(2, 'Subject must be between 2 and 200 characters')
     .max(200, 'Subject must be between 2 and 200 characters'),
-  message: z.string().max(200, 'Please keep the message to 200 characters or less.').min(10, 'Message must be at least 10 characters'),
+  message: z.string().max(5000, 'Please keep the message to 5000 characters or less.').min(10, 'Message must be at least 10 characters'),
   priority: z.enum(['low', 'medium', 'high']),
 });
 

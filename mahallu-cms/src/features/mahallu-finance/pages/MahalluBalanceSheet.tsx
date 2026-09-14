@@ -6,6 +6,7 @@ import Input from '@/components/ui/Input';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import { accountingReportService, BalanceSheetData } from '@/services/accountingReportService';
 import { loadErrorMessage } from '@/utils/errors';
+import { toTitleCase } from '@/utils/format';
 import PageHeader from '@/components/layout/PageHeader';
 
 export default function MahalluBalanceSheet() {
@@ -72,7 +73,7 @@ export default function MahalluBalanceSheet() {
         ) : (
           <div className="space-y-4">
             {/* Summary Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3">
               <StatCard
                 title="Bank Balance"
                 value={<>₹{(data.totalBankBalance || 0).toLocaleString()}</>}
@@ -111,7 +112,7 @@ export default function MahalluBalanceSheet() {
                 <div className="divide-y divide-gray-100 dark:divide-gray-700 border border-gray-200 dark:border-gray-700 rounded-lg">
                   {data.bankBalances.map((b, i) => (
                     <div key={i} className="flex justify-between items-center px-4 py-3">
-                      <span className="text-sm text-gray-700 dark:text-gray-300">{b.ledgerName}</span>
+                      <span className="text-sm text-gray-700 dark:text-gray-300">{toTitleCase(b.ledgerName)}</span>
                       <span className="text-sm font-medium text-blue-700">₹{b.balance.toLocaleString()}</span>
                     </div>
                   ))}
@@ -128,7 +129,7 @@ export default function MahalluBalanceSheet() {
                 <div className="divide-y divide-gray-100 dark:divide-gray-700 border border-gray-200 dark:border-gray-700 rounded-lg">
                   {data.incomeByCategory.map((item, i) => (
                     <div key={i} className="flex justify-between items-center px-4 py-3">
-                      <span className="text-sm text-gray-700 dark:text-gray-300">{item.category}</span>
+                      <span className="text-sm text-gray-700 dark:text-gray-300">{toTitleCase(item.category)}</span>
                       <span className="text-sm font-medium text-green-700">
                         ₹{item.amount.toLocaleString()}
                       </span>
@@ -147,7 +148,7 @@ export default function MahalluBalanceSheet() {
                 <div className="divide-y divide-gray-100 dark:divide-gray-700 border border-gray-200 dark:border-gray-700 rounded-lg">
                   {data.expenseByCategory.map((item, i) => (
                     <div key={i} className="flex justify-between items-center px-4 py-3">
-                      <span className="text-sm text-gray-700 dark:text-gray-300">{item.category}</span>
+                      <span className="text-sm text-gray-700 dark:text-gray-300">{toTitleCase(item.category)}</span>
                       <span className="text-sm font-medium text-red-700">
                         ₹{item.amount.toLocaleString()}
                       </span>

@@ -1,5 +1,11 @@
 import api from './api';
 
+// Backend does `date.$lte = new Date(endDate)`, which resolves to midnight UTC and
+// silently excludes same-day transactions recorded later that day. Push plain
+// YYYY-MM-DD end dates to the last instant of the day so the range is inclusive.
+const toInclusiveEndDate = (endDate?: string) =>
+  endDate && /^\d{4}-\d{2}-\d{2}$/.test(endDate) ? `${endDate}T23:59:59.999` : endDate;
+
 export interface DayBookEntry {
   date: string;
   description: string;
@@ -40,7 +46,7 @@ export const accountingReportService = {
     includeEntities?: string;
   }) => {
     const response = await api.get<{ success: boolean; data: any }>('/accounting-reports/day-book', {
-      params,
+      params: { ...params, endDate: toInclusiveEndDate(params.endDate) },
     });
     const raw = response.data.data;
     // API returns { entries, summary } — extract and normalize entries
@@ -65,7 +71,7 @@ export const accountingReportService = {
     includeEntities?: string;
   }) => {
     const response = await api.get<{ success: boolean; data: any }>('/accounting-reports/trial-balance', {
-      params,
+      params: { ...params, endDate: toInclusiveEndDate(params.endDate) },
     });
     const raw = response.data.data;
     // API returns { ledgers: [...], totals: {...} } — extract ledgers array and normalize
@@ -90,7 +96,7 @@ export const accountingReportService = {
     includeEntities?: string;
   }) => {
     const response = await api.get<{ success: boolean; data: any }>('/accounting-reports/balance-sheet', {
-      params,
+      params: { ...params, endDate: toInclusiveEndDate(params.endDate) },
     });
     const raw = response.data.data;
     // API returns nested structure — normalize to flat BalanceSheetData
@@ -138,7 +144,7 @@ export const accountingReportService = {
     includeEntities?: string;
   }) => {
     const response = await api.get<{ success: boolean; data: any }>('/accounting-reports/ledger-report', {
-      params,
+      params: { ...params, endDate: toInclusiveEndDate(params.endDate) },
     });
     return response.data.data;
   },
@@ -152,14 +158,14 @@ export const accountingReportService = {
   }) => {
     const response = await api.get<{ success: boolean; data: any }>(
       '/accounting-reports/income-expenditure',
-      { params }
+      { params: { ...params, endDate: toInclusiveEndDate(params.endDate) } }
     );
     return response.data.data;
   },
 
   getConsolidatedReport: async (params: { startDate?: string; endDate?: string }) => {
     const response = await api.get<{ success: boolean; data: any }>('/accounting-reports/consolidated', {
-      params,
+      params: { ...params, endDate: toInclusiveEndDate(params.endDate) },
     });
     return response.data.data;
   },

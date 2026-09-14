@@ -15,6 +15,7 @@ import { memberService } from '@/services/memberService';
 import { Member } from '@/types';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 
 const committeeSchema = z.object({
   name: z.string().max(200, 'Please keep the name to 200 characters or less.').min(1, 'Name is required'),
@@ -238,8 +239,8 @@ export default function EditCommittee() {
                           onChange={() => toggleMember(member.id)}
                           className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
                         />
-                        <span className="text-sm text-gray-700 dark:text-gray-300 capitalize">
-                          {member.name} ({member.familyName})
+                        <span className="text-sm text-gray-700 dark:text-gray-300">
+                          {toTitleCase(member.name)} ({toTitleCase(member.familyName)})
                         </span>
                       </label>
                     ))}

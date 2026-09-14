@@ -8,6 +8,7 @@ import { memberPortalService, MemberOverviewResponse } from '@/services/memberPo
 import { ROUTES } from '@/constants/routes';
 import { loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 
 const currency = new Intl.NumberFormat('en-IN', {
   style: 'currency',
@@ -51,7 +52,7 @@ export default function MemberOverview() {
   return (
     <div className="space-y-4">
       <PageHeader title="My Dashboard" />
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         <StatCard title="Mahallu Users" value={overview.mahalluStatistics.users} />
         <StatCard title="Mahallu Families" value={overview.mahalluStatistics.families} />
         <StatCard title="Mahallu Members" value={overview.mahalluStatistics.members} />
@@ -69,7 +70,7 @@ export default function MemberOverview() {
             <div className="space-y-2 text-sm">
               <p>
                 <span className="text-gray-500 dark:text-gray-400">Name:</span>
-                <span className="text-gray-900 dark:text-gray-100 capitalize">{overview.member.name}</span>
+                <span className="text-gray-900 dark:text-gray-100">{toTitleCase(overview.member.name)}</span>
               </p>
               {overview.member.phone && (
                 <p>
@@ -101,8 +102,8 @@ export default function MemberOverview() {
               {overview.family.details?.houseName && (
                 <p>
                   <span className="text-gray-500 dark:text-gray-400">House Name:</span>
-                  <span className="text-gray-900 dark:text-gray-100 capitalize">
-                    {overview.family.details.houseName}
+                  <span className="text-gray-900 dark:text-gray-100">
+                    {toTitleCase(overview.family.details.houseName)}
                   </span>
                 </p>
               )}
@@ -275,7 +276,7 @@ export default function MemberOverview() {
                   key={member.id}
                   className="border-b border-gray-100 dark:border-gray-900 text-gray-900 dark:text-gray-100"
                 >
-                  <td className="py-2 pr-3 capitalize">{member.name}</td>
+                  <td className="py-2 pr-3">{toTitleCase(member.name)}</td>
                   <td className="py-2 pr-3">{member.phone || '-'}</td>
                   <td className="py-2 pr-3">{member.gender || '-'}</td>
                   <td className="py-2 pr-3">{member.mahallId || '-'}</td>

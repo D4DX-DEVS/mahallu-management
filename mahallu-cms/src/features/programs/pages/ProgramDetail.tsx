@@ -7,7 +7,7 @@ import { PageSkeleton } from '@/components/ui/Skeleton';
 import { Institute } from '@/types';
 import { ROUTES } from '@/constants/routes';
 import { programService } from '@/services/programService';
-import { formatDate } from '@/utils/format';
+import { formatDate, toTitleCase } from '@/utils/format';
 import ProgramRegistrations from '../components/ProgramRegistrations';
 import { loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
@@ -60,7 +60,7 @@ export default function ProgramDetail() {
         <div className="flex items-center gap-4">
           <PageHeader
             description="Program Details"
-            title={program.name}
+            title={toTitleCase(program.name)}
             breadcrumbs={[{ label: 'Programs', path: ROUTES.PROGRAMS.LIST }]}
           />
           <div className="flex gap-2 items-center">
@@ -80,11 +80,11 @@ export default function ProgramDetail() {
           <div className="space-y-4">
             <div>
               <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Name</label>
-              <p className="mt-1 text-gray-900 dark:text-gray-100 capitalize">{program.name}</p>
+              <p className="mt-1 text-gray-900 dark:text-gray-100">{toTitleCase(program.name)}</p>
             </div>
             <div>
               <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Place</label>
-              <p className="mt-1 text-gray-900 dark:text-gray-100">{program.place}</p>
+              <p className="mt-1 text-gray-900 dark:text-gray-100">{toTitleCase(program.place)}</p>
             </div>
             <div>
               <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Join Date</label>
@@ -158,7 +158,10 @@ export default function ProgramDetail() {
                 <p className="mt-1 text-gray-900 dark:text-gray-100">
                   {program.competitions?.length
                     ? program.competitions
-                        .map((c) => `${c.name}${c.winners?.length ? ` (${c.winners.join(', ')})` : ''}`)
+                        .map(
+                          (c) =>
+                            `${toTitleCase(c.name)}${c.winners?.length ? ` (${c.winners.map((w) => toTitleCase(w)).join(', ')})` : ''}`
+                        )
                         .join('; ')
                     : '—'}
                 </p>

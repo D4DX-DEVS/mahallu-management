@@ -22,6 +22,7 @@ import LoanStatusBadge, { InstallmentBadge } from '../components/LoanStatusBadge
 import RepaymentModal from '../components/RepaymentModal';
 import LoanStatusModal from '../components/LoanStatusModal';
 import { loadErrorMessage } from '@/utils/errors';
+import { toTitleCase } from '@/utils/format';
 import PageHeader from '@/components/layout/PageHeader';
 
 const Field = ({ label, value }: { label: string; value: ReactNode }) => (
@@ -102,7 +103,7 @@ export default function LoanDetail() {
   return (
     <div>
       <PageHeader
-        title="loanApplicantName(loan)"
+        title={toTitleCase(loanApplicantName(loan))}
         breadcrumbs={[{ label: 'Services' }, { label: 'Qard Hasan', path: '/loans' }]}
       />
 
@@ -118,7 +119,7 @@ export default function LoanDetail() {
         </div>
       </div>
 
-      <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard title="Requested" value={formatCurrency(loan.amount)} />
         <StatCard title="Approved" value={loan.approvedAmount ? formatCurrency(loan.approvedAmount) : '-'} />
         <StatCard title="Repaid" value={formatCurrency(repaid)} />
@@ -139,7 +140,7 @@ export default function LoanDetail() {
           />
           <Field
             label="Family"
-            value={loan.familyId && typeof loan.familyId === 'object' ? loan.familyId.houseName : '-'}
+            value={loan.familyId && typeof loan.familyId === 'object' ? toTitleCase(loan.familyId.houseName) : '-'}
           />
           <Field label="Notes" value={loan.notes || '-'} />
         </div>

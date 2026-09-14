@@ -8,6 +8,7 @@ import Modal from '@/components/ui/Modal';
 import { useNavigate } from 'react-router-dom';
 import { toast } from '@/store/toastStore';
 import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 
 export default function BloodDonors() {
   const navigate = useNavigate();
@@ -133,7 +134,7 @@ export default function BloodDonors() {
               {donors.map((donor) => (
                 <div key={donor.id} className="rounded-lg border border-border bg-card p-3 sm:p-4">
                   <div className="flex items-start justify-between mb-3">
-                    <h3 className="text-base sm:text-lg font-semibold capitalize">{donor.name}</h3>
+                    <h3 className="text-base sm:text-lg font-semibold">{toTitleCase(donor.name)}</h3>
                     {donor.bloodGroup && (
                       <span className="bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm font-semibold">
                         {donor.bloodGroup}

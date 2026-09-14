@@ -19,6 +19,7 @@ import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
 import { toast } from '@/store/toastStore';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 
 export default function MahallUsersList() {
   const navigate = useNavigate();
@@ -33,6 +34,11 @@ export default function MahallUsersList() {
   const [isExporting, setIsExporting] = useState(false);
 
   const debouncedSearch = useDebounce(searchQuery, 500);
+
+  // A new search invalidates the current page offset
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearch]);
 
   useEffect(() => {
     fetchUsers();
@@ -67,11 +73,11 @@ export default function MahallUsersList() {
     try {
       setIsExporting(true);
 
-      const params: any = { role: 'mahall', limit: 10000 };
+      // Gathered a page at a time — the API caps `limit` at 100
+      const params: any = { role: 'mahall' };
       if (debouncedSearch) params.search = debouncedSearch;
 
-      const result = await userService.getAll(params);
-      const dataToExport = result.data;
+      const dataToExport = await userService.getAllForExport(params);
 
       if (dataToExport.length === 0) {
         toast.info('No data to export');
@@ -107,7 +113,7 @@ export default function MahallUsersList() {
       width: '6.75rem',
       render: (name, row) => (
         <div>
-          <div className="font-medium text-gray-900 dark:text-white">{name}</div>
+          <div className="font-medium text-gray-900 dark:text-white">{toTitleCase(name)}</div>
           <span
             className={`inline-block mt-1 px-2 py-0.5 text-xs font-medium rounded-full ${
               row.status === 'active'
@@ -127,7 +133,7 @@ export default function MahallUsersList() {
       render: (tenant, row: any) => {
         // Check both tenant and tenantId fields (populated reference)
         const tenantData = tenant || row.tenantId;
-        return tenantData?.name || '-';
+        return tenantData?.name ? toTitleCase(tenantData.name) : '-';
       },
     },
     { key: 'phone', label: 'Phone', width: '6.75rem' },
@@ -192,7 +198,7 @@ export default function MahallUsersList() {
         <PageHeader title="All Mahall Users" description="Manage mahall users and their permissions" />
 
         {/* Statistics Cards */}
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {stats.map((stat, index) => (
             <StatCard key={index} {...stat} />
           ))}

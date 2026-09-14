@@ -15,6 +15,7 @@ import { categoryService, Category, CategoryValue } from '@/services/categorySer
 import { toast } from '@/store/toastStore';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 export default function CategoryDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -216,7 +217,7 @@ export default function CategoryDetail() {
   return (
     <div className="space-y-4">
       <PageHeader
-        title={category.name}
+        title={toTitleCase(category.name)}
         description={category.description || `Manage values for the "${category.key}" category`}
         breadcrumbs={[{ label: 'Categories', path: '/admin/categories' }]}
       />
@@ -249,7 +250,7 @@ export default function CategoryDetail() {
       <Modal
         isOpen={showAddModal}
         onClose={() => setShowAddModal(false)}
-        title={`Add ${category.name} Value`}
+        title={`Add ${toTitleCase(category.name)} Value`}
         footer={
           <>
             <Button variant="outline" onClick={() => setShowAddModal(false)} disabled={saving}>

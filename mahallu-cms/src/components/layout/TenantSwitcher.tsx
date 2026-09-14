@@ -125,7 +125,10 @@ export default function TenantSwitcher() {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 z-50 mt-2 flex max-h-[500px] w-80 max-w-[calc(100vw-2rem)] flex-col rounded-lg border border-gray-200 bg-white py-2 shadow-xl dark:border-gray-700 dark:bg-gray-900">
+        /* Anchored by its left edge, not right: on mobile this button sits near the
+         * screen's left edge (right after the hamburger), and a right-anchored panel
+         * this wide pushed almost entirely off-screen to the left. */
+        <div className="absolute left-0 z-50 mt-2 flex max-h-[500px] w-80 max-w-[calc(100vw-2rem)] flex-col rounded-lg border border-gray-200 bg-white py-2 shadow-xl dark:border-gray-700 dark:bg-gray-900">
           {/* Switch back to Super Admin option */}
           {isViewingAsTenant && (
             <div className="px-3 pb-2 mb-2 border-b border-gray-200 dark:border-gray-700">

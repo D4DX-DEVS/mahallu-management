@@ -56,7 +56,7 @@ export default function EducationReport() {
     <div className="space-y-4">
       <PageHeader title="Education Report" />
       {/* Main Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 xl:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3">
         <StatCard title="Active Students" value={data.studentsCount} icon={<FiUsers />} />
         <StatCard title="Active Classes" value={data.activeClassesCount} icon={<FiBook />} />
         <StatCard title="Attendance %" value={`${data.attendancePercentThisMonth}%`} icon={<FiPercent />} />

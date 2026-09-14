@@ -88,7 +88,7 @@ export default function ZakatSummary() {
         </Card>
       ) : (
         <>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             {cards.map((card) => (
               <Card key={card.label}>
                 <p className="text-xs font-medium text-gray-500 dark:text-gray-400 sm:text-sm">
@@ -108,7 +108,7 @@ export default function ZakatSummary() {
                 No distributions recorded for {year}
               </p>
             ) : (
-              <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="mt-2 grid grid-cols-2 gap-3 lg:grid-cols-4">
                 {summary?.byType.map((row) => (
                   <div
                     key={row.type}

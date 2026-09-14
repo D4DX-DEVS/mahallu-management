@@ -6,11 +6,13 @@ import { PageSkeleton } from '@/components/ui/Skeleton';
 import { toast } from '@/store/toastStore';
 import { examService } from '@/services/attendanceService';
 import { madrasaService, MadrasaClass } from '@/services/madrasaService';
+import { fetchAllPages } from '@/services/api';
 import { errorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import Input from '@/components/ui/Input';
 import { useFormValidation } from '@/hooks/useFormValidation';
 import { FieldRule, LIMITS } from '@/utils/validation';
+import { toTitleCase } from '@/utils/format';
 
 /**
  * The same limits the API applies, so a form that passes here is not
@@ -48,8 +50,8 @@ export default function ExamCreate() {
   const fetchClasses = async () => {
     try {
       setLoading(true);
-      const result = await madrasaService.getClasses({ limit: 100 });
-      setClasses(result.data);
+      const rows = await fetchAllPages((params) => madrasaService.getClasses(params));
+      setClasses(rows);
     } catch (err: any) {
       toast.error("Couldn't load classes. Please try again.");
     } finally {
@@ -78,7 +80,7 @@ export default function ExamCreate() {
     try {
       setSubmitting(true);
       const exam = await examService.createExam(formData);
-      toast.success(`Exam "${formData.name}" created`);
+      toast.success(`Exam "${toTitleCase(formData.name)}" created`);
       navigate(`/education/exams/${exam.id}`);
     } catch (err: any) {
       toast.error(errorMessage(err, { action: 'create exam' }));
@@ -111,8 +113,8 @@ export default function ExamCreate() {
             >
               <option value="">Select a class</option>
               {classes.map((cls) => (
-                <option key={cls.id} value={cls.id} className="capitalize">
-                  {cls.name} ({cls.academicYear})
+                <option key={cls.id} value={cls.id}>
+                  {toTitleCase(cls.name)} ({cls.academicYear})
                 </option>
               ))}
             </select>

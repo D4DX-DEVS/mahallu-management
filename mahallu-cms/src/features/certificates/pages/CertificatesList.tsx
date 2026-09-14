@@ -13,7 +13,7 @@ import { toast } from '@/store/toastStore';
 import { TableColumn, Pagination as PaginationType } from '@/types';
 import { registrationService, Certificate } from '@/services/registrationService';
 import { useDebounce } from '@/hooks/useDebounce';
-import { formatDate } from '@/utils/format';
+import { formatDate, toTitleCase } from '@/utils/format';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 
@@ -33,6 +33,10 @@ export default function CertificatesList() {
   const [revoking, setRevoking] = useState(false);
 
   const debouncedSearch = useDebounce(searchQuery, 500);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearch]);
 
   useEffect(() => {
     fetchCertificates();
@@ -136,7 +140,7 @@ export default function CertificatesList() {
         {cert.status === 'valid' ? 'Valid' : 'Revoked'}
       </span>
     ),
-    issuedBy: cert.issuedBy || '-',
+    issuedBy: cert.issuedBy ? toTitleCase(cert.issuedBy) : '-',
     actions: (
       <div className="flex items-center gap-2">
         <Button

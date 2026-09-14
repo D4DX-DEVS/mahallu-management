@@ -4,6 +4,7 @@ import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
 import { FiFile, FiExternalLink } from 'react-icons/fi';
 import { errorMessage } from '@/utils/errors';
+import { toTitleCase } from '@/utils/format';
 
 export type RequestType = 'nikah' | 'death' | 'noc';
 
@@ -47,6 +48,21 @@ const TITLES: Record<RequestType, string> = {
   death: 'Death Registration',
   noc: 'NOC Request',
 };
+
+// Free-text name/place fields worth title-casing for display; phone numbers,
+// descriptions/notes, dates and amounts stay untouched.
+const TITLE_CASE_KEYS = new Set([
+  'groomName',
+  'brideName',
+  'venue',
+  'waliName',
+  'witness1',
+  'witness2',
+  'placeOfDeath',
+  'informantName',
+  'informantRelation',
+  'purposeTitle',
+]);
 
 const toDateInputValue = (value: unknown): string => {
   if (!value || typeof value !== 'string') return '';
@@ -195,7 +211,9 @@ export default function RequestDetailModal({
                 <p className="text-sm text-gray-900 dark:text-gray-100">
                   {f.type === 'date' && request[f.key]
                     ? new Date(request[f.key]).toLocaleDateString('en-IN')
-                    : request[f.key] || '—'}
+                    : TITLE_CASE_KEYS.has(f.key)
+                      ? toTitleCase(request[f.key]) || '—'
+                      : request[f.key] || '—'}
                 </p>
               </div>
             ))}

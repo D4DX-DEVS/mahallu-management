@@ -9,7 +9,8 @@ import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { toast } from '@/store/toastStore';
 import { getDisputeCases, deleteDisputeCase, IDisputeCase } from '@/services/counsellingService';
 import PageHeader from '@/components/layout/PageHeader';
-import { errorMessage } from '@/utils/errors';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import { toTitleCase } from '@/utils/format';
 
 const TYPES = ['family', 'marriage', 'divorce', 'community', 'inheritance', 'other'];
 const STATUSES = ['registered', 'mediation', 'resolved', 'referred', 'closed'];
@@ -48,6 +49,7 @@ export default function DisputesList() {
           setCases([]);
         } else {
           console.error("Couldn't load cases:", error);
+          toast.error(loadErrorMessage(error, 'dispute cases'));
         }
       } finally {
         setLoading(false);
@@ -188,9 +190,13 @@ export default function DisputesList() {
                           {caseRecord.status}
                         </span>
                       </div>
-                      <p className="text-sm text-gray-600">Parties: {(caseRecord.parties ?? []).join(', ')}</p>
+                      <p className="text-sm text-gray-600">
+                        Parties: {(caseRecord.parties ?? []).map((party) => toTitleCase(party)).join(', ')}
+                      </p>
                       {caseRecord.mediators && caseRecord.mediators.length > 0 && (
-                        <p className="text-sm text-gray-600">Mediators: {caseRecord.mediators.join(', ')}</p>
+                        <p className="text-sm text-gray-600">
+                          Mediators: {caseRecord.mediators.map((mediator) => toTitleCase(mediator)).join(', ')}
+                        </p>
                       )}
                     </div>
                     <div className="flex gap-2 items-center">

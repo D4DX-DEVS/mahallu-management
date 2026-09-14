@@ -12,9 +12,12 @@ import { PageSkeleton } from '@/components/ui/Skeleton';
 import { ROUTES } from '@/constants/routes';
 import { registrationService } from '@/services/registrationService';
 import { memberService } from '@/services/memberService';
+import { fetchAllPages } from '@/services/api';
 import { Member } from '@/types';
+import { toast } from '@/store/toastStore';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 
 const deathSchema = z.object({
   deceasedName: z.string().max(200, 'Please keep the deceased name to 200 characters or less.').min(1, 'Deceased name is required'),
@@ -27,7 +30,7 @@ const deathSchema = z.object({
   informantName: z.string().max(200, 'Please keep the informant name to 200 characters or less.').optional(),
   informantRelation: z.string().max(200, 'Please keep the informant relation to 200 characters or less.').optional(),
   informantPhone: z.string().max(200, 'Please keep the informant phone to 200 characters or less.').optional(),
-  status: z.enum(['pending', 'approved', 'rejected']).optional(),
+  status: z.enum(['pending', 'correction_required', 'approved', 'rejected']).optional(),
   remarks: z.string().max(2000, 'Please keep the remarks to 2000 characters or less.').optional(),
 });
 
@@ -95,13 +98,13 @@ export default function EditDeathRegistration() {
   useEffect(() => {
     const fetchMembers = async () => {
       try {
-        const result = await memberService.getAll({
-          limit: 1000,
-        });
-        setMembers(result.data || []);
+        // The list endpoint caps a page at 100 and answers 400 above it, so the
+        // old single `limit: 1000` call failed and left this dropdown empty.
+        const all = await fetchAllPages<Member>((params) => memberService.getAll(params), 10);
+        setMembers(all);
       } catch (err) {
-        console.error('Error fetching members:', err);
         setMembers([]);
+        toast.error(loadErrorMessage(err, 'members'));
       }
     };
     fetchMembers();
@@ -181,7 +184,7 @@ export default function EditDeathRegistration() {
                 { value: '', label: 'Select member...' },
                 ...members.map((member) => ({
                   value: member.id,
-                  label: `${member.name} (${member.familyName})`,
+                  label: `${toTitleCase(member.name)} (${toTitleCase(member.familyName)})`,
                 })),
               ]}
               {...register('deceasedId')}
@@ -220,6 +223,7 @@ export default function EditDeathRegistration() {
               label="Status"
               options={[
                 { value: 'pending', label: 'Pending' },
+                { value: 'correction_required', label: 'Correction Required' },
                 { value: 'approved', label: 'Approved' },
                 { value: 'rejected', label: 'Rejected' },
               ]}

@@ -1,7 +1,7 @@
 import { FiEye, FiEdit2, FiDownload } from 'react-icons/fi';
 import { TableColumn } from '@/types';
 import { NOC } from '@/services/registrationService';
-import { formatDate } from '@/utils/format';
+import { formatDate, toTitleCase } from '@/utils/format';
 import { downloadNocPdf } from '@/utils/nocPdf';
 import StatusBadge from '@/components/ui/StatusBadge';
 import ActionsMenu from '@/components/ui/ActionsMenu';
@@ -12,12 +12,18 @@ interface NocColumnDeps {
 
 /** Column config for the NOC table, split out to keep NOCList under the 500-line rule. */
 export const buildNocColumns = ({ navigate }: NocColumnDeps): TableColumn<NOC>[] => [
-  { key: 'applicantName', label: 'Applicant', width: '8.25rem', sortable: true },
+  {
+    key: 'applicantName',
+    label: 'Applicant',
+    width: '8.25rem',
+    sortable: true,
+    render: (value) => toTitleCase(value),
+  },
   {
     key: 'purposeTitle',
     label: 'Purpose',
     width: '7.75rem',
-    render: (value, row) => value || row.purpose || '-',
+    render: (value, row) => toTitleCase(value || row.purpose) || '-',
   },
   {
     key: 'type',

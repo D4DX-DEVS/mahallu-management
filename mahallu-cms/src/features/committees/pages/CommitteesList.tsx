@@ -14,8 +14,9 @@ import { TableColumn, Pagination as PaginationType } from '@/types';
 import { Committee } from '@/types';
 import { ROUTES } from '@/constants/routes';
 import { committeeService } from '@/services/committeeService';
+import { fetchAllPages } from '@/services/api';
 import { useDebounce } from '@/hooks/useDebounce';
-import { formatDate } from '@/utils/format';
+import { formatDate, toTitleCase } from '@/utils/format';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
@@ -70,11 +71,12 @@ export default function CommitteesList() {
     try {
       setIsExporting(true);
 
-      const params: any = { limit: 10000 };
+      const params: any = {};
       if (debouncedSearch) params.search = debouncedSearch;
 
-      const result = await committeeService.getAll(params);
-      const dataToExport = result.data;
+      const dataToExport = await fetchAllPages((pageParams) =>
+        committeeService.getAll({ ...params, ...pageParams })
+      );
 
       if (dataToExport.length === 0) {
         toast.info('No committees to export');
@@ -123,7 +125,7 @@ export default function CommitteesList() {
       label: 'Name',
       width: '6.75rem',
       sortable: true,
-      render: (v) => <span className="capitalize">{v}</span>,
+      render: (v) => <span>{toTitleCase(v)}</span>,
     },
     {
       key: 'members',
@@ -243,7 +245,7 @@ export default function CommitteesList() {
       <div className="space-y-3">
         <PageHeader title="Committees" description="Manage committees and meetings" />
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {stats.map((stat, index) => (
             <StatCard key={index} {...stat} />
           ))}
@@ -334,7 +336,7 @@ export default function CommitteesList() {
         }
       >
         <p className="text-gray-600 dark:text-gray-400">
-          Are you sure you want to delete <strong className="capitalize">{selectedCommittee?.name}</strong>? This will also delete
+          Are you sure you want to delete <strong>{toTitleCase(selectedCommittee?.name)}</strong>? This will also delete
           all associated meetings. This action cannot be undone.
         </p>
       </Modal>

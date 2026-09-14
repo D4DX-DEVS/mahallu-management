@@ -6,6 +6,7 @@ import Input from '@/components/ui/Input';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import { accountingReportService, TrialBalanceEntry } from '@/services/accountingReportService';
 import { loadErrorMessage } from '@/utils/errors';
+import { toTitleCase } from '@/utils/format';
 import PageHeader from '@/components/layout/PageHeader';
 
 export default function MahalluTrialBalance() {
@@ -74,7 +75,7 @@ export default function MahalluTrialBalance() {
           <p className="text-center py-10 text-gray-500">Select a date range and click "Generate"</p>
         ) : (
           <>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
               <StatCard
                 title="Total Debit (Expense)"
                 value={<>₹{totalDebit.toLocaleString()}</>}
@@ -118,7 +119,7 @@ export default function MahalluTrialBalance() {
                   {entries.map((entry, i) => (
                     <tr key={i} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
                       <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100">
-                        {entry.ledgerName}
+                        {toTitleCase(entry.ledgerName)}
                       </td>
                       <td className="px-4 py-3">
                         <span

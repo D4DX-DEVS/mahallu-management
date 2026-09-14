@@ -10,6 +10,7 @@ import { salaryService } from '@/services/salaryService';
 import { loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import StatusBadge from '@/components/ui/StatusBadge';
+import { toTitleCase } from '@/utils/format';
 
 const MONTHS = [
   '',
@@ -83,12 +84,12 @@ export default function SalaryDetail() {
           <div className="space-y-4">
             <div>
               <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Employee</label>
-              <p className="mt-1 text-gray-900 dark:text-gray-100 capitalize">{payment.employeeName || '-'}</p>
+              <p className="mt-1 text-gray-900 dark:text-gray-100">{payment.employeeName ? toTitleCase(payment.employeeName) : '-'}</p>
             </div>
             {payment.instituteName && (
               <div>
                 <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Institute</label>
-                <p className="mt-1 text-gray-900 dark:text-gray-100 capitalize">{payment.instituteName}</p>
+                <p className="mt-1 text-gray-900 dark:text-gray-100">{toTitleCase(payment.instituteName)}</p>
               </div>
             )}
             <div>

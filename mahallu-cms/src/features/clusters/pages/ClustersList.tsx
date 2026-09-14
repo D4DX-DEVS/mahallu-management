@@ -15,6 +15,7 @@ import { useDebounce } from '@/hooks/useDebounce';
 import { toast } from '@/store/toastStore';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 
 const emptyForm = { name: '', nameMl: '', code: '', notes: '' };
 
@@ -118,15 +119,15 @@ export default function ClustersList() {
             {rows.map((cluster) => (
               <Link key={cluster.id} to={`/clusters/${cluster.id}`}>
                 <Card className="h-full transition-shadow hover:shadow-md">
-                  <p className="text-sm font-semibold leading-tight text-gray-900 dark:text-gray-100 sm:text-base capitalize">
-                    {cluster.name}
+                  <p className="text-sm font-semibold leading-tight text-gray-900 dark:text-gray-100 sm:text-base">
+                    {toTitleCase(cluster.name)}
                   </p>
                   {cluster.code && <p className="mt-0.5 text-xs text-gray-400 sm:text-xs">{cluster.code}</p>}
                   <dl className="mt-2 space-y-1">
                     <div className="flex items-baseline justify-between gap-2">
                       <dt className="text-xs text-gray-500 dark:text-gray-400">Coordinator</dt>
-                      <dd className="truncate text-xs font-medium text-gray-700 dark:text-gray-200 capitalize">
-                        {coordinatorName(cluster)}
+                      <dd className="truncate text-xs font-medium text-gray-700 dark:text-gray-200">
+                        {toTitleCase(coordinatorName(cluster))}
                       </dd>
                     </div>
                     <div className="flex items-baseline justify-between gap-2">

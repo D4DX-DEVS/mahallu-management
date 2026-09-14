@@ -18,6 +18,7 @@ import { useDebounce } from '@/hooks/useDebounce';
 import { toast } from '@/store/toastStore';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 
 export default function MarriageAssistanceList() {
   const navigate = useNavigate();
@@ -35,6 +36,10 @@ export default function MarriageAssistanceList() {
   const [isDeleting, setIsDeleting] = useState(false);
 
   const debouncedSearch = useDebounce(searchQuery, 500);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearch]);
 
   useEffect(() => {
     fetchRecords();
@@ -120,7 +125,7 @@ export default function MarriageAssistanceList() {
       render: (_, row) => {
         const member = typeof row.memberId === 'object' ? row.memberId?.name : '—';
         const family = typeof row.familyId === 'object' ? row.familyId?.houseName : '—';
-        return member !== '—' ? member : family;
+        return toTitleCase(member !== '—' ? member : family) || '—';
       },
     },
     {
@@ -154,12 +159,13 @@ export default function MarriageAssistanceList() {
       width: '8rem',
       align: 'center',
       render: (_, row) => {
-        const label =
+        const label = toTitleCase(
           typeof row.memberId === 'object'
             ? row.memberId?.name
             : typeof row.familyId === 'object'
               ? row.familyId?.houseName
-              : 'Record';
+              : 'Record'
+        );
         return (
           <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
             {row.type === 'premarital_counselling' && (
@@ -209,7 +215,7 @@ export default function MarriageAssistanceList() {
       <div className="space-y-3">
         <PageHeader title="Marriage Assistance" description="Manage marriage assistance requests" />
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {stats.map((stat, index) => (
             <StatCard key={index} {...stat} />
           ))}
@@ -247,7 +253,10 @@ export default function MarriageAssistanceList() {
                   { value: 'premarital_counselling', label: 'Premarital Counselling' },
                 ]}
                 value={typeFilter}
-                onChange={(e) => setTypeFilter(e.target.value)}
+                onChange={(e) => {
+                  setTypeFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
               />
             </div>
             <div className="w-full sm:w-40">
@@ -259,7 +268,10 @@ export default function MarriageAssistanceList() {
                   { value: 'completed', label: 'Completed' },
                 ]}
                 value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
+                onChange={(e) => {
+                  setStatusFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
               />
             </div>
           </FilterPanel>

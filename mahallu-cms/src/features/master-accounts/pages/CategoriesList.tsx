@@ -16,7 +16,7 @@ import { TableColumn, Pagination as PaginationType } from '@/types';
 import { masterAccountService, Category } from '@/services/masterAccountService';
 import { instituteService } from '@/services/instituteService';
 import { useAuthStore } from '@/store/authStore';
-import { formatDate } from '@/utils/format';
+import { formatDate, toTitleCase } from '@/utils/format';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
 import { toast } from '@/store/toastStore';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
@@ -45,10 +45,12 @@ export default function CategoriesList() {
 
   useEffect(() => {
     if (!userInstituteId) {
+      // The API caps `limit` at 100 and answers 400 above it — getAllForExport
+      // pages through all institutes instead of failing the dropdown silently.
       instituteService
-        .getAll({ limit: 1000 })
-        .then((r) => setInstitutes(r.data.map((i: any) => ({ id: i.id, name: i.name }))))
-        .catch(() => {});
+        .getAllForExport()
+        .then((rows) => setInstitutes(rows.map((i: any) => ({ id: i.id, name: i.name }))))
+        .catch((err) => toast.error(loadErrorMessage(err, 'institutes')));
     }
   }, []);
 
@@ -82,7 +84,8 @@ export default function CategoriesList() {
   const handleExport = async (type: 'csv' | 'json' | 'pdf') => {
     try {
       setIsExporting(true);
-      const params = { limit: 10000 };
+      const params: any = { limit: 10000 };
+      if (instituteFilter !== 'all') params.instituteId = instituteFilter;
       const result = await masterAccountService.getAllCategories(params);
       const dataToExport = Array.isArray(result.data) ? result.data : [];
       if (dataToExport.length === 0) {
@@ -110,13 +113,19 @@ export default function CategoriesList() {
     }
   };
 
+  // The list endpoint has no `search` query param, so — same as the Mahallu
+  // Finance categories screen — the search box filters the page already loaded.
+  const filteredCategories = categories.filter(
+    (c) => !searchQuery || c.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   const columns: TableColumn<Category>[] = [
     {
       key: 'name',
       label: 'Name',
       width: '6.75rem',
       sortable: true,
-      render: (v) => <span className="capitalize">{v}</span>,
+      render: (v) => <span>{toTitleCase(v)}</span>,
     },
     { key: 'type', label: 'Type', width: '6.25rem' },
     { key: 'description', label: 'Description', width: '9.25rem' },
@@ -176,7 +185,9 @@ export default function CategoriesList() {
       setShowEditModal(false);
       setSelectedCategory(null);
     } catch (err: any) {
-      setError(errorMessage(err, { action: 'update category' }));
+      // A failed edit must not blank the list behind the still-open modal —
+      // that used to happen because this reused the page-level fetch error.
+      toast.error(errorMessage(err, { action: 'update category' }));
     }
   };
 
@@ -189,7 +200,9 @@ export default function CategoriesList() {
       setShowDeleteModal(false);
       setSelectedCategory(null);
     } catch (err: any) {
-      setError(errorMessage(err, { action: 'delete category' }));
+      // Same here — e.g. the "category is used in N item(s)" guard used to
+      // replace the whole table with a full-page error instead of a message.
+      toast.error(errorMessage(err, { action: 'delete category' }));
     } finally {
       setDeleting(false);
     }
@@ -238,10 +251,13 @@ export default function CategoriesList() {
                 label="Institute"
                 options={[
                   { value: 'all', label: 'All Institutes' },
-                  ...institutes.map((i) => ({ value: i.id, label: i.name })),
+                  ...institutes.map((i) => ({ value: i.id, label: toTitleCase(i.name) })),
                 ]}
                 value={instituteFilter}
-                onChange={(e) => setInstituteFilter(e.target.value)}
+                onChange={(e) => {
+                  setInstituteFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
               />
             </div>
           </FilterPanel>
@@ -261,7 +277,7 @@ export default function CategoriesList() {
               fixedLayout
               striped
               columns={columns}
-              data={categories}
+              data={filteredCategories}
               emptyMessage="No categories found"
               showExport={false}
             />
@@ -304,7 +320,7 @@ export default function CategoriesList() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
             <div className="sm:col-span-2">
               <p className="text-xs text-gray-500 dark:text-gray-400">Name</p>
-              <p className="text-gray-900 dark:text-gray-100 font-medium capitalize">{selectedCategory.name}</p>
+              <p className="text-gray-900 dark:text-gray-100 font-medium">{toTitleCase(selectedCategory.name)}</p>
             </div>
             <div>
               <p className="text-xs text-gray-500 dark:text-gray-400">Type</p>
@@ -313,7 +329,7 @@ export default function CategoriesList() {
             <div>
               <p className="text-xs text-gray-500 dark:text-gray-400">Institute</p>
               <p className="text-gray-900 dark:text-gray-100">
-                {institutes.find((i) => i.id === (selectedCategory as any).instituteId)?.name || '—'}
+                {toTitleCase(institutes.find((i) => i.id === (selectedCategory as any).instituteId)?.name) || '—'}
               </p>
             </div>
             <div className="sm:col-span-2">
@@ -400,7 +416,7 @@ export default function CategoriesList() {
         }
       >
         <p className="text-gray-600 dark:text-gray-400">
-          Are you sure you want to delete <strong className="capitalize">{selectedCategory?.name}</strong>? This action cannot be
+          Are you sure you want to delete <strong>{toTitleCase(selectedCategory?.name)}</strong>? This action cannot be
           undone.
         </p>
       </Modal>

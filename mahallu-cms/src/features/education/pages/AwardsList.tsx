@@ -16,6 +16,7 @@ import {
 } from '@/services/scholarshipService';
 import { errorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 import SortableTh from '@/components/ui/SortableTh';
 import { useSortableRows } from '@/hooks/useSortableRows';
 
@@ -78,7 +79,7 @@ export default function AwardsList() {
       setDeleting(true);
       await scholarshipService.deleteAward(deleteConfirm.id);
       setDeleteConfirm(null);
-      toast.success(`Award for ${deleteConfirm.name} deleted`);
+      toast.success(`Award for ${toTitleCase(deleteConfirm.name)} deleted`);
       await fetchAwards();
     } catch (error: any) {
       toast.error(errorMessage(error, { action: 'delete award' }));
@@ -94,7 +95,7 @@ export default function AwardsList() {
           <PageHeader title="Scholarship Awards" />
           {scholarship && (
             <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-              <span className="capitalize">{scholarship.name}</span> ({scholarship.academicYear})
+              <span>{toTitleCase(scholarship.name)}</span> ({scholarship.academicYear})
             </p>
           )}
         </div>
@@ -173,7 +174,7 @@ export default function AwardsList() {
                   <tbody>
                     {sortedAwards.map((award) => (
                       <tr key={award.id} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
-                        <td className="py-2 font-medium capitalize">{memberName(award.memberId)}</td>
+                        <td className="py-2 font-medium">{toTitleCase(memberName(award.memberId))}</td>
                         <td className="py-2 hidden sm:table-cell text-xs">
                           {new Date(award.awardedDate).toLocaleDateString()}
                         </td>
@@ -220,7 +221,7 @@ export default function AwardsList() {
       <ConfirmDialog
         isOpen={deleteConfirm !== null}
         title="Delete Award"
-        message={deleteConfirm ? `Delete the award for ${deleteConfirm.name}?` : ''}
+        message={deleteConfirm ? `Delete the award for ${toTitleCase(deleteConfirm.name)}?` : ''}
         consequence="This action cannot be undone."
         isLoading={deleting}
         variant="danger"

@@ -8,6 +8,7 @@ import { errorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { useFormValidation } from '@/hooks/useFormValidation';
 import { FieldRule, LIMITS, firstError, validateForm } from '@/utils/validation';
+import { toTitleCase } from '@/utils/format';
 
 /**
  * The same limits the API applies, so a form that passes here is not
@@ -64,7 +65,7 @@ export default function ScholarshipCreate() {
         criteria: formData.criteria.trim() || undefined,
         status: formData.status,
       });
-      toast.success(`Scholarship "${formData.name}" created`);
+      toast.success(`Scholarship "${toTitleCase(formData.name)}" created`);
       navigate('/education/scholarships');
     } catch (err: any) {
       setError(errorMessage(err, { action: 'create scholarship' }));

@@ -11,6 +11,7 @@ import Card from '@/components/ui/Card';
 import Pagination from '@/components/ui/Pagination';
 import { errorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 
 export default function VolunteerDetail() {
   const navigate = useNavigate();
@@ -99,7 +100,7 @@ export default function VolunteerDetail() {
     );
   }
 
-  const volunteerName = typeof volunteer.memberId === 'object' ? volunteer.memberId.name : '-';
+  const volunteerName = typeof volunteer.memberId === 'object' ? toTitleCase(volunteer.memberId.name) : '-';
   const volunteerContact = typeof volunteer.memberId === 'object' ? volunteer.memberId.contactNo : '-';
 
   return (

@@ -13,6 +13,7 @@ import { religiousService, KHUTBAH_STATUS_OPTIONS } from '@/services/religiousSe
 import { Khateeb } from '@/services/religiousService';
 import { errorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 
 const khutbahSchema = z.object({
   khateebId: z.string().max(200, 'Please keep the khateeb to 200 characters or less.').min(1, 'Khateeb is required'),
@@ -75,7 +76,7 @@ export default function KhutbahCreate() {
 
   const khateebOptions = khateebs.map((k) => ({
     value: k.id,
-    label: k.name,
+    label: toTitleCase(k.name),
   }));
 
   return (

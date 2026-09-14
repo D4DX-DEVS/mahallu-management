@@ -615,7 +615,7 @@ function Table<T extends Record<string, any>>({
                          * to inherit through a box that is not a block. */
                         <div
                           className={cn(
-                            'line-clamp-2 break-words',
+                            'line-clamp-2 break-words leading-snug',
                             ALIGN_CLASS[column.align ?? 'left']
                           )}
                         >

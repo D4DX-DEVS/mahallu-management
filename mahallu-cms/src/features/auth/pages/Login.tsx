@@ -26,6 +26,7 @@ import Alert from '@/components/ui/Alert';
 import { BRAND_NAME, LOGO_PATH } from '@/constants/theme';
 import { ROUTES } from '@/constants/routes';
 import { errorMessage } from '@/utils/errors';
+import { toTitleCase } from '@/utils/format';
 
 /* Login is India-only, so the country code is fixed and never typed by the
    user - the field itself holds the bare 10-digit national number. */
@@ -210,7 +211,7 @@ export default function Login() {
       case 'survey':
         return 'Survey admin';
       case 'institute':
-        return instituteName ? `Institute admin — ${instituteName}` : 'Institute admin';
+        return instituteName ? `Institute admin — ${toTitleCase(instituteName)}` : 'Institute admin';
       case 'super_admin':
         return 'Super admin';
       default:
@@ -387,7 +388,7 @@ export default function Login() {
                         </span>
                         {account.tenantName && (
                           <span className="block truncate text-xs text-muted-foreground">
-                            {account.tenantName}
+                            {toTitleCase(account.tenantName)}
                           </span>
                         )}
                       </span>

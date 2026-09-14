@@ -11,6 +11,7 @@ import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { FieldRule, validateForm as checkFields, LIMITS } from '@/utils/validation';
 import { checkUploadedFile } from '@/utils/validation';
+import { toTitleCase } from '@/utils/format';
 
 /** Mirrors the API's nikah rules (`memberUserValidation.ts`). */
 const NIKAH_RULES: Record<string, FieldRule> = {
@@ -249,7 +250,7 @@ export default function MemberNikahRequest() {
               onChange={setSubjectMemberId}
               options={[
                 { value: '', label: 'Select a family member…' },
-                ...familyMembers.map((m) => ({ value: m.id, label: m.name })),
+                ...familyMembers.map((m) => ({ value: m.id, label: toTitleCase(m.name) })),
               ]}
               error={errors.subjectMemberId}
               required

@@ -9,6 +9,7 @@ import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { toast } from '@/store/toastStore';
 import StatusBadge from '@/components/ui/StatusBadge';
 import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 
 export default function VolunteersList() {
   const navigate = useNavigate();
@@ -69,7 +70,7 @@ export default function VolunteersList() {
 
   const volunteerName = (volunteer: VolunteerProfile) => {
     if (volunteer.memberId && typeof volunteer.memberId === 'object') {
-      return volunteer.memberId.name;
+      return toTitleCase(volunteer.memberId.name);
     }
     return '-';
   };

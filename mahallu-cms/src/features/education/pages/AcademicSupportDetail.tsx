@@ -18,6 +18,7 @@ import { errorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { useFormValidation } from '@/hooks/useFormValidation';
 import { FieldRule, LIMITS } from '@/utils/validation';
+import { toTitleCase } from '@/utils/format';
 
 /**
  * The same limits the API applies, so a form that passes here is not
@@ -198,7 +199,7 @@ export default function AcademicSupportDetail() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <h3 className="text-sm font-semibold text-foreground">Student</h3>
-                <p className="text-lg font-semibold mt-1">{memberName(supportCase.memberId)}</p>
+                <p className="text-lg font-semibold mt-1">{toTitleCase(memberName(supportCase.memberId))}</p>
               </div>
 
               <div>
@@ -228,7 +229,7 @@ export default function AcademicSupportDetail() {
               {supportCase.mentorName && (
                 <div>
                   <h3 className="text-sm font-semibold text-foreground">Mentor</h3>
-                  <p className="mt-1">{supportCase.mentorName}</p>
+                  <p className="mt-1">{toTitleCase(supportCase.mentorName)}</p>
                 </div>
               )}
 
@@ -253,7 +254,7 @@ export default function AcademicSupportDetail() {
       <ConfirmDialog
         isOpen={showDeleteConfirm}
         title="Delete Support Case"
-        message={supportCase ? `Delete the support case for ${memberName(supportCase.memberId)}?` : ''}
+        message={supportCase ? `Delete the support case for ${toTitleCase(memberName(supportCase.memberId))}?` : ''}
         consequence="This action cannot be undone."
         isLoading={deleting}
         variant="danger"

@@ -13,10 +13,11 @@ import TableToolbar from '@/components/ui/TableToolbar';
 import { toast } from '@/store/toastStore';
 import { TableColumn, Pagination as PaginationType } from '@/types';
 import { registrationService, NikahRegistration } from '@/services/registrationService';
+import { fetchAllPages } from '@/services/api';
 import { useDebounce } from '@/hooks/useDebounce';
-import { formatDate } from '@/utils/format';
+import { formatDate, toTitleCase } from '@/utils/format';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
-import { loadErrorMessage } from '@/utils/errors';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import StatusBadge from '@/components/ui/StatusBadge';
 import PageHeader from '@/components/layout/PageHeader';
 import ActionsMenu from '@/components/ui/ActionsMenu';
@@ -35,6 +36,10 @@ export default function NikahRegistrationsList() {
   const [isExporting, setIsExporting] = useState(false);
 
   const debouncedSearch = useDebounce(searchQuery, 500);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearch]);
 
   useEffect(() => {
     fetchRegistrations();
@@ -71,12 +76,15 @@ export default function NikahRegistrationsList() {
     try {
       setIsExporting(true);
 
-      const params: any = { limit: 10000 };
-      if (debouncedSearch) params.search = debouncedSearch;
-      if (statusFilter !== 'all') params.status = statusFilter;
+      const filters: any = {};
+      if (debouncedSearch) filters.search = debouncedSearch;
+      if (statusFilter !== 'all') filters.status = statusFilter;
 
-      const result = await registrationService.getAllNikah(params);
-      const dataToExport = result.data;
+      // The list endpoint caps a page at 100 and answers 400 above it, so the
+      // old single `limit: 10000` export call failed for any non-empty result.
+      const dataToExport = await fetchAllPages<NikahRegistration>((params) =>
+        registrationService.getAllNikah({ ...filters, ...params })
+      );
 
       if (dataToExport.length === 0) {
         toast.info('No nikah registrations to export');
@@ -98,16 +106,27 @@ export default function NikahRegistrationsList() {
           break;
       }
     } catch (error: any) {
-      console.error('Export error:', error);
-      toast.error(error?.message || "Couldn't export nikah registrations");
+      toast.error(errorMessage(error, { action: 'export nikah registrations' }));
     } finally {
       setIsExporting(false);
     }
   };
 
   const columns: TableColumn<NikahRegistration>[] = [
-    { key: 'groomName', label: 'Groom', width: '7.25rem', sortable: true },
-    { key: 'brideName', label: 'Bride', width: '6.5rem', sortable: true },
+    {
+      key: 'groomName',
+      label: 'Groom',
+      width: '7.25rem',
+      sortable: true,
+      render: (name) => toTitleCase(name),
+    },
+    {
+      key: 'brideName',
+      label: 'Bride',
+      width: '6.5rem',
+      sortable: true,
+      render: (name) => toTitleCase(name),
+    },
     {
       key: 'nikahDate',
       label: 'Nikah Date',
@@ -173,7 +192,7 @@ export default function NikahRegistrationsList() {
       <div className="space-y-3">
         <PageHeader title="Nikah Registrations" description="Manage nikah registrations" />
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {stats.map((stat, index) => (
             <StatCard key={index} {...stat} />
           ))}
@@ -204,11 +223,15 @@ export default function NikahRegistrationsList() {
                 options={[
                   { value: 'all', label: 'All Status' },
                   { value: 'pending', label: 'Pending' },
+                  { value: 'correction_required', label: 'Correction Required' },
                   { value: 'approved', label: 'Approved' },
                   { value: 'rejected', label: 'Rejected' },
                 ]}
                 value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
+                onChange={(e) => {
+                  setStatusFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
               />
             </div>
           </FilterPanel>

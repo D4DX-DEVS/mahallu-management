@@ -2,7 +2,7 @@ import { FiEdit2, FiDownload, FiCheckCircle } from 'react-icons/fi';
 
 import { rowActionClass } from '@/components/ui/rowAction';import { TableColumn } from '@/types';
 import { Varisangya } from '@/services/collectibleService';
-import { formatDate } from '@/utils/format';
+import { formatDate, toTitleCase } from '@/utils/format';
 
 interface VarisangyaColumnDeps {
   openEdit: (row: Varisangya) => void;
@@ -35,8 +35,8 @@ export const buildVarisangyaColumns = ({
   handleViewPdf,
   onVerify,
 }: VarisangyaColumnDeps): TableColumn<Varisangya>[] => [
-  { key: 'name', label: 'Name', width: '6.75rem', render: (_, row) => getPayerName(row) },
-  { key: 'familyName', label: 'Family name', width: '10rem', render: (_, row) => getFamilyName(row) },
+  { key: 'name', label: 'Name', width: '6.75rem', render: (_, row) => toTitleCase(getPayerName(row)) },
+  { key: 'familyName', label: 'Family name', width: '10rem', render: (_, row) => toTitleCase(getFamilyName(row)) },
   {
     key: 'amount',
     label: 'Amount',

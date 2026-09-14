@@ -1,12 +1,15 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { volunteerService, SERVICE_TYPE_OPTIONS } from '@/services/volunteerService';
+import { fetchAllPages } from '@/services/api';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
-import { errorMessage } from '@/utils/errors';
+import { toast } from '@/store/toastStore';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import { useFormValidation } from '@/hooks/useFormValidation';
 import { FieldRule, LIMITS, firstError, validateForm } from '@/utils/validation';
 import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 
 /**
  * The same limits the API applies, so a form that passes here is not
@@ -42,14 +45,15 @@ export default function AssignmentCreate() {
   useEffect(() => {
     const fetchVolunteers = async () => {
       try {
-        const result = await volunteerService.getVolunteers({
-          page: 1,
-          limit: 500,
-          status: 'active',
-        });
-        setVolunteers(result.data);
+        // /volunteers caps `limit` at 100 and answers 400 above it, so the
+        // old `limit: 500` request always failed and this picker was always empty.
+        const rows = await fetchAllPages((params) =>
+          volunteerService.getVolunteers({ ...params, status: 'active' })
+        );
+        setVolunteers(rows);
       } catch (err) {
-        console.error("Couldn't load volunteers:", err);
+        setVolunteers([]);
+        toast.error(loadErrorMessage(err, 'volunteers'));
       } finally {
         setLoadingVolunteers(false);
       }
@@ -159,7 +163,7 @@ export default function AssignmentCreate() {
                           className="w-4 h-4 rounded border-gray-300"
                         />
                         <span className="text-sm text-gray-700">
-                          <span className="capitalize">{volunteerName(volunteer)}</span>
+                          <span>{toTitleCase(volunteerName(volunteer))}</span>
                           {volunteer.wings && (
                             <span className="text-xs text-gray-500 ml-2">({volunteer.wings.join(', ')})</span>
                           )}

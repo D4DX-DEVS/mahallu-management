@@ -12,6 +12,8 @@ import { tenantService } from '@/services/tenantService';
 import { CLASSIFICATION_OPTIONS, TENANT_CLASSIFICATIONS } from '@/constants/modules';
 import { STATES, getDistrictsByState } from '@/constants/locations';
 import PageHeader from '@/components/layout/PageHeader';
+import { toast } from '@/store/toastStore';
+import { errorMessage } from '@/utils/errors';
 
 const tenantSchema = z.object({
   name: z.string().max(200, 'Please keep the name to 200 characters or less.').min(1, 'Name is required'),
@@ -95,6 +97,7 @@ export default function CreateTenant() {
       navigate('/admin/tenants');
     } catch (error) {
       console.error('Error creating tenant:', error);
+      toast.error(errorMessage(error, { action: 'create tenant' }));
     }
   };
 

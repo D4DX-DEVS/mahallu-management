@@ -17,6 +17,7 @@ import { toast } from '@/store/toastStore';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import ActionsMenu from '@/components/ui/ActionsMenu';
+import { toTitleCase } from '@/utils/format';
 
 export default function InstituteUsersList() {
   const navigate = useNavigate();
@@ -64,11 +65,11 @@ export default function InstituteUsersList() {
     try {
       setIsExporting(true);
 
-      const params: any = { role: 'institute', limit: 10000 };
+      // Gathered a page at a time — the API caps `limit` at 100
+      const params: any = { role: 'institute' };
       if (debouncedSearch) params.search = debouncedSearch;
 
-      const result = await userService.getAll(params);
-      const dataToExport = result.data;
+      const dataToExport = await userService.getAllForExport(params);
 
       if (dataToExport.length === 0) {
         toast.info('No data to export');
@@ -98,7 +99,7 @@ export default function InstituteUsersList() {
   };
 
   const columns: TableColumn<User>[] = [
-    { key: 'name', label: 'Name', width: '6.75rem', sortable: true },
+    { key: 'name', label: 'Name', width: '6.75rem', sortable: true, render: (name) => toTitleCase(name) },
     { key: 'phone', label: 'Phone', width: '6.75rem' },
     { key: 'email', label: 'Email', width: '6.75rem', render: (email) => email || '-' },
     {
@@ -175,7 +176,7 @@ export default function InstituteUsersList() {
       <div className="space-y-3">
         <PageHeader title="Institute Users" description="Manage institute users" />
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {stats.map((stat, index) => (
             <StatCard key={index} {...stat} />
           ))}

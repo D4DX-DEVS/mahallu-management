@@ -8,14 +8,17 @@ import {
   AVAILABILITY_OPTIONS,
 } from '@/services/volunteerService';
 import { memberService } from '@/services/memberService';
+import { fetchAllPages } from '@/services/api';
 import QuickAddMember from '@/components/quick-add/QuickAddMember';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import SearchableSelect from '@/components/ui/SearchableSelect';
-import { errorMessage } from '@/utils/errors';
+import { toast } from '@/store/toastStore';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import { useFormValidation } from '@/hooks/useFormValidation';
 import { FieldRule, LIMITS, firstError, validateForm } from '@/utils/validation';
 import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 
 /**
  * The same limits the API applies, so a form that passes here is not
@@ -46,10 +49,13 @@ export default function VolunteerCreate() {
   useEffect(() => {
     const fetchMembers = async () => {
       try {
-        const result = await memberService.getAll({ page: 1, limit: 500 } as any);
-        setMembers(result.data || []);
+        // /members caps `limit` at 100 and answers 400 above it, so the old
+        // `limit: 500` request always failed and this picker was always empty.
+        const rows = await fetchAllPages((params) => memberService.getAll(params));
+        setMembers(rows);
       } catch (err) {
-        console.error("Couldn't load members:", err);
+        setMembers([]);
+        toast.error(loadErrorMessage(err, 'members'));
       } finally {
         setLoadingMembers(false);
       }
@@ -120,7 +126,7 @@ export default function VolunteerCreate() {
                     onChange={(v) => setFormData((prev) => ({ ...prev, memberId: v }))}
                     options={members.map((m) => ({
                       value: m.id,
-                      label: `${m.name}${m.familyName ? ` (${m.familyName})` : ''}`,
+                      label: `${toTitleCase(m.name)}${m.familyName ? ` (${toTitleCase(m.familyName)})` : ''}`,
                     }))}
                     placeholder={loadingMembers ? 'Loading members...' : 'Search and select member'}
                     disabled={loadingMembers}

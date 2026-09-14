@@ -15,6 +15,7 @@ import { welfareService, WelfareScheme } from '@/services/welfareService';
 import { toast } from '@/store/toastStore';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 
 export const WELFARE_CATEGORY_OPTIONS = [
   { value: 'medical', label: 'Medical' },
@@ -102,7 +103,7 @@ export default function SchemesList() {
   };
 
   const columns: TableColumn<WelfareScheme>[] = [
-    { key: 'name', label: 'Scheme', width: '7.75rem', render: (v) => <span className="capitalize">{v}</span> },
+    { key: 'name', label: 'Scheme', width: '7.75rem', render: (v) => <span>{toTitleCase(v)}</span> },
     {
       key: 'category',
       label: 'Category',

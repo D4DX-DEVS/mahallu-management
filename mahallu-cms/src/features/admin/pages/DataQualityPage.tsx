@@ -9,6 +9,7 @@ import api from '@/services/api';
 import { loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { errorMessage } from '@/utils/errors';
+import { toTitleCase } from '@/utils/format';
 
 interface DataQualityStat {
   label: string;
@@ -103,28 +104,28 @@ export default function DataQualityPage() {
       />
 
       {/* Data Quality Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-3">
         {/* Families Stats */}
         <StatCard
           title="Total Families"
-          value={stats?.data?.families?.total || 0}
-          hint={<>{stats?.data?.families?.pendingApproval || 0} pending approval</>}
+          value={stats?.families?.total || 0}
+          hint={<>{stats?.families?.pendingApproval || 0} pending approval</>}
         />
 
         <StatCard
           title="Families without Head"
-          value={stats?.data?.families?.withoutHead || 0}
+          value={stats?.families?.withoutHead || 0}
           hint="Action required"
           tone="warning"
         />
 
         {/* Members Stats */}
-        <StatCard title="Total Members" value={stats?.data?.members?.total || 0} />
+        <StatCard title="Total Members" value={stats?.members?.total || 0} />
 
         <StatCard
           title="Missing Phone"
-          value={stats?.data?.members?.missingPhone || 0}
-          hint={`${(((stats?.data?.members?.missingPhone || 0) / (stats?.data?.members?.total || 1)) * 100).toFixed(
+          value={stats?.members?.missingPhone || 0}
+          hint={`${(((stats?.members?.missingPhone || 0) / (stats?.members?.total || 1)) * 100).toFixed(
             1
           )}% of total`}
           tone="destructive"
@@ -132,8 +133,8 @@ export default function DataQualityPage() {
 
         <StatCard
           title="Missing Age"
-          value={stats?.data?.members?.missingAge || 0}
-          hint={`${(((stats?.data?.members?.missingAge || 0) / (stats?.data?.members?.total || 1)) * 100).toFixed(
+          value={stats?.members?.missingAge || 0}
+          hint={`${(((stats?.members?.missingAge || 0) / (stats?.members?.total || 1)) * 100).toFixed(
             1
           )}% of total`}
           tone="destructive"
@@ -141,7 +142,7 @@ export default function DataQualityPage() {
 
         <StatCard
           title="Unenrolled Students"
-          value={stats?.data?.members?.unenrolledStudents || 0}
+          value={stats?.members?.unenrolledStudents || 0}
           hint="Missing education info"
           tone="warning"
         />
@@ -152,10 +153,10 @@ export default function DataQualityPage() {
         <h2 className="text-lg font-semibold text-foreground">Suspected Duplicates</h2>
 
         {/* Duplicates by Phone */}
-        {duplicates?.data?.byPhone && duplicates.data.byPhone.length > 0 && (
+        {duplicates?.byPhone && duplicates.byPhone.length > 0 && (
           <Card>
             <h3 className="text-base font-semibold mb-3 text-foreground">
-              Duplicate Phone Numbers ({duplicates.data.byPhone.length})
+              Duplicate Phone Numbers ({duplicates.byPhone.length})
             </h3>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -173,7 +174,7 @@ export default function DataQualityPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {duplicates.data.byPhone.map((group: DuplicatePhoneGroup) => (
+                  {duplicates.byPhone.map((group: DuplicatePhoneGroup) => (
                     <tr
                       key={group.id}
                       className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50"
@@ -184,8 +185,8 @@ export default function DataQualityPage() {
                       </td>
                       <td className="py-3 px-3 text-gray-600 dark:text-gray-400">
                         {group.members.map((m, idx) => (
-                          <div key={idx} className="text-xs capitalize">
-                            {m.name} ({m.familyName})
+                          <div key={idx} className="text-xs">
+                            {toTitleCase(m.name)} ({toTitleCase(m.familyName)})
                           </div>
                         ))}
                       </td>
@@ -198,10 +199,10 @@ export default function DataQualityPage() {
         )}
 
         {/* Duplicates by Name & Age */}
-        {duplicates?.data?.byNameAge && duplicates.data.byNameAge.length > 0 && (
+        {duplicates?.byNameAge && duplicates.byNameAge.length > 0 && (
           <Card>
             <h3 className="text-base font-semibold mb-3 text-foreground">
-              Duplicate Names & Age ({duplicates.data.byNameAge.length})
+              Duplicate Names & Age ({duplicates.byNameAge.length})
             </h3>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -219,13 +220,13 @@ export default function DataQualityPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {duplicates.data.byNameAge.map((group: DuplicateNameAge) => (
+                  {duplicates.byNameAge.map((group: DuplicateNameAge) => (
                     <tr
                       key={(group.id?.name ?? '') + '-' + (group.id?.age ?? '')}
                       className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50"
                     >
-                      <td className="py-3 px-3 text-gray-900 dark:text-gray-100 font-mono text-xs capitalize">
-                        {group.id?.name}
+                      <td className="py-3 px-3 text-gray-900 dark:text-gray-100 font-mono text-xs">
+                        {toTitleCase(group.id?.name)}
                         {group.id?.age != null ? ', age ' + group.id.age : ''}
                       </td>
                       <td className="py-3 px-3 text-gray-900 dark:text-gray-100 font-semibold">
@@ -233,8 +234,8 @@ export default function DataQualityPage() {
                       </td>
                       <td className="py-3 px-3 text-gray-600 dark:text-gray-400">
                         {group.members.map((m, idx) => (
-                          <div key={idx} className="text-xs capitalize">
-                            {m.name} ({m.familyName}){m.age ? `, age ${m.age}` : ''}
+                          <div key={idx} className="text-xs">
+                            {toTitleCase(m.name)} ({toTitleCase(m.familyName)}){m.age ? `, age ${m.age}` : ''}
                           </div>
                         ))}
                       </td>

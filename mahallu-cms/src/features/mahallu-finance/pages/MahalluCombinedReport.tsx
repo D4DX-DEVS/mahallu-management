@@ -8,8 +8,10 @@ import { PageSkeleton } from '@/components/ui/Skeleton';
 import { accountingReportService, DayBookEntry, TrialBalanceEntry } from '@/services/accountingReportService';
 import { instituteService } from '@/services/instituteService';
 import { FiHome, FiBook } from 'react-icons/fi';
-import { errorMessage } from '@/utils/errors';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
+import { toast } from '@/store/toastStore';
 
 type ReportType = 'day-book' | 'trial-balance' | 'balance-sheet' | 'income-expenditure';
 
@@ -33,10 +35,13 @@ export default function MahalluCombinedReport() {
   const [reportData, setReportData] = useState<any>(null);
 
   useEffect(() => {
+    // The API refuses any `limit` above 100, so a single getAll({limit: 1000}) call was
+    // answered with a 400 and the institute chips never appeared — leaving "combined"
+    // able to combine nothing but the Mahallu itself. getAllForExport pages through all of them.
     instituteService
-      .getAll({ limit: 1000 })
-      .then((r) => setInstitutes(r.data.map((i: any) => ({ id: i.id, name: i.name }))))
-      .catch(() => {});
+      .getAllForExport()
+      .then((rows) => setInstitutes(rows.map((i: any) => ({ id: i.id, name: i.name }))))
+      .catch((err) => toast.error(loadErrorMessage(err, 'institutes')));
   }, []);
 
   const toggleEntity = (id: string) => {
@@ -161,8 +166,8 @@ export default function MahalluCombinedReport() {
                     : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:border-blue-400'
                 }`}
               >
-                <span className="inline-flex items-center gap-1.5 capitalize">
-                  <FiBook className="h-3.5 w-3.5" /> {inst.name}
+                <span className="inline-flex items-center gap-1.5">
+                  <FiBook className="h-3.5 w-3.5" /> {toTitleCase(inst.name)}
                 </span>
               </button>
             ))}
@@ -170,8 +175,8 @@ export default function MahalluCombinedReport() {
           {selectedEntities.length > 0 && (
             <p className="mt-2 text-xs text-gray-500">
               Combining:
-              <span className="font-medium text-gray-700 dark:text-gray-300 capitalize">
-                {selectedNames.join(' + ')}
+              <span className="font-medium text-gray-700 dark:text-gray-300">
+                {toTitleCase(selectedNames.join(' + '))}
               </span>
             </p>
           )}
@@ -203,7 +208,7 @@ export default function MahalluCombinedReport() {
                     ? 'Balance Sheet'
                     : 'Income & Expenditure'}
             </h2>
-            <span className="text-xs text-gray-500 capitalize">— {selectedNames.join(' + ')}</span>
+            <span className="text-xs text-gray-500">— {toTitleCase(selectedNames.join(' + '))}</span>
           </div>
 
           {reportType === 'day-book' && Array.isArray(reportData) && <DayBookView entries={reportData} />}
@@ -226,7 +231,7 @@ function DayBookView({ entries }: { entries: DayBookEntry[] }) {
   const totalExpense = entries.filter((e) => e.type !== 'income').reduce((s, e) => s + e.amount, 0);
   return (
     <>
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
         <StatCard title="Total Income" value={<>₹{totalIncome.toLocaleString()}</>} tone="success" />
         <StatCard title="Total Expense" value={<>₹{totalExpense.toLocaleString()}</>} tone="destructive" />
         <StatCard
@@ -260,8 +265,8 @@ function DayBookView({ entries }: { entries: DayBookEntry[] }) {
                     {entry.type}
                   </span>
                 </td>
-                <td className="px-4 py-3 text-sm text-gray-600 capitalize">{entry.ledgerName}</td>
-                <td className="px-4 py-3 text-sm text-gray-600 capitalize">{entry.categoryName}</td>
+                <td className="px-4 py-3 text-sm text-gray-600">{toTitleCase(entry.ledgerName)}</td>
+                <td className="px-4 py-3 text-sm text-gray-600">{toTitleCase(entry.categoryName)}</td>
                 <td
                   className={`px-4 py-3 text-sm font-medium ${entry.type === 'income' ? 'text-green-600' : 'text-red-600'}`}
                 >
@@ -300,7 +305,7 @@ function TrialBalanceView({ entries }: { entries: TrialBalanceEntry[] }) {
           <tbody className="divide-y divide-border">
             {entries.map((entry, i) => (
               <tr key={i} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
-                <td className="px-4 py-3 text-sm font-medium capitalize">{entry.ledgerName}</td>
+                <td className="px-4 py-3 text-sm font-medium">{toTitleCase(entry.ledgerName)}</td>
                 <td className="px-4 py-3">
                   <span
                     className={`px-2 py-0.5 rounded-full text-xs font-medium ${entry.type === 'income' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}
@@ -352,7 +357,7 @@ function BalanceSheetView({ data }: { data: any }) {
               key={i}
               className="flex justify-between px-4 py-2 border-b border-gray-100 dark:border-gray-700"
             >
-              <span className="text-sm text-gray-700 capitalize">{b.ledgerName}</span>
+              <span className="text-sm text-gray-700">{toTitleCase(b.ledgerName)}</span>
               <span className="text-sm font-medium text-blue-700">₹{b.balance.toLocaleString()}</span>
             </div>
           ))}
@@ -390,14 +395,14 @@ function IncomeExpenditureView({ data }: { data: any }) {
               className="border border-green-200 dark:border-green-800 rounded-lg mb-2 overflow-hidden"
             >
               <div className="flex justify-between px-4 py-2 bg-green-50 dark:bg-green-900/20">
-                <span className="text-sm font-semibold text-green-800 capitalize">{ledger.ledgerName}</span>
+                <span className="text-sm font-semibold text-green-800">{toTitleCase(ledger.ledgerName)}</span>
                 <span className="text-sm font-semibold text-green-700">
                   ₹{(ledger.ledgerTotal || ledger.total || 0).toLocaleString()}
                 </span>
               </div>
               {(ledger.categories || []).map((cat: any, j: number) => (
                 <div key={j} className="flex justify-between px-4 py-1.5 border-t border-green-100">
-                  <span className="text-xs text-gray-600 pl-4 capitalize">{cat.categoryName}</span>
+                  <span className="text-xs text-gray-600 pl-4">{toTitleCase(cat.categoryName)}</span>
                   <span className="text-xs text-gray-700">₹{(cat.total || 0).toLocaleString()}</span>
                 </div>
               ))}
@@ -412,14 +417,14 @@ function IncomeExpenditureView({ data }: { data: any }) {
               className="border border-red-200 dark:border-red-800 rounded-lg mb-2 overflow-hidden"
             >
               <div className="flex justify-between px-4 py-2 bg-red-50 dark:bg-red-900/20">
-                <span className="text-sm font-semibold text-red-800 capitalize">{ledger.ledgerName}</span>
+                <span className="text-sm font-semibold text-red-800">{toTitleCase(ledger.ledgerName)}</span>
                 <span className="text-sm font-semibold text-red-700">
                   ₹{(ledger.ledgerTotal || ledger.total || 0).toLocaleString()}
                 </span>
               </div>
               {(ledger.categories || []).map((cat: any, j: number) => (
                 <div key={j} className="flex justify-between px-4 py-1.5 border-t border-red-100">
-                  <span className="text-xs text-gray-600 pl-4 capitalize">{cat.categoryName}</span>
+                  <span className="text-xs text-gray-600 pl-4">{toTitleCase(cat.categoryName)}</span>
                   <span className="text-xs text-gray-700">₹{(cat.total || 0).toLocaleString()}</span>
                 </div>
               ))}

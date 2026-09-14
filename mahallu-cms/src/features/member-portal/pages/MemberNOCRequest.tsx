@@ -11,6 +11,7 @@ import { errorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { checkUploadedFile } from '@/utils/validation';
 import { FieldRule, validateForm as checkFields, LIMITS } from '@/utils/validation';
+import { toTitleCase } from '@/utils/format';
 
 /** The nikah half of a NOC carries the same fields as a nikah registration. */
 const NIKAH_RULES: Record<string, FieldRule> = {
@@ -305,7 +306,7 @@ export default function MemberNOCRequest() {
                 onChange={setSubjectMemberId}
                 options={[
                   { value: '', label: 'Select a family member…' },
-                  ...familyMembers.map((m) => ({ value: m.id, label: m.name })),
+                  ...familyMembers.map((m) => ({ value: m.id, label: toTitleCase(m.name) })),
                 ]}
                 error={errors.subjectMemberId}
               />
@@ -625,7 +626,7 @@ export default function MemberNOCRequest() {
               <input
                 aria-label="Applicant Name"
                 type="text"
-                value={user?.name || ''}
+                value={toTitleCase(user?.name) || ''}
                 readOnly
                 className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400 text-sm cursor-not-allowed"
               />

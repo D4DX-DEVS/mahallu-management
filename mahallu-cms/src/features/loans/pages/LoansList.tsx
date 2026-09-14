@@ -21,6 +21,7 @@ import {
 } from '@/services/qardService';
 import LoanStatusBadge from '../components/LoanStatusBadge';
 import { loadErrorMessage } from '@/utils/errors';
+import { toTitleCase } from '@/utils/format';
 import PageHeader from '@/components/layout/PageHeader';
 
 export default function LoansList() {
@@ -65,7 +66,12 @@ export default function LoansList() {
   };
 
   const columns: TableColumn<QardLoan>[] = [
-    { key: 'applicantName', label: 'Applicant', width: '8.25rem', render: (_v, row) => loanApplicantName(row) },
+    {
+      key: 'applicantName',
+      label: 'Applicant',
+      width: '8.25rem',
+      render: (_v, row) => toTitleCase(loanApplicantName(row)),
+    },
     {
       key: 'purpose',
       label: 'Purpose',
@@ -103,7 +109,7 @@ export default function LoansList() {
       </div>
 
       {summary && (
-        <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3 xl:grid-cols-5">
+        <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
           <StatCard title="Disbursed" value={formatCurrency(summary.totalDisbursed)} />
           <StatCard title="Outstanding" value={formatCurrency(summary.totalOutstanding)} />
           <StatCard title="Repaid" value={formatCurrency(summary.totalRepaid)} />

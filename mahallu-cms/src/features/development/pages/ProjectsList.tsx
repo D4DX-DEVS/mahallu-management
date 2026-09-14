@@ -9,6 +9,8 @@ import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { toast } from '@/store/toastStore';
 import { developmentService, DevelopmentProject } from '@/services/developmentService';
 import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
 
 const PROJECT_AREAS = [
   { value: 'roads', label: 'Roads' },
@@ -38,6 +40,7 @@ export default function ProjectsList() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
   const [search, setSearch] = useState('');
   const [selectedArea, setSelectedArea] = useState<string>('');
   const [selectedStatus, setSelectedStatus] = useState<string>('');
@@ -61,9 +64,11 @@ export default function ProjectsList() {
       setProjects(data);
       if (pagination) {
         setTotalPages(pagination.totalPages);
+        setTotalItems(pagination.total);
       }
     } catch (error) {
       console.error("Couldn't load projects:", error);
+      toast.error(loadErrorMessage(error, 'projects'));
     } finally {
       setLoading(false);
     }
@@ -78,7 +83,7 @@ export default function ProjectsList() {
       setDeleteId(null);
       loadProjects();
     } catch (error) {
-      toast.error("Couldn't delete project. Please try again.");
+      toast.error(errorMessage(error, { action: 'delete project' }));
       setConfirmDelete(false);
       setDeleteId(null);
     }
@@ -177,7 +182,7 @@ export default function ProjectsList() {
                 className="cursor-pointer hover:shadow-lg transition"
               >
                 <div>
-                  <h3 className="font-semibold text-sm sm:text-base truncate capitalize">{project.name}</h3>
+                  <h3 className="font-semibold text-sm sm:text-base truncate">{toTitleCase(project.name)}</h3>
 
                   <div className="flex gap-2 mt-2 flex-wrap">
                     <span className={`text-xs px-2 py-1 rounded ${getAreaBadgeColor(project.area)}`}>
@@ -234,7 +239,7 @@ export default function ProjectsList() {
             <Pagination
               currentPage={currentPage}
               totalPages={totalPages}
-              totalItems={projects.length * totalPages}
+              totalItems={totalItems}
               itemsPerPage={itemsPerPage}
               onPageChange={setCurrentPage}
             />

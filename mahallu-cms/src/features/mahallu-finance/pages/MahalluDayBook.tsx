@@ -7,6 +7,7 @@ import { PageSkeleton } from '@/components/ui/Skeleton';
 import { accountingReportService, DayBookEntry } from '@/services/accountingReportService';
 import { loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 
 export default function MahalluDayBook() {
   const [loading, setLoading] = useState(false);
@@ -76,7 +77,7 @@ export default function MahalluDayBook() {
           <p className="text-center py-10 text-gray-500">Select a date range and click "Generate"</p>
         ) : (
           <>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
               <StatCard title="Total Income" value={<>₹{totalIncome.toLocaleString()}</>} tone="success" />
               <StatCard
                 title="Total Expense"
@@ -119,11 +120,11 @@ export default function MahalluDayBook() {
                           {entry.type}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 capitalize">
-                        {entry.ledgerName}
+                      <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
+                        {toTitleCase(entry.ledgerName)}
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 capitalize">
-                        {entry.categoryName}
+                      <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
+                        {toTitleCase(entry.categoryName)}
                       </td>
                       <td
                         className={`px-4 py-3 text-sm font-medium ${entry.type === 'income' ? 'text-green-600' : 'text-red-600'}`}

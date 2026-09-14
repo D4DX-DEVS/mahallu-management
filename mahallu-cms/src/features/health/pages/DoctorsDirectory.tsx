@@ -9,6 +9,7 @@ import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { toast } from '@/store/toastStore';
 import { useNavigate } from 'react-router-dom';
 import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 
 export default function DoctorsDirectory() {
   const navigate = useNavigate();
@@ -98,9 +99,9 @@ export default function DoctorsDirectory() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
               {doctors.map((doctor) => (
                 <div key={doctor.id} className="rounded-lg border border-border bg-card p-3 sm:p-4">
-                  <h3 className="text-base sm:text-lg font-semibold capitalize">{doctor.name}</h3>
+                  <h3 className="text-base sm:text-lg font-semibold">{toTitleCase(doctor.name)}</h3>
                   {doctor.specialty && (
-                    <p className="text-xs sm:text-sm text-gray-600 mt-1">{doctor.specialty}</p>
+                    <p className="text-xs sm:text-sm text-gray-600 mt-1">{toTitleCase(doctor.specialty)}</p>
                   )}
                   <div className="flex items-center gap-2 mt-3 text-xs sm:text-sm text-gray-700">
                     <FiPhone className="text-green-600" />

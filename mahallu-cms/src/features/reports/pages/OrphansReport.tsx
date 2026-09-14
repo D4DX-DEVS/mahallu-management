@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react';
-import { FiDownload, FiPrinter } from 'react-icons/fi';
+import { FiDownload, FiFileText, FiFile } from 'react-icons/fi';
 import Card from '@/components/ui/Card';
 import StatCard from '@/components/ui/StatCard';
 import Button from '@/components/ui/Button';
+import Dropdown, { DropdownItem } from '@/components/ui/Dropdown';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import { reportService, OrphansReport } from '@/services/reportService';
 import { exportToPDF } from '@/utils/exportUtils';
 import { loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 import SortableTh from '@/components/ui/SortableTh';
 import { useSortableRows } from '@/hooks/useSortableRows';
 
@@ -93,6 +95,11 @@ export default function OrphansReportPage() {
     toggleSort,
   } = useSortableRows(report?.orphans ?? []);
 
+  const exportItems: DropdownItem[] = [
+    { label: 'Export as CSV', icon: <FiFileText />, onClick: handleExportCSV },
+    { label: 'Export as PDF', icon: <FiFile />, onClick: handlePrintPDF },
+  ];
+
   if (loading) {
     return <PageSkeleton />;
   }
@@ -114,8 +121,14 @@ export default function OrphansReportPage() {
 
       <div className="flex gap-2 items-center justify-between">
         <div className="flex items-center gap-3">
-          <Button onClick={handleExportCSV} variant="outline" className="flex items-center gap-2" icon={<FiDownload />} collapseLabel>Export CSV</Button>
-          <Button onClick={handlePrintPDF} variant="outline" className="flex items-center gap-2" icon={<FiPrinter />} collapseLabel>Print PDF</Button>
+          <Dropdown
+            trigger={
+              <Button variant="outline" icon={<FiDownload />} collapseLabel>
+                Export
+              </Button>
+            }
+            items={exportItems}
+          />
         </div>
       </div>
 
@@ -151,8 +164,8 @@ export default function OrphansReportPage() {
               ) : (
                 report.orphans.map((orphan) => (
                   <tr key={orphan.id}>
-                    <td className="whitespace-nowrap px-3 py-2.5 text-sm text-foreground capitalize">
-                      {orphan.name}
+                    <td className="whitespace-nowrap px-3 py-2.5 text-sm text-foreground">
+                      {toTitleCase(orphan.name)}
                     </td>
                     <td className="whitespace-nowrap px-3 py-2.5 text-sm text-muted-foreground">
                       {orphan.age || '-'}
@@ -160,8 +173,8 @@ export default function OrphansReportPage() {
                     <td className="whitespace-nowrap px-3 py-2.5 text-sm text-muted-foreground capitalize">
                       {orphan.gender || '-'}
                     </td>
-                    <td className="whitespace-nowrap px-3 py-2.5 text-sm text-muted-foreground capitalize">
-                      {orphan.family || '-'}
+                    <td className="whitespace-nowrap px-3 py-2.5 text-sm text-muted-foreground">
+                      {orphan.family ? toTitleCase(orphan.family) : '-'}
                     </td>
                   </tr>
                 ))

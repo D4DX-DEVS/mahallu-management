@@ -9,6 +9,7 @@ import { instituteService } from '@/services/instituteService';
 import { useAuthStore } from '@/store/authStore';
 import { loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 
 export default function BalanceSheet() {
   const { currentInstituteId: userInstituteId } = useAuthStore();
@@ -80,7 +81,7 @@ export default function BalanceSheet() {
                 label="Institute"
                 options={[
                   { value: 'all', label: 'All Institutes' },
-                  ...institutes.map((i) => ({ value: i.id, label: i.name })),
+                  ...institutes.map((i) => ({ value: i.id, label: toTitleCase(i.name) })),
                 ]}
                 value={instituteFilter}
                 onChange={(e) => setInstituteFilter(e.target.value)}
@@ -137,7 +138,7 @@ export default function BalanceSheet() {
                         key={idx}
                         className="flex justify-between items-center p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg"
                       >
-                        <span className="text-sm text-gray-700 dark:text-gray-300">{bank.ledgerName}</span>
+                        <span className="text-sm text-gray-700 dark:text-gray-300">{toTitleCase(bank.ledgerName)}</span>
                         <span className="font-semibold text-blue-700 dark:text-blue-300">
                           ₹{bank.balance.toLocaleString()}
                         </span>
@@ -163,7 +164,7 @@ export default function BalanceSheet() {
                         key={idx}
                         className="flex justify-between items-center p-3 bg-green-50 dark:bg-green-900/20 rounded-lg"
                       >
-                        <span className="text-sm text-gray-700 dark:text-gray-300">{cat.category}</span>
+                        <span className="text-sm text-gray-700 dark:text-gray-300">{toTitleCase(cat.category)}</span>
                         <span className="font-medium text-green-700 dark:text-green-300">
                           ₹{cat.amount.toLocaleString()}
                         </span>
@@ -188,7 +189,7 @@ export default function BalanceSheet() {
                         key={idx}
                         className="flex justify-between items-center p-3 bg-red-50 dark:bg-red-900/20 rounded-lg"
                       >
-                        <span className="text-sm text-gray-700 dark:text-gray-300">{cat.category}</span>
+                        <span className="text-sm text-gray-700 dark:text-gray-300">{toTitleCase(cat.category)}</span>
                         <span className="font-medium text-red-700 dark:text-red-300">
                           ₹{cat.amount.toLocaleString()}
                         </span>

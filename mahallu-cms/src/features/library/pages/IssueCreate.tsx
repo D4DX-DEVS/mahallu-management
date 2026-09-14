@@ -14,6 +14,7 @@ import { memberService } from '@/services/memberService';
 import { toast } from '@/store/toastStore';
 import { FiArrowLeft, FiPlus } from 'react-icons/fi';
 import { errorMessage } from '@/utils/errors';
+import { toTitleCase } from '@/utils/format';
 import PageHeader from '@/components/layout/PageHeader';
 
 const issueSchema = z.object({
@@ -145,7 +146,7 @@ export default function IssueCreate() {
               <option value="">Choose a book...</option>
               {books.map((book) => (
                 <option key={book.id} value={book.id}>
-                  {book.title} - {book.author} ({book.availableCopies}/{book.copies} available)
+                  {book.title} - {toTitleCase(book.author)} ({book.availableCopies}/{book.copies} available)
                 </option>
               ))}
             </select>
@@ -161,7 +162,7 @@ export default function IssueCreate() {
                   placeholder="Search by name..."
                   value={watch('memberId')}
                   onChange={(v) => setValue('memberId', v, { shouldValidate: true })}
-                  options={members.map((m) => ({ value: m.id, label: m.name }))}
+                  options={members.map((m) => ({ value: m.id, label: toTitleCase(m.name) }))}
                   onSearch={handleMemberSearch}
                   error={errors.memberId?.message}
                 />

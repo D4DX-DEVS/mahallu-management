@@ -14,6 +14,7 @@ import { errorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { useFormValidation } from '@/hooks/useFormValidation';
 import { FieldRule, LIMITS } from '@/utils/validation';
+import { toTitleCase } from '@/utils/format';
 
 const RULES: Record<string, FieldRule> = {
   ledgerId: { label: 'ledger', required: true, type: 'id' },
@@ -102,7 +103,7 @@ export default function CreateMahalluLedgerItem() {
               label="Ledger *"
               options={[
                 { value: '', label: 'Select Ledger...' },
-                ...ledgers.map((l) => ({ value: l.id, label: `${l.name} (${l.type})` })),
+                ...ledgers.map((l) => ({ value: l.id, label: `${toTitleCase(l.name)} (${l.type})` })),
               ]}
               value={form.ledgerId}
               error={errors.ledgerId}

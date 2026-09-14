@@ -8,6 +8,7 @@ import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { toast } from '@/store/toastStore';
 import PageHeader from '@/components/layout/PageHeader';
 import { FieldRule, validateForm, firstError, LIMITS } from '@/utils/validation';
+import { toTitleCase } from '@/utils/format';
 
 /** The same rules as the create form and the API. */
 const RULES: Record<string, FieldRule> = {
@@ -131,7 +132,7 @@ export default function VacancyDetail() {
           >
             ←
           </button>
-          <PageHeader title={vacancy.title} />
+          <PageHeader title={toTitleCase(vacancy.title)} />
         </div>
         <div className="flex gap-2 items-center">
           {!isEditing && (
@@ -146,11 +147,11 @@ export default function VacancyDetail() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
           <div className="text-xs text-gray-600">Employer</div>
-          <div className="font-semibold text-gray-900">{employerName}</div>
+          <div className="font-semibold text-gray-900">{toTitleCase(employerName)}</div>
         </Card>
         <Card>
           <div className="text-xs text-gray-600">Location</div>
-          <div className="font-semibold text-gray-900">{vacancy.location || '—'}</div>
+          <div className="font-semibold text-gray-900">{vacancy.location ? toTitleCase(vacancy.location) : '—'}</div>
         </Card>
         <Card>
           <div className="text-xs text-gray-600">Salary Range</div>

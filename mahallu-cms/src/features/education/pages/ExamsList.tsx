@@ -13,7 +13,7 @@ import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import Select from '@/components/ui/Select';
 import { toast } from '@/store/toastStore';
 import { Pagination as PaginationType, TableColumn } from '@/types';
-import { formatDate } from '@/utils/format';
+import { formatDate, toTitleCase } from '@/utils/format';
 import { examService, Exam, ExamStatus } from '@/services/attendanceService';
 import { madrasaService } from '@/services/madrasaService';
 import { errorMessage } from '@/utils/errors';
@@ -81,7 +81,7 @@ export default function ExamsList() {
       setDeleting(true);
       await examService.deleteExam(deleteConfirm.id);
       setDeleteConfirm(null);
-      toast.success(`Exam "${deleteConfirm.name}" deleted`);
+      toast.success(`Exam "${toTitleCase(deleteConfirm.name)}" deleted`);
       if (classId) {
         fetchExams(classId);
       }
@@ -93,7 +93,7 @@ export default function ExamsList() {
   };
 
   const columns: TableColumn<Exam>[] = [
-    { key: 'name', label: 'Exam', width: '6.75rem', render: (v) => <span className="capitalize">{v}</span> },
+    { key: 'name', label: 'Exam', width: '6.75rem', render: (v) => <span>{toTitleCase(v)}</span> },
     { key: 'examDate', label: 'Date', width: '6.25rem', render: (v) => formatDate(v) },
     { key: 'maxMarks', label: 'Max Marks', width: '9.5rem', render: (v) => v },
     {
@@ -118,7 +118,7 @@ export default function ExamsList() {
       align: 'center',
       render: (_v, row) => (
         <ActionsMenu
-          label={'Actions for ' + row.name}
+          label={'Actions for ' + toTitleCase(row.name)}
           items={[
             {
               label: 'View',
@@ -141,12 +141,12 @@ export default function ExamsList() {
   return (
     <div>
       <PageHeader
-        description={cls?.name}
+        description={cls?.name ? toTitleCase(cls.name) : undefined}
         title="Exams"
         breadcrumbs={[
           { label: 'Services' },
           { label: 'Education', path: '/education' },
-          { label: cls?.name || 'Class', path: `/education/classes/${classId}` },
+          { label: cls?.name ? toTitleCase(cls.name) : 'Class', path: `/education/classes/${classId}` },
         ]}
       />
 
@@ -192,7 +192,7 @@ export default function ExamsList() {
       <ConfirmDialog
         isOpen={deleteConfirm !== null}
         title="Delete Exam"
-        message={deleteConfirm ? `Delete the exam "${deleteConfirm.name}"?` : ''}
+        message={deleteConfirm ? `Delete the exam "${toTitleCase(deleteConfirm.name)}"?` : ''}
         consequence="This action cannot be undone."
         isLoading={deleting}
         variant="danger"

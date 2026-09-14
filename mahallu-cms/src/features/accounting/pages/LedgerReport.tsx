@@ -11,6 +11,7 @@ import { instituteService } from '@/services/instituteService';
 import { useAuthStore } from '@/store/authStore';
 import { loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 
 interface LedgerReportEntry {
   id: string;
@@ -97,7 +98,7 @@ export default function LedgerReport() {
               label="Ledger"
               options={[
                 { value: '', label: 'Select Ledger' },
-                ...ledgers.map((l) => ({ value: l.id, label: `${l.name} (${l.type})` })),
+                ...ledgers.map((l) => ({ value: l.id, label: `${toTitleCase(l.name)} (${l.type})` })),
               ]}
               value={selectedLedger}
               onChange={(e) => setSelectedLedger(e.target.value)}
@@ -125,7 +126,7 @@ export default function LedgerReport() {
                 label="Institute"
                 options={[
                   { value: 'all', label: 'All Institutes' },
-                  ...institutes.map((i) => ({ value: i.id, label: i.name })),
+                  ...institutes.map((i) => ({ value: i.id, label: toTitleCase(i.name) })),
                 ]}
                 value={instituteFilter}
                 onChange={(e) => setInstituteFilter(e.target.value)}
@@ -150,11 +151,11 @@ export default function LedgerReport() {
         ) : (
           <>
             {/* Summary Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-4">
               <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
                 <p className="text-sm text-gray-600 dark:text-gray-400">Ledger</p>
-                <p className="text-lg font-semibold text-gray-900 dark:text-gray-100 capitalize">
-                  {reportData.ledger?.name || '-'}
+                <p className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                  {reportData.ledger?.name ? toTitleCase(reportData.ledger.name) : '-'}
                 </p>
                 <p className="text-xs text-gray-500">{reportData.ledger?.type}</p>
               </div>

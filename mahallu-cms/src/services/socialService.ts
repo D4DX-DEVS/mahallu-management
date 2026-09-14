@@ -1,4 +1,4 @@
-import api, { asList } from './api';
+import api, { asList, fetchAllPages } from './api';
 
 export interface Banner {
   id: string;
@@ -172,15 +172,17 @@ export const socialService = {
   },
 
   // No dedicated GET /social/support/:id endpoint exists on the backend,
-  // so fetch the list and find the matching ticket.
+  // so fetch every page and find the matching ticket. `limit` is capped at
+  // 100 server-side — a bare `limit: 1000` used to 400 on every open.
   getSupportById: async (id: string) => {
-    const response = await api.get<{ success: boolean; data: Support[]; pagination?: any }>(
-      '/social/support',
-      {
-        params: { limit: 1000 },
-      }
+    const all = await fetchAllPages<Support>(({ page, limit }) =>
+      api
+        .get<{ success: boolean; data: Support[]; pagination?: any }>('/social/support', {
+          params: { page, limit },
+        })
+        .then((res) => ({ data: asList(res.data.data), pagination: res.data.pagination }))
     );
-    const ticket = response.data.data.find((s) => s.id === id);
+    const ticket = all.find((s) => s.id === id);
     if (!ticket) {
       throw new Error('Support ticket not found');
     }

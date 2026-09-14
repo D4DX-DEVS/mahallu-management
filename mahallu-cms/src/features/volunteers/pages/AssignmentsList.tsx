@@ -17,6 +17,7 @@ import StatusBadge from '@/components/ui/StatusBadge';
 import PageHeader from '@/components/layout/PageHeader';
 import SortableTh from '@/components/ui/SortableTh';
 import { useSortableRows } from '@/hooks/useSortableRows';
+import { toTitleCase } from '@/utils/format';
 
 export default function AssignmentsList() {
   const navigate = useNavigate();
@@ -77,7 +78,7 @@ export default function AssignmentsList() {
 
   const volunteerNames = (assignment: VolunteerAssignment) => {
     if (!Array.isArray(assignment.volunteerIds)) return '-';
-    return assignment.volunteerIds.map((v) => (typeof v === 'object' ? v.name : '-')).join(', ');
+    return assignment.volunteerIds.map((v) => (typeof v === 'object' ? toTitleCase(v.name) : '-')).join(', ');
   };
 
   /* Service type and Volunteers both render resolved labels, so each sorts on

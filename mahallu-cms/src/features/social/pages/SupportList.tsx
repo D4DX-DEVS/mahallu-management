@@ -13,6 +13,7 @@ import { PageSkeleton } from '@/components/ui/Skeleton';
 import TableToolbar from '@/components/ui/TableToolbar';
 import { TableColumn, Pagination as PaginationType } from '@/types';
 import { socialService, Support } from '@/services/socialService';
+import { fetchAllPages } from '@/services/api';
 import { formatDate } from '@/utils/format';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
 import { toast } from '@/store/toastStore';
@@ -71,12 +72,13 @@ export default function SupportList() {
     try {
       setIsExporting(true);
 
-      const params: any = { limit: 10000 };
-      if (statusFilter !== 'all') params.status = statusFilter;
-      if (priorityFilter !== 'all') params.priority = priorityFilter;
+      const filters: any = {};
+      if (statusFilter !== 'all') filters.status = statusFilter;
+      if (priorityFilter !== 'all') filters.priority = priorityFilter;
 
-      const result = await socialService.getAllSupport(params);
-      const dataToExport = Array.isArray(result.data) ? result.data : [];
+      const dataToExport = await fetchAllPages<Support>(({ page, limit }) =>
+        socialService.getAllSupport({ ...filters, page, limit })
+      );
 
       if (dataToExport.length === 0) {
         toast.info('No data to export');
@@ -182,7 +184,7 @@ export default function SupportList() {
       <div className="space-y-3">
         <PageHeader title="Support Tickets" description="Manage support tickets" />
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {stats.map((stat, index) => (
             <StatCard key={index} {...stat} />
           ))}
@@ -218,7 +220,10 @@ export default function SupportList() {
                   { value: 'closed', label: 'Closed' },
                 ]}
                 value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
+                onChange={(e) => {
+                  setStatusFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
               />
             </div>
             <div className="w-full sm:w-40">
@@ -230,7 +235,10 @@ export default function SupportList() {
                   { value: 'high', label: 'High' },
                 ]}
                 value={priorityFilter}
-                onChange={(e) => setPriorityFilter(e.target.value)}
+                onChange={(e) => {
+                  setPriorityFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
               />
             </div>
           </FilterPanel>

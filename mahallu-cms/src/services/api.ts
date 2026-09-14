@@ -168,3 +168,40 @@ export default api;
  * empty state instead of disappearing.
  */
 export const asList = <T,>(value: T[] | null | undefined): T[] => (Array.isArray(value) ? value : []);
+
+/**
+ * The largest page the API will serve.
+ *
+ * Every list route validates `limit` with `isInt({ min: 1, max: 100 })`, so a
+ * call that asked for `limit: 10000` (or 200) to mean "everything" was answered
+ * with a 400 — which, in a `.catch(() => setX([]))`, showed up as an empty
+ * dropdown or an empty export rather than as an error.
+ */
+export const MAX_PAGE_LIMIT = 100;
+
+/**
+ * Every page of a list endpoint, in order.
+ *
+ * Use where a screen genuinely needs the whole set — a picker, an export, a
+ * total. `fetchPage` receives `{ page, limit }` and returns whatever the
+ * service returns, so it composes with any extra filters the caller adds.
+ */
+export const fetchAllPages = async <T,>(
+  fetchPage: (params: { page: number; limit: number }) => Promise<{
+    data: T[];
+    pagination?: { totalPages?: number; total?: number } | null;
+  }>,
+  maxPages = 200
+): Promise<T[]> => {
+  const all: T[] = [];
+  for (let page = 1; page <= maxPages; page += 1) {
+    const result = await fetchPage({ page, limit: MAX_PAGE_LIMIT });
+    const rows = asList(result?.data);
+    all.push(...rows);
+    // A short page is the last page, whether or not the endpoint paginates.
+    if (rows.length < MAX_PAGE_LIMIT) break;
+    const totalPages = result?.pagination?.totalPages;
+    if (totalPages != null && page >= totalPages) break;
+  }
+  return all;
+};

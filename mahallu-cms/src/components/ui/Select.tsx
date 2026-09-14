@@ -53,7 +53,12 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
     const [searchQuery, setSearchQuery] = useState('');
     const [focusedIndex, setFocusedIndex] = useState(-1);
     const [internalValue, setInternalValue] = useState(value ?? '');
-    const [menuRect, setMenuRect] = useState<{ top: number; left: number; width: number } | null>(null);
+    const [menuRect, setMenuRect] = useState<{
+      top: number;
+      left: number;
+      width: number;
+      maxHeight: number;
+    } | null>(null);
     const wrapperRef = useRef<HTMLDivElement>(null);
     const triggerRef = useRef<HTMLButtonElement>(null);
     const menuRef = useRef<HTMLDivElement>(null);
@@ -94,10 +99,20 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
       [onChange, props.name]
     );
     /*
-     * Keep the portalled menu pinned to the trigger while the page scrolls. */
+     * Keep the portalled menu pinned to the trigger while the page scrolls.
+     *
+     * Always opens below the trigger. When the trigger sits near the bottom of
+     * the viewport, the menu's height is capped to the remaining space so it
+     * scrolls internally instead of running off-screen. */
     const positionMenu = useCallback(() => {
       const rect = triggerRef.current?.getBoundingClientRect();
-      if (rect) setMenuRect({ top: rect.bottom + 4, left: rect.left, width: rect.width });
+      if (!rect) return;
+      const MAX_MENU_HEIGHT = 320; // max-h-80
+      const GAP = 4;
+      const VIEWPORT_MARGIN = 8;
+      const spaceBelow = window.innerHeight - rect.bottom - GAP - VIEWPORT_MARGIN;
+      const maxHeight = Math.min(MAX_MENU_HEIGHT, Math.max(spaceBelow, 100));
+      setMenuRect({ top: rect.bottom + GAP, left: rect.left, width: rect.width, maxHeight });
     }, []);
     useLayoutEffect(() => {
       if (!isOpen) return;
@@ -177,8 +192,14 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
     const menu = isOpen && menuRect && (
       <div
         ref={menuRef}
-        style={{ position: 'fixed', top: menuRect.top, left: menuRect.left, width: menuRect.width }}
-        className="z-[100] max-h-80 overflow-hidden rounded-md border border-border bg-popover text-popover-foreground shadow-md"
+        style={{
+          position: 'fixed',
+          top: menuRect.top,
+          left: menuRect.left,
+          width: menuRect.width,
+          maxHeight: menuRect.maxHeight,
+        }}
+        className="z-[100] overflow-hidden rounded-md border border-border bg-popover text-popover-foreground shadow-md"
         onKeyDown={onKeyDown}
       >
         {showSearch && (

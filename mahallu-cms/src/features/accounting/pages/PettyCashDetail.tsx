@@ -11,6 +11,7 @@ import { pettyCashService, PettyCashFund, PettyCashTransaction } from '@/service
 import { toast } from '@/store/toastStore';
 import { errorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 
 export default function PettyCashDetail() {
   const { id } = useParams<{ id: string }>();
@@ -129,13 +130,13 @@ export default function PettyCashDetail() {
   return (
     <div className="space-y-4">
       <PageHeader
-        title={fund.custodianName}
-        description={`${instituteName} — Petty Cash Fund`}
+        title={toTitleCase(fund.custodianName)}
+        description={`${toTitleCase(instituteName)} — Petty Cash Fund`}
         breadcrumbs={[{ label: 'Petty Cash', path: '/petty-cash' }]}
       />
 
       {/* Fund Summary */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3">
         <StatCard title="Float Amount" value={<>₹{fund.floatAmount.toLocaleString()}</>} />
         <StatCard
           title="Current Balance"

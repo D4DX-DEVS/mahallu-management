@@ -15,6 +15,7 @@ import { memberService } from '@/services/memberService';
 import { Member } from '@/types';
 import { errorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 
 const nikahSchema = z.object({
   groomName: z.string().max(200, 'Please keep the groom name to 200 characters or less.').min(1, 'Groom name is required'),
@@ -99,8 +100,8 @@ export default function CreateNikahRegistration() {
         setMemberOptions(
           fetchedMembers.map((member: Member) => ({
             value: member.id,
-            label: member.name,
-            sublabel: member.familyName ? `Family: ${member.familyName}` : undefined,
+            label: toTitleCase(member.name),
+            sublabel: member.familyName ? `Family: ${toTitleCase(member.familyName)}` : undefined,
           }))
         );
       } catch (err) {

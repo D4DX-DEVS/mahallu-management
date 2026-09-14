@@ -12,6 +12,7 @@ import { toast } from '@/store/toastStore';
 import { errorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { loadErrorMessage } from '@/utils/errors';
+import { toTitleCase } from '@/utils/format';
 
 export default function SupportDetail() {
   const { id } = useParams<{ id: string }>();
@@ -84,7 +85,7 @@ export default function SupportDetail() {
     <div className="space-y-4">
       <PageHeader
         title={ticket.subject}
-        description={`${requesterName ? `From ${requesterName} · ` : ''}${formatDate(ticket.createdAt)}`}
+        description={`${requesterName ? `From ${toTitleCase(requesterName)} · ` : ''}${formatDate(ticket.createdAt)}`}
         breadcrumbs={[{ label: 'Support', path: ROUTES.SOCIAL.SUPPORT }]}
       />
 

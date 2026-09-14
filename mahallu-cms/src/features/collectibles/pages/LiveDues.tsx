@@ -7,10 +7,13 @@ import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
 import { TableColumn, Pagination as PaginationType } from '@/types';
 import { collectibleService, FamilyDue } from '@/services/collectibleService';
+import { fetchAllPages } from '@/services/api';
 import { useDebounce } from '@/hooks/useDebounce';
 import { exportToCSV } from '@/utils/exportUtils';
-import { loadErrorMessage } from '@/utils/errors';
+import { loadErrorMessage, errorMessage } from '@/utils/errors';
+import { toast } from '@/store/toastStore';
 import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 
 export default function LiveDues() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -28,6 +31,7 @@ export default function LiveDues() {
   const [pagination, setPagination] = useState<PaginationType | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(20);
+  const [isExporting, setIsExporting] = useState(false);
 
   const debouncedSearch = useDebounce(searchQuery, 500);
 
@@ -62,9 +66,9 @@ export default function LiveDues() {
   const columns: TableColumn<FamilyDue>[] = [
     // Row number must account for the page offset, not just the index in the slice
     { key: 'familyId', label: 'No.', width: '6rem', render: (_, __, index) => (currentPage - 1) * itemsPerPage + index + 1 },
-    { key: 'houseName', label: 'House Name', width: '9.75rem' },
-    { key: 'familyHead', label: 'Family Head', width: '9.75rem', render: (v) => v || '-' },
-    { key: 'varisangyaGrade', label: 'Grade', width: '6.75rem', render: (v) => v || '-' },
+    { key: 'houseName', label: 'House Name', width: '9.75rem', render: (v) => toTitleCase(v) },
+    { key: 'familyHead', label: 'Family Head', width: '9.75rem', render: (v) => (v ? toTitleCase(v) : '-') },
+    { key: 'varisangyaGrade', label: 'Grade', width: '6.75rem', render: (v) => (v ? toTitleCase(v) : '-') },
     { key: 'monthlyAmount', label: 'Monthly', width: '7.75rem', render: (v) => `₹${(v || 0).toLocaleString()}` },
     { key: 'expectedAmount', label: 'Expected (YTD)', width: '11rem', render: (v) => `₹${(v || 0).toLocaleString()}` },
     { key: 'paidAmount', label: 'Paid', width: '6rem', render: (v) => `₹${(v || 0).toLocaleString()}` },
@@ -94,12 +98,28 @@ export default function LiveDues() {
 
   // Export covers every matching row, not just the page on screen
   const handleExport = async (_type?: 'csv' | 'json' | 'pdf') => {
-    const all = await collectibleService.getFamilyDues({
-      search: debouncedSearch || undefined,
-      onlyPending,
-      limit: 10000,
-    });
-    exportToCSV(exportColumns, all.dues, 'varisangya-dues');
+    try {
+      setIsExporting(true);
+      // The endpoint caps limit at 100 and 400s above it, so a single
+      // limit:10000 request always failed - page through instead.
+      const dues = await fetchAllPages<FamilyDue>(async (p) => {
+        const page = await collectibleService.getFamilyDues({
+          search: debouncedSearch || undefined,
+          onlyPending,
+          ...p,
+        });
+        return { data: page.dues, pagination: page.pagination };
+      });
+      if (dues.length === 0) {
+        toast.info('Nothing to export');
+        return;
+      }
+      exportToCSV(exportColumns, dues, 'varisangya-dues');
+    } catch (err: any) {
+      toast.error(errorMessage(err, { action: 'export this list' }));
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   return (
@@ -109,7 +129,7 @@ export default function LiveDues() {
       </div>
 
       {summary && (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <StatCard title="Families" value={summary.totalFamilies} icon={<FiHome className="h-5 w-5" />} />
           <StatCard
             title="With Dues"
@@ -130,7 +150,12 @@ export default function LiveDues() {
       )}
 
       <TableCard>
-        <TableToolbar searchQuery={searchQuery} onSearchChange={setSearchQuery} onExport={handleExport} />
+        <TableToolbar
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          onExport={handleExport}
+          isExporting={isExporting}
+        />
 
         <div className="mb-4 flex items-center gap-2 px-1">
           <input

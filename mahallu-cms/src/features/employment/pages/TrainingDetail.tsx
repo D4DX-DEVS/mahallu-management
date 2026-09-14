@@ -8,6 +8,7 @@ import {
   EMPLOYMENT_OUTCOME_OPTIONS,
 } from '@/services/employmentService';
 import { memberService } from '@/services/memberService';
+import { fetchAllPages } from '@/services/api';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
@@ -15,6 +16,7 @@ import { toast } from '@/store/toastStore';
 import PageHeader from '@/components/layout/PageHeader';
 import Input from '@/components/ui/Input';
 import { FieldRule, validateForm, firstError, LIMITS } from '@/utils/validation';
+import { toTitleCase } from '@/utils/format';
 
 /** The same rules as the create form and the API. */
 const RULES: Record<string, FieldRule> = {
@@ -51,8 +53,8 @@ export default function TrainingDetail() {
         }
 
         // Fetch members for dropdown
-        const memberRes = await memberService.getAll({ limit: 1000 });
-        setMembers(memberRes.data || []);
+        const memberRows = await fetchAllPages((params) => memberService.getAll(params) as any);
+        setMembers(memberRows);
       } catch (error) {
         console.error("Couldn't load data:", error);
       } finally {
@@ -206,7 +208,7 @@ export default function TrainingDetail() {
           >
             ←
           </button>
-          <PageHeader title={training.name} />
+          <PageHeader title={toTitleCase(training.name)} />
         </div>
         {!isEditing && (
           <Button onClick={() => setIsEditing(true)} className="bg-blue-600 text-white">
@@ -290,7 +292,7 @@ export default function TrainingDetail() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <div>
                 <div className="text-xs text-gray-600">Trainer</div>
-                <div className="font-semibold text-gray-900 capitalize">{training.trainerName || '—'}</div>
+                <div className="font-semibold text-gray-900">{training.trainerName ? toTitleCase(training.trainerName) : '—'}</div>
               </div>
               <div>
                 <div className="text-xs text-gray-600">Start Date</div>
@@ -338,8 +340,8 @@ export default function TrainingDetail() {
                 >
                   <option value="">Choose a member...</option>
                   {members.map((member) => (
-                    <option key={member.id} value={member.id} className="capitalize">
-                      {member.name} ({member.familyName})
+                    <option key={member.id} value={member.id}>
+                      {toTitleCase(member.name)} ({toTitleCase(member.familyName)})
                     </option>
                   ))}
                 </select>
@@ -375,8 +377,8 @@ export default function TrainingDetail() {
                 <tbody>
                   {training.participants.map((participant) => (
                     <tr key={getMemberId(participant)} className="border-b hover:bg-gray-50">
-                      <td className="px-4 py-3 text-sm font-medium text-gray-900 capitalize">
-                        {getMemberName(participant)}
+                      <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                        {toTitleCase(getMemberName(participant))}
                       </td>
                       <td className="px-4 py-3 text-sm">
                         {editingParticipantId === getMemberId(participant) ? (

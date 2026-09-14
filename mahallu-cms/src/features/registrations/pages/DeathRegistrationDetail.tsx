@@ -8,7 +8,7 @@ import { PageSkeleton } from '@/components/ui/Skeleton';
 import DocumentsPanel from '@/components/ui/DocumentsPanel';
 import { ROUTES } from '@/constants/routes';
 import { registrationService, DeathRegistration } from '@/services/registrationService';
-import { formatDate } from '@/utils/format';
+import { formatDate, toTitleCase } from '@/utils/format';
 import { toast } from '@/store/toastStore';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import StatusBadge from '@/components/ui/StatusBadge';
@@ -107,7 +107,7 @@ export default function DeathRegistrationDetail() {
   return (
     <div className="space-y-4">
       <PageHeader
-        title={registration.deceasedName}
+        title={toTitleCase(registration.deceasedName)}
         breadcrumbs={[{ label: 'Death Registrations', path: ROUTES.REGISTRATIONS.DEATH }]}
       />
 
@@ -130,7 +130,7 @@ export default function DeathRegistrationDetail() {
           <div className="space-y-3">
             <div>
               <span className="text-sm text-gray-500 dark:text-gray-400">Deceased Name</span>
-              <p className="text-gray-900 dark:text-gray-100 font-medium">{registration.deceasedName}</p>
+              <p className="text-gray-900 dark:text-gray-100 font-medium">{toTitleCase(registration.deceasedName)}</p>
             </div>
             <div>
               <span className="text-sm text-gray-500 dark:text-gray-400">Death Date</span>
@@ -139,7 +139,7 @@ export default function DeathRegistrationDetail() {
             {registration.placeOfDeath && (
               <div>
                 <span className="text-sm text-gray-500 dark:text-gray-400">Place of Death</span>
-                <p className="text-gray-900 dark:text-gray-100">{registration.placeOfDeath}</p>
+                <p className="text-gray-900 dark:text-gray-100">{toTitleCase(registration.placeOfDeath)}</p>
               </div>
             )}
             {registration.causeOfDeath && (
@@ -171,7 +171,7 @@ export default function DeathRegistrationDetail() {
             {registration.informantName ? (
               <div>
                 <span className="text-sm text-gray-500 dark:text-gray-400">Informant Name</span>
-                <p className="text-gray-900 dark:text-gray-100">{registration.informantName}</p>
+                <p className="text-gray-900 dark:text-gray-100">{toTitleCase(registration.informantName)}</p>
               </div>
             ) : (
               <p className="text-sm text-gray-400 italic">No informant information provided</p>
@@ -179,7 +179,7 @@ export default function DeathRegistrationDetail() {
             {registration.informantRelation && (
               <div>
                 <span className="text-sm text-gray-500 dark:text-gray-400">Relation to Deceased</span>
-                <p className="text-gray-900 dark:text-gray-100">{registration.informantRelation}</p>
+                <p className="text-gray-900 dark:text-gray-100">{toTitleCase(registration.informantRelation)}</p>
               </div>
             )}
             {registration.informantPhone && (

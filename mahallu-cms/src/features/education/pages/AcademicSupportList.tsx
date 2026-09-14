@@ -19,6 +19,7 @@ import {
 } from '@/services/scholarshipService';
 import { errorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 import SortableTh from '@/components/ui/SortableTh';
 import { useSortableRows } from '@/hooks/useSortableRows';
 
@@ -192,7 +193,7 @@ export default function AcademicSupportList() {
                   <tbody>
                     {sortedCases.map((c) => (
                       <tr key={c.id} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
-                        <td className="py-2 font-medium capitalize">{memberName(c.memberId)}</td>
+                        <td className="py-2 font-medium">{toTitleCase(memberName(c.memberId))}</td>
                         <td className="py-2 hidden sm:table-cell text-xs">{supportCaseTypeLabel(c.type)}</td>
                         <td className="py-2 hidden md:table-cell text-xs">
                           <button
@@ -202,8 +203,8 @@ export default function AcademicSupportList() {
                             {c.description}
                           </button>
                         </td>
-                        <td className="py-2 hidden lg:table-cell text-xs capitalize">
-                          {c.mentorName || '—'}
+                        <td className="py-2 hidden lg:table-cell text-xs">
+                          {c.mentorName ? toTitleCase(c.mentorName) : '—'}
                         </td>
                         <td className="py-2">
                           <span className="text-xs px-2 py-1 rounded bg-gray-100 dark:bg-gray-800">
@@ -251,7 +252,7 @@ export default function AcademicSupportList() {
       <ConfirmDialog
         isOpen={deleteConfirm !== null}
         title="Delete Support Case"
-        message={deleteConfirm ? `Delete the support case for ${deleteConfirm.name}?` : ''}
+        message={deleteConfirm ? `Delete the support case for ${toTitleCase(deleteConfirm.name)}?` : ''}
         consequence="This action cannot be undone."
         isLoading={deleting}
         variant="danger"

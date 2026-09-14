@@ -5,7 +5,7 @@ import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import { toast } from '@/store/toastStore';
-import { errorMessage } from '@/utils/errors';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import {
   getCounsellingCaseById,
   addCounsellingNote,
@@ -13,6 +13,7 @@ import {
   ICounsellingCase,
 } from '@/services/counsellingService';
 import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 
 export default function CounsellingDetail() {
   const { id } = useParams<{ id: string }>();
@@ -36,6 +37,7 @@ export default function CounsellingDetail() {
       setEditStatus(response.data.status);
     } catch (error) {
       console.error("Couldn't load case:", error);
+      toast.error(loadErrorMessage(error, 'the counselling case'));
     } finally {
       setLoading(false);
     }
@@ -101,12 +103,16 @@ export default function CounsellingDetail() {
               </div>
               <div>
                 <p className="text-xs text-gray-600">Counsellor</p>
-                <p className="font-medium">{caseRecord.counsellorName}</p>
+                <p className="font-medium">{toTitleCase(caseRecord.counsellorName)}</p>
               </div>
               <div>
                 <p className="text-xs text-gray-600">Client</p>
                 <p className="font-medium">
-                  {caseRecord.clientName || (caseRecord.clientMemberId ? 'Member ID' : 'Anonymous')}
+                  {caseRecord.clientName
+                    ? toTitleCase(caseRecord.clientName)
+                    : caseRecord.clientMemberId
+                      ? 'Member ID'
+                      : 'Anonymous'}
                 </p>
               </div>
               <div>
@@ -168,7 +174,7 @@ export default function CounsellingDetail() {
               caseRecord.sessionNotes.map((sessionNote, idx) => (
                 <div key={idx} className="border-l-2 border-gray-300 pl-4">
                   <p className="text-xs text-gray-600">
-                    {new Date(sessionNote.date).toLocaleString()} by {sessionNote.addedBy}
+                    {new Date(sessionNote.date).toLocaleString()} by {toTitleCase(sessionNote.addedBy)}
                   </p>
                   <p className="text-sm mt-1">{sessionNote.note}</p>
                 </div>

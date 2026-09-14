@@ -13,14 +13,15 @@ import TableToolbar from '@/components/ui/TableToolbar';
 import Dropdown from '@/components/ui/Dropdown';
 import { TableColumn, Pagination as PaginationType, Member } from '@/types';
 import { memberService } from '@/services/memberService';
-import { collectibleService } from '@/services/collectibleService';
+import { collectibleService, Varisangya } from '@/services/collectibleService';
+import { fetchAllPages } from '@/services/api';
 import { useDebounce } from '@/hooks/useDebounce';
-import { formatDate } from '@/utils/format';
+import { formatDate, toTitleCase } from '@/utils/format';
 import { ROUTES } from '@/constants/routes';
 import { exportToCSV, exportToJSON } from '@/utils/exportUtils';
 import { exportInvoicesToPdf, InvoiceDetails } from '@/utils/invoiceUtils';
 import { toast } from '@/store/toastStore';
-import { loadErrorMessage } from '@/utils/errors';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
 
 interface MemberVarisangyaData extends Member {
   totalVarisangya?: number;
@@ -48,6 +49,12 @@ export default function MemberVarisangyaList() {
 
   const debouncedSearch = useDebounce(searchQuery, 500);
 
+  // A page number that only made sense for the previous search must not
+  // survive into the new one - reset it once the debounce settles.
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearch]);
+
   useEffect(() => {
     fetchMembers();
   }, [debouncedSearch, currentPage]);
@@ -60,8 +67,9 @@ export default function MemberVarisangyaList() {
       if (debouncedSearch) params.search = debouncedSearch;
       const membersResult = await memberService.getAll(params);
       const membersData = membersResult.data;
-      const varisangyasResult = await collectibleService.getAllVarisangyas();
-      const allVarisangyas = varisangyasResult.data;
+      // /collectibles/varisangya defaults to 10 rows with no limit passed - fetch every
+      // page so per-member totals aren't computed off an arbitrary slice.
+      const allVarisangyas = await fetchAllPages<Varisangya>((p) => collectibleService.getAllVarisangyas(p));
       const membersWithVarisangya = membersData.map((member) => {
         const memberVarisangyas = allVarisangyas.filter((v) => getMemberId(v) === member.id);
         const totalVarisangya = memberVarisangyas.reduce((sum, v) => sum + (v.amount || 0), 0);
@@ -88,12 +96,12 @@ export default function MemberVarisangyaList() {
   const handleExport = async (type: 'csv' | 'json' | 'pdf') => {
     try {
       setIsExporting(true);
-      const params: any = { limit: 10000 };
-      if (debouncedSearch) params.search = debouncedSearch;
-      const membersResult = await memberService.getAll(params);
-      const membersData = membersResult.data;
-      const varisangyasResult = await collectibleService.getAllVarisangyas();
-      const allVarisangyas = varisangyasResult.data;
+      const filters: any = {};
+      if (debouncedSearch) filters.search = debouncedSearch;
+      // /members and /collectibles/varisangya cap limit at 100 and 400 above it, so a
+      // single limit:10000 request always failed - page through both instead.
+      const membersData = await fetchAllPages<Member>((p) => memberService.getAll({ ...filters, ...p }));
+      const allVarisangyas = await fetchAllPages<Varisangya>((p) => collectibleService.getAllVarisangyas(p));
       const dataToExport = membersData.map((member) => {
         const memberVarisangyas = allVarisangyas.filter((v) => getMemberId(v) === member.id);
         const totalVarisangya = memberVarisangyas.reduce((sum, v) => sum + (v.amount || 0), 0);
@@ -128,7 +136,7 @@ export default function MemberVarisangyaList() {
                   title: 'Member Varisangya Payment',
                   receiptNo: entry.receiptNo,
                   payerLabel: 'Member',
-                  payerName: member.name || '-',
+                  payerName: toTitleCase(member.name) || '-',
                   amount: entry.amount,
                   paymentDate: entry.paymentDate,
                   paymentMethod: entry.paymentMethod,
@@ -144,8 +152,7 @@ export default function MemberVarisangyaList() {
           break;
       }
     } catch (error: any) {
-      console.error('Export error:', error);
-      toast.error(error?.message || "Couldn't export member varisangya data");
+      toast.error(errorMessage(error, { action: 'export member varisangya data' }));
     } finally {
       setIsExporting(false);
     }
@@ -165,8 +172,9 @@ export default function MemberVarisangyaList() {
           break;
         case 'pdf':
           {
-            const varisangyasResult = await collectibleService.getAllVarisangyas({ memberId: row.id });
-            const memberVarisangyas = varisangyasResult.data || [];
+            const memberVarisangyas = await fetchAllPages<Varisangya>((p) =>
+              collectibleService.getAllVarisangyas({ memberId: row.id, ...p })
+            );
             if (memberVarisangyas.length === 0) {
               toast.info('No payment records to export for this member');
               return;
@@ -175,7 +183,7 @@ export default function MemberVarisangyaList() {
               title: 'Member Varisangya Payment',
               receiptNo: entry.receiptNo || '-',
               payerLabel: 'Member',
-              payerName: row.name || '-',
+              payerName: toTitleCase(row.name) || '-',
               amount: entry.amount,
               paymentDate: entry.paymentDate,
               paymentMethod: entry.paymentMethod || '-',
@@ -186,8 +194,7 @@ export default function MemberVarisangyaList() {
           break;
       }
     } catch (error: any) {
-      console.error('Row export error:', error);
-      toast.error(error?.message || "Couldn't export member varisangya records");
+      toast.error(errorMessage(error, { action: 'export member varisangya records' }));
     } finally {
       setExportingRowId(null);
     }
@@ -203,11 +210,11 @@ export default function MemberVarisangyaList() {
           to={ROUTES.MEMBERS.DETAIL(row.id)}
           className="text-primary-600 hover:text-primary-700 dark:text-primary-400"
         >
-          {name}
+          {toTitleCase(name)}
         </Link>
       ),
     },
-    { key: 'familyName', label: 'Family', width: '7.25rem' },
+    { key: 'familyName', label: 'Family', width: '7.25rem', render: (name) => toTitleCase(name) },
     { key: 'varisangyaCount', label: 'Payments', width: '8.75rem', render: (count) => count || 0 },
     {
       key: 'totalVarisangya',
@@ -292,7 +299,7 @@ export default function MemberVarisangyaList() {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         {stats.map((stat, index) => (
           <StatCard key={index} {...stat} />
         ))}

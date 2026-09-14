@@ -10,9 +10,11 @@ import {
   SUPPORT_CASE_STATUS_OPTIONS,
 } from '@/services/scholarshipService';
 import { memberService } from '@/services/memberService';
+import { fetchAllPages } from '@/services/api';
 import { errorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import Input from '@/components/ui/Input';
+import { toTitleCase } from '@/utils/format';
 import { useFormValidation } from '@/hooks/useFormValidation';
 import { FieldRule, LIMITS, firstError, validateForm } from '@/utils/validation';
 
@@ -50,9 +52,8 @@ export default function AcademicSupportCreate() {
   const { errors, setErrors } = useFormValidation(RULES);
 
   useEffect(() => {
-    memberService
-      .getAll({ page: 1, limit: 200 } as any)
-      .then((result: any) => setMembers(result.data || []))
+    fetchAllPages((params) => memberService.getAll(params) as any)
+      .then((rows) => setMembers(rows))
       .catch(() => setMembers([]))
       .finally(() => setLoadingMembers(false));
   }, []);
@@ -80,7 +81,7 @@ export default function AcademicSupportCreate() {
         startDate: new Date(formData.startDate).toISOString(),
       });
       const member = members.find((m) => (m._id || m.id) === formData.memberId);
-      toast.success(`Support case created for ${member?.name || 'student'}`);
+      toast.success(`Support case created for ${member?.name ? toTitleCase(member.name) : 'student'}`);
       navigate('/education/support');
     } catch (err: any) {
       setError(errorMessage(err, { action: 'create case' }));
@@ -109,7 +110,7 @@ export default function AcademicSupportCreate() {
               onChange={(value) => setFormData((prev) => ({ ...prev, memberId: value }))}
               options={members.map((member: any) => ({
                 value: member._id || member.id,
-                label: `${member.name}${member.familyName ? ` - ${member.familyName}` : ''}`,
+                label: `${toTitleCase(member.name)}${member.familyName ? ` - ${toTitleCase(member.familyName)}` : ''}`,
               }))}
               placeholder="Search members..."
               isLoading={loadingMembers}

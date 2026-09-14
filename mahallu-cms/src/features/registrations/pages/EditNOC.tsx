@@ -21,7 +21,7 @@ const nocSchema = z.object({
   purposeTitle: z.string().max(2000, 'Please keep the purpose title to 2000 characters or less.').min(1, 'Purpose title is required'),
   purposeDescription: z.string().max(3000, 'Please keep the purpose description to 3000 characters or less.').min(1, 'Purpose description is required'),
   type: z.enum(['common', 'nikah']),
-  status: z.enum(['pending', 'approved', 'rejected']).optional(),
+  status: z.enum(['pending', 'correction_required', 'approved', 'rejected']).optional(),
   remarks: z.string().max(2000, 'Please keep the remarks to 2000 characters or less.').optional(),
 });
 
@@ -136,6 +136,7 @@ export default function EditNOC() {
               label="Status"
               options={[
                 { value: 'pending', label: 'Pending' },
+                { value: 'correction_required', label: 'Correction Required' },
                 { value: 'approved', label: 'Approved' },
                 { value: 'rejected', label: 'Rejected' },
               ]}

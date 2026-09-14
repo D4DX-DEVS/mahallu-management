@@ -103,7 +103,7 @@ export default function CommunitySnapshot({ children }: CommunitySnapshotProps) 
           )}
         </div>
       )}
-      {children && <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">{children}</div>}
+      {children && <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">{children}</div>}
       {topRegisters.length > 0 && (
         <div>
           <div className="mb-2 flex items-center justify-between">

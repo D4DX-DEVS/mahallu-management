@@ -14,6 +14,7 @@ import Pagination from '@/components/ui/Pagination';
 import RequestDetailModal, { RequestType } from '../components/RequestDetailModal';
 import { FiAlertCircle, FiEdit2, FiEye, FiFileText, FiHeart, FiPlus } from 'react-icons/fi';
 import { loadErrorMessage } from '@/utils/errors';
+import { toTitleCase } from '@/utils/format';
 import StatusBadge from '@/components/ui/StatusBadge';
 import PageHeader from '@/components/layout/PageHeader';
 import SortableTh from '@/components/ui/SortableTh';
@@ -258,7 +259,7 @@ export default function MemberRequests() {
                         key={req.id || index}
                         className="border-b border-gray-100 dark:border-gray-900 text-gray-900 dark:text-gray-100"
                       >
-                        <td className="py-3 pr-4">{label}</td>
+                        <td className="py-3 pr-4">{toTitleCase(label)}</td>
                         <td className="py-3 pr-4 text-gray-500 dark:text-gray-400 text-xs">
                           {dateValue ? new Date(dateValue).toLocaleDateString('en-IN') : '—'}
                         </td>

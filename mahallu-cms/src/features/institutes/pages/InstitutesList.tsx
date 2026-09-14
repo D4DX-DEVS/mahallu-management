@@ -17,7 +17,7 @@ import { Institute } from '@/types';
 import { ROUTES } from '@/constants/routes';
 import { instituteService } from '@/services/instituteService';
 import { useDebounce } from '@/hooks/useDebounce';
-import { formatDate } from '@/utils/format';
+import { formatDate, toTitleCase } from '@/utils/format';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
@@ -40,6 +40,11 @@ export default function InstitutesList() {
   const [isExporting, setIsExporting] = useState(false);
 
   const debouncedSearch = useDebounce(searchQuery, 500);
+
+  // A new search or type filter invalidates the current page offset
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearch, typeFilter]);
 
   useEffect(() => {
     fetchInstitutes();
@@ -75,11 +80,11 @@ export default function InstitutesList() {
   const handleExport = async (type: 'csv' | 'json' | 'pdf') => {
     try {
       setIsExporting(true);
-      const params: any = { limit: 10000 };
+      // Gathered a page at a time — the API caps `limit` at 100
+      const params: any = {};
       if (debouncedSearch) params.search = debouncedSearch;
       if (typeFilter && typeFilter !== 'all') params.type = typeFilter;
-      const result = await instituteService.getAll(params);
-      const dataToExport = result.data;
+      const dataToExport = await instituteService.getAllForExport(params);
       if (dataToExport.length === 0) {
         toast.info('No institutes to export');
         return;
@@ -99,7 +104,7 @@ export default function InstitutesList() {
       }
     } catch (error: any) {
       console.error('Export error:', error);
-      toast.error(error?.message || "Couldn't export institutes");
+      toast.error(errorMessage(error, { action: 'export the institutes' }));
     } finally {
       setIsExporting(false);
     }
@@ -110,11 +115,15 @@ export default function InstitutesList() {
     try {
       setDeleting(true);
       await instituteService.delete(selectedInstitute.id);
-      await fetchInstitutes();
       setShowDeleteModal(false);
       setSelectedInstitute(null);
+      await fetchInstitutes();
     } catch (err: any) {
-      setError(errorMessage(err, { action: 'delete institute' }));
+      // The list keeps its rows; the failure belongs on the dialog the user is in.
+      toast.error(errorMessage(err, { action: 'delete this institute' }));
+    } finally {
+      // Left true on the happy path, the next delete opened onto a spinner that
+      // never stopped and a Delete button that could not be pressed again.
       setDeleting(false);
     }
   };
@@ -125,9 +134,9 @@ export default function InstitutesList() {
       label: 'Name',
       width: '6.75rem',
       sortable: true,
-      render: (v) => <span className="capitalize">{v}</span>,
+      render: (v) => <span>{toTitleCase(v)}</span>,
     },
-    { key: 'place', label: 'Place', width: '6.5rem' },
+    { key: 'place', label: 'Place', width: '6.5rem', render: (v) => toTitleCase(v) },
     {
       key: 'type',
       label: 'Type',
@@ -220,7 +229,7 @@ export default function InstitutesList() {
       <div className="space-y-3">
         <PageHeader title="Institutes" description="Manage institutes, madrasas, and other institutions" />
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {stats.map((stat, index) => (
             <StatCard key={index} {...stat} />
           ))}
@@ -279,23 +288,7 @@ export default function InstitutesList() {
             columns={columns}
             data={institutes}
             emptyMessage="No institutes found"
-            exportFilename="institutes"
-            exportTitle="All Institutes"
-            showExport={false}
             onRowClick={(row) => navigate(ROUTES.INSTITUTES.DETAIL(row.id))}
-            onExportAll={async () => {
-              const params: any = {
-                limit: 10000,
-              };
-              if (debouncedSearch) {
-                params.search = debouncedSearch;
-              }
-              if (typeFilter !== 'all') {
-                params.type = typeFilter;
-              }
-              const result = await instituteService.getAll(params);
-              return result.data;
-            }}
           />
         )}
 
@@ -340,7 +333,7 @@ export default function InstitutesList() {
         }
       >
         <p className="text-gray-600 dark:text-gray-400">
-          Are you sure you want to delete <strong className="capitalize">{selectedInstitute?.name}</strong>? This action cannot be
+          Are you sure you want to delete <strong>{toTitleCase(selectedInstitute?.name)}</strong>? This action cannot be
           undone.
         </p>
       </Modal>

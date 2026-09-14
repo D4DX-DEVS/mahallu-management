@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
@@ -12,6 +12,8 @@ import {
   ANNOUNCEMENT_AUDIENCE_OPTIONS,
   ANNOUNCEMENT_CHANNELS,
 } from '@/services/announcementService';
+import { clusterService } from '@/services/clusterService';
+import { fetchAllPages } from '@/services/api';
 import { errorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { useFormValidation } from '@/hooks/useFormValidation';
@@ -37,7 +39,19 @@ export default function AnnouncementCreate() {
     audience: 'all',
     channels: ['push'] as string[],
   });
+  const [clusterId, setClusterId] = useState('');
+  const [clusterOptions, setClusterOptions] = useState<{ value: string; label: string }[]>([]);
   const { errors, validate } = useFormValidation(RULES);
+
+  // Without a cluster selected, the WhatsApp fan-out drops the cluster
+  // filter entirely and broadcasts to every family in the tenant instead of
+  // the chosen cluster — so the picker must be populated before send.
+  useEffect(() => {
+    if (form.audience !== 'cluster' || clusterOptions.length > 0) return;
+    fetchAllPages(({ page, limit }) => clusterService.getAll({ page, limit, status: 'active' }))
+      .then((clusters) => setClusterOptions(clusters.map((c) => ({ value: c.id, label: c.name }))))
+      .catch(() => setClusterOptions([]));
+  }, [form.audience, clusterOptions.length]);
 
   const toggleChannel = (value: string) => {
     setForm((prev) => ({
@@ -53,10 +67,16 @@ export default function AnnouncementCreate() {
     // Length and shape as well as presence - the body reaches push, WhatsApp
     // and SMS, and the API caps it at 5,000 characters.
     if (!validate(form)) return;
+    if (form.audience === 'cluster' && !clusterId) {
+      toast.error('Please choose a cluster to target.');
+      return;
+    }
     if (saving) return;
     try {
       setSaving(true);
-      const created = await announcementService.create(form as any);
+      const payload: any = { ...form };
+      if (form.audience === 'cluster') payload.audienceRefIds = [clusterId];
+      const created = await announcementService.create(payload);
       if (sendNow) {
         await announcementService.send(created.id);
         toast.success('Announcement sent');
@@ -107,9 +127,22 @@ export default function AnnouncementCreate() {
               label="Audience"
               value={form.audience}
               error={errors.audience}
-              onChange={(e) => setForm({ ...form, audience: e.target.value })}
+              onChange={(e) => {
+                setForm({ ...form, audience: e.target.value });
+                setClusterId('');
+              }}
               options={ANNOUNCEMENT_AUDIENCE_OPTIONS}
             />
+            {form.audience === 'cluster' && (
+              <Select
+                label="Cluster"
+                value={clusterId}
+                onChange={(e) => setClusterId(e.target.value)}
+                options={clusterOptions}
+                placeholder="Select a cluster"
+                required
+              />
+            )}
             <div className="md:col-span-2">
               <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-200">
                 Message

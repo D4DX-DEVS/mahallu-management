@@ -30,9 +30,9 @@ const EDUCATION_FALLBACK = [
 ];
 
 /**
- * Varisangya grades and areas used to live in per-tenant settings
- * (Tenant.settings.varisangyaGrades / areaOptions). They are global master
- * data now - one list every Mahallu shares, Super Admin edits it in Categories.
+ * Varisangya grades used to live in per-tenant settings (Tenant.settings.varisangyaGrades).
+ * They are global master data now - one list every Mahallu shares, Super Admin edits it in Categories.
+ * Area stays per-tenant (Tenant.settings.areaOptions) since each Mahallu names its own localities.
  */
 const VARISANGYA_GRADE_SEED: SeedValue[] = [
   { code: 'Grade A', label: 'Grade A', amount: 100 },
@@ -40,11 +40,6 @@ const VARISANGYA_GRADE_SEED: SeedValue[] = [
   { code: 'Grade C', label: 'Grade C', amount: 50 },
   { code: 'Grade D', label: 'Grade D', amount: 25 },
 ];
-
-const AREA_SEED: SeedValue[] = ['Area A', 'Area B', 'Area C', 'Area D'].map((v) => ({
-  code: v,
-  label: v,
-}));
 
 const HEALTH_STATUS_SEED: SeedValue[] = [
   { code: 'healthy', label: 'Healthy' },
@@ -110,7 +105,6 @@ const STATIC_CATEGORIES: Omit<SeedCategory, 'values'>[] = [
     name: 'Varisangya Grade',
     description: 'Family varisangya grade and the amount billed for it',
   },
-  { key: 'area', name: 'Area', description: 'Locality area a family belongs to' },
 ];
 
 async function buildSeedCategories(): Promise<SeedCategory[]> {
@@ -191,7 +185,6 @@ async function buildSeedCategories(): Promise<SeedCategory[]> {
     { ...STATIC_CATEGORIES[10], values: HEALTH_STATUS_SEED },
     { ...STATIC_CATEGORIES[11], values: await buildEducationSeed() },
     { ...STATIC_CATEGORIES[12], values: VARISANGYA_GRADE_SEED },
-    { ...STATIC_CATEGORIES[13], values: AREA_SEED },
   ];
 }
 

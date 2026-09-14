@@ -11,7 +11,7 @@ import Pagination from '@/components/ui/Pagination';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import { Khutbah, religiousService, KHUTBAH_STATUS_OPTIONS } from '@/services/religiousService';
 import { useDebounce } from '@/hooks/useDebounce';
-import { formatDate } from '@/utils/format';
+import { formatDate, toTitleCase } from '@/utils/format';
 import { ROUTES } from '@/constants/routes';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
@@ -93,7 +93,7 @@ export default function KhutbahSchedule() {
 
   const getKhateebName = (khutbah: Khutbah): string => {
     if (khutbah.khateebId && typeof khutbah.khateebId === 'object') {
-      return khutbah.khateebId.name;
+      return toTitleCase(khutbah.khateebId.name);
     }
     return '—';
   };
@@ -116,7 +116,7 @@ export default function KhutbahSchedule() {
     {
       key: 'topic',
       label: 'Topic',
-      render: (_: any, khutbah: Khutbah) => khutbah.topic,
+      render: (_: any, khutbah: Khutbah) => toTitleCase(khutbah.topic),
     },
     {
       key: 'khateebId',
@@ -135,7 +135,7 @@ export default function KhutbahSchedule() {
     {
       key: 'actions',
       label: 'Actions',
-      align: 'center',
+      align: 'center' as const,
       render: (_: any, khutbah: Khutbah) => (
         <ActionsMenu
           items={[
@@ -185,7 +185,7 @@ export default function KhutbahSchedule() {
             <div className="space-y-2">
               <div>
                 <p className="text-sm text-gray-600">Topic</p>
-                <p className="font-medium">{upcomingKhutbah.topic}</p>
+                <p className="font-medium">{toTitleCase(upcomingKhutbah.topic)}</p>
                 {upcomingKhutbah.topicMl && (
                   <p className="text-sm text-gray-700">{upcomingKhutbah.topicMl}</p>
                 )}

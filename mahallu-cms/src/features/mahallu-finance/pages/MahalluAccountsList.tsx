@@ -12,7 +12,7 @@ import { PageSkeleton } from '@/components/ui/Skeleton';
 import TableToolbar from '@/components/ui/TableToolbar';
 import { TableColumn, Pagination as PaginationType } from '@/types';
 import { masterAccountService, MahalluAccount } from '@/services/masterAccountService';
-import { formatDate } from '@/utils/format';
+import { formatDate, toTitleCase } from '@/utils/format';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
 import { ROUTES } from '@/constants/routes';
 import { toast } from '@/store/toastStore';
@@ -101,9 +101,9 @@ export default function MahalluAccountsList() {
 
   const columns: TableColumn<MahalluAccount>[] = [
     { key: 'id', label: 'No.', width: '6rem', render: (_, __, i) => i + 1 },
-    { key: 'accountName', label: 'Account Name', width: '10.75rem' },
+    { key: 'accountName', label: 'Account Name', width: '10.75rem', render: (v) => toTitleCase(v) },
     { key: 'accountNumber', label: 'Account Number', width: '11.75rem' },
-    { key: 'bankName', label: 'Bank Name', width: '9.25rem' },
+    { key: 'bankName', label: 'Bank Name', width: '9.25rem', render: (v) => toTitleCase(v) },
     { key: 'ifscCode', label: 'IFSC Code', width: '9.25rem' },
     { key: 'balance', label: 'Balance', width: '7.5rem', render: (b) => `₹${(b || 0).toLocaleString()}` },
     {
@@ -158,7 +158,7 @@ export default function MahalluAccountsList() {
         breadcrumbs={[{ label: 'Mahallu Finance', path: '/mahallu-finance/accounts' }]}
       />
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-2 gap-3">
         <StatCard title="Total Accounts" value={accounts.length} tone="info" />
         <StatCard title="Total Balance" value={<>₹{totalBalance.toLocaleString()}</>} tone="success" />
       </div>
@@ -202,7 +202,7 @@ export default function MahalluAccountsList() {
 
       <Modal isOpen={showDeleteModal} onClose={() => setShowDeleteModal(false)} title="Delete Account">
         <p className="text-gray-600 dark:text-gray-400 mb-4">
-          Are you sure you want to delete <strong>{selectedAccount?.accountName}</strong>?
+          Are you sure you want to delete <strong>{toTitleCase(selectedAccount?.accountName)}</strong>?
         </p>
         <div className="flex gap-2 flex-col-reverse sm:flex-row sm:justify-end sm:gap-3">
           <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>

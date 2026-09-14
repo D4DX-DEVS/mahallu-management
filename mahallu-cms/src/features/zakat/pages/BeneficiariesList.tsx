@@ -22,6 +22,7 @@ import {
 import { useDebounce } from '@/hooks/useDebounce';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 
 const STATUS_TABS: Array<{ value: string; label: string }> = [
   { value: '', label: 'All' },
@@ -31,8 +32,8 @@ const STATUS_TABS: Array<{ value: string; label: string }> = [
 ];
 
 const beneficiaryName = (row: ZakatBeneficiary) => {
-  if (row.memberId && typeof row.memberId === 'object') return row.memberId.name;
-  return row.name || '-';
+  if (row.memberId && typeof row.memberId === 'object') return toTitleCase(row.memberId.name);
+  return row.name ? toTitleCase(row.name) : '-';
 };
 
 export default function BeneficiariesList() {
@@ -49,6 +50,12 @@ export default function BeneficiariesList() {
   const [rejectLoading, setRejectLoading] = useState(false);
 
   const debouncedSearch = useDebounce(searchQuery, 500);
+
+  // A page number that only made sense for the previous search must not
+  // survive into the new one - reset it once the debounce settles.
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearch]);
 
   useEffect(() => {
     fetchRows();
@@ -185,10 +192,7 @@ export default function BeneficiariesList() {
             <div className="min-w-0 flex-1 sm:w-56 sm:flex-none">
               <ExpandableSearch
                 value={searchQuery}
-                onChange={(value) => {
-                  setSearchQuery(value);
-                  setCurrentPage(1);
-                }}
+                onChange={setSearchQuery}
                 entity="beneficiaries"
                 placeholder="Search by name"
               />

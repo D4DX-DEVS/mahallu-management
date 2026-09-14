@@ -16,6 +16,7 @@ import { Tenant } from '@/types/tenant';
 import { Institute } from '@/types';
 import { errorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 
 const userSchema = z.object({
   name: z
@@ -47,6 +48,7 @@ export default function CreateInstituteUser() {
     register,
     handleSubmit,
     watch,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<UserFormData>({
     resolver: zodResolver(userSchema),
@@ -63,6 +65,13 @@ export default function CreateInstituteUser() {
   });
 
   const permissions = watch('permissions');
+  const selectedTenantId = watch('tenantId');
+
+  // The institute list is scoped to whichever tenant is picked above — a
+  // previously chosen institute may no longer belong to the new selection.
+  useEffect(() => {
+    setValue('instituteId', '');
+  }, [selectedTenantId, setValue]);
 
   useEffect(() => {
     const loadTenants = async () => {
@@ -79,16 +88,29 @@ export default function CreateInstituteUser() {
   }, [isSuperAdmin]);
 
   useEffect(() => {
+    // A super admin picks the tenant in this form, which can differ from the
+    // tenant they're currently switched into — the institute list must follow
+    // the form's choice, not the switcher, or the dropdown can offer an
+    // institute that belongs to a different Mahallu than the one submitted.
     const loadInstitutes = async () => {
       try {
-        const result = await instituteService.getAll({ limit: 100 });
-        setInstitutes(result.data);
+        const params: any = { limit: 100 };
+        if (isSuperAdmin && selectedTenantId) params.tenantId = selectedTenantId;
+        const result = await instituteService.getAll(params);
+        const scoped = isSuperAdmin && selectedTenantId
+          ? result.data.filter((inst) => !inst.tenantId || inst.tenantId === selectedTenantId)
+          : result.data;
+        setInstitutes(scoped);
       } catch (err) {
         console.error('Error loading institutes:', err);
       }
     };
-    loadInstitutes();
-  }, []);
+    if (!isSuperAdmin || selectedTenantId) {
+      loadInstitutes();
+    } else {
+      setInstitutes([]);
+    }
+  }, [isSuperAdmin, selectedTenantId]);
 
   const onSubmit = async (data: UserFormData) => {
     try {
@@ -154,7 +176,7 @@ export default function CreateInstituteUser() {
                     <option value="">Select Tenant</option>
                     {tenants.map((tenant) => (
                       <option key={tenant.id} value={tenant.id}>
-                        {tenant.name} ({tenant.code})
+                        {toTitleCase(tenant.name)} ({tenant.code})
                       </option>
                     ))}
                   </select>
@@ -175,7 +197,7 @@ export default function CreateInstituteUser() {
                   <option value="">Select Institute</option>
                   {institutes.map((inst) => (
                     <option key={inst.id} value={inst.id}>
-                      {inst.name} ({inst.type})
+                      {toTitleCase(inst.name)} ({inst.type})
                     </option>
                   ))}
                 </select>

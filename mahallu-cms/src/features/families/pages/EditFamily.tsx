@@ -18,6 +18,7 @@ import { Family } from '@/types';
 import { getTenantId } from '@/utils/tenantHelper';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 
 const familySchema = z.object({
   mahallId: z.string().max(200, 'Please keep the mahall to 200 characters or less.').optional(),
@@ -142,13 +143,13 @@ export default function EditFamily() {
     { value: '', label: 'Select grade...' },
     ...grades.map((grade) => ({
       value: grade.name,
-      label: `${grade.name} - ₹${grade.amount}`,
+      label: `${toTitleCase(grade.name)} - ₹${grade.amount}`,
     })),
   ];
 
   const areaSelectOptions = [
     { value: '', label: 'Select area...' },
-    ...areaOptions.map((area) => ({ value: area, label: area })),
+    ...areaOptions.map((area) => ({ value: area, label: toTitleCase(area) })),
   ];
 
   const statusOptions = [

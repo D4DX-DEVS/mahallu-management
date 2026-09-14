@@ -16,6 +16,7 @@ import {
 } from '@/services/scholarshipService';
 import { errorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 import SortableTh from '@/components/ui/SortableTh';
 import { useSortableRows } from '@/hooks/useSortableRows';
 
@@ -71,7 +72,7 @@ export default function ScholarshipsList() {
       setDeleting(true);
       await scholarshipService.deleteScholarship(deleteConfirm.id);
       setDeleteConfirm(null);
-      toast.success(`"${deleteConfirm.name}" deleted`);
+      toast.success(`"${toTitleCase(deleteConfirm.name)}" deleted`);
       await fetchScholarships();
     } catch (error: any) {
       toast.error(errorMessage(error, { action: 'delete scholarship' }));
@@ -174,9 +175,9 @@ export default function ScholarshipsList() {
                         <td className="py-2 font-medium">
                           <button
                             onClick={() => navigate(`/education/scholarships/${s.id}`)}
-                            className="text-blue-600 hover:underline capitalize"
+                            className="text-blue-600 hover:underline"
                           >
-                            {s.name}
+                            {toTitleCase(s.name)}
                           </button>
                         </td>
                         <td className="py-2 hidden sm:table-cell">{s.academicYear}</td>
@@ -228,7 +229,7 @@ export default function ScholarshipsList() {
       <ConfirmDialog
         isOpen={deleteConfirm !== null}
         title="Delete Scholarship"
-        message={deleteConfirm ? `Are you sure you want to delete "${deleteConfirm.name}"?` : ''}
+        message={deleteConfirm ? `Are you sure you want to delete "${toTitleCase(deleteConfirm.name)}"?` : ''}
         consequence="This action cannot be undone."
         isLoading={deleting}
         variant="danger"

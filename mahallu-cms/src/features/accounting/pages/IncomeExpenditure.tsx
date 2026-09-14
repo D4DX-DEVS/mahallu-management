@@ -10,6 +10,7 @@ import { instituteService } from '@/services/instituteService';
 import { useAuthStore } from '@/store/authStore';
 import { loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 
 interface CategoryItem {
   categoryId: string;
@@ -82,14 +83,14 @@ export default function IncomeExpenditure() {
           className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden"
         >
           <div className={`px-4 py-2 ${colorClass} flex justify-between items-center`}>
-            <span className="font-semibold text-sm capitalize">{group.ledgerName}</span>
+            <span className="font-semibold text-sm">{toTitleCase(group.ledgerName)}</span>
             <span className="font-semibold text-sm">₹{group.total.toLocaleString()}</span>
           </div>
           {group.categories.length > 0 && (
             <div className="divide-y divide-gray-100 dark:divide-gray-800">
               {group.categories.map((cat, idx) => (
                 <div key={idx} className="px-6 py-2 flex justify-between text-sm">
-                  <span className="text-gray-700 dark:text-gray-300 capitalize">{cat.categoryName}</span>
+                  <span className="text-gray-700 dark:text-gray-300">{toTitleCase(cat.categoryName)}</span>
                   <span className="text-gray-900 dark:text-gray-100 font-medium">
                     ₹{cat.total.toLocaleString()}
                   </span>
@@ -133,7 +134,7 @@ export default function IncomeExpenditure() {
                 label="Institute"
                 options={[
                   { value: 'all', label: 'All Institutes' },
-                  ...institutes.map((i) => ({ value: i.id, label: i.name })),
+                  ...institutes.map((i) => ({ value: i.id, label: toTitleCase(i.name) })),
                 ]}
                 value={instituteFilter}
                 onChange={(e) => setInstituteFilter(e.target.value)}
@@ -158,7 +159,7 @@ export default function IncomeExpenditure() {
         ) : (
           <>
             {/* Summary */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
               <StatCard title="Total Income" value={<>₹{totalIncome.toLocaleString()}</>} tone="success" />
               <StatCard
                 title="Total Expenditure"

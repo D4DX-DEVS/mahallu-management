@@ -13,6 +13,7 @@ import QuickAddCategory from '@/components/quick-add/QuickAddCategory';
 import { ROUTES } from '@/constants/routes';
 import { masterAccountService, Ledger, Category } from '@/services/masterAccountService';
 import { errorMessage } from '@/utils/errors';
+import { toTitleCase } from '@/utils/format';
 import PageHeader from '@/components/layout/PageHeader';
 
 const ledgerItemSchema = z.object({
@@ -135,7 +136,7 @@ export default function CreateLedgerItem() {
                 { value: '', label: 'Select a ledger' },
                 ...ledgers.map((ledger) => ({
                   value: ledger.id,
-                  label: `${ledger.name} (${ledger.type})`,
+                  label: `${toTitleCase(ledger.name)} (${ledger.type})`,
                 })),
               ]}
             />
@@ -161,7 +162,7 @@ export default function CreateLedgerItem() {
                 { value: '', label: 'Select a category' },
                 ...filteredCategories.map((category) => ({
                   value: category.id,
-                  label: category.name,
+                  label: toTitleCase(category.name),
                 })),
               ]}
             />

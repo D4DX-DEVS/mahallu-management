@@ -14,6 +14,7 @@ import Pagination from '@/components/ui/Pagination';
 import { TableColumn, Pagination as PaginationType } from '@/types';
 import { Tenant } from '@/types/tenant';
 import { tenantService } from '@/services/tenantService';
+import { fetchAllPages } from '@/services/api';
 import { useAuthStore } from '@/store/authStore';
 import { formatDate } from '@/utils/format';
 import { useDebounce } from '@/hooks/useDebounce';
@@ -21,6 +22,7 @@ import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
 import { toast } from '@/store/toastStore';
 import { errorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 
 export default function TenantsList() {
   const { isSuperAdmin } = useAuthStore();
@@ -72,11 +74,12 @@ export default function TenantsList() {
   const handleExport = async (type: 'csv' | 'json' | 'pdf') => {
     try {
       setIsExporting(true);
-      const params: any = { limit: 10000 };
+      const params: any = {};
       if (statusFilter !== 'all') params.status = statusFilter;
       if (debouncedSearch) params.search = debouncedSearch;
-      const response = await tenantService.getAll(params);
-      const dataToExport = response.data || [];
+      const dataToExport = await fetchAllPages((pageParams) =>
+        tenantService.getAll({ ...params, ...pageParams })
+      );
       if (dataToExport.length === 0) {
         toast.info('No data to export');
         return;
@@ -107,7 +110,7 @@ export default function TenantsList() {
 
   const handleSuspend = async () => {
     if (selectedTenant) {
-      const name = selectedTenant.name;
+      const name = toTitleCase(selectedTenant.name);
       try {
         await tenantService.suspend(selectedTenant.id);
         await loadTenants();
@@ -124,15 +127,15 @@ export default function TenantsList() {
     try {
       await tenantService.activate(tenant.id);
       await loadTenants();
-      toast.success(`${tenant.name} activated`);
+      toast.success(`${toTitleCase(tenant.name)} activated`);
     } catch (error: any) {
-      toast.error(errorMessage(error, { action: `activate ${tenant.name}` }));
+      toast.error(errorMessage(error, { action: `activate ${toTitleCase(tenant.name)}` }));
     }
   };
 
   const handleDelete = async () => {
     if (selectedTenant) {
-      const name = selectedTenant.name;
+      const name = toTitleCase(selectedTenant.name);
       try {
         await tenantService.delete(selectedTenant.id);
         await loadTenants();
@@ -151,7 +154,7 @@ export default function TenantsList() {
       label: 'Tenant Name',
       width: '10.25rem',
       sortable: true,
-      render: (value) => <span className="capitalize">{value}</span>,
+      render: (value) => <span>{toTitleCase(value)}</span>,
     },
     { key: 'code', label: 'Code', width: '6.25rem' },
     {
@@ -164,7 +167,7 @@ export default function TenantsList() {
         </span>
       ),
     },
-    { key: 'location', label: 'Location', width: '8rem' },
+    { key: 'location', label: 'Location', width: '8rem', render: (location) => toTitleCase(location) },
     {
       key: 'userCount',
       label: 'Users',
@@ -294,7 +297,7 @@ export default function TenantsList() {
         <PageHeader title="Tenants Management" description="Manage all tenants (Mahalls) in the system" />
 
         {/* Statistics Cards */}
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {stats.map((stat, index) => (
             <StatCard key={index} {...stat} />
           ))}
@@ -388,7 +391,7 @@ export default function TenantsList() {
         }
       >
         <p className="text-gray-600 dark:text-gray-400">
-          Are you sure you want to suspend <strong>{selectedTenant?.name}</strong>? This will prevent all
+          Are you sure you want to suspend <strong>{toTitleCase(selectedTenant?.name)}</strong>? This will prevent all
           users from accessing this tenant.
         </p>
       </Modal>
@@ -419,7 +422,7 @@ export default function TenantsList() {
         }
       >
         <p className="text-gray-600 dark:text-gray-400">
-          Are you sure you want to delete <strong>{selectedTenant?.name}</strong>? This action cannot be
+          Are you sure you want to delete <strong>{toTitleCase(selectedTenant?.name)}</strong>? This action cannot be
           undone and will delete all associated data.
         </p>
       </Modal>

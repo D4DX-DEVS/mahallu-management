@@ -7,7 +7,7 @@ import { PageSkeleton } from '@/components/ui/Skeleton';
 import { Employee } from '@/types';
 import { ROUTES } from '@/constants/routes';
 import { employeeService } from '@/services/employeeService';
-import { formatDate } from '@/utils/format';
+import { formatDate, toTitleCase } from '@/utils/format';
 import { loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import StatusBadge from '@/components/ui/StatusBadge';
@@ -55,7 +55,7 @@ export default function EmployeeDetail() {
       <div className="flex gap-2 items-center justify-between">
         <div className="flex items-center gap-4">
           <PageHeader
-            title={employee.name}
+            title={toTitleCase(employee.name)}
             breadcrumbs={[{ label: 'Employees', path: ROUTES.EMPLOYEES.LIST }]}
           />
           <div className="flex gap-2 items-center">
@@ -76,22 +76,22 @@ export default function EmployeeDetail() {
           <div className="space-y-4">
             <div>
               <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Name</label>
-              <p className="mt-1 text-gray-900 dark:text-gray-100 capitalize">{employee.name}</p>
+              <p className="mt-1 text-gray-900 dark:text-gray-100">{toTitleCase(employee.name)}</p>
             </div>
             <div>
               <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Designation</label>
-              <p className="mt-1 text-gray-900 dark:text-gray-100">{employee.designation}</p>
+              <p className="mt-1 text-gray-900 dark:text-gray-100">{toTitleCase(employee.designation)}</p>
             </div>
             {employee.department && (
               <div>
                 <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Department</label>
-                <p className="mt-1 text-gray-900 dark:text-gray-100">{employee.department}</p>
+                <p className="mt-1 text-gray-900 dark:text-gray-100">{toTitleCase(employee.department)}</p>
               </div>
             )}
             {employee.instituteName && (
               <div>
                 <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Institute</label>
-                <p className="mt-1 text-gray-900 dark:text-gray-100 capitalize">{employee.instituteName}</p>
+                <p className="mt-1 text-gray-900 dark:text-gray-100">{toTitleCase(employee.instituteName)}</p>
               </div>
             )}
             <div>
@@ -147,7 +147,7 @@ export default function EmployeeDetail() {
                       <label className="text-sm font-medium text-gray-500 dark:text-gray-400">
                         Bank Name
                       </label>
-                      <p className="mt-1 text-gray-900 dark:text-gray-100">{employee.bankAccount.bankName}</p>
+                      <p className="mt-1 text-gray-900 dark:text-gray-100">{toTitleCase(employee.bankAccount.bankName)}</p>
                     </div>
                   )}
                   {employee.bankAccount.accountNumber && (

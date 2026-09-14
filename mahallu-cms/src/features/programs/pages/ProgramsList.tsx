@@ -14,8 +14,9 @@ import { TableColumn, Pagination as PaginationType } from '@/types';
 import { Institute } from '@/types';
 import { ROUTES } from '@/constants/routes';
 import { programService } from '@/services/programService';
+import { fetchAllPages } from '@/services/api';
 import { useDebounce } from '@/hooks/useDebounce';
-import { formatDate } from '@/utils/format';
+import { formatDate, toTitleCase } from '@/utils/format';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
@@ -78,11 +79,14 @@ export default function ProgramsList() {
     try {
       setIsExporting(true);
 
-      const params: any = { limit: 10000 };
+      const params: any = {};
       if (debouncedSearch) params.search = debouncedSearch;
+      if (selectedAudience) params.audience = selectedAudience;
+      if (selectedProgramType) params.programType = selectedProgramType;
 
-      const result = await programService.getAll(params);
-      const dataToExport = result.data;
+      const dataToExport = await fetchAllPages((pageParams) =>
+        programService.getAll({ ...params, ...pageParams })
+      );
 
       if (dataToExport.length === 0) {
         toast.info('No programs to export');
@@ -131,9 +135,9 @@ export default function ProgramsList() {
       label: 'Name',
       width: '6.75rem',
       sortable: true,
-      render: (v) => <span className="capitalize">{v}</span>,
+      render: (v) => <span>{toTitleCase(v)}</span>,
     },
-    { key: 'place', label: 'Place', width: '6.5rem' },
+    { key: 'place', label: 'Place', width: '6.5rem', render: (place) => toTitleCase(place) },
     {
       key: 'audience',
       label: 'Audience',
@@ -242,7 +246,7 @@ export default function ProgramsList() {
       <div className="space-y-3">
         <PageHeader title="Programs" description="Manage programs" />
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {stats.map((stat, index) => (
             <StatCard key={index} {...stat} />
           ))}
@@ -272,7 +276,10 @@ export default function ProgramsList() {
               {['all', 'men', 'women', 'youth', 'children', 'families'].map((audience) => (
                 <button
                   key={audience}
-                  onClick={() => setSelectedAudience(selectedAudience === audience ? '' : audience)}
+                  onClick={() => {
+                    setSelectedAudience(selectedAudience === audience ? '' : audience);
+                    setCurrentPage(1);
+                  }}
                   className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
                     selectedAudience === audience
                       ? 'bg-blue-600 text-white dark:bg-blue-500'
@@ -287,7 +294,10 @@ export default function ProgramsList() {
               {['quran_class', 'hadith', 'fiqh', 'lecture', 'family', 'other'].map((type) => (
                 <button
                   key={type}
-                  onClick={() => setSelectedProgramType(selectedProgramType === type ? '' : type)}
+                  onClick={() => {
+                    setSelectedProgramType(selectedProgramType === type ? '' : type);
+                    setCurrentPage(1);
+                  }}
                   className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
                     selectedProgramType === type
                       ? 'bg-green-600 text-white dark:bg-green-500'
@@ -367,7 +377,7 @@ export default function ProgramsList() {
         }
       >
         <p className="text-gray-600 dark:text-gray-400">
-          Are you sure you want to delete <strong className="capitalize">{selectedProgram?.name}</strong>? This action cannot be
+          Are you sure you want to delete <strong>{toTitleCase(selectedProgram?.name)}</strong>? This action cannot be
           undone.
         </p>
       </Modal>

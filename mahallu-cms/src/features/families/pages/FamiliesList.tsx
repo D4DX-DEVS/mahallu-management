@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FiEye, FiEdit2, FiTrash2, FiHome, FiUsers, FiUpload, FiPlus } from 'react-icons/fi';
+import { FiEye, FiEdit2, FiTrash2, FiHome, FiUsers, FiUpload, FiPlus, FiFileText, FiFile } from 'react-icons/fi';
 import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
@@ -9,6 +9,7 @@ import Table from '@/components/ui/Table';
 import Alert from '@/components/ui/Alert';
 import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
+import Dropdown, { DropdownItem } from '@/components/ui/Dropdown';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import ActionsMenu from '@/components/ui/ActionsMenu';
 import PageHeader from '@/components/layout/PageHeader';
@@ -19,6 +20,7 @@ import { ROUTES } from '@/constants/routes';
 import { familyService } from '@/services/familyService';
 import { useDebounce } from '@/hooks/useDebounce';
 import { exportToCSV, exportToPDF } from '@/utils/exportUtils';
+import { toTitleCase } from '@/utils/format';
 import { toast } from '@/store/toastStore';
 import { errorMessage, loadErrorMessage, pluralise } from '@/utils/errors';
 
@@ -101,6 +103,13 @@ export default function FamiliesList() {
     }
   }, [queryParams]);
 
+  // A new search term invalidates the current page offset: searching from page 4
+  // kept asking the API for page 4 of the new, much shorter result set and showed
+  // an empty table.
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearch]);
+
   useEffect(() => {
     fetchFamilies();
   }, [fetchFamilies]);
@@ -122,13 +131,17 @@ export default function FamiliesList() {
   const handleExport = async (type: 'csv' | 'pdf') => {
     try {
       setIsExporting(true);
-      const result = await familyService.getAll(queryParams({ page: 1, limit: 10000 }));
-      if (result.data.length === 0) {
+      const rows = await familyService.getAllForExport({
+        search: debouncedSearch || undefined,
+        area: areaFilter || undefined,
+        sortBy: sort?.key,
+      });
+      if (rows.length === 0) {
         toast.info('Nothing to export');
         return;
       }
-      if (type === 'csv') exportToCSV(columns, result.data, 'families');
-      else exportToPDF(columns, result.data, 'families', 'Families');
+      if (type === 'csv') exportToCSV(columns, rows, 'families');
+      else exportToPDF(columns, rows, 'families', 'Families');
     } catch (err: any) {
       toast.error(errorMessage(err, { action: 'export this list' }));
     } finally {
@@ -163,13 +176,13 @@ export default function FamiliesList() {
       key: 'houseName',
       label: 'House name',
       sortable: true,
-      render: (name) => <span className="capitalize">{name}</span>,
+      render: (name) => <span>{toTitleCase(name)}</span>,
       width: '9.75rem',
     },
     {
       key: 'familyHead',
       label: 'Family head',
-      render: (head) => (head ? <span className="capitalize">{head}</span> : '—'),
+      render: (head) => (head ? <span>{toTitleCase(head)}</span> : '—'),
       width: '8.125rem',
     },
     /* Heading and digits are both centred, so the count sits under the word
@@ -187,7 +200,7 @@ export default function FamiliesList() {
       key: 'area',
       label: 'Area',
       priority: 'secondary',
-      render: (area) => (area ? <span className="capitalize">{area}</span> : '—'),
+      render: (area) => (area ? <span>{toTitleCase(area)}</span> : '—'),
       width: '6.625rem',
     },
     { key: 'houseNo', label: 'House no.', priority: 'tertiary', width: '9.125rem' },
@@ -202,7 +215,7 @@ export default function FamiliesList() {
       width: '7.5rem',
       render: (_, row) => (
         <ActionsMenu
-          label={`Actions for ${row.houseName}`}
+          label={`Actions for ${toTitleCase(row.houseName)}`}
           items={[
             {
               label: 'View',
@@ -230,7 +243,7 @@ export default function FamiliesList() {
     { value: '', label: 'All areas' },
     ...Array.from(new Set(families.map((f) => f.area).filter(Boolean))).map((area) => ({
       value: area as string,
-      label: area as string,
+      label: toTitleCase(area as string),
     })),
   ];
 
@@ -255,7 +268,7 @@ export default function FamiliesList() {
         }
       />
 
-      <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard
           title="Families"
           value={pagination?.total ?? families.length}
@@ -337,6 +350,7 @@ export default function FamiliesList() {
                       onClick: () => {
                         setSearchQuery('');
                         setAreaFilter('');
+                        setCurrentPage(1);
                       },
                     }
                   : { label: 'Add family', onClick: () => navigate(ROUTES.FAMILIES.CREATE) }
@@ -350,19 +364,36 @@ export default function FamiliesList() {
               selectedKeys={selectedIds}
               onSelectionChange={setSelectedIds}
               bulkActions={
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    exportToCSV(
-                      columns,
-                      families.filter((f) => selectedIds.includes(f.id)),
-                      'families'
-                    )
+                <Dropdown
+                  trigger={
+                    <Button variant="outline" size="sm">
+                      Export selected
+                    </Button>
                   }
-                >
-                  Export selected
-                </Button>
+                  items={[
+                    {
+                      label: 'Export as CSV',
+                      icon: <FiFileText />,
+                      onClick: () =>
+                        exportToCSV(
+                          columns,
+                          families.filter((f) => selectedIds.includes(f.id)),
+                          'families'
+                        ),
+                    },
+                    {
+                      label: 'Export as PDF',
+                      icon: <FiFile />,
+                      onClick: () =>
+                        exportToPDF(
+                          columns,
+                          families.filter((f) => selectedIds.includes(f.id)),
+                          'families',
+                          'Families'
+                        ),
+                    },
+                  ] as DropdownItem[]}
+                />
               }
               onRowClick={(row) => navigate(ROUTES.FAMILIES.DETAIL(row.id))}
             />
@@ -399,7 +430,7 @@ export default function FamiliesList() {
 
       <ConfirmDialog
         isOpen={Boolean(deleting)}
-        title={`Delete ${deleting?.houseName ?? 'this family'}?`}
+        title={`Delete ${deleting?.houseName ? toTitleCase(deleting.houseName) : 'this family'}?`}
         message="This permanently removes the family record and cannot be undone."
         consequence={deleteConsequence(deleting)}
         confirmLabel="Delete family"

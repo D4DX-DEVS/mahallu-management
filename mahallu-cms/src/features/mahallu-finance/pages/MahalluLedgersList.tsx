@@ -11,7 +11,7 @@ import { PageSkeleton } from '@/components/ui/Skeleton';
 import TableToolbar from '@/components/ui/TableToolbar';
 import { TableColumn, Pagination as PaginationType } from '@/types';
 import { masterAccountService, Ledger } from '@/services/masterAccountService';
-import { formatDate } from '@/utils/format';
+import { formatDate, toTitleCase } from '@/utils/format';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
 import { ROUTES } from '@/constants/routes';
 import { toast } from '@/store/toastStore';
@@ -96,7 +96,7 @@ export default function MahalluLedgersList() {
 
   const columns: TableColumn<Ledger>[] = [
     { key: 'id', label: 'No.', width: '6rem', render: (_, __, i) => i + 1 },
-    { key: 'name', label: 'Name', width: '6.75rem', render: (v) => <span className="capitalize">{v}</span> },
+    { key: 'name', label: 'Name', width: '6.75rem', render: (v) => <span>{toTitleCase(v)}</span> },
     {
       key: 'type',
       label: 'Type',
@@ -187,7 +187,7 @@ export default function MahalluLedgersList() {
 
       <Modal isOpen={showDeleteModal} onClose={() => setShowDeleteModal(false)} title="Delete Ledger">
         <p className="text-gray-600 dark:text-gray-400 mb-4">
-          Delete ledger <strong className="capitalize">{selected?.name}</strong>?
+          Delete ledger <strong>{toTitleCase(selected?.name)}</strong>?
         </p>
         <div className="flex gap-2 flex-col-reverse sm:flex-row sm:justify-end sm:gap-3">
           <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>

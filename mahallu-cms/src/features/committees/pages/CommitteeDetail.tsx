@@ -13,6 +13,7 @@ import { committeeService } from '@/services/committeeService';
 import { formatDate } from '@/utils/format';
 import { loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 
 export default function CommitteeDetail() {
   const { id } = useParams<{ id: string }>();
@@ -70,8 +71,8 @@ export default function CommitteeDetail() {
   }
 
   const memberColumns: TableColumn<Member>[] = [
-    { key: 'name', label: 'Name', width: '6.75rem', render: (v) => <span className="capitalize">{v}</span> },
-    { key: 'familyName', label: 'Family', width: '7.25rem' },
+    { key: 'name', label: 'Name', width: '6.75rem', render: (v) => <span>{toTitleCase(v)}</span> },
+    { key: 'familyName', label: 'Family', width: '7.25rem', render: (v) => toTitleCase(v) },
     { key: 'phone', label: 'Phone', width: '6.75rem' },
   ];
 
@@ -79,7 +80,7 @@ export default function CommitteeDetail() {
     <div className="space-y-4">
       <PageHeader
         description="Committee Details"
-        title={committee.name}
+        title={toTitleCase(committee.name)}
         breadcrumbs={[{ label: 'Committees', path: ROUTES.COMMITTEES.LIST }]}
       />
 
@@ -103,7 +104,7 @@ export default function CommitteeDetail() {
           <div className="space-y-3">
             <div>
               <p className="text-sm text-gray-500 dark:text-gray-400">Name</p>
-              <p className="text-base font-medium text-gray-900 dark:text-gray-100 capitalize">{committee.name}</p>
+              <p className="text-base font-medium text-gray-900 dark:text-gray-100">{toTitleCase(committee.name)}</p>
             </div>
             {committee.description && (
               <div>
@@ -169,7 +170,7 @@ export default function CommitteeDetail() {
                 key={meeting.id || index}
                 className="p-3 border border-gray-200 dark:border-gray-700 rounded-lg"
               >
-                <p className="font-medium text-gray-900 dark:text-gray-100">{meeting.title || 'Meeting'}</p>
+                <p className="font-medium text-gray-900 dark:text-gray-100">{meeting.title ? toTitleCase(meeting.title) : 'Meeting'}</p>
                 {meeting.date && (
                   <p className="text-sm text-gray-500 dark:text-gray-400">{formatDate(meeting.date)}</p>
                 )}

@@ -19,6 +19,8 @@ import SelectUserType from '@/features/users/pages/SelectUserType';
 import CertificatesList from '@/features/certificates/pages/CertificatesList';
 import ChangeRequestsList from '@/features/admin/pages/ChangeRequestsList';
 import DataQualityPage from '@/features/admin/pages/DataQualityPage';
+import AdminCategoriesList from '@/features/admin/pages/CategoriesList';
+import AdminCategoryDetail from '@/features/admin/pages/CategoryDetail';
 import { route, superAdminRoute } from './routeHelpers';
 
 export const adminRoutes = [
@@ -63,4 +65,8 @@ export const adminRoutes = [
 
   // Data Quality
   route('/admin/data-quality', <DataQualityPage />),
+
+  // Categories (super admin only, matching the backend's superAdminOnly guard)
+  superAdminRoute('/admin/categories', <AdminCategoriesList />),
+  superAdminRoute('/admin/categories/:id', <AdminCategoryDetail />),
 ];

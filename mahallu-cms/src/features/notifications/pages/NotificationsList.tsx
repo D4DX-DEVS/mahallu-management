@@ -4,34 +4,42 @@ import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
 import StatCard from '@/components/ui/StatCard';
+import Pagination from '@/components/ui/Pagination';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import { notificationService, Notification } from '@/services/notificationService';
 import { useNotificationStore } from '@/store/notificationStore';
 import { formatDate } from '@/utils/format';
 import { loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { Pagination as PaginationType } from '@/types';
 
 export default function NotificationsList() {
   const [typeFilter, setTypeFilter] = useState('all');
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pagination, setPagination] = useState<PaginationType | null>(null);
   const { fetchUnreadCount } = useNotificationStore();
 
   useEffect(() => {
     fetchNotifications();
-  }, [typeFilter]);
+  }, [typeFilter, currentPage]);
 
   const fetchNotifications = async () => {
     try {
       setLoading(true);
       setError(null);
-      const params: any = {};
+      // The API caps and defaults `limit` server-side (10 per page) — without
+      // an explicit page/limit here, and without showing pagination, the list
+      // silently stuck at the 10 most recent notifications forever.
+      const params: any = { page: currentPage, limit: 20 };
       if (typeFilter !== 'all') {
         params.recipientType = typeFilter;
       }
       const result = await notificationService.getAll(params);
       setNotifications(result.data || []);
+      setPagination(result.pagination);
     } catch (err: any) {
       setError(loadErrorMessage(err, 'notifications'));
       console.error('Error fetching notifications:', err);
@@ -63,7 +71,11 @@ export default function NotificationsList() {
   const unreadCount = notifications.filter((n) => !n.isRead).length;
 
   const stats = [
-    { title: 'Total Notifications', value: notifications.length, icon: <FiBell className="h-5 w-5" /> },
+    {
+      title: 'Total Notifications',
+      value: pagination?.total ?? notifications.length,
+      icon: <FiBell className="h-5 w-5" />,
+    },
     { title: 'Unread', value: unreadCount, icon: <FiInbox className="h-5 w-5" /> },
     { title: 'Read', value: notifications.length - unreadCount, icon: <FiMail className="h-5 w-5" /> },
   ];
@@ -83,7 +95,7 @@ export default function NotificationsList() {
           <PageHeader description="Manage notifications" title="Notifications" />
         </div>
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {stats.map((stat, index) => (
             <StatCard key={index} {...stat} />
           ))}
@@ -99,7 +111,10 @@ export default function NotificationsList() {
               { value: 'collection', label: 'Collection' },
             ]}
             value={typeFilter}
-            onChange={(e) => setTypeFilter(e.target.value)}
+            onChange={(e) => {
+              setTypeFilter(e.target.value);
+              setCurrentPage(1);
+            }}
             className="w-full sm:w-48"
           />
         </div>
@@ -162,6 +177,18 @@ export default function NotificationsList() {
                 </div>
               ))
             )}
+          </div>
+        )}
+
+        {pagination && pagination.totalPages > 1 && (
+          <div className="mt-4">
+            <Pagination
+              currentPage={pagination.page}
+              totalPages={pagination.totalPages}
+              totalItems={pagination.total}
+              itemsPerPage={pagination.limit}
+              onPageChange={setCurrentPage}
+            />
           </div>
         )}
       </Card>

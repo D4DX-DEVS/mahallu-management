@@ -19,6 +19,7 @@ import { toast } from '@/store/toastStore';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import ActionsMenu from '@/components/ui/ActionsMenu';
+import { toTitleCase } from '@/utils/format';
 export default function CategoriesList() {
   const navigate = useNavigate();
   const [categories, setCategories] = useState<Category[]>([]);
@@ -130,7 +131,7 @@ export default function CategoriesList() {
       label: 'Name',
       width: '6.75rem',
       sortable: true,
-      render: (value) => <span className="capitalize">{value}</span>,
+      render: (value) => <span>{toTitleCase(value)}</span>,
     },
     {
       key: 'key',
@@ -361,7 +362,7 @@ export default function CategoriesList() {
       <ConfirmDialog
         isOpen={showDeleteDialog}
         title="Delete Category"
-        message={`Are you sure you want to delete "${selectedCategory?.name}"? All of its values will be deleted too.`}
+        message={`Are you sure you want to delete "${toTitleCase(selectedCategory?.name)}"? All of its values will be deleted too.`}
         consequence="This only applies to custom categories — built-in categories cannot be deleted."
         confirmLabel="Delete"
         variant="danger"

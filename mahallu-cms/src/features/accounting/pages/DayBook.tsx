@@ -10,6 +10,7 @@ import { instituteService } from '@/services/instituteService';
 import { useAuthStore } from '@/store/authStore';
 import { loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 
 export default function DayBook() {
   const { currentInstituteId: userInstituteId } = useAuthStore();
@@ -86,7 +87,7 @@ export default function DayBook() {
                 label="Institute"
                 options={[
                   { value: 'all', label: 'All Institutes' },
-                  ...institutes.map((i) => ({ value: i.id, label: i.name })),
+                  ...institutes.map((i) => ({ value: i.id, label: toTitleCase(i.name) })),
                 ]}
                 value={instituteFilter}
                 onChange={(e) => setInstituteFilter(e.target.value)}
@@ -112,7 +113,7 @@ export default function DayBook() {
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
               <StatCard title="Total Income" value={<>₹{totalIncome.toLocaleString()}</>} tone="success" />
               <StatCard
                 title="Total Expense"
@@ -156,7 +157,7 @@ export default function DayBook() {
                       <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
                         {entry.description}
                         {entry.employeeName && (
-                          <span className="text-gray-500 ml-1">({entry.employeeName})</span>
+                          <span className="text-gray-500 ml-1">({toTitleCase(entry.employeeName)})</span>
                         )}
                       </td>
                       <td className="px-4 py-3 text-sm">
@@ -173,7 +174,7 @@ export default function DayBook() {
                         </span>
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
-                        {entry.ledgerName || entry.categoryName || '-'}
+                        {toTitleCase(entry.ledgerName || entry.categoryName) || '-'}
                       </td>
                       <td
                         className={`px-4 py-3 text-sm text-right font-medium ${

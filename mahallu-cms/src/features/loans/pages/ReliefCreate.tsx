@@ -8,10 +8,11 @@ import SearchableSelect from '@/components/ui/SearchableSelect';
 import { toast } from '@/store/toastStore';
 import { reliefService, RELIEF_URGENCY_OPTIONS } from '@/services/qardService';
 import { familyService } from '@/services/familyService';
-import { errorMessage } from '@/utils/errors';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { useFormValidation } from '@/hooks/useFormValidation';
 import { FieldRule, LIMITS } from '@/utils/validation';
+import { toTitleCase } from '@/utils/format';
 
 /**
  * The same limits the API applies, so a form that passes here is not
@@ -42,10 +43,15 @@ export default function ReliefCreate() {
   const { errors, validate } = useFormValidation(RULES);
 
   useEffect(() => {
+    // /families caps `limit` at 100 and answers 400 above it, so the old
+    // `limit: 200` request always failed and this picker was always empty.
     familyService
-      .getAll({ page: 1, limit: 200 } as any)
-      .then((result: any) => setFamilies(result.data || []))
-      .catch(() => setFamilies([]));
+      .getAllForExport()
+      .then((rows) => setFamilies(rows))
+      .catch((err) => {
+        setFamilies([]);
+        toast.error(loadErrorMessage(err, 'families'));
+      });
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -113,7 +119,7 @@ export default function ReliefCreate() {
               onChange={(value) => setForm({ ...form, familyId: value })}
               options={families.map((family: any) => ({
                 value: family._id || family.id,
-                label: `${family.houseName}${family.mahallId ? ` - ${family.mahallId}` : ''}`,
+                label: `${toTitleCase(family.houseName)}${family.mahallId ? ` - ${family.mahallId}` : ''}`,
               }))}
               placeholder="Search families..."
               helperText="Optional, but helps link the case to a household"

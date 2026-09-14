@@ -9,6 +9,7 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import RadioCardGroup from '@/components/ui/RadioCardGroup';
+import DatePicker from '@/components/ui/DatePicker';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import { ROUTES } from '@/constants/routes';
 import SocioEconomicSection from '../components/SocioEconomicSection';
@@ -17,6 +18,18 @@ import {
   normalizeSocioEconomic,
   socioEconomicDefaults,
 } from '../socioEconomicFields';
+import {
+  conditionalSchemaFields,
+  withConditionalRules,
+  normalizeConditionalFields,
+  conditionalDefaults,
+  isOtherRelationship,
+  needsHealthNotes,
+  healthNotesCopy,
+  calculateAge,
+  EARLIEST_DOB,
+  LATEST_DOB,
+} from '../memberFormFields';
 import { memberService } from '@/services/memberService';
 import { familyService } from '@/services/familyService';
 import { tenantService } from '@/services/tenantService';
@@ -27,8 +40,9 @@ import { useAuthStore } from '@/store/authStore';
 import { getTenantId as extractTenantId } from '@/utils/tenantHelper';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 
-const memberSchema = z.object({
+const memberSchemaShape = z.object({
   name: z.string().max(200, 'Please keep the name to 200 characters or less.').min(1, 'Name is required'),
   nameMl: z.string().max(200, 'Please keep the name to 200 characters or less.').optional(),
   familyId: z.string().max(200, 'Please keep the family to 200 characters or less.').min(1, 'Family is required'),
@@ -63,9 +77,15 @@ const memberSchema = z.object({
   educationInstitutionId: z.string().max(200, 'Please keep the education institution to 200 characters or less.').optional(),
   localityFacilityId: z.string().max(200, 'Please keep the locality facility to 200 characters or less.').optional(),
   ...socioEconomicSchemaFields,
+  ...conditionalSchemaFields,
 });
 
-type MemberFormData = z.infer<typeof memberSchema>;
+const memberSchema = withConditionalRules(memberSchemaShape);
+
+// Inferred off the plain object shape (not the superRefine wrapper) so the
+// concrete object type survives — resolving it off the wrapped ZodEffects
+// schema degrades every `errors.<field>` to a loose FieldErrorsImpl union.
+type MemberFormData = z.infer<typeof memberSchemaShape>;
 
 export default function EditMember() {
   const navigate = useNavigate();
@@ -88,6 +108,9 @@ export default function EditMember() {
   });
 
   const selectedFamilyId = watch('familyId');
+  const relationship = watch('relationship');
+  const healthStatus = watch('healthStatus');
+  const dateOfBirth = watch('dateOfBirth');
 
   useEffect(() => {
     fetchFamilies();
@@ -104,6 +127,12 @@ export default function EditMember() {
       }
     }
   }, [selectedFamilyId, families, setValue]);
+
+  /* Age becomes a derived, read-only value once a date of birth is set. */
+  useEffect(() => {
+    const derivedAge = calculateAge(dateOfBirth);
+    if (derivedAge !== undefined) setValue('age', derivedAge, { shouldValidate: true });
+  }, [dateOfBirth, setValue]);
 
   const fetchFamilies = async () => {
     try {
@@ -146,6 +175,9 @@ export default function EditMember() {
       Object.entries(socioEconomicDefaults(member as any)).forEach(([field, value]) => {
         setValue(field as any, value as any);
       });
+      Object.entries(conditionalDefaults(member as any)).forEach(([field, value]) => {
+        setValue(field as any, value as any);
+      });
 
       // Fetch education options from tenant settings
       const { currentTenantId, user } = useAuthStore.getState();
@@ -180,20 +212,25 @@ export default function EditMember() {
     if (!id) return;
     try {
       setError(null);
-      const memberData = Object.fromEntries(
-        Object.entries({
-          ...data,
-          age: data.age == null || Number.isNaN(data.age) ? undefined : Number(data.age),
-          gender: data.gender === '' ? undefined : data.gender,
-          bloodGroup: data.bloodGroup === '' ? undefined : data.bloodGroup,
-          maritalStatus: data.maritalStatus === '' ? undefined : data.maritalStatus,
-          marriageCount:
-            data.marriageCount == null || Number.isNaN(data.marriageCount)
-              ? undefined
-              : Number(data.marriageCount),
-          ...normalizeSocioEconomic(data),
-        }).filter(([_, v]) => v !== '' && v !== undefined && !(typeof v === 'number' && Number.isNaN(v)))
-      );
+      const memberData = {
+        ...Object.fromEntries(
+          Object.entries({
+            ...data,
+            age: data.age == null || Number.isNaN(data.age) ? undefined : Number(data.age),
+            gender: data.gender === '' ? undefined : data.gender,
+            bloodGroup: data.bloodGroup === '' ? undefined : data.bloodGroup,
+            maritalStatus: data.maritalStatus === '' ? undefined : data.maritalStatus,
+            marriageCount:
+              data.marriageCount == null || Number.isNaN(data.marriageCount)
+                ? undefined
+                : Number(data.marriageCount),
+            ...normalizeSocioEconomic(data),
+          }).filter(([_, v]) => v !== '' && v !== undefined && !(typeof v === 'number' && Number.isNaN(v)))
+        ),
+        // Kept out of the filter above: relationshipOther/healthNotes send ''
+        // (not undefined) so the server clears a stale value, per normalizeConditionalFields.
+        ...normalizeConditionalFields(data),
+      };
       await memberService.update(id, memberData);
       navigate(ROUTES.MEMBERS.LIST);
     } catch (err: any) {
@@ -244,7 +281,7 @@ export default function EditMember() {
     { value: '', label: 'Select family...' },
     ...families.map((family) => ({
       value: family.id,
-      label: `${family.houseName}${family.mahallId ? ` (${family.mahallId})` : ''}`,
+      label: `${toTitleCase(family.houseName)}${family.mahallId ? ` (${family.mahallId})` : ''}`,
     })),
   ];
 
@@ -288,20 +325,31 @@ export default function EditMember() {
               required
               placeholder="Full Name"
             />
-            <div className="hidden">
-              <Input
-                label="Member Name (Malayalam)"
-                {...register('nameMl')}
-                placeholder="പേര്"
-                className="font-malayalam"
-              />
-            </div>
+            <Input
+              label="Member Name (Malayalam)"
+              {...register('nameMl')}
+              placeholder="പേര്"
+              className="font-malayalam"
+              helperText="Optional. Used on certificates printed in Malayalam."
+            />
             <Input
               label="Member ID (Auto-generated)"
               {...register('mahallId')}
               placeholder="Member ID"
               disabled
               className="bg-gray-50 dark:bg-gray-800"
+            />
+            <DatePicker
+              label="Date of Birth"
+              value={dateOfBirth || ''}
+              onChange={(value) => setValue('dateOfBirth', value, { shouldValidate: true, shouldDirty: true })}
+              error={errors.dateOfBirth?.message}
+              helperText="Age below is calculated automatically once this is set."
+              captionLayout="dropdown"
+              minDate={EARLIEST_DOB}
+              maxDate={LATEST_DOB}
+              startMonth={EARLIEST_DOB}
+              endMonth={LATEST_DOB}
             />
             <Input
               label="Age"
@@ -311,6 +359,8 @@ export default function EditMember() {
               placeholder="Age"
               min={0}
               max={150}
+              disabled={!!dateOfBirth}
+              helperText={dateOfBirth ? 'Calculated from date of birth.' : undefined}
             />
             <Select
               label="Relationship"
@@ -326,6 +376,17 @@ export default function EditMember() {
                 { value: 'other', label: 'Other' },
               ]}
             />
+
+            {/* Only asked when the relationship dropdown is on 'other'. */}
+            {isOtherRelationship(relationship) && (
+              <Input
+                label="Relationship (specify)"
+                {...register('relationshipOther')}
+                error={errors.relationshipOther?.message}
+                required
+                placeholder="e.g. Grandmother"
+              />
+            )}
           </div>
 
           <div className="md:col-span-2">
@@ -365,6 +426,18 @@ export default function EditMember() {
               options={healthStatusOptions}
               className="md:col-span-2"
             />
+
+            {/* Only asked when the health status isn't 'healthy'; relabels itself for 'disabled'. */}
+            {needsHealthNotes(healthStatus) && (
+              <Input
+                label={healthNotesCopy(healthStatus).label}
+                {...register('healthNotes')}
+                error={errors.healthNotes?.message}
+                placeholder={healthNotesCopy(healthStatus).placeholder}
+                helperText={healthNotesCopy(healthStatus).helperText}
+                className="md:col-span-2"
+              />
+            )}
             <Select
               label="Education"
               {...register('education')}
@@ -378,7 +451,7 @@ export default function EditMember() {
               {...register('educationInstitutionId')}
               options={[
                 { value: '', label: 'Select Institute' },
-                ...institutes.map((inst) => ({ value: inst.id || inst._id, label: inst.name })),
+                ...institutes.map((inst) => ({ value: inst.id || inst._id, label: toTitleCase(inst.name) })),
               ]}
             />
             <Select
@@ -386,7 +459,7 @@ export default function EditMember() {
               {...register('localityFacilityId')}
               options={[
                 { value: '', label: 'Select Facility' },
-                ...facilities.map((fac) => ({ value: fac.id, label: fac.name })),
+                ...facilities.map((fac) => ({ value: fac.id, label: toTitleCase(fac.name) })),
               ]}
             />
             <Select label="Marital Status" {...register('maritalStatus')} options={maritalStatusOptions} />

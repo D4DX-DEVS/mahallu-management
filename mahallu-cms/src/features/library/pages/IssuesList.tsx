@@ -11,6 +11,7 @@ import { libraryService, BookIssue } from '@/services/libraryService';
 import { toast } from '@/store/toastStore';
 import { FiPlus, FiCheckCircle } from 'react-icons/fi';
 import { errorMessage } from '@/utils/errors';
+import { toTitleCase } from '@/utils/format';
 import PageHeader from '@/components/layout/PageHeader';
 
 export default function IssuesList() {
@@ -94,7 +95,7 @@ export default function IssuesList() {
       render: (_: any, issue: BookIssue) => (
         <div className="text-sm">
           {typeof issue.memberId === 'object' && issue.memberId && 'name' in issue.memberId
-            ? (issue.memberId as any).name
+            ? toTitleCase((issue.memberId as any).name)
             : 'N/A'}
         </div>
       ),
@@ -124,7 +125,7 @@ export default function IssuesList() {
     {
       key: 'actions',
       label: 'Actions',
-      align: 'center',
+      align: 'center' as const,
       render: (_: any, issue: BookIssue) => (
         <ActionsMenu
           items={

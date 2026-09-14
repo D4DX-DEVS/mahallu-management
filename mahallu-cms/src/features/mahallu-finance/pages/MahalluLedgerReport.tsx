@@ -9,6 +9,7 @@ import { accountingReportService } from '@/services/accountingReportService';
 import { masterAccountService, Ledger } from '@/services/masterAccountService';
 import { loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 
 export default function MahalluLedgerReport() {
   const [loading, setLoading] = useState(false);
@@ -64,7 +65,7 @@ export default function MahalluLedgerReport() {
               label="Ledger *"
               options={[
                 { value: '', label: 'Select Ledger...' },
-                ...ledgers.map((l) => ({ value: l.id, label: `${l.name} (${l.type})` })),
+                ...ledgers.map((l) => ({ value: l.id, label: `${toTitleCase(l.name)} (${l.type})` })),
               ]}
               value={ledgerId}
               onChange={(e) => setLedgerId(e.target.value)}
@@ -101,7 +102,7 @@ export default function MahalluLedgerReport() {
           </p>
         ) : (
           <>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3 mb-4">
               <StatCard
                 title="Opening Balance"
                 value={<>₹{(reportData.openingBalance || 0).toLocaleString()}</>}
@@ -146,7 +147,7 @@ export default function MahalluLedgerReport() {
                       <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
                         {entry.description}
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 capitalize">{entry.category}</td>
+                      <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{toTitleCase(entry.category)}</td>
                       <td className="px-4 py-3 text-sm text-red-600">
                         {entry.debit > 0 ? `₹${entry.debit.toLocaleString()}` : '-'}
                       </td>

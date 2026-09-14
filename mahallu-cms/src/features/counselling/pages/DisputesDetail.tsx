@@ -5,8 +5,9 @@ import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import { toast } from '@/store/toastStore';
 import { getDisputeCaseById, updateDisputeCase, IDisputeCase } from '@/services/counsellingService';
-import { errorMessage } from '@/utils/errors';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 
 const STATUSES = ['registered', 'mediation', 'resolved', 'referred', 'closed'];
 
@@ -35,6 +36,7 @@ export default function DisputesDetail() {
       setReferredTo(response.data.referredTo || '');
     } catch (error) {
       console.error("Couldn't load case:", error);
+      toast.error(loadErrorMessage(error, 'the dispute case'));
     } finally {
       setLoading(false);
     }
@@ -91,12 +93,16 @@ export default function DisputesDetail() {
               </div>
               <div>
                 <p className="text-xs text-gray-600">Parties Involved</p>
-                <p className="font-medium">{(caseRecord.parties ?? []).join(', ') || '—'}</p>
+                <p className="font-medium">
+                  {(caseRecord.parties ?? []).map((party) => toTitleCase(party)).join(', ') || '—'}
+                </p>
               </div>
               {caseRecord.mediators && caseRecord.mediators.length > 0 && (
                 <div>
                   <p className="text-xs text-gray-600">Mediators</p>
-                  <p className="font-medium">{caseRecord.mediators.join(', ')}</p>
+                  <p className="font-medium">
+                    {caseRecord.mediators.map((mediator) => toTitleCase(mediator)).join(', ')}
+                  </p>
                 </div>
               )}
             </div>
@@ -181,7 +187,7 @@ export default function DisputesDetail() {
                 {caseRecord.referredTo && (
                   <div>
                     <p className="text-xs text-gray-600">Referred To</p>
-                    <p className="font-medium">{caseRecord.referredTo}</p>
+                    <p className="font-medium">{toTitleCase(caseRecord.referredTo)}</p>
                   </div>
                 )}
               </div>

@@ -82,7 +82,7 @@ export default function DemographicsReport() {
         breadcrumbs={[{ label: 'Reports' }]}
       />
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {totals.map((item) => (
           <Card key={item.label}>
             <p className="text-xs font-medium text-gray-500 dark:text-gray-400 sm:text-sm">{item.label}</p>

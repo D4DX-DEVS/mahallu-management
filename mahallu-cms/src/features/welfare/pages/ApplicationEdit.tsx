@@ -8,11 +8,13 @@ import SearchableSelect from '@/components/ui/SearchableSelect';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import { welfareService, WelfareScheme } from '@/services/welfareService';
 import { familyService } from '@/services/familyService';
+import { fetchAllPages } from '@/services/api';
 import { toast } from '@/store/toastStore';
 import { errorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { useFormValidation } from '@/hooks/useFormValidation';
 import { FieldRule, LIMITS } from '@/utils/validation';
+import { toTitleCase } from '@/utils/format';
 
 /**
  * The same limits the API applies, so a form that passes here is not
@@ -46,12 +48,14 @@ export default function ApplicationEdit() {
     if (!id) return;
     Promise.all([
       welfareService.getSchemes({ page: 1, limit: 100, status: 'active' }),
-      familyService.getAll({ page: 1, limit: 200 }),
+      // /families caps limit at 100 and 400s above it, so the old limit:200
+      // request always failed and left this picker empty.
+      fetchAllPages((p) => familyService.getAll(p)),
       welfareService.getApplication(id),
     ])
-      .then(([schemeResult, familyResult, application]) => {
+      .then(([schemeResult, familyRows, application]) => {
         setSchemes(schemeResult.data);
-        setFamilies(familyResult.data);
+        setFamilies(familyRows);
         setForm({
           schemeId: idOf(application.schemeId),
           familyId: idOf(application.familyId),
@@ -110,7 +114,7 @@ export default function ApplicationEdit() {
                 }}
                 options={[
                   { value: '', label: 'Select a scheme' },
-                  ...schemes.map((scheme) => ({ value: scheme.id, label: scheme.name })),
+                  ...schemes.map((scheme) => ({ value: scheme.id, label: toTitleCase(scheme.name) })),
                 ]}
                 required
               />
@@ -129,7 +133,7 @@ export default function ApplicationEdit() {
                 }}
                 options={families.map((family: any) => ({
                   value: family._id || family.id,
-                  label: `${family.houseName}${family.familyHead ? ` - ${family.familyHead}` : ''}`,
+                  label: `${toTitleCase(family.houseName)}${family.familyHead ? ` - ${toTitleCase(family.familyHead)}` : ''}`,
                 }))}
                 placeholder="Search family..."
                 required

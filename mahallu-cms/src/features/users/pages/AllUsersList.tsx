@@ -20,6 +20,7 @@ import { toast } from '@/store/toastStore';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import ActionsMenu from '@/components/ui/ActionsMenu';
+import { toTitleCase } from '@/utils/format';
 
 export default function AllUsersList() {
   const navigate = useNavigate();
@@ -36,6 +37,11 @@ export default function AllUsersList() {
   const [isExporting, setIsExporting] = useState(false);
 
   const debouncedSearch = useDebounce(searchQuery, 500);
+
+  // A new search or filter invalidates the current page offset
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearch, roleFilter, statusFilter]);
 
   useEffect(() => {
     fetchUsers();
@@ -75,14 +81,13 @@ export default function AllUsersList() {
     try {
       setIsExporting(true);
 
-      // Fetch all filtered data without pagination
-      const params: any = { limit: 10000 };
+      // Fetch all filtered data, a page at a time — the API caps `limit` at 100
+      const params: any = {};
       if (debouncedSearch) params.search = debouncedSearch;
       if (roleFilter !== 'all') params.role = roleFilter;
       if (statusFilter !== 'all') params.status = statusFilter;
 
-      const result = await userService.getAll(params);
-      const dataToExport = result.data;
+      const dataToExport = await userService.getAllForExport(params);
 
       if (dataToExport.length === 0) {
         toast.info('No data to export');
@@ -112,7 +117,7 @@ export default function AllUsersList() {
   };
 
   const columns: TableColumn<User>[] = [
-    { key: 'name', label: 'Name', width: '6.75rem', sortable: true },
+    { key: 'name', label: 'Name', width: '6.75rem', sortable: true, render: (name) => toTitleCase(name) },
     { key: 'phone', label: 'Phone', width: '6.75rem' },
     { key: 'email', label: 'Email', width: '6.75rem', render: (email) => email || '-' },
     {
@@ -194,7 +199,7 @@ export default function AllUsersList() {
       <div className="space-y-3">
         <PageHeader title="All Users" description="Manage all system users" />
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {stats.map((stat, index) => (
             <StatCard key={index} {...stat} />
           ))}
@@ -264,7 +269,7 @@ export default function AllUsersList() {
             data={users}
             emptyMessage="No users found"
             showExport={false}
-            onRowClick={(row) => navigate(`/users/${row.id}`)}
+            onRowClick={(row) => navigate(`/admin/users/${row.id}`)}
           />
         )}
 

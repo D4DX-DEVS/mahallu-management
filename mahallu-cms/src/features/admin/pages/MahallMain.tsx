@@ -13,7 +13,7 @@ import { CLASSIFICATION_LABELS, TenantClassification } from '@/constants/modules
 import StringListEditor from '../components/StringListEditor';
 import { useAuthStore } from '@/store/authStore';
 import { Tenant } from '@/types/tenant';
-import { formatDate } from '@/utils/format';
+import { formatDate, toTitleCase } from '@/utils/format';
 import { getTenantId } from '@/utils/tenantHelper';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
@@ -222,7 +222,7 @@ export default function MahallMain() {
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Name
                 </label>
-                <p className="text-gray-900 dark:text-gray-100 capitalize">{tenant.name}</p>
+                <p className="text-gray-900 dark:text-gray-100">{toTitleCase(tenant.name)}</p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -256,7 +256,7 @@ export default function MahallMain() {
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Location
                 </label>
-                <p className="text-gray-900 dark:text-gray-100">{tenant.location || 'N/A'}</p>
+                <p className="text-gray-900 dark:text-gray-100">{tenant.location ? toTitleCase(tenant.location) : 'N/A'}</p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -277,25 +277,25 @@ export default function MahallMain() {
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       State
                     </label>
-                    <p className="text-gray-900 dark:text-gray-100">{tenant.address.state}</p>
+                    <p className="text-gray-900 dark:text-gray-100">{toTitleCase(tenant.address.state)}</p>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       District
                     </label>
-                    <p className="text-gray-900 dark:text-gray-100">{tenant.address.district}</p>
+                    <p className="text-gray-900 dark:text-gray-100">{toTitleCase(tenant.address.district)}</p>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       LSG Name
                     </label>
-                    <p className="text-gray-900 dark:text-gray-100">{tenant.address.lsgName}</p>
+                    <p className="text-gray-900 dark:text-gray-100">{toTitleCase(tenant.address.lsgName)}</p>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Village
                     </label>
-                    <p className="text-gray-900 dark:text-gray-100">{tenant.address.village}</p>
+                    <p className="text-gray-900 dark:text-gray-100">{toTitleCase(tenant.address.village)}</p>
                   </div>
                   {tenant.address.pinCode && (
                     <div>
@@ -310,7 +310,7 @@ export default function MahallMain() {
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                         Post Office
                       </label>
-                      <p className="text-gray-900 dark:text-gray-100">{tenant.address.postOffice}</p>
+                      <p className="text-gray-900 dark:text-gray-100">{toTitleCase(tenant.address.postOffice)}</p>
                     </div>
                   )}
                 </div>

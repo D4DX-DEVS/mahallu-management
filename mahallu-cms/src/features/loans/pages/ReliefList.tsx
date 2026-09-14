@@ -21,6 +21,7 @@ import {
 } from '@/services/qardService';
 import { ReliefStatusBadge, UrgencyBadge } from '../components/LoanStatusBadge';
 import { loadErrorMessage } from '@/utils/errors';
+import { toTitleCase } from '@/utils/format';
 import PageHeader from '@/components/layout/PageHeader';
 
 const URGENCY_FILTER = [{ value: '', label: 'Any urgency' }, ...RELIEF_URGENCY_OPTIONS];
@@ -74,7 +75,7 @@ export default function ReliefList() {
       key: 'familyId',
       label: 'Family',
       width: '7.25rem',
-      render: (v) => (v && typeof v === 'object' ? v.houseName : '-'),
+      render: (v) => (v && typeof v === 'object' ? toTitleCase(v.houseName) : '-'),
     },
     { key: 'urgency', label: 'Urgency', width: '7.75rem', render: (v) => <UrgencyBadge urgency={v} /> },
     { key: 'amount', label: 'Assistance', width: '9rem', render: (v) => (v ? formatCurrency(v) : '-') },
@@ -95,7 +96,7 @@ export default function ReliefList() {
       </div>
 
       {summary && (
-        <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
           <StatCard title="Open cases" value={summary.openCases} />
           <StatCard title="Critical" value={summary.criticalCases} />
           <StatCard title="Assisted" value={summary.assistedCases} />

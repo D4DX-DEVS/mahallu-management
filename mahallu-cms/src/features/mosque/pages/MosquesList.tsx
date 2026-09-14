@@ -17,6 +17,7 @@ import { useDebounce } from '@/hooks/useDebounce';
 import { toast } from '@/store/toastStore';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 
 const emptyForm = {
   name: '',
@@ -169,8 +170,8 @@ export default function MosquesList() {
               <Card key={mosque.id} className="h-full transition-shadow hover:shadow-md">
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <Link to={`/mosque/${mosque.id}`} className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold leading-tight text-gray-900 dark:text-gray-100 sm:text-base capitalize">
-                      {mosque.name}
+                    <p className="truncate text-sm font-semibold leading-tight text-gray-900 dark:text-gray-100 sm:text-base">
+                      {toTitleCase(mosque.name)}
                     </p>
                   </Link>
                   <button
@@ -194,8 +195,8 @@ export default function MosquesList() {
                     </div>
                     <div className="flex items-baseline justify-between gap-2">
                       <dt className="text-xs text-gray-500 dark:text-gray-400">Imam</dt>
-                      <dd className="truncate text-xs font-medium text-gray-700 dark:text-gray-200 capitalize">
-                        {mosque.imamName || '-'}
+                      <dd className="truncate text-xs font-medium text-gray-700 dark:text-gray-200">
+                        {mosque.imamName ? toTitleCase(mosque.imamName) : '-'}
                       </dd>
                     </div>
                   </dl>
@@ -330,7 +331,7 @@ export default function MosquesList() {
         isLoading={saving}
         isOpen={isConfirmDeleteOpen}
         title="Delete Mosque"
-        message={`Delete the mosque "${deletingName}"? Its assets will remain but become unassigned.`}
+        message={`Delete the mosque "${toTitleCase(deletingName)}"? Its assets will remain but become unassigned.`}
         variant="danger"
         confirmLabel="Delete"
         onConfirm={confirmDelete}

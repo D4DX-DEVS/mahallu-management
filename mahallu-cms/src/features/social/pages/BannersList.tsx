@@ -12,6 +12,7 @@ import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
 import { TableColumn, Pagination as PaginationType } from '@/types';
 import { socialService, Banner } from '@/services/socialService';
+import { fetchAllPages } from '@/services/api';
 import { formatDate } from '@/utils/format';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
 import { toast } from '@/store/toastStore';
@@ -61,9 +62,9 @@ export default function BannersList() {
     try {
       setIsExporting(true);
 
-      const params: any = { limit: 10000 };
-      const result = await socialService.getAllBanners(params);
-      const dataToExport = result.data;
+      const dataToExport = await fetchAllPages<Banner>(({ page, limit }) =>
+        socialService.getAllBanners({ page, limit })
+      );
 
       if (dataToExport.length === 0) {
         toast.info('No data to export');
@@ -181,7 +182,7 @@ export default function BannersList() {
       <div className="space-y-3">
         <PageHeader title="Banners" description="Manage banners" />
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-2">
           {stats.map((stat, index) => (
             <StatCard key={index} {...stat} />
           ))}

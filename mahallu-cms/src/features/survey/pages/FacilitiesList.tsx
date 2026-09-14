@@ -18,6 +18,7 @@ import { useDebounce } from '@/hooks/useDebounce';
 import { toast } from '@/store/toastStore';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 
 const TYPE_OPTIONS = [
   { value: 'school', label: 'School' },
@@ -149,14 +150,14 @@ export default function FacilitiesList() {
   };
 
   const columns: TableColumn<LocalityFacility>[] = [
-    { key: 'name', label: 'Name', width: '6.75rem', render: (v) => <span className="capitalize">{v}</span> },
+    { key: 'name', label: 'Name', width: '6.75rem', render: (v) => <span>{toTitleCase(v)}</span> },
     {
       key: 'type',
       label: 'Type',
       width: '6.25rem',
       render: (v) => TYPE_OPTIONS.find((option) => option.value === v)?.label || v || '-',
     },
-    { key: 'address', label: 'Address', width: '7.75rem', render: (v) => v || '-' },
+    { key: 'address', label: 'Address', width: '7.75rem', render: (v) => (v ? toTitleCase(v) : '-') },
     { key: 'contactNo', label: 'Contact', width: '7.75rem', render: (v) => v || '-' },
     {
       key: 'actions',
@@ -322,7 +323,7 @@ export default function FacilitiesList() {
         isLoading={saving}
         isOpen={isConfirmDeleteOpen}
         title="Delete Facility"
-        message={`Delete the facility "${deletingName}"?`}
+        message={`Delete the facility "${toTitleCase(deletingName)}"?`}
         variant="danger"
         confirmLabel="Delete"
         onConfirm={confirmDelete}

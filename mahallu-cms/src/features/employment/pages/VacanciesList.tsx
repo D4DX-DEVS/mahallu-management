@@ -13,6 +13,7 @@ import StatusBadge from '@/components/ui/StatusBadge';
 import PageHeader from '@/components/layout/PageHeader';
 import SortableTh from '@/components/ui/SortableTh';
 import { useSortableRows } from '@/hooks/useSortableRows';
+import { toTitleCase } from '@/utils/format';
 
 export default function VacanciesList() {
   const navigate = useNavigate();
@@ -109,7 +110,7 @@ export default function VacanciesList() {
       />
       {/* Summary Cards */}
       {summary && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <StatCard title="Open Vacancies" value={summary.openVacancies} tone="info" />
           <StatCard title="Employers" value={summary.employersCount} tone="success" />
           <StatCard title="Trainings" value={summary.trainingsCount} tone="info" />
@@ -196,11 +197,13 @@ export default function VacanciesList() {
                 {sortedVacancies.map((vacancy) => (
                   <tr key={vacancy.id} className="border-b hover:bg-gray-50">
                     <td className="px-4 py-3 text-sm">
-                      <div className="font-medium text-gray-900">{vacancy.title}</div>
-                      <div className="text-xs text-gray-500 hidden sm:block">{vacancy.location || '—'}</div>
+                      <div className="font-medium text-gray-900">{toTitleCase(vacancy.title)}</div>
+                      <div className="text-xs text-gray-500 hidden sm:block">
+                        {vacancy.location ? toTitleCase(vacancy.location) : '—'}
+                      </div>
                     </td>
                     <td className="px-4 py-3 text-sm hidden sm:table-cell text-gray-700">
-                      {employerName(vacancy)}
+                      {toTitleCase(employerName(vacancy))}
                     </td>
                     <td className="px-4 py-3 hidden md:table-cell">
                       <StatusBadge status={vacancy.status} />

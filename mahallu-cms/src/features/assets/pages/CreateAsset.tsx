@@ -13,9 +13,10 @@ import { assetService } from '@/services/assetService';
 import { mosqueService, MosqueProfile } from '@/services/mosqueService';
 import PageHeader from '@/components/layout/PageHeader';
 import { errorMessage, safeApiMessage } from '@/utils/errors';
+import { toTitleCase } from '@/utils/format';
 
 const assetSchema = z.object({
-  name: z.string().min(1, 'Asset name is required').max(200),
+  name: z.string().min(2, 'Asset name must be at least 2 characters.').max(200),
   nameMl: z.string().max(200, 'Please keep the name to 200 characters or less.').optional(),
   description: z.string().max(3000, 'Please keep the description to 3000 characters or less.').optional(),
   purchaseDate: z.string().max(200, 'Please keep the purchase date to 200 characters or less.').min(1, 'Purchase date is required'),
@@ -164,7 +165,7 @@ export default function CreateAsset() {
               label="Mosque"
               options={[
                 { value: '', label: 'Unassigned' },
-                ...mosques.map((m) => ({ value: m.id, label: m.name })),
+                ...mosques.map((m) => ({ value: m.id, label: toTitleCase(m.name) })),
               ]}
               {...register('mosqueId')}
             />

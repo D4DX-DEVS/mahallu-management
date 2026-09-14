@@ -13,14 +13,15 @@ import TableToolbar from '@/components/ui/TableToolbar';
 import Dropdown, { DropdownItem } from '@/components/ui/Dropdown';
 import { TableColumn, Pagination as PaginationType, Family } from '@/types';
 import { familyService } from '@/services/familyService';
-import { collectibleService } from '@/services/collectibleService';
+import { collectibleService, Varisangya } from '@/services/collectibleService';
+import { fetchAllPages } from '@/services/api';
 import { useDebounce } from '@/hooks/useDebounce';
-import { formatDate } from '@/utils/format';
+import { formatDate, toTitleCase } from '@/utils/format';
 import { ROUTES } from '@/constants/routes';
 import { exportToCSV, exportToJSON } from '@/utils/exportUtils';
 import { exportInvoicesToPdf, InvoiceDetails } from '@/utils/invoiceUtils';
 import { toast } from '@/store/toastStore';
-import { loadErrorMessage } from '@/utils/errors';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
 
 interface FamilyVarisangyaData extends Family {
   totalVarisangya?: number;
@@ -48,6 +49,12 @@ export default function FamilyVarisangyaList() {
 
   const debouncedSearch = useDebounce(searchQuery, 500);
 
+  // A page number that only made sense for the previous search must not
+  // survive into the new one - reset it once the debounce settles.
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearch]);
+
   useEffect(() => {
     fetchFamilies();
   }, [debouncedSearch, currentPage]);
@@ -67,8 +74,9 @@ export default function FamilyVarisangyaList() {
 
       const familiesResult = await familyService.getAll(params);
       const familiesData = familiesResult.data;
-      const varisangyasResult = await collectibleService.getAllVarisangyas();
-      const allVarisangyas = varisangyasResult.data;
+      // /collectibles/varisangya defaults to 10 rows with no limit passed - fetch every
+      // page so per-family totals aren't computed off an arbitrary slice.
+      const allVarisangyas = await fetchAllPages<Varisangya>((p) => collectibleService.getAllVarisangyas(p));
 
       const familiesWithVarisangya = familiesData.map((family) => {
         const fid = (family as any).id ?? (family as any)._id;
@@ -100,12 +108,12 @@ export default function FamilyVarisangyaList() {
   const handleExport = async (type: 'csv' | 'json' | 'pdf') => {
     try {
       setIsExporting(true);
-      const params: any = { limit: 10000 };
-      if (debouncedSearch) params.search = debouncedSearch;
-      const familiesResult = await familyService.getAll(params);
-      const familiesData = familiesResult.data;
-      const varisangyasResult = await collectibleService.getAllVarisangyas();
-      const allVarisangyas = varisangyasResult.data;
+      const filters: any = {};
+      if (debouncedSearch) filters.search = debouncedSearch;
+      // /families and /collectibles/varisangya cap limit at 100 and 400 above it, so a
+      // single limit:10000 request always failed - page through both instead.
+      const familiesData = await fetchAllPages<Family>((p) => familyService.getAll({ ...filters, ...p }));
+      const allVarisangyas = await fetchAllPages<Varisangya>((p) => collectibleService.getAllVarisangyas(p));
       const dataToExport = familiesData.map((family) => {
         const familyVarisangyas = allVarisangyas.filter((v) => getFamilyId(v) === family.id);
         const totalVarisangya = familyVarisangyas.reduce((sum, v) => sum + (v.amount || 0), 0);
@@ -140,7 +148,7 @@ export default function FamilyVarisangyaList() {
                   title: 'Family Varisangya Payment',
                   receiptNo: entry.receiptNo,
                   payerLabel: 'Family',
-                  payerName: family.houseName || '-',
+                  payerName: toTitleCase(family.houseName) || '-',
                   amount: entry.amount,
                   paymentDate: entry.paymentDate,
                   paymentMethod: entry.paymentMethod,
@@ -156,8 +164,7 @@ export default function FamilyVarisangyaList() {
           break;
       }
     } catch (error: any) {
-      console.error('Export error:', error);
-      toast.error(error?.message || "Couldn't export family varisangya data");
+      toast.error(errorMessage(error, { action: 'export family varisangya data' }));
     } finally {
       setIsExporting(false);
     }
@@ -178,8 +185,9 @@ export default function FamilyVarisangyaList() {
           break;
         case 'pdf':
           {
-            const varisangyasResult = await collectibleService.getAllVarisangyas({ familyId: row.id });
-            const familyVarisangyas = varisangyasResult.data || [];
+            const familyVarisangyas = await fetchAllPages<Varisangya>((p) =>
+              collectibleService.getAllVarisangyas({ familyId: row.id, ...p })
+            );
             if (familyVarisangyas.length === 0) {
               toast.info('No payment records to export for this family');
               return;
@@ -188,7 +196,7 @@ export default function FamilyVarisangyaList() {
               title: 'Family Varisangya Payment',
               receiptNo: entry.receiptNo || '-',
               payerLabel: 'Family',
-              payerName: row.houseName || '-',
+              payerName: toTitleCase(row.houseName) || '-',
               amount: entry.amount,
               paymentDate: entry.paymentDate,
               paymentMethod: entry.paymentMethod || '-',
@@ -199,8 +207,7 @@ export default function FamilyVarisangyaList() {
           break;
       }
     } catch (error: any) {
-      console.error('Row export error:', error);
-      toast.error(error?.message || "Couldn't export family varisangya records");
+      toast.error(errorMessage(error, { action: 'export family varisangya records' }));
     } finally {
       setExportingRowId(null);
     }
@@ -216,7 +223,7 @@ export default function FamilyVarisangyaList() {
           to={ROUTES.FAMILIES.DETAIL(row.id)}
           className="text-primary-600 hover:text-primary-700 dark:text-primary-400"
         >
-          {name}
+          {toTitleCase(name)}
         </Link>
       ),
     },
@@ -316,7 +323,7 @@ export default function FamilyVarisangyaList() {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         {stats.map((stat, index) => (
           <StatCard key={index} {...stat} />
         ))}

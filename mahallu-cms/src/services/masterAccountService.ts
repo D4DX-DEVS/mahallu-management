@@ -72,21 +72,63 @@ export interface LedgerItem {
   createdAt: string;
 }
 
+/**
+ * The API caps `limit` at 100 and answers 400 — not a truncated list — to
+ * anything larger.
+ *
+ * Every dropdown and every export on these screens asked for `limit: 1000` or
+ * `limit: 10000` to mean "give me all of them". Each of those calls was
+ * refused, so the ledger pickers on Add Entry and the Ledger Report came up
+ * empty (leaving Generate/Save permanently disabled) and every CSV/PDF export
+ * failed. Asking for more than the API allows now walks the pages instead.
+ */
+const API_MAX_LIMIT = 100;
+
+/** A hard stop, so an unexpected `pagination` shape can never spin forever. */
+const MAX_PAGES = 200;
+
+interface ListResponse<T> {
+  success: boolean;
+  data: T[];
+  pagination?: any;
+}
+
+async function getList<T>(
+  url: string,
+  params?: Record<string, any>
+): Promise<{ data: T[]; pagination: any }> {
+  const requested = Number(params?.limit);
+  const wantsEverything =
+    Number.isFinite(requested) && requested > API_MAX_LIMIT && params?.page === undefined;
+
+  if (!wantsEverything) {
+    const response = await api.get<ListResponse<T>>(url, { params });
+    return { data: asList(response.data.data), pagination: response.data.pagination ?? null };
+  }
+
+  const rows: T[] = [];
+  let pagination: any = null;
+
+  for (let page = 1; page <= MAX_PAGES; page += 1) {
+    const response = await api.get<ListResponse<T>>(url, {
+      params: { ...params, page, limit: API_MAX_LIMIT },
+    });
+    const batch = asList(response.data.data);
+    rows.push(...batch);
+    pagination = response.data.pagination ?? pagination;
+
+    if (batch.length < API_MAX_LIMIT) break;
+    if (rows.length >= requested) break;
+    if (pagination?.totalPages && page >= pagination.totalPages) break;
+  }
+
+  return { data: rows, pagination };
+}
+
 export const masterAccountService = {
   // Institute Accounts
-  getAllInstituteAccounts: async (params?: { instituteId?: string; page?: number; limit?: number }) => {
-    const response = await api.get<{ success: boolean; data: InstituteAccount[]; pagination?: any }>(
-      '/master-accounts/institute',
-      {
-        params,
-      }
-    );
-    // Handle both paginated and non-paginated responses
-    if (response.data.pagination) {
-      return { data: asList(response.data.data), pagination: response.data.pagination };
-    }
-    return { data: asList(response.data.data), pagination: null };
-  },
+  getAllInstituteAccounts: async (params?: { instituteId?: string; page?: number; limit?: number }) =>
+    getList<InstituteAccount>('/master-accounts/institute', params),
 
   createInstituteAccount: async (data: Partial<InstituteAccount>) => {
     const response = await api.post<{ success: boolean; data: InstituteAccount }>(
@@ -118,17 +160,7 @@ export const masterAccountService = {
     scope?: string;
     page?: number;
     limit?: number;
-  }) => {
-    const response = await api.get<{ success: boolean; data: Category[]; pagination?: any }>(
-      '/master-accounts/categories',
-      { params }
-    );
-    // Handle both paginated and non-paginated responses
-    if (response.data.pagination) {
-      return { data: asList(response.data.data), pagination: response.data.pagination };
-    }
-    return { data: asList(response.data.data), pagination: null };
-  },
+  }) => getList<Category>('/master-accounts/categories', params),
 
   createCategory: async (data: Partial<Category>) => {
     const response = await api.post<{ success: boolean; data: Category }>(
@@ -154,17 +186,8 @@ export const masterAccountService = {
   },
 
   // Wallets
-  getAllWallets: async (params?: { type?: string; page?: number; limit?: number }) => {
-    const response = await api.get<{ success: boolean; data: MasterWallet[]; pagination?: any }>(
-      '/master-accounts/wallets',
-      { params }
-    );
-    // Handle both paginated and non-paginated responses
-    if (response.data.pagination) {
-      return { data: asList(response.data.data), pagination: response.data.pagination };
-    }
-    return { data: asList(response.data.data), pagination: null };
-  },
+  getAllWallets: async (params?: { type?: string; page?: number; limit?: number }) =>
+    getList<MasterWallet>('/master-accounts/wallets', params),
 
   createWallet: async (data: Partial<MasterWallet>) => {
     const response = await api.post<{ success: boolean; data: MasterWallet }>(
@@ -196,17 +219,7 @@ export const masterAccountService = {
     scope?: string;
     page?: number;
     limit?: number;
-  }) => {
-    const response = await api.get<{ success: boolean; data: Ledger[]; pagination?: any }>(
-      '/master-accounts/ledgers',
-      { params }
-    );
-    // Handle both paginated and non-paginated responses
-    if (response.data.pagination) {
-      return { data: asList(response.data.data), pagination: response.data.pagination };
-    }
-    return { data: asList(response.data.data), pagination: null };
-  },
+  }) => getList<Ledger>('/master-accounts/ledgers', params),
 
   createLedger: async (data: Partial<Ledger>) => {
     const response = await api.post<{ success: boolean; data: Ledger }>('/master-accounts/ledgers', data);
@@ -237,19 +250,7 @@ export const masterAccountService = {
     endDate?: string;
     page?: number;
     limit?: number;
-  }) => {
-    const response = await api.get<{ success: boolean; data: LedgerItem[]; pagination?: any }>(
-      '/master-accounts/ledger-items',
-      {
-        params,
-      }
-    );
-    // Handle both paginated and non-paginated responses
-    if (response.data.pagination) {
-      return { data: asList(response.data.data), pagination: response.data.pagination };
-    }
-    return { data: asList(response.data.data), pagination: null };
-  },
+  }) => getList<LedgerItem>('/master-accounts/ledger-items', params),
 
   createLedgerItem: async (data: Partial<LedgerItem>) => {
     const response = await api.post<{ success: boolean; data: LedgerItem }>(
@@ -275,16 +276,8 @@ export const masterAccountService = {
   },
 
   // Mahallu Accounts (tenant-level, no instituteId)
-  getAllMahalluAccounts: async (params?: { page?: number; limit?: number }) => {
-    const response = await api.get<{ success: boolean; data: MahalluAccount[]; pagination?: any }>(
-      '/master-accounts/mahallu-accounts',
-      { params }
-    );
-    if (response.data.pagination) {
-      return { data: asList(response.data.data), pagination: response.data.pagination };
-    }
-    return { data: asList(response.data.data), pagination: null };
-  },
+  getAllMahalluAccounts: async (params?: { page?: number; limit?: number }) =>
+    getList<MahalluAccount>('/master-accounts/mahallu-accounts', params),
 
   createMahalluAccount: async (data: Partial<MahalluAccount>) => {
     const response = await api.post<{ success: boolean; data: MahalluAccount }>(

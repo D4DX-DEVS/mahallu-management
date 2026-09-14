@@ -6,6 +6,7 @@ import { PageSkeleton } from '@/components/ui/Skeleton';
 import Pagination from '@/components/ui/Pagination';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 
 const FAMILY_EDITABLE_FIELDS = ['contactNo', 'wardNumber', 'houseNo', 'area', 'place', 'houseName'];
 const MEMBER_EDITABLE_FIELDS = [
@@ -148,8 +149,8 @@ export default function MemberFamily() {
                 {overview.family.details.houseName && (
                   <div>
                     <p className="text-gray-500 dark:text-gray-400">House Name</p>
-                    <p className="text-gray-900 dark:text-gray-100 font-medium capitalize">
-                      {overview.family.details.houseName}
+                    <p className="text-gray-900 dark:text-gray-100 font-medium">
+                      {toTitleCase(overview.family.details.houseName)}
                     </p>
                   </div>
                 )}
@@ -165,7 +166,7 @@ export default function MemberFamily() {
                   <div>
                     <p className="text-gray-500 dark:text-gray-400">Area</p>
                     <p className="text-gray-900 dark:text-gray-100 font-medium">
-                      {overview.family.details.area}
+                      {toTitleCase(overview.family.details.area)}
                     </p>
                   </div>
                 )}
@@ -173,7 +174,7 @@ export default function MemberFamily() {
                   <div>
                     <p className="text-gray-500 dark:text-gray-400">Place</p>
                     <p className="text-gray-900 dark:text-gray-100 font-medium">
-                      {overview.family.details.place}
+                      {toTitleCase(overview.family.details.place)}
                     </p>
                   </div>
                 )}
@@ -290,7 +291,7 @@ export default function MemberFamily() {
               <div key={member.id} className="border border-gray-200 dark:border-gray-800 rounded-lg p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1">
-                    <h3 className="font-semibold mb-2 text-foreground capitalize">{member.name}</h3>
+                    <h3 className="font-semibold mb-2 text-foreground">{toTitleCase(member.name)}</h3>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
                       {member.phone && (
                         <div>
@@ -325,7 +326,7 @@ export default function MemberFamily() {
                       {member.occupation && (
                         <div>
                           <p className="text-gray-500 dark:text-gray-400">Occupation</p>
-                          <p className="text-gray-900 dark:text-gray-100">{member.occupation}</p>
+                          <p className="text-gray-900 dark:text-gray-100">{toTitleCase(member.occupation)}</p>
                         </div>
                       )}
                     </div>

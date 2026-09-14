@@ -11,10 +11,13 @@ import Select from '@/components/ui/Select';
 import MultiSelect from '@/components/ui/MultiSelect';
 import { collectibleService } from '@/services/collectibleService';
 import { memberService } from '@/services/memberService';
+import { fetchAllPages } from '@/services/api';
 import { Member } from '@/types';
 import { downloadInvoicePdf, InvoiceDetails } from '@/utils/invoiceUtils';
+import { toast } from '@/store/toastStore';
 import { errorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 
 const zakatSchema = z.object({
   payerIds: z
@@ -58,10 +61,13 @@ export default function CreateZakat() {
 
   const fetchMembers = async () => {
     try {
-      const result = await memberService.getAll({ limit: 10000 });
-      setMembers(result.data || []);
+      // /members caps limit at 100 and 400s above it, so the old limit:10000
+      // request always failed and left this payer picker empty.
+      const all = await fetchAllPages<Member>((p) => memberService.getAll(p));
+      setMembers(all);
     } catch (err) {
       console.error('Error fetching members:', err);
+      toast.error(errorMessage(err, { action: 'load members' }));
     }
   };
 
@@ -96,7 +102,7 @@ export default function CreateZakat() {
         return {
           ...payloadBase,
           payerId,
-          payerName: member?.name || 'Unknown',
+          payerName: toTitleCase(member?.name) || 'Unknown',
         };
       });
 
@@ -110,7 +116,7 @@ export default function CreateZakat() {
           title: 'Zakat Invoice',
           receiptNo: entry.receiptNo,
           payerLabel: 'Payer',
-          payerName: member?.name || entry.payerName || 'Unknown',
+          payerName: toTitleCase(member?.name || entry.payerName) || 'Unknown',
           amount: entry.amount,
           paymentDate: entry.paymentDate,
           paymentMethod: entry.paymentMethod,
@@ -160,7 +166,7 @@ export default function CreateZakat() {
                   label="Payer Name"
                   options={members.map((member) => ({
                     value: member.id,
-                    label: `${member.name} (${member.familyName})`,
+                    label: `${toTitleCase(member.name)} (${toTitleCase(member.familyName)})`,
                   }))}
                   value={field.value || []}
                   onChange={field.onChange}
@@ -248,8 +254,8 @@ export default function CreateZakat() {
                 className="flex items-center justify-between rounded-lg border border-gray-200 dark:border-gray-700 px-4 py-3"
               >
                 <div>
-                  <div className="text-sm font-medium text-gray-900 dark:text-gray-100 capitalize">
-                    {invoice.payerName}
+                  <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                    {toTitleCase(invoice.payerName)}
                   </div>
                   <div className="text-xs text-gray-500 dark:text-gray-400">
                     Receipt: {invoice.receiptNo || 'Auto-generated'}

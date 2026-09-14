@@ -13,7 +13,7 @@ import { PageSkeleton } from '@/components/ui/Skeleton';
 import TableToolbar from '@/components/ui/TableToolbar';
 import { TableColumn, Pagination as PaginationType } from '@/types';
 import { masterAccountService, LedgerItem, Ledger } from '@/services/masterAccountService';
-import { formatDate } from '@/utils/format';
+import { formatDate, toTitleCase } from '@/utils/format';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
 import { ROUTES } from '@/constants/routes';
 import { toast } from '@/store/toastStore';
@@ -154,7 +154,7 @@ export default function MahalluLedgerItemsList() {
         breadcrumbs={[{ label: 'Mahallu Finance', path: '/mahallu-finance/accounts' }]}
       />
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         <StatCard title="Total Income" value={<>₹{totalIncome.toLocaleString()}</>} tone="success" />
         <StatCard title="Total Expense" value={<>₹{totalExpense.toLocaleString()}</>} tone="destructive" />
         <StatCard
@@ -171,7 +171,7 @@ export default function MahalluLedgerItemsList() {
               label="Filter by Ledger"
               options={[
                 { value: 'all', label: 'All Ledgers' },
-                ...ledgers.map((l) => ({ value: l.id, label: l.name })),
+                ...ledgers.map((l) => ({ value: l.id, label: toTitleCase(l.name) })),
               ]}
               value={ledgerFilter}
               onChange={(e) => {

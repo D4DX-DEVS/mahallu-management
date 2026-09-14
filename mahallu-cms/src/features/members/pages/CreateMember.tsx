@@ -12,11 +12,23 @@ import Alert from '@/components/ui/Alert';
 import Checkbox from '@/components/ui/Checkbox';
 import FormSection from '@/components/ui/FormSection';
 import RadioCardGroup from '@/components/ui/RadioCardGroup';
+import DatePicker from '@/components/ui/DatePicker';
 import QuickAddFamily from '@/components/quick-add/QuickAddFamily';
 import QuickAddTenantSetting from '@/components/quick-add/QuickAddTenantSetting';
 import { ROUTES } from '@/constants/routes';
 import SocioEconomicSection from '../components/SocioEconomicSection';
 import { socioEconomicSchemaFields, normalizeSocioEconomic } from '../socioEconomicFields';
+import {
+  conditionalSchemaFields,
+  withConditionalRules,
+  normalizeConditionalFields,
+  isOtherRelationship,
+  needsHealthNotes,
+  healthNotesCopy,
+  calculateAge,
+  EARLIEST_DOB,
+  LATEST_DOB,
+} from '../memberFormFields';
 import { memberService } from '@/services/memberService';
 import { familyService } from '@/services/familyService';
 import { tenantService } from '@/services/tenantService';
@@ -28,8 +40,9 @@ import { getTenantId as extractTenantId } from '@/utils/tenantHelper';
 import { errorMessage } from '@/utils/errors';
 import { toast } from '@/store/toastStore';
 import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 
-const memberSchema = z.object({
+const memberSchemaShape = z.object({
   name: z.string().max(200, 'Please keep the name to 200 characters or less.').min(1, 'Enter the member’s name'),
   nameMl: z.string().max(200, 'Please keep the name to 200 characters or less.').optional(),
   familyId: z.string().max(200, 'Please keep the family to 200 characters or less.').min(1, 'Choose a family'),
@@ -64,9 +77,15 @@ const memberSchema = z.object({
   educationInstitutionId: z.string().max(200, 'Please keep the education institution to 200 characters or less.').optional(),
   localityFacilityId: z.string().max(200, 'Please keep the locality facility to 200 characters or less.').optional(),
   ...socioEconomicSchemaFields,
+  ...conditionalSchemaFields,
 });
 
-type MemberFormData = z.infer<typeof memberSchema>;
+const memberSchema = withConditionalRules(memberSchemaShape);
+
+// Inferred off the plain object shape (not the superRefine wrapper) so the
+// concrete object type survives — resolving it off the wrapped ZodEffects
+// schema degrades every `errors.<field>` to a loose FieldErrorsImpl union.
+type MemberFormData = z.infer<typeof memberSchemaShape>;
 
 export default function CreateMember() {
   const navigate = useNavigate();
@@ -93,6 +112,9 @@ export default function CreateMember() {
 
   const selectedFamilyId = watch('familyId');
   const maritalStatus = watch('maritalStatus');
+  const relationship = watch('relationship');
+  const healthStatus = watch('healthStatus');
+  const dateOfBirth = watch('dateOfBirth');
   const selectedFamily = families.find((f) => f.id === selectedFamilyId);
   const selectedFamilyName = selectedFamily?.houseName;
 
@@ -103,6 +125,12 @@ export default function CreateMember() {
   useEffect(() => {
     if (selectedFamily) setValue('familyName', selectedFamily.houseName);
   }, [selectedFamily, setValue]);
+
+  /* Age becomes a derived, read-only value once a date of birth is set. */
+  useEffect(() => {
+    const derivedAge = calculateAge(dateOfBirth);
+    if (derivedAge !== undefined) setValue('age', derivedAge, { shouldValidate: true });
+  }, [dateOfBirth, setValue]);
 
   /* Warn before discarding a partly filled form. */
   useEffect(() => {
@@ -160,20 +188,25 @@ export default function CreateMember() {
   const onSubmit = async (data: MemberFormData) => {
     try {
       setError(null);
-      const memberData = Object.fromEntries(
-        Object.entries({
-          ...data,
-          age: data.age == null || Number.isNaN(data.age) ? undefined : Number(data.age),
-          gender: data.gender === '' ? undefined : data.gender,
-          bloodGroup: data.bloodGroup === '' ? undefined : data.bloodGroup,
-          maritalStatus: data.maritalStatus === '' ? undefined : data.maritalStatus,
-          marriageCount:
-            data.marriageCount == null || Number.isNaN(data.marriageCount)
-              ? undefined
-              : Number(data.marriageCount),
-          ...normalizeSocioEconomic(data),
-        }).filter(([, v]) => v !== '' && v !== undefined && !(typeof v === 'number' && Number.isNaN(v)))
-      );
+      const memberData = {
+        ...Object.fromEntries(
+          Object.entries({
+            ...data,
+            age: data.age == null || Number.isNaN(data.age) ? undefined : Number(data.age),
+            gender: data.gender === '' ? undefined : data.gender,
+            bloodGroup: data.bloodGroup === '' ? undefined : data.bloodGroup,
+            maritalStatus: data.maritalStatus === '' ? undefined : data.maritalStatus,
+            marriageCount:
+              data.marriageCount == null || Number.isNaN(data.marriageCount)
+                ? undefined
+                : Number(data.marriageCount),
+            ...normalizeSocioEconomic(data),
+          }).filter(([, v]) => v !== '' && v !== undefined && !(typeof v === 'number' && Number.isNaN(v)))
+        ),
+        // Kept out of the filter above: relationshipOther/healthNotes send ''
+        // (not undefined) so the server clears a stale value, per normalizeConditionalFields.
+        ...normalizeConditionalFields(data),
+      };
       await memberService.create(memberData);
       // Creating a family toasts; creating a member used to navigate silently.
       toast.success('Member saved');
@@ -226,7 +259,7 @@ export default function CreateMember() {
     { value: '', label: 'Choose a family' },
     ...families.map((family) => ({
       value: family.id,
-      label: `${family.houseName}${family.mahallId ? ` (${family.mahallId})` : ''}`,
+      label: `${toTitleCase(family.houseName)}${family.mahallId ? ` (${family.mahallId})` : ''}`,
     })),
   ];
 
@@ -273,7 +306,7 @@ export default function CreateMember() {
               {selectedFamilyName && (
                 <div className="rounded-md border border-border bg-muted/40 px-3 py-2 md:col-span-2">
                   <p className="text-xs text-muted-foreground">Household</p>
-                  <p className="text-sm font-medium text-foreground">{selectedFamilyName}</p>
+                  <p className="text-sm font-medium text-foreground">{toTitleCase(selectedFamilyName)}</p>
                 </div>
               )}
 
@@ -285,7 +318,7 @@ export default function CreateMember() {
                     disabled={Boolean(selectedFamily?.familyHead)}
                     helperText={
                       selectedFamily?.familyHead
-                        ? `${selectedFamily.familyHead} is already the head of this family.`
+                        ? `${toTitleCase(selectedFamily.familyHead)} is already the head of this family.`
                         : undefined
                     }
                   />
@@ -311,6 +344,19 @@ export default function CreateMember() {
                 helperText="Optional. Used on certificates printed in Malayalam."
               />
 
+              <DatePicker
+                label="Date of birth"
+                value={dateOfBirth || ''}
+                onChange={(value) => setValue('dateOfBirth', value, { shouldValidate: true, shouldDirty: true })}
+                error={errors.dateOfBirth?.message}
+                helperText="Age below is calculated automatically once this is set."
+                captionLayout="dropdown"
+                minDate={EARLIEST_DOB}
+                maxDate={LATEST_DOB}
+                startMonth={EARLIEST_DOB}
+                endMonth={LATEST_DOB}
+              />
+
               <Input
                 label="Age"
                 type="number"
@@ -318,6 +364,8 @@ export default function CreateMember() {
                 error={errors.age?.message}
                 min={0}
                 max={150}
+                disabled={!!dateOfBirth}
+                helperText={dateOfBirth ? 'Calculated from date of birth.' : undefined}
               />
 
               <Input
@@ -363,6 +411,18 @@ export default function CreateMember() {
                   { value: 'other', label: 'Other' },
                 ]}
               />
+
+              {/* Only asked when the relationship dropdown is on 'other'. */}
+              {isOtherRelationship(relationship) && (
+                <Input
+                  label="Relationship (specify)"
+                  {...register('relationshipOther')}
+                  error={errors.relationshipOther?.message}
+                  required
+                  placeholder="e.g. Grandmother"
+                />
+              )}
+
               <Select label="Marital status" {...register('maritalStatus')} options={maritalStatusOptions} />
 
               {/* Only asked when the marital status implies it. */}
@@ -376,6 +436,19 @@ export default function CreateMember() {
               )}
 
               <Select label="Health status" {...register('healthStatus')} options={healthStatusOptions} />
+
+              {/* Only asked when the health status isn't 'healthy'; relabels itself for 'disabled'. */}
+              {needsHealthNotes(healthStatus) && (
+                <div className="md:col-span-2">
+                  <Input
+                    label={healthNotesCopy(healthStatus).label}
+                    {...register('healthNotes')}
+                    error={errors.healthNotes?.message}
+                    placeholder={healthNotesCopy(healthStatus).placeholder}
+                    helperText={healthNotesCopy(healthStatus).helperText}
+                  />
+                </div>
+              )}
 
               <div className="md:col-span-2">
                 <RadioCardGroup
@@ -440,7 +513,7 @@ export default function CreateMember() {
                     {...register('educationInstitutionId')}
                     options={[
                       { value: '', label: 'Select an institute' },
-                      ...institutes.map((inst) => ({ value: inst.id || inst._id, label: inst.name })),
+                      ...institutes.map((inst) => ({ value: inst.id || inst._id, label: toTitleCase(inst.name) })),
                     ]}
                   />
                 </div>
@@ -453,7 +526,7 @@ export default function CreateMember() {
                     {...register('localityFacilityId')}
                     options={[
                       { value: '', label: 'Select a facility' },
-                      ...facilities.map((fac) => ({ value: fac.id, label: fac.name })),
+                      ...facilities.map((fac) => ({ value: fac.id, label: toTitleCase(fac.name) })),
                     ]}
                   />
                 </div>

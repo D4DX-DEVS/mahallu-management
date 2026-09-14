@@ -9,6 +9,7 @@ import { formatCurrency, formatDate } from '@/utils/format';
 import { reliefService, ReliefCase, ReliefStatus, RELIEF_TRANSITIONS } from '@/services/qardService';
 import { ReliefStatusBadge, UrgencyBadge } from '../components/LoanStatusBadge';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import { toTitleCase } from '@/utils/format';
 import PageHeader from '@/components/layout/PageHeader';
 
 const Field = ({ label, value }: { label: string; value: ReactNode }) => (
@@ -107,14 +108,16 @@ export default function ReliefDetail() {
             label="Family"
             value={
               reliefCase.familyId && typeof reliefCase.familyId === 'object'
-                ? reliefCase.familyId.houseName
+                ? toTitleCase(reliefCase.familyId.houseName)
                 : '-'
             }
           />
           <Field
             label="Member"
             value={
-              reliefCase.memberId && typeof reliefCase.memberId === 'object' ? reliefCase.memberId.name : '-'
+              reliefCase.memberId && typeof reliefCase.memberId === 'object'
+                ? toTitleCase(reliefCase.memberId.name)
+                : '-'
             }
           />
           <Field label="Reported" value={formatDate(reliefCase.createdAt)} />
@@ -140,7 +143,7 @@ export default function ReliefDetail() {
             A closed case cannot be moved any further.
           </p>
         ) : (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 lg:items-end">
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:items-end">
             <Select
               label="New status"
               value={nextStatus}

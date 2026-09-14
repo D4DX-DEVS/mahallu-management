@@ -1,14 +1,16 @@
 import { useState, useEffect } from 'react';
-import { FiDownload, FiPrinter } from 'react-icons/fi';
+import { FiDownload, FiFileText, FiFile } from 'react-icons/fi';
 import Card from '@/components/ui/Card';
 import StatCard from '@/components/ui/StatCard';
 import Button from '@/components/ui/Button';
+import Dropdown, { DropdownItem } from '@/components/ui/Dropdown';
 import Select from '@/components/ui/Select';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import { reportService, BloodBankReport } from '@/services/reportService';
 import { exportToPDF } from '@/utils/exportUtils';
 import { loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 import SortableTh from '@/components/ui/SortableTh';
 import { useSortableRows } from '@/hooks/useSortableRows';
 
@@ -107,6 +109,11 @@ export default function BloodBankReportPage() {
     toggleSort,
   } = useSortableRows(report?.members ?? []);
 
+  const exportItems: DropdownItem[] = [
+    { label: 'Export as CSV', icon: <FiFileText />, onClick: handleExportCSV },
+    { label: 'Export as PDF', icon: <FiFile />, onClick: handlePrintPDF },
+  ];
+
   if (loading) {
     return <PageSkeleton />;
   }
@@ -128,14 +135,14 @@ export default function BloodBankReportPage() {
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex w-full flex-wrap items-center gap-3 sm:w-auto">
-          <Button onClick={handleExportCSV} variant="outline" className="flex items-center gap-2">
-            <FiDownload className="h-4 w-4" />
-            Export CSV
-          </Button>
-          <Button onClick={handlePrintPDF} variant="outline" className="flex items-center gap-2">
-            <FiPrinter className="h-4 w-4" />
-            Print PDF
-          </Button>
+          <Dropdown
+            trigger={
+              <Button variant="outline" icon={<FiDownload />} collapseLabel>
+                Export
+              </Button>
+            }
+            items={exportItems}
+          />
           <Select
             options={[
               { value: 'all', label: 'All Blood Groups' },
@@ -155,7 +162,7 @@ export default function BloodBankReportPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3">
         <StatCard title="Total Members" value={report.total} />
         {Object.entries(report.bloodGroupStats).map(([group, count]) => (
           <StatCard key={group} title={group} value={count} />
@@ -188,8 +195,8 @@ export default function BloodBankReportPage() {
             <tbody className="bg-white dark:bg-gray-900 divide-y divide-border">
               {sortedMembers.map((member) => (
                 <tr key={member.id}>
-                  <td className="whitespace-nowrap px-3 py-2.5 text-sm text-foreground capitalize">
-                    {member.name}
+                  <td className="whitespace-nowrap px-3 py-2.5 text-sm text-foreground">
+                    {toTitleCase(member.name)}
                   </td>
                   <td className="whitespace-nowrap px-3 py-2.5 text-sm font-medium text-red-600 dark:text-red-400">
                     {member.bloodGroup}

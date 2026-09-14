@@ -7,8 +7,10 @@ import SearchableSelect from '@/components/ui/SearchableSelect';
 import { FiTrash2, FiPlus } from 'react-icons/fi';
 import { createInheritanceCase } from '@/services/counsellingService';
 import { memberService } from '@/services/memberService';
+import { fetchAllPages } from '@/services/api';
 import { errorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 
 interface FormData {
   deceasedName?: string;
@@ -43,9 +45,8 @@ export default function InheritanceCreate() {
   const [loadingMembers, setLoadingMembers] = useState(true);
 
   useEffect(() => {
-    memberService
-      .getAll({ page: 1, limit: 200 } as any)
-      .then((result: any) => setMembers(result.data || []))
+    fetchAllPages((params) => memberService.getAll(params as any))
+      .then((all) => setMembers(all))
       .catch(() => setMembers([]))
       .finally(() => setLoadingMembers(false));
   }, []);
@@ -105,7 +106,7 @@ export default function InheritanceCreate() {
                         onChange={field.onChange}
                         options={members.map((member: any) => ({
                           value: member._id || member.id,
-                          label: `${member.name}${member.familyName ? ` - ${member.familyName}` : ''}`,
+                          label: `${toTitleCase(member.name)}${member.familyName ? ` - ${toTitleCase(member.familyName)}` : ''}`,
                         }))}
                         placeholder="Search members..."
                         isLoading={loadingMembers}

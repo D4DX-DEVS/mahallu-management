@@ -12,9 +12,12 @@ import RichTextEditor from '@/components/ui/RichTextEditor';
 import { ROUTES } from '@/constants/routes';
 import { registrationService } from '@/services/registrationService';
 import { memberService } from '@/services/memberService';
+import { fetchAllPages } from '@/services/api';
 import { Member } from '@/types';
-import { errorMessage } from '@/utils/errors';
+import { toast } from '@/store/toastStore';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 
 const DEFAULT_NOC_DESCRIPTION = `
 <p>To Whom It May Concern,</p>
@@ -92,11 +95,13 @@ export default function CreateNOC() {
   useEffect(() => {
     const fetchMembers = async () => {
       try {
-        const result = await memberService.getAll({ limit: 1000 });
-        setMembers(result.data || []);
+        // The list endpoint caps a page at 100 and answers 400 above it, so the
+        // old single `limit: 1000` call failed and left this dropdown empty.
+        const all = await fetchAllPages<Member>((params) => memberService.getAll(params), 10);
+        setMembers(all);
       } catch (err) {
-        console.error('Error fetching members:', err);
         setMembers([]);
+        toast.error(loadErrorMessage(err, 'members'));
       }
     };
     fetchMembers();
@@ -153,7 +158,7 @@ export default function CreateNOC() {
                 { value: '', label: 'Select applicant...' },
                 ...members.map((member) => ({
                   value: member.id,
-                  label: `${member.name} (${member.familyName})`,
+                  label: `${toTitleCase(member.name)} (${toTitleCase(member.familyName)})`,
                 })),
               ]}
               {...register('applicantId')}

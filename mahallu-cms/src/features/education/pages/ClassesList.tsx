@@ -21,6 +21,7 @@ import {
 } from '@/services/madrasaService';
 import { loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 
 const TYPE_FILTER = [{ value: '', label: 'All types' }, ...CLASS_TYPE_OPTIONS];
 const STATUS_FILTER = [
@@ -85,7 +86,7 @@ export default function ClassesList() {
       </div>
 
       {summary && (
-        <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
           <StatCard title="Classes" value={summary.totalClasses} />
           <StatCard title="Active students" value={summary.activeStudents} />
           <StatCard title="Completed" value={summary.completedStudents} />
@@ -144,7 +145,7 @@ export default function ClassesList() {
               onClick={() => navigate(`/education/classes/${cls.id}`)}
             >
               <div className="mb-2 flex items-start justify-between gap-2">
-                <h3 className="text-sm font-semibold text-foreground capitalize">{cls.name}</h3>
+                <h3 className="text-sm font-semibold text-foreground">{toTitleCase(cls.name)}</h3>
                 {cls.status === 'inactive' && (
                   <span className="whitespace-nowrap rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600 dark:bg-gray-700 dark:text-gray-300">
                     inactive
@@ -157,7 +158,7 @@ export default function ClassesList() {
               <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">{classTypeLabel(cls.classType)}</p>
 
               <div className="space-y-1 text-xs text-gray-600 dark:text-gray-300">
-                <p className="truncate capitalize">{teacherName(cls)}</p>
+                <p className="truncate">{toTitleCase(teacherName(cls))}</p>
                 <p className="flex items-center gap-1">
                   <FiCalendar className="h-3 w-3 shrink-0" />
                   {cls.academicYear}

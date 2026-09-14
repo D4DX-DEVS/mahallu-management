@@ -105,7 +105,7 @@ export default function SendNotification() {
         message: message.trim(),
         messageMl: messageMl.trim() || undefined,
         imageUrl,
-        recipientType: recipientType === 'all' ? 'all' : 'individual',
+        recipientType,
         recipientId: recipientType !== 'all' ? recipientId.trim() : undefined,
         type: notificationType,
       } as any);

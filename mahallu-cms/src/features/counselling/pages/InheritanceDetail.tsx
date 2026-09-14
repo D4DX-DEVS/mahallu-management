@@ -4,13 +4,14 @@ import { FiArrowLeft, FiEdit2, FiSave } from 'react-icons/fi';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import { toast } from '@/store/toastStore';
-import { errorMessage } from '@/utils/errors';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import {
   getInheritanceCaseById,
   updateInheritanceCase,
   IInheritanceCase,
 } from '@/services/counsellingService';
 import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 
 const STATUSES = ['reported', 'documentation', 'referred', 'distributed', 'closed'];
 
@@ -39,6 +40,7 @@ export default function InheritanceDetail() {
       setNotes(response.data.notes || '');
     } catch (error) {
       console.error("Couldn't load case:", error);
+      toast.error(loadErrorMessage(error, 'the inheritance case'));
     } finally {
       setLoading(false);
     }
@@ -91,7 +93,7 @@ export default function InheritanceDetail() {
               </div>
               <div>
                 <p className="text-xs text-gray-600">Deceased Name</p>
-                <p className="font-medium capitalize">{caseRecord.deceasedName || 'Member Record'}</p>
+                <p className="font-medium">{toTitleCase(caseRecord.deceasedName || 'Member Record')}</p>
               </div>
               {caseRecord.deathRegistrationId && (
                 <div>
@@ -165,7 +167,7 @@ export default function InheritanceDetail() {
                 {caseRecord.referredScholar && (
                   <div>
                     <p className="text-xs text-gray-600">Referred Scholar</p>
-                    <p className="font-medium capitalize">{caseRecord.referredScholar}</p>
+                    <p className="font-medium">{toTitleCase(caseRecord.referredScholar)}</p>
                   </div>
                 )}
               </div>
@@ -189,7 +191,7 @@ export default function InheritanceDetail() {
                 <tbody>
                   {caseRecord.heirs.map((heir, idx) => (
                     <tr key={idx} className="border-b hover:bg-gray-50">
-                      <td className="py-2 px-3 capitalize">{heir.name}</td>
+                      <td className="py-2 px-3">{toTitleCase(heir.name)}</td>
                       <td className="py-2 px-3">{heir.relation}</td>
                       <td className="py-2 px-3">{heir.contactNo || '—'}</td>
                     </tr>

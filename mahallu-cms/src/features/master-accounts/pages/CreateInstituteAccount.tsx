@@ -15,6 +15,7 @@ import { instituteService } from '@/services/instituteService';
 import { useAuthStore } from '@/store/authStore';
 import { Institute } from '@/types';
 import { errorMessage } from '@/utils/errors';
+import { toTitleCase } from '@/utils/format';
 import PageHeader from '@/components/layout/PageHeader';
 
 const instituteAccountSchema = z.object({
@@ -67,8 +68,11 @@ export default function CreateInstituteAccount() {
         setInstitutes([own]);
         setValue('instituteId', own.id, { shouldValidate: true });
       } else {
-        const result = await instituteService.getAll({ status: 'active' });
-        setInstitutes(result.data || []);
+        // No `limit` here defaults to the API's page size of 10, so a Mahallu
+        // with more than 10 active institutes silently lost the rest from this
+        // picker. getAllForExport pages through all of them.
+        const rows = await instituteService.getAllForExport({ status: 'active' });
+        setInstitutes(rows);
       }
     } catch (err) {
       console.error('Error fetching institutes:', err);
@@ -127,7 +131,7 @@ export default function CreateInstituteAccount() {
                   { value: '', label: 'Select an institute' },
                   ...institutes.map((institute) => ({
                     value: institute.id,
-                    label: `${institute.name} - ${institute.place}`,
+                    label: `${toTitleCase(institute.name)} - ${toTitleCase(institute.place)}`,
                   })),
                 ]}
               />

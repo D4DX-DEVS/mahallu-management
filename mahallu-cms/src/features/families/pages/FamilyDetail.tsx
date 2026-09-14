@@ -16,8 +16,9 @@ import { memberService } from '@/services/memberService';
 import { Family, Member } from '@/types';
 import { formatDate } from '@/utils/format';
 import { toast } from '@/store/toastStore';
-import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import { errorMessage, loadErrorMessage, pluralise } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 import ActionsMenu from '@/components/ui/ActionsMenu';
 
 const MEMBER_COLUMNS: ColumnSpec[] = [
@@ -129,7 +130,7 @@ export default function FamilyDetail() {
   };
 
   const memberColumns: TableColumn<Member>[] = [
-    { key: 'name', label: 'Name', width: '6.75rem', render: (v) => <span className="capitalize">{v}</span> },
+    { key: 'name', label: 'Name', width: '6.75rem', render: (v) => <span>{toTitleCase(v)}</span> },
     {
       key: 'age',
       label: 'Age / Gender',
@@ -169,7 +170,7 @@ export default function FamilyDetail() {
               label: 'Delete',
               icon: <FiTrash2 className="h-4 w-4" />,
               onClick: () => {
-                handleDeleteMember(row.id, row.name);
+                handleDeleteMember(row.id, toTitleCase(row.name));
               },
               variant: 'danger',
             },
@@ -185,7 +186,7 @@ export default function FamilyDetail() {
         <div className="flex items-center gap-4">
           <PageHeader
             description="Family Details"
-            title={family.houseName}
+            title={toTitleCase(family.houseName)}
             breadcrumbs={[{ label: 'Families', path: ROUTES.FAMILIES.LIST }]}
           />
           <div className="flex gap-2 items-center">
@@ -209,12 +210,12 @@ export default function FamilyDetail() {
             )}
             <div>
               <span className="text-sm text-gray-500 dark:text-gray-400">House Name</span>
-              <p className="text-gray-900 dark:text-gray-100 capitalize">{family.houseName}</p>
+              <p className="text-gray-900 dark:text-gray-100">{toTitleCase(family.houseName)}</p>
             </div>
             {family.familyHead && (
               <div>
                 <span className="text-sm text-gray-500 dark:text-gray-400">Family Head</span>
-                <p className="text-gray-900 dark:text-gray-100 capitalize">{family.familyHead}</p>
+                <p className="text-gray-900 dark:text-gray-100">{toTitleCase(family.familyHead)}</p>
               </div>
             )}
             {family.contactNo && (
@@ -226,7 +227,7 @@ export default function FamilyDetail() {
             {family.varisangyaGrade && (
               <div>
                 <span className="text-sm text-gray-500 dark:text-gray-400">Varisangya Grade</span>
-                <p className="text-gray-900 dark:text-gray-100">{family.varisangyaGrade}</p>
+                <p className="text-gray-900 dark:text-gray-100">{toTitleCase(family.varisangyaGrade)}</p>
               </div>
             )}
             {family.status && (
@@ -253,19 +254,19 @@ export default function FamilyDetail() {
           <div className="space-y-3">
             <div>
               <span className="text-sm text-gray-500 dark:text-gray-400">State</span>
-              <p className="text-gray-900 dark:text-gray-100">{family.state}</p>
+              <p className="text-gray-900 dark:text-gray-100">{toTitleCase(family.state)}</p>
             </div>
             <div>
               <span className="text-sm text-gray-500 dark:text-gray-400">District</span>
-              <p className="text-gray-900 dark:text-gray-100">{family.district}</p>
+              <p className="text-gray-900 dark:text-gray-100">{toTitleCase(family.district)}</p>
             </div>
             <div>
               <span className="text-sm text-gray-500 dark:text-gray-400">LSG Name</span>
-              <p className="text-gray-900 dark:text-gray-100">{family.lsgName}</p>
+              <p className="text-gray-900 dark:text-gray-100">{toTitleCase(family.lsgName)}</p>
             </div>
             <div>
               <span className="text-sm text-gray-500 dark:text-gray-400">Village</span>
-              <p className="text-gray-900 dark:text-gray-100">{family.village}</p>
+              <p className="text-gray-900 dark:text-gray-100">{toTitleCase(family.village)}</p>
             </div>
             {family.pinCode && (
               <div>
@@ -276,7 +277,7 @@ export default function FamilyDetail() {
             {family.postOffice && (
               <div>
                 <span className="text-sm text-gray-500 dark:text-gray-400">Post Office</span>
-                <p className="text-gray-900 dark:text-gray-100">{family.postOffice}</p>
+                <p className="text-gray-900 dark:text-gray-100">{toTitleCase(family.postOffice)}</p>
               </div>
             )}
           </div>
@@ -320,8 +321,12 @@ export default function FamilyDetail() {
         }
       >
         <p className="text-gray-600 dark:text-gray-400">
-          Are you sure you want to delete <strong className="capitalize">{family.houseName}</strong>? This will also delete all
-          associated members. This action cannot be undone.
+          Are you sure you want to delete <strong>{toTitleCase(family.houseName)}</strong>? This permanently removes
+          the family record.{' '}
+          {members.length > 0
+            ? `${pluralise(members.length, 'member')} will be left without a family. Move them first if you need them kept intact.`
+            : ''}{' '}
+          This action cannot be undone.
         </p>
       </Modal>
 

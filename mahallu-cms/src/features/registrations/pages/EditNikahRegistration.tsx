@@ -16,6 +16,7 @@ import { memberService } from '@/services/memberService';
 import { Member } from '@/types';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 
 const nikahSchema = z.object({
   groomName: z.string().max(200, 'Please keep the groom name to 200 characters or less.').min(1, 'Groom name is required'),
@@ -40,7 +41,7 @@ const nikahSchema = z.object({
     z.number().min(0).optional()
   ),
   mahrDescription: z.string().max(3000, 'Please keep the mahr description to 3000 characters or less.').optional(),
-  status: z.enum(['pending', 'approved', 'rejected']).optional(),
+  status: z.enum(['pending', 'correction_required', 'approved', 'rejected']).optional(),
   remarks: z.string().max(2000, 'Please keep the remarks to 2000 characters or less.').optional(),
 });
 
@@ -117,8 +118,8 @@ export default function EditNikahRegistration() {
         setMemberOptions(
           fetchedMembers.map((member: Member) => ({
             value: member.id,
-            label: member.name,
-            sublabel: member.familyName ? `Family: ${member.familyName}` : undefined,
+            label: toTitleCase(member.name),
+            sublabel: member.familyName ? `Family: ${toTitleCase(member.familyName)}` : undefined,
           }))
         );
       } catch (err) {
@@ -290,6 +291,7 @@ export default function EditNikahRegistration() {
               label="Status"
               options={[
                 { value: 'pending', label: 'Pending' },
+                { value: 'correction_required', label: 'Correction Required' },
                 { value: 'approved', label: 'Approved' },
                 { value: 'rejected', label: 'Rejected' },
               ]}

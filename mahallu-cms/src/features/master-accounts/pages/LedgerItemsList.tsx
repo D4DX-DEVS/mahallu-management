@@ -16,7 +16,7 @@ import { TableColumn, Pagination as PaginationType } from '@/types';
 import { masterAccountService, LedgerItem, Ledger } from '@/services/masterAccountService';
 import { instituteService } from '@/services/instituteService';
 import { useAuthStore } from '@/store/authStore';
-import { formatDate } from '@/utils/format';
+import { formatDate, toTitleCase } from '@/utils/format';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
 import { toast } from '@/store/toastStore';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
@@ -55,10 +55,12 @@ export default function LedgerItemsList() {
   useEffect(() => {
     fetchLedgers();
     if (!userInstituteId) {
+      // The API caps `limit` at 100 and answers 400 above it — getAllForExport
+      // pages through all institutes instead of failing the dropdown silently.
       instituteService
-        .getAll({ limit: 1000 })
-        .then((r) => setInstitutes(r.data.map((i: any) => ({ id: i.id, name: i.name }))))
-        .catch(() => {});
+        .getAllForExport()
+        .then((rows) => setInstitutes(rows.map((i: any) => ({ id: i.id, name: i.name }))))
+        .catch((err) => toast.error(loadErrorMessage(err, 'institutes')));
     }
   }, []);
 
@@ -111,6 +113,7 @@ export default function LedgerItemsList() {
 
       const params: any = { limit: 10000 };
       if (ledgerFilter !== 'all') params.ledgerId = ledgerFilter;
+      if (instituteFilter !== 'all') params.instituteId = instituteFilter;
 
       const result = await masterAccountService.getLedgerItems(params);
       const dataToExport = Array.isArray(result.data) ? result.data : [];
@@ -256,7 +259,9 @@ export default function LedgerItemsList() {
       setShowEditModal(false);
       setSelectedItem(null);
     } catch (err: any) {
-      setError(errorMessage(err, { action: 'update ledger item' }));
+      // A failed edit must not blank the list behind the still-open modal —
+      // that used to happen because this reused the page-level fetch error.
+      toast.error(errorMessage(err, { action: 'update ledger item' }));
     }
   };
 
@@ -269,7 +274,9 @@ export default function LedgerItemsList() {
       setShowDeleteModal(false);
       setSelectedItem(null);
     } catch (err: any) {
-      setError(errorMessage(err, { action: 'delete ledger item' }));
+      // Same here — e.g. the "auto-posted entry" guard used to replace the
+      // whole table with a full-page error instead of a message on the modal.
+      toast.error(errorMessage(err, { action: 'delete ledger item' }));
     } finally {
       setDeleting(false);
     }
@@ -277,6 +284,12 @@ export default function LedgerItemsList() {
 
   const totalIncome = items.filter((i) => i.type === 'income').reduce((sum, i) => sum + (i.amount || 0), 0);
   const totalExpense = items.filter((i) => i.type === 'expense').reduce((sum, i) => sum + (i.amount || 0), 0);
+
+  // The list endpoint has no `search` query param, so — same as the Mahallu
+  // Finance ledger items screen — the search box filters the page already loaded.
+  const filteredItems = items.filter(
+    (i) => !searchQuery || (i.description || '').toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   const stats = [
     { title: 'Total Items', value: pagination?.total || items.length, icon: <FiList className="h-5 w-5" /> },
@@ -297,7 +310,7 @@ export default function LedgerItemsList() {
       <div className="space-y-3">
         <PageHeader title="Ledger Items" description="Manage ledger transactions" />
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {stats.map((stat, index) => (
             <StatCard key={index} {...stat} />
           ))}
@@ -328,10 +341,13 @@ export default function LedgerItemsList() {
                 label="Ledger"
                 options={[
                   { value: 'all', label: 'All Ledgers' },
-                  ...ledgers.map((l) => ({ value: l.id, label: l.name })),
+                  ...ledgers.map((l) => ({ value: l.id, label: toTitleCase(l.name) })),
                 ]}
                 value={ledgerFilter}
-                onChange={(e) => setLedgerFilter(e.target.value)}
+                onChange={(e) => {
+                  setLedgerFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
               />
             </div>
             {!userInstituteId && (
@@ -340,10 +356,13 @@ export default function LedgerItemsList() {
                   label="Institute"
                   options={[
                     { value: 'all', label: 'All Institutes' },
-                    ...institutes.map((i) => ({ value: i.id, label: i.name })),
+                    ...institutes.map((i) => ({ value: i.id, label: toTitleCase(i.name) })),
                   ]}
                   value={instituteFilter}
-                  onChange={(e) => setInstituteFilter(e.target.value)}
+                  onChange={(e) => {
+                    setInstituteFilter(e.target.value);
+                    setCurrentPage(1);
+                  }}
                 />
               </div>
             )}
@@ -361,7 +380,7 @@ export default function LedgerItemsList() {
           </div>
         ) : (
           <>
-            <Table fixedLayout striped columns={columns} data={items} emptyMessage="No ledger items found" showExport={false} />
+            <Table fixedLayout striped columns={columns} data={filteredItems} emptyMessage="No ledger items found" showExport={false} />
             {pagination && pagination.totalPages > 1 && (
               <div className="mt-4">
                 <Pagination
@@ -416,7 +435,7 @@ export default function LedgerItemsList() {
             <div>
               <p className="text-xs text-gray-500 dark:text-gray-400">Ledger</p>
               <p className="text-gray-900 dark:text-gray-100">
-                {ledgers.find((l) => l.id === selectedItem.ledgerId)?.name || '—'}
+                {toTitleCase(ledgers.find((l) => l.id === selectedItem.ledgerId)?.name) || '—'}
               </p>
             </div>
             <div className="sm:col-span-2">

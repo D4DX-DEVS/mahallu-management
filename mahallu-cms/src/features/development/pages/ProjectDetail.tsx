@@ -7,7 +7,8 @@ import Pagination from '@/components/ui/Pagination';
 import { toast } from '@/store/toastStore';
 import { developmentService, DevelopmentProject, ProjectExpenditure } from '@/services/developmentService';
 import PageHeader from '@/components/layout/PageHeader';
-import { errorMessage } from '@/utils/errors';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import { toTitleCase } from '@/utils/format';
 
 const PROJECT_AREAS: Record<string, string> = {
   roads: 'Roads',
@@ -52,6 +53,7 @@ export default function ProjectDetail() {
       setExpenditure(expenditureData);
     } catch (error) {
       console.error("Couldn't load project:", error);
+      toast.error(loadErrorMessage(error, 'the project'));
     } finally {
       setLoading(false);
     }
@@ -84,7 +86,7 @@ export default function ProjectDetail() {
   return (
     <div>
       <div className="flex gap-2 justify-between items-center mb-4">
-        <PageHeader title={project.name} />
+        <PageHeader title={toTitleCase(project.name)} />
         <div className="flex gap-2 items-center">
           <Button onClick={() => navigate(`/development/${id}/edit`)} icon={<FiEdit2 />} collapseLabel>Edit</Button>
           <Button variant="secondary" onClick={() => navigate('/development')} icon={<FiArrowLeft />} collapseLabel>Back</Button>
@@ -111,13 +113,13 @@ export default function ProjectDetail() {
             {project.fundingSource && (
               <div>
                 <span className="text-gray-600">Funding Source</span>
-                <div className="font-medium">{project.fundingSource}</div>
+                <div className="font-medium">{toTitleCase(project.fundingSource)}</div>
               </div>
             )}
             {project.responsibleTeam && (
               <div>
                 <span className="text-gray-600">Responsible Team</span>
-                <div className="font-medium">{project.responsibleTeam}</div>
+                <div className="font-medium">{toTitleCase(project.responsibleTeam)}</div>
               </div>
             )}
             {project.startDate && (
@@ -224,7 +226,7 @@ export default function ProjectDetail() {
                           <tr key={item.id} className="border-t hover:bg-gray-50">
                             <td className="px-3 py-2">{new Date(item.date).toLocaleDateString()}</td>
                             <td className="px-3 py-2">{item.description}</td>
-                            <td className="px-3 py-2 capitalize">{item.ledgerId?.name || '-'}</td>
+                            <td className="px-3 py-2">{item.ledgerId?.name ? toTitleCase(item.ledgerId.name) : '-'}</td>
                             <td className="px-3 py-2 text-right">₹{item.amount.toLocaleString()}</td>
                           </tr>
                         ))}

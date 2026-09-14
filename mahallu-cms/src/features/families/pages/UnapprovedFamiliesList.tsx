@@ -12,7 +12,7 @@ import { Family } from '@/types';
 import { ROUTES } from '@/constants/routes';
 import { familyService } from '@/services/familyService';
 import { useDebounce } from '@/hooks/useDebounce';
-import { formatDate } from '@/utils/format';
+import { formatDate, toTitleCase } from '@/utils/format';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
 import { toast } from '@/store/toastStore';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
@@ -64,10 +64,10 @@ export default function UnapprovedFamiliesList() {
   const handleExport = async (type: 'csv' | 'json' | 'pdf') => {
     try {
       setIsExporting(true);
-      const params: any = { status: 'unapproved', limit: 10000 };
-      if (debouncedSearch) params.search = debouncedSearch;
-      const result = await familyService.getAll(params);
-      const dataToExport = result.data || [];
+      const dataToExport = await familyService.getAllForExport({
+        status: 'unapproved',
+        search: debouncedSearch || undefined,
+      });
       if (dataToExport.length === 0) {
         toast.info('No unapproved families to export');
         return;
@@ -98,18 +98,20 @@ export default function UnapprovedFamiliesList() {
       await familyService.update(id, { status: 'approved' });
       await fetchFamilies();
     } catch (err: any) {
-      setError(errorMessage(err, { action: 'approve family' }));
+      // A failed approval is not a failed page load: setting `error` here
+      // replaced the whole table with the retry screen and lost the list.
+      toast.error(errorMessage(err, { action: 'approve this family' }));
     }
   };
 
   const columns: TableColumn<Family>[] = [
     { key: 'mahallId', label: 'Mahall ID', width: '8.75rem', render: (id) => id || '-' },
-    { key: 'houseName', label: 'House Name', width: '9.75rem', sortable: true },
+    { key: 'houseName', label: 'House Name', width: '9.75rem', sortable: true, render: (name) => toTitleCase(name) },
     {
       key: 'familyHead',
       label: 'Family Head',
       width: '9.75rem',
-      render: (head) => head || '-',
+      render: (head) => (head ? toTitleCase(head) : '-'),
     },
     {
       key: 'members',
@@ -118,7 +120,7 @@ export default function UnapprovedFamiliesList() {
       align: 'center',
       render: (members) => members?.length || 0,
     },
-    { key: 'area', label: 'Area', width: '6.25rem' },
+    { key: 'area', label: 'Area', width: '6.25rem', render: (area) => (area ? toTitleCase(area) : '-') },
     {
       key: 'createdAt',
       label: 'Created',
@@ -182,7 +184,7 @@ export default function UnapprovedFamiliesList() {
           description="Review and approve pending family registrations"
         />
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-2">
           {stats.map((stat, index) => (
             <StatCard key={index} {...stat} />
           ))}

@@ -6,11 +6,13 @@ import SearchableSelect from '@/components/ui/SearchableSelect';
 import { toast } from '@/store/toastStore';
 import { scholarshipService, AWARD_STATUS_OPTIONS } from '@/services/scholarshipService';
 import { memberService } from '@/services/memberService';
+import { fetchAllPages } from '@/services/api';
 import { errorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import Input from '@/components/ui/Input';
 import { useFormValidation } from '@/hooks/useFormValidation';
 import { FieldRule, LIMITS, firstError, validateForm } from '@/utils/validation';
+import { toTitleCase } from '@/utils/format';
 
 /**
  * The same limits the API applies, so a form that passes here is not
@@ -41,9 +43,8 @@ export default function AwardCreate() {
   const { errors, setErrors } = useFormValidation(RULES);
 
   useEffect(() => {
-    memberService
-      .getAll({ page: 1, limit: 200 } as any)
-      .then((result: any) => setMembers(result.data || []))
+    fetchAllPages((params) => memberService.getAll(params) as any)
+      .then((rows) => setMembers(rows))
       .catch(() => setMembers([]))
       .finally(() => setLoadingMembers(false));
   }, []);
@@ -75,7 +76,7 @@ export default function AwardCreate() {
         remarks: formData.remarks || undefined,
       });
       const member = members.find((m) => (m._id || m.id) === formData.memberId);
-      toast.success(`Award created for ${member?.name || 'student'}`);
+      toast.success(`Award created for ${member?.name ? toTitleCase(member.name) : 'student'}`);
       navigate(`/education/scholarships/${scholarshipId}/awards`);
     } catch (err: any) {
       setError(errorMessage(err, { action: 'create award' }));
@@ -104,7 +105,7 @@ export default function AwardCreate() {
               onChange={(value) => setFormData((prev) => ({ ...prev, memberId: value }))}
               options={members.map((member: any) => ({
                 value: member._id || member.id,
-                label: `${member.name}${member.familyName ? ` - ${member.familyName}` : ''}`,
+                label: `${toTitleCase(member.name)}${member.familyName ? ` - ${toTitleCase(member.familyName)}` : ''}`,
               }))}
               placeholder="Search members..."
               isLoading={loadingMembers}

@@ -12,7 +12,7 @@ import TableToolbar from '@/components/ui/TableToolbar';
 import { TableColumn } from '@/types';
 import { collectibleService, Wallet } from '@/services/collectibleService';
 import { memberService } from '@/services/memberService';
-import { formatDate } from '@/utils/format';
+import { formatDate, toTitleCase } from '@/utils/format';
 import { ROUTES } from '@/constants/routes';
 import { exportToCSV, exportToJSON } from '@/utils/exportUtils';
 import { exportInvoicesToPdf, InvoiceDetails } from '@/utils/invoiceUtils';
@@ -93,7 +93,7 @@ export default function MemberVarisangyaWallet() {
                   title: 'Member Varisangya Wallet',
                   receiptNo: '-',
                   payerLabel: 'Member',
-                  payerName: wallet.member.name || '-',
+                  payerName: toTitleCase(wallet.member.name) || '-',
                   amount: wallet.balance || 0,
                   paymentDate: wallet.lastTransactionDate || new Date().toISOString(),
                   paymentMethod: '-',
@@ -122,9 +122,9 @@ export default function MemberVarisangyaWallet() {
         member ? (
           <Link
             to={ROUTES.MEMBERS.DETAIL(member.id)}
-            className="text-primary-600 hover:text-primary-700 dark:text-primary-400 capitalize"
+            className="text-primary-600 hover:text-primary-700 dark:text-primary-400"
           >
-            {member.name}
+            {toTitleCase(member.name)}
           </Link>
         ) : (
           '-'
@@ -184,11 +184,11 @@ export default function MemberVarisangyaWallet() {
       <div>
         <h2 className="text-lg font-semibold text-foreground">
           Member Varisangya Wallets
-          {wallets[0]?.member && <span className="capitalize"> - {wallets[0].member.name}</span>}
+          {wallets[0]?.member && <span> - {toTitleCase(wallets[0].member.name)}</span>}
         </h2>
         <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">View wallet balances for members</p>
       </div>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         {stats.map((stat, index) => (
           <StatCard key={index} {...stat} />
         ))}

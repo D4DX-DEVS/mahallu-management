@@ -8,18 +8,23 @@ import Modal from '@/components/ui/Modal';
 import { ROUTES } from '@/constants/routes';
 import { userService } from '@/services/userService';
 import { User } from '@/types';
-import { formatDate, formatDateTime } from '@/utils/format';
+import { formatDate, formatDateTime, toTitleCase } from '@/utils/format';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { useAuthStore } from '@/store/authStore';
 
 export default function UserDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const currentUser = useAuthStore((state) => state.user);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  // Deactivating your own account locks you out mid-session — the backend
+  // rejects every next request with 403 once status flips to inactive.
+  const isSelf = !!currentUser && !!user && currentUser.id === user.id;
 
   useEffect(() => {
     if (id) {
@@ -40,7 +45,7 @@ export default function UserDetail() {
   };
 
   const handleDelete = async () => {
-    if (!id) return;
+    if (!id || isSelf) return;
     try {
       setDeleting(true);
       await userService.delete(id);
@@ -72,14 +77,23 @@ export default function UserDetail() {
         <div className="flex items-center gap-4">
           <PageHeader
             description="User Details"
-            title={user.name}
+            title={toTitleCase(user.name)}
             breadcrumbs={[{ label: 'Mahall Users', path: ROUTES.USERS.MAHALL }]}
           />
           <div className="flex gap-2 items-center">
             <Link to={ROUTES.USERS.EDIT_MAHALL(user.id)}>
               <Button variant="outline" icon={<FiEdit2 />} collapseLabel>Edit</Button>
             </Link>
-            <Button variant="danger" onClick={() => setShowDeleteModal(true)} icon={<FiTrash2 />} collapseLabel>Delete</Button>
+            <Button
+              variant="danger"
+              onClick={() => setShowDeleteModal(true)}
+              icon={<FiTrash2 />}
+              collapseLabel
+              disabled={isSelf}
+              title={isSelf ? "You can't deactivate your own account." : undefined}
+            >
+              Delete
+            </Button>
           </div>
         </div>
       </div>
@@ -90,7 +104,7 @@ export default function UserDetail() {
           <div className="space-y-3">
             <div>
               <span className="text-sm text-gray-500 dark:text-gray-400">Name</span>
-              <p className="text-gray-900 dark:text-gray-100 capitalize">{user.name}</p>
+              <p className="text-gray-900 dark:text-gray-100">{toTitleCase(user.name)}</p>
             </div>
             <div>
               <span className="text-sm text-gray-500 dark:text-gray-400">Phone</span>
@@ -139,7 +153,7 @@ export default function UserDetail() {
             {user.tenant && (
               <div>
                 <span className="text-sm text-gray-500 dark:text-gray-400">Tenant</span>
-                <p className="text-gray-900 dark:text-gray-100 capitalize">{user.tenant.name}</p>
+                <p className="text-gray-900 dark:text-gray-100">{toTitleCase(user.tenant.name)}</p>
               </div>
             )}
           </div>
@@ -186,7 +200,7 @@ export default function UserDetail() {
         }
       >
         <p className="text-gray-600 dark:text-gray-400">
-          Are you sure you want to delete <strong className="capitalize">{user.name}</strong>? This action cannot be undone.
+          Are you sure you want to delete <strong>{toTitleCase(user.name)}</strong>? This action cannot be undone.
         </p>
       </Modal>
     </div>

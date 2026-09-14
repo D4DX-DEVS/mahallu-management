@@ -60,7 +60,7 @@ export default function WelfareReport() {
       {/* Welfare Stats */}
       <div className="mb-4">
         <h2 className="text-lg font-semibold mb-3">Welfare Applications</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <StatCard title="Total Applications" value={data.welfare.applications.total} />
           <StatCard title="Requested" value={<>₹{(data.welfare.requested || 0).toLocaleString()}</>} />
           <StatCard title="Approved" value={<>₹{(data.welfare.approved || 0).toLocaleString()}</>} />

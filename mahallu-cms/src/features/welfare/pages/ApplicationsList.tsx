@@ -13,6 +13,7 @@ import { Pagination as PaginationType, TableColumn } from '@/types';
 import { welfareService, WelfareApplication, WelfareSummary, WelfareScheme } from '@/services/welfareService';
 import { loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 
 const STATUS_TABS = [
   { value: '', label: 'All' },
@@ -70,8 +71,8 @@ export default function ApplicationsList() {
   };
 
   const columns: TableColumn<WelfareApplication>[] = [
-    { key: 'schemeId', label: 'Scheme', width: '7.75rem', render: (v) => nameOf(v, 'name') },
-    { key: 'familyId', label: 'Family', width: '7.25rem', render: (v) => nameOf(v, 'houseName') },
+    { key: 'schemeId', label: 'Scheme', width: '7.75rem', render: (v) => toTitleCase(nameOf(v, 'name')) },
+    { key: 'familyId', label: 'Family', width: '7.25rem', render: (v) => toTitleCase(nameOf(v, 'houseName')) },
     { key: 'requestedAmount', label: 'Requested', width: '8.75rem', render: (v) => `Rs ${v ?? 0}` },
     { key: 'approvedAmount', label: 'Approved', width: '8.25rem', render: (v) => (v ? `Rs ${v}` : '-') },
     { key: 'priority', label: 'Priority', width: '7.75rem' },
@@ -89,7 +90,7 @@ export default function ApplicationsList() {
     <div className="space-y-3">
       <PageHeader title="Welfare Applications" description="Assistance requests and their approval trail" />
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {summaryCards.map((card) => (
           <Card key={card.label}>
             <p className="text-xs font-medium text-gray-500 dark:text-gray-400 sm:text-sm">{card.label}</p>
@@ -123,7 +124,7 @@ export default function ApplicationsList() {
             <Select
               options={[
                 { value: '', label: 'All schemes' },
-                ...schemes.map((s) => ({ value: s.id, label: s.name })),
+                ...schemes.map((s) => ({ value: s.id, label: toTitleCase(s.name) })),
               ]}
               value={schemeFilter}
               onChange={(e) => {

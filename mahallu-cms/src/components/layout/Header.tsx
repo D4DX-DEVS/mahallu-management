@@ -124,9 +124,9 @@ export default function Header() {
             <kbd className="ml-2 rounded-sm border border-border px-1.5 py-0.5 text-xs">Ctrl K</kbd>
           </button>
         )}
-        {/* Tenant switcher shares the flex row instead of being absolutely centred, which collided with the search and action clusters at narrow desktop widths. */}
+        {/* Tenant switcher shares the flex row instead of being absolutely centred, which collided with the search and action clusters at narrow desktop widths. Below lg it was hidden outright, leaving a super admin on a phone with no way to switch tenants — the switcher itself already collapses to an icon-only button there, so it fits. */}
         {isSuperAdmin && (
-          <div className="ml-2 hidden min-w-0 max-w-xs flex-1 lg:block">
+          <div className="ml-2 min-w-0 flex-shrink-0 sm:max-w-xs lg:flex-1">
             <TenantSwitcher />
           </div>
         )}

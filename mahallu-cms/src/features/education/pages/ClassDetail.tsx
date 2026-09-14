@@ -27,6 +27,7 @@ import { attendanceService, ClassProgress } from '@/services/attendanceService';
 import EnrollStudentModal from '../components/EnrollStudentModal';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 import SortableTh from '@/components/ui/SortableTh';
 import { useSortableRows } from '@/hooks/useSortableRows';
 
@@ -134,7 +135,7 @@ export default function ClassDetail() {
       setRemoving(true);
       await madrasaService.deleteEnrollment(removeConfirm.id);
       setRemoveConfirm(null);
-      toast.success(`${removeConfirm.name} removed from class`);
+      toast.success(`${toTitleCase(removeConfirm.name)} removed from class`);
       refresh();
     } catch (err: any) {
       toast.error(errorMessage(err, { action: 'remove student' }));
@@ -149,7 +150,7 @@ export default function ClassDetail() {
       key: 'memberId',
       label: 'Student',
       width: '7.75rem',
-      render: (_v, row) => <span className="capitalize">{studentName(row)}</span>,
+      render: (_v, row) => <span>{toTitleCase(studentName(row))}</span>,
     },
     { key: 'enrollDate', label: 'Enrolled', width: '7.75rem', render: (v) => formatDate(v) },
     { key: 'status', label: 'Status', width: '7.25rem' },
@@ -160,7 +161,7 @@ export default function ClassDetail() {
       align: 'center',
       render: (_v, row) => (
         <ActionsMenu
-          label={'Actions for ' + studentName(row)}
+          label={'Actions for ' + toTitleCase(studentName(row))}
           items={[
             ...(row.status === 'active'
               ? [
@@ -217,7 +218,7 @@ export default function ClassDetail() {
   return (
     <div>
       <PageHeader
-        title={cls.name}
+        title={toTitleCase(cls.name)}
         breadcrumbs={[{ label: 'Services' }, { label: 'Education', path: '/education' }]}
       />
 
@@ -234,12 +235,12 @@ export default function ClassDetail() {
         <h2 className="mb-3 text-sm font-semibold text-foreground">Class</h2>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
           <Field label="Name (Malayalam)" value={cls.nameMl || '-'} />
-          <Field label="Teacher" value={<span className="capitalize">{teacherName(cls)}</span>} />
+          <Field label="Teacher" value={<span>{toTitleCase(teacherName(cls))}</span>} />
           <Field
             label="Institute"
             value={
-              <span className="capitalize">
-                {cls.instituteId && typeof cls.instituteId === 'object' ? cls.instituteId.name : '-'}
+              <span>
+                {cls.instituteId && typeof cls.instituteId === 'object' ? toTitleCase(cls.instituteId.name) : '-'}
               </span>
             }
           />
@@ -280,7 +281,7 @@ export default function ClassDetail() {
                     key={idx}
                     className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/30"
                   >
-                    <td className="px-4 py-3 text-gray-900 dark:text-gray-100 capitalize">{student.studentName}</td>
+                    <td className="px-4 py-3 text-gray-900 dark:text-gray-100">{toTitleCase(student.studentName)}</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
                         <div className="flex-1 max-w-xs h-2 bg-gray-200 rounded dark:bg-gray-700">
@@ -360,7 +361,7 @@ export default function ClassDetail() {
       <ConfirmDialog
         isOpen={removeConfirm !== null}
         title="Remove Student"
-        message={removeConfirm ? `Remove ${removeConfirm.name} from this class?` : ''}
+        message={removeConfirm ? `Remove ${toTitleCase(removeConfirm.name)} from this class?` : ''}
         consequence="The student can be re-enrolled later."
         isLoading={removing}
         variant="danger"

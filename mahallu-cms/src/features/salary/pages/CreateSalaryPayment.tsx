@@ -18,6 +18,7 @@ import { useAuthStore } from '@/store/authStore';
 import { loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { errorMessage } from '@/utils/errors';
+import { toTitleCase } from '@/utils/format';
 
 const MONTHS = [
   { value: '1', label: 'January' },
@@ -224,7 +225,7 @@ export default function CreateSalaryPayment() {
                 label="Institute"
                 options={[
                   { value: '', label: 'Select Institute...' },
-                  ...institutes.map((i) => ({ value: i.id, label: i.name })),
+                  ...institutes.map((i) => ({ value: i.id, label: toTitleCase(i.name) })),
                 ]}
                 value={watch('instituteId') || ''}
                 onAddNew={() => setAddInstituteOpen(true)}
@@ -242,7 +243,7 @@ export default function CreateSalaryPayment() {
                 { value: '', label: 'Select Employee...' },
                 ...employees.map((e) => ({
                   value: e.id,
-                  label: `${e.name} (₹${e.salary.toLocaleString()})`,
+                  label: `${toTitleCase(e.name)} (₹${e.salary.toLocaleString()})`,
                 })),
               ]}
               value={watch('employeeId') || ''}

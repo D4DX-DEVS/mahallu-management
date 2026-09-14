@@ -9,16 +9,17 @@ import TableToolbar from '@/components/ui/TableToolbar';
 import { TableColumn, Pagination as PaginationType } from '@/types';
 import { collectibleService, Transaction, Wallet, Varisangya } from '@/services/collectibleService';
 import { familyService } from '@/services/familyService';
-import { formatDate } from '@/utils/format';
+import { fetchAllPages } from '@/services/api';
+import { formatDate, toTitleCase } from '@/utils/format';
 import { exportToCSV, exportToJSON } from '@/utils/exportUtils';
 import { exportInvoicesToPdf, InvoiceDetails } from '@/utils/invoiceUtils';
 import { toast } from '@/store/toastStore';
-import { loadErrorMessage } from '@/utils/errors';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
 
 /** Map varisangya payment to transaction-like shape (list shows varisangya, so transactions view must match). */
 function varisangyaToTransaction(v: Varisangya): Transaction {
   const id = (v as any).id ?? (v as any)._id;
-  const familyName = v.familyId && typeof v.familyId === 'object' ? v.familyId.houseName : undefined;
+  const familyName = v.familyId && typeof v.familyId === 'object' ? toTitleCase(v.familyId.houseName) : undefined;
   const payerInfo = familyName ? ` - ${familyName}` : '';
   return {
     id: id != null ? String(id) : '',
@@ -113,13 +114,16 @@ export default function FamilyVarisangyaTransactions() {
   const handleExport = async (type: 'csv' | 'json' | 'pdf') => {
     try {
       setIsExporting(true);
-      // Export the whole result set, not just the page on screen
-      const allResult = await collectibleService.getAllVarisangyas({
-        familyId: familyId || undefined,
-        hasFamily: familyId ? undefined : true,
-        limit: 10000,
-      });
-      const transactions = (allResult.data || []).map(varisangyaToTransaction);
+      // Export the whole result set, not just the page on screen. The endpoint caps
+      // limit at 100 and 400s above it, so a single limit:10000 request always failed.
+      const allRows = await fetchAllPages<Varisangya>((p) =>
+        collectibleService.getAllVarisangyas({
+          familyId: familyId || undefined,
+          hasFamily: familyId ? undefined : true,
+          ...p,
+        })
+      );
+      const transactions = allRows.map(varisangyaToTransaction);
       if (transactions.length === 0) {
         toast.info('No transaction data to export');
         return;
@@ -140,7 +144,7 @@ export default function FamilyVarisangyaTransactions() {
                 title: 'Family Varisangya Transaction',
                 receiptNo: t.referenceId || '-',
                 payerLabel: 'Family',
-                payerName: family?.houseName || '-',
+                payerName: toTitleCase(family?.houseName) || '-',
                 amount: t.amount,
                 paymentDate: t.createdAt,
                 paymentMethod: '-',
@@ -151,8 +155,7 @@ export default function FamilyVarisangyaTransactions() {
           break;
       }
     } catch (error: any) {
-      console.error('Export error:', error);
-      toast.error(error?.message || "Couldn't export transactions");
+      toast.error(errorMessage(error, { action: 'export transactions' }));
     } finally {
       setIsExporting(false);
     }
@@ -203,10 +206,10 @@ export default function FamilyVarisangyaTransactions() {
       <div>
         <h2 className="text-lg font-semibold text-foreground">
           Family Varisangya Transactions
-          {family && ` - ${family.houseName}`}
+          {family && ` - ${toTitleCase(family.houseName)}`}
         </h2>
         <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
-          View all varisangya transactions{family ? ` for ${family.houseName}` : ''}
+          View all varisangya transactions{family ? ` for ${toTitleCase(family.houseName)}` : ''}
         </p>
       </div>
 

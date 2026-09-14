@@ -15,6 +15,7 @@ import { meetingService } from '@/services/meetingService';
 import { Committee, Member } from '@/types';
 import { errorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 
 const meetingSchema = z.object({
   committeeId: z.string().max(200, 'Please keep the committee to 200 characters or less.').min(1, 'Committee is required'),
@@ -146,7 +147,7 @@ export default function CreateMeeting() {
               label="Committee"
               options={[
                 { value: '', label: 'Select committee...' },
-                ...committees.map((committee) => ({ value: committee.id, label: committee.name })),
+                ...committees.map((committee) => ({ value: committee.id, label: toTitleCase(committee.name) })),
               ]}
               value={watch('committeeId') || ''}
               onAddNew={() => setAddCommitteeOpen(true)}
@@ -227,8 +228,8 @@ export default function CreateMeeting() {
                           onChange={() => toggleAttendance(member.id)}
                           className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
                         />
-                        <span className="text-sm text-gray-700 dark:text-gray-300 capitalize">
-                          {member.name} ({member.familyName})
+                        <span className="text-sm text-gray-700 dark:text-gray-300">
+                          {toTitleCase(member.name)} ({toTitleCase(member.familyName)})
                         </span>
                       </label>
                     ))}

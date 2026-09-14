@@ -18,6 +18,7 @@ import { useAuthStore } from '@/store/authStore';
 import { getTenantId } from '@/utils/tenantHelper';
 import { errorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 
 const familySchema = z.object({
   varisangyaGrade: z.string().max(200, 'Please keep the varisangya grade to 200 characters or less.').optional(),
@@ -101,13 +102,13 @@ export default function CreateFamily() {
     { value: '', label: 'Select grade...' },
     ...grades.map((grade) => ({
       value: grade.name,
-      label: `${grade.name} - ₹${grade.amount}`,
+      label: `${toTitleCase(grade.name)} - ₹${grade.amount}`,
     })),
   ];
 
   const areaSelectOptions = [
     { value: '', label: 'Select an area...' },
-    ...areaOptions.map((area) => ({ value: area, label: area })),
+    ...areaOptions.map((area) => ({ value: area, label: toTitleCase(area) })),
   ];
 
   return (

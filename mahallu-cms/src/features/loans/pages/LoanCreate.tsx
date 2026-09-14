@@ -9,12 +9,14 @@ import QuickAddMember from '@/components/quick-add/QuickAddMember';
 import { toast } from '@/store/toastStore';
 import { qardService, LOAN_PURPOSE_OPTIONS } from '@/services/qardService';
 import { memberService } from '@/services/memberService';
+import { fetchAllPages } from '@/services/api';
 import { Member } from '@/types';
 import { FiPlus } from 'react-icons/fi';
-import { errorMessage } from '@/utils/errors';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { useFormValidation } from '@/hooks/useFormValidation';
 import { FieldRule, LIMITS } from '@/utils/validation';
+import { toTitleCase } from '@/utils/format';
 
 /**
  * Same limits the API applies, so a form that passes here is not refused there.
@@ -56,10 +58,14 @@ export default function LoanCreate() {
   });
 
   useEffect(() => {
-    memberService
-      .getAll({ page: 1, limit: 200 } as any)
-      .then((result: any) => setMembers(result.data || []))
-      .catch(() => setMembers([]));
+    // /members caps `limit` at 100 and answers 400 above it, so the old
+    // `limit: 200` request always failed and this picker was always empty.
+    fetchAllPages((params) => memberService.getAll(params))
+      .then((rows) => setMembers(rows))
+      .catch((err) => {
+        setMembers([]);
+        toast.error(loadErrorMessage(err, 'members'));
+      });
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -111,7 +117,7 @@ export default function LoanCreate() {
                     onChange={(value) => setForm({ ...form, applicantMemberId: value })}
                     options={members.map((member: any) => ({
                       value: member._id || member.id,
-                      label: `${member.name}${member.familyName ? ` - ${member.familyName}` : ''}`,
+                      label: `${toTitleCase(member.name)}${member.familyName ? ` - ${toTitleCase(member.familyName)}` : ''}`,
                     }))}
                     placeholder="Search members..."
                     error={errors.applicantMemberId}

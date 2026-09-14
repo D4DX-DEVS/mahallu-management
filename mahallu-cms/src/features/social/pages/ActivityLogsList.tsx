@@ -4,6 +4,7 @@ import Table from '@/components/ui/Table';
 import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
 import { socialService, ActivityLog } from '@/services/socialService';
+import { fetchAllPages } from '@/services/api';
 import { formatDate } from '@/utils/format';
 import { TableColumn, Pagination as PaginationType } from '@/types';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
@@ -11,6 +12,7 @@ import { toast } from '@/store/toastStore';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import StatusBadge from '@/components/ui/StatusBadge';
 import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 
 export default function ActivityLogsList() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -53,9 +55,9 @@ export default function ActivityLogsList() {
     try {
       setIsExporting(true);
 
-      const params = { limit: 10000 };
-      const result = await socialService.getActivityLogs(params);
-      const dataToExport = Array.isArray(result.data) ? result.data : [];
+      const dataToExport = await fetchAllPages<ActivityLog>(({ page, limit }) =>
+        socialService.getActivityLogs({ page, limit })
+      );
 
       if (dataToExport.length === 0) {
         toast.info('No data to export');
@@ -152,7 +154,7 @@ export default function ActivityLogsList() {
       label: 'User',
       width: '6.25rem',
       render: (userName) => (
-        <span className="text-sm text-gray-900 dark:text-gray-100">{userName || '-'}</span>
+        <span className="text-sm text-gray-900 dark:text-gray-100">{userName ? toTitleCase(userName) : '-'}</span>
       ),
     },
     {

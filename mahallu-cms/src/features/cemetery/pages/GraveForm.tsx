@@ -13,12 +13,14 @@ import EmptyState from '@/components/ui/EmptyState';
 import { FiArrowLeft } from 'react-icons/fi';
 import { memberService } from '@/services/memberService';
 import { familyService } from '@/services/familyService';
+import { fetchAllPages } from '@/services/api';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 
 const graveSchema = z.object({
-  graveNo: z.string().max(200, 'Please keep the grave no to 200 characters or less.').min(1, 'Grave number is required'),
-  deceasedName: z.string().max(200, 'Please keep the deceased name to 200 characters or less.').min(1, 'Deceased name is required'),
+  graveNo: z.string().max(50, 'Please keep the grave no to 50 characters or less.').min(1, 'Grave number is required'),
+  deceasedName: z.string().max(100, 'Please keep the deceased name to 100 characters or less.').min(2, 'Deceased name is required'),
   dateOfDeath: z.string().max(200, 'Please keep the date of death to 200 characters or less.').optional(),
   burialDate: z.string().max(200, 'Please keep the burial date to 200 characters or less.').optional(),
   rowLabel: z.string().max(200, 'Please keep the row label to 200 characters or less.').optional(),
@@ -53,15 +55,15 @@ export function GraveForm() {
   });
 
   useEffect(() => {
-    memberService
-      .getAll({ page: 1, limit: 200 } as any)
-      .then((result: any) => setMembers(result.data || []))
+    // The API caps `limit` at 100 and 400s above it, so the old `limit: 200`
+    // request always failed and left both pickers permanently empty.
+    fetchAllPages((params) => memberService.getAll(params as any))
+      .then((rows) => setMembers(rows))
       .catch(() => setMembers([]))
       .finally(() => setLoadingMembers(false));
 
-    familyService
-      .getAll({ page: 1, limit: 200 } as any)
-      .then((result: any) => setFamilies(result.data || []))
+    fetchAllPages((params) => familyService.getAll(params as any))
+      .then((rows) => setFamilies(rows))
       .catch(() => setFamilies([]))
       .finally(() => setLoadingFamilies(false));
   }, []);
@@ -87,8 +89,17 @@ export function GraveForm() {
               : '',
             rowLabel: graveData.rowLabel,
             notes: graveData.notes,
-            deceasedMemberId: graveData.deceasedMemberId,
-            familyId: graveData.familyId,
+            // The API returns these populated (e.g. { _id, name }) on fetch-by-id,
+            // but the select options are keyed by plain string id — unwrap or the
+            // dropdown fails to match its current value on edit.
+            deceasedMemberId:
+              graveData.deceasedMemberId && typeof graveData.deceasedMemberId === 'object'
+                ? (graveData.deceasedMemberId as any)._id
+                : graveData.deceasedMemberId,
+            familyId:
+              graveData.familyId && typeof graveData.familyId === 'object'
+                ? (graveData.familyId as any)._id
+                : graveData.familyId,
           });
         }
       } catch (err: any) {
@@ -162,7 +173,7 @@ export function GraveForm() {
         >
           <FiArrowLeft /> Back
         </Button>
-        <PageHeader title={graveId ? 'Edit grave' : 'Add grave'} description={cemetery.name} />
+        <PageHeader title={graveId ? 'Edit grave' : 'Add grave'} description={toTitleCase(cemetery.name)} />
       </div>
 
       {error && (
@@ -235,7 +246,7 @@ export function GraveForm() {
                       onChange={field.onChange}
                       options={members.map((member: any) => ({
                         value: member._id || member.id,
-                        label: `${member.name}${member.familyName ? ` - ${member.familyName}` : ''}`,
+                        label: `${toTitleCase(member.name)}${member.familyName ? ` - ${toTitleCase(member.familyName)}` : ''}`,
                       }))}
                       placeholder="Search members..."
                       isLoading={loadingMembers}
@@ -255,7 +266,7 @@ export function GraveForm() {
                       onChange={field.onChange}
                       options={families.map((family: any) => ({
                         value: family._id || family.id,
-                        label: `${family.houseName}${family.mahallId ? ` - ${family.mahallId}` : ''}`,
+                        label: `${toTitleCase(family.houseName)}${family.mahallId ? ` - ${family.mahallId}` : ''}`,
                       }))}
                       placeholder="Search families..."
                       isLoading={loadingFamilies}

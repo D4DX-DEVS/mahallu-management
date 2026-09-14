@@ -10,6 +10,7 @@ import { formatDateTime } from '@/utils/format';
 import { ROUTES } from '@/constants/routes';
 import { loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 
 export default function MeetingDetail() {
   const { id } = useParams<{ id: string }>();
@@ -49,13 +50,13 @@ export default function MeetingDetail() {
   }
 
   const attendanceNames = Array.isArray(meeting.attendance)
-    ? meeting.attendance.map((m: any) => m.name).join(', ')
+    ? meeting.attendance.map((m: any) => toTitleCase(m.name)).join(', ')
     : '-';
 
   return (
     <div className="space-y-4">
       <PageHeader
-        title={meeting.title}
+        title={toTitleCase(meeting.title)}
         description="Meeting Details"
         breadcrumbs={[{ label: 'Meetings', path: ROUTES.COMMITTEES.MEETINGS }]}
       />
@@ -65,7 +66,7 @@ export default function MeetingDetail() {
           <div>
             <span className="text-sm text-gray-500 dark:text-gray-400">Committee</span>
             <p className="text-gray-900 dark:text-gray-100">
-              {meeting.committeeName || (meeting.committeeId as any)?.name || '-'}
+              {toTitleCase(meeting.committeeName || (meeting.committeeId as any)?.name) || '-'}
             </p>
           </div>
           <div>

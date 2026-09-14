@@ -14,6 +14,7 @@ import { useAuthStore } from '@/store/authStore';
 import { Tenant } from '@/types/tenant';
 import { errorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 
 const userSchema = z.object({
   name: z
@@ -136,7 +137,7 @@ export default function CreateSurveyUser() {
                     <option value="">Select Tenant</option>
                     {tenants.map((tenant) => (
                       <option key={tenant.id} value={tenant.id}>
-                        {tenant.name} ({tenant.code})
+                        {toTitleCase(tenant.name)} ({tenant.code})
                       </option>
                     ))}
                   </select>

@@ -15,6 +15,7 @@ import BulkImportBooks from '../components/BulkImportBooks';
 import { FiPlus, FiEdit2, FiTrash2, FiUpload, FiFileText } from 'react-icons/fi';
 import { errorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 
 export default function BooksList() {
   const navigate = useNavigate();
@@ -100,7 +101,7 @@ export default function BooksList() {
         </div>
       ),
     },
-    { key: 'author', label: 'Author' },
+    { key: 'author', label: 'Author', render: (_: any, book: LibraryBook) => toTitleCase(book.author) },
     {
       key: 'category',
       label: 'Category',
@@ -121,7 +122,7 @@ export default function BooksList() {
     {
       key: 'actions',
       label: 'Actions',
-      align: 'center',
+      align: 'center' as const,
       render: (_: any, book: LibraryBook) => (
         <ActionsMenu
           label={'Actions for ' + book.title}

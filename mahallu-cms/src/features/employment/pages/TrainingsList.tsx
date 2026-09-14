@@ -13,6 +13,7 @@ import StatusBadge from '@/components/ui/StatusBadge';
 import PageHeader from '@/components/layout/PageHeader';
 import SortableTh from '@/components/ui/SortableTh';
 import { useSortableRows } from '@/hooks/useSortableRows';
+import { toTitleCase } from '@/utils/format';
 
 export default function TrainingsList() {
   const navigate = useNavigate();
@@ -138,7 +139,7 @@ export default function TrainingsList() {
 
       {/* Summary Cards */}
       {summary && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <StatCard title="Total Trainings" value={summary.trainingsCount} tone="info" />
           <StatCard title="Skilled Workers" value={summary.skilledWorkers} tone="success" />
           <StatCard title="Job Seekers" value={summary.registeredJobSeekers} tone="info" />
@@ -188,8 +189,8 @@ export default function TrainingsList() {
                 {sortedTrainings.map((training) => (
                   <tr key={training.id} className="border-b hover:bg-gray-50">
                     <td className="px-4 py-3 text-sm">
-                      <div className="font-medium text-gray-900 capitalize">{training.name}</div>
-                      <div className="text-xs text-gray-500 capitalize">{training.trainerName || 'No trainer'}</div>
+                      <div className="font-medium text-gray-900">{toTitleCase(training.name)}</div>
+                      <div className="text-xs text-gray-500">{training.trainerName ? toTitleCase(training.trainerName) : 'No trainer'}</div>
                     </td>
                     <td className="px-4 py-3 text-sm hidden sm:table-cell text-gray-700">
                       {new Date(training.startDate).toLocaleDateString()} -{' '}

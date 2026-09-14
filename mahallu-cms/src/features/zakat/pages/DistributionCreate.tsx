@@ -12,11 +12,13 @@ import {
   ZakatBeneficiary,
   DISTRIBUTION_TYPE_OPTIONS,
 } from '@/services/zakatDistributionService';
+import { fetchAllPages } from '@/services/api';
 import { FiArrowLeft } from 'react-icons/fi';
-import { errorMessage } from '@/utils/errors';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { useFormValidation } from '@/hooks/useFormValidation';
 import { FieldRule, LIMITS } from '@/utils/validation';
+import { toTitleCase } from '@/utils/format';
 
 /**
  * The same limits the API applies, so a form that passes here is not
@@ -51,11 +53,17 @@ export default function DistributionCreate() {
   const { errors, validate, setErrors } = useFormValidation(RULES);
 
   useEffect(() => {
-    // Only verified beneficiaries can be paid
-    zakatDistributionService
-      .getBeneficiaries({ verificationStatus: 'verified', status: 'active', limit: 200 })
-      .then((result) => setVerified(result.data))
-      .catch(() => setVerified([]))
+    // Only verified beneficiaries can be paid. /zakat/beneficiaries caps limit at
+    // 100 and 400s above it, so the old limit:200 request always failed and
+    // left this picker empty.
+    fetchAllPages<ZakatBeneficiary>((p) =>
+      zakatDistributionService.getBeneficiaries({ verificationStatus: 'verified', status: 'active', ...p })
+    )
+      .then((rows) => setVerified(rows))
+      .catch((err) => {
+        setVerified([]);
+        toast.error(loadErrorMessage(err, 'beneficiaries'));
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -130,8 +138,9 @@ export default function DistributionCreate() {
                   { value: '', label: 'Select a verified beneficiary' },
                   ...verified.map((b) => ({
                     value: b.id,
-                    label:
-                      (b.memberId && typeof b.memberId === 'object' ? b.memberId.name : b.name) || 'Unnamed',
+                    label: toTitleCase(
+                      (b.memberId && typeof b.memberId === 'object' ? b.memberId.name : b.name) || ''
+                    ) || 'Unnamed',
                   })),
                 ]}
                 required

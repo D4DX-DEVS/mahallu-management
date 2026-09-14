@@ -75,7 +75,7 @@ export default function CollectionsOverview() {
       <PageHeader description="Overview of all collectible types" title="Collections" />
 
       {/* Summary Stats */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-2">
         <StatCard title="Total Payments" value={totalPayments} />
         <StatCard title="Total Amount" value={`₹${totalAmount.toLocaleString()}`} />
       </div>

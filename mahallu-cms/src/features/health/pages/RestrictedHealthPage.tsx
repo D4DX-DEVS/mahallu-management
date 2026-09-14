@@ -12,6 +12,7 @@ import Modal from '@/components/ui/Modal';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { toast } from '@/store/toastStore';
 import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 
 interface RestrictedHealthPageProps {
   title: string;
@@ -160,7 +161,7 @@ export default function RestrictedHealthPage({ title, type, subtitle }: Restrict
                   <div key={resource.id} className="rounded-lg border border-border bg-card p-3 sm:p-4">
                     <div className="flex gap-3 items-center">
                       <div className="flex-1">
-                        <h3 className="text-base sm:text-lg font-semibold capitalize">{resource.name}</h3>
+                        <h3 className="text-base sm:text-lg font-semibold">{toTitleCase(resource.name)}</h3>
                         <p className="text-xs sm:text-sm text-gray-600 mt-1">Contact: {resource.contactNo}</p>
                         {resource.notes && (
                           <p className="text-xs sm:text-sm text-gray-600 mt-2">{resource.notes}</p>

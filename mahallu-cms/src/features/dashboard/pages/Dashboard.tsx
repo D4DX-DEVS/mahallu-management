@@ -31,7 +31,7 @@ import {
   FinancialSummary,
 } from '@/services/dashboardService';
 import { ROUTES } from '@/constants/routes';
-import { formatDate } from '@/utils/format';
+import { formatDate, toTitleCase } from '@/utils/format';
 import { loadErrorMessage } from '@/utils/errors';
 import { useChartTheme, tooltipStyle } from '@/utils/chartTheme';
 import { useAuthStore } from '@/store/authStore';
@@ -111,21 +111,30 @@ export default function Dashboard() {
           icon: <FiUsers className="h-4 w-4" />,
           onClick: () => navigate(ROUTES.MEMBERS.LIST),
         },
-        {
-          label: 'Income this month',
-          value: '₹' + (financialSummary?.monthlyIncome || 0).toLocaleString('en-IN'),
-          icon: <FiDollarSign className="h-4 w-4" />,
-          hint: financialSummary
-            ? 'Bank balance ₹' + (financialSummary.totalBankBalance || 0).toLocaleString('en-IN')
-            : undefined,
-          trend:
-            financialSummary?.incomeGrowthPercent != null
-              ? {
-                  value: Math.abs(financialSummary.incomeGrowthPercent),
-                  isPositive: financialSummary.incomeGrowthPercent >= 0,
-                }
-              : undefined,
-        },
+        /*
+         * Financial summary is only fetched successfully for roles the backend
+         * grants it to (super_admin, mahall, institute) - a survey admin gets a
+         * 403 that the fetch swallows into `null`. Only show the tile once real
+         * data has loaded, so a role without finance access sees no tile
+         * instead of a fabricated "₹0" that reads as a real, empty balance.
+         */
+        ...(financialSummary
+          ? [
+              {
+                label: 'Income this month',
+                value: '₹' + (financialSummary.monthlyIncome || 0).toLocaleString('en-IN'),
+                icon: <FiDollarSign className="h-4 w-4" />,
+                hint: 'Bank balance ₹' + (financialSummary.totalBankBalance || 0).toLocaleString('en-IN'),
+                trend:
+                  financialSummary.incomeGrowthPercent != null
+                    ? {
+                        value: Math.abs(financialSummary.incomeGrowthPercent),
+                        isPositive: financialSummary.incomeGrowthPercent >= 0,
+                      }
+                    : undefined,
+              },
+            ]
+          : []),
       ]
     : [];
   const genderData = stats
@@ -239,8 +248,8 @@ export default function Dashboard() {
                         {getInitials(family.familyName)}
                       </span>
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-medium text-foreground capitalize">
-                          {family.familyName}
+                        <span className="block truncate text-sm font-medium text-foreground">
+                          {toTitleCase(family.familyName)}
                         </span>
                         <span className="block truncate text-xs text-muted-foreground">
                           {getTimeAgo(family.createdAt)}

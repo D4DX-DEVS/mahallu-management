@@ -8,7 +8,7 @@ import Modal from '@/components/ui/Modal';
 import { ROUTES } from '@/constants/routes';
 import { memberService } from '@/services/memberService';
 import { Member } from '@/types';
-import { formatDate } from '@/utils/format';
+import { formatDate, toTitleCase } from '@/utils/format';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 
@@ -72,7 +72,7 @@ export default function MemberDetail() {
         <div className="flex items-center gap-4">
           <PageHeader
             description="Member Details"
-            title={member.name}
+            title={toTitleCase(member.name)}
             breadcrumbs={[{ label: 'Members', path: ROUTES.MEMBERS.LIST }]}
           />
           <div className="flex gap-2 items-center">
@@ -90,15 +90,15 @@ export default function MemberDetail() {
           <div className="space-y-3">
             <div>
               <span className="text-sm text-gray-500 dark:text-gray-400">Name</span>
-              <p className="text-gray-900 dark:text-gray-100 capitalize">{member.name}</p>
+              <p className="text-gray-900 dark:text-gray-100">{toTitleCase(member.name)}</p>
             </div>
             <div>
               <span className="text-sm text-gray-500 dark:text-gray-400">Family</span>
               <Link
                 to={ROUTES.FAMILIES.DETAIL(member.familyId)}
-                className="text-primary-600 hover:text-primary-700 dark:text-primary-400 capitalize"
+                className="text-primary-600 hover:text-primary-700 dark:text-primary-400"
               >
-                {member.familyName}
+                {toTitleCase(member.familyName)}
               </Link>
             </div>
             {member.mahallId && (
@@ -199,7 +199,7 @@ export default function MemberDetail() {
         }
       >
         <p className="text-gray-600 dark:text-gray-400">
-          Are you sure you want to delete <strong className="capitalize">{member.name}</strong>? This action cannot be undone.
+          Are you sure you want to delete <strong>{toTitleCase(member.name)}</strong>? This action cannot be undone.
         </p>
       </Modal>
     </div>

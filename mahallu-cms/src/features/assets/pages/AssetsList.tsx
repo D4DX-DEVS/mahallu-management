@@ -14,6 +14,7 @@ import { Asset } from '@/types';
 import { ROUTES } from '@/constants/routes';
 import { assetService } from '@/services/assetService';
 import { mosqueService, MosqueProfile } from '@/services/mosqueService';
+import { fetchAllPages } from '@/services/api';
 import { useDebounce } from '@/hooks/useDebounce';
 import { formatDate } from '@/utils/format';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
@@ -22,6 +23,7 @@ import { errorMessage } from '@/utils/errors';
 import StatusBadge from '@/components/ui/StatusBadge';
 import PageHeader from '@/components/layout/PageHeader';
 import ActionsMenu from '@/components/ui/ActionsMenu';
+import { toTitleCase } from '@/utils/format';
 
 const categoryLabels: Record<string, string> = {
   furniture: 'Furniture',
@@ -71,6 +73,11 @@ export default function AssetsList() {
       .catch(() => setMosques([]));
   }, []);
 
+  // A new search invalidates the current page offset
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearch]);
+
   useEffect(() => {
     fetchAssets();
   }, [debouncedSearch, currentPage, statusFilter, categoryFilter, mosqueFilter]);
@@ -106,13 +113,17 @@ export default function AssetsList() {
   const handleExport = async (type: 'csv' | 'json' | 'pdf') => {
     try {
       setIsExporting(true);
-      const params: any = { limit: 10000 };
-      if (debouncedSearch) params.search = debouncedSearch;
-      if (statusFilter) params.status = statusFilter;
-      if (categoryFilter) params.category = categoryFilter;
+      const filterParams: any = {};
+      if (debouncedSearch) filterParams.search = debouncedSearch;
+      if (statusFilter) filterParams.status = statusFilter;
+      if (categoryFilter) filterParams.category = categoryFilter;
+      if (mosqueFilter) filterParams.mosqueId = mosqueFilter;
 
-      const result = await assetService.getAll(params);
-      const dataToExport = result.data;
+      // The API caps `limit` at 100 and 400s above it, so a single
+      // `limit: 10000` request never returned rows - fetch every page instead.
+      const dataToExport = await fetchAllPages((pageParams) =>
+        assetService.getAll({ ...filterParams, ...pageParams })
+      );
 
       if (dataToExport.length === 0) {
         toast.info('No assets to export');
@@ -162,7 +173,7 @@ export default function AssetsList() {
       label: 'Name',
       width: '6.75rem',
       sortable: true,
-      render: (value) => <span className="capitalize">{value}</span>,
+      render: (value) => <span>{toTitleCase(value)}</span>,
     },
     {
       key: 'category',
@@ -175,7 +186,7 @@ export default function AssetsList() {
       label: 'Mosque',
       width: '7.5rem',
       render: (value) => (
-        <span className="capitalize">{typeof value === 'object' && value ? value.name : mosqueName(value) || '-'}</span>
+        <span>{toTitleCase(typeof value === 'object' && value ? value.name : mosqueName(value) || '-')}</span>
       ),
     },
     {
@@ -261,7 +272,7 @@ export default function AssetsList() {
       <div className="space-y-3">
         <PageHeader title="Asset Management" description="Manage your mahallu assets" />
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 md:grid-cols-4">
           {stats.map((stat, index) => (
             <StatCard key={index} {...stat} />
           ))}
@@ -336,7 +347,7 @@ export default function AssetsList() {
               <option value="">All Mosques</option>
               {mosques.map((m) => (
                 <option key={m.id} value={m.id}>
-                  {m.name}
+                  {toTitleCase(m.name)}
                 </option>
               ))}
             </select>
@@ -418,7 +429,7 @@ export default function AssetsList() {
         }
       >
         <p className="text-gray-600 dark:text-gray-400">
-          Are you sure you want to delete <strong>{selectedAsset?.name}</strong>? This will also delete all
+          Are you sure you want to delete <strong>{toTitleCase(selectedAsset?.name)}</strong>? This will also delete all
           maintenance records. This action cannot be undone.
         </p>
       </Modal>

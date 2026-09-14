@@ -10,6 +10,7 @@ import { pettyCashService, PettyCashFund } from '@/services/pettyCashService';
 import { instituteService } from '@/services/instituteService';
 import { useAuthStore } from '@/store/authStore';
 import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 
 export default function PettyCashList() {
   const navigate = useNavigate();
@@ -70,7 +71,7 @@ export default function PettyCashList() {
   };
 
   const getInstituteName = (fund: PettyCashFund) => {
-    if (typeof fund.instituteId === 'object' && fund.instituteId?.name) return fund.instituteId.name;
+    if (typeof fund.instituteId === 'object' && fund.instituteId?.name) return toTitleCase(fund.instituteId.name);
     return '-';
   };
 
@@ -87,7 +88,7 @@ export default function PettyCashList() {
                   label="Institute"
                   options={[
                     { value: 'all', label: 'All Institutes' },
-                    ...institutes.map((i) => ({ value: i.id, label: i.name })),
+                    ...institutes.map((i) => ({ value: i.id, label: toTitleCase(i.name) })),
                   ]}
                   value={instituteFilter}
                   onChange={(e) => setInstituteFilter(e.target.value)}
@@ -109,7 +110,7 @@ export default function PettyCashList() {
                     label="Institute"
                     options={[
                       { value: '', label: 'Select Institute' },
-                      ...institutes.map((i) => ({ value: i.id, label: i.name })),
+                      ...institutes.map((i) => ({ value: i.id, label: toTitleCase(i.name) })),
                     ]}
                     value={createForm.instituteId}
                     onChange={(e) => setCreateForm((f) => ({ ...f, instituteId: e.target.value }))}
@@ -160,7 +161,7 @@ export default function PettyCashList() {
                 >
                   <div className="flex justify-between items-start mb-2">
                     <div>
-                      <h3 className="font-semibold text-foreground">{fund.custodianName}</h3>
+                      <h3 className="font-semibold text-foreground">{toTitleCase(fund.custodianName)}</h3>
                       <p className="text-xs text-gray-500">{getInstituteName(fund)}</p>
                     </div>
                     <span

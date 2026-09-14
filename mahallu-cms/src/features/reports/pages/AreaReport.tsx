@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react';
-import { FiDownload, FiPrinter } from 'react-icons/fi';
+import { FiDownload, FiFileText, FiFile } from 'react-icons/fi';
 import Card from '@/components/ui/Card';
 import StatCard from '@/components/ui/StatCard';
 import Button from '@/components/ui/Button';
+import Dropdown, { DropdownItem } from '@/components/ui/Dropdown';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import { reportService, AreaReport } from '@/services/reportService';
 import { exportToPDF } from '@/utils/exportUtils';
 import { loadErrorMessage } from '@/utils/errors';
+import { toTitleCase } from '@/utils/format';
 import PageHeader from '@/components/layout/PageHeader';
 import SortableTh from '@/components/ui/SortableTh';
 import { useSortableRows } from '@/hooks/useSortableRows';
@@ -90,6 +92,11 @@ export default function AreaReportPage() {
     toggleSort,
   } = useSortableRows(report?.families ?? []);
 
+  const exportItems: DropdownItem[] = [
+    { label: 'Export as CSV', icon: <FiFileText />, onClick: handleExportCSV },
+    { label: 'Export as PDF', icon: <FiFile />, onClick: handlePrintPDF },
+  ];
+
   if (loading) {
     return <PageSkeleton />;
   }
@@ -111,12 +118,18 @@ export default function AreaReportPage() {
 
       <div className="flex gap-2 items-center justify-between">
         <div className="flex items-center gap-3">
-          <Button onClick={handleExportCSV} variant="outline" className="flex items-center gap-2" icon={<FiDownload />} collapseLabel>Export CSV</Button>
-          <Button onClick={handlePrintPDF} variant="outline" className="flex items-center gap-2" icon={<FiPrinter />} collapseLabel>Print PDF</Button>
+          <Dropdown
+            trigger={
+              <Button variant="outline" icon={<FiDownload />} collapseLabel>
+                Export
+              </Button>
+            }
+            items={exportItems}
+          />
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3">
         <StatCard title="Total Families" value={report.totalFamilies} />
         <StatCard title="Total Members" value={report.totalMembers} />
         <StatCard title="Male" value={report.maleCount} />
@@ -144,10 +157,10 @@ export default function AreaReportPage() {
               {sortedFamilies.map((family) => (
                 <tr key={family.id}>
                   <td className="whitespace-nowrap px-3 py-2.5 text-sm text-foreground">
-                    {family.houseName}
+                    {toTitleCase(family.houseName)}
                   </td>
                   <td className="whitespace-nowrap px-3 py-2.5 text-sm text-muted-foreground">
-                    {family.area || '-'}
+                    {toTitleCase(family.area) || '-'}
                   </td>
                   <td className="whitespace-nowrap px-3 py-2.5 text-sm text-foreground">
                     {family.memberCount}

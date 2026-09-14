@@ -7,6 +7,7 @@ import { programService, type ProgramRegistration, type RegisteredMember } from 
 import { memberService } from '@/services/memberService';
 import { toast } from '@/store/toastStore';
 import { errorMessage } from '@/utils/errors';
+import { toTitleCase } from '@/utils/format';
 
 interface ProgramRegistrationsProps {
   programId: string;
@@ -15,7 +16,7 @@ interface ProgramRegistrationsProps {
 const nameOf = (registration: ProgramRegistration): string => {
   const member = registration.memberId;
   if (typeof member === 'string') return member;
-  return member?.name || '—';
+  return toTitleCase(member?.name) || '—';
 };
 
 const idOf = (registration: ProgramRegistration): string => {
@@ -119,7 +120,7 @@ export default function ProgramRegistrations({ programId }: ProgramRegistrations
           <SearchableSelect
             value={selectedMember}
             onChange={setSelectedMember}
-            options={members.map((m) => ({ value: m.id, label: m.name || m.id }))}
+            options={members.map((m) => ({ value: m.id, label: toTitleCase(m.name) || m.id }))}
             placeholder="Search and select member"
           />
         </div>

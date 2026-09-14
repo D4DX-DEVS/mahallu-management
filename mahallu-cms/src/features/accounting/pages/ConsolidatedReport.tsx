@@ -7,6 +7,7 @@ import { PageSkeleton } from '@/components/ui/Skeleton';
 import { accountingReportService } from '@/services/accountingReportService';
 import { loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 
 interface InstituteRow {
   instituteId: string;
@@ -90,7 +91,7 @@ export default function ConsolidatedReport() {
           <>
             {/* Grand Totals */}
             {grandTotals && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+              <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3 mb-4">
                 <StatCard
                   title="Total Income"
                   value={<>₹{grandTotals.totalIncome.toLocaleString()}</>}
@@ -144,8 +145,8 @@ export default function ConsolidatedReport() {
                   <tbody className="bg-white dark:bg-gray-900 divide-y divide-border">
                     {institutes.map((inst) => (
                       <tr key={inst.instituteId} className="hover:bg-gray-50 dark:hover:bg-gray-800">
-                        <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100 capitalize">
-                          {inst.instituteName}
+                        <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100">
+                          {toTitleCase(inst.instituteName)}
                         </td>
                         <td className="px-4 py-3 text-sm text-right text-green-600 dark:text-green-400">
                           ₹{inst.totalIncome.toLocaleString()}

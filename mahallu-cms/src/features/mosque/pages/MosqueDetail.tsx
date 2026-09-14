@@ -11,6 +11,7 @@ import { ROUTES } from '@/constants/routes';
 import { mosqueService, MOSQUE_FACILITY_OPTIONS, MosqueProfile } from '@/services/mosqueService';
 import { errorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 import { FieldRule, validateForm, firstError, LIMITS } from '@/utils/validation';
 
 /** Matches `createMosqueValidation` on the API. */
@@ -133,7 +134,7 @@ export default function MosqueDetail() {
   return (
     <div className="space-y-3">
       <PageHeader
-        title={profile.name}
+        title={toTitleCase(profile.name)}
         description="Capacity, facilities and religious staff"
         breadcrumbs={[{ label: 'Mosque', path: '/mosque' }]}
       />
@@ -253,18 +254,14 @@ export default function MosqueDetail() {
         </Card>
       ) : (
         <>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             {infoCards.map((card) => (
               <Card key={card.label}>
                 <p className="text-xs font-medium text-gray-500 dark:text-gray-400 sm:text-sm">
                   {card.label}
                 </p>
-                <p
-                  className={`mt-1 break-words text-sm font-semibold text-gray-900 dark:text-gray-100 sm:text-base${
-                    card.label !== 'Capacity' ? ' capitalize' : ''
-                  }`}
-                >
-                  {card.value}
+                <p className="mt-1 break-words text-sm font-semibold text-gray-900 dark:text-gray-100 sm:text-base">
+                  {card.label !== 'Capacity' ? toTitleCase(card.value) : card.value}
                 </p>
               </Card>
             ))}
@@ -300,7 +297,7 @@ export default function MosqueDetail() {
         isLoading={saving}
         isOpen={isConfirmDeleteOpen}
         title="Delete Mosque"
-        message={`Delete "${profile.name}"? Its assets will remain but become unassigned.`}
+        message={`Delete "${toTitleCase(profile.name)}"? Its assets will remain but become unassigned.`}
         variant="danger"
         confirmLabel="Delete"
         onConfirm={handleDelete}

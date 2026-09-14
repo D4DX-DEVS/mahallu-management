@@ -11,7 +11,8 @@ import {
   StudentEnrollment,
   studentName as rosterStudentName,
 } from '@/services/madrasaService';
-import { formatDate } from '@/utils/format';
+import { formatDate, toTitleCase } from '@/utils/format';
+import { fetchAllPages } from '@/services/api';
 import { errorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 
@@ -42,7 +43,9 @@ export default function ExamDetail() {
       // exam has no results yet, so relying on data.results would leave nothing to mark.
       const classId = typeof data.classId === 'string' ? data.classId : data.classId?.id;
       const classStudents = classId
-        ? (await madrasaService.getClassStudents(classId, { limit: 200, status: 'active' })).data
+        ? await fetchAllPages((params) =>
+            madrasaService.getClassStudents(classId, { ...params, status: 'active' })
+          )
         : [];
       setRoster(classStudents);
 
@@ -128,12 +131,11 @@ export default function ExamDetail() {
   return (
     <div>
       <PageHeader
-        title={exam.name}
-        className="capitalize"
+        title={toTitleCase(exam.name)}
         breadcrumbs={[
           { label: 'Services' },
           { label: 'Education', path: '/education' },
-          { label: className, path: `/education/classes/${classId}` },
+          { label: toTitleCase(className), path: `/education/classes/${classId}` },
           { label: 'Exams', path: `/education/classes/${classId}/exams` },
         ]}
       />
@@ -142,7 +144,7 @@ export default function ExamDetail() {
         <Button variant="secondary" onClick={() => navigate(`/education/classes/${classId}/exams`)} icon={<FiArrowLeft />} collapseLabel>Back</Button>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 mb-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 mb-4">
         <Card>
           <p className="text-xs text-gray-500 dark:text-gray-400">Date</p>
           <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{formatDate(exam.examDate)}</p>
@@ -236,8 +238,8 @@ export default function ExamDetail() {
                           key={row.enrollmentId}
                           className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/30"
                         >
-                          <td className="px-4 py-3 text-gray-900 dark:text-gray-100 capitalize">
-                            {row.studentName}
+                          <td className="px-4 py-3 text-gray-900 dark:text-gray-100">
+                            {toTitleCase(row.studentName)}
                           </td>
                           <td className="px-4 py-3 text-gray-600 dark:text-gray-400">{row.rollNo}</td>
                           <td className="px-4 py-3">

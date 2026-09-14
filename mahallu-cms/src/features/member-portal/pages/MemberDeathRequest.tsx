@@ -11,6 +11,7 @@ import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { FieldRule, validateForm as checkFields, LIMITS } from '@/utils/validation';
 import { checkUploadedFile } from '@/utils/validation';
+import { toTitleCase } from '@/utils/format';
 
 /** Mirrors the API's death-registration rules (`memberUserValidation.ts`). */
 const DEATH_RULES: Record<string, FieldRule> = {
@@ -197,7 +198,7 @@ export default function MemberDeathRequest() {
               onChange={setDeceasedMemberId}
               options={[
                 { value: '', label: 'Select a family member or leave blank for self…' },
-                ...familyMembers.map((m) => ({ value: m.id, label: m.name })),
+                ...familyMembers.map((m) => ({ value: m.id, label: toTitleCase(m.name) })),
               ]}
               placeholder="Select a family member or leave blank for self…"
             />

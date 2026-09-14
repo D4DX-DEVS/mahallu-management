@@ -20,6 +20,7 @@ import { ROUTES } from '@/constants/routes';
 import { Member } from '@/types';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 
 const khateebSchema = z.object({
   name: z.string().max(200, 'Please keep the name to 200 characters or less.').min(1, 'Name is required'),
@@ -155,7 +156,7 @@ export default function KhateebsList() {
 
   const memberOptions = members.map((m) => ({
     value: m.id,
-    label: m.name,
+    label: toTitleCase(m.name),
   }));
 
   const columns = [
@@ -164,7 +165,7 @@ export default function KhateebsList() {
       label: 'Name',
       render: (_: any, khateeb: Khateeb) => (
         <div>
-          <p className="font-medium capitalize">{khateeb.name}</p>
+          <p className="font-medium">{toTitleCase(khateeb.name)}</p>
           {khateeb.nameMl && <p className="text-sm text-gray-600">{khateeb.nameMl}</p>}
         </div>
       ),
@@ -195,10 +196,10 @@ export default function KhateebsList() {
     {
       key: 'actions',
       label: 'Actions',
-      align: 'center',
+      align: 'center' as const,
       render: (_: any, khateeb: Khateeb) => (
         <ActionsMenu
-          label={'Actions for ' + khateeb.name}
+          label={'Actions for ' + toTitleCase(khateeb.name)}
           items={[
             {
               label: 'Edit',

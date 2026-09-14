@@ -229,7 +229,7 @@ export const replenishPettyCash = async (req: AuthRequest, res: Response) => {
       const unpostedExpenses = await PettyCashTransaction.find({
         pettyCashId: fund._id,
         type: 'expense',
-        date: { $gte: fund.updatedAt }, // Expenses since last replenishment
+        postedToLedger: { $ne: true },
       });
 
       for (const expense of unpostedExpenses) {
@@ -246,6 +246,8 @@ export const replenishPettyCash = async (req: AuthRequest, res: Response) => {
           paymentMethod: 'cash',
           referenceNo: expense.receiptNo,
         });
+        expense.postedToLedger = true;
+        await expense.save();
       }
     } catch (ledgerError) {
       console.error('Failed to post petty cash expenses to ledger:', ledgerError);

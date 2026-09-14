@@ -6,13 +6,15 @@ import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import { Tenant } from '@/types/tenant';
 import { tenantService } from '@/services/tenantService';
-import { formatDate } from '@/utils/format';
+import { formatDate, toTitleCase } from '@/utils/format';
+import { loadErrorMessage } from '@/utils/errors';
 
 export default function TenantDetails() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [tenant, setTenant] = useState<Tenant | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     if (id) {
@@ -23,16 +25,18 @@ export default function TenantDetails() {
   const loadTenant = async () => {
     try {
       setIsLoading(true);
+      setLoadError(null);
       const data = await tenantService.getById(id!);
       setTenant(data);
     } catch (error) {
       console.error('Error loading tenant:', error);
+      setLoadError(loadErrorMessage(error, 'tenant'));
     } finally {
       setIsLoading(false);
     }
   };
 
-  const pageTitle = tenant?.name || 'Tenant';
+  const pageTitle = tenant?.name ? toTitleCase(tenant.name) : 'Tenant';
   const breadcrumbItems = [{ label: 'Tenants', path: '/admin/tenants' }];
 
   if (isLoading) {
@@ -54,7 +58,7 @@ export default function TenantDetails() {
         <PageHeader title={pageTitle} breadcrumbs={breadcrumbItems} />
         <Card>
           <div className="text-center py-10">
-            <p className="text-gray-500 dark:text-gray-400">Tenant not found</p>
+            <p className="text-gray-500 dark:text-gray-400">{loadError || 'Tenant not found'}</p>
             <Button variant="outline" onClick={() => navigate('/admin/tenants')} className="mt-4">
               Back to Tenants
             </Button>
@@ -81,7 +85,7 @@ export default function TenantDetails() {
             Back
           </Button>
           <div>
-            <PageHeader title={tenant.name} description="Tenant Details" />
+            <PageHeader title={toTitleCase(tenant.name)} description="Tenant Details" />
           </div>
         </div>
         <Link to={`/admin/tenants/${id}/edit`}>
@@ -116,7 +120,7 @@ export default function TenantDetails() {
             </div>
             <div>
               <p className="text-sm text-gray-500 dark:text-gray-400">Tenant Name</p>
-              <p className="font-medium text-gray-900 dark:text-white capitalize">{tenant.name}</p>
+              <p className="font-medium text-gray-900 dark:text-white">{toTitleCase(tenant.name)}</p>
             </div>
           </div>
 
@@ -136,7 +140,7 @@ export default function TenantDetails() {
             </div>
             <div>
               <p className="text-sm text-gray-500 dark:text-gray-400">Location</p>
-              <p className="font-medium text-gray-900 dark:text-white">{tenant.location || 'N/A'}</p>
+              <p className="font-medium text-gray-900 dark:text-white">{tenant.location ? toTitleCase(tenant.location) : 'N/A'}</p>
             </div>
           </div>
 
@@ -168,7 +172,7 @@ export default function TenantDetails() {
               <p className="text-sm text-gray-500 dark:text-gray-400">Address</p>
               <p className="font-medium text-gray-900 dark:text-white">
                 {tenant.address
-                  ? `${tenant.address.village}, ${tenant.address.lsgName}, ${tenant.address.district}, ${tenant.address.state}${tenant.address.pinCode ? ` - ${tenant.address.pinCode}` : ''}`
+                  ? `${toTitleCase(tenant.address.village)}, ${toTitleCase(tenant.address.lsgName)}, ${toTitleCase(tenant.address.district)}, ${toTitleCase(tenant.address.state)}${tenant.address.pinCode ? ` - ${tenant.address.pinCode}` : ''}`
                   : 'N/A'}
               </p>
             </div>

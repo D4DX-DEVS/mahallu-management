@@ -9,7 +9,8 @@ import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { toast } from '@/store/toastStore';
 import { getInheritanceCases, deleteInheritanceCase, IInheritanceCase } from '@/services/counsellingService';
 import PageHeader from '@/components/layout/PageHeader';
-import { errorMessage } from '@/utils/errors';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import { toTitleCase } from '@/utils/format';
 
 const STATUSES = ['reported', 'documentation', 'referred', 'distributed', 'closed'];
 
@@ -46,6 +47,7 @@ export default function InheritanceList() {
           setCases([]);
         } else {
           console.error("Couldn't load cases:", error);
+          toast.error(loadErrorMessage(error, 'inheritance cases'));
         }
       } finally {
         setLoading(false);
@@ -171,7 +173,7 @@ export default function InheritanceList() {
                         </span>
                       </div>
                       <p className="text-sm text-gray-600">
-                        Deceased: {caseRecord.deceasedName || 'Member Record'}
+                        Deceased: {caseRecord.deceasedName ? toTitleCase(caseRecord.deceasedName) : 'Member Record'}
                       </p>
                       <p className="text-sm text-gray-600">Heirs: {(caseRecord.heirs ?? []).length}</p>
                     </div>

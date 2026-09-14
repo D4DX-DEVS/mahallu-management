@@ -8,7 +8,7 @@ import { PageSkeleton } from '@/components/ui/Skeleton';
 import DocumentsPanel from '@/components/ui/DocumentsPanel';
 import { ROUTES } from '@/constants/routes';
 import { registrationService, NOC } from '@/services/registrationService';
-import { formatDate } from '@/utils/format';
+import { formatDate, toTitleCase } from '@/utils/format';
 import { toast } from '@/store/toastStore';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import StatusBadge from '@/components/ui/StatusBadge';
@@ -120,7 +120,7 @@ export default function NOCDetail() {
   return (
     <div className="space-y-4">
       <PageHeader
-        title={noc.applicantName}
+        title={toTitleCase(noc.applicantName)}
         breadcrumbs={[
           {
             label: 'NOC',
@@ -151,7 +151,7 @@ export default function NOCDetail() {
           <div className="space-y-3">
             <div>
               <span className="text-sm text-gray-500 dark:text-gray-400">Applicant Name</span>
-              <p className="text-gray-900 dark:text-gray-100 font-medium">{noc.applicantName}</p>
+              <p className="text-gray-900 dark:text-gray-100 font-medium">{toTitleCase(noc.applicantName)}</p>
             </div>
             {noc.applicantPhone && (
               <div>
@@ -185,7 +185,7 @@ export default function NOCDetail() {
           <div className="space-y-3">
             <div>
               <span className="text-sm text-gray-500 dark:text-gray-400">Purpose Title</span>
-              <p className="text-gray-900 dark:text-gray-100">{noc.purposeTitle || noc.purpose}</p>
+              <p className="text-gray-900 dark:text-gray-100">{toTitleCase(noc.purposeTitle || noc.purpose)}</p>
             </div>
             {(noc.purposeDescription || noc.purpose) && (
               <div>

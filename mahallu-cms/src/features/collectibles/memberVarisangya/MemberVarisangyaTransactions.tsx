@@ -9,16 +9,17 @@ import TableToolbar from '@/components/ui/TableToolbar';
 import { TableColumn, Pagination as PaginationType } from '@/types';
 import { collectibleService, Transaction, Wallet, Varisangya } from '@/services/collectibleService';
 import { memberService } from '@/services/memberService';
-import { formatDate } from '@/utils/format';
+import { fetchAllPages } from '@/services/api';
+import { formatDate, toTitleCase } from '@/utils/format';
 import { exportToCSV, exportToJSON } from '@/utils/exportUtils';
 import { exportInvoicesToPdf, InvoiceDetails } from '@/utils/invoiceUtils';
 import { toast } from '@/store/toastStore';
-import { loadErrorMessage } from '@/utils/errors';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
 
 /** Map varisangya payment to transaction-like shape for the table (list shows varisangya, so transactions view must match). */
 function varisangyaToTransaction(v: Varisangya): Transaction {
   const id = (v as any).id ?? (v as any)._id;
-  const memberName = v.memberId && typeof v.memberId === 'object' ? v.memberId.name : undefined;
+  const memberName = v.memberId && typeof v.memberId === 'object' ? toTitleCase(v.memberId.name) : undefined;
   const payerInfo = memberName ? ` - ${memberName}` : '';
   return {
     id: id != null ? String(id) : '',
@@ -113,13 +114,16 @@ export default function MemberVarisangyaTransactions() {
   const handleExport = async (type: 'csv' | 'json' | 'pdf') => {
     try {
       setIsExporting(true);
-      // Export the whole result set, not just the page on screen
-      const allResult = await collectibleService.getAllVarisangyas({
-        memberId: memberId || undefined,
-        hasMember: memberId ? undefined : true,
-        limit: 10000,
-      });
-      const transactions = (allResult.data || []).map(varisangyaToTransaction);
+      // Export the whole result set, not just the page on screen. The endpoint caps
+      // limit at 100 and 400s above it, so a single limit:10000 request always failed.
+      const allRows = await fetchAllPages<Varisangya>((p) =>
+        collectibleService.getAllVarisangyas({
+          memberId: memberId || undefined,
+          hasMember: memberId ? undefined : true,
+          ...p,
+        })
+      );
+      const transactions = allRows.map(varisangyaToTransaction);
       if (transactions.length === 0) {
         toast.info('No transaction data to export');
         return;
@@ -140,7 +144,7 @@ export default function MemberVarisangyaTransactions() {
                 title: 'Member Varisangya Transaction',
                 receiptNo: t.referenceId || '-',
                 payerLabel: 'Member',
-                payerName: member?.name || '-',
+                payerName: toTitleCase(member?.name) || '-',
                 amount: t.amount,
                 paymentDate: t.createdAt,
                 paymentMethod: '-',
@@ -151,8 +155,7 @@ export default function MemberVarisangyaTransactions() {
           break;
       }
     } catch (error: any) {
-      console.error('Export error:', error);
-      toast.error(error?.message || "Couldn't export transactions");
+      toast.error(errorMessage(error, { action: 'export transactions' }));
     } finally {
       setIsExporting(false);
     }
@@ -187,11 +190,11 @@ export default function MemberVarisangyaTransactions() {
       <div>
         <h2 className="text-lg font-semibold text-foreground">
           Member Varisangya Transactions
-          {member && <span className="capitalize"> - {member.name}</span>}
+          {member && <span> - {toTitleCase(member.name)}</span>}
         </h2>
         <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
           View all varisangya transactions
-          {member ? <span className="capitalize"> for {member.name}</span> : ''}
+          {member ? <span> for {toTitleCase(member.name)}</span> : ''}
         </p>
       </div>
 

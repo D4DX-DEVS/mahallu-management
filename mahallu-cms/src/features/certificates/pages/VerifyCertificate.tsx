@@ -5,7 +5,7 @@ import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { registrationService, Certificate } from '@/services/registrationService';
-import { formatDate } from '@/utils/format';
+import { formatDate, toTitleCase } from '@/utils/format';
 import { LOGO_PATH, BRAND_NAME } from '@/constants/theme';
 
 export default function VerifyCertificate() {
@@ -142,7 +142,7 @@ export default function VerifyCertificate() {
                     Issued By Mahallu
                   </p>
                   <p className="text-base font-semibold text-gray-900 dark:text-gray-100 mt-1">
-                    {certificate.issuedByMahallu || 'N/A'}
+                    {certificate.issuedByMahallu ? toTitleCase(certificate.issuedByMahallu) : 'N/A'}
                   </p>
                 </div>
 

@@ -15,6 +15,7 @@ import { instituteService } from '@/services/instituteService';
 import { useAuthStore } from '@/store/authStore';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 
 const employeeSchema = z.object({
   instituteId: z.string().max(200, 'Please keep the institute to 200 characters or less.').min(1, 'Institute is required'),
@@ -64,8 +65,8 @@ export default function EditEmployee() {
 
   const fetchInstitutes = async () => {
     try {
-      const result = await instituteService.getAll({ limit: 1000 });
-      setInstitutes(result.data.map((i: any) => ({ id: i.id, name: i.name })));
+      const rows = await instituteService.getAllForExport();
+      setInstitutes(rows.map((i: any) => ({ id: i.id, name: i.name })));
     } catch (err) {
       console.error('Error fetching institutes:', err);
     }
@@ -161,7 +162,7 @@ export default function EditEmployee() {
                 label="Institute"
                 options={[
                   { value: '', label: 'Select Institute...' },
-                  ...institutes.map((i) => ({ value: i.id, label: i.name })),
+                  ...institutes.map((i) => ({ value: i.id, label: toTitleCase(i.name) })),
                 ]}
                 {...register('instituteId')}
                 error={errors.instituteId?.message}

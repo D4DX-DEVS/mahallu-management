@@ -14,6 +14,7 @@ import { familyService } from '@/services/familyService';
 import { Member } from '@/types/index';
 import { errorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 
 const schema = z
   .object({
@@ -88,8 +89,8 @@ export default function CreateMarriageAssistance() {
       setMemberOptions(
         fetchedMembers.map((member: Member) => ({
           value: member.id,
-          label: member.name,
-          sublabel: member.familyName ? `Family: ${member.familyName}` : undefined,
+          label: toTitleCase(member.name),
+          sublabel: member.familyName ? `Family: ${toTitleCase(member.familyName)}` : undefined,
         }))
       );
     } catch (err) {
@@ -113,8 +114,8 @@ export default function CreateMarriageAssistance() {
       setFamilyOptions(
         fetchedFamilies.map((family: any) => ({
           value: family.id,
-          label: family.houseName || family.familyHead,
-          sublabel: family.area ? `Area: ${family.area}` : undefined,
+          label: toTitleCase(family.houseName || family.familyHead),
+          sublabel: family.area ? `Area: ${toTitleCase(family.area)}` : undefined,
         }))
       );
     } catch (err) {

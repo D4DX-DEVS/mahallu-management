@@ -19,7 +19,7 @@ export interface NikahRegistration {
   witness2?: string;
   mahrAmount?: number;
   mahrDescription?: string;
-  status?: 'pending' | 'approved' | 'rejected';
+  status?: 'pending' | 'correction_required' | 'approved' | 'rejected';
   remarks?: string;
   createdAt: string;
 }
@@ -38,7 +38,7 @@ export interface DeathRegistration {
   informantName?: string;
   informantRelation?: string;
   informantPhone?: string;
-  status?: 'pending' | 'approved' | 'rejected';
+  status?: 'pending' | 'correction_required' | 'approved' | 'rejected';
   remarks?: string;
   createdAt: string;
 }
@@ -71,7 +71,7 @@ export interface NOC {
         witness1?: string;
         witness2?: string;
       };
-  status?: 'pending' | 'approved' | 'rejected';
+  status?: 'pending' | 'correction_required' | 'approved' | 'rejected';
   approvedBy?: string;
   issuedDate?: string;
   expiryDate?: string;

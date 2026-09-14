@@ -11,6 +11,7 @@ import { tenantService } from '@/services/tenantService';
 import { CLASSIFICATION_OPTIONS, TenantClassification } from '@/constants/modules';
 import ModuleFeatureToggles from '../components/ModuleFeatureToggles';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import { toTitleCase } from '@/utils/format';
 
 export default function EditTenant() {
   const { id } = useParams<{ id: string }>();
@@ -105,7 +106,7 @@ export default function EditTenant() {
     }
   };
 
-  const pageTitle = formData.name || 'Edit tenant';
+  const pageTitle = formData.name ? toTitleCase(formData.name) : 'Edit tenant';
   const breadcrumbItems = [{ label: 'Tenants', path: '/admin/tenants' }];
 
   if (isLoading) {

@@ -12,6 +12,7 @@ import { FiEdit2, FiEye, FiTrash2 } from 'react-icons/fi';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { FieldRule, validateForm as checkFields, firstError } from '@/utils/validation';
+import { toTitleCase } from '@/utils/format';
 
 /** The two fields a member may change directly; the API allows only these. */
 const PROFILE_RULES: Record<string, FieldRule> = {
@@ -283,7 +284,7 @@ export default function MemberProfile() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
           <div>
             <p className="text-gray-500 dark:text-gray-400">Name</p>
-            <p className="text-gray-900 dark:text-gray-100 font-medium capitalize">{overview.member.name}</p>
+            <p className="text-gray-900 dark:text-gray-100 font-medium">{toTitleCase(overview.member.name)}</p>
           </div>
           {overview.varusankhyaDetails.memberMahallId && (
             <div>
@@ -600,7 +601,7 @@ export default function MemberProfile() {
               {viewRequest.reviewedBy && (
                 <div>
                   <p className="text-xs text-gray-500 dark:text-gray-400">Reviewed By</p>
-                  <p className="text-gray-900 dark:text-gray-100">{viewRequest.reviewedBy}</p>
+                  <p className="text-gray-900 dark:text-gray-100">{toTitleCase(viewRequest.reviewedBy)}</p>
                 </div>
               )}
               {viewRequest.reviewedAt && (

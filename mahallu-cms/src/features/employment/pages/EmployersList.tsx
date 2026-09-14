@@ -12,6 +12,7 @@ import StatusBadge from '@/components/ui/StatusBadge';
 import PageHeader from '@/components/layout/PageHeader';
 import SortableTh from '@/components/ui/SortableTh';
 import { useSortableRows } from '@/hooks/useSortableRows';
+import { toTitleCase } from '@/utils/format';
 
 export default function EmployersList() {
   const navigate = useNavigate();
@@ -169,14 +170,14 @@ export default function EmployersList() {
                 {sortedEmployers.map((employer) => (
                   <tr key={employer.id} className="border-b hover:bg-gray-50">
                     <td className="px-4 py-3 text-sm">
-                      <div className="font-medium text-gray-900 capitalize">{employer.name}</div>
-                      <div className="text-xs text-gray-500">{employer.businessType || '—'}</div>
+                      <div className="font-medium text-gray-900">{toTitleCase(employer.name)}</div>
+                      <div className="text-xs text-gray-500">{employer.businessType ? toTitleCase(employer.businessType) : '—'}</div>
                     </td>
-                    <td className="px-4 py-3 text-sm hidden sm:table-cell text-gray-700 capitalize">
-                      {employer.contactPerson || '—'}
+                    <td className="px-4 py-3 text-sm hidden sm:table-cell text-gray-700">
+                      {employer.contactPerson ? toTitleCase(employer.contactPerson) : '—'}
                     </td>
                     <td className="px-4 py-3 text-sm hidden md:table-cell text-gray-700">
-                      {employer.location || '—'}
+                      {employer.location ? toTitleCase(employer.location) : '—'}
                     </td>
                     <td className="px-4 py-3">
                       <StatusBadge status={employer.status} />

@@ -9,6 +9,7 @@ import { toast } from '@/store/toastStore';
 import { errorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { FieldRule, LIMITS, validateForm, firstError } from '@/utils/validation';
+import { toTitleCase } from '@/utils/format';
 
 /** The same rules the create form and the API apply. */
 const RULES: Record<string, FieldRule> = {
@@ -139,7 +140,7 @@ export default function EmployerEdit() {
           >
             ←
           </button>
-          <PageHeader title={employer.name} />
+          <PageHeader title={toTitleCase(employer.name)} />
         </div>
         <div className="flex gap-2 items-center">
           {!isEditing && (
@@ -154,11 +155,11 @@ export default function EmployerEdit() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
           <div className="text-xs text-gray-600">Business Type</div>
-          <div className="font-semibold text-gray-900">{employer.businessType || '—'}</div>
+          <div className="font-semibold text-gray-900">{employer.businessType ? toTitleCase(employer.businessType) : '—'}</div>
         </Card>
         <Card>
           <div className="text-xs text-gray-600">Contact Person</div>
-          <div className="font-semibold text-gray-900 capitalize">{employer.contactPerson || '—'}</div>
+          <div className="font-semibold text-gray-900">{employer.contactPerson ? toTitleCase(employer.contactPerson) : '—'}</div>
         </Card>
         <Card>
           <div className="text-xs text-gray-600">Status</div>
@@ -278,7 +279,7 @@ export default function EmployerEdit() {
                 )}
                 {employer.location && (
                   <div>
-                    <span className="font-medium">Location:</span> {employer.location}
+                    <span className="font-medium">Location:</span> {toTitleCase(employer.location)}
                   </div>
                 )}
                 {employer.notes && (
@@ -300,7 +301,7 @@ export default function EmployerEdit() {
       <ConfirmDialog
         isOpen={deleteConfirm}
         title="Delete Employer"
-        message={employer ? `Delete employer "${employer.name}"?` : 'Delete this employer?'}
+        message={employer ? `Delete employer "${toTitleCase(employer.name)}"?` : 'Delete this employer?'}
         consequence="This action cannot be undone."
         confirmLabel="Delete"
         cancelLabel="Cancel"

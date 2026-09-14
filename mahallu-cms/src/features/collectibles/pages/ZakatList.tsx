@@ -11,8 +11,9 @@ import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
 import { TableColumn, Pagination as PaginationType } from '@/types';
 import { collectibleService, Zakat } from '@/services/collectibleService';
+import { fetchAllPages } from '@/services/api';
 import { useDebounce } from '@/hooks/useDebounce';
-import { formatDate } from '@/utils/format';
+import { formatDate, toTitleCase } from '@/utils/format';
 import { exportToCSV, exportToJSON } from '@/utils/exportUtils';
 import { exportInvoicesToPdf, InvoiceDetails } from '@/utils/invoiceUtils';
 import { toast } from '@/store/toastStore';
@@ -31,6 +32,12 @@ export default function ZakatList() {
   const [isExporting, setIsExporting] = useState(false);
 
   const debouncedSearch = useDebounce(searchQuery, 500);
+
+  // A page number that only made sense for the previous search must not
+  // survive into the new one - reset it once the debounce settles.
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearch]);
 
   useEffect(() => {
     fetchZakats();
@@ -64,11 +71,12 @@ export default function ZakatList() {
     try {
       setIsExporting(true);
 
-      const params: any = { limit: 10000 };
-      if (debouncedSearch) params.search = debouncedSearch;
+      const filters: any = {};
+      if (debouncedSearch) filters.search = debouncedSearch;
 
-      const result = await collectibleService.getAllZakats(params);
-      const dataToExport = result.data;
+      // The endpoint caps limit at 100 and 400s above it, so a single
+      // limit:10000 request always failed - page through instead.
+      const dataToExport = await fetchAllPages<Zakat>((p) => collectibleService.getAllZakats({ ...filters, ...p }));
 
       if (dataToExport.length === 0) {
         toast.info('No zakat data to export');
@@ -91,7 +99,7 @@ export default function ZakatList() {
               title: title,
               receiptNo: entry.receiptNo,
               payerLabel: 'Payer',
-              payerName: entry.payerName || '-',
+              payerName: entry.payerName ? toTitleCase(entry.payerName) : '-',
               amount: entry.amount,
               paymentDate: entry.paymentDate,
               paymentMethod: entry.paymentMethod,
@@ -102,8 +110,7 @@ export default function ZakatList() {
           break;
       }
     } catch (error: any) {
-      console.error('Export error:', error);
-      toast.error(error?.message || "Couldn't export zakat data");
+      toast.error(errorMessage(error, { action: 'export zakat data' }));
     } finally {
       setIsExporting(false);
     }
@@ -120,7 +127,7 @@ export default function ZakatList() {
   };
 
   const columns: TableColumn<Zakat>[] = [
-    { key: 'payerName', label: 'Payer Name', width: '9.75rem', sortable: true },
+    { key: 'payerName', label: 'Payer Name', width: '9.75rem', sortable: true, render: (v) => toTitleCase(v) },
     {
       key: 'amount',
       label: 'Amount',
@@ -134,7 +141,7 @@ export default function ZakatList() {
       width: '10.75rem',
       render: (date) => formatDate(date),
     },
-    { key: 'category', label: 'Category', width: '8.25rem' },
+    { key: 'category', label: 'Category', width: '8.25rem', render: (v) => (v ? toTitleCase(v) : '-') },
     {
       key: 'receiptNo',
       label: 'Receipt No.',
@@ -202,7 +209,7 @@ export default function ZakatList() {
       <div className="space-y-3">
         <PageHeader title="Zakat" description="Manage zakat payments" />
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-2">
           {stats.map((stat, index) => (
             <StatCard key={index} {...stat} />
           ))}

@@ -16,7 +16,8 @@ import { TableColumn, Pagination as PaginationType } from '@/types';
 import { Meeting, Committee } from '@/types';
 import { meetingService } from '@/services/meetingService';
 import { committeeService } from '@/services/committeeService';
-import { formatDate } from '@/utils/format';
+import { fetchAllPages } from '@/services/api';
+import { formatDate, toTitleCase } from '@/utils/format';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import StatusBadge from '@/components/ui/StatusBadge';
@@ -83,11 +84,12 @@ export default function MeetingsList() {
     try {
       setIsExporting(true);
 
-      const params: any = { limit: 10000 };
+      const params: any = {};
       if (committeeFilter !== 'all') params.committeeId = committeeFilter;
 
-      const result = await meetingService.getAll(params);
-      const dataToExport = result.data;
+      const dataToExport = await fetchAllPages((pageParams) =>
+        meetingService.getAll({ ...params, ...pageParams })
+      );
 
       if (dataToExport.length === 0) {
         toast.info('No meetings to export');
@@ -131,12 +133,12 @@ export default function MeetingsList() {
   };
 
   const columns: TableColumn<Meeting>[] = [
-    { key: 'title', label: 'Title', width: '6.25rem', sortable: true },
+    { key: 'title', label: 'Title', width: '6.25rem', sortable: true, render: (v) => toTitleCase(v) },
     {
       key: 'committeeName',
       label: 'Committee',
       width: '9.25rem',
-      render: (name, row) => name || (row.committeeId as any)?.name || '-',
+      render: (name, row) => toTitleCase(name || (row.committeeId as any)?.name) || '-',
     },
     {
       key: 'meetingDate',
@@ -211,7 +213,7 @@ export default function MeetingsList() {
       <div className="space-y-3">
         <PageHeader title="Meetings" description="Manage committee meetings" />
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {stats.map((stat, index) => (
             <StatCard key={index} {...stat} />
           ))}
@@ -243,11 +245,14 @@ export default function MeetingsList() {
                   { value: 'all', label: 'All Committees' },
                   ...(Array.isArray(committees) ? committees : []).map((c) => ({
                     value: c.id,
-                    label: c.name,
+                    label: toTitleCase(c.name),
                   })),
                 ]}
                 value={committeeFilter}
-                onChange={(e) => setCommitteeFilter(e.target.value)}
+                onChange={(e) => {
+                  setCommitteeFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
               />
             </div>
           </FilterPanel>
@@ -315,7 +320,7 @@ export default function MeetingsList() {
         }
       >
         <p className="text-gray-600 dark:text-gray-400">
-          Are you sure you want to delete <strong>{selectedMeeting?.title}</strong>? This action cannot be
+          Are you sure you want to delete <strong>{toTitleCase(selectedMeeting?.title)}</strong>? This action cannot be
           undone.
         </p>
       </Modal>

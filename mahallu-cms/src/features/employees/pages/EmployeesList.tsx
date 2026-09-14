@@ -20,6 +20,7 @@ import { useDebounce } from '@/hooks/useDebounce';
 import { useAuthStore } from '@/store/authStore';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 import ActionsMenu from '@/components/ui/ActionsMenu';
 
 export default function EmployeesList() {
@@ -49,13 +50,17 @@ export default function EmployeesList() {
   }, []);
 
   useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearch]);
+
+  useEffect(() => {
     fetchEmployees();
   }, [debouncedSearch, statusFilter, instituteFilter, currentPage]);
 
   const fetchInstitutes = async () => {
     try {
-      const result = await instituteService.getAll({ limit: 1000 });
-      setInstitutes(result.data.map((i: any) => ({ id: i.id, name: i.name })));
+      const rows = await instituteService.getAllForExport();
+      setInstitutes(rows.map((i: any) => ({ id: i.id, name: i.name })));
     } catch (err) {
       console.error('Error fetching institutes:', err);
     }
@@ -100,10 +105,10 @@ export default function EmployeesList() {
       label: 'Name',
       width: '6.75rem',
       sortable: true,
-      render: (v) => <span className="capitalize">{v}</span>,
+      render: (v) => <span>{toTitleCase(v)}</span>,
     },
-    { key: 'designation', label: 'Designation', width: '9.25rem' },
-    { key: 'department', label: 'Department', width: '9.75rem' },
+    { key: 'designation', label: 'Designation', width: '9.25rem', render: (v) => toTitleCase(v) },
+    { key: 'department', label: 'Department', width: '9.75rem', render: (v) => toTitleCase(v) },
     { key: 'phone', label: 'Phone', width: '6.75rem' },
     {
       key: 'salary',
@@ -185,7 +190,7 @@ export default function EmployeesList() {
     <div className="space-y-4">
       <div className="space-y-3">
         <PageHeader title="Employees" description="Manage institute employees" />
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {stats.map((stat, index) => (
             <StatCard key={index} {...stat} />
           ))}
@@ -219,7 +224,10 @@ export default function EmployeesList() {
                   { value: 'terminated', label: 'Terminated' },
                 ]}
                 value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
+                onChange={(e) => {
+                  setStatusFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
               />
             </div>
             {!userInstituteId && (
@@ -227,10 +235,13 @@ export default function EmployeesList() {
                 <Select
                   options={[
                     { value: 'all', label: 'All Institutes' },
-                    ...institutes.map((i) => ({ value: i.id, label: i.name })),
+                    ...institutes.map((i) => ({ value: i.id, label: toTitleCase(i.name) })),
                   ]}
                   value={instituteFilter}
-                  onChange={(e) => setInstituteFilter(e.target.value)}
+                  onChange={(e) => {
+                    setInstituteFilter(e.target.value);
+                    setCurrentPage(1);
+                  }}
                 />
               </div>
             )}
@@ -296,7 +307,7 @@ export default function EmployeesList() {
         }
       >
         <p className="text-gray-600 dark:text-gray-400">
-          Are you sure you want to delete <strong className="capitalize">{selectedEmployee?.name}</strong>? This action cannot be
+          Are you sure you want to delete <strong>{toTitleCase(selectedEmployee?.name)}</strong>? This action cannot be
           undone.
         </p>
       </Modal>

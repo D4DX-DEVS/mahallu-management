@@ -12,7 +12,7 @@ import { toast } from '@/store/toastStore';
 import { TableColumn, Pagination as PaginationType } from '@/types';
 import { registrationService, ChangeRequest } from '@/services/registrationService';
 import { useDebounce } from '@/hooks/useDebounce';
-import { formatDate } from '@/utils/format';
+import { formatDate, toTitleCase } from '@/utils/format';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 
@@ -103,7 +103,10 @@ export default function ChangeRequestsList() {
   ];
 
   const rows = changeRequests.map((req) => ({
-    requester: typeof req.requestedByMemberId === 'object' ? req.requestedByMemberId.name : 'Unknown',
+    requester:
+      typeof req.requestedByMemberId === 'object'
+        ? toTitleCase(req.requestedByMemberId.name)
+        : 'Unknown',
     targetType: req.targetType || '-',
     changes: (
       <div className="text-xs space-y-1 max-w-xs">

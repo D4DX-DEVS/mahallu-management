@@ -10,7 +10,8 @@ import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { toast } from '@/store/toastStore';
 import { getCounsellingCases, deleteCounsellingCase, ICounsellingCase } from '@/services/counsellingService';
 import PageHeader from '@/components/layout/PageHeader';
-import { errorMessage } from '@/utils/errors';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import { toTitleCase } from '@/utils/format';
 
 const CATEGORIES = ['marriage', 'family', 'adolescent', 'education', 'parenting', 'behaviour', 'career'];
 const STATUSES = ['open', 'in_progress', 'follow_up', 'closed'];
@@ -55,6 +56,7 @@ export default function CounsellingList() {
           setCases([]);
         } else {
           console.error("Couldn't load cases:", error);
+          toast.error(loadErrorMessage(error, 'counselling cases'));
         }
       } finally {
         setLoading(false);
@@ -196,11 +198,15 @@ export default function CounsellingList() {
                         </span>
                       </div>
                       <p className="text-sm text-gray-600">
-                        Counsellor: <span className="font-medium">{caseRecord.counsellorName}</span>
+                        Counsellor: <span className="font-medium">{toTitleCase(caseRecord.counsellorName)}</span>
                       </p>
                       <p className="text-sm text-gray-600">
                         Client:{' '}
-                        {caseRecord.clientName || (caseRecord.clientMemberId ? 'Member ID' : 'Anonymous')}
+                        {caseRecord.clientName
+                          ? toTitleCase(caseRecord.clientName)
+                          : caseRecord.clientMemberId
+                            ? 'Member ID'
+                            : 'Anonymous'}
                       </p>
                       <p className="text-xs text-gray-500 mt-2">
                         {new Date(caseRecord.appointmentDate).toLocaleDateString()}

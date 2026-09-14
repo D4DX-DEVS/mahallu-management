@@ -11,6 +11,7 @@ import { toast } from '@/store/toastStore';
 import { FiPlus, FiEdit2, FiTrash2 } from 'react-icons/fi';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 
 export function CemeteriesList() {
   const navigate = useNavigate();
@@ -114,9 +115,9 @@ export function CemeteriesList() {
               <div className="space-y-4">
                 <div className="flex items-start justify-between">
                   <div className="flex-1 min-w-0">
-                    <h3 className="text-base sm:text-lg font-semibold truncate capitalize">{cemetery.name}</h3>
+                    <h3 className="text-base sm:text-lg font-semibold truncate">{toTitleCase(cemetery.name)}</h3>
                     {cemetery.location && (
-                      <p className="text-xs sm:text-sm text-gray-600 truncate mt-1">{cemetery.location}</p>
+                      <p className="text-xs sm:text-sm text-gray-600 truncate mt-1">{toTitleCase(cemetery.location)}</p>
                     )}
                   </div>
                   <span

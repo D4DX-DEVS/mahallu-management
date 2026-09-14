@@ -12,9 +12,10 @@ import TableToolbar from '@/components/ui/TableToolbar';
 import Modal from '@/components/ui/Modal';
 import { TableColumn, Pagination as PaginationType } from '@/types';
 import { collectibleService, Varisangya } from '@/services/collectibleService';
+import { fetchAllPages } from '@/services/api';
 import { buildVarisangyaColumns, getPayerName, getFamilyName } from '../varisangyaColumns';
 import { filterByDateRange } from '../varisangyaFilters';
-import { formatDate } from '@/utils/format';
+import { formatDate, toTitleCase } from '@/utils/format';
 import { exportToCSV, exportToJSON } from '@/utils/exportUtils';
 import { exportInvoicesToPdf, downloadInvoicePdf, InvoiceDetails } from '@/utils/invoiceUtils';
 import { familyService } from '@/services/familyService';
@@ -51,16 +52,27 @@ export default function VarisangyaList() {
       const hasDateFilter = Boolean(dateFrom || dateTo);
       const hasFamilyFilter = familyNameFilter.trim().length > 0;
       const hasClientFilter = hasDateFilter || hasFamilyFilter;
-      const params: Record<string, unknown> = {
-        page: hasClientFilter ? 1 : currentPage,
-        limit: hasClientFilter ? 10000 : itemsPerPage,
-      };
-      if (dateFrom) params.dateFrom = dateFrom;
-      if (dateTo) params.dateTo = dateTo;
-      if (hasClientFilter) params._t = Date.now();
-      const result = await collectibleService.getAllVarisangyas(params);
-      let data = result.data ?? [];
-      let total = result.pagination?.total ?? data.length;
+      let data: Varisangya[];
+      let total: number;
+      let hasPagination: boolean;
+      if (hasClientFilter) {
+        // Client-side date/name filtering needs every matching row, not one page.
+        // The endpoint caps limit at 100 and 400s above it, so the old
+        // limit:10000 request always failed - page through instead.
+        const filterParams: Record<string, unknown> = { _t: Date.now() };
+        if (dateFrom) filterParams.dateFrom = dateFrom;
+        if (dateTo) filterParams.dateTo = dateTo;
+        data = await fetchAllPages<Varisangya>((p) =>
+          collectibleService.getAllVarisangyas({ ...filterParams, ...p })
+        );
+        total = data.length;
+        hasPagination = true;
+      } else {
+        const result = await collectibleService.getAllVarisangyas({ page: currentPage, limit: itemsPerPage });
+        data = result.data ?? [];
+        total = result.pagination?.total ?? data.length;
+        hasPagination = Boolean(result.pagination);
+      }
       if (hasDateFilter) data = filterByDateRange(data, dateFrom, dateTo);
       if (hasFamilyFilter) {
         const q = familyNameFilter.trim().toLowerCase();
@@ -92,9 +104,8 @@ export default function VarisangyaList() {
         }))
       );
       setVarisangyas(data);
-      if (result.pagination) {
+      if (hasPagination) {
         setPagination({
-          ...result.pagination,
           page: currentPage,
           total,
           totalPages: Math.max(1, Math.ceil(total / itemsPerPage)),
@@ -113,11 +124,14 @@ export default function VarisangyaList() {
     try {
       setIsExporting(true);
 
-      const params: Record<string, unknown> = { limit: 10000 };
-      if (dateFrom) params.dateFrom = dateFrom;
-      if (dateTo) params.dateTo = dateTo;
-      const result = await collectibleService.getAllVarisangyas(params);
-      let dataToExport = result.data ?? [];
+      const filters: Record<string, unknown> = {};
+      if (dateFrom) filters.dateFrom = dateFrom;
+      if (dateTo) filters.dateTo = dateTo;
+      // The endpoint caps limit at 100 and 400s above it, so a single
+      // limit:10000 request always failed - page through instead.
+      let dataToExport = await fetchAllPages<Varisangya>((p) =>
+        collectibleService.getAllVarisangyas({ ...filters, ...p })
+      );
       if (dateFrom || dateTo) dataToExport = filterByDateRange(dataToExport, dateFrom, dateTo);
       if (familyNameFilter.trim()) {
         const q = familyNameFilter.trim().toLowerCase();
@@ -148,7 +162,7 @@ export default function VarisangyaList() {
               if (!familyId) return '-';
               if (familyCache.has(familyId)) return familyCache.get(familyId)!;
               const family = await familyService.getById(familyId);
-              const name = family.houseName || '-';
+              const name = family.houseName ? toTitleCase(family.houseName) : '-';
               familyCache.set(familyId, name);
               return name;
             };
@@ -157,7 +171,7 @@ export default function VarisangyaList() {
               if (!memberId) return '-';
               if (memberCache.has(memberId)) return memberCache.get(memberId)!;
               const member = await memberService.getById(memberId);
-              const name = member.name || '-';
+              const name = member.name ? toTitleCase(member.name) : '-';
               memberCache.set(memberId, name);
               return name;
             };
@@ -189,8 +203,7 @@ export default function VarisangyaList() {
           break;
       }
     } catch (error: any) {
-      console.error('Export error:', error);
-      toast.error(error?.message || "Couldn't export varisangya data");
+      toast.error(errorMessage(error, { action: 'export varisangya data' }));
     } finally {
       setIsExporting(false);
     }
@@ -227,7 +240,7 @@ export default function VarisangyaList() {
         title: 'Varisangya Payment',
         receiptNo: entry.receiptNo,
         payerLabel,
-        payerName: payerName || '-',
+        payerName: payerName ? toTitleCase(payerName) : '-',
         amount: entry.amount,
         paymentDate: entry.paymentDate,
         paymentMethod: entry.paymentMethod,
@@ -303,7 +316,7 @@ export default function VarisangyaList() {
       <div className="space-y-3">
         <PageHeader title="Varisangyas" description="Manage varisangya payments" />
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-2">
           {stats.map((stat, index) => (
             <StatCard key={index} {...stat} />
           ))}
@@ -470,7 +483,7 @@ export default function VarisangyaList() {
         {editingRow && (
           <div className="space-y-4">
             <p className="text-sm text-gray-600 dark:text-gray-400">
-              Receipt: {editingRow.receiptNo ?? '-'} · {getPayerName(editingRow)}
+              Receipt: {editingRow.receiptNo ?? '-'} · {toTitleCase(getPayerName(editingRow))}
             </p>
             <Input
               label="Amount"

@@ -5,7 +5,7 @@ export interface Notification {
   tenantId?: string;
   title: string;
   message: string;
-  recipientType?: 'individual' | 'all';
+  recipientType?: 'user' | 'member' | 'all';
   recipientId?: string;
   isRead?: boolean;
   imageUrl?: string;

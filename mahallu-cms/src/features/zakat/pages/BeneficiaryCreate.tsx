@@ -14,10 +14,12 @@ import {
   PRIORITY_AREA_OPTIONS,
 } from '@/services/zakatDistributionService';
 import { memberService } from '@/services/memberService';
-import { errorMessage } from '@/utils/errors';
+import { fetchAllPages } from '@/services/api';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { useFormValidation } from '@/hooks/useFormValidation';
 import { FieldRule, LIMITS } from '@/utils/validation';
+import { toTitleCase } from '@/utils/format';
 
 /**
  * The same limits the API applies, so a form that passes here is not
@@ -51,11 +53,15 @@ export default function BeneficiaryCreate() {
   const { errors, validate, setErrors } = useFormValidation(RULES);
 
   useEffect(() => {
-    // Candidates first: members already flagged as zakat-eligible in the register
-    memberService
-      .getAll({ page: 1, limit: 200, isZakatEligible: true } as any)
-      .then((result: any) => setMembers(result.data || []))
-      .catch(() => setMembers([]));
+    // Candidates first: members already flagged as zakat-eligible in the register.
+    // /members caps limit at 100 and 400s above it, so the old limit:200
+    // request always failed and left this picker empty.
+    fetchAllPages((p) => memberService.getAll({ isZakatEligible: true, ...p } as any))
+      .then((rows) => setMembers(rows))
+      .catch((err) => {
+        setMembers([]);
+        toast.error(loadErrorMessage(err, 'members'));
+      });
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -101,7 +107,7 @@ export default function BeneficiaryCreate() {
                     onChange={(value) => setForm({ ...form, memberId: value })}
                     options={members.map((member: any) => ({
                       value: member._id || member.id,
-                      label: `${member.name}${member.familyName ? ` - ${member.familyName}` : ''}`,
+                      label: `${toTitleCase(member.name)}${member.familyName ? ` - ${toTitleCase(member.familyName)}` : ''}`,
                     }))}
                     placeholder="Search zakat-eligible members..."
                     helperText="Leave blank for a non-member beneficiary"

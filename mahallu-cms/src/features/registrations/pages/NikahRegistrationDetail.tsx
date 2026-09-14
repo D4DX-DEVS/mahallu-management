@@ -8,7 +8,7 @@ import { PageSkeleton } from '@/components/ui/Skeleton';
 import DocumentsPanel from '@/components/ui/DocumentsPanel';
 import { ROUTES } from '@/constants/routes';
 import { registrationService, NikahRegistration } from '@/services/registrationService';
-import { formatDate } from '@/utils/format';
+import { formatDate, toTitleCase } from '@/utils/format';
 import { toast } from '@/store/toastStore';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import StatusBadge from '@/components/ui/StatusBadge';
@@ -107,7 +107,7 @@ export default function NikahRegistrationDetail() {
   return (
     <div className="space-y-4">
       <PageHeader
-        title={`${registration.groomName} & ${registration.brideName}`}
+        title={`${toTitleCase(registration.groomName)} & ${toTitleCase(registration.brideName)}`}
         breadcrumbs={[{ label: 'Nikah Registrations', path: ROUTES.REGISTRATIONS.NIKAH }]}
       />
 
@@ -128,7 +128,7 @@ export default function NikahRegistrationDetail() {
           <div className="space-y-3">
             <div>
               <span className="text-sm text-gray-500 dark:text-gray-400">Groom Name</span>
-              <p className="text-gray-900 dark:text-gray-100 font-medium">{registration.groomName}</p>
+              <p className="text-gray-900 dark:text-gray-100 font-medium">{toTitleCase(registration.groomName)}</p>
             </div>
             {registration.groomAge && (
               <div>
@@ -144,7 +144,7 @@ export default function NikahRegistrationDetail() {
           <div className="space-y-3">
             <div>
               <span className="text-sm text-gray-500 dark:text-gray-400">Bride Name</span>
-              <p className="text-gray-900 dark:text-gray-100 font-medium">{registration.brideName}</p>
+              <p className="text-gray-900 dark:text-gray-100 font-medium">{toTitleCase(registration.brideName)}</p>
             </div>
             {registration.brideAge && (
               <div>
@@ -172,7 +172,7 @@ export default function NikahRegistrationDetail() {
           {registration.waliName && (
             <div>
               <span className="text-sm text-gray-500 dark:text-gray-400">Wali Name</span>
-              <p className="text-gray-900 dark:text-gray-100">{registration.waliName}</p>
+              <p className="text-gray-900 dark:text-gray-100">{toTitleCase(registration.waliName)}</p>
             </div>
           )}
           <div>
@@ -191,13 +191,13 @@ export default function NikahRegistrationDetail() {
             {registration.witness1 && (
               <div>
                 <span className="text-sm text-gray-500 dark:text-gray-400">Witness 1</span>
-                <p className="text-gray-900 dark:text-gray-100">{registration.witness1}</p>
+                <p className="text-gray-900 dark:text-gray-100">{toTitleCase(registration.witness1)}</p>
               </div>
             )}
             {registration.witness2 && (
               <div>
                 <span className="text-sm text-gray-500 dark:text-gray-400">Witness 2</span>
-                <p className="text-gray-900 dark:text-gray-100">{registration.witness2}</p>
+                <p className="text-gray-900 dark:text-gray-100">{toTitleCase(registration.witness2)}</p>
               </div>
             )}
           </div>

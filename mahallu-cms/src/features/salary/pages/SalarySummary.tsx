@@ -13,6 +13,7 @@ import { loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import SortableTh from '@/components/ui/SortableTh';
 import { useSortableRows } from '@/hooks/useSortableRows';
+import { toTitleCase } from '@/utils/format';
 
 const MONTHS = [
   { value: '1', label: 'January' },
@@ -129,7 +130,7 @@ export default function SalarySummary() {
               <Select
                 options={[
                   { value: 'all', label: 'All Institutes' },
-                  ...institutes.map((i) => ({ value: i.id, label: i.name })),
+                  ...institutes.map((i) => ({ value: i.id, label: toTitleCase(i.name) })),
                 ]}
                 value={instituteFilter}
                 onChange={(e) => setInstituteFilter(e.target.value)}
@@ -229,7 +230,9 @@ export default function SalarySummary() {
                       <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
                         {item.id?.month
                           ? `${getMonthName(item.id.month)} ${item.id.year}`
-                          : item.instituteName || '-'}
+                          : item.instituteName
+                            ? toTitleCase(item.instituteName)
+                            : '-'}
                       </td>
                       <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-gray-100">
                         {item.totalPayments}

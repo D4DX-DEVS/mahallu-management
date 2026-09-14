@@ -16,7 +16,7 @@ import { TableColumn, Pagination as PaginationType } from '@/types';
 import { masterAccountService, InstituteAccount } from '@/services/masterAccountService';
 import { instituteService } from '@/services/instituteService';
 import { useAuthStore } from '@/store/authStore';
-import { formatDate } from '@/utils/format';
+import { formatDate, toTitleCase } from '@/utils/format';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
 import { toast } from '@/store/toastStore';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
@@ -52,10 +52,12 @@ export default function InstituteAccountsList() {
 
   useEffect(() => {
     if (!userInstituteId) {
+      // The API caps `limit` at 100 and answers 400 above it — getAllForExport
+      // pages through all institutes instead of failing the dropdown silently.
       instituteService
-        .getAll({ limit: 1000 })
-        .then((r) => setInstitutes(r.data.map((i: any) => ({ id: i.id, name: i.name }))))
-        .catch(() => {});
+        .getAllForExport()
+        .then((rows) => setInstitutes(rows.map((i: any) => ({ id: i.id, name: i.name }))))
+        .catch((err) => toast.error(loadErrorMessage(err, 'institutes')));
     }
   }, []);
 
@@ -119,7 +121,7 @@ export default function InstituteAccountsList() {
 
   const columns: TableColumn<InstituteAccount>[] = [
     { key: 'accountNumber', label: 'Account Number', width: '11.75rem' },
-    { key: 'bankName', label: 'Bank Name', width: '9.25rem' },
+    { key: 'bankName', label: 'Bank Name', width: '9.25rem', render: (v) => toTitleCase(v) },
     { key: 'ifscCode', label: 'IFSC Code', width: '9.25rem' },
     {
       key: 'balance',
@@ -187,7 +189,9 @@ export default function InstituteAccountsList() {
       setShowEditModal(false);
       setSelectedAccount(null);
     } catch (err: any) {
-      setError(errorMessage(err, { action: 'update account' }));
+      // A failed edit must not blank the list behind the still-open modal —
+      // that used to happen because this reused the page-level fetch error.
+      toast.error(errorMessage(err, { action: 'update account' }));
     }
   };
 
@@ -200,11 +204,21 @@ export default function InstituteAccountsList() {
       setShowDeleteModal(false);
       setSelectedAccount(null);
     } catch (err: any) {
-      setError(errorMessage(err, { action: 'delete account' }));
+      toast.error(errorMessage(err, { action: 'delete account' }));
     } finally {
       setDeleting(false);
     }
   };
+
+  // The list endpoint has no `search` query param, so — same as the Mahallu
+  // Finance accounts screen — the search box filters the page already loaded.
+  const filteredAccounts = accounts.filter(
+    (a) =>
+      !searchQuery ||
+      (a.accountName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (a.bankName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (a.accountNumber || '').toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   const stats = [
     {
@@ -224,7 +238,7 @@ export default function InstituteAccountsList() {
       <div className="space-y-3">
         <PageHeader title="Institute Accounts" description="Manage institute bank accounts" />
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-2">
           {stats.map((stat, index) => (
             <StatCard key={index} {...stat} />
           ))}
@@ -254,10 +268,13 @@ export default function InstituteAccountsList() {
                 label="Institute"
                 options={[
                   { value: 'all', label: 'All Institutes' },
-                  ...institutes.map((i) => ({ value: i.id, label: i.name })),
+                  ...institutes.map((i) => ({ value: i.id, label: toTitleCase(i.name) })),
                 ]}
                 value={instituteFilter}
-                onChange={(e) => setInstituteFilter(e.target.value)}
+                onChange={(e) => {
+                  setInstituteFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
               />
             </div>
           </FilterPanel>
@@ -277,7 +294,7 @@ export default function InstituteAccountsList() {
               fixedLayout
               striped
               columns={columns}
-              data={accounts}
+              data={filteredAccounts}
               emptyMessage="No institute accounts found"
               showExport={false}
             />
@@ -321,15 +338,17 @@ export default function InstituteAccountsList() {
             <div className="sm:col-span-2">
               <p className="text-xs text-gray-500 dark:text-gray-400">Account Name</p>
               <p className="text-gray-900 dark:text-gray-100 font-medium">
-                {(selectedAccount as any).accountName || '—'}
+                {toTitleCase((selectedAccount as any).accountName) || '—'}
               </p>
             </div>
             <div>
               <p className="text-xs text-gray-500 dark:text-gray-400">Institute</p>
               <p className="text-gray-900 dark:text-gray-100">
-                {typeof selectedAccount.instituteId === 'object'
-                  ? (selectedAccount.instituteId as any)?.name
-                  : institutes.find((i) => i.id === selectedAccount.instituteId)?.name || '—'}
+                {toTitleCase(
+                  typeof selectedAccount.instituteId === 'object'
+                    ? (selectedAccount.instituteId as any)?.name
+                    : institutes.find((i) => i.id === selectedAccount.instituteId)?.name
+                ) || '—'}
               </p>
             </div>
             <div>
@@ -344,7 +363,7 @@ export default function InstituteAccountsList() {
             </div>
             <div>
               <p className="text-xs text-gray-500 dark:text-gray-400">Bank Name</p>
-              <p className="text-gray-900 dark:text-gray-100">{selectedAccount.bankName || '—'}</p>
+              <p className="text-gray-900 dark:text-gray-100">{toTitleCase(selectedAccount.bankName) || '—'}</p>
             </div>
             <div>
               <p className="text-xs text-gray-500 dark:text-gray-400">IFSC Code</p>
@@ -453,7 +472,7 @@ export default function InstituteAccountsList() {
       >
         <p className="text-gray-600 dark:text-gray-400">
           Are you sure you want to delete
-          <strong>{(selectedAccount as any)?.accountName || selectedAccount?.accountNumber}</strong>? This
+          <strong>{toTitleCase((selectedAccount as any)?.accountName) || selectedAccount?.accountNumber}</strong>? This
           action cannot be undone.
         </p>
       </Modal>

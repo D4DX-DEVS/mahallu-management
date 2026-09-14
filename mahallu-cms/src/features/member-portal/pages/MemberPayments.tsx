@@ -81,7 +81,7 @@ export default function MemberPayments() {
     <div className="space-y-4 max-w-4xl w-full mx-auto">
       <PageHeader title="My Payments &amp; Receipts" />
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-2 gap-3">
         <StatCard
           title="Total Varisangya Paid"
           value={currency.format(varisangyaTotal)}

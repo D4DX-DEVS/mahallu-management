@@ -10,6 +10,7 @@ import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import RequestDetailModal, { RequestType } from '../components/RequestDetailModal';
 import { FiHeart, FiFileText, FiEdit2, FiEye, FiTrash2 } from 'react-icons/fi';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import { toTitleCase } from '@/utils/format';
 import StatusBadge from '@/components/ui/StatusBadge';
 import PageHeader from '@/components/layout/PageHeader';
 import SortableTh from '@/components/ui/SortableTh';
@@ -217,7 +218,7 @@ export default function MemberNOCList() {
                     <td className="py-3 pr-4 max-w-xs truncate">
                       {noc.purposeTitle ||
                         (noc.nikahRegistrationId?.brideName
-                          ? `Nikah with ${noc.nikahRegistrationId.brideName}`
+                          ? `Nikah with ${toTitleCase(noc.nikahRegistrationId.brideName)}`
                           : '—')}
                     </td>
                     <td className="py-3 pr-4 text-gray-500 dark:text-gray-400">

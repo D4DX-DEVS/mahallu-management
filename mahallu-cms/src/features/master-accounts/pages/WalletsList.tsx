@@ -10,7 +10,7 @@ import { PageSkeleton } from '@/components/ui/Skeleton';
 import TableToolbar from '@/components/ui/TableToolbar';
 import { TableColumn, Pagination as PaginationType } from '@/types';
 import { masterAccountService, MasterWallet } from '@/services/masterAccountService';
-import { formatDate } from '@/utils/format';
+import { formatDate, toTitleCase } from '@/utils/format';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
 import { toast } from '@/store/toastStore';
 import { loadErrorMessage } from '@/utils/errors';
@@ -80,7 +80,7 @@ export default function WalletsList() {
   };
 
   const columns: TableColumn<MasterWallet>[] = [
-    { key: 'name', label: 'Name', width: '6.75rem', sortable: true },
+    { key: 'name', label: 'Name', width: '6.75rem', sortable: true, render: (v) => toTitleCase(v) },
     { key: 'type', label: 'Type', width: '6.25rem' },
     {
       key: 'balance',
@@ -96,6 +96,12 @@ export default function WalletsList() {
       render: (date) => formatDate(date),
     },
   ];
+
+  // The list endpoint has no `search` query param, so — same as the Mahallu
+  // Finance list screens — the search box filters the page already loaded.
+  const filteredWallets = wallets.filter(
+    (w) => !searchQuery || w.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   const totalBalance = wallets.reduce((sum, w) => sum + (w.balance || 0), 0);
 
@@ -117,7 +123,7 @@ export default function WalletsList() {
       <div className="space-y-3">
         <PageHeader title="Master Wallets" description="Manage master wallets" />
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-2">
           {stats.map((stat, index) => (
             <StatCard key={index} {...stat} />
           ))}
@@ -151,7 +157,7 @@ export default function WalletsList() {
           </div>
         ) : (
           <>
-            <Table fixedLayout striped columns={columns} data={wallets} emptyMessage="No wallets found" showExport={false} />
+            <Table fixedLayout striped columns={columns} data={filteredWallets} emptyMessage="No wallets found" showExport={false} />
             {pagination && pagination.totalPages > 1 && (
               <div className="mt-4">
                 <Pagination
