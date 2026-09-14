@@ -24,6 +24,7 @@ import {
   normalizeConditionalFields,
   conditionalDefaults,
   isOtherRelationship,
+  isOtherEducation,
   needsHealthNotes,
   healthNotesCopy,
   calculateAge,
@@ -110,7 +111,9 @@ export default function EditMember() {
   const selectedFamilyId = watch('familyId');
   const relationship = watch('relationship');
   const healthStatus = watch('healthStatus');
+  const education = watch('education');
   const dateOfBirth = watch('dateOfBirth');
+  const [studyPlace, setStudyPlace] = useState('');
 
   useEffect(() => {
     fetchFamilies();
@@ -171,7 +174,7 @@ export default function EditMember() {
       setValue('isDead', Boolean(member.isDead));
       setValue('relationship', (member.relationship || '') as any);
       setValue('educationInstitutionId', member.educationInstitutionId || '');
-      setValue('localityFacilityId', member.localityFacilityId || '');
+      setStudyPlace(member.educationInstitutionId ? 'institute' : member.externalInstitution ? 'external' : '');
       Object.entries(socioEconomicDefaults(member as any)).forEach(([field, value]) => {
         setValue(field as any, value as any);
       });
@@ -444,24 +447,54 @@ export default function EditMember() {
               options={[
                 { value: '', label: 'Select Education' },
                 ...educationOptions.map((opt) => ({ value: opt, label: opt })),
+                { value: 'other', label: 'Other' },
               ]}
             />
+
+            {/* Only asked when the qualification dropdown is on 'other'. */}
+            {isOtherEducation(education) && (
+              <Input
+                label="Qualification (specify)"
+                {...register('educationOther')}
+                error={errors.educationOther?.message}
+                placeholder="e.g. B.Tech, M.A."
+              />
+            )}
+
             <Select
-              label="Studying at (Mahallu Institute)"
-              {...register('educationInstitutionId')}
+              label="Studying at"
               options={[
-                { value: '', label: 'Select Institute' },
-                ...institutes.map((inst) => ({ value: inst.id || inst._id, label: toTitleCase(inst.name) })),
+                { value: '', label: 'Not studying' },
+                { value: 'institute', label: 'A mahallu institute' },
+                { value: 'external', label: 'An outside school or college' },
               ]}
+              value={studyPlace}
+              onChange={(e) => {
+                setStudyPlace(e.target.value);
+                setValue('educationInstitutionId', '');
+                setValue('externalInstitution', '');
+              }}
             />
-            <Select
-              label="Studying at (External School/College)"
-              {...register('localityFacilityId')}
-              options={[
-                { value: '', label: 'Select Facility' },
-                ...facilities.map((fac) => ({ value: fac.id, label: toTitleCase(fac.name) })),
-              ]}
-            />
+
+            {studyPlace === 'institute' && (
+              <Select
+                label="Institute"
+                {...register('educationInstitutionId')}
+                options={[
+                  { value: '', label: 'Select Institute' },
+                  ...institutes.map((inst) => ({ value: inst.id || inst._id, label: toTitleCase(inst.name) })),
+                ]}
+              />
+            )}
+
+            {studyPlace === 'external' && (
+              <Input
+                label="School or college"
+                {...register('externalInstitution')}
+                error={errors.externalInstitution?.message}
+                placeholder="Name of the school or college"
+              />
+            )}
             <Select label="Marital Status" {...register('maritalStatus')} options={maritalStatusOptions} />
             <Input
               label="Number of Marriages"
@@ -492,7 +525,11 @@ export default function EditMember() {
             </div>
           </div>
 
-          <div className="pt-4">
+          <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Socio-economic details</h3>
+            <p className="mb-3 text-xs text-gray-500 dark:text-gray-400">
+              Feeds the community registers and welfare screening
+            </p>
             <SocioEconomicSection register={register} />
           </div>
 

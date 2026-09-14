@@ -253,31 +253,31 @@ export default function FamilyDetail() {
           <h2 className="text-lg font-semibold mb-3 text-foreground">Address Information</h2>
           <div className="space-y-3">
             <div>
-              <span className="text-sm text-gray-500 dark:text-gray-400">State</span>
-              <p className="text-gray-900 dark:text-gray-100">{toTitleCase(family.state)}</p>
+              <span className="text-sm text-gray-500 dark:text-gray-400">House Name</span>
+              <p className="text-gray-900 dark:text-gray-100">{toTitleCase(family.houseName)}</p>
             </div>
-            <div>
-              <span className="text-sm text-gray-500 dark:text-gray-400">District</span>
-              <p className="text-gray-900 dark:text-gray-100">{toTitleCase(family.district)}</p>
-            </div>
-            <div>
-              <span className="text-sm text-gray-500 dark:text-gray-400">LSG Name</span>
-              <p className="text-gray-900 dark:text-gray-100">{toTitleCase(family.lsgName)}</p>
-            </div>
-            <div>
-              <span className="text-sm text-gray-500 dark:text-gray-400">Village</span>
-              <p className="text-gray-900 dark:text-gray-100">{toTitleCase(family.village)}</p>
-            </div>
-            {family.pinCode && (
+            {family.houseNo && (
               <div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">Pin Code</span>
-                <p className="text-gray-900 dark:text-gray-100">{family.pinCode}</p>
+                <span className="text-sm text-gray-500 dark:text-gray-400">House No.</span>
+                <p className="text-gray-900 dark:text-gray-100">{family.houseNo}</p>
               </div>
             )}
-            {family.postOffice && (
+            {family.wardNumber && (
               <div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">Post Office</span>
-                <p className="text-gray-900 dark:text-gray-100">{toTitleCase(family.postOffice)}</p>
+                <span className="text-sm text-gray-500 dark:text-gray-400">Ward Number</span>
+                <p className="text-gray-900 dark:text-gray-100">{family.wardNumber}</p>
+              </div>
+            )}
+            {family.area && (
+              <div>
+                <span className="text-sm text-gray-500 dark:text-gray-400">Area</span>
+                <p className="text-gray-900 dark:text-gray-100">{toTitleCase(family.area)}</p>
+              </div>
+            )}
+            {family.place && (
+              <div>
+                <span className="text-sm text-gray-500 dark:text-gray-400">Address</span>
+                <p className="text-gray-900 dark:text-gray-100">{toTitleCase(family.place)}</p>
               </div>
             )}
           </div>

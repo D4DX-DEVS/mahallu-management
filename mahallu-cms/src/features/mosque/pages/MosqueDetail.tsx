@@ -18,6 +18,7 @@ import { FieldRule, validateForm, firstError, LIMITS } from '@/utils/validation'
 const RULES: Record<string, FieldRule> = {
   name: { label: 'mosque name', required: true, minLength: LIMITS.name.min, maxLength: LIMITS.title.max },
   nameMl: { label: 'mosque name', maxLength: LIMITS.title.max },
+  address: { label: 'address', maxLength: 500 },
   capacity: { label: 'capacity', type: 'integer', min: 0, max: 100000 },
   imamName: { label: 'imam’s name', maxLength: LIMITS.name.max },
   muazzinName: { label: 'muazzin’s name', maxLength: LIMITS.name.max },
@@ -29,6 +30,7 @@ const RULES: Record<string, FieldRule> = {
 const emptyProfile: Omit<MosqueProfile, 'id'> = {
   name: '',
   nameMl: '',
+  address: '',
   capacity: undefined,
   facilities: [],
   prayerFacilityNotes: '',
@@ -125,6 +127,7 @@ export default function MosqueDetail() {
   }
 
   const infoCards = [
+    { label: 'Address', value: profile.address || '-' },
     { label: 'Capacity', value: profile.capacity ? String(profile.capacity) : '-' },
     { label: 'Imam', value: profile.imamName || '-' },
     { label: 'Muazzin', value: profile.muazzinName || '-' },
@@ -189,6 +192,13 @@ export default function MosqueDetail() {
               onChange={(e) => setForm({ ...form, nameMl: e.target.value })}
               className="font-malayalam"
             />
+            <div className="md:col-span-2">
+              <Input
+                label="Address"
+                value={form.address || ''}
+                onChange={(e) => setForm({ ...form, address: e.target.value })}
+              />
+            </div>
             <Input
               label="Capacity"
               type="number"

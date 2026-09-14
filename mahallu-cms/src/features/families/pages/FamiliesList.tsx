@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FiEye, FiEdit2, FiTrash2, FiHome, FiUsers, FiUpload, FiPlus, FiFileText, FiFile } from 'react-icons/fi';
+import { FiHome, FiUsers, FiUpload, FiPlus, FiFileText, FiFile } from 'react-icons/fi';
 import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
@@ -10,8 +10,6 @@ import Alert from '@/components/ui/Alert';
 import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
 import Dropdown, { DropdownItem } from '@/components/ui/Dropdown';
-import ConfirmDialog from '@/components/ui/ConfirmDialog';
-import ActionsMenu from '@/components/ui/ActionsMenu';
 import PageHeader from '@/components/layout/PageHeader';
 import BulkImportCsv, { ColumnSpec } from '@/components/BulkImportCsv';
 import { TableColumn, Pagination as PaginationType, SortState } from '@/types';
@@ -22,7 +20,7 @@ import { useDebounce } from '@/hooks/useDebounce';
 import { exportToCSV, exportToPDF } from '@/utils/exportUtils';
 import { toTitleCase } from '@/utils/format';
 import { toast } from '@/store/toastStore';
-import { errorMessage, loadErrorMessage, pluralise } from '@/utils/errors';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
 
 const FAMILY_COLUMNS: ColumnSpec[] = [
   { key: 'houseName', label: 'House Name', required: true },
@@ -32,23 +30,13 @@ const FAMILY_COLUMNS: ColumnSpec[] = [
   { key: 'contactNo', label: 'Contact Number' },
   { key: 'area', label: 'Area' },
   { key: 'areaMl', label: 'Area (Malayalam)' },
-  { key: 'place', label: 'Place' },
+  { key: 'place', label: 'Address' },
   { key: 'placeMl', label: 'Place (Malayalam)' },
   { key: 'varisangyaGrade', label: 'Varisangya Grade' },
 ];
 
 const FAMILY_TEMPLATE =
   'houseName,houseNameMl,familyHead,familyHeadMl,contactNo,area,areaMl,place,placeMl,varisangyaGrade\nAl-Hamd House,അൽ-ഹാമ്ദ് വീട്,Ahmed Ali,അഹമ്മദ് അലി,9876543210,Area A,ഏരിയ എ,Calicut,കാലിക്കറ്റ്,Grade A\n';
-
-/**
- * Family delete is a hard delete on the API and does not cascade, so members
- * keep a familyId pointing at a record that is gone. The dialog says so.
- */
-const deleteConsequence = (family: Family | null) => {
-  const count = family?.members?.length ?? 0;
-  if (count === 0) return undefined;
-  return `${pluralise(count, 'member')} will be left without a family. Move them first if you need them kept intact.`;
-};
 
 export default function FamiliesList() {
   const navigate = useNavigate();
@@ -68,8 +56,6 @@ export default function FamiliesList() {
   const [isExporting, setIsExporting] = useState(false);
   const [memberStats, setMemberStats] = useState({ totalMembers: 0, maleCount: 0, femaleCount: 0 });
   const [isImportOpen, setIsImportOpen] = useState(false);
-  const [deleting, setDeleting] = useState<Family | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
 
   const debouncedSearch = useDebounce(searchQuery, 400);
   const activeFilterCount = areaFilter ? 1 : 0;
@@ -149,20 +135,6 @@ export default function FamiliesList() {
     }
   };
 
-  const confirmDelete = async () => {
-    if (!deleting) return;
-    try {
-      setIsDeleting(true);
-      await familyService.delete(deleting.id);
-      toast.success('Family deleted');
-      setDeleting(null);
-      fetchFamilies();
-    } catch (err: any) {
-      toast.error(errorMessage(err, { action: 'delete this family' }));
-    } finally {
-      setIsDeleting(false);
-    }
-  };
 
   /* Column priority is declared here and honoured by Table at every breakpoint,
    * so a phone shows the five that matter rather than nine crushed columns. */
@@ -207,36 +179,6 @@ export default function FamiliesList() {
     /* The field on Family is `contactNo`; `phone` read undefined on every
      * row, so the column showed a dash for all of them. */
     { key: 'contactNo', label: 'Phone', priority: 'secondary', width: '7rem' },
-    {
-      key: 'actions',
-      label: 'Actions',
-      align: 'center',
-      headerAlign: 'left',
-      width: '7.5rem',
-      render: (_, row) => (
-        <ActionsMenu
-          label={`Actions for ${toTitleCase(row.houseName)}`}
-          items={[
-            {
-              label: 'View',
-              icon: <FiEye className="h-4 w-4" />,
-              onClick: () => navigate(ROUTES.FAMILIES.DETAIL(row.id)),
-            },
-            {
-              label: 'Edit',
-              icon: <FiEdit2 className="h-4 w-4" />,
-              onClick: () => navigate(ROUTES.FAMILIES.EDIT(row.id)),
-            },
-            {
-              label: 'Delete',
-              icon: <FiTrash2 className="h-4 w-4" />,
-              variant: 'danger',
-              onClick: () => setDeleting(row),
-            },
-          ]}
-        />
-      ),
-    },
   ];
 
   const areaOptions = [
@@ -428,17 +370,6 @@ export default function FamiliesList() {
         onImported={fetchFamilies}
       />
 
-      <ConfirmDialog
-        isOpen={Boolean(deleting)}
-        title={`Delete ${deleting?.houseName ? toTitleCase(deleting.houseName) : 'this family'}?`}
-        message="This permanently removes the family record and cannot be undone."
-        consequence={deleteConsequence(deleting)}
-        confirmLabel="Delete family"
-        variant="danger"
-        isLoading={isDeleting}
-        onConfirm={confirmDelete}
-        onCancel={() => setDeleting(null)}
-      />
     </>
   );
 }

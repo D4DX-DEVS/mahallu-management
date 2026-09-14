@@ -22,6 +22,7 @@ import { toTitleCase } from '@/utils/format';
 const emptyForm = {
   name: '',
   nameMl: '',
+  address: '',
   capacity: '',
   facilities: [] as string[],
   prayerFacilityNotes: '',
@@ -87,6 +88,7 @@ export default function MosquesList() {
       await mosqueService.create({
         name: form.name,
         nameMl: form.nameMl || undefined,
+        address: form.address || undefined,
         capacity: form.capacity ? Number(form.capacity) : undefined,
         facilities: form.facilities,
         prayerFacilityNotes: form.prayerFacilityNotes || undefined,
@@ -187,6 +189,14 @@ export default function MosquesList() {
                    * of small print the same size as its own label. That one
                    * field was what made this card read as smaller. */}
                   <dl className="mt-2 space-y-1">
+                    {mosque.address && (
+                      <div className="flex items-baseline justify-between gap-2">
+                        <dt className="text-xs text-gray-500 dark:text-gray-400">Address</dt>
+                        <dd className="truncate text-xs font-medium text-gray-700 dark:text-gray-200">
+                          {toTitleCase(mosque.address)}
+                        </dd>
+                      </div>
+                    )}
                     <div className="flex items-baseline justify-between gap-2">
                       <dt className="text-xs text-gray-500 dark:text-gray-400">Capacity</dt>
                       <dd className="text-base font-semibold text-gray-900 dark:text-gray-100 sm:text-xl">
@@ -248,6 +258,13 @@ export default function MosquesList() {
             onChange={(e) => setForm({ ...form, nameMl: e.target.value })}
             className="font-malayalam"
           />
+          <div className="md:col-span-2">
+            <Input
+              label="Address"
+              value={form.address}
+              onChange={(e) => setForm({ ...form, address: e.target.value })}
+            />
+          </div>
           <Input
             label="Capacity"
             type="number"

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
+import { FiEdit2, FiTrash2 } from 'react-icons/fi';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -37,6 +38,7 @@ const formatDate = (value?: string) => (value ? new Date(value).toLocaleDateStri
 
 export default function ApplicationDetail() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [application, setApplication] = useState<WelfareApplication | null>(null);
   const [loading, setLoading] = useState(true);
   const [target, setTarget] = useState<WelfareStatus | null>(null);
@@ -45,6 +47,11 @@ export default function ApplicationDetail() {
   const [disbursedVia, setDisbursedVia] = useState('cash');
   const [saving, setSaving] = useState(false);
   const [isConfirmOpen, setConfirmOpen] = useState(false);
+  const [isEditOpen, setEditOpen] = useState(false);
+  const [editForm, setEditForm] = useState({ requestedAmount: '', reason: '', priority: 'medium' });
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [isDeleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -54,6 +61,48 @@ export default function ApplicationDetail() {
       .catch(() => setApplication(null))
       .finally(() => setLoading(false));
   }, [id]);
+
+  const openEdit = () => {
+    if (!application) return;
+    setEditForm({
+      requestedAmount: String(application.requestedAmount ?? ''),
+      reason: application.reason || '',
+      priority: application.priority,
+    });
+    setEditOpen(true);
+  };
+
+  const saveEdit = async () => {
+    if (!id) return;
+    try {
+      setSavingEdit(true);
+      const updated = await welfareService.updateApplication(id, {
+        requestedAmount: Number(editForm.requestedAmount || 0),
+        reason: editForm.reason,
+        priority: editForm.priority,
+      });
+      setApplication(updated);
+      setEditOpen(false);
+      toast.success('Application updated');
+    } catch (err: any) {
+      toast.error(errorMessage(err, { action: 'update the application' }));
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!id) return;
+    try {
+      setDeleting(true);
+      await welfareService.removeApplication(id);
+      toast.success('Application deleted');
+      navigate('/welfare/applications');
+    } catch (err: any) {
+      toast.error(errorMessage(err, { action: 'delete the application' }));
+      setDeleting(false);
+    }
+  };
 
   const applyStatus = async () => {
     if (!id || !target) return;
@@ -111,6 +160,21 @@ export default function ApplicationDetail() {
         description={`Raised ${formatDate(application.createdAt)}`}
         breadcrumbs={[{ label: 'Welfare', path: '/welfare/applications' }]}
       />
+
+      <div className="flex items-center justify-end gap-2">
+        <Button variant="outline" size="md" onClick={openEdit} icon={<FiEdit2 />} collapseLabel>
+          Edit
+        </Button>
+        <Button
+          variant="outline"
+          size="md"
+          onClick={() => setDeleteOpen(true)}
+          icon={<FiTrash2 />}
+          collapseLabel
+        >
+          Delete
+        </Button>
+      </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
         {infoCards.map((card) => (
@@ -178,6 +242,8 @@ export default function ApplicationDetail() {
         isOpen={isConfirmOpen}
         title={target ? `Move to ${STATUS_LABELS[target]}` : ''}
         message={target ? `Change status to ${STATUS_LABELS[target]}?` : ''}
+        variant={target === 'rejected' ? 'danger' : 'primary'}
+        confirmLabel="Confirm"
         onConfirm={applyStatus}
         onCancel={() => {
           setConfirmOpen(false);
@@ -231,6 +297,51 @@ export default function ApplicationDetail() {
           </div>
         </div>
       </Modal>
+      <Modal isOpen={isEditOpen} onClose={() => setEditOpen(false)} title="Edit Application">
+        <div className="space-y-3">
+          <Input
+            label="Requested Amount"
+            type="number"
+            value={editForm.requestedAmount}
+            onChange={(e) => setEditForm({ ...editForm, requestedAmount: e.target.value })}
+          />
+          <Select
+            label="Priority"
+            value={editForm.priority}
+            onChange={(e) => setEditForm({ ...editForm, priority: e.target.value })}
+            options={[
+              { value: 'low', label: 'Low' },
+              { value: 'medium', label: 'Medium' },
+              { value: 'high', label: 'High' },
+              { value: 'urgent', label: 'Urgent' },
+            ]}
+          />
+          <Input
+            label="Reason"
+            value={editForm.reason}
+            onChange={(e) => setEditForm({ ...editForm, reason: e.target.value })}
+          />
+          <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+            <Button variant="outline" onClick={() => setEditOpen(false)} disabled={savingEdit}>
+              Cancel
+            </Button>
+            <Button onClick={saveEdit} disabled={savingEdit}>
+              {savingEdit ? 'Saving...' : 'Save'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      <ConfirmDialog
+        isOpen={isDeleteOpen}
+        title="Delete Application"
+        message="This permanently removes the welfare application and cannot be undone."
+        variant="danger"
+        confirmLabel="Delete"
+        isLoading={deleting}
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteOpen(false)}
+      />
     </div>
   );
 }

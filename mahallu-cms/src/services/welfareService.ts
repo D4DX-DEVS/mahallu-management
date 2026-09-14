@@ -103,6 +103,11 @@ export const welfareService = {
     return response.data.data;
   },
 
+  removeApplication: async (id: string) => {
+    const response = await api.delete<{ success: boolean; message: string }>(`/welfare/applications/${id}`);
+    return response.data;
+  },
+
   getSummary: async () => {
     const response = await api.get<{ success: boolean; data: WelfareSummary }>('/welfare/summary');
     return response.data.data;

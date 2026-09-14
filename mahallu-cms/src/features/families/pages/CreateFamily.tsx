@@ -195,7 +195,7 @@ export default function CreateFamily() {
                 className="font-malayalam"
               />
             </div>
-            <Input label="Place" {...register('place')} placeholder="Place" />
+            <Input label="Address" {...register('place')} placeholder="Address" />
             <div className="hidden">
               <Input
                 label="Place (Malayalam)"

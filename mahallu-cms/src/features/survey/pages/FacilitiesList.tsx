@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import ActionsMenu from '@/components/ui/ActionsMenu';
-import { FiEdit2, FiPlus, FiTrash2 } from 'react-icons/fi';
+import { FiEdit2, FiEye, FiPlus, FiTrash2 } from 'react-icons/fi';
 import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -58,6 +58,7 @@ export default function FacilitiesList() {
   const [isConfirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deletingName, setDeletingName] = useState<string>('');
+  const [viewing, setViewing] = useState<LocalityFacility | null>(null);
 
   const debouncedSearch = useDebounce(searchQuery, 500);
 
@@ -167,6 +168,7 @@ export default function FacilitiesList() {
       render: (_v, row) => (
         <ActionsMenu
           items={[
+            { label: 'View', icon: <FiEye className="h-4 w-4" />, onClick: () => setViewing(row) },
             { label: 'Edit', icon: <FiEdit2 className="h-4 w-4" />, onClick: () => openEdit(row) },
             {
               label: 'Delete',
@@ -317,6 +319,47 @@ export default function FacilitiesList() {
             {saving ? 'Saving...' : 'Save'}
           </Button>
         </div>
+      </Modal>
+
+      <Modal isOpen={Boolean(viewing)} onClose={() => setViewing(null)} title="Facility Details">
+        {viewing && (
+          <div className="space-y-3">
+            <div>
+              <span className="text-sm text-gray-500 dark:text-gray-400">Name</span>
+              <p className="text-gray-900 dark:text-gray-100">{toTitleCase(viewing.name)}</p>
+            </div>
+            {viewing.nameMl && (
+              <div>
+                <span className="text-sm text-gray-500 dark:text-gray-400">Name (Malayalam)</span>
+                <p className="font-malayalam text-gray-900 dark:text-gray-100">{viewing.nameMl}</p>
+              </div>
+            )}
+            <div>
+              <span className="text-sm text-gray-500 dark:text-gray-400">Type</span>
+              <p className="text-gray-900 dark:text-gray-100">
+                {TYPE_OPTIONS.find((option) => option.value === viewing.type)?.label || viewing.type || '-'}
+              </p>
+            </div>
+            {viewing.address && (
+              <div>
+                <span className="text-sm text-gray-500 dark:text-gray-400">Address</span>
+                <p className="text-gray-900 dark:text-gray-100">{toTitleCase(viewing.address)}</p>
+              </div>
+            )}
+            {viewing.contactNo && (
+              <div>
+                <span className="text-sm text-gray-500 dark:text-gray-400">Contact No.</span>
+                <p className="text-gray-900 dark:text-gray-100">{viewing.contactNo}</p>
+              </div>
+            )}
+            {viewing.notes && (
+              <div>
+                <span className="text-sm text-gray-500 dark:text-gray-400">Notes</span>
+                <p className="text-gray-900 dark:text-gray-100">{viewing.notes}</p>
+              </div>
+            )}
+          </div>
+        )}
       </Modal>
 
       <ConfirmDialog
