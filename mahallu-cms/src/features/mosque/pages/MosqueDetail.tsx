@@ -264,6 +264,15 @@ export default function MosqueDetail() {
         </Card>
       ) : (
         <>
+          {profile.nameMl && (
+            <Card>
+              <p className="text-xs font-medium text-gray-500 dark:text-gray-400 sm:text-sm">Name (Malayalam)</p>
+              <p className="mt-1 break-words text-sm font-semibold text-gray-900 dark:text-gray-100 font-malayalam sm:text-base">
+                {profile.nameMl}
+              </p>
+            </Card>
+          )}
+
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             {infoCards.map((card) => (
               <Card key={card.label}>

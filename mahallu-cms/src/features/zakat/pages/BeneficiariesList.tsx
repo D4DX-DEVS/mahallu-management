@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import ActionsMenu from '@/components/ui/ActionsMenu';
-import { FiCheck, FiEdit2, FiEye, FiPlus, FiTrash2, FiX } from 'react-icons/fi';
+import { FiCheck, FiPlus, FiX } from 'react-icons/fi';
 import { Link, useNavigate } from 'react-router-dom';
 import { FiSend } from 'react-icons/fi';
 import Modal from '@/components/ui/Modal';
@@ -143,12 +143,6 @@ export default function BeneficiariesList() {
       render: (_v, row) => (
         <ActionsMenu
           items={[
-            { label: 'View', icon: <FiEye className="h-4 w-4" />, onClick: () => setViewing(row) },
-            {
-              label: 'Edit',
-              icon: <FiEdit2 className="h-4 w-4" />,
-              onClick: () => navigate(`/zakat/beneficiaries/${row.id}`),
-            },
             ...(row.verificationStatus === 'verified'
               ? [
                   {
@@ -178,12 +172,6 @@ export default function BeneficiariesList() {
                   },
                 ]
               : []),
-            {
-              label: 'Delete',
-              icon: <FiTrash2 className="h-4 w-4" />,
-              onClick: () => setDeleteConfirm(row),
-              variant: 'danger' as const,
-            },
           ]}
         />
       ),
@@ -252,7 +240,14 @@ export default function BeneficiariesList() {
             action={{ label: '+ New Beneficiary', onClick: () => navigate('/zakat/beneficiaries/create') }}
           />
         ) : (
-          <Table fixedLayout striped columns={columns} data={rows} showExport={false} />
+          <Table
+            fixedLayout
+            striped
+            columns={columns}
+            data={rows}
+            showExport={false}
+            onRowClick={(row) => setViewing(row)}
+          />
         )}
 
         {pagination && (
@@ -281,7 +276,36 @@ export default function BeneficiariesList() {
         onCancel={() => setRejectConfirm(null)}
       />
 
-      <Modal isOpen={Boolean(viewing)} onClose={() => setViewing(null)} title="Beneficiary Details">
+      <Modal
+        isOpen={Boolean(viewing)}
+        onClose={() => setViewing(null)}
+        title="Beneficiary Details"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setViewing(null)}>
+              Close
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (viewing) navigate(`/zakat/beneficiaries/${viewing.id}`);
+                setViewing(null);
+              }}
+            >
+              Edit
+            </Button>
+            <Button
+              variant="danger"
+              onClick={() => {
+                if (viewing) setDeleteConfirm(viewing);
+                setViewing(null);
+              }}
+            >
+              Delete
+            </Button>
+          </>
+        }
+      >
         {viewing && (
           <div className="space-y-3">
             <div>

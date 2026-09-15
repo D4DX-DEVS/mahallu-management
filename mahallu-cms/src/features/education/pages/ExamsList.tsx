@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
-import ActionsMenu from '@/components/ui/ActionsMenu';
-import { FiArrowLeft, FiEye, FiPlus, FiTrash2 } from 'react-icons/fi';
+import { FiArrowLeft, FiPlus } from 'react-icons/fi';
 import { useParams, useNavigate } from 'react-router-dom';
 import Card from '@/components/ui/Card';
 import TableCard from '@/components/ui/TableCard';
@@ -9,14 +8,11 @@ import Table from '@/components/ui/Table';
 import Pagination from '@/components/ui/Pagination';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import EmptyState from '@/components/ui/EmptyState';
-import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import Select from '@/components/ui/Select';
-import { toast } from '@/store/toastStore';
 import { Pagination as PaginationType, TableColumn } from '@/types';
 import { formatDate, toTitleCase } from '@/utils/format';
 import { examService, Exam, ExamStatus } from '@/services/attendanceService';
 import { madrasaService } from '@/services/madrasaService';
-import { errorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 
 const STATUS_OPTIONS = [
@@ -36,8 +32,6 @@ export default function ExamsList() {
   const [currentPage, setCurrentPage] = useState(1);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
   const [statusFilter, setStatusFilter] = useState('');
-  const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null);
-  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (classId) {
@@ -74,24 +68,6 @@ export default function ExamsList() {
     }
   };
 
-  const handleDelete = async () => {
-    if (!deleteConfirm) return;
-
-    try {
-      setDeleting(true);
-      await examService.deleteExam(deleteConfirm.id);
-      setDeleteConfirm(null);
-      toast.success(`Exam "${toTitleCase(deleteConfirm.name)}" deleted`);
-      if (classId) {
-        fetchExams(classId);
-      }
-    } catch (err: any) {
-      toast.error(errorMessage(err, { action: 'delete exam' }));
-    } finally {
-      setDeleting(false);
-    }
-  };
-
   const columns: TableColumn<Exam>[] = [
     { key: 'name', label: 'Exam', width: '6.75rem', render: (v) => <span>{toTitleCase(v)}</span> },
     { key: 'examDate', label: 'Date', width: '6.25rem', render: (v) => formatDate(v) },
@@ -110,31 +86,6 @@ export default function ExamsList() {
           <span className={`inline-block rounded px-2 py-1 text-xs font-medium ${colors[v] || ''}`}>{v}</span>
         );
       },
-    },
-    {
-      key: 'actions',
-      label: 'Actions',
-      width: '8rem',
-      align: 'center',
-      render: (_v, row) => (
-        <ActionsMenu
-          label={'Actions for ' + toTitleCase(row.name)}
-          items={[
-            {
-              label: 'View',
-              icon: <FiEye className="h-4 w-4" />,
-              onClick: () => navigate(`/education/exams/${row.id}`),
-            },
-            {
-              label: 'Delete',
-              icon: <FiTrash2 className="h-4 w-4" />,
-              onClick: () => setDeleteConfirm({ id: row.id, name: row.name }),
-              disabled: deleting,
-              variant: 'danger' as const,
-            },
-          ]}
-        />
-      ),
     },
   ];
 
@@ -176,7 +127,13 @@ export default function ExamsList() {
         </Card>
       ) : (
         <TableCard>
-          <Table fixedLayout striped columns={columns} data={exams} />
+          <Table
+            fixedLayout
+            striped
+            columns={columns}
+            data={exams}
+            onRowClick={(row) => navigate(`/education/exams/${row.id}`)}
+          />
           {pagination && pagination.totalPages > 1 && (
             <Pagination
               currentPage={pagination.page}
@@ -188,18 +145,6 @@ export default function ExamsList() {
           )}
         </TableCard>
       )}
-
-      <ConfirmDialog
-        isOpen={deleteConfirm !== null}
-        title="Delete Exam"
-        message={deleteConfirm ? `Delete the exam "${toTitleCase(deleteConfirm.name)}"?` : ''}
-        consequence="This action cannot be undone."
-        isLoading={deleting}
-        variant="danger"
-        confirmLabel="Delete"
-        onConfirm={handleDelete}
-        onCancel={() => setDeleteConfirm(null)}
-      />
     </div>
   );
 }

@@ -168,7 +168,11 @@ export default function EmployersList() {
               </thead>
               <tbody>
                 {sortedEmployers.map((employer) => (
-                  <tr key={employer.id} className="border-b hover:bg-gray-50">
+                  <tr
+                    key={employer.id}
+                    className="border-b hover:bg-gray-50 cursor-pointer"
+                    onClick={() => navigate(`/employment/employers/${employer.id}`)}
+                  >
                     <td className="px-4 py-3 text-sm">
                       <div className="font-medium text-gray-900">{toTitleCase(employer.name)}</div>
                       <div className="text-xs text-gray-500">{employer.businessType ? toTitleCase(employer.businessType) : '—'}</div>
@@ -182,7 +186,7 @@ export default function EmployersList() {
                     <td className="px-4 py-3">
                       <StatusBadge status={employer.status} />
                     </td>
-                    <td className="px-4 py-3 text-right space-x-2">
+                    <td className="px-4 py-3 text-right space-x-2" onClick={(e) => e.stopPropagation()}>
                       <button
                         onClick={() => navigate(`/employment/employers/${employer.id}`)}
                         className="text-blue-600 hover:text-blue-900 px-2 py-1 text-xs hover:bg-blue-50 rounded"

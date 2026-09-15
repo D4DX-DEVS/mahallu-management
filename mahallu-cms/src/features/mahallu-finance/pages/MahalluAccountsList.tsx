@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiEdit2, FiTrash2, FiBriefcase } from 'react-icons/fi';
+import { FiBriefcase } from 'react-icons/fi';
 import TableCard from '@/components/ui/TableCard';
-import { rowActionClass } from '@/components/ui/rowAction';
 import StatCard from '@/components/ui/StatCard';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
@@ -31,6 +30,7 @@ export default function MahalluAccountsList() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState<MahalluAccount | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [showViewModal, setShowViewModal] = useState(false);
   const itemsPerPage = 10;
 
   useEffect(() => {
@@ -119,35 +119,6 @@ export default function MahalluAccountsList() {
       ),
     },
     { key: 'createdAt', label: 'Created', width: '7.75rem', render: (d) => formatDate(d) },
-    {
-      key: 'actions',
-      label: 'Actions',
-      width: '8rem',
-      align: 'center',
-      render: (_, row) => (
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() =>
-              navigate(ROUTES.MAHALLU_FINANCE.ACCOUNTS_EDIT(row.id), { state: { account: row } })
-            }
-            className={rowActionClass()}
-            aria-label="Edit"
-          >
-            <FiEdit2 className="h-4 w-4" />
-          </button>
-          <button
-            onClick={() => {
-              setSelectedAccount(row);
-              setShowDeleteModal(true);
-            }}
-            className={rowActionClass('danger')}
-            aria-label="Delete"
-          >
-            <FiTrash2 className="h-4 w-4" />
-          </button>
-        </div>
-      ),
-    },
   ];
 
   return (
@@ -186,7 +157,17 @@ export default function MahalluAccountsList() {
           <p className="text-center py-8 text-red-600">{error}</p>
         ) : (
           <>
-            <Table fixedLayout striped columns={columns} data={filteredAccounts} emptyMessage="No accounts found" />
+            <Table
+              fixedLayout
+              striped
+              columns={columns}
+              data={filteredAccounts}
+              emptyMessage="No accounts found"
+              onRowClick={(row) => {
+                setSelectedAccount(row);
+                setShowViewModal(true);
+              }}
+            />
             {pagination && (
               <Pagination
                 currentPage={currentPage}
@@ -199,6 +180,83 @@ export default function MahalluAccountsList() {
           </>
         )}
       </TableCard>
+
+      {/* View Modal */}
+      <Modal
+        isOpen={showViewModal}
+        onClose={() => {
+          setShowViewModal(false);
+          setSelectedAccount(null);
+        }}
+        title="Account Details"
+        footer={
+          <>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowViewModal(false);
+                setSelectedAccount(null);
+              }}
+            >
+              Close
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (selectedAccount) {
+                  navigate(ROUTES.MAHALLU_FINANCE.ACCOUNTS_EDIT(selectedAccount.id), {
+                    state: { account: selectedAccount },
+                  });
+                }
+              }}
+            >
+              Edit
+            </Button>
+            <Button
+              variant="danger"
+              onClick={() => {
+                setShowViewModal(false);
+                setShowDeleteModal(true);
+              }}
+            >
+              Delete
+            </Button>
+          </>
+        }
+      >
+        {selectedAccount && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Account Name</p>
+              <p className="text-gray-900 dark:text-gray-100 font-medium">{toTitleCase(selectedAccount.accountName)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Account Number</p>
+              <p className="text-gray-900 dark:text-gray-100">{selectedAccount.accountNumber}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Bank Name</p>
+              <p className="text-gray-900 dark:text-gray-100">{toTitleCase(selectedAccount.bankName)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">IFSC Code</p>
+              <p className="text-gray-900 dark:text-gray-100">{selectedAccount.ifscCode}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Balance</p>
+              <p className="text-gray-900 dark:text-gray-100">₹{(selectedAccount.balance || 0).toLocaleString()}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Status</p>
+              <p className="text-gray-900 dark:text-gray-100 capitalize">{selectedAccount.status}</p>
+            </div>
+            <div className="sm:col-span-2">
+              <p className="text-xs text-gray-500 dark:text-gray-400">Created</p>
+              <p className="text-gray-900 dark:text-gray-100">{formatDate(selectedAccount.createdAt)}</p>
+            </div>
+          </div>
+        )}
+      </Modal>
 
       <Modal isOpen={showDeleteModal} onClose={() => setShowDeleteModal(false)} title="Delete Account">
         <p className="text-gray-600 dark:text-gray-400 mb-4">

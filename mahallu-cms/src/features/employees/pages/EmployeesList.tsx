@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FiCheckCircle, FiEdit2, FiEye, FiPlus, FiTrash2, FiUsers, FiXCircle } from 'react-icons/fi';
+import { FiCheckCircle, FiPlus, FiUsers, FiXCircle } from 'react-icons/fi';
 import TableCard from '@/components/ui/TableCard';
 import FilterPanel from '@/components/ui/FilterPanel';
 import Button from '@/components/ui/Button';
@@ -8,7 +8,6 @@ import Select from '@/components/ui/Select';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
 import { PageSkeleton } from '@/components/ui/Skeleton';
-import Modal from '@/components/ui/Modal';
 import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
 import { TableColumn, Pagination as PaginationType } from '@/types';
@@ -18,10 +17,9 @@ import { employeeService } from '@/services/employeeService';
 import { instituteService } from '@/services/instituteService';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useAuthStore } from '@/store/authStore';
-import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import { loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
-import ActionsMenu from '@/components/ui/ActionsMenu';
 
 export default function EmployeesList() {
   const navigate = useNavigate();
@@ -34,9 +32,6 @@ export default function EmployeesList() {
   const [institutes, setInstitutes] = useState<{ id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [deleting, setDeleting] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
@@ -84,21 +79,6 @@ export default function EmployeesList() {
     }
   };
 
-  const handleDelete = async () => {
-    if (!selectedEmployee) return;
-    try {
-      setDeleting(true);
-      await employeeService.delete(selectedEmployee.id);
-      await fetchEmployees();
-      setShowDeleteModal(false);
-      setSelectedEmployee(null);
-    } catch (err: any) {
-      setError(errorMessage(err, { action: 'delete employee' }));
-    } finally {
-      setDeleting(false);
-    }
-  };
-
   const columns: TableColumn<Employee>[] = [
     {
       key: 'name',
@@ -133,37 +113,6 @@ export default function EmployeesList() {
         >
           {status === 'on_leave' ? 'On Leave' : status || 'active'}
         </span>
-      ),
-    },
-    {
-      key: 'actions',
-      label: 'Actions',
-      width: '8rem',
-      align: 'center',
-      render: (_, row) => (
-        <ActionsMenu
-          items={[
-            {
-              label: 'View',
-              icon: <FiEye className="h-4 w-4" />,
-              onClick: () => navigate(ROUTES.EMPLOYEES.DETAIL(row.id)),
-            },
-            {
-              label: 'Edit',
-              icon: <FiEdit2 className="h-4 w-4" />,
-              onClick: () => navigate(ROUTES.EMPLOYEES.EDIT(row.id)),
-            },
-            {
-              label: 'Delete',
-              icon: <FiTrash2 className="h-4 w-4" />,
-              onClick: () => {
-                setSelectedEmployee(row);
-                setShowDeleteModal(true);
-              },
-              variant: 'danger',
-            },
-          ]}
-        />
       ),
     },
   ];
@@ -281,36 +230,6 @@ export default function EmployeesList() {
           </div>
         )}
       </TableCard>
-
-      <Modal
-        isOpen={showDeleteModal}
-        onClose={() => {
-          setShowDeleteModal(false);
-          setSelectedEmployee(null);
-        }}
-        title="Delete Employee"
-        footer={
-          <>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setShowDeleteModal(false);
-                setSelectedEmployee(null);
-              }}
-            >
-              Cancel
-            </Button>
-            <Button variant="danger" onClick={handleDelete} isLoading={deleting}>
-              Delete
-            </Button>
-          </>
-        }
-      >
-        <p className="text-gray-600 dark:text-gray-400">
-          Are you sure you want to delete <strong>{toTitleCase(selectedEmployee?.name)}</strong>? This action cannot be
-          undone.
-        </p>
-      </Modal>
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { FiBarChart2, FiCheckCircle, FiClock, FiDollarSign, FiEdit2, FiEye, FiPlus, FiTrash2 } from 'react-icons/fi';
+import { FiBarChart2, FiCheckCircle, FiClock, FiDollarSign, FiPlus } from 'react-icons/fi';
 import TableCard from '@/components/ui/TableCard';
 import FilterPanel from '@/components/ui/FilterPanel';
 import Button from '@/components/ui/Button';
@@ -10,17 +10,14 @@ import Table from '@/components/ui/Table';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
-import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { TableColumn, Pagination as PaginationType } from '@/types';
 import { SalaryPayment } from '@/types';
 import { ROUTES } from '@/constants/routes';
 import { salaryService } from '@/services/salaryService';
 import { instituteService } from '@/services/instituteService';
 import { useAuthStore } from '@/store/authStore';
-import { toast } from '@/store/toastStore';
-import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import { loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
-import ActionsMenu from '@/components/ui/ActionsMenu';
 import { toTitleCase } from '@/utils/format';
 
 const MONTHS = [
@@ -55,8 +52,6 @@ export default function SalaryList() {
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
-  const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; label: string } | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     if (!userInstituteId) fetchInstitutes();
@@ -96,25 +91,6 @@ export default function SalaryList() {
     }
   };
 
-  const handleDeleteClick = (id: string, label: string) => {
-    setDeleteConfirm({ id, label });
-  };
-
-  const handleConfirmDelete = async () => {
-    if (!deleteConfirm) return;
-    try {
-      setIsDeleting(true);
-      await salaryService.delete(deleteConfirm.id);
-      toast.success('Salary payment deleted');
-      setDeleteConfirm(null);
-      await fetchPayments();
-    } catch (err: any) {
-      toast.error(errorMessage(err, { action: 'delete salary payment' }));
-    } finally {
-      setIsDeleting(false);
-    }
-  };
-
   const columns: TableColumn<SalaryPayment>[] = [
     {
       key: 'employeeId',
@@ -149,41 +125,6 @@ export default function SalaryList() {
           {status || 'pending'}
         </span>
       ),
-    },
-    {
-      key: 'actions',
-      label: 'Actions',
-      width: '8rem',
-      align: 'center',
-      render: (_, row) => {
-        const empLabel =
-          typeof row.employeeId === 'object' && row.employeeId?.name
-            ? toTitleCase(row.employeeId.name)
-            : 'this employee';
-        return (
-          <ActionsMenu
-            items={[
-              {
-                label: 'View',
-                icon: <FiEye className="h-4 w-4" />,
-                onClick: () => navigate(ROUTES.SALARY.DETAIL(row.id)),
-              },
-              {
-                label: 'Edit',
-                icon: <FiEdit2 className="h-4 w-4" />,
-                onClick: () => navigate(ROUTES.SALARY.EDIT(row.id)),
-              },
-              {
-                label: 'Delete',
-                icon: <FiTrash2 className="h-4 w-4" />,
-                onClick: () =>
-                  handleDeleteClick(row.id, `${getMonthName(row.month)} ${row.year} – ${empLabel}`),
-                variant: 'danger',
-              },
-            ]}
-          />
-        );
-      },
     },
   ];
 
@@ -331,19 +272,6 @@ export default function SalaryList() {
           </div>
         )}
       </TableCard>
-
-      <ConfirmDialog
-        isOpen={deleteConfirm !== null}
-        title="Delete Salary Payment"
-        message={deleteConfirm ? `Delete salary payment for ${deleteConfirm.label}?` : ''}
-        consequence="This action cannot be undone."
-        confirmLabel="Delete"
-        cancelLabel="Cancel"
-        variant="danger"
-        isLoading={isDeleting}
-        onConfirm={handleConfirmDelete}
-        onCancel={() => setDeleteConfirm(null)}
-      />
     </div>
   );
 }

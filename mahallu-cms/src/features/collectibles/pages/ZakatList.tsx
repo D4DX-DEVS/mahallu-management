@@ -9,6 +9,7 @@ import Table from '@/components/ui/Table';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
+import Modal from '@/components/ui/Modal';
 import { TableColumn, Pagination as PaginationType } from '@/types';
 import { collectibleService, Zakat } from '@/services/collectibleService';
 import { fetchAllPages } from '@/services/api';
@@ -30,6 +31,10 @@ export default function ZakatList() {
   const [itemsPerPage] = useState(10);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [selectedZakat, setSelectedZakat] = useState<Zakat | null>(null);
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const debouncedSearch = useDebounce(searchQuery, 500);
 
@@ -123,6 +128,21 @@ export default function ZakatList() {
       await fetchZakats();
     } catch (err: any) {
       toast.error(errorMessage(err, { action: 'verify zakat' }));
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!selectedZakat) return;
+    try {
+      setDeleting(true);
+      await collectibleService.deleteZakat(selectedZakat.id);
+      await fetchZakats();
+      setShowDeleteModal(false);
+      setSelectedZakat(null);
+    } catch (err: any) {
+      toast.error(errorMessage(err, { action: 'delete zakat payment' }));
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -243,7 +263,18 @@ export default function ZakatList() {
             </Button>
           </div>
         ) : (
-          <Table fixedLayout striped columns={columns} data={zakats} emptyMessage="No zakat payments found" showExport={false} />
+          <Table
+            fixedLayout
+            striped
+            columns={columns}
+            data={zakats}
+            emptyMessage="No zakat payments found"
+            showExport={false}
+            onRowClick={(row) => {
+              setSelectedZakat(row);
+              setShowViewModal(true);
+            }}
+          />
         )}
 
         {/* Pagination */}
@@ -261,6 +292,114 @@ export default function ZakatList() {
           </div>
         )}
       </TableCard>
+
+      {/* View Modal */}
+      <Modal
+        isOpen={showViewModal}
+        onClose={() => {
+          setShowViewModal(false);
+          setSelectedZakat(null);
+        }}
+        title="Zakat Payment Details"
+        footer={
+          <>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowViewModal(false);
+                setSelectedZakat(null);
+              }}
+            >
+              Close
+            </Button>
+            <Button
+              variant="danger"
+              onClick={() => {
+                setShowViewModal(false);
+                setShowDeleteModal(true);
+              }}
+            >
+              Delete
+            </Button>
+          </>
+        }
+      >
+        {selectedZakat && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Payer Name</p>
+              <p className="text-gray-900 dark:text-gray-100 font-medium">{toTitleCase(selectedZakat.payerName)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Amount</p>
+              <p className="text-gray-900 dark:text-gray-100">₹{selectedZakat.amount?.toLocaleString() || 0}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Payment Date</p>
+              <p className="text-gray-900 dark:text-gray-100">{formatDate(selectedZakat.paymentDate)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Category</p>
+              <p className="text-gray-900 dark:text-gray-100">
+                {selectedZakat.category ? toTitleCase(selectedZakat.category) : '—'}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Payment Method</p>
+              <p className="text-gray-900 dark:text-gray-100">
+                {selectedZakat.paymentMethod ? toTitleCase(selectedZakat.paymentMethod) : '—'}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Receipt No.</p>
+              <p className="text-gray-900 dark:text-gray-100">{selectedZakat.receiptNo || '—'}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Status</p>
+              <p className="text-gray-900 dark:text-gray-100 capitalize">{selectedZakat.status || '—'}</p>
+            </div>
+            <div className="sm:col-span-2">
+              <p className="text-xs text-gray-500 dark:text-gray-400">Remarks</p>
+              <p className="text-gray-900 dark:text-gray-100">{selectedZakat.remarks || '—'}</p>
+            </div>
+            <div className="sm:col-span-2">
+              <p className="text-xs text-gray-500 dark:text-gray-400">Created</p>
+              <p className="text-gray-900 dark:text-gray-100">{formatDate(selectedZakat.createdAt)}</p>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Delete Modal */}
+      <Modal
+        isOpen={showDeleteModal}
+        onClose={() => {
+          setShowDeleteModal(false);
+          setSelectedZakat(null);
+        }}
+        title="Delete Zakat Payment"
+        footer={
+          <>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowDeleteModal(false);
+                setSelectedZakat(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button variant="danger" onClick={handleDelete} isLoading={deleting}>
+              Delete
+            </Button>
+          </>
+        }
+      >
+        <p className="text-gray-600 dark:text-gray-400">
+          Are you sure you want to delete this zakat payment from{' '}
+          <strong>{toTitleCase(selectedZakat?.payerName)}</strong>? This action cannot be undone.
+        </p>
+      </Modal>
     </div>
   );
 }

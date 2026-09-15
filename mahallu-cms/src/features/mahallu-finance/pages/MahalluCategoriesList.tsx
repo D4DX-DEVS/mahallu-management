@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiEdit2, FiTrash2, FiList } from 'react-icons/fi';
+import { FiTrash2, FiList } from 'react-icons/fi';
 import TableCard from '@/components/ui/TableCard';
 import { rowActionClass } from '@/components/ui/rowAction';
 import Button from '@/components/ui/Button';
@@ -111,35 +111,28 @@ export default function MahalluCategoriesList() {
     { key: 'description', label: 'Description', width: '9.25rem' },
     { key: 'createdAt', label: 'Created', width: '7.75rem', render: (d) => formatDate(d) },
     {
-      key: 'actions',
-      label: 'Actions',
-      width: '8rem',
+      key: 'delete',
+      label: '',
+      width: '3rem',
       align: 'center',
       render: (_, row) => (
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() =>
-              navigate(ROUTES.MAHALLU_FINANCE.CATEGORIES_EDIT(row.id), { state: { category: row } })
-            }
-            className={rowActionClass()}
-            aria-label="Edit"
-          >
-            <FiEdit2 className="h-4 w-4" />
-          </button>
-          <button
-            onClick={() => {
-              setSelected(row);
-              setShowDeleteModal(true);
-            }}
-            className={rowActionClass('danger')}
-            aria-label="Delete"
-          >
-            <FiTrash2 className="h-4 w-4" />
-          </button>
-        </div>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setSelected(row);
+            setShowDeleteModal(true);
+          }}
+          className={rowActionClass('danger')}
+          aria-label="Delete"
+        >
+          <FiTrash2 className="h-4 w-4" />
+        </button>
       ),
     },
   ];
+
+  const openEditPage = (row: Category) =>
+    navigate(ROUTES.MAHALLU_FINANCE.CATEGORIES_EDIT(row.id), { state: { category: row } });
 
   return (
     <div className="space-y-4">
@@ -172,7 +165,14 @@ export default function MahalluCategoriesList() {
           <p className="text-center py-8 text-red-600">{error}</p>
         ) : (
           <>
-            <Table fixedLayout striped columns={columns} data={filtered} emptyMessage="No categories found" />
+            <Table
+              fixedLayout
+              striped
+              columns={columns}
+              data={filtered}
+              emptyMessage="No categories found"
+              onRowClick={openEditPage}
+            />
             {pagination && (
               <Pagination
                 currentPage={currentPage}

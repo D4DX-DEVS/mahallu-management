@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FiCheckCircle, FiEdit2, FiEye, FiInbox, FiPlus, FiTrash2, FiXCircle } from 'react-icons/fi';
+import { FiCheckCircle, FiInbox, FiPlus, FiXCircle } from 'react-icons/fi';
 import TableCard from '@/components/ui/TableCard';
 import FilterPanel from '@/components/ui/FilterPanel';
 import Button from '@/components/ui/Button';
@@ -8,7 +8,6 @@ import Select from '@/components/ui/Select';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
 import { PageSkeleton } from '@/components/ui/Skeleton';
-import Modal from '@/components/ui/Modal';
 import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
 import { toast } from '@/store/toastStore';
@@ -21,7 +20,6 @@ import { formatDate, toTitleCase } from '@/utils/format';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
-import ActionsMenu from '@/components/ui/ActionsMenu';
 
 export default function InstitutesList() {
   const navigate = useNavigate();
@@ -31,9 +29,6 @@ export default function InstitutesList() {
   const [institutes, setInstitutes] = useState<Institute[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedInstitute, setSelectedInstitute] = useState<Institute | null>(null);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [deleting, setDeleting] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
@@ -110,24 +105,6 @@ export default function InstitutesList() {
     }
   };
 
-  const handleDelete = async () => {
-    if (!selectedInstitute) return;
-    try {
-      setDeleting(true);
-      await instituteService.delete(selectedInstitute.id);
-      setShowDeleteModal(false);
-      setSelectedInstitute(null);
-      await fetchInstitutes();
-    } catch (err: any) {
-      // The list keeps its rows; the failure belongs on the dialog the user is in.
-      toast.error(errorMessage(err, { action: 'delete this institute' }));
-    } finally {
-      // Left true on the happy path, the next delete opened onto a spinner that
-      // never stopped and a Delete button that could not be pressed again.
-      setDeleting(false);
-    }
-  };
-
   const columns: TableColumn<Institute>[] = [
     {
       key: 'name',
@@ -167,41 +144,6 @@ export default function InstitutesList() {
         >
           {status || 'active'}
         </span>
-      ),
-    },
-    {
-      key: 'actions',
-      label: 'Actions',
-      width: '8rem',
-      align: 'center',
-      render: (_, row) => (
-        <ActionsMenu
-          items={[
-            {
-              label: 'View',
-              icon: <FiEye className="h-4 w-4" />,
-              onClick: () => {
-                navigate(ROUTES.INSTITUTES.DETAIL(row.id));
-              },
-            },
-            {
-              label: 'Edit',
-              icon: <FiEdit2 className="h-4 w-4" />,
-              onClick: () => {
-                navigate(`/institutes/${row.id}/edit`);
-              },
-            },
-            {
-              label: 'Delete',
-              icon: <FiTrash2 className="h-4 w-4" />,
-              onClick: () => {
-                setSelectedInstitute(row);
-                setShowDeleteModal(true);
-              },
-              variant: 'danger',
-            },
-          ]}
-        />
       ),
     },
   ];
@@ -307,36 +249,6 @@ export default function InstitutesList() {
           </div>
         )}
       </TableCard>
-
-      <Modal
-        isOpen={showDeleteModal}
-        onClose={() => {
-          setShowDeleteModal(false);
-          setSelectedInstitute(null);
-        }}
-        title="Delete Institute"
-        footer={
-          <>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setShowDeleteModal(false);
-                setSelectedInstitute(null);
-              }}
-            >
-              Cancel
-            </Button>
-            <Button variant="danger" onClick={handleDelete} isLoading={deleting}>
-              Delete
-            </Button>
-          </>
-        }
-      >
-        <p className="text-gray-600 dark:text-gray-400">
-          Are you sure you want to delete <strong>{toTitleCase(selectedInstitute?.name)}</strong>? This action cannot be
-          undone.
-        </p>
-      </Modal>
     </div>
   );
 }

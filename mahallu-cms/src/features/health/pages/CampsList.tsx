@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FiPlus, FiEdit2, FiTrash2, FiCalendar, FiMapPin } from 'react-icons/fi';
+import { FiPlus, FiCalendar, FiMapPin } from 'react-icons/fi';
 import { getMedicalCamps, deleteMedicalCamp, IMedicalCamp } from '@/services/healthService';
 import Pagination from '@/components/ui/Pagination';
 import ExpandableSearch from '@/components/ui/ExpandableSearch';
@@ -10,6 +10,7 @@ import { toast } from '@/store/toastStore';
 import { useNavigate } from 'react-router-dom';
 import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
+import Modal from '@/components/ui/Modal';
 
 export default function CampsList() {
   const navigate = useNavigate();
@@ -23,6 +24,8 @@ export default function CampsList() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [selectedCamp, setSelectedCamp] = useState<IMedicalCamp | null>(null);
+  const [showViewModal, setShowViewModal] = useState(false);
 
   const itemsPerPage = 10;
 
@@ -122,7 +125,14 @@ export default function CampsList() {
           <>
             <div className="space-y-3 mb-4">
               {camps.map((camp) => (
-                <div key={camp.id} className="rounded-lg border border-border bg-card p-3 sm:p-4">
+                <div
+                  key={camp.id}
+                  className="rounded-lg border border-border bg-card p-3 sm:p-4 cursor-pointer hover:shadow-md transition-shadow"
+                  onClick={() => {
+                    setSelectedCamp(camp);
+                    setShowViewModal(true);
+                  }}
+                >
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <div className="flex-1">
                       <h3 className="text-base sm:text-lg font-semibold">{toTitleCase(camp.name)}</h3>
@@ -142,21 +152,6 @@ export default function CampsList() {
                         </p>
                       )}
                     </div>
-                    <div className="flex gap-2 items-center">
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => navigate(`/health/camps/${camp.id}/edit`)}
-                        className="flex items-center gap-1" icon={<FiEdit2 />} collapseLabel>Edit</Button>
-                      <Button
-                        variant="danger"
-                        size="sm"
-                        onClick={() => {
-                          setDeleteId(camp.id);
-                          setConfirmDelete(true);
-                        }}
-                        className="flex items-center gap-1" icon={<FiTrash2 />} collapseLabel>Delete</Button>
-                    </div>
                   </div>
                 </div>
               ))}
@@ -174,6 +169,82 @@ export default function CampsList() {
           </>
         )}
       </div>
+
+      {/* View Modal */}
+      <Modal
+        isOpen={showViewModal}
+        onClose={() => {
+          setShowViewModal(false);
+          setSelectedCamp(null);
+        }}
+        title="Medical Camp Details"
+        footer={
+          <>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowViewModal(false);
+                setSelectedCamp(null);
+              }}
+            >
+              Close
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (selectedCamp) navigate(`/health/camps/${selectedCamp.id}/edit`);
+              }}
+            >
+              Edit
+            </Button>
+            <Button
+              variant="danger"
+              onClick={() => {
+                if (selectedCamp) setDeleteId(selectedCamp.id);
+                setShowViewModal(false);
+                setConfirmDelete(true);
+              }}
+            >
+              Delete
+            </Button>
+          </>
+        }
+      >
+        {selectedCamp && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+            <div className="sm:col-span-2">
+              <p className="text-xs text-gray-500 dark:text-gray-400">Name</p>
+              <p className="text-gray-900 dark:text-gray-100 font-medium">{toTitleCase(selectedCamp.name)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Date</p>
+              <p className="text-gray-900 dark:text-gray-100">{formatDate(selectedCamp.campDate)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Location</p>
+              <p className="text-gray-900 dark:text-gray-100">{toTitleCase(selectedCamp.location)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Organizer</p>
+              <p className="text-gray-900 dark:text-gray-100">
+                {selectedCamp.organizer ? toTitleCase(selectedCamp.organizer) : '—'}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Status</p>
+              <p className="text-gray-900 dark:text-gray-100 capitalize">{selectedCamp.status}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Attendees</p>
+              <p className="text-gray-900 dark:text-gray-100">{selectedCamp.attendeeCount ?? '—'}</p>
+            </div>
+            <div className="sm:col-span-2">
+              <p className="text-xs text-gray-500 dark:text-gray-400">Notes</p>
+              <p className="text-gray-900 dark:text-gray-100">{selectedCamp.notes || '—'}</p>
+            </div>
+          </div>
+        )}
+      </Modal>
 
       <ConfirmDialog
         isOpen={confirmDelete}

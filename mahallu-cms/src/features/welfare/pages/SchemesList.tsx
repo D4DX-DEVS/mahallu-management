@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
-import ActionsMenu from '@/components/ui/ActionsMenu';
-import { FiEdit2, FiEye, FiPlus, FiTrash2 } from 'react-icons/fi';
+import { FiPlus } from 'react-icons/fi';
 import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -141,26 +140,6 @@ export default function SchemesList() {
     },
     { key: 'budgetAmount', label: 'Budget', width: '7.25rem', render: (v) => (v ? `Rs ${v}` : '-') },
     { key: 'status', label: 'Status', width: '7.25rem' },
-    {
-      key: 'actions',
-      label: 'Actions',
-      width: '8rem',
-      align: 'center',
-      render: (_v, row) => (
-        <ActionsMenu
-          items={[
-            { label: 'View', icon: <FiEye className="h-4 w-4" />, onClick: () => setViewing(row) },
-            { label: 'Edit', icon: <FiEdit2 className="h-4 w-4" />, onClick: () => openEdit(row) },
-            {
-              label: 'Delete',
-              icon: <FiTrash2 className="h-4 w-4" />,
-              onClick: () => openDeleteConfirm(row),
-              variant: 'danger' as const,
-            },
-          ]}
-        />
-      ),
-    },
   ];
 
   return (
@@ -206,7 +185,15 @@ export default function SchemesList() {
             }}
           />
         ) : (
-          <Table fixedLayout striped columns={columns} data={rows} emptyMessage="No schemes yet" showExport={false} />
+          <Table
+            fixedLayout
+            striped
+            columns={columns}
+            data={rows}
+            emptyMessage="No schemes yet"
+            showExport={false}
+            onRowClick={openEdit}
+          />
         )}
 
         {pagination && (
@@ -275,6 +262,19 @@ export default function SchemesList() {
           <Button variant="outline" onClick={() => setFormOpen(false)} disabled={saving}>
             Cancel
           </Button>
+          {editingId && (
+            <Button
+              variant="danger"
+              onClick={() => {
+                const scheme = rows.find((r) => r.id === editingId);
+                if (scheme) openDeleteConfirm(scheme);
+                setFormOpen(false);
+              }}
+              disabled={saving}
+            >
+              Delete
+            </Button>
+          )}
           <Button onClick={handleSave} disabled={saving}>
             {saving ? 'Saving...' : 'Save'}
           </Button>

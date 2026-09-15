@@ -7,11 +7,13 @@ import { PageSkeleton } from '@/components/ui/Skeleton';
 import Modal from '@/components/ui/Modal';
 import { ROUTES } from '@/constants/routes';
 import { userService } from '@/services/userService';
+import { instituteService } from '@/services/instituteService';
 import { User } from '@/types';
 import { formatDate, formatDateTime, toTitleCase } from '@/utils/format';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { useAuthStore } from '@/store/authStore';
+import { SENSITIVE_MODULE_LABELS } from '@/constants/modules';
 
 export default function UserDetail() {
   const { id } = useParams<{ id: string }>();
@@ -22,6 +24,7 @@ export default function UserDetail() {
   const [error, setError] = useState<string | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [instituteName, setInstituteName] = useState<string | null>(null);
   // Deactivating your own account locks you out mid-session — the backend
   // rejects every next request with 403 once status flips to inactive.
   const isSelf = !!currentUser && !!user && currentUser.id === user.id;
@@ -37,6 +40,12 @@ export default function UserDetail() {
       setLoading(true);
       const data = await userService.getById(id!);
       setUser(data);
+      if (data.instituteId) {
+        instituteService
+          .getById(data.instituteId)
+          .then((inst) => setInstituteName(inst.name))
+          .catch(() => setInstituteName(null));
+      }
     } catch (err: any) {
       setError(loadErrorMessage(err, 'user'));
     } finally {
@@ -156,6 +165,14 @@ export default function UserDetail() {
                 <p className="text-gray-900 dark:text-gray-100">{toTitleCase(user.tenant.name)}</p>
               </div>
             )}
+            {user.instituteId && (
+              <div>
+                <span className="text-sm text-gray-500 dark:text-gray-400">Institute</span>
+                <p className="text-gray-900 dark:text-gray-100">
+                  {instituteName ? toTitleCase(instituteName) : user.instituteId}
+                </p>
+              </div>
+            )}
           </div>
         </Card>
 
@@ -180,6 +197,16 @@ export default function UserDetail() {
                 <p className="text-gray-900 dark:text-gray-100">{user.permissions.delete ? 'Yes' : 'No'}</p>
               </div>
             </div>
+            {user.permissions.sensitiveModules && user.permissions.sensitiveModules.length > 0 && (
+              <div className="mt-4">
+                <span className="text-sm text-gray-500 dark:text-gray-400">Restricted Module Access</span>
+                <p className="text-gray-900 dark:text-gray-100">
+                  {user.permissions.sensitiveModules
+                    .map((key) => SENSITIVE_MODULE_LABELS[key])
+                    .join(', ')}
+                </p>
+              </div>
+            )}
           </Card>
         )}
       </div>

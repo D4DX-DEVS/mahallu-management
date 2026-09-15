@@ -4,11 +4,10 @@ import { memberPortalService } from '@/services/memberPortalService';
 import { downloadNocPdf } from '@/utils/nocPdf';
 import { ROUTES } from '@/constants/routes';
 import Card from '@/components/ui/Card';
-import { rowActionClass } from '@/components/ui/rowAction';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import RequestDetailModal, { RequestType } from '../components/RequestDetailModal';
-import { FiHeart, FiFileText, FiEdit2, FiEye, FiTrash2 } from 'react-icons/fi';
+import { FiHeart, FiFileText } from 'react-icons/fi';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import { toTitleCase } from '@/utils/format';
 import StatusBadge from '@/components/ui/StatusBadge';
@@ -26,6 +25,7 @@ export default function MemberNOCList() {
     type: RequestType;
     request: any;
     mode: 'view' | 'edit';
+    nocRef: any;
   } | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -35,9 +35,9 @@ export default function MemberNOCList() {
   // (bride/groom, wali, witnesses, mahr…) — the NOC record itself only holds purpose/phone.
   const openModal = (noc: any, mode: 'view' | 'edit') => {
     if (noc.type === 'nikah' && noc.nikahRegistrationId && typeof noc.nikahRegistrationId === 'object') {
-      setModalState({ type: 'nikah', request: noc.nikahRegistrationId, mode });
+      setModalState({ type: 'nikah', request: noc.nikahRegistrationId, mode, nocRef: noc });
     } else {
-      setModalState({ type: 'noc', request: noc, mode });
+      setModalState({ type: 'noc', request: noc, mode, nocRef: noc });
     }
   };
 
@@ -202,7 +202,8 @@ export default function MemberNOCList() {
                 {sortedNocs.map((noc: any, index: number) => (
                   <tr
                     key={noc.id || index}
-                    className="border-b border-gray-100 dark:border-gray-900 text-gray-900 dark:text-gray-100"
+                    onClick={() => openModal(noc, 'view')}
+                    className="cursor-pointer border-b border-gray-100 dark:border-gray-900 text-gray-900 dark:text-gray-100 hover:bg-accent/30"
                   >
                     <td className="py-3 pr-4">
                       {noc.type === 'nikah' ? (
@@ -227,7 +228,7 @@ export default function MemberNOCList() {
                     <td className="py-3 pr-4">
                       <StatusBadge status={noc.status} />
                     </td>
-                    <td className="py-3">
+                    <td className="py-3" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center gap-2">
                         {noc.status === 'approved' ? (
                           <button
@@ -246,39 +247,6 @@ export default function MemberNOCList() {
                                 : 'Awaiting approval'}
                           </span>
                         )}
-                        <div className="flex items-center gap-1 ml-auto">
-                          {isEditable(noc) && (
-                            <button
-                              onClick={() => openModal(noc, 'edit')}
-                              title="Edit & resubmit"
-                              aria-label="Edit and resubmit"
-                              className={rowActionClass()}
-                            >
-                              <FiEdit2 size={14} />
-                            </button>
-                          )}
-                          <button
-                            onClick={() => openModal(noc, 'view')}
-                            title="View"
-                            aria-label="View details"
-                            className={rowActionClass()}
-                          >
-                            <FiEye size={14} />
-                          </button>
-                          {isDeletable(noc) && (
-                            <button
-                              onClick={() => {
-                                setDeleteError(null);
-                                setDeleteTarget(noc);
-                              }}
-                              title="Delete"
-                              aria-label="Delete NOC request"
-                              className={rowActionClass('danger')}
-                            >
-                              <FiTrash2 size={14} />
-                            </button>
-                          )}
-                        </div>
                       </div>
                     </td>
                   </tr>
@@ -299,6 +267,20 @@ export default function MemberNOCList() {
             setModalState(null);
             setRefreshKey((k) => k + 1);
           }}
+          onEdit={
+            modalState.mode === 'view' && modalState.nocRef && isEditable(modalState.nocRef)
+              ? () => setModalState({ ...modalState, mode: 'edit' })
+              : undefined
+          }
+          onDelete={
+            modalState.mode === 'view' && modalState.nocRef && isDeletable(modalState.nocRef)
+              ? () => {
+                  setDeleteError(null);
+                  setDeleteTarget(modalState.nocRef);
+                  setModalState(null);
+                }
+              : undefined
+          }
         />
       )}
 

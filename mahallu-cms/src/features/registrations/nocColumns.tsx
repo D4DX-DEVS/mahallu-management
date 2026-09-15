@@ -1,4 +1,4 @@
-import { FiEye, FiEdit2, FiDownload } from 'react-icons/fi';
+import { FiDownload } from 'react-icons/fi';
 import { TableColumn } from '@/types';
 import { NOC } from '@/services/registrationService';
 import { formatDate, toTitleCase } from '@/utils/format';
@@ -11,7 +11,7 @@ interface NocColumnDeps {
 }
 
 /** Column config for the NOC table, split out to keep NOCList under the 500-line rule. */
-export const buildNocColumns = ({ navigate }: NocColumnDeps): TableColumn<NOC>[] => [
+export const buildNocColumns = (_deps: NocColumnDeps): TableColumn<NOC>[] => [
   {
     key: 'applicantName',
     label: 'Applicant',
@@ -58,13 +58,6 @@ export const buildNocColumns = ({ navigate }: NocColumnDeps): TableColumn<NOC>[]
       <ActionsMenu
         items={[
           {
-            label: 'View',
-            icon: <FiEye className="h-4 w-4" />,
-            onClick: () => {
-              navigate(`/registrations/noc/${row.id}`);
-            },
-          },
-          {
             label: 'Download',
             icon: <FiDownload className="h-4 w-4" />,
             onClick: () => {
@@ -80,13 +73,6 @@ export const buildNocColumns = ({ navigate }: NocColumnDeps): TableColumn<NOC>[]
                 },
                 `noc-${row.applicantName}-${nocId.slice(-6)}`
               );
-            },
-          },
-          {
-            label: 'Edit',
-            icon: <FiEdit2 className="h-4 w-4" />,
-            onClick: () => {
-              navigate(`/registrations/noc/${row.id}/edit`);
             },
           },
         ]}

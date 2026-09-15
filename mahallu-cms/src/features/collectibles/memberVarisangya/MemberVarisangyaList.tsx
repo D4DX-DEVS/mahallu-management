@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FiEye, FiDollarSign, FiUsers, FiCreditCard, FiDownload } from 'react-icons/fi';
+import { FiDollarSign, FiUsers, FiCreditCard, FiDownload } from 'react-icons/fi';
 import TableCard from '@/components/ui/TableCard';
 import { rowActionClass } from '@/components/ui/rowAction';
 import Button from '@/components/ui/Button';
@@ -234,17 +234,6 @@ export default function MemberVarisangyaList() {
           <button
             onClick={(e) => {
               e.stopPropagation();
-              navigate(`${MEMBER_BASE}?view=transactions&memberId=${row.id}`);
-            }}
-            className={rowActionClass()}
-            title="View Transactions"
-            aria-label="View Transactions"
-          >
-            <FiEye className="h-4 w-4" />
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
               navigate(`${MEMBER_BASE}?view=wallet&memberId=${row.id}`);
             }}
             className={rowActionClass()}
@@ -325,7 +314,15 @@ export default function MemberVarisangyaList() {
             </Button>
           </div>
         ) : (
-          <Table fixedLayout striped columns={columns} data={members} emptyMessage="No members found" showExport={false} />
+          <Table
+            fixedLayout
+            striped
+            columns={columns}
+            data={members}
+            emptyMessage="No members found"
+            showExport={false}
+            onRowClick={(row) => navigate(`${MEMBER_BASE}?view=transactions&memberId=${row.id}`)}
+          />
         )}
         {pagination && (
           <div className="mt-4">

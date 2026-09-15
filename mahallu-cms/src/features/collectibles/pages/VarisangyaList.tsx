@@ -40,6 +40,8 @@ export default function VarisangyaList() {
   const [editingRow, setEditingRow] = useState<Varisangya | null>(null);
   const [savingEdit, setSavingEdit] = useState(false);
   const [editForm, setEditForm] = useState({ amount: 0, paymentDate: '', paymentMethod: '', remarks: '' });
+  const [deleteConfirm, setDeleteConfirm] = useState<Varisangya | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     fetchVarisangyas();
@@ -294,7 +296,27 @@ export default function VarisangyaList() {
     }
   };
 
-  const columns = buildVarisangyaColumns({ openEdit, handleViewPdf, onVerify: handleVerify });
+  const handleDeleteConfirm = async () => {
+    if (!deleteConfirm?.id) return;
+    try {
+      setDeleting(true);
+      await collectibleService.deleteVarisangya(deleteConfirm.id);
+      toast.success('Varisangya payment deleted');
+      setDeleteConfirm(null);
+      await fetchVarisangyas();
+    } catch (err: any) {
+      toast.error(errorMessage(err, { action: 'delete varisangya payment' }));
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const columns = buildVarisangyaColumns({
+    openEdit,
+    handleViewPdf,
+    onVerify: handleVerify,
+    onDelete: (row) => setDeleteConfirm(row),
+  });
 
   const totalAmount = varisangyas.reduce((sum, v) => sum + (v.amount || 0), 0);
 
@@ -445,6 +467,7 @@ export default function VarisangyaList() {
             data={varisangyas}
             emptyMessage="No varisangya payments found"
             showExport={false}
+            onRowClick={(row) => openEdit(row)}
           />
         )}
 
@@ -515,6 +538,29 @@ export default function VarisangyaList() {
             />
           </div>
         )}
+      </Modal>
+
+      {/* Delete Modal */}
+      <Modal
+        isOpen={!!deleteConfirm}
+        onClose={() => setDeleteConfirm(null)}
+        title="Delete Payment"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setDeleteConfirm(null)}>
+              Cancel
+            </Button>
+            <Button variant="danger" onClick={handleDeleteConfirm} isLoading={deleting}>
+              Delete
+            </Button>
+          </>
+        }
+      >
+        <p className="text-gray-600 dark:text-gray-400">
+          Are you sure you want to delete this payment (
+          <strong>₹{deleteConfirm?.amount?.toLocaleString()}</strong> - {deleteConfirm && toTitleCase(getPayerName(deleteConfirm))}
+          )? This action cannot be undone.
+        </p>
       </Modal>
     </div>
   );

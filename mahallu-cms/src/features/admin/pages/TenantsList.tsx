@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FiAlertCircle, FiCheckCircle, FiEye, FiGlobe, FiPlus, FiTrash2, FiXCircle } from 'react-icons/fi';
+import { FiAlertCircle, FiCheckCircle, FiGlobe, FiPlus, FiTrash2, FiXCircle } from 'react-icons/fi';
 import TableCard from '@/components/ui/TableCard';
 import { rowActionClass } from '@/components/ui/rowAction';
 import FilterPanel from '@/components/ui/FilterPanel';
@@ -210,17 +210,6 @@ export default function TenantsList() {
       align: 'center',
       render: (_, row) => (
         <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(`/admin/tenants/${row.id}`);
-            }}
-            className={rowActionClass()}
-            title="View Details"
-            aria-label="View Details"
-          >
-            <FiEye className="h-4 w-4" />
-          </button>
           {row.status === 'active' ? (
             <button
               onClick={(e) => {
@@ -347,6 +336,7 @@ export default function TenantsList() {
           isLoading={isLoading}
           emptyMessage="No tenants found"
           showExport={false}
+          onRowClick={(row) => navigate(`/admin/tenants/${row.id}`)}
         />
         {pagination && pagination.totalPages > 1 && (
           <div className="mt-4">

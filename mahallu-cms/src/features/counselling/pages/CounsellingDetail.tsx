@@ -1,15 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { FiArrowLeft, FiEdit2, FiSave } from 'react-icons/fi';
+import { FiArrowLeft, FiEdit2, FiSave, FiTrash2 } from 'react-icons/fi';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import { PageSkeleton } from '@/components/ui/Skeleton';
+import Modal from '@/components/ui/Modal';
 import { toast } from '@/store/toastStore';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import {
   getCounsellingCaseById,
   addCounsellingNote,
   updateCounsellingCase,
+  deleteCounsellingCase,
   ICounsellingCase,
 } from '@/services/counsellingService';
 import PageHeader from '@/components/layout/PageHeader';
@@ -24,6 +26,8 @@ export default function CounsellingDetail() {
   const [addingNote, setAddingNote] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editStatus, setEditStatus] = useState('');
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (id) fetchCase(id);
@@ -72,12 +76,34 @@ export default function CounsellingDetail() {
     }
   };
 
+  const handleDelete = async () => {
+    if (!id) return;
+    try {
+      setDeleting(true);
+      await deleteCounsellingCase(id);
+      toast.success('Counselling case deleted');
+      navigate('/counselling');
+    } catch (error) {
+      toast.error(errorMessage(error, { action: 'delete counselling case' }));
+      setDeleting(false);
+    }
+  };
+
   if (loading) return <PageSkeleton />;
   if (!caseRecord) return <div className="p-4">Case not found</div>;
 
   return (
     <div>
-      <PageHeader title="Counselling case" breadcrumbs={[{ label: 'Counselling', path: '/counselling' }]} />
+      <div className="flex gap-2 items-center justify-between">
+        <div className="flex items-center gap-4">
+          <PageHeader title="Counselling case" breadcrumbs={[{ label: 'Counselling', path: '/counselling' }]} />
+          <div className="flex gap-2 items-center">
+            <Button variant="danger" onClick={() => setShowDeleteModal(true)} icon={<FiTrash2 />} collapseLabel>
+              Delete
+            </Button>
+          </div>
+        </div>
+      </div>
       <div>
         <Button
           variant="ghost"
@@ -215,6 +241,26 @@ export default function CounsellingDetail() {
           </Card>
         )}
       </div>
+
+      <Modal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        title="Delete Counselling Case"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setShowDeleteModal(false)}>
+              Cancel
+            </Button>
+            <Button variant="danger" onClick={handleDelete} isLoading={deleting}>
+              Delete
+            </Button>
+          </>
+        }
+      >
+        <p className="text-gray-600 dark:text-gray-400">
+          Are you sure you want to delete <strong>{caseRecord.caseNo}</strong>? This action cannot be undone.
+        </p>
+      </Modal>
     </div>
   );
 }

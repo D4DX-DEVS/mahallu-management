@@ -8,12 +8,13 @@ import Table from '@/components/ui/Table';
 import Pagination from '@/components/ui/Pagination';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import TableToolbar from '@/components/ui/TableToolbar';
+import Modal from '@/components/ui/Modal';
 import { TableColumn, Pagination as PaginationType } from '@/types';
 import { masterAccountService, MasterWallet } from '@/services/masterAccountService';
 import { formatDate, toTitleCase } from '@/utils/format';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
 import { toast } from '@/store/toastStore';
-import { loadErrorMessage } from '@/utils/errors';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 
 export default function WalletsList() {
@@ -26,6 +27,10 @@ export default function WalletsList() {
   const [itemsPerPage] = useState(10);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [selectedWallet, setSelectedWallet] = useState<MasterWallet | null>(null);
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     fetchWallets();
@@ -97,6 +102,21 @@ export default function WalletsList() {
     },
   ];
 
+  const handleDelete = async () => {
+    if (!selectedWallet) return;
+    try {
+      setDeleting(true);
+      await masterAccountService.deleteWallet(selectedWallet.id);
+      await fetchWallets();
+      setShowDeleteModal(false);
+      setSelectedWallet(null);
+    } catch (err: any) {
+      toast.error(errorMessage(err, { action: 'delete wallet' }));
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   // The list endpoint has no `search` query param, so — same as the Mahallu
   // Finance list screens — the search box filters the page already loaded.
   const filteredWallets = wallets.filter(
@@ -157,7 +177,18 @@ export default function WalletsList() {
           </div>
         ) : (
           <>
-            <Table fixedLayout striped columns={columns} data={filteredWallets} emptyMessage="No wallets found" showExport={false} />
+            <Table
+              fixedLayout
+              striped
+              columns={columns}
+              data={filteredWallets}
+              emptyMessage="No wallets found"
+              showExport={false}
+              onRowClick={(row) => {
+                setSelectedWallet(row);
+                setShowViewModal(true);
+              }}
+            />
             {pagination && pagination.totalPages > 1 && (
               <div className="mt-4">
                 <Pagination
@@ -172,6 +203,90 @@ export default function WalletsList() {
           </>
         )}
       </TableCard>
+
+      {/* View Modal */}
+      <Modal
+        isOpen={showViewModal}
+        onClose={() => {
+          setShowViewModal(false);
+          setSelectedWallet(null);
+        }}
+        title="Wallet Details"
+        footer={
+          <>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowViewModal(false);
+                setSelectedWallet(null);
+              }}
+            >
+              Close
+            </Button>
+            <Button
+              variant="danger"
+              onClick={() => {
+                setShowViewModal(false);
+                setShowDeleteModal(true);
+              }}
+            >
+              Delete
+            </Button>
+          </>
+        }
+      >
+        {selectedWallet && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Name</p>
+              <p className="text-gray-900 dark:text-gray-100 font-medium">{toTitleCase(selectedWallet.name)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Type</p>
+              <p className="text-gray-900 dark:text-gray-100 capitalize">{selectedWallet.type || '—'}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Balance</p>
+              <p className="text-gray-900 dark:text-gray-100">₹{(selectedWallet.balance || 0).toLocaleString()}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Created</p>
+              <p className="text-gray-900 dark:text-gray-100">{formatDate(selectedWallet.createdAt)}</p>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Delete Modal */}
+      <Modal
+        isOpen={showDeleteModal}
+        onClose={() => {
+          setShowDeleteModal(false);
+          setSelectedWallet(null);
+        }}
+        title="Delete Wallet"
+        footer={
+          <>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowDeleteModal(false);
+                setSelectedWallet(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button variant="danger" onClick={handleDelete} isLoading={deleting}>
+              Delete
+            </Button>
+          </>
+        }
+      >
+        <p className="text-gray-600 dark:text-gray-400">
+          Are you sure you want to delete <strong>{toTitleCase(selectedWallet?.name)}</strong>? This action cannot be
+          undone.
+        </p>
+      </Modal>
     </div>
   );
 }

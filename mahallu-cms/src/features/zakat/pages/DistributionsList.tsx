@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { FiEdit2, FiEye, FiTrash2 } from 'react-icons/fi';
 import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -7,7 +6,6 @@ import Select from '@/components/ui/Select';
 import Table from '@/components/ui/Table';
 import Modal from '@/components/ui/Modal';
 import Checkbox from '@/components/ui/Checkbox';
-import ActionsMenu from '@/components/ui/ActionsMenu';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import Pagination from '@/components/ui/Pagination';
@@ -176,26 +174,6 @@ export default function DistributionsList() {
       render: (v) => DISTRIBUTION_TYPE_OPTIONS.find((o) => o.value === v)?.label || v,
     },
     { key: 'receiptNo', label: 'Receipt', width: '7.5rem', render: (v) => v || '-' },
-    {
-      key: 'actions',
-      label: 'Actions',
-      width: '8rem',
-      align: 'center',
-      render: (_v, row) => (
-        <ActionsMenu
-          items={[
-            { label: 'View', icon: <FiEye className="h-4 w-4" />, onClick: () => setViewing(row) },
-            { label: 'Edit', icon: <FiEdit2 className="h-4 w-4" />, onClick: () => openEdit(row) },
-            {
-              label: 'Delete',
-              icon: <FiTrash2 className="h-4 w-4" />,
-              onClick: () => setDeleteConfirm(row),
-              variant: 'danger' as const,
-            },
-          ]}
-        />
-      ),
-    },
   ];
 
   return (
@@ -247,7 +225,14 @@ export default function DistributionsList() {
             action={{ label: '+ Record Distribution', onClick: () => setFormOpen(true) }}
           />
         ) : (
-          <Table fixedLayout striped columns={columns} data={rows} showExport={false} />
+          <Table
+            fixedLayout
+            striped
+            columns={columns}
+            data={rows}
+            showExport={false}
+            onRowClick={(row) => setViewing(row)}
+          />
         )}
 
         {pagination && (
@@ -354,7 +339,36 @@ export default function DistributionsList() {
         </div>
       </Modal>
 
-      <Modal isOpen={Boolean(viewing)} onClose={() => setViewing(null)} title="Distribution Details">
+      <Modal
+        isOpen={Boolean(viewing)}
+        onClose={() => setViewing(null)}
+        title="Distribution Details"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setViewing(null)}>
+              Close
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (viewing) openEdit(viewing);
+                setViewing(null);
+              }}
+            >
+              Edit
+            </Button>
+            <Button
+              variant="danger"
+              onClick={() => {
+                if (viewing) setDeleteConfirm(viewing);
+                setViewing(null);
+              }}
+            >
+              Delete
+            </Button>
+          </>
+        }
+      >
         {viewing && (
           <div className="space-y-3">
             <div>
@@ -375,6 +389,12 @@ export default function DistributionsList() {
               <span className="text-sm text-gray-500 dark:text-gray-400">Type</span>
               <p className="text-gray-900 dark:text-gray-100">
                 {DISTRIBUTION_TYPE_OPTIONS.find((o) => o.value === viewing.type)?.label || viewing.type}
+              </p>
+            </div>
+            <div>
+              <span className="text-sm text-gray-500 dark:text-gray-400">Payment Method</span>
+              <p className="text-gray-900 dark:text-gray-100">
+                {viewing.paymentMethod ? toTitleCase(viewing.paymentMethod) : '-'}
               </p>
             </div>
             <div>

@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { FiArrowLeft } from 'react-icons/fi';
+import { FiArrowLeft, FiTrash2 } from 'react-icons/fi';
 import { useParams, useNavigate } from 'react-router-dom';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
+import Modal from '@/components/ui/Modal';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import { toast } from '@/store/toastStore';
 import { examService, Exam } from '@/services/attendanceService';
@@ -27,6 +28,8 @@ export default function ExamDetail() {
   const [saving, setSaving] = useState(false);
   const [editingResults, setEditingResults] = useState<Record<string, { marks: number; grade?: string }>>({});
   const [isEditingResults, setIsEditingResults] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (id) fetchExam(id);
@@ -109,6 +112,19 @@ export default function ExamDetail() {
     }
   };
 
+  const handleDelete = async () => {
+    if (!id) return;
+    try {
+      setDeleting(true);
+      await examService.deleteExam(id);
+      toast.success('Exam deleted');
+      navigate(exam ? `/education/classes/${typeof exam.classId === 'string' ? exam.classId : exam.classId?.id}/exams` : '/education');
+    } catch (err: any) {
+      toast.error(errorMessage(err, { action: 'delete exam' }));
+      setDeleting(false);
+    }
+  };
+
   if (loading) return <PageSkeleton />;
 
   if (error || !exam) {
@@ -142,6 +158,7 @@ export default function ExamDetail() {
 
       <div className="mb-4 flex items-center justify-between gap-3">
         <Button variant="secondary" onClick={() => navigate(`/education/classes/${classId}/exams`)} icon={<FiArrowLeft />} collapseLabel>Back</Button>
+        <Button variant="danger" onClick={() => setShowDeleteModal(true)} icon={<FiTrash2 />} collapseLabel>Delete</Button>
       </div>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 mb-4">
@@ -292,6 +309,26 @@ export default function ExamDetail() {
           );
         })()}
       </Card>
+
+      <Modal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        title="Delete Exam"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setShowDeleteModal(false)}>
+              Cancel
+            </Button>
+            <Button variant="danger" onClick={handleDelete} isLoading={deleting}>
+              Delete
+            </Button>
+          </>
+        }
+      >
+        <p className="text-gray-600 dark:text-gray-400">
+          Are you sure you want to delete <strong>{toTitleCase(exam.name)}</strong>? This action cannot be undone.
+        </p>
+      </Modal>
     </div>
   );
 }

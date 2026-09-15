@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FiCheckCircle, FiEdit2, FiPlus, FiUsers, FiXCircle } from 'react-icons/fi';
+import { FiCheckCircle, FiPlus, FiUsers, FiXCircle } from 'react-icons/fi';
 import TableCard from '@/components/ui/TableCard';
-import { rowActionClass } from '@/components/ui/rowAction';
 import Button from '@/components/ui/Button';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
@@ -154,27 +153,6 @@ export default function MahallUsersList() {
       label: 'Last Login',
       width: '9.25rem',
       render: (lastLogin) => (lastLogin ? formatDateTime(lastLogin) : '-'),
-    },
-    {
-      key: 'actions',
-      label: 'Actions',
-      width: '8rem',
-      align: 'center',
-      render: (_, row) => (
-        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(ROUTES.USERS.EDIT_MAHALL(row.id));
-            }}
-            className={rowActionClass()}
-            title="Edit"
-            aria-label="Edit"
-          >
-            <FiEdit2 className="h-4 w-4" />
-          </button>
-        </div>
-      ),
     },
   ];
 

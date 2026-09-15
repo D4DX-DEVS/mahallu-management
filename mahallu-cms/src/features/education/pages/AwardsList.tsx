@@ -6,6 +6,7 @@ import Pagination from '@/components/ui/Pagination';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import EmptyState from '@/components/ui/EmptyState';
+import Modal from '@/components/ui/Modal';
 import { toast } from '@/store/toastStore';
 import {
   scholarshipService,
@@ -31,6 +32,8 @@ export default function AwardsList() {
   const [scholarship, setScholarship] = useState<any>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [selectedAward, setSelectedAward] = useState<ScholarshipAward | null>(null);
+  const [showViewModal, setShowViewModal] = useState(false);
 
   /* Student shows a looked-up name and Status a label, so both sort on what
      the cell reads rather than on the id or enum behind it. */
@@ -95,7 +98,9 @@ export default function AwardsList() {
           <PageHeader title="Scholarship Awards" />
           {scholarship && (
             <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-              <span>{toTitleCase(scholarship.name)}</span> ({scholarship.academicYear})
+              <span>{toTitleCase(scholarship.name)}</span>
+              {scholarship.nameMl && <span> ({scholarship.nameMl})</span>} ({scholarship.academicYear})
+              {scholarship.criteria && <span> &middot; {scholarship.criteria}</span>}
             </p>
           )}
         </div>
@@ -173,7 +178,14 @@ export default function AwardsList() {
                   </thead>
                   <tbody>
                     {sortedAwards.map((award) => (
-                      <tr key={award.id} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
+                      <tr
+                        key={award.id}
+                        className="border-b hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
+                        onClick={() => {
+                          setSelectedAward(award);
+                          setShowViewModal(true);
+                        }}
+                      >
                         <td className="py-2 font-medium">{toTitleCase(memberName(award.memberId))}</td>
                         <td className="py-2 hidden sm:table-cell text-xs">
                           {new Date(award.awardedDate).toLocaleDateString()}
@@ -187,9 +199,10 @@ export default function AwardsList() {
                         <td className="py-2">
                           <div className="flex gap-2">
                             <button
-                              onClick={() =>
-                                setDeleteConfirm({ id: award.id, name: memberName(award.memberId) })
-                              }
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setDeleteConfirm({ id: award.id, name: memberName(award.memberId) });
+                              }}
                               className="text-xs text-red-600 hover:underline"
                             >
                               Delete
@@ -217,6 +230,75 @@ export default function AwardsList() {
           )}
         </div>
       </Card>
+
+      {/* View Modal */}
+      <Modal
+        isOpen={showViewModal}
+        onClose={() => {
+          setShowViewModal(false);
+          setSelectedAward(null);
+        }}
+        title="Award Details"
+        footer={
+          <>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowViewModal(false);
+                setSelectedAward(null);
+              }}
+            >
+              Close
+            </Button>
+            {selectedAward && (
+              <Button
+                variant="danger"
+                onClick={() => {
+                  setShowViewModal(false);
+                  setDeleteConfirm({ id: selectedAward.id, name: memberName(selectedAward.memberId) });
+                }}
+              >
+                Delete
+              </Button>
+            )}
+          </>
+        }
+      >
+        {selectedAward && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Student</p>
+              <p className="text-gray-900 dark:text-gray-100 font-medium">
+                {toTitleCase(memberName(selectedAward.memberId))}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Awarded Date</p>
+              <p className="text-gray-900 dark:text-gray-100">
+                {new Date(selectedAward.awardedDate).toLocaleDateString()}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Amount</p>
+              <p className="text-gray-900 dark:text-gray-100">₹{selectedAward.amount}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Status</p>
+              <p className="text-gray-900 dark:text-gray-100">{awardStatusLabel(selectedAward.status)}</p>
+            </div>
+            <div className="sm:col-span-2">
+              <p className="text-xs text-gray-500 dark:text-gray-400">Remarks</p>
+              <p className="text-gray-900 dark:text-gray-100">{selectedAward.remarks || '—'}</p>
+            </div>
+            <div className="sm:col-span-2">
+              <p className="text-xs text-gray-500 dark:text-gray-400">Created</p>
+              <p className="text-gray-900 dark:text-gray-100">
+                {new Date(selectedAward.createdAt).toLocaleDateString()}
+              </p>
+            </div>
+          </div>
+        )}
+      </Modal>
 
       <ConfirmDialog
         isOpen={deleteConfirm !== null}

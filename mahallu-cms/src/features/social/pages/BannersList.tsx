@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { FiCheckCircle, FiEdit2, FiImage, FiPlus, FiTrash2 } from 'react-icons/fi';
+import { Link, useNavigate } from 'react-router-dom';
+import { FiCheckCircle, FiImage, FiPlus } from 'react-icons/fi';
 import TableCard from '@/components/ui/TableCard';
-import { rowActionClass } from '@/components/ui/rowAction';
 import Button from '@/components/ui/Button';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
@@ -20,6 +19,7 @@ import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 
 export default function BannersList() {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [isFilterVisible, setIsFilterVisible] = useState(false);
   const [banners, setBanners] = useState<Banner[]>([]);
@@ -27,6 +27,7 @@ export default function BannersList() {
   const [error, setError] = useState<string | null>(null);
   const [selectedBanner, setSelectedBanner] = useState<Banner | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showViewModal, setShowViewModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
@@ -132,36 +133,6 @@ export default function BannersList() {
       width: '7.75rem',
       render: (date) => formatDate(date),
     },
-    {
-      key: 'actions',
-      label: 'Actions',
-      width: '8rem',
-      align: 'center',
-      render: (_, row) => (
-        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-          <Link
-            to={`/social/banners/${row.id}/edit`}
-            className={rowActionClass()}
-            title="Edit"
-          >
-            <FiEdit2 className="h-4 w-4" />
-          </Link>
-
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setSelectedBanner(row);
-              setShowDeleteModal(true);
-            }}
-            className={rowActionClass('danger')}
-            title="Delete"
-            aria-label="Delete"
-          >
-            <FiTrash2 className="h-4 w-4" />
-          </button>
-        </div>
-      ),
-    },
   ];
 
   const stats = [
@@ -216,7 +187,18 @@ export default function BannersList() {
             </Button>
           </div>
         ) : (
-          <Table fixedLayout striped columns={columns} data={banners} emptyMessage="No banners found" showExport={false} />
+          <Table
+            fixedLayout
+            striped
+            columns={columns}
+            data={banners}
+            emptyMessage="No banners found"
+            showExport={false}
+            onRowClick={(row) => {
+              setSelectedBanner(row);
+              setShowViewModal(true);
+            }}
+          />
         )}
 
         {/* Pagination */}
@@ -234,6 +216,84 @@ export default function BannersList() {
           </div>
         )}
       </TableCard>
+
+      {/* View Modal */}
+      <Modal
+        isOpen={showViewModal}
+        onClose={() => {
+          setShowViewModal(false);
+          setSelectedBanner(null);
+        }}
+        title="Banner Details"
+        footer={
+          <>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowViewModal(false);
+                setSelectedBanner(null);
+              }}
+            >
+              Close
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (selectedBanner) navigate(`/social/banners/${selectedBanner.id}/edit`);
+              }}
+            >
+              Edit
+            </Button>
+            <Button
+              variant="danger"
+              onClick={() => {
+                setShowViewModal(false);
+                setShowDeleteModal(true);
+              }}
+            >
+              Delete
+            </Button>
+          </>
+        }
+      >
+        {selectedBanner && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+            <div className="sm:col-span-2">
+              <p className="text-xs text-gray-500 dark:text-gray-400">Title</p>
+              <p className="text-gray-900 dark:text-gray-100 font-medium">{selectedBanner.title}</p>
+            </div>
+            {selectedBanner.image && (
+              <div className="sm:col-span-2">
+                <img src={selectedBanner.image} alt={selectedBanner.title} className="max-h-40 rounded-md" />
+              </div>
+            )}
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Status</p>
+              <p className="text-gray-900 dark:text-gray-100 capitalize">{selectedBanner.status || 'active'}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Link</p>
+              <p className="text-gray-900 dark:text-gray-100 break-all">{selectedBanner.link || '—'}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Start Date</p>
+              <p className="text-gray-900 dark:text-gray-100">
+                {selectedBanner.startDate ? formatDate(selectedBanner.startDate) : '—'}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">End Date</p>
+              <p className="text-gray-900 dark:text-gray-100">
+                {selectedBanner.endDate ? formatDate(selectedBanner.endDate) : '—'}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Created</p>
+              <p className="text-gray-900 dark:text-gray-100">{formatDate(selectedBanner.createdAt)}</p>
+            </div>
+          </div>
+        )}
+      </Modal>
 
       <Modal
         isOpen={showDeleteModal}

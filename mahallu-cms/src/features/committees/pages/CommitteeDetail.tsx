@@ -1,26 +1,30 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { FiEdit2, FiArrowLeft, FiCalendar } from 'react-icons/fi';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import { FiEdit2, FiArrowLeft, FiCalendar, FiTrash2 } from 'react-icons/fi';
 import Card from '@/components/ui/Card';
 import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import { PageSkeleton } from '@/components/ui/Skeleton';
+import Modal from '@/components/ui/Modal';
 import Table from '@/components/ui/Table';
 import { TableColumn } from '@/types';
 import { Committee, Member } from '@/types';
 import { ROUTES } from '@/constants/routes';
 import { committeeService } from '@/services/committeeService';
 import { formatDate } from '@/utils/format';
-import { loadErrorMessage } from '@/utils/errors';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
 
 export default function CommitteeDetail() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [committee, setCommittee] = useState<Committee | null>(null);
   const [meetings, setMeetings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -70,6 +74,18 @@ export default function CommitteeDetail() {
     );
   }
 
+  const handleDelete = async () => {
+    if (!id) return;
+    try {
+      setDeleting(true);
+      await committeeService.delete(id);
+      navigate(ROUTES.COMMITTEES.LIST);
+    } catch (err: any) {
+      setError(errorMessage(err, { action: 'delete committee' }));
+      setDeleting(false);
+    }
+  };
+
   const memberColumns: TableColumn<Member>[] = [
     { key: 'name', label: 'Name', width: '6.75rem', render: (v) => <span>{toTitleCase(v)}</span> },
     { key: 'familyName', label: 'Family', width: '7.25rem', render: (v) => toTitleCase(v) },
@@ -95,6 +111,7 @@ export default function CommitteeDetail() {
           <Link to={`/committees/${committee.id}/meetings`}>
             <Button variant="outline" icon={<FiCalendar />} collapseLabel>Meetings</Button>
           </Link>
+          <Button variant="danger" onClick={() => setShowDeleteModal(true)} icon={<FiTrash2 />} collapseLabel>Delete</Button>
         </div>
       </div>
 
@@ -106,10 +123,40 @@ export default function CommitteeDetail() {
               <p className="text-sm text-gray-500 dark:text-gray-400">Name</p>
               <p className="text-base font-medium text-gray-900 dark:text-gray-100">{toTitleCase(committee.name)}</p>
             </div>
+            {(committee as any).nameMl && (
+              <div>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Name (Malayalam)</p>
+                <p className="text-base text-gray-900 dark:text-gray-100 font-malayalam">{(committee as any).nameMl}</p>
+              </div>
+            )}
             {committee.description && (
               <div>
                 <p className="text-sm text-gray-500 dark:text-gray-400">Description</p>
                 <p className="text-base text-gray-900 dark:text-gray-100">{committee.description}</p>
+              </div>
+            )}
+            {(committee as any).descriptionMl && (
+              <div>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Description (Malayalam)</p>
+                <p className="text-base text-gray-900 dark:text-gray-100 font-malayalam">
+                  {(committee as any).descriptionMl}
+                </p>
+              </div>
+            )}
+            {((committee as any).termStartDate || (committee as any).termEndDate) && (
+              <div>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Term</p>
+                <p className="text-base text-gray-900 dark:text-gray-100">
+                  {(committee as any).termStartDate ? formatDate((committee as any).termStartDate) : '—'}
+                  {' to '}
+                  {(committee as any).termEndDate ? formatDate((committee as any).termEndDate) : '—'}
+                </p>
+              </div>
+            )}
+            {(committee as any).maxTermYears && (
+              <div>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Max Term (years)</p>
+                <p className="text-base text-gray-900 dark:text-gray-100">{(committee as any).maxTermYears}</p>
               </div>
             )}
             <div>
@@ -179,6 +226,27 @@ export default function CommitteeDetail() {
           </div>
         </Card>
       )}
+
+      <Modal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        title="Delete Committee"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setShowDeleteModal(false)}>
+              Cancel
+            </Button>
+            <Button variant="danger" onClick={handleDelete} isLoading={deleting}>
+              Delete
+            </Button>
+          </>
+        }
+      >
+        <p className="text-gray-600 dark:text-gray-400">
+          Are you sure you want to delete <strong>{toTitleCase(committee.name)}</strong>? This will also delete all
+          associated meetings. This action cannot be undone.
+        </p>
+      </Modal>
     </div>
   );
 }

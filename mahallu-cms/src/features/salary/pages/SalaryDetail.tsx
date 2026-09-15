@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { FiArrowLeft } from 'react-icons/fi';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import { FiArrowLeft, FiEdit2, FiTrash2 } from 'react-icons/fi';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
+import Modal from '@/components/ui/Modal';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import { SalaryPayment } from '@/types';
 import { ROUTES } from '@/constants/routes';
 import { salaryService } from '@/services/salaryService';
-import { loadErrorMessage } from '@/utils/errors';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import StatusBadge from '@/components/ui/StatusBadge';
 import { toTitleCase } from '@/utils/format';
@@ -30,9 +31,12 @@ const MONTHS = [
 
 export default function SalaryDetail() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [payment, setPayment] = useState<SalaryPayment | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (id) fetchPayment();
@@ -48,6 +52,18 @@ export default function SalaryDetail() {
       setError(loadErrorMessage(err, 'payment details'));
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!id) return;
+    try {
+      setDeleting(true);
+      await salaryService.delete(id);
+      navigate(ROUTES.SALARY.LIST);
+    } catch (err: any) {
+      setError(errorMessage(err, { action: 'delete salary payment' }));
+      setDeleting(false);
     }
   };
 
@@ -75,6 +91,10 @@ export default function SalaryDetail() {
               Back
             </Button>
           </Link>
+          <Link to={ROUTES.SALARY.EDIT(payment.id)}>
+            <Button icon={<FiEdit2 />} collapseLabel>Edit</Button>
+          </Link>
+          <Button variant="danger" onClick={() => setShowDeleteModal(true)} icon={<FiTrash2 />} collapseLabel>Delete</Button>
         </div>
       </div>
 
@@ -165,6 +185,26 @@ export default function SalaryDetail() {
           )}
         </Card>
       </div>
+
+      <Modal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        title="Delete Salary Payment"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setShowDeleteModal(false)}>
+              Cancel
+            </Button>
+            <Button variant="danger" onClick={handleDelete} isLoading={deleting}>
+              Delete
+            </Button>
+          </>
+        }
+      >
+        <p className="text-gray-600 dark:text-gray-400">
+          Are you sure you want to delete this salary payment? This action cannot be undone.
+        </p>
+      </Modal>
     </div>
   );
 }

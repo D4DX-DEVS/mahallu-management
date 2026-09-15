@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
-import ActionsMenu from '@/components/ui/ActionsMenu';
-import { FiEdit2, FiEye, FiPlus, FiTrash2 } from 'react-icons/fi';
+import { FiPlus } from 'react-icons/fi';
 import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -160,26 +159,6 @@ export default function FacilitiesList() {
     },
     { key: 'address', label: 'Address', width: '7.75rem', render: (v) => (v ? toTitleCase(v) : '-') },
     { key: 'contactNo', label: 'Contact', width: '7.75rem', render: (v) => v || '-' },
-    {
-      key: 'actions',
-      label: 'Actions',
-      width: '8rem',
-      align: 'center',
-      render: (_v, row) => (
-        <ActionsMenu
-          items={[
-            { label: 'View', icon: <FiEye className="h-4 w-4" />, onClick: () => setViewing(row) },
-            { label: 'Edit', icon: <FiEdit2 className="h-4 w-4" />, onClick: () => openEdit(row) },
-            {
-              label: 'Delete',
-              icon: <FiTrash2 className="h-4 w-4" />,
-              onClick: () => openDeleteConfirm(row),
-              variant: 'danger' as const,
-            },
-          ]}
-        />
-      ),
-    },
   ];
 
   return (
@@ -230,7 +209,15 @@ export default function FacilitiesList() {
             }}
           />
         ) : (
-          <Table fixedLayout striped columns={columns} data={rows} emptyMessage="No facilities recorded" showExport={false} />
+          <Table
+            fixedLayout
+            striped
+            columns={columns}
+            data={rows}
+            emptyMessage="No facilities recorded"
+            showExport={false}
+            onRowClick={(row) => setViewing(row)}
+          />
         )}
 
         {pagination && (
@@ -321,7 +308,36 @@ export default function FacilitiesList() {
         </div>
       </Modal>
 
-      <Modal isOpen={Boolean(viewing)} onClose={() => setViewing(null)} title="Facility Details">
+      <Modal
+        isOpen={Boolean(viewing)}
+        onClose={() => setViewing(null)}
+        title="Facility Details"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setViewing(null)}>
+              Close
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (viewing) openEdit(viewing);
+                setViewing(null);
+              }}
+            >
+              Edit
+            </Button>
+            <Button
+              variant="danger"
+              onClick={() => {
+                if (viewing) openDeleteConfirm(viewing);
+                setViewing(null);
+              }}
+            >
+              Delete
+            </Button>
+          </>
+        }
+      >
         {viewing && (
           <div className="space-y-3">
             <div>

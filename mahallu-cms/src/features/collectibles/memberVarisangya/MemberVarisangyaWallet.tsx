@@ -1,6 +1,4 @@
 import { useState, useEffect } from 'react';
-import ActionsMenu from '@/components/ui/ActionsMenu';
-import { FiList } from 'react-icons/fi';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { FiDollarSign, FiCreditCard, FiCheckCircle } from 'react-icons/fi';
 import TableCard from '@/components/ui/TableCard';
@@ -147,24 +145,6 @@ export default function MemberVarisangyaWallet() {
       width: '12.25rem',
       render: (date) => (date ? formatDate(date) : '-'),
     },
-    {
-      key: 'actions',
-      label: 'Actions',
-      width: '8rem',
-      align: 'center',
-      render: (_, row) => (
-        <ActionsMenu
-          items={[
-            {
-              label: 'View transactions',
-              icon: <FiList className="h-4 w-4" />,
-              onClick: () =>
-                navigate(`${MEMBER_BASE}?view=transactions&memberId=${row.member?.id || ''}`),
-            },
-          ]}
-        />
-      ),
-    },
   ];
 
   const totalBalance = wallets.reduce((sum, w) => sum + (w.balance || 0), 0);
@@ -214,7 +194,15 @@ export default function MemberVarisangyaWallet() {
             </Button>
           </div>
         ) : (
-          <Table fixedLayout striped columns={columns} data={wallets} emptyMessage="No wallets found" showExport={false} />
+          <Table
+            fixedLayout
+            striped
+            columns={columns}
+            data={wallets}
+            emptyMessage="No wallets found"
+            showExport={false}
+            onRowClick={(row) => navigate(`${MEMBER_BASE}?view=transactions&memberId=${row.member?.id || ''}`)}
+          />
         )}
       </TableCard>
     </div>

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { FiEdit2, FiTrash2, FiPlus, FiEye, FiUpload } from 'react-icons/fi';
+import { FiEdit2, FiTrash2, FiPlus, FiUpload } from 'react-icons/fi';
 import Card from '@/components/ui/Card';
 import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
@@ -19,7 +19,6 @@ import { toast } from '@/store/toastStore';
 import { errorMessage, loadErrorMessage, pluralise } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
-import ActionsMenu from '@/components/ui/ActionsMenu';
 
 const MEMBER_COLUMNS: ColumnSpec[] = [
   { key: 'name', label: 'Name', required: true },
@@ -144,40 +143,6 @@ export default function FamilyDetail() {
     },
     { key: 'bloodGroup', label: 'Blood Group', width: '9.75rem', render: (bg) => bg || '-' },
     { key: 'phone', label: 'Phone', width: '6.75rem', render: (phone) => phone || '-' },
-    {
-      key: 'actions',
-      label: 'Actions',
-      width: '8rem',
-      align: 'center',
-      render: (_, row) => (
-        <ActionsMenu
-          items={[
-            {
-              label: 'View',
-              icon: <FiEye className="h-4 w-4" />,
-              onClick: () => {
-                navigate(ROUTES.MEMBERS.DETAIL(row.id));
-              },
-            },
-            {
-              label: 'Edit',
-              icon: <FiEdit2 className="h-4 w-4" />,
-              onClick: () => {
-                navigate(ROUTES.MEMBERS.EDIT(row.id));
-              },
-            },
-            {
-              label: 'Delete',
-              icon: <FiTrash2 className="h-4 w-4" />,
-              onClick: () => {
-                handleDeleteMember(row.id, toTitleCase(row.name));
-              },
-              variant: 'danger',
-            },
-          ]}
-        />
-      ),
-    },
   ];
 
   return (
@@ -212,10 +177,22 @@ export default function FamilyDetail() {
               <span className="text-sm text-gray-500 dark:text-gray-400">House Name</span>
               <p className="text-gray-900 dark:text-gray-100">{toTitleCase(family.houseName)}</p>
             </div>
+            {family.houseNameMl && (
+              <div>
+                <span className="text-sm text-gray-500 dark:text-gray-400">House Name (Malayalam)</span>
+                <p className="text-gray-900 dark:text-gray-100 font-malayalam">{family.houseNameMl}</p>
+              </div>
+            )}
             {family.familyHead && (
               <div>
                 <span className="text-sm text-gray-500 dark:text-gray-400">Family Head</span>
                 <p className="text-gray-900 dark:text-gray-100">{toTitleCase(family.familyHead)}</p>
+              </div>
+            )}
+            {family.familyHeadMl && (
+              <div>
+                <span className="text-sm text-gray-500 dark:text-gray-400">Family Head (Malayalam)</span>
+                <p className="text-gray-900 dark:text-gray-100 font-malayalam">{family.familyHeadMl}</p>
               </div>
             )}
             {family.contactNo && (
@@ -274,12 +251,64 @@ export default function FamilyDetail() {
                 <p className="text-gray-900 dark:text-gray-100">{toTitleCase(family.area)}</p>
               </div>
             )}
+            {family.areaMl && (
+              <div>
+                <span className="text-sm text-gray-500 dark:text-gray-400">Area (Malayalam)</span>
+                <p className="text-gray-900 dark:text-gray-100 font-malayalam">{family.areaMl}</p>
+              </div>
+            )}
             {family.place && (
               <div>
                 <span className="text-sm text-gray-500 dark:text-gray-400">Address</span>
                 <p className="text-gray-900 dark:text-gray-100">{toTitleCase(family.place)}</p>
               </div>
             )}
+            {family.placeMl && (
+              <div>
+                <span className="text-sm text-gray-500 dark:text-gray-400">Address (Malayalam)</span>
+                <p className="text-gray-900 dark:text-gray-100 font-malayalam">{family.placeMl}</p>
+              </div>
+            )}
+          </div>
+        </Card>
+
+        <Card>
+          <h2 className="text-lg font-semibold mb-3 text-foreground">Socio-economic Details</h2>
+          <div className="space-y-3">
+            {(family as any).economicStatus && (
+              <div>
+                <span className="text-sm text-gray-500 dark:text-gray-400">Economic Status</span>
+                <p className="text-gray-900 dark:text-gray-100 capitalize">
+                  {String((family as any).economicStatus).replace(/_/g, ' ')}
+                </p>
+              </div>
+            )}
+            {(family as any).welfareStatus && (
+              <div>
+                <span className="text-sm text-gray-500 dark:text-gray-400">Welfare Status</span>
+                <p className="text-gray-900 dark:text-gray-100 capitalize">
+                  {String((family as any).welfareStatus).replace(/_/g, ' ')}
+                </p>
+              </div>
+            )}
+            {(family as any).housingType && (
+              <div>
+                <span className="text-sm text-gray-500 dark:text-gray-400">Housing Type</span>
+                <p className="text-gray-900 dark:text-gray-100 capitalize">{(family as any).housingType}</p>
+              </div>
+            )}
+            {(family as any).specialRequirements && (
+              <div>
+                <span className="text-sm text-gray-500 dark:text-gray-400">Special Requirements</span>
+                <p className="text-gray-900 dark:text-gray-100">{(family as any).specialRequirements}</p>
+              </div>
+            )}
+            {!(family as any).economicStatus &&
+              !(family as any).welfareStatus &&
+              !(family as any).housingType &&
+              !(family as any).specialRequirements && (
+                <p className="text-gray-500 dark:text-gray-400">No socio-economic details recorded.</p>
+              )}
           </div>
         </Card>
 
@@ -296,7 +325,13 @@ export default function FamilyDetail() {
             </div>
           </div>
           {members.length > 0 ? (
-            <Table fixedLayout striped columns={memberColumns} data={members} />
+            <Table
+              fixedLayout
+              striped
+              columns={memberColumns}
+              data={members}
+              onRowClick={(row) => navigate(ROUTES.MEMBERS.DETAIL(row.id))}
+            />
           ) : (
             <p className="text-gray-500 dark:text-gray-400 text-center py-8">
               No members found. Add a member to get started.

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { FiEdit2, FiArrowLeft, FiPlus, FiTrash2, FiTool } from 'react-icons/fi';
 import Card from '@/components/ui/Card';
 import TableCard from '@/components/ui/TableCard';
@@ -30,9 +30,12 @@ import { toTitleCase } from '@/utils/format';
 
 export default function AssetDetail() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [asset, setAsset] = useState<Asset | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   // Maintenance state
   const [maintenanceRecords, setMaintenanceRecords] = useState<AssetMaintenance[]>([]);
@@ -170,6 +173,18 @@ export default function AssetDetail() {
     }
   };
 
+  const handleDelete = async () => {
+    if (!id) return;
+    try {
+      setDeleting(true);
+      await assetService.delete(id);
+      navigate(ROUTES.ASSETS.LIST);
+    } catch (err: any) {
+      toast.error(errorMessage(err, { action: 'delete asset' }));
+      setDeleting(false);
+    }
+  };
+
   const maintenanceColumns: TableColumn<AssetMaintenance>[] = [
     {
       key: 'maintenanceDate',
@@ -265,6 +280,7 @@ export default function AssetDetail() {
             <Link to={ROUTES.ASSETS.EDIT(asset.id)}>
               <Button icon={<FiEdit2 />} collapseLabel>Edit</Button>
             </Link>
+            <Button variant="danger" onClick={() => setShowDeleteModal(true)} icon={<FiTrash2 />} collapseLabel>Delete</Button>
           </div>
         </div>
       </div>
@@ -278,6 +294,12 @@ export default function AssetDetail() {
               <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Name</label>
               <p className="mt-1 text-gray-900 dark:text-gray-100">{toTitleCase(asset.name)}</p>
             </div>
+            {asset.nameMl && (
+              <div>
+                <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Name (Malayalam)</label>
+                <p className="mt-1 text-gray-900 dark:text-gray-100 font-malayalam">{asset.nameMl}</p>
+              </div>
+            )}
             <div>
               <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Category</label>
               <p className="mt-1 text-gray-900 dark:text-gray-100">
@@ -318,6 +340,12 @@ export default function AssetDetail() {
               <div>
                 <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Location</label>
                 <p className="mt-1 text-gray-900 dark:text-gray-100">{toTitleCase(asset.location)}</p>
+              </div>
+            )}
+            {asset.locationMl && (
+              <div>
+                <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Location (Malayalam)</label>
+                <p className="mt-1 text-gray-900 dark:text-gray-100 font-malayalam">{asset.locationMl}</p>
               </div>
             )}
             <div>
@@ -506,6 +534,26 @@ export default function AssetDetail() {
       >
         <p className="text-gray-600 dark:text-gray-400">
           Are you sure you want to delete this maintenance record? This action cannot be undone.
+        </p>
+      </Modal>
+
+      <Modal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        title="Delete Asset"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setShowDeleteModal(false)}>
+              Cancel
+            </Button>
+            <Button variant="danger" onClick={handleDelete} isLoading={deleting}>
+              Delete
+            </Button>
+          </>
+        }
+      >
+        <p className="text-gray-600 dark:text-gray-400">
+          Are you sure you want to delete <strong>{toTitleCase(asset.name)}</strong>? This action cannot be undone.
         </p>
       </Modal>
     </div>

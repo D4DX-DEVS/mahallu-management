@@ -109,6 +109,12 @@ export default function MahalluLedgerItemsList() {
   const columns: TableColumn<LedgerItem>[] = [
     { key: 'id', label: 'No.', width: '6rem', render: (_, __, idx) => idx + 1 },
     { key: 'date', label: 'Date', width: '6.25rem', render: (d) => formatDate(d) },
+    {
+      key: 'ledgerId' as any,
+      label: 'Ledger',
+      width: '8.25rem',
+      render: (ledgerId: string) => toTitleCase(ledgers.find((l) => l.id === ledgerId)?.name) || '—',
+    },
     { key: 'description', label: 'Description', width: '9.25rem' },
     {
       key: 'type',
@@ -124,16 +130,18 @@ export default function MahalluLedgerItemsList() {
     },
     { key: 'amount', label: 'Amount', width: '7.75rem', render: (a) => `₹${(a || 0).toLocaleString()}` },
     { key: 'paymentMethod', label: 'Method', width: '7.5rem' },
+    { key: 'referenceNo', label: 'Reference No', width: '7.5rem', render: (r) => r || '—' },
     { key: 'source', label: 'Source', width: '7.25rem', render: (s) => s || 'manual' },
     {
-      key: 'actions',
-      label: 'Actions',
-      width: '8rem',
+      key: 'delete',
+      label: '',
+      width: '3rem',
       align: 'center',
       render: (_, row) =>
         row.source === 'manual' ? (
           <button
-            onClick={() => {
+            onClick={(e) => {
+              e.stopPropagation();
               setSelected(row);
               setShowDeleteModal(true);
             }}
@@ -145,6 +153,13 @@ export default function MahalluLedgerItemsList() {
         ) : null,
     },
   ];
+
+  const openRow = (row: LedgerItem) => {
+    if (row.source === 'manual') {
+      setSelected(row);
+      setShowDeleteModal(true);
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -203,7 +218,14 @@ export default function MahalluLedgerItemsList() {
           <p className="text-center py-8 text-red-600">{error}</p>
         ) : (
           <>
-            <Table fixedLayout striped columns={columns} data={filtered} emptyMessage="No entries found" />
+            <Table
+              fixedLayout
+              striped
+              columns={columns}
+              data={filtered}
+              emptyMessage="No entries found"
+              onRowClick={openRow}
+            />
             {pagination && (
               <Pagination
                 currentPage={currentPage}

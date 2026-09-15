@@ -1,15 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiPlus, FiEye, FiEdit2, FiTrash2, FiLock, FiAlertCircle } from 'react-icons/fi';
+import { FiPlus, FiLock, FiAlertCircle } from 'react-icons/fi';
 import Button from '@/components/ui/Button';
 import ExpandableSearch from '@/components/ui/ExpandableSearch';
 import Card from '@/components/ui/Card';
 import Pagination from '@/components/ui/Pagination';
-import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { toast } from '@/store/toastStore';
-import { getDisputeCases, deleteDisputeCase, IDisputeCase } from '@/services/counsellingService';
+import { getDisputeCases, IDisputeCase } from '@/services/counsellingService';
 import PageHeader from '@/components/layout/PageHeader';
-import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import { loadErrorMessage } from '@/utils/errors';
 import { toTitleCase } from '@/utils/format';
 
 const TYPES = ['family', 'marriage', 'divorce', 'community', 'inheritance', 'other'];
@@ -26,10 +25,6 @@ export default function DisputesList() {
   const [search, setSearch] = useState('');
   const [selectedType, setSelectedType] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
-  const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [deleteCaseName, setDeleteCaseName] = useState<string>('');
-  const [confirmDelete, setConfirmDelete] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
 
   const itemsPerPage = 10;
 
@@ -61,24 +56,6 @@ export default function DisputesList() {
   useEffect(() => {
     fetchCases(1);
   }, [selectedType, selectedStatus, search, fetchCases]);
-
-  const handleDelete = async () => {
-    if (!deleteId) return;
-    setIsDeleting(true);
-    try {
-      await deleteDisputeCase(deleteId);
-      setConfirmDelete(false);
-      setDeleteId(null);
-      setDeleteCaseName('');
-      toast.success('Dispute case deleted');
-      fetchCases(currentPage);
-    } catch (error) {
-      console.error("Couldn't delete case:", error);
-      toast.error(errorMessage(error, { action: 'delete dispute case' }));
-    } finally {
-      setIsDeleting(false);
-    }
-  };
 
   const handlePageChange = (page: number) => {
     fetchCases(page);
@@ -172,63 +149,35 @@ export default function DisputesList() {
           <>
             <div className="space-y-4 mb-4">
               {cases.map((caseRecord) => (
-                <Card key={caseRecord.id}>
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <h3 className="text-base sm:text-lg font-semibold">{caseRecord.caseNo}</h3>
-                        <span className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded">
-                          {caseRecord.type}
-                        </span>
-                        <span
-                          className={`text-xs px-2 py-1 rounded ${
-                            caseRecord.status === 'closed'
-                              ? 'bg-gray-100 text-gray-800'
-                              : 'bg-green-100 text-green-800'
-                          }`}
-                        >
-                          {caseRecord.status}
-                        </span>
-                      </div>
+                <Card
+                  key={caseRecord.id}
+                  className="cursor-pointer transition-shadow hover:shadow-md"
+                  onClick={() => navigate(`/maslahat/${caseRecord.id}`)}
+                >
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      <h3 className="text-base sm:text-lg font-semibold">{caseRecord.caseNo}</h3>
+                      <span className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded">
+                        {caseRecord.type}
+                      </span>
+                      <span
+                        className={`text-xs px-2 py-1 rounded ${
+                          caseRecord.status === 'closed'
+                            ? 'bg-gray-100 text-gray-800'
+                            : 'bg-green-100 text-green-800'
+                        }`}
+                      >
+                        {caseRecord.status}
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-600">
+                      Parties: {(caseRecord.parties ?? []).map((party) => toTitleCase(party)).join(', ')}
+                    </p>
+                    {caseRecord.mediators && caseRecord.mediators.length > 0 && (
                       <p className="text-sm text-gray-600">
-                        Parties: {(caseRecord.parties ?? []).map((party) => toTitleCase(party)).join(', ')}
+                        Mediators: {caseRecord.mediators.map((mediator) => toTitleCase(mediator)).join(', ')}
                       </p>
-                      {caseRecord.mediators && caseRecord.mediators.length > 0 && (
-                        <p className="text-sm text-gray-600">
-                          Mediators: {caseRecord.mediators.map((mediator) => toTitleCase(mediator)).join(', ')}
-                        </p>
-                      )}
-                    </div>
-                    <div className="flex gap-2 items-center">
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => navigate(`/maslahat/${caseRecord.id}`)}
-                        className="flex flex-wrap items-center gap-2"
-                      >
-                        <FiEye size={16} />
-                      </Button>
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => navigate(`/maslahat/${caseRecord.id}`)}
-                        className="flex items-center gap-2"
-                      >
-                        <FiEdit2 size={16} />
-                      </Button>
-                      <Button
-                        variant="danger"
-                        size="sm"
-                        onClick={() => {
-                          setDeleteId(caseRecord.id);
-                          setDeleteCaseName(caseRecord.caseNo);
-                          setConfirmDelete(true);
-                        }}
-                        className="flex items-center gap-2"
-                      >
-                        <FiTrash2 size={16} />
-                      </Button>
-                    </div>
+                    )}
                   </div>
                 </Card>
               ))}
@@ -246,23 +195,6 @@ export default function DisputesList() {
           </>
         )}
       </div>
-
-      <ConfirmDialog
-        isOpen={confirmDelete}
-        title="Delete Dispute Case"
-        message={`Delete dispute case ${deleteCaseName}?`}
-        consequence="This action is irreversible. All mediation records and case details will be permanently deleted."
-        confirmLabel="Delete"
-        cancelLabel="Cancel"
-        variant="danger"
-        isLoading={isDeleting}
-        onConfirm={handleDelete}
-        onCancel={() => {
-          setConfirmDelete(false);
-          setDeleteId(null);
-          setDeleteCaseName('');
-        }}
-      />
     </div>
   );
 }

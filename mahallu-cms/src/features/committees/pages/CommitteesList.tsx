@@ -1,12 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FiCalendar, FiCheckCircle, FiEdit2, FiEye, FiPlus, FiTrash2, FiUsers, FiXCircle } from 'react-icons/fi';
+import { FiCalendar, FiCheckCircle, FiPlus, FiUsers, FiXCircle } from 'react-icons/fi';
 import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
 import { PageSkeleton } from '@/components/ui/Skeleton';
-import Modal from '@/components/ui/Modal';
 import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
 import { toast } from '@/store/toastStore';
@@ -18,9 +17,8 @@ import { fetchAllPages } from '@/services/api';
 import { useDebounce } from '@/hooks/useDebounce';
 import { formatDate, toTitleCase } from '@/utils/format';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
-import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import { loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
-import ActionsMenu from '@/components/ui/ActionsMenu';
 
 export default function CommitteesList() {
   const navigate = useNavigate();
@@ -29,9 +27,6 @@ export default function CommitteesList() {
   const [committees, setCommittees] = useState<Committee[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedCommittee, setSelectedCommittee] = useState<Committee | null>(null);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [deleting, setDeleting] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
@@ -105,20 +100,6 @@ export default function CommitteesList() {
     }
   };
 
-  const handleDelete = async () => {
-    if (!selectedCommittee) return;
-    try {
-      setDeleting(true);
-      await committeeService.delete(selectedCommittee.id);
-      await fetchCommittees();
-      setShowDeleteModal(false);
-      setSelectedCommittee(null);
-    } catch (err: any) {
-      setError(errorMessage(err, { action: 'delete committee' }));
-      setDeleting(false);
-    }
-  };
-
   const columns: TableColumn<Committee>[] = [
     {
       key: 'name',
@@ -177,48 +158,6 @@ export default function CommitteesList() {
       label: 'Created',
       width: '7.75rem',
       render: (date) => formatDate(date),
-    },
-    {
-      key: 'actions',
-      label: 'Actions',
-      width: '8rem',
-      align: 'center',
-      render: (_, row) => (
-        <ActionsMenu
-          items={[
-            {
-              label: 'View',
-              icon: <FiEye className="h-4 w-4" />,
-              onClick: () => {
-                navigate(ROUTES.COMMITTEES.DETAIL(row.id));
-              },
-            },
-            {
-              label: 'Meetings',
-              icon: <FiCalendar className="h-4 w-4" />,
-              onClick: () => {
-                navigate(`/committees/${row.id}/meetings`);
-              },
-            },
-            {
-              label: 'Edit',
-              icon: <FiEdit2 className="h-4 w-4" />,
-              onClick: () => {
-                navigate(`/committees/${row.id}/edit`);
-              },
-            },
-            {
-              label: 'Delete',
-              icon: <FiTrash2 className="h-4 w-4" />,
-              onClick: () => {
-                setSelectedCommittee(row);
-                setShowDeleteModal(true);
-              },
-              variant: 'danger',
-            },
-          ]}
-        />
-      ),
     },
   ];
 
@@ -310,36 +249,6 @@ export default function CommitteesList() {
           </div>
         )}
       </TableCard>
-
-      <Modal
-        isOpen={showDeleteModal}
-        onClose={() => {
-          setShowDeleteModal(false);
-          setSelectedCommittee(null);
-        }}
-        title="Delete Committee"
-        footer={
-          <>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setShowDeleteModal(false);
-                setSelectedCommittee(null);
-              }}
-            >
-              Cancel
-            </Button>
-            <Button variant="danger" onClick={handleDelete} isLoading={deleting}>
-              Delete
-            </Button>
-          </>
-        }
-      >
-        <p className="text-gray-600 dark:text-gray-400">
-          Are you sure you want to delete <strong>{toTitleCase(selectedCommittee?.name)}</strong>? This will also delete
-          all associated meetings. This action cannot be undone.
-        </p>
-      </Modal>
     </div>
   );
 }

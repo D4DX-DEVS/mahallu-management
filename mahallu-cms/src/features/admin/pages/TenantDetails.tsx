@@ -1,13 +1,16 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { FiEdit, FiArrowLeft, FiMail, FiPhone, FiMapPin, FiGlobe, FiCalendar } from 'react-icons/fi';
+import { FiEdit, FiArrowLeft, FiMail, FiPhone, FiMapPin, FiGlobe, FiCalendar, FiTrash2 } from 'react-icons/fi';
 import PageHeader from '@/components/layout/PageHeader';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
+import Modal from '@/components/ui/Modal';
 import { Tenant } from '@/types/tenant';
 import { tenantService } from '@/services/tenantService';
 import { formatDate, toTitleCase } from '@/utils/format';
-import { loadErrorMessage } from '@/utils/errors';
+import { loadErrorMessage, errorMessage } from '@/utils/errors';
+import { toast } from '@/store/toastStore';
+import { CLASSIFICATION_LABELS, TenantClassification } from '@/constants/modules';
 
 export default function TenantDetails() {
   const { id } = useParams<{ id: string }>();
@@ -15,6 +18,21 @@ export default function TenantDetails() {
   const [tenant, setTenant] = useState<Tenant | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDelete = async () => {
+    if (!id) return;
+    try {
+      setDeleting(true);
+      await tenantService.delete(id);
+      toast.success('Tenant deleted');
+      navigate('/admin/tenants');
+    } catch (err) {
+      toast.error(errorMessage(err, { action: 'delete tenant' }));
+      setDeleting(false);
+    }
+  };
 
   useEffect(() => {
     if (id) {
@@ -88,12 +106,18 @@ export default function TenantDetails() {
             <PageHeader title={toTitleCase(tenant.name)} description="Tenant Details" />
           </div>
         </div>
-        <Link to={`/admin/tenants/${id}/edit`}>
-          <Button variant="primary" className="flex items-center gap-2">
-            <FiEdit className="h-4 w-4" />
-            Edit Tenant
+        <div className="flex items-center gap-2">
+          <Link to={`/admin/tenants/${id}/edit`}>
+            <Button variant="primary" className="flex items-center gap-2">
+              <FiEdit className="h-4 w-4" />
+              Edit Tenant
+            </Button>
+          </Link>
+          <Button variant="danger" onClick={() => setShowDeleteModal(true)} className="flex items-center gap-2">
+            <FiTrash2 className="h-4 w-4" />
+            Delete
           </Button>
-        </Link>
+        </div>
       </div>
 
       {/* Status Badge */}
@@ -156,6 +180,20 @@ export default function TenantDetails() {
 
           <div className="flex items-start gap-3">
             <div className="p-2 bg-primary-50 dark:bg-primary-900/20 rounded-lg">
+              <FiGlobe className="h-5 w-5 text-primary-600 dark:text-primary-400" />
+            </div>
+            <div>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Mahallu Classification</p>
+              <p className="font-medium text-gray-900 dark:text-white">
+                {CLASSIFICATION_LABELS[(tenant as any).classification as TenantClassification] ||
+                  (tenant as any).classification ||
+                  'N/A'}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-start gap-3">
+            <div className="p-2 bg-primary-50 dark:bg-primary-900/20 rounded-lg">
               <FiCalendar className="h-5 w-5 text-primary-600 dark:text-primary-400" />
             </div>
             <div>
@@ -177,6 +215,34 @@ export default function TenantDetails() {
               </p>
             </div>
           </div>
+
+          {tenant.address?.postOffice && (
+            <div className="flex items-start gap-3">
+              <div className="p-2 bg-primary-50 dark:bg-primary-900/20 rounded-lg">
+                <FiMapPin className="h-5 w-5 text-primary-600 dark:text-primary-400" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Post Office</p>
+                <p className="font-medium text-gray-900 dark:text-white">
+                  {toTitleCase(tenant.address.postOffice)}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {tenant.settings?.varisangyaAmount !== undefined && (
+            <div className="flex items-start gap-3">
+              <div className="p-2 bg-primary-50 dark:bg-primary-900/20 rounded-lg">
+                <FiGlobe className="h-5 w-5 text-primary-600 dark:text-primary-400" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Varisangya Amount</p>
+                <p className="font-medium text-gray-900 dark:text-white">
+                  {tenant.settings.varisangyaAmount}
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       </Card>
 
@@ -259,6 +325,26 @@ export default function TenantDetails() {
           </div>
         </div>
       </Card>
+
+      <Modal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        title="Delete Tenant"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setShowDeleteModal(false)}>
+              Cancel
+            </Button>
+            <Button variant="danger" onClick={handleDelete} isLoading={deleting}>
+              Delete
+            </Button>
+          </>
+        }
+      >
+        <p className="text-gray-600 dark:text-gray-400">
+          Are you sure you want to delete <strong>{toTitleCase(tenant.name)}</strong>? This action cannot be undone.
+        </p>
+      </Modal>
     </div>
   );
 }

@@ -30,6 +30,7 @@ import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
 import SortableTh from '@/components/ui/SortableTh';
 import { useSortableRows } from '@/hooks/useSortableRows';
+import { ROUTES } from '@/constants/routes';
 
 const STATUS_FILTER = [{ value: '', label: 'All students' }, ...ENROLLMENT_STATUS_OPTIONS];
 
@@ -235,6 +236,8 @@ export default function ClassDetail() {
         <h2 className="mb-3 text-sm font-semibold text-foreground">Class</h2>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
           <Field label="Name (Malayalam)" value={cls.nameMl || '-'} />
+          <Field label="Academic Year" value={cls.academicYear || '-'} />
+          <Field label="Class Type" value={classTypeLabel(cls.classType)} />
           <Field label="Teacher" value={<span>{toTitleCase(teacherName(cls))}</span>} />
           <Field
             label="Institute"
@@ -338,6 +341,10 @@ export default function ClassDetail() {
           data={students}
           isLoading={studentsLoading}
           emptyMessage="No students enrolled yet"
+          onRowClick={(row) => {
+            const memberId = typeof row.memberId === 'object' ? row.memberId?.id : row.memberId;
+            if (memberId) navigate(ROUTES.MEMBERS.DETAIL(memberId));
+          }}
         />
 
         {pagination && pagination.totalPages > 1 && (

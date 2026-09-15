@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { FiArrowLeft, FiCheck, FiFilePlus, FiRotateCcw, FiXCircle } from 'react-icons/fi';
+import { FiArrowLeft, FiCheck, FiEdit2, FiFilePlus, FiRotateCcw, FiXCircle } from 'react-icons/fi';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
@@ -116,6 +116,9 @@ export default function NikahRegistrationDetail() {
           {registration.status === 'approved' && (
             <Button onClick={() => setShowCertModal(true)} className="bg-green-600 hover:bg-green-700" icon={<FiFilePlus />} collapseLabel>Issue Certificate</Button>
           )}
+          <Link to={`/registrations/nikah/${registration.id}/edit`}>
+            <Button variant="outline" icon={<FiEdit2 />} collapseLabel>Edit</Button>
+          </Link>
           <Link to={ROUTES.REGISTRATIONS.NIKAH}>
             <Button variant="outline" icon={<FiArrowLeft />} collapseLabel>Back to List</Button>
           </Link>

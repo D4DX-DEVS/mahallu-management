@@ -6,10 +6,8 @@ import Card from '../../../components/ui/Card';
 import Pagination from '../../../components/ui/Pagination';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import ExpandableSearch from '@/components/ui/ExpandableSearch';
-import ConfirmDialog from '../../../components/ui/ConfirmDialog';
-import { toast } from '@/store/toastStore';
-import { FiPlus, FiEdit2, FiTrash2 } from 'react-icons/fi';
-import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import { FiPlus } from 'react-icons/fi';
+import { loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
 
@@ -23,8 +21,6 @@ export function CemeteriesList() {
   const [totalItems, setTotalItems] = useState(0);
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [confirmDelete, setConfirmDelete] = useState(false);
-  const [deleteId, setDeleteId] = useState<string | null>(null);
   const itemsPerPage = 10;
 
   // Debounce search
@@ -56,21 +52,6 @@ export function CemeteriesList() {
 
     fetchCemeteries();
   }, [currentPage, debouncedSearch]);
-
-  const handleDelete = async () => {
-    if (!deleteId) return;
-    try {
-      await cemeteryService.deleteCemetery(deleteId);
-      setCemeteries(cemeteries.filter((c) => c.id !== deleteId));
-      toast.success('Cemetery deleted');
-      setConfirmDelete(false);
-      setDeleteId(null);
-    } catch (err: any) {
-      toast.error(errorMessage(err, { action: 'delete cemetery' }));
-      setConfirmDelete(false);
-      setDeleteId(null);
-    }
-  };
 
   return (
     <div className="space-y-4">
@@ -159,30 +140,6 @@ export function CemeteriesList() {
                     }}
                   />
                 </div>
-
-                <div className="flex gap-2 pt-2 border-t items-center">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex-1 flex items-center justify-center gap-1 text-xs"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      navigate(`/cemetery/${cemetery.id}/edit`);
-                    }}
-                  >
-                    <FiEdit2 className="w-3 h-3" />
-                    Edit
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex-1 flex items-center justify-center gap-1 text-xs text-red-600 hover:text-red-700"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setDeleteId(cemetery.id!);
-                      setConfirmDelete(true);
-                    }} icon={<FiTrash2 />} collapseLabel>Delete</Button>
-                </div>
               </div>
             </Card>
           ))}
@@ -198,21 +155,6 @@ export function CemeteriesList() {
           onPageChange={setCurrentPage}
         />
       )}
-
-      <ConfirmDialog
-        isLoading={loading}
-        isOpen={confirmDelete}
-        title="Delete Cemetery"
-        message="Delete this cemetery? This action cannot be undone."
-        confirmLabel="Delete"
-        cancelLabel="Cancel"
-        variant="danger"
-        onConfirm={handleDelete}
-        onCancel={() => {
-          setConfirmDelete(false);
-          setDeleteId(null);
-        }}
-      />
     </div>
   );
 }

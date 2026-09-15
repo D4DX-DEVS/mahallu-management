@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
-import ActionsMenu from '@/components/ui/ActionsMenu';
-import { FiEdit2, FiTrash2, FiPlus } from 'react-icons/fi';
+import { FiPlus } from 'react-icons/fi';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -193,32 +192,6 @@ export default function KhateebsList() {
         </span>
       ),
     },
-    {
-      key: 'actions',
-      label: 'Actions',
-      align: 'center' as const,
-      render: (_: any, khateeb: Khateeb) => (
-        <ActionsMenu
-          label={'Actions for ' + toTitleCase(khateeb.name)}
-          items={[
-            {
-              label: 'Edit',
-              icon: <FiEdit2 className="h-4 w-4" />,
-              onClick: () => handleOpenModal(khateeb),
-            },
-            {
-              label: 'Delete',
-              icon: <FiTrash2 className="h-4 w-4" />,
-              onClick: () => {
-                setSelectedKhateeb(khateeb);
-                setShowDeleteModal(true);
-              },
-              variant: 'danger' as const,
-            },
-          ]}
-        />
-      ),
-    },
   ];
 
   if (loading) return <PageSkeleton />;
@@ -243,7 +216,7 @@ export default function KhateebsList() {
       </div>
 
       <TableCard>
-        <Table fixedLayout striped columns={columns} data={khateebs} />
+        <Table fixedLayout striped columns={columns} data={khateebs} onRowClick={(row) => handleOpenModal(row)} />
       </TableCard>
 
       {pagination && (
@@ -310,6 +283,20 @@ export default function KhateebsList() {
             >
               Cancel
             </Button>
+            {editingKhateeb && (
+              <Button
+                type="button"
+                variant="danger"
+                onClick={() => {
+                  setSelectedKhateeb(editingKhateeb);
+                  setShowModal(false);
+                  setShowDeleteModal(true);
+                }}
+                disabled={isSubmitting}
+              >
+                Delete
+              </Button>
+            )}
             <Button type="submit" isLoading={isSubmitting} disabled={isSubmitting}>
               {editingKhateeb ? 'Update' : 'Create'}
             </Button>

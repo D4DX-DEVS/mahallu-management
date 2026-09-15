@@ -1,12 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FiCheckCircle, FiEdit2, FiEye, FiLayers, FiPlus, FiTrash2, FiXCircle } from 'react-icons/fi';
+import { FiCheckCircle, FiLayers, FiPlus, FiXCircle } from 'react-icons/fi';
 import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
 import { PageSkeleton } from '@/components/ui/Skeleton';
-import Modal from '@/components/ui/Modal';
 import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
 import { toast } from '@/store/toastStore';
@@ -20,7 +19,6 @@ import { formatDate, toTitleCase } from '@/utils/format';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
-import ActionsMenu from '@/components/ui/ActionsMenu';
 
 export default function ProgramsList() {
   const navigate = useNavigate();
@@ -29,9 +27,6 @@ export default function ProgramsList() {
   const [programs, setPrograms] = useState<Institute[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedProgram, setSelectedProgram] = useState<Institute | null>(null);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [deleting, setDeleting] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
@@ -115,20 +110,6 @@ export default function ProgramsList() {
     }
   };
 
-  const handleDelete = async () => {
-    if (!selectedProgram) return;
-    try {
-      setDeleting(true);
-      await programService.delete(selectedProgram.id);
-      await fetchPrograms();
-      setShowDeleteModal(false);
-      setSelectedProgram(null);
-    } catch (err: any) {
-      setError(errorMessage(err, { action: 'delete program' }));
-      setDeleting(false);
-    }
-  };
-
   const columns: TableColumn<Institute>[] = [
     {
       key: 'name',
@@ -184,41 +165,6 @@ export default function ProgramsList() {
         >
           {status || 'active'}
         </span>
-      ),
-    },
-    {
-      key: 'actions',
-      label: 'Actions',
-      width: '8rem',
-      align: 'center',
-      render: (_, row) => (
-        <ActionsMenu
-          items={[
-            {
-              label: 'View',
-              icon: <FiEye className="h-4 w-4" />,
-              onClick: () => {
-                navigate(ROUTES.PROGRAMS.DETAIL(row.id));
-              },
-            },
-            {
-              label: 'Edit',
-              icon: <FiEdit2 className="h-4 w-4" />,
-              onClick: () => {
-                navigate(`/programs/${row.id}/edit`);
-              },
-            },
-            {
-              label: 'Delete',
-              icon: <FiTrash2 className="h-4 w-4" />,
-              onClick: () => {
-                setSelectedProgram(row);
-                setShowDeleteModal(true);
-              },
-              variant: 'danger',
-            },
-          ]}
-        />
       ),
     },
   ];
@@ -351,36 +297,6 @@ export default function ProgramsList() {
           </div>
         )}
       </TableCard>
-
-      <Modal
-        isOpen={showDeleteModal}
-        onClose={() => {
-          setShowDeleteModal(false);
-          setSelectedProgram(null);
-        }}
-        title="Delete Program"
-        footer={
-          <>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setShowDeleteModal(false);
-                setSelectedProgram(null);
-              }}
-            >
-              Cancel
-            </Button>
-            <Button variant="danger" onClick={handleDelete} isLoading={deleting}>
-              Delete
-            </Button>
-          </>
-        }
-      >
-        <p className="text-gray-600 dark:text-gray-400">
-          Are you sure you want to delete <strong>{toTitleCase(selectedProgram?.name)}</strong>? This action cannot be
-          undone.
-        </p>
-      </Modal>
     </div>
   );
 }

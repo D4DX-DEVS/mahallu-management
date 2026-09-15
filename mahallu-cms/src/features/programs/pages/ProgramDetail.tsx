@@ -1,22 +1,26 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { FiEdit2, FiArrowLeft } from 'react-icons/fi';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import { FiEdit2, FiArrowLeft, FiTrash2 } from 'react-icons/fi';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import { PageSkeleton } from '@/components/ui/Skeleton';
+import Modal from '@/components/ui/Modal';
 import { Institute } from '@/types';
 import { ROUTES } from '@/constants/routes';
 import { programService } from '@/services/programService';
 import { formatDate, toTitleCase } from '@/utils/format';
 import ProgramRegistrations from '../components/ProgramRegistrations';
-import { loadErrorMessage } from '@/utils/errors';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 
 export default function ProgramDetail() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [program, setProgram] = useState<Institute | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -36,6 +40,18 @@ export default function ProgramDetail() {
       console.error('Error fetching program:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!id) return;
+    try {
+      setDeleting(true);
+      await programService.delete(id);
+      navigate(ROUTES.PROGRAMS.LIST);
+    } catch (err: any) {
+      setError(errorMessage(err, { action: 'delete program' }));
+      setDeleting(false);
     }
   };
 
@@ -70,6 +86,7 @@ export default function ProgramDetail() {
             <Link to={`/programs/${program.id}/edit`}>
               <Button icon={<FiEdit2 />} collapseLabel>Edit</Button>
             </Link>
+            <Button variant="danger" onClick={() => setShowDeleteModal(true)} icon={<FiTrash2 />} collapseLabel>Delete</Button>
           </div>
         </div>
       </div>
@@ -82,14 +99,40 @@ export default function ProgramDetail() {
               <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Name</label>
               <p className="mt-1 text-gray-900 dark:text-gray-100">{toTitleCase(program.name)}</p>
             </div>
+            {program.nameMl && (
+              <div>
+                <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Name (Malayalam)</label>
+                <p className="mt-1 text-gray-900 dark:text-gray-100 font-malayalam">{program.nameMl}</p>
+              </div>
+            )}
             <div>
               <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Place</label>
               <p className="mt-1 text-gray-900 dark:text-gray-100">{toTitleCase(program.place)}</p>
             </div>
+            {program.placeMl && (
+              <div>
+                <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Place (Malayalam)</label>
+                <p className="mt-1 text-gray-900 dark:text-gray-100 font-malayalam">{program.placeMl}</p>
+              </div>
+            )}
             <div>
               <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Join Date</label>
               <p className="mt-1 text-gray-900 dark:text-gray-100">{formatDate(program.joinDate)}</p>
             </div>
+            {program.audience && (
+              <div>
+                <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Audience</label>
+                <p className="mt-1 text-gray-900 dark:text-gray-100 capitalize">{program.audience}</p>
+              </div>
+            )}
+            {program.programType && (
+              <div>
+                <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Program Type</label>
+                <p className="mt-1 text-gray-900 dark:text-gray-100 capitalize">
+                  {program.programType.replace(/_/g, ' ')}
+                </p>
+              </div>
+            )}
             <div>
               <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Status</label>
               <p className="mt-1">
@@ -124,6 +167,41 @@ export default function ProgramDetail() {
             )}
           </div>
         </Card>
+
+        {(program.address?.state ||
+          program.address?.district ||
+          program.address?.pinCode ||
+          program.address?.postOffice) && (
+          <Card className="md:col-span-2">
+            <h2 className="text-lg font-semibold mb-3 text-foreground">Address</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+              {program.address?.state && (
+                <div>
+                  <label className="text-sm font-medium text-gray-500 dark:text-gray-400">State</label>
+                  <p className="mt-1 text-gray-900 dark:text-gray-100">{program.address.state}</p>
+                </div>
+              )}
+              {program.address?.district && (
+                <div>
+                  <label className="text-sm font-medium text-gray-500 dark:text-gray-400">District</label>
+                  <p className="mt-1 text-gray-900 dark:text-gray-100">{program.address.district}</p>
+                </div>
+              )}
+              {program.address?.pinCode && (
+                <div>
+                  <label className="text-sm font-medium text-gray-500 dark:text-gray-400">PIN Code</label>
+                  <p className="mt-1 text-gray-900 dark:text-gray-100">{program.address.pinCode}</p>
+                </div>
+              )}
+              {program.address?.postOffice && (
+                <div>
+                  <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Post Office</label>
+                  <p className="mt-1 text-gray-900 dark:text-gray-100">{program.address.postOffice}</p>
+                </div>
+              )}
+            </div>
+          </Card>
+        )}
 
         {program.description && (
           <Card className="md:col-span-2">
@@ -174,6 +252,26 @@ export default function ProgramDetail() {
           <ProgramRegistrations programId={program.id} />
         </div>
       </div>
+
+      <Modal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        title="Delete Program"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setShowDeleteModal(false)}>
+              Cancel
+            </Button>
+            <Button variant="danger" onClick={handleDelete} isLoading={deleting}>
+              Delete
+            </Button>
+          </>
+        }
+      >
+        <p className="text-gray-600 dark:text-gray-400">
+          Are you sure you want to delete <strong>{toTitleCase(program.name)}</strong>? This action cannot be undone.
+        </p>
+      </Modal>
     </div>
   );
 }

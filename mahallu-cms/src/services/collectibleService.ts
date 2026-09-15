@@ -50,6 +50,7 @@ export interface Transaction {
   description: string;
   referenceId?: string;
   referenceType?: 'varisangya' | 'zakat';
+  paymentMethod?: string;
   createdAt: string;
 }
 

@@ -1,9 +1,10 @@
 import { useState, useEffect, ReactNode } from 'react';
-import { FiEdit2, FiPlus } from 'react-icons/fi';
+import { FiEdit2, FiPlus, FiTrash2 } from 'react-icons/fi';
 import { useParams, useNavigate } from 'react-router-dom';
 import Card from '@/components/ui/Card';
 import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
+import Modal from '@/components/ui/Modal';
 import Table from '@/components/ui/Table';
 import StatCard from '@/components/ui/StatCard';
 import { PageSkeleton } from '@/components/ui/Skeleton';
@@ -21,7 +22,8 @@ import {
 import LoanStatusBadge, { InstallmentBadge } from '../components/LoanStatusBadge';
 import RepaymentModal from '../components/RepaymentModal';
 import LoanStatusModal from '../components/LoanStatusModal';
-import { loadErrorMessage } from '@/utils/errors';
+import { toast } from '@/store/toastStore';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import { toTitleCase } from '@/utils/format';
 import PageHeader from '@/components/layout/PageHeader';
 
@@ -40,6 +42,8 @@ export default function LoanDetail() {
   const [error, setError] = useState<string | null>(null);
   const [repayOpen, setRepayOpen] = useState(false);
   const [statusOpen, setStatusOpen] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (id) fetchLoan(id);
@@ -77,6 +81,19 @@ export default function LoanDetail() {
     { key: 'receiptNo', label: 'Receipt', width: '7.5rem', render: (v) => v || '-' },
     { key: 'remarks', label: 'Remarks', width: '8.25rem', render: (v) => v || '-' },
   ];
+
+  const handleDelete = async () => {
+    if (!id) return;
+    try {
+      setDeleting(true);
+      await qardService.deleteLoan(id);
+      toast.success('Loan deleted');
+      navigate('/loans');
+    } catch (err: any) {
+      toast.error(errorMessage(err, { action: 'delete loan' }));
+      setDeleting(false);
+    }
+  };
 
   if (loading) return <PageSkeleton />;
 
@@ -116,6 +133,7 @@ export default function LoanDetail() {
             <Button variant="secondary" onClick={() => setStatusOpen(true)} icon={<FiEdit2 />} collapseLabel>Change status</Button>
           )}
           {canRepay && <Button onClick={() => setRepayOpen(true)} icon={<FiPlus />} collapseLabel>Add repayment</Button>}
+          <Button variant="danger" onClick={() => setShowDeleteModal(true)} icon={<FiTrash2 />} collapseLabel>Delete</Button>
         </div>
       </div>
 
@@ -182,6 +200,27 @@ export default function LoanDetail() {
         loan={loan}
         onUpdated={() => id && fetchLoan(id)}
       />
+
+      <Modal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        title="Delete Loan"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setShowDeleteModal(false)}>
+              Cancel
+            </Button>
+            <Button variant="danger" onClick={handleDelete} isLoading={deleting}>
+              Delete
+            </Button>
+          </>
+        }
+      >
+        <p className="text-gray-600 dark:text-gray-400">
+          Are you sure you want to delete this loan for <strong>{toTitleCase(loanApplicantName(loan))}</strong>? This
+          action cannot be undone.
+        </p>
+      </Modal>
     </div>
   );
 }

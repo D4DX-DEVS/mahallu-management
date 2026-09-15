@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FiEye, FiDollarSign, FiHome, FiCreditCard, FiDownload } from 'react-icons/fi';
+import { FiDollarSign, FiHome, FiCreditCard, FiDownload } from 'react-icons/fi';
 import TableCard from '@/components/ui/TableCard';
 import { rowActionClass } from '@/components/ui/rowAction';
 import Button from '@/components/ui/Button';
@@ -258,17 +258,6 @@ export default function FamilyVarisangyaList() {
           <button
             onClick={(e) => {
               e.stopPropagation();
-              navigate(`${FAMILY_BASE}?view=transactions&familyId=${row.id}`);
-            }}
-            className={rowActionClass()}
-            title="View Transactions"
-            aria-label="View Transactions"
-          >
-            <FiEye className="h-4 w-4" />
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
               navigate(`${FAMILY_BASE}?view=wallet&familyId=${row.id}`);
             }}
             className={rowActionClass()}
@@ -349,7 +338,15 @@ export default function FamilyVarisangyaList() {
             </Button>
           </div>
         ) : (
-          <Table fixedLayout striped columns={columns} data={families} emptyMessage="No families found" showExport={false} />
+          <Table
+            fixedLayout
+            striped
+            columns={columns}
+            data={families}
+            emptyMessage="No families found"
+            showExport={false}
+            onRowClick={(row) => navigate(`${FAMILY_BASE}?view=transactions&familyId=${row.id}`)}
+          />
         )}
         {pagination && (
           <div className="mt-4">

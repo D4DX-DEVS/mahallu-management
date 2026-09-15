@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import { FiTrash2 } from 'react-icons/fi';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
+import Modal from '@/components/ui/Modal';
 import { PageSkeleton } from '@/components/ui/Skeleton';
+import { toast } from '@/store/toastStore';
 import { surveyService, SurveySnapshot, SurveyStats } from '@/services/surveyService';
-import { loadErrorMessage } from '@/utils/errors';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 
 const STAT_LABELS: Array<{ key: keyof SurveyStats; label: string }> = [
@@ -30,10 +33,13 @@ const formatDate = (value?: string) => (value ? new Date(value).toLocaleDateStri
 
 export default function SurveyDetail() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [snapshot, setSnapshot] = useState<SurveySnapshot | null>(null);
   const [previous, setPrevious] = useState<SurveySnapshot | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -66,13 +72,35 @@ export default function SurveyDetail() {
 
   const isOverdue = new Date(snapshot.nextReviewDate).getTime() < Date.now();
 
+  const handleDelete = async () => {
+    if (!id) return;
+    try {
+      setDeleting(true);
+      await surveyService.remove(id);
+      toast.success('Survey deleted');
+      navigate('/survey');
+    } catch (err: any) {
+      toast.error(errorMessage(err, { action: 'delete survey' }));
+      setDeleting(false);
+    }
+  };
+
   return (
     <div className="space-y-3">
-      <PageHeader
-        title={snapshot.type === 'comprehensive' ? 'Comprehensive Survey' : 'Annual Survey'}
-        description={`Taken ${formatDate(snapshot.surveyDate)} · next review ${formatDate(snapshot.nextReviewDate)}${isOverdue ? ' (overdue)' : ''}`}
-        breadcrumbs={[{ label: 'Survey', path: '/survey' }]}
-      />
+      <div className="flex gap-2 items-center justify-between">
+        <div className="flex items-center gap-4">
+          <PageHeader
+            title={snapshot.type === 'comprehensive' ? 'Comprehensive Survey' : 'Annual Survey'}
+            description={`Taken ${formatDate(snapshot.surveyDate)} · next review ${formatDate(snapshot.nextReviewDate)}${isOverdue ? ' (overdue)' : ''}`}
+            breadcrumbs={[{ label: 'Survey', path: '/survey' }]}
+          />
+          <div className="flex gap-2 items-center">
+            <Button variant="danger" onClick={() => setShowDeleteModal(true)} icon={<FiTrash2 />} collapseLabel>
+              Delete
+            </Button>
+          </div>
+        </div>
+      </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 xl:grid-cols-4">
         {STAT_LABELS.map(({ key, label }) => {
@@ -114,6 +142,26 @@ export default function SurveyDetail() {
           Compared against the snapshot from {formatDate(previous.surveyDate)}.
         </p>
       )}
+
+      <Modal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        title="Delete Survey"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setShowDeleteModal(false)}>
+              Cancel
+            </Button>
+            <Button variant="danger" onClick={handleDelete} isLoading={deleting}>
+              Delete
+            </Button>
+          </>
+        }
+      >
+        <p className="text-gray-600 dark:text-gray-400">
+          Are you sure you want to delete this survey snapshot? This action cannot be undone.
+        </p>
+      </Modal>
     </div>
   );
 }

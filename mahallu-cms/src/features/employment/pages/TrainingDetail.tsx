@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { FiPlus } from 'react-icons/fi';
+import { FiPlus, FiTrash2 } from 'react-icons/fi';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   employmentService,
@@ -42,6 +42,8 @@ export default function TrainingDetail() {
   const [deleteParticipantId, setDeleteParticipantId] = useState<string | null>(null);
   const [showDeleteParticipantConfirm, setShowDeleteParticipantConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletingTraining, setDeletingTraining] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -186,6 +188,20 @@ export default function TrainingDetail() {
     return typeof participant.memberId === 'string' ? participant.memberId : '';
   };
 
+  const handleConfirmDelete = async () => {
+    if (!id) return;
+    try {
+      setDeletingTraining(true);
+      await employmentService.deleteTraining(id);
+      toast.success('Training deleted');
+      navigate('/employment/trainings');
+    } catch (error) {
+      toast.error("Couldn't delete training. Please try again.");
+      console.error("Couldn't delete training:", error);
+      setDeletingTraining(false);
+    }
+  };
+
   if (loading) {
     return <Card className="p-5 text-center">Loading training details...</Card>;
   }
@@ -211,9 +227,14 @@ export default function TrainingDetail() {
           <PageHeader title={toTitleCase(training.name)} />
         </div>
         {!isEditing && (
-          <Button onClick={() => setIsEditing(true)} className="bg-blue-600 text-white">
-            Edit
-          </Button>
+          <div className="flex gap-2 items-center">
+            <Button onClick={() => setIsEditing(true)} className="bg-blue-600 text-white">
+              Edit
+            </Button>
+            <Button variant="danger" onClick={() => setShowDeleteConfirm(true)} icon={<FiTrash2 />} collapseLabel>
+              Delete
+            </Button>
+          </div>
         )}
       </div>
 
@@ -467,6 +488,19 @@ export default function TrainingDetail() {
           )}
         </div>
       </Card>
+
+      <ConfirmDialog
+        isOpen={showDeleteConfirm}
+        title="Delete Training"
+        message="Are you sure you want to delete this skill training?"
+        consequence="The training record and participant list will be permanently removed."
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        variant="danger"
+        isLoading={deletingTraining}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
 
       <ConfirmDialog
         isOpen={showDeleteParticipantConfirm}

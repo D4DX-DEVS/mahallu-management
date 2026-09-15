@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import ActionsMenu from '@/components/ui/ActionsMenu';
 import { useNavigate } from 'react-router-dom';
 import Button from '@/components/ui/Button';
 import ExpandableSearch from '@/components/ui/ExpandableSearch';
@@ -9,10 +8,11 @@ import Pagination from '@/components/ui/Pagination';
 import Badge from '@/components/ui/Badge';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import Modal from '@/components/ui/Modal';
 import { libraryService, LibraryBook } from '@/services/libraryService';
 import { toast } from '@/store/toastStore';
 import BulkImportBooks from '../components/BulkImportBooks';
-import { FiPlus, FiEdit2, FiTrash2, FiUpload, FiFileText } from 'react-icons/fi';
+import { FiPlus, FiUpload, FiFileText } from 'react-icons/fi';
 import { errorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
@@ -32,6 +32,8 @@ export default function BooksList() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [selectedBook, setSelectedBook] = useState<LibraryBook | null>(null);
+  const [showViewModal, setShowViewModal] = useState(false);
 
   // Debounce search
   useEffect(() => {
@@ -119,41 +121,6 @@ export default function BooksList() {
         <Badge color={book.status === 'active' ? 'green' : 'gray'}>{book.status}</Badge>
       ),
     },
-    {
-      key: 'actions',
-      label: 'Actions',
-      align: 'center' as const,
-      render: (_: any, book: LibraryBook) => (
-        <ActionsMenu
-          label={'Actions for ' + book.title}
-          items={[
-            ...(book.resourceType === 'physical' && book.availableCopies! > 0
-              ? [
-                  {
-                    label: 'Issue to a member',
-                    icon: <FiFileText className="h-4 w-4" />,
-                    onClick: () => navigate('/library/issues/create', { state: { bookId: book.id } }),
-                  },
-                ]
-              : []),
-            {
-              label: 'Edit',
-              icon: <FiEdit2 className="h-4 w-4" />,
-              onClick: () => navigate(`/library/books/${book.id}/edit`),
-            },
-            {
-              label: 'Delete',
-              icon: <FiTrash2 className="h-4 w-4" />,
-              onClick: () => {
-                setDeleteId(book.id);
-                setConfirmDelete(true);
-              },
-              variant: 'danger' as const,
-            },
-          ]}
-        />
-      ),
-    },
   ];
 
   return (
@@ -220,7 +187,16 @@ export default function BooksList() {
         <PageSkeleton variant="section" />
       ) : (
         <>
-          <Table fixedLayout striped columns={columns} data={books} />
+          <Table
+            fixedLayout
+            striped
+            columns={columns}
+            data={books}
+            onRowClick={(book) => {
+              setSelectedBook(book);
+              setShowViewModal(true);
+            }}
+          />
           {pagination && (
             <Pagination
               currentPage={pagination.page}
@@ -232,6 +208,102 @@ export default function BooksList() {
           )}
         </>
       )}
+
+      {/* View Modal */}
+      <Modal
+        isOpen={showViewModal}
+        onClose={() => {
+          setShowViewModal(false);
+          setSelectedBook(null);
+        }}
+        title="Book Details"
+        footer={
+          <>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowViewModal(false);
+                setSelectedBook(null);
+              }}
+            >
+              Close
+            </Button>
+            {selectedBook?.resourceType === 'physical' && (selectedBook.availableCopies ?? 0) > 0 && (
+              <Button
+                variant="outline"
+                icon={<FiFileText />}
+                onClick={() => {
+                  if (selectedBook) navigate('/library/issues/create', { state: { bookId: selectedBook.id } });
+                }}
+              >
+                Issue
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (selectedBook) navigate(`/library/books/${selectedBook.id}/edit`);
+              }}
+            >
+              Edit
+            </Button>
+            <Button
+              variant="danger"
+              onClick={() => {
+                if (selectedBook) setDeleteId(selectedBook.id);
+                setShowViewModal(false);
+                setConfirmDelete(true);
+              }}
+            >
+              Delete
+            </Button>
+          </>
+        }
+      >
+        {selectedBook && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+            <div className="sm:col-span-2">
+              <p className="text-xs text-gray-500 dark:text-gray-400">Title</p>
+              <p className="text-gray-900 dark:text-gray-100 font-medium">{selectedBook.title}</p>
+              {selectedBook.titleMl && (
+                <p className="text-xs text-gray-500 dark:text-gray-400">{selectedBook.titleMl}</p>
+              )}
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Author</p>
+              <p className="text-gray-900 dark:text-gray-100">{toTitleCase(selectedBook.author)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Category</p>
+              <p className="text-gray-900 dark:text-gray-100">{selectedBook.category}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Type</p>
+              <p className="text-gray-900 dark:text-gray-100 capitalize">{selectedBook.resourceType}</p>
+            </div>
+            {selectedBook.resourceType === 'digital' && selectedBook.resourceUrl && (
+              <div className="sm:col-span-2">
+                <p className="text-xs text-gray-500 dark:text-gray-400">Resource URL</p>
+                <p className="text-gray-900 dark:text-gray-100 break-all">{selectedBook.resourceUrl}</p>
+              </div>
+            )}
+            {selectedBook.resourceType === 'physical' && selectedBook.isbn && (
+              <div>
+                <p className="text-xs text-gray-500 dark:text-gray-400">ISBN</p>
+                <p className="text-gray-900 dark:text-gray-100">{selectedBook.isbn}</p>
+              </div>
+            )}
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Availability</p>
+              <p className="text-gray-900 dark:text-gray-100">{getAvailabilityBadge(selectedBook)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Status</p>
+              <p className="text-gray-900 dark:text-gray-100 capitalize">{selectedBook.status}</p>
+            </div>
+          </div>
+        )}
+      </Modal>
 
       <ConfirmDialog
         isLoading={loading}

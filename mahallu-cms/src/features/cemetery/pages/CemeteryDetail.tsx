@@ -30,6 +30,8 @@ export function CemeteryDetail() {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleteGraveId, setDeleteGraveId] = useState<string | null>(null);
+  const [confirmDeleteCemetery, setConfirmDeleteCemetery] = useState(false);
+  const [deletingCemetery, setDeletingCemetery] = useState(false);
   const itemsPerPage = 10;
 
   // Debounce search
@@ -80,6 +82,18 @@ export function CemeteryDetail() {
     }
   };
 
+  const handleDeleteCemetery = async () => {
+    if (!id) return;
+    try {
+      setDeletingCemetery(true);
+      await cemeteryService.deleteCemetery(id);
+      navigate('/cemetery');
+    } catch (err: any) {
+      toast.error(errorMessage(err, { action: 'delete cemetery' }));
+      setDeletingCemetery(false);
+    }
+  };
+
   const {
     rows: sortedGraves,
     sort,
@@ -107,6 +121,33 @@ export function CemeteryDetail() {
         <div className="flex-1">
           <PageHeader title={toTitleCase(cemetery.name)} />
           {cemetery.location && <p className="text-sm text-gray-600">{toTitleCase(cemetery.location)}</p>}
+        </div>
+        <span
+          className={`inline-block px-2 py-1 text-xs font-medium rounded-full ${
+            cemetery.status === 'active'
+              ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+              : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
+          }`}
+        >
+          {cemetery.status || 'active'}
+        </span>
+        <div className="flex gap-2 items-center">
+          <Button
+            variant="outline"
+            onClick={() => navigate(`/cemetery/${id}/edit`)}
+            icon={<FiEdit2 />}
+            collapseLabel
+          >
+            Edit
+          </Button>
+          <Button
+            variant="danger"
+            onClick={() => setConfirmDeleteCemetery(true)}
+            icon={<FiTrash2 />}
+            collapseLabel
+          >
+            Delete
+          </Button>
         </div>
       </div>
 
@@ -266,6 +307,18 @@ export function CemeteryDetail() {
           setConfirmDelete(false);
           setDeleteGraveId(null);
         }}
+      />
+
+      <ConfirmDialog
+        isLoading={deletingCemetery}
+        isOpen={confirmDeleteCemetery}
+        title="Delete Cemetery"
+        message={`Delete "${toTitleCase(cemetery.name)}"? This action cannot be undone.`}
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        variant="danger"
+        onConfirm={handleDeleteCemetery}
+        onCancel={() => setConfirmDeleteCemetery(false)}
       />
     </div>
   );

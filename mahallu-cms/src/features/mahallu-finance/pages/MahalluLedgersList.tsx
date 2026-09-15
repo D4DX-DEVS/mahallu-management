@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiEdit2, FiTrash2, FiBookOpen } from 'react-icons/fi';
+import { FiBookOpen } from 'react-icons/fi';
 import TableCard from '@/components/ui/TableCard';
-import { rowActionClass } from '@/components/ui/rowAction';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import Table from '@/components/ui/Table';
@@ -30,6 +29,7 @@ export default function MahalluLedgersList() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selected, setSelected] = useState<Ledger | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [showViewModal, setShowViewModal] = useState(false);
   const itemsPerPage = 10;
 
   useEffect(() => {
@@ -111,33 +111,6 @@ export default function MahalluLedgersList() {
     },
     { key: 'description', label: 'Description', width: '9.25rem' },
     { key: 'createdAt', label: 'Created', width: '7.75rem', render: (d) => formatDate(d) },
-    {
-      key: 'actions',
-      label: 'Actions',
-      width: '8rem',
-      align: 'center',
-      render: (_, row) => (
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => navigate(ROUTES.MAHALLU_FINANCE.LEDGERS_EDIT(row.id), { state: { ledger: row } })}
-            className={rowActionClass()}
-            aria-label="Edit"
-          >
-            <FiEdit2 className="h-4 w-4" />
-          </button>
-          <button
-            onClick={() => {
-              setSelected(row);
-              setShowDeleteModal(true);
-            }}
-            className={rowActionClass('danger')}
-            aria-label="Delete"
-          >
-            <FiTrash2 className="h-4 w-4" />
-          </button>
-        </div>
-      ),
-    },
   ];
 
   return (
@@ -171,7 +144,17 @@ export default function MahalluLedgersList() {
           <p className="text-center py-8 text-red-600">{error}</p>
         ) : (
           <>
-            <Table fixedLayout striped columns={columns} data={filtered} emptyMessage="No ledgers found" />
+            <Table
+              fixedLayout
+              striped
+              columns={columns}
+              data={filtered}
+              emptyMessage="No ledgers found"
+              onRowClick={(row) => {
+                setSelected(row);
+                setShowViewModal(true);
+              }}
+            />
             {pagination && (
               <Pagination
                 currentPage={currentPage}
@@ -184,6 +167,69 @@ export default function MahalluLedgersList() {
           </>
         )}
       </TableCard>
+
+      {/* View Modal */}
+      <Modal
+        isOpen={showViewModal}
+        onClose={() => {
+          setShowViewModal(false);
+          setSelected(null);
+        }}
+        title="Ledger Details"
+        footer={
+          <>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowViewModal(false);
+                setSelected(null);
+              }}
+            >
+              Close
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (selected) {
+                  navigate(ROUTES.MAHALLU_FINANCE.LEDGERS_EDIT(selected.id), { state: { ledger: selected } });
+                }
+              }}
+            >
+              Edit
+            </Button>
+            <Button
+              variant="danger"
+              onClick={() => {
+                setShowViewModal(false);
+                setShowDeleteModal(true);
+              }}
+            >
+              Delete
+            </Button>
+          </>
+        }
+      >
+        {selected && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+            <div className="sm:col-span-2">
+              <p className="text-xs text-gray-500 dark:text-gray-400">Name</p>
+              <p className="text-gray-900 dark:text-gray-100 font-medium">{toTitleCase(selected.name)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Type</p>
+              <p className="text-gray-900 dark:text-gray-100 capitalize">{selected.type || '—'}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Created</p>
+              <p className="text-gray-900 dark:text-gray-100">{formatDate(selected.createdAt)}</p>
+            </div>
+            <div className="sm:col-span-2">
+              <p className="text-xs text-gray-500 dark:text-gray-400">Description</p>
+              <p className="text-gray-900 dark:text-gray-100">{selected.description || '—'}</p>
+            </div>
+          </div>
+        )}
+      </Modal>
 
       <Modal isOpen={showDeleteModal} onClose={() => setShowDeleteModal(false)} title="Delete Ledger">
         <p className="text-gray-600 dark:text-gray-400 mb-4">

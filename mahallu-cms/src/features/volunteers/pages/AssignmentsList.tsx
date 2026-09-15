@@ -11,6 +11,7 @@ import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import Pagination from '@/components/ui/Pagination';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import Modal from '@/components/ui/Modal';
 import { toast } from '@/store/toastStore';
 import { errorMessage } from '@/utils/errors';
 import StatusBadge from '@/components/ui/StatusBadge';
@@ -29,6 +30,8 @@ export default function AssignmentsList() {
   const [totalPages, setTotalPages] = useState(1);
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; date: string } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [selectedAssignment, setSelectedAssignment] = useState<VolunteerAssignment | null>(null);
+  const [showViewModal, setShowViewModal] = useState(false);
 
   useEffect(() => {
     const fetchAssignments = async () => {
@@ -166,7 +169,14 @@ export default function AssignmentsList() {
               </thead>
               <tbody>
                 {sortedAssignments.map((assignment) => (
-                  <tr key={assignment.id} className="border-b hover:bg-gray-50">
+                  <tr
+                    key={assignment.id}
+                    className="border-b hover:bg-gray-50 cursor-pointer"
+                    onClick={() => {
+                      setSelectedAssignment(assignment);
+                      setShowViewModal(true);
+                    }}
+                  >
                     <td className="px-4 py-3 text-sm">{new Date(assignment.date).toLocaleDateString()}</td>
                     <td className="px-4 py-3 text-sm">
                       <div className="font-medium text-gray-900">
@@ -181,7 +191,7 @@ export default function AssignmentsList() {
                     <td className="px-4 py-3 text-sm">
                       <StatusBadge status={assignment.status} />
                     </td>
-                    <td className="px-4 py-3 text-sm text-right">
+                    <td className="px-4 py-3 text-sm text-right" onClick={(e) => e.stopPropagation()}>
                       <button
                         onClick={() => navigate(`/volunteers/assignments/${assignment.id}/edit`)}
                         className="text-blue-600 hover:text-blue-800 mr-3"
@@ -212,6 +222,80 @@ export default function AssignmentsList() {
           />
         </>
       )}
+
+      {/* View Modal */}
+      <Modal
+        isOpen={showViewModal}
+        onClose={() => {
+          setShowViewModal(false);
+          setSelectedAssignment(null);
+        }}
+        title="Assignment Details"
+        footer={
+          <>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowViewModal(false);
+                setSelectedAssignment(null);
+              }}
+            >
+              Close
+            </Button>
+            {selectedAssignment && (
+              <Button
+                variant="outline"
+                onClick={() => navigate(`/volunteers/assignments/${selectedAssignment.id}/edit`)}
+              >
+                Edit
+              </Button>
+            )}
+            {selectedAssignment && (
+              <Button
+                variant="danger"
+                onClick={() => {
+                  setShowViewModal(false);
+                  handleDeleteClick(selectedAssignment.id, new Date(selectedAssignment.date).toLocaleDateString());
+                }}
+              >
+                Delete
+              </Button>
+            )}
+          </>
+        }
+      >
+        {selectedAssignment && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Date</p>
+              <p className="text-gray-900 dark:text-gray-100 font-medium">
+                {new Date(selectedAssignment.date).toLocaleDateString()}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Service Type</p>
+              <p className="text-gray-900 dark:text-gray-100">
+                {SERVICE_TYPE_OPTIONS.find((x) => x.value === selectedAssignment.serviceType)?.label ||
+                  selectedAssignment.serviceType}
+              </p>
+            </div>
+            <div className="sm:col-span-2">
+              <p className="text-xs text-gray-500 dark:text-gray-400">Volunteers</p>
+              <p className="text-gray-900 dark:text-gray-100">{volunteerNames(selectedAssignment)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Status</p>
+              <p className="text-gray-900 dark:text-gray-100">
+                <StatusBadge status={selectedAssignment.status} />
+              </p>
+            </div>
+            <div className="sm:col-span-2">
+              <p className="text-xs text-gray-500 dark:text-gray-400">Description</p>
+              <p className="text-gray-900 dark:text-gray-100">{selectedAssignment.description || '—'}</p>
+            </div>
+          </div>
+        )}
+      </Modal>
 
       <ConfirmDialog
         isOpen={deleteConfirm !== null}

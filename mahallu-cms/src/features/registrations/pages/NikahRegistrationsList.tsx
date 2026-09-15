@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FiCheckCircle, FiClock, FiEdit2, FiEye, FiFileText, FiPlus } from 'react-icons/fi';
+import { FiCheckCircle, FiClock, FiFileText, FiPlus } from 'react-icons/fi';
 import TableCard from '@/components/ui/TableCard';
 import FilterPanel from '@/components/ui/FilterPanel';
 import Button from '@/components/ui/Button';
@@ -20,7 +20,6 @@ import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import StatusBadge from '@/components/ui/StatusBadge';
 import PageHeader from '@/components/layout/PageHeader';
-import ActionsMenu from '@/components/ui/ActionsMenu';
 
 export default function NikahRegistrationsList() {
   const navigate = useNavigate();
@@ -140,32 +139,6 @@ export default function NikahRegistrationsList() {
       render: (status) => {
         return <StatusBadge status={status} />;
       },
-    },
-    {
-      key: 'actions',
-      label: 'Actions',
-      width: '8rem',
-      align: 'center',
-      render: (_, row) => (
-        <ActionsMenu
-          items={[
-            {
-              label: 'View',
-              icon: <FiEye className="h-4 w-4" />,
-              onClick: () => {
-                navigate(`/registrations/nikah/${row.id}`);
-              },
-            },
-            {
-              label: 'Edit',
-              icon: <FiEdit2 className="h-4 w-4" />,
-              onClick: () => {
-                navigate(`/registrations/nikah/${row.id}/edit`);
-              },
-            },
-          ]}
-        />
-      ),
     },
   ];
 

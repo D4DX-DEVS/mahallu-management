@@ -1,14 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { FiEdit2, FiArrowLeft, FiDollarSign } from 'react-icons/fi';
+import { FiEdit2, FiArrowLeft, FiDollarSign, FiTrash2 } from 'react-icons/fi';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import { PageSkeleton } from '@/components/ui/Skeleton';
+import Modal from '@/components/ui/Modal';
 import { Employee } from '@/types';
 import { ROUTES } from '@/constants/routes';
 import { employeeService } from '@/services/employeeService';
 import { formatDate, toTitleCase } from '@/utils/format';
-import { loadErrorMessage } from '@/utils/errors';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import StatusBadge from '@/components/ui/StatusBadge';
 
@@ -18,6 +19,8 @@ export default function EmployeeDetail() {
   const [employee, setEmployee] = useState<Employee | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (id) fetchEmployee();
@@ -34,6 +37,18 @@ export default function EmployeeDetail() {
       setError(loadErrorMessage(err, 'employee'));
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!id) return;
+    try {
+      setDeleting(true);
+      await employeeService.delete(id);
+      navigate(ROUTES.EMPLOYEES.LIST);
+    } catch (err: any) {
+      setError(errorMessage(err, { action: 'delete employee' }));
+      setDeleting(false);
     }
   };
 
@@ -66,6 +81,7 @@ export default function EmployeeDetail() {
             <Link to={ROUTES.EMPLOYEES.EDIT(employee.id)}>
               <Button icon={<FiEdit2 />} collapseLabel>Edit</Button>
             </Link>
+            <Button variant="danger" onClick={() => setShowDeleteModal(true)} icon={<FiTrash2 />} collapseLabel>Delete</Button>
           </div>
         </div>
       </div>
@@ -78,10 +94,24 @@ export default function EmployeeDetail() {
               <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Name</label>
               <p className="mt-1 text-gray-900 dark:text-gray-100">{toTitleCase(employee.name)}</p>
             </div>
+            {employee.nameMl && (
+              <div>
+                <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Name (Malayalam)</label>
+                <p className="mt-1 text-gray-900 dark:text-gray-100 font-malayalam">{employee.nameMl}</p>
+              </div>
+            )}
             <div>
               <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Designation</label>
               <p className="mt-1 text-gray-900 dark:text-gray-100">{toTitleCase(employee.designation)}</p>
             </div>
+            {employee.designationMl && (
+              <div>
+                <label className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                  Designation (Malayalam)
+                </label>
+                <p className="mt-1 text-gray-900 dark:text-gray-100 font-malayalam">{employee.designationMl}</p>
+              </div>
+            )}
             {employee.department && (
               <div>
                 <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Department</label>
@@ -173,6 +203,26 @@ export default function EmployeeDetail() {
           </div>
         </Card>
       </div>
+
+      <Modal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        title="Delete Employee"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setShowDeleteModal(false)}>
+              Cancel
+            </Button>
+            <Button variant="danger" onClick={handleDelete} isLoading={deleting}>
+              Delete
+            </Button>
+          </>
+        }
+      >
+        <p className="text-gray-600 dark:text-gray-400">
+          Are you sure you want to delete <strong>{toTitleCase(employee.name)}</strong>? This action cannot be undone.
+        </p>
+      </Modal>
     </div>
   );
 }

@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { FiArrowLeft, FiEdit2 } from 'react-icons/fi';
+import { FiArrowLeft, FiEdit2, FiTrash2 } from 'react-icons/fi';
 import { useParams, useNavigate } from 'react-router-dom';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
+import Modal from '@/components/ui/Modal';
 import Pagination from '@/components/ui/Pagination';
 import { toast } from '@/store/toastStore';
 import { developmentService, DevelopmentProject, ProjectExpenditure } from '@/services/developmentService';
@@ -33,6 +34,8 @@ export default function ProjectDetail() {
   const [currentPage, setCurrentPage] = useState(1);
   const [progressPercent, setProgressPercent] = useState(0);
   const [status, setStatus] = useState('proposed');
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -78,6 +81,19 @@ export default function ProjectDetail() {
     }
   };
 
+  const handleDelete = async () => {
+    if (!id) return;
+    try {
+      setDeleting(true);
+      await developmentService.deleteProject(id);
+      toast.success('Project deleted');
+      navigate('/development');
+    } catch (error) {
+      toast.error(errorMessage(error, { action: 'delete project' }));
+      setDeleting(false);
+    }
+  };
+
   if (loading) return <div className="p-4">Loading...</div>;
   if (!project) return <div className="p-4">Project not found</div>;
 
@@ -89,6 +105,7 @@ export default function ProjectDetail() {
         <PageHeader title={toTitleCase(project.name)} />
         <div className="flex gap-2 items-center">
           <Button onClick={() => navigate(`/development/${id}/edit`)} icon={<FiEdit2 />} collapseLabel>Edit</Button>
+          <Button variant="danger" onClick={() => setShowDeleteModal(true)} icon={<FiTrash2 />} collapseLabel>Delete</Button>
           <Button variant="secondary" onClick={() => navigate('/development')} icon={<FiArrowLeft />} collapseLabel>Back</Button>
         </div>
       </div>
@@ -98,6 +115,12 @@ export default function ProjectDetail() {
         <div>
           <h2 className="font-semibold mb-3">Project Information</h2>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
+            {project.nameMl && (
+              <div>
+                <span className="text-gray-600">Malayalam Name</span>
+                <div className="font-medium">{project.nameMl}</div>
+              </div>
+            )}
             <div>
               <span className="text-gray-600">Area</span>
               <div className="font-medium">{areaLabel}</div>
@@ -139,6 +162,12 @@ export default function ProjectDetail() {
             <div className="mt-4 pt-4 border-t">
               <span className="text-gray-600 text-sm">Proposal</span>
               <p className="mt-2 text-sm">{project.proposal}</p>
+            </div>
+          )}
+          {project.completionReport && (
+            <div className="mt-4 pt-4 border-t">
+              <span className="text-gray-600 text-sm">Completion Report</span>
+              <p className="mt-2 text-sm">{project.completionReport}</p>
             </div>
           )}
         </div>
@@ -253,6 +282,26 @@ export default function ProjectDetail() {
           )}
         </div>
       </Card>
+
+      <Modal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        title="Delete Project"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setShowDeleteModal(false)}>
+              Cancel
+            </Button>
+            <Button variant="danger" onClick={handleDelete} isLoading={deleting}>
+              Delete
+            </Button>
+          </>
+        }
+      >
+        <p className="text-gray-600 dark:text-gray-400">
+          Are you sure you want to delete <strong>{toTitleCase(project.name)}</strong>? This action cannot be undone.
+        </p>
+      </Modal>
     </div>
   );
 }

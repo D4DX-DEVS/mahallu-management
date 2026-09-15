@@ -1,12 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { FiAlertTriangle, FiCheckCircle, FiEdit2, FiEye, FiPackage, FiPlus, FiTrash2, FiXCircle } from 'react-icons/fi';
+import { FiAlertTriangle, FiCheckCircle, FiPackage, FiPlus, FiXCircle } from 'react-icons/fi';
 import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
 import { PageSkeleton } from '@/components/ui/Skeleton';
-import Modal from '@/components/ui/Modal';
 import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
 import { TableColumn, Pagination as PaginationType } from '@/types';
@@ -22,7 +21,6 @@ import { toast } from '@/store/toastStore';
 import { errorMessage } from '@/utils/errors';
 import StatusBadge from '@/components/ui/StatusBadge';
 import PageHeader from '@/components/layout/PageHeader';
-import ActionsMenu from '@/components/ui/ActionsMenu';
 import { toTitleCase } from '@/utils/format';
 
 const categoryLabels: Record<string, string> = {
@@ -52,9 +50,6 @@ export default function AssetsList() {
   const [mosques, setMosques] = useState<MosqueProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [deleting, setDeleting] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
@@ -152,21 +147,6 @@ export default function AssetsList() {
     }
   };
 
-  const handleDelete = async () => {
-    if (!selectedAsset) return;
-    try {
-      setDeleting(true);
-      await assetService.delete(selectedAsset.id);
-      await fetchAssets();
-      setShowDeleteModal(false);
-      setSelectedAsset(null);
-    } catch (err: any) {
-      setError(errorMessage(err, { action: 'delete asset' }));
-    } finally {
-      setDeleting(false);
-    }
-  };
-
   const columns: TableColumn<Asset>[] = [
     {
       key: 'name',
@@ -206,41 +186,6 @@ export default function AssetsList() {
       label: 'Status',
       width: '7.25rem',
       render: (status) => <StatusBadge status={status} />,
-    },
-    {
-      key: 'actions',
-      label: 'Actions',
-      width: '8rem',
-      align: 'center',
-      render: (_, row) => (
-        <ActionsMenu
-          items={[
-            {
-              label: 'View',
-              icon: <FiEye className="h-4 w-4" />,
-              onClick: () => {
-                navigate(ROUTES.ASSETS.DETAIL(row.id));
-              },
-            },
-            {
-              label: 'Edit',
-              icon: <FiEdit2 className="h-4 w-4" />,
-              onClick: () => {
-                navigate(ROUTES.ASSETS.EDIT(row.id));
-              },
-            },
-            {
-              label: 'Delete',
-              icon: <FiTrash2 className="h-4 w-4" />,
-              onClick: () => {
-                setSelectedAsset(row);
-                setShowDeleteModal(true);
-              },
-              variant: 'danger',
-            },
-          ]}
-        />
-      ),
     },
   ];
 
@@ -403,36 +348,6 @@ export default function AssetsList() {
           </div>
         )}
       </TableCard>
-
-      <Modal
-        isOpen={showDeleteModal}
-        onClose={() => {
-          setShowDeleteModal(false);
-          setSelectedAsset(null);
-        }}
-        title="Delete Asset"
-        footer={
-          <>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setShowDeleteModal(false);
-                setSelectedAsset(null);
-              }}
-            >
-              Cancel
-            </Button>
-            <Button variant="danger" onClick={handleDelete} isLoading={deleting}>
-              Delete
-            </Button>
-          </>
-        }
-      >
-        <p className="text-gray-600 dark:text-gray-400">
-          Are you sure you want to delete <strong>{toTitleCase(selectedAsset?.name)}</strong>? This will also delete all
-          maintenance records. This action cannot be undone.
-        </p>
-      </Modal>
     </div>
   );
 }

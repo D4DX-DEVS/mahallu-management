@@ -1,21 +1,25 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { FiEdit2, FiArrowLeft } from 'react-icons/fi';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import { FiEdit2, FiArrowLeft, FiTrash2 } from 'react-icons/fi';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import { PageSkeleton } from '@/components/ui/Skeleton';
+import Modal from '@/components/ui/Modal';
 import { Institute } from '@/types';
 import { ROUTES } from '@/constants/routes';
 import { instituteService } from '@/services/instituteService';
 import { formatDate, toTitleCase } from '@/utils/format';
-import { loadErrorMessage } from '@/utils/errors';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 
 export default function InstituteDetail() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [institute, setInstitute] = useState<Institute | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -35,6 +39,18 @@ export default function InstituteDetail() {
       console.error('Error fetching institute:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!id) return;
+    try {
+      setDeleting(true);
+      await instituteService.delete(id);
+      navigate(ROUTES.INSTITUTES.LIST);
+    } catch (err: any) {
+      setError(errorMessage(err, { action: 'delete institute' }));
+      setDeleting(false);
     }
   };
 
@@ -69,6 +85,7 @@ export default function InstituteDetail() {
             <Link to={`/institutes/${institute.id}/edit`}>
               <Button icon={<FiEdit2 />} collapseLabel>Edit</Button>
             </Link>
+            <Button variant="danger" onClick={() => setShowDeleteModal(true)} icon={<FiTrash2 />} collapseLabel>Delete</Button>
           </div>
         </div>
       </div>
@@ -81,10 +98,22 @@ export default function InstituteDetail() {
               <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Name</label>
               <p className="mt-1 text-gray-900 dark:text-gray-100">{toTitleCase(institute.name)}</p>
             </div>
+            {institute.nameMl && (
+              <div>
+                <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Name (Malayalam)</label>
+                <p className="mt-1 text-gray-900 dark:text-gray-100 font-malayalam">{institute.nameMl}</p>
+              </div>
+            )}
             <div>
               <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Place</label>
               <p className="mt-1 text-gray-900 dark:text-gray-100">{toTitleCase(institute.place)}</p>
             </div>
+            {institute.placeMl && (
+              <div>
+                <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Place (Malayalam)</label>
+                <p className="mt-1 text-gray-900 dark:text-gray-100 font-malayalam">{institute.placeMl}</p>
+              </div>
+            )}
             <div>
               <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Type</label>
               <p className="mt-1">
@@ -142,6 +171,26 @@ export default function InstituteDetail() {
           </Card>
         )}
       </div>
+
+      <Modal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        title="Delete Institute"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setShowDeleteModal(false)}>
+              Cancel
+            </Button>
+            <Button variant="danger" onClick={handleDelete} isLoading={deleting}>
+              Delete
+            </Button>
+          </>
+        }
+      >
+        <p className="text-gray-600 dark:text-gray-400">
+          Are you sure you want to delete <strong>{toTitleCase(institute.name)}</strong>? This action cannot be undone.
+        </p>
+      </Modal>
     </div>
   );
 }

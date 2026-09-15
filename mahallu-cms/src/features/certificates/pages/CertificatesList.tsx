@@ -1,6 +1,4 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { FiDownload, FiTrash2 } from 'react-icons/fi';
 import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
@@ -31,6 +29,8 @@ export default function CertificatesList() {
   const [revokeModal, setRevokeModal] = useState<{ open: boolean; id?: string }>({ open: false });
   const [revokeReason, setRevokeReason] = useState('');
   const [revoking, setRevoking] = useState(false);
+  const [selectedCert, setSelectedCert] = useState<Certificate | null>(null);
+  const [showViewModal, setShowViewModal] = useState(false);
 
   const debouncedSearch = useDebounce(searchQuery, 500);
 
@@ -122,7 +122,6 @@ export default function CertificatesList() {
     { key: 'issueDate', label: 'Issue Date' },
     { key: 'status', label: 'Status' },
     { key: 'issuedBy', label: 'Issued By' },
-    { key: 'actions', label: 'Actions' },
   ];
 
   const rows = certificates.map((cert) => ({
@@ -141,28 +140,6 @@ export default function CertificatesList() {
       </span>
     ),
     issuedBy: cert.issuedBy ? toTitleCase(cert.issuedBy) : '-',
-    actions: (
-      <div className="flex items-center gap-2">
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => handleDownload(cert.id || cert._id || '', cert.certificateNo)}
-          title="Download"
-        >
-          <FiDownload className="h-4 w-4" />
-        </Button>
-        {cert.status === 'valid' && (
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => handleRevokeClick(cert.id || cert._id || '')}
-            title="Revoke"
-          >
-            <FiTrash2 className="h-4 w-4 text-red-600" />
-          </Button>
-        )}
-      </div>
-    ),
   }));
 
   return (
@@ -222,7 +199,19 @@ export default function CertificatesList() {
           </div>
         ) : (
           <>
-            <Table fixedLayout striped columns={columns} data={rows} />
+            <Table
+              fixedLayout
+              striped
+              columns={columns}
+              data={rows}
+              onRowClick={(row) => {
+                const cert = certificates.find((c) => c.certificateNo === row.certificateNo);
+                if (cert) {
+                  setSelectedCert(cert);
+                  setShowViewModal(true);
+                }
+              }}
+            />
             {pagination && (
               <Pagination
                 currentPage={currentPage}
@@ -265,6 +254,81 @@ export default function CertificatesList() {
             </Button>
           </div>
         </div>
+      </Modal>
+
+      {/* View Modal */}
+      <Modal
+        isOpen={showViewModal}
+        onClose={() => {
+          setShowViewModal(false);
+          setSelectedCert(null);
+        }}
+        title="Certificate Details"
+        footer={
+          <>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowViewModal(false);
+                setSelectedCert(null);
+              }}
+            >
+              Close
+            </Button>
+            {selectedCert && (
+              <Button
+                variant="outline"
+                onClick={() => handleDownload(selectedCert.id || selectedCert._id || '', selectedCert.certificateNo)}
+              >
+                Download
+              </Button>
+            )}
+            {selectedCert?.status === 'valid' && (
+              <Button
+                variant="danger"
+                onClick={() => {
+                  setShowViewModal(false);
+                  handleRevokeClick(selectedCert.id || selectedCert._id || '');
+                }}
+              >
+                Revoke
+              </Button>
+            )}
+          </>
+        }
+      >
+        {selectedCert && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Certificate No.</p>
+              <p className="text-gray-900 dark:text-gray-100 font-medium">{selectedCert.certificateNo}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Type</p>
+              <p className="text-gray-900 dark:text-gray-100">{typeLabels[selectedCert.type] || selectedCert.type}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Issue Date</p>
+              <p className="text-gray-900 dark:text-gray-100">{formatDate(selectedCert.issueDate)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Status</p>
+              <p className="text-gray-900 dark:text-gray-100 capitalize">{selectedCert.status}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Issued By</p>
+              <p className="text-gray-900 dark:text-gray-100">
+                {selectedCert.issuedBy ? toTitleCase(selectedCert.issuedBy) : '—'}
+              </p>
+            </div>
+            {selectedCert.revokedReason && (
+              <div className="sm:col-span-2">
+                <p className="text-xs text-gray-500 dark:text-gray-400">Revoked Reason</p>
+                <p className="text-gray-900 dark:text-gray-100">{selectedCert.revokedReason}</p>
+              </div>
+            )}
+          </div>
+        )}
       </Modal>
     </div>
   );

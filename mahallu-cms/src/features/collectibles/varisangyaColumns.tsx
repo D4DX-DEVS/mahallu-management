@@ -1,4 +1,4 @@
-import { FiEdit2, FiDownload, FiCheckCircle } from 'react-icons/fi';
+import { FiDownload, FiCheckCircle, FiTrash2 } from 'react-icons/fi';
 
 import { rowActionClass } from '@/components/ui/rowAction';import { TableColumn } from '@/types';
 import { Varisangya } from '@/services/collectibleService';
@@ -8,6 +8,7 @@ interface VarisangyaColumnDeps {
   openEdit: (row: Varisangya) => void;
   handleViewPdf: (row: Varisangya) => void;
   onVerify?: (row: Varisangya) => void;
+  onDelete?: (row: Varisangya) => void;
 }
 
 /** Table config split out of VarisangyaList to keep the page under 500 lines. */
@@ -31,9 +32,9 @@ export const getFamilyName = (row: Varisangya): string => {
 };
 
 export const buildVarisangyaColumns = ({
-  openEdit,
   handleViewPdf,
   onVerify,
+  onDelete,
 }: VarisangyaColumnDeps): TableColumn<Varisangya>[] => [
   { key: 'name', label: 'Name', width: '6.75rem', render: (_, row) => toTitleCase(getPayerName(row)) },
   { key: 'familyName', label: 'Family name', width: '10rem', render: (_, row) => toTitleCase(getFamilyName(row)) },
@@ -83,17 +84,6 @@ export const buildVarisangyaColumns = ({
         <button
           onClick={(e) => {
             e.stopPropagation();
-            openEdit(row);
-          }}
-          className={rowActionClass()}
-          title="Edit payment"
-          aria-label="Edit payment"
-        >
-          <FiEdit2 className="h-4 w-4" />
-        </button>
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
             handleViewPdf(row);
           }}
           className={rowActionClass()}
@@ -113,6 +103,19 @@ export const buildVarisangyaColumns = ({
             aria-label="Verify payment"
           >
             <FiCheckCircle className="h-4 w-4" />
+          </button>
+        )}
+        {onDelete && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(row);
+            }}
+            className={rowActionClass('danger')}
+            title="Delete payment"
+            aria-label="Delete payment"
+          >
+            <FiTrash2 className="h-4 w-4" />
           </button>
         )}
       </div>

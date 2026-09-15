@@ -29,6 +29,7 @@ function varisangyaToTransaction(v: Varisangya): Transaction {
     description: v.remarks || `Varisangya payment${payerInfo} - ${v.receiptNo || 'N/A'}`,
     referenceId: v.receiptNo,
     referenceType: 'varisangya',
+    paymentMethod: v.paymentMethod,
     createdAt: v.paymentDate || v.createdAt || new Date().toISOString(),
   };
 }
@@ -192,6 +193,12 @@ export default function FamilyVarisangyaTransactions() {
       label: 'Reference',
       width: '8.75rem',
       render: (type) => type || '-',
+    },
+    {
+      key: 'paymentMethod',
+      label: 'Payment Method',
+      width: '8.75rem',
+      render: (method) => method || '-',
     },
     {
       key: 'createdAt',

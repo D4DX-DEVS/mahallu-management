@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { FiCreditCard, FiDollarSign, FiEdit2, FiEye, FiPlus, FiTrash2 } from 'react-icons/fi';
+import { FiCreditCard, FiDollarSign, FiPlus } from 'react-icons/fi';
 import TableCard from '@/components/ui/TableCard';
 import FilterPanel from '@/components/ui/FilterPanel';
 import Button from '@/components/ui/Button';
@@ -21,7 +21,6 @@ import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
 import { toast } from '@/store/toastStore';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
-import ActionsMenu from '@/components/ui/ActionsMenu';
 
 export default function InstituteAccountsList() {
   const { currentInstituteId: userInstituteId } = useAuthStore();
@@ -135,36 +134,6 @@ export default function InstituteAccountsList() {
       label: 'Created',
       width: '7.75rem',
       render: (date) => formatDate(date),
-    },
-    {
-      key: 'actions',
-      label: 'Actions',
-      width: '8rem',
-      align: 'center',
-      render: (_, row) => (
-        <ActionsMenu
-          items={[
-            {
-              label: 'View',
-              icon: <FiEye className="h-4 w-4" />,
-              onClick: () => {
-                setSelectedAccount(row);
-                setShowViewModal(true);
-              },
-            },
-            { label: 'Edit', icon: <FiEdit2 className="h-4 w-4" />, onClick: () => openEditModal(row) },
-            {
-              label: 'Delete',
-              icon: <FiTrash2 className="h-4 w-4" />,
-              onClick: () => {
-                setSelectedAccount(row);
-                setShowDeleteModal(true);
-              },
-              variant: 'danger',
-            },
-          ]}
-        />
-      ),
     },
   ];
 
@@ -297,6 +266,10 @@ export default function InstituteAccountsList() {
               data={filteredAccounts}
               emptyMessage="No institute accounts found"
               showExport={false}
+              onRowClick={(row) => {
+                setSelectedAccount(row);
+                setShowViewModal(true);
+              }}
             />
             {pagination && pagination.totalPages > 1 && (
               <div className="mt-4">
@@ -322,15 +295,35 @@ export default function InstituteAccountsList() {
         }}
         title="Institute Account Details"
         footer={
-          <Button
-            variant="outline"
-            onClick={() => {
-              setShowViewModal(false);
-              setSelectedAccount(null);
-            }}
-          >
-            Close
-          </Button>
+          <>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowViewModal(false);
+                setSelectedAccount(null);
+              }}
+            >
+              Close
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (selectedAccount) openEditModal(selectedAccount);
+                setShowViewModal(false);
+              }}
+            >
+              Edit
+            </Button>
+            <Button
+              variant="danger"
+              onClick={() => {
+                setShowViewModal(false);
+                setShowDeleteModal(true);
+              }}
+            >
+              Delete
+            </Button>
+          </>
         }
       >
         {selectedAccount && (

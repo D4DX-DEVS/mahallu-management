@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FiEye, FiEdit2, FiCheck, FiHome, FiUsers } from 'react-icons/fi';
+import { FiCheck, FiHome, FiUsers } from 'react-icons/fi';
 import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import StatCard from '@/components/ui/StatCard';
@@ -17,7 +17,6 @@ import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
 import { toast } from '@/store/toastStore';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
-import ActionsMenu from '@/components/ui/ActionsMenu';
 
 export default function UnapprovedFamiliesList() {
   const navigate = useNavigate();
@@ -133,31 +132,17 @@ export default function UnapprovedFamiliesList() {
       width: '8rem',
       align: 'center',
       render: (_, row) => (
-        <ActionsMenu
-          items={[
-            {
-              label: 'View',
-              icon: <FiEye className="h-4 w-4" />,
-              onClick: () => {
-                navigate(ROUTES.FAMILIES.DETAIL(row.id));
-              },
-            },
-            {
-              label: 'Edit',
-              icon: <FiEdit2 className="h-4 w-4" />,
-              onClick: () => {
-                navigate(ROUTES.FAMILIES.EDIT(row.id));
-              },
-            },
-            {
-              label: 'Approve',
-              icon: <FiCheck className="h-4 w-4" />,
-              onClick: () => {
-                handleApprove(row.id);
-              },
-            },
-          ]}
-        />
+        <Button
+          size="sm"
+          variant="outline"
+          icon={<FiCheck className="h-4 w-4" />}
+          onClick={(e) => {
+            e.stopPropagation();
+            handleApprove(row.id);
+          }}
+        >
+          Approve
+        </Button>
       ),
     },
   ];

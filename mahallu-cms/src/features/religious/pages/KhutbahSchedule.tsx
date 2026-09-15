@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
-import ActionsMenu from '@/components/ui/ActionsMenu';
 import { Link, useNavigate } from 'react-router-dom';
-import { FiEdit2, FiTrash2, FiPlus, FiCalendar } from 'react-icons/fi';
+import { FiTrash2, FiPlus, FiCalendar } from 'react-icons/fi';
 import Card from '@/components/ui/Card';
 import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
@@ -28,6 +27,7 @@ export default function KhutbahSchedule() {
   const [selectedKhutbah, setSelectedKhutbah] = useState<Khutbah | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [viewingKhutbah, setViewingKhutbah] = useState<Khutbah | null>(null);
   const [selectedMonth, setSelectedMonth] = useState<string>(
     new Date().toISOString().split('T')[0].slice(0, 7)
   );
@@ -132,31 +132,6 @@ export default function KhutbahSchedule() {
         </span>
       ),
     },
-    {
-      key: 'actions',
-      label: 'Actions',
-      align: 'center' as const,
-      render: (_: any, khutbah: Khutbah) => (
-        <ActionsMenu
-          items={[
-            {
-              label: 'Edit',
-              icon: <FiEdit2 className="h-4 w-4" />,
-              onClick: () => navigate(`${ROUTES.RELIGIOUS.KHUTBAHS}/${khutbah.id}/edit`),
-            },
-            {
-              label: 'Delete',
-              icon: <FiTrash2 className="h-4 w-4" />,
-              onClick: () => {
-                setSelectedKhutbah(khutbah);
-                setShowDeleteModal(true);
-              },
-              variant: 'danger' as const,
-            },
-          ]}
-        />
-      ),
-    },
   ];
 
   if (loading) return <PageSkeleton />;
@@ -224,7 +199,13 @@ export default function KhutbahSchedule() {
 
       {/* Khutbahs Table */}
       <TableCard>
-        <Table fixedLayout striped columns={columns} data={khutbahs} />
+        <Table
+          fixedLayout
+          striped
+          columns={columns}
+          data={khutbahs}
+          onRowClick={(row) => setViewingKhutbah(row)}
+        />
       </TableCard>
 
       {pagination && (
@@ -251,6 +232,80 @@ export default function KhutbahSchedule() {
             </Button>
           </div>
         </div>
+      </Modal>
+
+      {/* View Modal */}
+      <Modal
+        isOpen={!!viewingKhutbah}
+        onClose={() => setViewingKhutbah(null)}
+        title="Khutbah Details"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setViewingKhutbah(null)}>
+              Close
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (viewingKhutbah) navigate(`${ROUTES.RELIGIOUS.KHUTBAHS}/${viewingKhutbah.id}/edit`);
+                setViewingKhutbah(null);
+              }}
+            >
+              Edit
+            </Button>
+            <Button
+              variant="danger"
+              onClick={() => {
+                if (viewingKhutbah) {
+                  setSelectedKhutbah(viewingKhutbah);
+                  setShowDeleteModal(true);
+                }
+                setViewingKhutbah(null);
+              }}
+              icon={<FiTrash2 />}
+            >
+              Delete
+            </Button>
+          </>
+        }
+      >
+        {viewingKhutbah && (
+          <div className="space-y-3">
+            <div>
+              <span className="text-sm text-gray-500 dark:text-gray-400">Date</span>
+              <p className="text-gray-900 dark:text-gray-100">{formatDate(viewingKhutbah.date)}</p>
+            </div>
+            <div>
+              <span className="text-sm text-gray-500 dark:text-gray-400">Topic</span>
+              <p className="text-gray-900 dark:text-gray-100">{toTitleCase(viewingKhutbah.topic)}</p>
+              {viewingKhutbah.topicMl && (
+                <p className="text-sm text-gray-700 dark:text-gray-300">{viewingKhutbah.topicMl}</p>
+              )}
+            </div>
+            <div>
+              <span className="text-sm text-gray-500 dark:text-gray-400">Khateeb</span>
+              <p className="text-gray-900 dark:text-gray-100">{getKhateebName(viewingKhutbah)}</p>
+            </div>
+            <div>
+              <span className="text-sm text-gray-500 dark:text-gray-400">Status</span>
+              <p className="text-gray-900 dark:text-gray-100">
+                {KHUTBAH_STATUS_OPTIONS.find((s) => s.value === viewingKhutbah.status)?.label}
+              </p>
+            </div>
+            {viewingKhutbah.resourceUrl && (
+              <div>
+                <span className="text-sm text-gray-500 dark:text-gray-400">Resource URL</span>
+                <p className="text-gray-900 dark:text-gray-100 break-all">{viewingKhutbah.resourceUrl}</p>
+              </div>
+            )}
+            {viewingKhutbah.notes && (
+              <div>
+                <span className="text-sm text-gray-500 dark:text-gray-400">Notes</span>
+                <p className="text-gray-900 dark:text-gray-100 whitespace-pre-wrap">{viewingKhutbah.notes}</p>
+              </div>
+            )}
+          </div>
+        )}
       </Modal>
     </div>
   );

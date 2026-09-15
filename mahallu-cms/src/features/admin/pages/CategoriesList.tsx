@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiEdit2, FiEye, FiLock, FiPlus, FiTag, FiTrash2 } from 'react-icons/fi';
+import { FiEdit2, FiLock, FiPlus, FiTag, FiTrash2 } from 'react-icons/fi';
 import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
@@ -173,11 +173,6 @@ export default function CategoriesList() {
       render: (_, row) => (
         <ActionsMenu
           items={[
-            {
-              label: 'View values',
-              icon: <FiEye className="h-4 w-4" />,
-              onClick: () => navigate(`/admin/categories/${row.id}`),
-            },
             { label: 'Edit', icon: <FiEdit2 className="h-4 w-4" />, onClick: () => openEditModal(row) },
             {
               label: 'Delete',
