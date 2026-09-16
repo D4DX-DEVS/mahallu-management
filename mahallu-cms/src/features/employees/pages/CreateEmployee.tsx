@@ -30,10 +30,14 @@ const employeeSchema = z.object({
   joinDate: z.string().max(200, 'Please keep the join date to 200 characters or less.').min(1, 'Join Date is required'),
   salary: z.string().max(200, 'Please keep the salary to 200 characters or less.').optional(),
   qualifications: z.string().max(200, 'Please keep the qualifications to 200 characters or less.').optional(),
-  // An account number keeps its leading zeros, so it stays text.
-  'bankAccount.accountNumber': z.string().max(34, 'Please enter a shorter account number.').optional(),
-  'bankAccount.bankName': z.string().max(200, 'Please keep the bank name to 200 characters or less.').optional(),
-  'bankAccount.ifscCode': z.string().max(11, 'Please enter a valid IFSC code.').optional(),
+  bankAccount: z
+    .object({
+      // An account number keeps its leading zeros, so it stays text.
+      accountNumber: z.string().max(34, 'Please enter a shorter account number.').optional(),
+      bankName: z.string().max(200, 'Please keep the bank name to 200 characters or less.').optional(),
+      ifscCode: z.string().max(11, 'Please enter a valid IFSC code.').optional(),
+    })
+    .optional(),
   status: z.enum(['active', 'on_leave', 'resigned', 'terminated']).optional(),
 });
 
@@ -94,11 +98,11 @@ export default function CreateEmployee() {
         status: data.status || 'active',
       };
 
-      if (data['bankAccount.accountNumber'] || data['bankAccount.bankName']) {
+      if (data.bankAccount?.accountNumber || data.bankAccount?.bankName) {
         employeeData.bankAccount = {
-          accountNumber: data['bankAccount.accountNumber'],
-          bankName: data['bankAccount.bankName'],
-          ifscCode: data['bankAccount.ifscCode'],
+          accountNumber: data.bankAccount.accountNumber,
+          bankName: data.bankAccount.bankName,
+          ifscCode: data.bankAccount.ifscCode,
         };
       }
 
