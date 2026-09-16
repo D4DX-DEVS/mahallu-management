@@ -3,9 +3,9 @@ import { Link, useNavigate } from 'react-router-dom';
 import { FiEye, FiDollarSign, FiUsers, FiCreditCard, FiDownload } from 'react-icons/fi';
 import TableCard from '@/components/ui/TableCard';
 import { rowActionClass } from '@/components/ui/rowAction';
-import Button from '@/components/ui/Button';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
+import EmptyState from '@/components/ui/EmptyState';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import Pagination from '@/components/ui/Pagination';
@@ -318,12 +318,12 @@ export default function MemberVarisangyaList() {
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="text-center py-10">
-            <p className="text-red-600 dark:text-red-400">{error}</p>
-            <Button onClick={fetchMembers} className="mt-4" variant="outline">
-              Retry
-            </Button>
-          </div>
+          <EmptyState
+            variant="error"
+            entity="members"
+            description={error}
+            action={{ label: 'Retry', onClick: fetchMembers }}
+          />
         ) : (
           <Table fixedLayout striped columns={columns} data={members} emptyMessage="No members found" showExport={false} />
         )}

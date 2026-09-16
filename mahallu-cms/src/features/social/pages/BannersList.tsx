@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { FiCheckCircle, FiEdit2, FiImage, FiPlus, FiTrash2 } from 'react-icons/fi';
 import TableCard from '@/components/ui/TableCard';
 import { rowActionClass } from '@/components/ui/rowAction';
 import Button from '@/components/ui/Button';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
+import EmptyState from '@/components/ui/EmptyState';
 import { PageSkeleton } from '@/components/ui/Skeleton';
-import Modal from '@/components/ui/Modal';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
 import { TableColumn, Pagination as PaginationType } from '@/types';
@@ -20,6 +21,7 @@ import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 
 export default function BannersList() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [searchQuery, setSearchQuery] = useState('');
   const [isFilterVisible, setIsFilterVisible] = useState(false);
   const [banners, setBanners] = useState<Banner[]>([]);
@@ -28,10 +30,20 @@ export default function BannersList() {
   const [selectedBanner, setSelectedBanner] = useState<Banner | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useState(() => {
+    const page = Number(searchParams.get('page'));
+    return page > 0 ? page : 1;
+  });
   const [itemsPerPage] = useState(10);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
   const [isExporting, setIsExporting] = useState(false);
+
+  // Keep the page number in the URL so returning from edit/create restores it.
+  useEffect(() => {
+    const next = new URLSearchParams();
+    if (currentPage > 1) next.set('page', String(currentPage));
+    setSearchParams(next, { replace: true });
+  }, [currentPage, setSearchParams]);
 
   useEffect(() => {
     fetchBanners();
@@ -99,10 +111,11 @@ export default function BannersList() {
       setDeleting(true);
       await socialService.deleteBanner(selectedBanner.id);
       await fetchBanners();
+      toast.success('Banner deleted');
       setShowDeleteModal(false);
       setSelectedBanner(null);
     } catch (err: any) {
-      setError(errorMessage(err, { action: 'delete banner' }));
+      toast.error(errorMessage(err, { action: 'delete banner' }));
     } finally {
       setDeleting(false);
     }
@@ -209,12 +222,12 @@ export default function BannersList() {
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="text-center py-10">
-            <p className="text-red-600 dark:text-red-400">{error}</p>
-            <Button onClick={fetchBanners} className="mt-4" variant="outline">
-              Retry
-            </Button>
-          </div>
+          <EmptyState
+            variant="error"
+            entity="banners"
+            description={error}
+            action={{ label: 'Retry', onClick: fetchBanners }}
+          />
         ) : (
           <Table fixedLayout striped columns={columns} data={banners} emptyMessage="No banners found" showExport={false} />
         )}
@@ -235,37 +248,20 @@ export default function BannersList() {
         )}
       </TableCard>
 
-      <Modal
+      <ConfirmDialog
         isOpen={showDeleteModal}
-        onClose={() => {
+        title="Delete banner"
+        message={`Are you sure you want to delete ${selectedBanner?.title ? `"${selectedBanner.title}"` : 'this banner'}? This action cannot be undone.`}
+        confirmLabel="Delete"
+        variant="danger"
+        isLoading={deleting}
+        onConfirm={handleDelete}
+        onCancel={() => {
           setShowDeleteModal(false);
           setSelectedBanner(null);
           setDeleting(false);
         }}
-        title="Delete Banner"
-        footer={
-          <>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setShowDeleteModal(false);
-                setSelectedBanner(null);
-                setDeleting(false);
-              }}
-            >
-              Cancel
-            </Button>
-            <Button variant="danger" onClick={handleDelete} isLoading={deleting}>
-              Delete
-            </Button>
-          </>
-        }
-      >
-        <p className="text-gray-600 dark:text-gray-400">
-          Are you sure you want to delete <strong>{selectedBanner?.title}</strong>? This action cannot be
-          undone.
-        </p>
-      </Modal>
+      />
     </div>
   );
 }

@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { useNavigate } from 'react-router-dom';
 import { FiSave, FiX } from 'react-icons/fi';
 import Card from '@/components/ui/Card';
+import Alert from '@/components/ui/Alert';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
@@ -19,6 +20,7 @@ import { getTenantId } from '@/utils/tenantHelper';
 import { errorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
+import { toast } from '@/store/toastStore';
 
 const familySchema = z.object({
   varisangyaGrade: z.string().max(200, 'Please keep the varisangya grade to 200 characters or less.').optional(),
@@ -83,14 +85,17 @@ export default function CreateFamily() {
     resolver: zodResolver(familySchema),
   });
 
+  // Only these fields are zod enums, where an empty string fails validation and must be dropped.
+  const ENUM_FIELDS = new Set(['economicStatus', 'welfareStatus', 'housingType']);
+
   const onSubmit = async (data: FamilyFormData) => {
     try {
       setError(null);
-      // Strip empty strings from optional select fields to avoid enum validation errors
       const cleanedData = Object.fromEntries(
-        Object.entries(data).filter(([_, v]) => v !== '' && v !== undefined)
+        Object.entries(data).filter(([key, v]) => !(ENUM_FIELDS.has(key) && v === ''))
       );
       await familyService.create(cleanedData);
+      toast.success('Family created');
       navigate(ROUTES.FAMILIES.LIST);
     } catch (err: any) {
       setError(errorMessage(err, { action: 'create family. please try again' }));
@@ -112,111 +117,122 @@ export default function CreateFamily() {
   ];
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <PageHeader
         title="Create Family"
-        description="Add a new family with complete information"
+        description="Register a new household in this mahallu"
         breadcrumbs={[{ label: 'Families', path: ROUTES.FAMILIES.LIST }]}
       />
 
       <Card padding="lg">
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          {error && (
-            <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm dark:bg-red-900 dark:border-red-700 dark:text-red-200">
-              {error}
-            </div>
-          )}
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          {error && <Alert variant="error">{error}</Alert>}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Select
-              label="Varisangya Grade"
-              options={gradeOptions}
-              value={watch('varisangyaGrade') || ''}
-              onAddNew={tenantId ? () => setAddGradeOpen(true) : undefined}
-              addNewLabel="Add Grade"
-              {...register('varisangyaGrade')}
-            />
-            <Input
-              label="House Name"
-              {...register('houseName')}
-              error={errors.houseName?.message}
-              required
-              placeholder="House Name"
-            />
-            <div className="hidden">
+          <section className="space-y-4">
+            <h2 className="text-sm font-semibold text-foreground">Household</h2>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <Input
-                label="House Name (Malayalam)"
-                {...register('houseNameMl')}
-                placeholder="വീട് പേര്"
-                className="font-malayalam"
+                label="House Name"
+                {...register('houseName')}
+                error={errors.houseName?.message}
+                required
+                placeholder="e.g. Al-Hamd House"
+              />
+              <Input label="House No." {...register('houseNo')} placeholder="e.g. 12/345" />
+              <Select
+                label="Varisangya Grade"
+                options={gradeOptions}
+                value={watch('varisangyaGrade') || ''}
+                onAddNew={tenantId ? () => setAddGradeOpen(true) : undefined}
+                addNewLabel="Add Grade"
+                {...register('varisangyaGrade')}
+              />
+              <div className="hidden">
+                <Input
+                  label="House Name (Malayalam)"
+                  {...register('houseNameMl')}
+                  placeholder="വീട് പേര്"
+                  className="font-malayalam"
+                />
+              </div>
+              <div className="hidden">
+                <Input label="Family Head" {...register('familyHead')} placeholder="Family Head Name" />
+              </div>
+              <div className="hidden">
+                <Input
+                  label="Family Head (Malayalam)"
+                  {...register('familyHeadMl')}
+                  placeholder="കുടുംബ നാഥൻ"
+                  className="font-malayalam"
+                />
+              </div>
+            </div>
+          </section>
+
+          <section className="space-y-4 border-t border-border pt-6">
+            <h2 className="text-sm font-semibold text-foreground">Contact</h2>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <Input
+                label="Contact No."
+                type="tel"
+                {...register('contactNo')}
+                error={errors.contactNo?.message}
+                placeholder="10-digit mobile"
+                maxLength={10}
+              />
+              <Input
+                label="Ward Number"
+                {...register('wardNumber')}
+                error={errors.wardNumber?.message}
+                placeholder="e.g. 12"
+                type="number"
+                min={1}
               />
             </div>
-            <div className="hidden">
-              <Input label="Family Head" {...register('familyHead')} placeholder="Family Head Name" />
-            </div>
-            <div className="hidden">
-              <Input
-                label="Family Head (Malayalam)"
-                {...register('familyHeadMl')}
-                placeholder="കുടുംബ നാഥൻ"
-                className="font-malayalam"
+          </section>
+
+          <section className="space-y-4 border-t border-border pt-6">
+            <h2 className="text-sm font-semibold text-foreground">Location</h2>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <Select
+                label="Area"
+                options={areaSelectOptions}
+                value={watch('area') || ''}
+                onAddNew={tenantId ? () => setAddAreaOpen(true) : undefined}
+                addNewLabel="Add Area"
+                {...register('area')}
               />
+              <Input label="Place" {...register('place')} placeholder="e.g. Calicut" />
+              <div className="hidden">
+                <Input
+                  label="Area (Malayalam)"
+                  {...register('areaMl')}
+                  placeholder="പ്രദേശം"
+                  className="font-malayalam"
+                />
+              </div>
+              <div className="hidden">
+                <Input
+                  label="Place (Malayalam)"
+                  {...register('placeMl')}
+                  placeholder="സ്ഥലം"
+                  className="font-malayalam"
+                />
+              </div>
             </div>
-            <Input
-              label="Contact No."
-              type="tel"
-              {...register('contactNo')}
-              error={errors.contactNo?.message}
-              placeholder="Contact No. (10 digits)"
-              maxLength={10}
-            />
-            <Input
-              label="Ward Number"
-              {...register('wardNumber')}
-              error={errors.wardNumber?.message}
-              placeholder="Ward Number"
-              type="number"
-              min={1}
-            />
-            <Input label="House No." {...register('houseNo')} placeholder="House No." />
-            <Select
-              label="Area"
-              options={areaSelectOptions}
-              value={watch('area') || ''}
-              onAddNew={tenantId ? () => setAddAreaOpen(true) : undefined}
-              addNewLabel="Add Area"
-              {...register('area')}
-            />
-            <div className="hidden">
-              <Input
-                label="Area (Malayalam)"
-                {...register('areaMl')}
-                placeholder="പ്രദേശം"
-                className="font-malayalam"
-              />
-            </div>
-            <Input label="Place" {...register('place')} placeholder="Place" />
-            <div className="hidden">
-              <Input
-                label="Place (Malayalam)"
-                {...register('placeMl')}
-                placeholder="സ്ഥലം"
-                className="font-malayalam"
-              />
-            </div>
+          </section>
+
+          <div className="border-t border-border pt-6">
+            <WelfareSection register={register} defaultOpen />
           </div>
 
-          <div className="pt-4">
-            <WelfareSection register={register} />
-          </div>
-
-          <div className="flex gap-2 flex-col-reverse sm:flex-row sm:justify-end sm:gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-            <Button type="button" variant="outline" onClick={() => navigate(ROUTES.FAMILIES.LIST)}>
-              <FiX className="h-4 w-4 mr-2" />
+          <div className="flex flex-col-reverse gap-3 border-t border-border pt-6 sm:flex-row sm:justify-end">
+            <Button type="button" variant="outline" onClick={() => navigate(ROUTES.FAMILIES.LIST)} className="w-full sm:w-auto">
+              <FiX className="h-4 w-4" aria-hidden="true" />
               Cancel
             </Button>
-            <Button type="submit" isLoading={isSubmitting} disabled={isSubmitting}>
-              <FiSave className="h-4 w-4 mr-2" />
+            <Button type="submit" isLoading={isSubmitting} disabled={isSubmitting} className="w-full sm:w-auto">
+              <FiSave className="h-4 w-4" aria-hidden="true" />
               Create Family
             </Button>
           </div>

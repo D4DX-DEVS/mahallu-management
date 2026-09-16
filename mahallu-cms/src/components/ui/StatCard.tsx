@@ -33,6 +33,13 @@ export interface StatCardProps {
    * these cards purely to paint the figure amber or red. Default for anything
    * that is only a quantity. */
   tone?: 'default' | 'success' | 'warning' | 'destructive' | 'info';
+  /**
+   * `compact` is for a secondary grid shown alongside a page's real headline
+   * numbers — e.g. the Dashboard's "Community registers" row under its four
+   * key stats. Same data, a visibly quieter treatment, so one grid doesn't
+   * compete with the other for attention.
+   */
+  size?: 'default' | 'compact';
   /*
    * Present only when the card genuinely navigates. Renders it as a button. */
   onClick?: () => void;
@@ -41,9 +48,23 @@ export interface StatCardProps {
 
 /* Callers pass their glyph at whatever size their page happened to use —
  * h-5, h-6, occasionally unsized. The child selector outranks the class on
- * the svg itself, so every stat icon is 16px without touching a call site. */
-const ICON_BOX =
-  'flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground [&>svg]:h-4 [&>svg]:w-4';
+ * the svg itself, so every stat icon is a fixed size without touching a call site. */
+const ICON_BOX = {
+  default: 'flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-md [&>svg]:h-[18px] [&>svg]:w-[18px]',
+  compact: 'flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md [&>svg]:h-4 [&>svg]:w-4',
+};
+
+/* The icon tile carries the tone too, not just the number under it — a
+ * warning stat should read as attention-worthy at a glance, before the
+ * figure is even read. `default` stays neutral: colour is reserved for a
+ * number that means something is wrong or worth acting on. */
+const ICON_TONE_CLASS = {
+  default: 'bg-muted text-muted-foreground',
+  success: 'bg-success/10 text-success',
+  warning: 'bg-warning/10 text-warning',
+  destructive: 'bg-destructive/10 text-destructive',
+  info: 'bg-info/10 text-info',
+} as const;
 
 const TONE_CLASS = {
   default: 'text-foreground',
@@ -60,29 +81,32 @@ export default function StatCard({
   hint,
   trend,
   tone = 'default',
+  size = 'default',
   onClick,
   className,
 }: StatCardProps) {
+  const compact = size === 'compact';
   const body = (
     <>
       <div className="flex items-start justify-between gap-2">
         <p className="min-w-0 text-label font-medium text-muted-foreground">{title}</p>
         {icon && (
-          <span className={ICON_BOX} aria-hidden="true">
+          <span className={cn(ICON_BOX[size], ICON_TONE_CLASS[tone])} aria-hidden="true">
             {icon}
           </span>
         )}
       </div>
       <p
         className={cn(
-          'mt-1 truncate text-2xl font-semibold leading-tight tabular-nums tracking-tight',
+          'mt-1.5 truncate font-semibold leading-none tabular-nums tracking-tight',
+          compact ? 'text-lg' : 'text-3xl',
           TONE_CLASS[tone]
         )}
       >
         {value}
       </p>
       {(hint || trend) && (
-        <div className="mt-1 flex items-center gap-2">
+        <div className="mt-2 flex items-center gap-2">
           {hint && <span className="truncate text-xs text-muted-foreground">{hint}</span>}
           {trend && (
             <span
@@ -113,8 +137,10 @@ export default function StatCard({
         type="button"
         onClick={onClick}
         className={cn(
-          'w-full rounded-lg border border-border bg-card p-3 text-left shadow-none transition-colors sm:shadow-sm',
-          'hover:bg-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+          'w-full rounded-lg border border-border bg-card text-left shadow-sm transition-all',
+          compact ? 'p-3' : 'p-4',
+          'hover:-translate-y-px hover:shadow-md',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
           className
         )}
       >
@@ -124,7 +150,7 @@ export default function StatCard({
   }
 
   return (
-    <Card padding="none" className={cn('p-3', className)}>
+    <Card padding="none" className={cn(compact ? 'p-3' : 'p-4', className)}>
       {body}
     </Card>
   );

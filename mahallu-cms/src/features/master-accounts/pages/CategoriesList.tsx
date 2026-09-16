@@ -9,6 +9,7 @@ import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
+import EmptyState from '@/components/ui/EmptyState';
 import Pagination from '@/components/ui/Pagination';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import TableToolbar from '@/components/ui/TableToolbar';
@@ -265,12 +266,12 @@ export default function CategoriesList() {
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="text-center py-10">
-            <p className="text-red-600 dark:text-red-400">{error}</p>
-            <Button onClick={fetchCategories} className="mt-4" variant="outline">
-              Retry
-            </Button>
-          </div>
+          <EmptyState
+            variant="error"
+            entity="categories"
+            description={error}
+            action={{ label: 'Retry', onClick: fetchCategories }}
+          />
         ) : (
           <>
             <Table

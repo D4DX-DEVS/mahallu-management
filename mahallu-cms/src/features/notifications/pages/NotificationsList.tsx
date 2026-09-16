@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { FiBell, FiCheck, FiMail, FiInbox } from 'react-icons/fi';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
+import EmptyState from '@/components/ui/EmptyState';
 import Select from '@/components/ui/Select';
 import StatCard from '@/components/ui/StatCard';
 import Pagination from '@/components/ui/Pagination';
@@ -122,12 +123,12 @@ export default function NotificationsList() {
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="text-center py-10">
-            <p className="text-red-600 dark:text-red-400">{error}</p>
-            <Button onClick={fetchNotifications} className="mt-4" variant="outline">
-              Retry
-            </Button>
-          </div>
+          <EmptyState
+            variant="error"
+            entity="notifications"
+            description={error}
+            action={{ label: 'Retry', onClick: fetchNotifications }}
+          />
         ) : (
           <div className="space-y-2">
             {notifications.length === 0 ? (

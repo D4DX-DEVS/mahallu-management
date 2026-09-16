@@ -7,6 +7,7 @@ import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
+import EmptyState from '@/components/ui/EmptyState';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import Modal from '@/components/ui/Modal';
 import Pagination from '@/components/ui/Pagination';
@@ -261,12 +262,12 @@ export default function MeetingsList() {
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="text-center py-10">
-            <p className="text-red-600 dark:text-red-400">{error}</p>
-            <Button onClick={fetchMeetings} className="mt-4" variant="outline">
-              Retry
-            </Button>
-          </div>
+          <EmptyState
+            variant="error"
+            entity="meetings"
+            description={error}
+            action={{ label: 'Retry', onClick: fetchMeetings }}
+          />
         ) : (
           <Table
             fixedLayout

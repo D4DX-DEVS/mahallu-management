@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import Card from '@/components/ui/Card';
-import Button from '@/components/ui/Button';
+import EmptyState from '@/components/ui/EmptyState';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import { registerService, RegisterSummaryRow } from '@/services/registerService';
 import { REGISTER_CONFIGS } from '../registerConfigs';
@@ -40,12 +40,12 @@ export default function RegistersOverview() {
       {loading ? (
         <PageSkeleton variant="section" />
       ) : error ? (
-        <div className="py-10 text-center">
-          <p className="text-red-600 dark:text-red-400">{error}</p>
-          <Button onClick={fetchSummary} className="mt-4" variant="outline">
-            Retry
-          </Button>
-        </div>
+        <EmptyState
+          variant="error"
+          entity="registers"
+          description={error}
+          action={{ label: 'Retry', onClick: fetchSummary }}
+        />
       ) : (
         <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3 sm:gap-3 lg:grid-cols-4 xl:grid-cols-6">
           {REGISTER_CONFIGS.map((config) => (

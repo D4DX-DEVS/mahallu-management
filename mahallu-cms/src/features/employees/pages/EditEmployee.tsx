@@ -16,6 +16,7 @@ import { useAuthStore } from '@/store/authStore';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
+import { toast } from '@/store/toastStore';
 
 const employeeSchema = z.object({
   instituteId: z.string().max(200, 'Please keep the institute to 200 characters or less.').min(1, 'Institute is required'),
@@ -131,6 +132,7 @@ export default function EditEmployee() {
       }
 
       await employeeService.update(id, employeeData);
+      toast.success('Employee updated');
       navigate(ROUTES.EMPLOYEES.LIST);
     } catch (err: any) {
       setError(errorMessage(err, { action: 'update employee' }));
@@ -239,9 +241,9 @@ export default function EditEmployee() {
               <FiX className="h-4 w-4 mr-2" />
               Cancel
             </Button>
-            <Button type="submit" disabled={isSubmitting}>
+            <Button type="submit" isLoading={isSubmitting}>
               <FiSave className="h-4 w-4 mr-2" />
-              {isSubmitting ? 'Updating...' : 'Update Employee'}
+              Update Employee
             </Button>
           </div>
         </Card>

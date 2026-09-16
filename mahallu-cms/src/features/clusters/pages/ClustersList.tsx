@@ -7,6 +7,7 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Modal from '@/components/ui/Modal';
 import ExpandableSearch from '@/components/ui/ExpandableSearch';
+import EmptyState from '@/components/ui/EmptyState';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import Pagination from '@/components/ui/Pagination';
 import { Pagination as PaginationType } from '@/types';
@@ -106,12 +107,12 @@ export default function ClustersList() {
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="py-10 text-center">
-            <p className="text-red-600 dark:text-red-400">{error}</p>
-            <Button onClick={fetchRows} className="mt-4" variant="outline">
-              Retry
-            </Button>
-          </div>
+          <EmptyState
+            variant="error"
+            entity="clusters"
+            description={error}
+            action={{ label: 'Retry', onClick: fetchRows }}
+          />
         ) : rows.length === 0 ? (
           <p className="py-10 text-center text-sm text-gray-500 dark:text-gray-400">No clusters yet</p>
         ) : (

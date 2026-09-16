@@ -21,6 +21,7 @@ import { Member } from '@/types';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
+import StatusBadge from '@/components/ui/StatusBadge';
 
 const khateebSchema = z.object({
   name: z.string().max(200, 'Please keep the name to 200 characters or less.').min(1, 'Name is required'),
@@ -183,15 +184,7 @@ export default function KhateebsList() {
     {
       key: 'status',
       label: 'Status',
-      render: (_: any, khateeb: Khateeb) => (
-        <span
-          className={`px-2 py-1 rounded text-xs font-medium ${
-            khateeb.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-          }`}
-        >
-          {khateeb.status === 'active' ? 'Active' : 'Inactive'}
-        </span>
-      ),
+      render: (_: any, khateeb: Khateeb) => <StatusBadge status={khateeb.status} />,
     },
     {
       key: 'actions',

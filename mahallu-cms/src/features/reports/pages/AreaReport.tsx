@@ -113,11 +113,11 @@ export default function AreaReportPage() {
   }
 
   return (
-    <div className="space-y-4">
-      <PageHeader description="Area-wise family and member statistics" title="Area Report" />
-
-      <div className="flex gap-2 items-center justify-between">
-        <div className="flex items-center gap-3">
+    <div className="space-y-5">
+      <PageHeader
+        title="Area Report"
+        description="Area-wise family and member statistics"
+        actions={
           <Dropdown
             trigger={
               <Button variant="outline" icon={<FiDownload />} collapseLabel>
@@ -126,10 +126,10 @@ export default function AreaReportPage() {
             }
             items={exportItems}
           />
-        </div>
-      </div>
+        }
+      />
 
-      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <StatCard title="Total Families" value={report.totalFamilies} />
         <StatCard title="Total Members" value={report.totalMembers} />
         <StatCard title="Male" value={report.maleCount} />

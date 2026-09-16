@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import Table from '@/components/ui/Table';
+import EmptyState from '@/components/ui/EmptyState';
 import ExpandableSearch from '@/components/ui/ExpandableSearch';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import Pagination from '@/components/ui/Pagination';
@@ -113,12 +114,12 @@ export default function AnnouncementsList() {
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="py-10 text-center">
-            <p className="text-red-600 dark:text-red-400">{error}</p>
-            <Button onClick={fetchRows} className="mt-4" variant="outline">
-              Retry
-            </Button>
-          </div>
+          <EmptyState
+            variant="error"
+            entity="announcements"
+            description={error}
+            action={{ label: 'Retry', onClick: fetchRows }}
+          />
         ) : (
           <Table
             fixedLayout

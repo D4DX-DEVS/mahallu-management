@@ -11,6 +11,7 @@ import { formatDate, toTitleCase } from '@/utils/format';
 import ProgramRegistrations from '../components/ProgramRegistrations';
 import { loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import StatusBadge from '@/components/ui/StatusBadge';
 
 export default function ProgramDetail() {
   const { id } = useParams<{ id: string }>();
@@ -93,15 +94,7 @@ export default function ProgramDetail() {
             <div>
               <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Status</label>
               <p className="mt-1">
-                <span
-                  className={`px-2 py-1 text-xs font-medium rounded-full ${
-                    program.status === 'active'
-                      ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                      : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
-                  }`}
-                >
-                  {program.status || 'active'}
-                </span>
+                <StatusBadge status={program.status || 'active'} />
               </p>
             </div>
           </div>

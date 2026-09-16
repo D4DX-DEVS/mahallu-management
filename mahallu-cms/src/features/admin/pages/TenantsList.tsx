@@ -23,6 +23,7 @@ import { toast } from '@/store/toastStore';
 import { errorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
+import StatusBadge from '@/components/ui/StatusBadge';
 
 export default function TenantsList() {
   const { isSuperAdmin } = useAuthStore();
@@ -183,19 +184,7 @@ export default function TenantsList() {
       key: 'status',
       label: 'Status',
       width: '7.25rem',
-      render: (status) => (
-        <span
-          className={`px-2 py-1 text-xs font-medium rounded-full ${
-            status === 'active'
-              ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-              : status === 'suspended'
-                ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-                : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
-          }`}
-        >
-          {status}
-        </span>
-      ),
+      render: (status) => <StatusBadge status={status} />,
     },
     {
       key: 'since',

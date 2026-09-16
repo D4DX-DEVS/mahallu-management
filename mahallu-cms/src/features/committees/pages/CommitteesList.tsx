@@ -5,8 +5,9 @@ import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
+import EmptyState from '@/components/ui/EmptyState';
 import { PageSkeleton } from '@/components/ui/Skeleton';
-import Modal from '@/components/ui/Modal';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
 import { toast } from '@/store/toastStore';
@@ -21,6 +22,7 @@ import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import ActionsMenu from '@/components/ui/ActionsMenu';
+import StatusBadge from '@/components/ui/StatusBadge';
 
 export default function CommitteesList() {
   const navigate = useNavigate();
@@ -111,10 +113,12 @@ export default function CommitteesList() {
       setDeleting(true);
       await committeeService.delete(selectedCommittee.id);
       await fetchCommittees();
+      toast.success('Committee deleted');
       setShowDeleteModal(false);
       setSelectedCommittee(null);
     } catch (err: any) {
-      setError(errorMessage(err, { action: 'delete committee' }));
+      toast.error(errorMessage(err, { action: 'delete committee' }));
+    } finally {
       setDeleting(false);
     }
   };
@@ -160,17 +164,7 @@ export default function CommitteesList() {
       key: 'status',
       label: 'Status',
       width: '7.25rem',
-      render: (status) => (
-        <span
-          className={`px-2 py-1 text-xs font-medium rounded-full ${
-            status === 'active'
-              ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-              : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
-          }`}
-        >
-          {status || 'active'}
-        </span>
-      ),
+      render: (status) => <StatusBadge status={status || 'active'} />,
     },
     {
       key: 'createdAt',
@@ -277,18 +271,14 @@ export default function CommitteesList() {
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="text-center py-10">
-            <p className="text-red-600 dark:text-red-400">{error}</p>
-            <Button onClick={fetchCommittees} className="mt-4" variant="outline">
-              Retry
-            </Button>
-          </div>
+          <EmptyState variant="error" entity="committees" description={error} action={{ label: 'Retry', onClick: fetchCommittees }} />
         ) : (
           <Table
             fixedLayout
             striped
             columns={columns}
             data={committees}
+            entity="committees"
             emptyMessage="No committees found"
             showExport={false}
             onRowClick={(row) => navigate(ROUTES.COMMITTEES.DETAIL(row.id))}
@@ -311,35 +301,20 @@ export default function CommitteesList() {
         )}
       </TableCard>
 
-      <Modal
+      <ConfirmDialog
         isOpen={showDeleteModal}
-        onClose={() => {
+        title="Delete committee"
+        message={`Are you sure you want to delete ${toTitleCase(selectedCommittee?.name) || 'this committee'}? This action cannot be undone.`}
+        consequence="This will also delete all associated meetings."
+        confirmLabel="Delete"
+        variant="danger"
+        isLoading={deleting}
+        onConfirm={handleDelete}
+        onCancel={() => {
           setShowDeleteModal(false);
           setSelectedCommittee(null);
         }}
-        title="Delete Committee"
-        footer={
-          <>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setShowDeleteModal(false);
-                setSelectedCommittee(null);
-              }}
-            >
-              Cancel
-            </Button>
-            <Button variant="danger" onClick={handleDelete} isLoading={deleting}>
-              Delete
-            </Button>
-          </>
-        }
-      >
-        <p className="text-gray-600 dark:text-gray-400">
-          Are you sure you want to delete <strong>{toTitleCase(selectedCommittee?.name)}</strong>? This will also delete
-          all associated meetings. This action cannot be undone.
-        </p>
-      </Modal>
+      />
     </div>
   );
 }

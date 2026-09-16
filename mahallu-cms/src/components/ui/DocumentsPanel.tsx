@@ -3,6 +3,7 @@ import { FiDownload, FiCheckCircle, FiXCircle, FiEye } from 'react-icons/fi';
 import Button from './Button';
 import LoadingSpinner from './LoadingSpinner';
 import Modal from './Modal';
+import StatusBadge from './StatusBadge';
 import { toast } from '@/store/toastStore';
 import { registrationService, DocumentFile } from '@/services/registrationService';
 import { formatDate } from '@/utils/format';
@@ -105,17 +106,6 @@ export default function DocumentsPanel({ ownerType, ownerId, isAdmin = false }: 
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'verified':
-        return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
-      case 'rejected':
-        return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
-      default:
-        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
-    }
-  };
-
   if (loading) {
     return (
       <div className="flex justify-center py-8">
@@ -125,11 +115,11 @@ export default function DocumentsPanel({ ownerType, ownerId, isAdmin = false }: 
   }
 
   if (error) {
-    return <div className="text-center py-8 text-red-600 dark:text-red-400">{error}</div>;
+    return <div className="text-center py-8 text-destructive">{error}</div>;
   }
 
   if (documents.length === 0) {
-    return <div className="text-center py-8 text-gray-500 dark:text-gray-400">No documents attached</div>;
+    return <div className="text-center py-8 text-muted-foreground">No documents attached</div>;
   }
 
   return (
@@ -137,22 +127,18 @@ export default function DocumentsPanel({ ownerType, ownerId, isAdmin = false }: 
       {documents.map((doc) => (
         <div
           key={doc._id || doc.id}
-          className="flex flex-col gap-3 rounded-lg border border-gray-200 p-3 transition-colors hover:bg-gray-50 sm:flex-row sm:items-center sm:justify-between sm:p-4 dark:border-gray-700 dark:hover:bg-gray-700/50"
+          className="flex flex-col gap-3 rounded-lg border border-border p-3 transition-colors hover:bg-accent/50 sm:flex-row sm:items-center sm:justify-between sm:p-4"
         >
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-3">
               <div className="flex-1 min-w-0">
-                <p className="font-medium text-gray-900 dark:text-gray-100 truncate">{doc.fileName}</p>
+                <p className="font-medium text-foreground truncate">{doc.fileName}</p>
                 <div className="mt-1 flex flex-wrap items-center gap-2">
-                  <span className="text-xs text-gray-500 dark:text-gray-400">{doc.documentType}</span>
-                  <span
-                    className={`inline-block px-2 py-1 rounded text-xs font-semibold ${getStatusColor(doc.status)}`}
-                  >
-                    {doc.status?.charAt(0).toUpperCase() + doc.status?.slice(1)}
-                  </span>
+                  <span className="text-xs text-muted-foreground">{doc.documentType}</span>
+                  <StatusBadge status={doc.status || 'pending'} />
                 </div>
                 {doc.status === 'rejected' && doc.rejectionReason && (
-                  <p className="mt-1 break-words text-xs text-red-600 dark:text-red-400">Reason: {doc.rejectionReason}</p>
+                  <p className="mt-1 break-words text-xs text-destructive">Reason: {doc.rejectionReason}</p>
                 )}
               </div>
             </div>
@@ -180,7 +166,7 @@ export default function DocumentsPanel({ ownerType, ownerId, isAdmin = false }: 
                   size="sm"
                   variant="outline"
                   onClick={() => handleVerify(doc._id || doc.id || '')}
-                  className="text-green-600 dark:text-green-400"
+                  className="text-success"
                   title="Verify"
                 >
                   <FiCheckCircle className="h-4 w-4" />
@@ -189,7 +175,7 @@ export default function DocumentsPanel({ ownerType, ownerId, isAdmin = false }: 
                   size="sm"
                   variant="outline"
                   onClick={() => handleRejectClick(doc._id || doc.id || '')}
-                  className="text-red-600 dark:text-red-400"
+                  className="text-destructive"
                   title="Reject"
                 >
                   <FiXCircle className="h-4 w-4" />
@@ -208,14 +194,12 @@ export default function DocumentsPanel({ ownerType, ownerId, isAdmin = false }: 
       >
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Rejection Reason
-            </label>
+            <label className="mb-2 block text-label font-medium text-foreground">Rejection Reason</label>
             <textarea
               aria-label="Reason for rejection"
               value={rejectionReason}
               onChange={(e) => setRejectionReason(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-gray-100"
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               rows={4}
               placeholder="Explain why this document is being rejected..."
             />
@@ -224,7 +208,7 @@ export default function DocumentsPanel({ ownerType, ownerId, isAdmin = false }: 
             <Button variant="outline" onClick={() => setRejectModal({ open: false })} disabled={rejecting}>
               Cancel
             </Button>
-            <Button onClick={handleReject} isLoading={rejecting} className="bg-red-600 hover:bg-red-700">
+            <Button variant="danger" onClick={handleReject} isLoading={rejecting}>
               Reject Document
             </Button>
           </div>

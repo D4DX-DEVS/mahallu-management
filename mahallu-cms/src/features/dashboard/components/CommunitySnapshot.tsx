@@ -63,20 +63,25 @@ export default function CommunitySnapshot({ children }: CommunitySnapshotProps) 
       .getAllNikah({ status: 'approved', limit: 1 })
       .then((result) => setApprovedNikahCount(result?.pagination?.total ?? 0))
       .catch(() => setApprovedNikahCount(0));
-    volunteerService
-      .getSummary()
-      .then((summary) => setActiveVolunteerCount(summary?.totalActiveVolunteers ?? 0))
-      .catch(() => setActiveVolunteerCount(0));
+    // HIDDEN per CEO decision (Youth Volunteer Wing / Sevana Vedi + Women's Forum) — volunteer summary fetching disabled; import retained for future reactivation.
+    void volunteerService;
+    void activeVolunteerCount;
+    void setActiveVolunteerCount;
   }, []);
   const COUNT_OVERRIDES: Record<string, number> = {
     marriageable: approvedNikahCount,
-    volunteers: activeVolunteerCount,
   };
+  // HIDDEN per CEO decision — Employment (job-seekers) and Volunteers hidden from dashboard snapshot. Retained in service layer for future reactivation.
+  const HIDDEN_REGISTER_KEYS = new Set<string>([
+    'volunteers', // Youth Volunteer Wing / Sevana Vedi + Women's Forum / Vanitha Vedi
+    'job-seekers', // Employment Database
+  ]);
   /*
    * Zero-count registers are kept. They used to be filtered out, so a register
    * that fell to zero vanished without explanation — which is exactly when
    * someone needs to see it. */
-  const topRegisters = registers
+  const filteredRegisters = registers.filter((row) => !HIDDEN_REGISTER_KEYS.has(row.key));
+  const topRegisters = filteredRegisters
     .map((row) => (row.key in COUNT_OVERRIDES ? { ...row, count: COUNT_OVERRIDES[row.key] } : row))
     .slice(0, 8);
   return (
@@ -103,30 +108,37 @@ export default function CommunitySnapshot({ children }: CommunitySnapshotProps) 
           )}
         </div>
       )}
-      {children && <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">{children}</div>}
+      {children && <div className="space-y-4">{children}</div>}
       {topRegisters.length > 0 && (
-        <div>
-          <div className="mb-2 flex items-center justify-between">
-            <h2 className="text-base font-semibold text-foreground">Community registers</h2>
+        <section className="overflow-hidden rounded-xl border border-border bg-card">
+          <div className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-5">
+            <h2 className="text-sm font-semibold text-foreground">Community registers</h2>
             <Link
               to="/registers"
-              className="rounded-sm text-xs font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               View all
             </Link>
           </div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+          <div className="divide-y divide-border/60">
             {topRegisters.map((row) => (
-              <DashboardStatCard
+              <button
                 key={row.key}
-                label={row.label}
-                value={row.count}
-                icon={REGISTER_ICONS[row.key] ?? <FiUsers className="h-4 w-4" />}
+                type="button"
                 onClick={() => navigate('/registers/' + row.key)}
-              />
+                className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sm:px-5"
+              >
+                <span className="flex min-w-0 items-center gap-3">
+                  <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                    {REGISTER_ICONS[row.key] ?? <FiUsers className="h-4 w-4" />}
+                  </span>
+                  <span className="truncate text-sm font-medium text-foreground">{row.label}</span>
+                </span>
+                <span className="flex-shrink-0 text-lg font-semibold tabular-nums text-foreground">{row.count}</span>
+              </button>
             ))}
           </div>
-        </div>
+        </section>
       )}
     </div>
   );

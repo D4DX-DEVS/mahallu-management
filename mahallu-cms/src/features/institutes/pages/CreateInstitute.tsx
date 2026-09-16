@@ -10,6 +10,7 @@ import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import { ROUTES } from '@/constants/routes';
 import { instituteService } from '@/services/instituteService';
+import { toast } from '@/store/toastStore';
 import { errorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 
@@ -61,10 +62,12 @@ export default function CreateInstitute() {
       };
 
       await instituteService.create(instituteData);
+      toast.success('Institute created');
       navigate(ROUTES.INSTITUTES.LIST);
     } catch (err: any) {
-      setError(errorMessage(err, { action: 'create institute. please try again' }));
-      console.error('Error creating institute:', err);
+      const message = errorMessage(err, { action: 'create institute. please try again' });
+      setError(message);
+      toast.error(message);
     }
   };
 

@@ -12,6 +12,7 @@ import Select from '@/components/ui/Select';
 import RichTextEditor from '@/components/ui/RichTextEditor';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
+import EmptyState from '@/components/ui/EmptyState';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
@@ -414,12 +415,12 @@ export default function NOCList() {
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="text-center py-10">
-            <p className="text-red-600 dark:text-red-400">{error}</p>
-            <Button onClick={fetchNOCs} className="mt-4" variant="outline">
-              Retry
-            </Button>
-          </div>
+          <EmptyState
+            variant="error"
+            entity="NOCs"
+            description={error}
+            action={{ label: 'Retry', onClick: fetchNOCs }}
+          />
         ) : (
           <Table
             fixedLayout

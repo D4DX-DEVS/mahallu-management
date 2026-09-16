@@ -8,7 +8,7 @@ export default function Skeleton({ className }: SkeletonProps) {
   return (
     <div
       className={cn(
-        'relative overflow-hidden rounded-md bg-gray-200/70 dark:bg-gray-700/50',
+        'relative overflow-hidden rounded-md bg-muted',
         'after:absolute after:inset-0 after:-translate-x-full after:animate-shimmer',
         'after:bg-gradient-to-r after:from-transparent after:via-white/60 after:to-transparent',
         'dark:after:via-white/10',
@@ -59,7 +59,7 @@ interface TableSkeletonProps {
 
 export function TableSkeleton({ columns, rows = 8 }: TableSkeletonProps) {
   return (
-    <div className="divide-y divide-gray-200 dark:divide-gray-700">
+    <div className="divide-y divide-border">
       {Array.from({ length: rows }).map((_, r) => (
         <div key={r} className="flex items-center gap-3 px-3 py-3">
           {Array.from({ length: columns }).map((_, c) => (

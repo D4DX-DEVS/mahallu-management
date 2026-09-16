@@ -3,9 +3,9 @@ import { Link, useNavigate } from 'react-router-dom';
 import { FiEye, FiDollarSign, FiHome, FiCreditCard, FiDownload } from 'react-icons/fi';
 import TableCard from '@/components/ui/TableCard';
 import { rowActionClass } from '@/components/ui/rowAction';
-import Button from '@/components/ui/Button';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
+import EmptyState from '@/components/ui/EmptyState';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import Pagination from '@/components/ui/Pagination';
@@ -342,12 +342,12 @@ export default function FamilyVarisangyaList() {
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="text-center py-10">
-            <p className="text-red-600 dark:text-red-400">{error}</p>
-            <Button onClick={fetchFamilies} className="mt-4" variant="outline">
-              Retry
-            </Button>
-          </div>
+          <EmptyState
+            variant="error"
+            entity="families"
+            description={error}
+            action={{ label: 'Retry', onClick: fetchFamilies }}
+          />
         ) : (
           <Table fixedLayout striped columns={columns} data={families} emptyMessage="No families found" showExport={false} />
         )}

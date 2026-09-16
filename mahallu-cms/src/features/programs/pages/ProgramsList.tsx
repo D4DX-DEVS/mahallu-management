@@ -5,6 +5,7 @@ import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
+import EmptyState from '@/components/ui/EmptyState';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import Modal from '@/components/ui/Modal';
 import Pagination from '@/components/ui/Pagination';
@@ -21,6 +22,7 @@ import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import ActionsMenu from '@/components/ui/ActionsMenu';
+import StatusBadge from '@/components/ui/StatusBadge';
 
 export default function ProgramsList() {
   const navigate = useNavigate();
@@ -174,17 +176,7 @@ export default function ProgramsList() {
       key: 'status',
       label: 'Status',
       width: '7.25rem',
-      render: (status) => (
-        <span
-          className={`px-2 py-1 text-xs font-medium rounded-full ${
-            status === 'active'
-              ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-              : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
-          }`}
-        >
-          {status || 'active'}
-        </span>
-      ),
+      render: (status) => <StatusBadge status={status || 'active'} />,
     },
     {
       key: 'actions',
@@ -318,12 +310,12 @@ export default function ProgramsList() {
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="text-center py-10">
-            <p className="text-red-600 dark:text-red-400">{error}</p>
-            <Button onClick={fetchPrograms} className="mt-4" variant="outline">
-              Retry
-            </Button>
-          </div>
+          <EmptyState
+            variant="error"
+            entity="programs"
+            description={error}
+            action={{ label: 'Retry', onClick: fetchPrograms }}
+          />
         ) : (
           <Table
             fixedLayout

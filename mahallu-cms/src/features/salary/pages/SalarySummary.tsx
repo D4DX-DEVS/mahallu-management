@@ -4,6 +4,7 @@ import { FiArrowLeft } from 'react-icons/fi';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
+import EmptyState from '@/components/ui/EmptyState';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import { ROUTES } from '@/constants/routes';
 import { salaryService } from '@/services/salaryService';
@@ -149,12 +150,12 @@ export default function SalarySummary() {
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="text-center py-10">
-            <p className="text-red-600 dark:text-red-400">{error}</p>
-            <Button onClick={fetchSummary} className="mt-4" variant="outline">
-              Retry
-            </Button>
-          </div>
+          <EmptyState
+            variant="error"
+            entity="salary summary"
+            description={error}
+            action={{ label: 'Retry', onClick: fetchSummary }}
+          />
         ) : summary.length === 0 ? (
           <div className="text-center py-10 text-gray-500 dark:text-gray-400">
             No salary data found for the selected period

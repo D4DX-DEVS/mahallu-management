@@ -20,6 +20,7 @@ import { errorMessage, loadErrorMessage, pluralise } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
 import ActionsMenu from '@/components/ui/ActionsMenu';
+import StatusBadge from '@/components/ui/StatusBadge';
 
 const MEMBER_COLUMNS: ColumnSpec[] = [
   { key: 'name', label: 'Name', required: true },
@@ -181,117 +182,110 @@ export default function FamilyDetail() {
   ];
 
   return (
-    <div className="space-y-4">
-      <div className="flex gap-2 items-center justify-between">
-        <div className="flex items-center gap-4">
-          <PageHeader
-            description="Family Details"
-            title={toTitleCase(family.houseName)}
-            breadcrumbs={[{ label: 'Families', path: ROUTES.FAMILIES.LIST }]}
-          />
-          <div className="flex gap-2 items-center">
+    <div className="space-y-5">
+      <PageHeader
+        title={toTitleCase(family.houseName)}
+        description={`Family • ${family.mahallId || '—'} • ${toTitleCase(family.area || family.place || '')}`}
+        actions={
+          <>
             <Link to={ROUTES.FAMILIES.EDIT(family.id)}>
               <Button variant="outline" icon={<FiEdit2 />} collapseLabel>Edit</Button>
             </Link>
-            <Button variant="danger" onClick={() => setShowDeleteModal(true)} icon={<FiTrash2 />} collapseLabel>Delete</Button>
-          </div>
-        </div>
-      </div>
+            <Button variant="ghost" onClick={() => setShowDeleteModal(true)} icon={<FiTrash2 />} collapseLabel>
+              Delete
+            </Button>
+          </>
+        }
+      />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card>
-          <h2 className="text-lg font-semibold mb-3 text-foreground">Basic Information</h2>
-          <div className="space-y-3">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <Card padding="lg">
+          <h2 className="mb-4 text-sm font-semibold text-foreground">Household</h2>
+          <dl className="space-y-3">
             {family.mahallId && (
-              <div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">Mahall ID</span>
-                <p className="text-gray-900 dark:text-gray-100">{family.mahallId}</p>
+              <div className="flex justify-between gap-4 py-1 text-sm">
+                <dt className="text-muted-foreground">Mahall ID</dt>
+                <dd className="font-medium tabular-nums text-foreground">{family.mahallId}</dd>
               </div>
             )}
-            <div>
-              <span className="text-sm text-gray-500 dark:text-gray-400">House Name</span>
-              <p className="text-gray-900 dark:text-gray-100">{toTitleCase(family.houseName)}</p>
+            <div className="flex justify-between gap-4 py-1 text-sm">
+              <dt className="text-muted-foreground">House name</dt>
+              <dd className="font-medium text-foreground">{toTitleCase(family.houseName)}</dd>
             </div>
             {family.familyHead && (
-              <div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">Family Head</span>
-                <p className="text-gray-900 dark:text-gray-100">{toTitleCase(family.familyHead)}</p>
+              <div className="flex justify-between gap-4 py-1 text-sm">
+                <dt className="text-muted-foreground">Family head</dt>
+                <dd className="font-medium text-foreground">{toTitleCase(family.familyHead)}</dd>
               </div>
             )}
             {family.contactNo && (
-              <div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">Contact No.</span>
-                <p className="text-gray-900 dark:text-gray-100">{family.contactNo}</p>
+              <div className="flex justify-between gap-4 py-1 text-sm">
+                <dt className="text-muted-foreground">Contact</dt>
+                <dd className="font-medium tabular-nums text-foreground">{family.contactNo}</dd>
               </div>
             )}
             {family.varisangyaGrade && (
-              <div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">Varisangya Grade</span>
-                <p className="text-gray-900 dark:text-gray-100">{toTitleCase(family.varisangyaGrade)}</p>
+              <div className="flex justify-between gap-4 py-1 text-sm">
+                <dt className="text-muted-foreground">Varisangya</dt>
+                <dd className="font-medium text-foreground">{toTitleCase(family.varisangyaGrade)}</dd>
               </div>
             )}
             {family.status && (
-              <div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">Status</span>
-                <span
-                  className={`inline-block px-2 py-1 text-xs font-medium rounded-full ${
-                    family.status === 'approved'
-                      ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                      : family.status === 'unapproved'
-                        ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                        : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-                  }`}
-                >
-                  {family.status}
-                </span>
+              <div className="flex justify-between gap-4 py-1 text-sm">
+                <dt className="text-muted-foreground">Status</dt>
+                <dd>
+                  <StatusBadge status={family.status} />
+                </dd>
               </div>
             )}
-          </div>
+          </dl>
         </Card>
 
-        <Card>
-          <h2 className="text-lg font-semibold mb-3 text-foreground">Address Information</h2>
-          <div className="space-y-3">
-            <div>
-              <span className="text-sm text-gray-500 dark:text-gray-400">State</span>
-              <p className="text-gray-900 dark:text-gray-100">{toTitleCase(family.state)}</p>
+        <Card padding="lg">
+          <h2 className="mb-4 text-sm font-semibold text-foreground">Location</h2>
+          <dl className="space-y-3">
+            <div className="flex justify-between gap-4 py-1 text-sm">
+              <dt className="text-muted-foreground">State</dt>
+              <dd className="font-medium text-foreground">{toTitleCase(family.state)}</dd>
             </div>
-            <div>
-              <span className="text-sm text-gray-500 dark:text-gray-400">District</span>
-              <p className="text-gray-900 dark:text-gray-100">{toTitleCase(family.district)}</p>
+            <div className="flex justify-between gap-4 py-1 text-sm">
+              <dt className="text-muted-foreground">District</dt>
+              <dd className="font-medium text-foreground">{toTitleCase(family.district)}</dd>
             </div>
-            <div>
-              <span className="text-sm text-gray-500 dark:text-gray-400">LSG Name</span>
-              <p className="text-gray-900 dark:text-gray-100">{toTitleCase(family.lsgName)}</p>
+            <div className="flex justify-between gap-4 py-1 text-sm">
+              <dt className="text-muted-foreground">LSG</dt>
+              <dd className="font-medium text-foreground">{toTitleCase(family.lsgName)}</dd>
             </div>
-            <div>
-              <span className="text-sm text-gray-500 dark:text-gray-400">Village</span>
-              <p className="text-gray-900 dark:text-gray-100">{toTitleCase(family.village)}</p>
+            <div className="flex justify-between gap-4 py-1 text-sm">
+              <dt className="text-muted-foreground">Village</dt>
+              <dd className="font-medium text-foreground">{toTitleCase(family.village)}</dd>
             </div>
             {family.pinCode && (
-              <div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">Pin Code</span>
-                <p className="text-gray-900 dark:text-gray-100">{family.pinCode}</p>
+              <div className="flex justify-between gap-4 py-1 text-sm">
+                <dt className="text-muted-foreground">Pin code</dt>
+                <dd className="font-medium tabular-nums text-foreground">{family.pinCode}</dd>
               </div>
             )}
             {family.postOffice && (
-              <div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">Post Office</span>
-                <p className="text-gray-900 dark:text-gray-100">{toTitleCase(family.postOffice)}</p>
+              <div className="flex justify-between gap-4 py-1 text-sm">
+                <dt className="text-muted-foreground">Post office</dt>
+                <dd className="font-medium text-foreground">{toTitleCase(family.postOffice)}</dd>
               </div>
             )}
-          </div>
+          </dl>
         </Card>
 
-        <TableCard className="md:col-span-2">
-          <div className="flex gap-2 items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-foreground">
-              Family Members ({members.length})
+        <TableCard className="lg:col-span-2">
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <h2 className="text-sm font-semibold text-foreground">
+              Members <span className="font-normal tabular-nums text-muted-foreground">· {members.length}</span>
             </h2>
-            <div className="flex gap-2 items-center">
-              <Button size="sm" variant="outline" onClick={() => setIsImportOpen(true)} icon={<FiUpload />} collapseLabel>Import Members</Button>
+            <div className="flex items-center gap-2">
+              <Button size="sm" variant="outline" onClick={() => setIsImportOpen(true)} icon={<FiUpload />} collapseLabel>
+                Import
+              </Button>
               <Link to={ROUTES.MEMBERS.CREATE}>
-                <Button size="sm" icon={<FiPlus />} collapseLabel>Add Member</Button>
+                <Button size="sm" icon={<FiPlus />} collapseLabel>Add member</Button>
               </Link>
             </div>
           </div>

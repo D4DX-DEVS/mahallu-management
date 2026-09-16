@@ -8,6 +8,7 @@ import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
+import EmptyState from '@/components/ui/EmptyState';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
@@ -18,6 +19,7 @@ import { useDebounce } from '@/hooks/useDebounce';
 import { toast } from '@/store/toastStore';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import StatusBadge from '@/components/ui/StatusBadge';
 import { toTitleCase } from '@/utils/format';
 
 export default function MarriageAssistanceList() {
@@ -108,15 +110,6 @@ export default function MarriageAssistanceList() {
     return labels[type] || type;
   };
 
-  const getStatusBadgeColor = (status: string) => {
-    const colors: Record<string, string> = {
-      requested: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
-      approved: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-      completed: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-    };
-    return colors[status] || 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200';
-  };
-
   const columns: TableColumn<MarriageAssistance>[] = [
     {
       key: 'memberId',
@@ -145,13 +138,7 @@ export default function MarriageAssistanceList() {
       key: 'status',
       label: 'Status',
       width: '7.25rem',
-      render: (status) => (
-        <span
-          className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusBadgeColor(status as string)}`}
-        >
-          {status}
-        </span>
-      ),
+      render: (status) => <StatusBadge status={status as string} />,
     },
     {
       key: 'actions',
@@ -280,12 +267,12 @@ export default function MarriageAssistanceList() {
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="text-center py-10">
-            <p className="text-red-600 dark:text-red-400">{error}</p>
-            <Button onClick={fetchRecords} className="mt-4" variant="outline">
-              Retry
-            </Button>
-          </div>
+          <EmptyState
+            variant="error"
+            entity="marriage assistance records"
+            description={error}
+            action={{ label: 'Retry', onClick: fetchRecords }}
+          />
         ) : (
           <Table
             fixedLayout

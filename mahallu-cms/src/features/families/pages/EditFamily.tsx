@@ -19,6 +19,7 @@ import { getTenantId } from '@/utils/tenantHelper';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
+import { toast } from '@/store/toastStore';
 
 const familySchema = z.object({
   mahallId: z.string().max(200, 'Please keep the mahall to 200 characters or less.').optional(),
@@ -120,14 +121,21 @@ export default function EditFamily() {
     }
   };
 
+  /* Only these fields are zod enums, where an empty string fails validation
+   * and must be dropped rather than sent. Stripping *every* empty string used
+   * to also drop free-text fields the user deliberately cleared — e.g. Family
+   * Head — so the old value silently survived on the server. */
+  const ENUM_FIELDS = new Set(['economicStatus', 'welfareStatus', 'housingType']);
+
   const onSubmit = async (data: FamilyFormData) => {
     if (!id) return;
     try {
       setError(null);
       const cleanedData = Object.fromEntries(
-        Object.entries(data).filter(([_, v]) => v !== '' && v !== undefined)
+        Object.entries(data).filter(([key, v]) => !(ENUM_FIELDS.has(key) && v === ''))
       );
       await familyService.update(id, cleanedData);
+      toast.success('Family updated');
       navigate(ROUTES.FAMILIES.LIST);
     } catch (err: any) {
       setError(errorMessage(err, { action: 'update family. please try again' }));
@@ -159,113 +167,81 @@ export default function EditFamily() {
   ];
 
   return (
-    <div className="space-y-4">
-      <PageHeader
-        title="Edit Family"
-        description="Update family information"
-        breadcrumbs={[{ label: 'Families', path: ROUTES.FAMILIES.LIST }]}
-      />
+    <div className="space-y-5">
+      <PageHeader title="Edit Family" description="Update household information" breadcrumbs={[{ label: 'Families', path: ROUTES.FAMILIES.LIST }]} />
 
-      <form onSubmit={handleSubmit(onSubmit)}>
-        <Card className="space-y-4">
+      <Card padding="lg">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           {error && (
-            <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm dark:bg-red-900 dark:border-red-700 dark:text-red-200">
-              {error}
-            </div>
+            <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input
-              label="Family ID (Auto-generated)"
-              {...register('mahallId')}
-              placeholder="Family ID"
-              disabled
-              className="bg-gray-50 dark:bg-gray-800"
-            />
-            <Select label="Varisangya Grade" options={gradeOptions} {...register('varisangyaGrade')} />
-            <Input
-              label="House Name"
-              {...register('houseName')}
-              error={errors.houseName?.message}
-              required
-              placeholder="House Name"
-            />
-            <div className="hidden">
+          <section className="space-y-4">
+            <h2 className="text-sm font-semibold text-foreground">Household</h2>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <Input
-                label="House Name (Malayalam)"
-                {...register('houseNameMl')}
-                placeholder="വീട് പേര്"
-                className="font-malayalam"
+                label="Family ID"
+                {...register('mahallId')}
+                placeholder="Auto-generated"
+                disabled
+                className="bg-muted"
               />
-            </div>
-            <Input label="Family Head" {...register('familyHead')} placeholder="Family Head Name" />
-            <div className="hidden">
+              <Select label="Status" options={statusOptions} {...register('status')} />
               <Input
-                label="Family Head (Malayalam)"
-                {...register('familyHeadMl')}
-                placeholder="കുടുംബ നാഥൻ"
-                className="font-malayalam"
+                label="House Name"
+                {...register('houseName')}
+                error={errors.houseName?.message}
+                required
+                placeholder="e.g. Al-Hamd House"
               />
+              <Input label="House No." {...register('houseNo')} placeholder="e.g. 12/345" />
+              <Select label="Varisangya Grade" options={gradeOptions} {...register('varisangyaGrade')} />
+              <Input label="Family Head" {...register('familyHead')} placeholder="Head name" />
+              <div className="hidden">
+                <Input label="House Name (Malayalam)" {...register('houseNameMl')} placeholder="വീട് പേര്" className="font-malayalam" />
+              </div>
+              <div className="hidden">
+                <Input label="Family Head (Malayalam)" {...register('familyHeadMl')} placeholder="കുടുംബ നാഥൻ" className="font-malayalam" />
+              </div>
             </div>
-            <Input
-              label="Contact No."
-              type="tel"
-              {...register('contactNo')}
-              error={errors.contactNo?.message}
-              placeholder="Contact No. (10 digits)"
-              maxLength={10}
-            />
-            <Input
-              label="Ward Number"
-              {...register('wardNumber')}
-              error={errors.wardNumber?.message}
-              placeholder="Ward Number"
-              type="number"
-              min={1}
-            />
-            <Input label="House No." {...register('houseNo')} placeholder="House No." />
-            <Select label="Area" options={areaSelectOptions} {...register('area')} />
-            <div className="hidden">
-              <Input
-                label="Area (Malayalam)"
-                {...register('areaMl')}
-                placeholder="പ്രദേശം"
-                className="font-malayalam"
-              />
+          </section>
+
+          <section className="space-y-4 border-t border-border pt-6">
+            <h2 className="text-sm font-semibold text-foreground">Contact</h2>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <Input label="Contact No." type="tel" {...register('contactNo')} error={errors.contactNo?.message} placeholder="10-digit mobile" maxLength={10} />
+              <Input label="Ward Number" {...register('wardNumber')} error={errors.wardNumber?.message} placeholder="e.g. 12" type="number" min={1} />
             </div>
-            <Input label="Place" {...register('place')} placeholder="Place" />
-            <div className="hidden">
-              <Input
-                label="Place (Malayalam)"
-                {...register('placeMl')}
-                placeholder="സ്ഥലം"
-                className="font-malayalam"
-              />
+          </section>
+
+          <section className="space-y-4 border-t border-border pt-6">
+            <h2 className="text-sm font-semibold text-foreground">Location</h2>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <Select label="Area" options={areaSelectOptions} {...register('area')} />
+              <Input label="Place" {...register('place')} placeholder="e.g. Calicut" />
+              <div className="hidden">
+                <Input label="Area (Malayalam)" {...register('areaMl')} placeholder="പ്രദേശം" className="font-malayalam" />
+              </div>
+              <div className="hidden">
+                <Input label="Place (Malayalam)" {...register('placeMl')} placeholder="സ്ഥലം" className="font-malayalam" />
+              </div>
             </div>
-            <Select
-              label="Status"
-              options={statusOptions}
-              {...register('status')}
-              className="md:col-span-2"
-            />
+          </section>
+
+          <div className="border-t border-border pt-6">
+            <WelfareSection register={register} defaultOpen />
           </div>
 
-          <div className="pt-4">
-            <WelfareSection register={register} />
-          </div>
-
-          <div className="flex gap-2 flex-col-reverse sm:flex-row sm:justify-end sm:gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-            <Button type="button" variant="outline" onClick={() => navigate(ROUTES.FAMILIES.LIST)}>
-              <FiX className="h-4 w-4 mr-2" />
-              Cancel
+          <div className="flex flex-col-reverse gap-3 border-t border-border pt-6 sm:flex-row sm:justify-end">
+            <Button type="button" variant="outline" onClick={() => navigate(ROUTES.FAMILIES.LIST)} className="w-full sm:w-auto">
+              <FiX className="h-4 w-4" aria-hidden="true" /> Cancel
             </Button>
-            <Button type="submit" isLoading={isSubmitting}>
-              <FiSave className="h-4 w-4 mr-2" />
-              Update Family
+            <Button type="submit" isLoading={isSubmitting} className="w-full sm:w-auto">
+              <FiSave className="h-4 w-4" aria-hidden="true" /> Update Family
             </Button>
           </div>
-        </Card>
-      </form>
+        </form>
+      </Card>
     </div>
   );
 }

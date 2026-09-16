@@ -17,6 +17,7 @@ import { formatDate, toTitleCase } from '@/utils/format';
 import { getTenantId } from '@/utils/tenantHelper';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import StatusBadge from '@/components/ui/StatusBadge';
 
 const settingsSchema = z.object({
   varisangyaAmount: z.number().min(0, 'Varisangya amount must be positive'),
@@ -240,17 +241,7 @@ export default function MahallMain() {
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Status
                 </label>
-                <span
-                  className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                    tenant.status === 'active'
-                      ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                      : tenant.status === 'suspended'
-                        ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-                        : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                  }`}
-                >
-                  {tenant.status}
-                </span>
+                <StatusBadge status={tenant.status} />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">

@@ -2,9 +2,9 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { FiEye, FiEdit2, FiCheck, FiHome, FiUsers } from 'react-icons/fi';
 import TableCard from '@/components/ui/TableCard';
-import Button from '@/components/ui/Button';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
+import EmptyState from '@/components/ui/EmptyState';
 import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
 import { TableColumn, Pagination as PaginationType } from '@/types';
@@ -204,12 +204,12 @@ export default function UnapprovedFamiliesList() {
         />
 
         {error ? (
-          <div className="text-center py-10">
-            <p className="text-red-600 dark:text-red-400">{error}</p>
-            <Button onClick={fetchFamilies} className="mt-4" variant="outline">
-              Retry
-            </Button>
-          </div>
+          <EmptyState
+            variant="error"
+            entity="unapproved families"
+            description={error}
+            action={{ label: 'Retry', onClick: fetchFamilies }}
+          />
         ) : (
           <>
             <Table

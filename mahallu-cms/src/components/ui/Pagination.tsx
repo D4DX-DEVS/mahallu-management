@@ -50,7 +50,7 @@ export default function Pagination({
   const startItem = (safeCurrentPage - 1) * safePerPage + 1;
   const endItem = Math.min(safeCurrentPage * safePerPage, safeTotalItems);
   const btn =
-    'inline-flex h-8 min-w-8 items-center justify-center rounded-md px-2 text-sm transition-colors ' +
+    'inline-flex h-9 min-w-9 items-center justify-center rounded-md px-2 text-sm transition-colors ' +
     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-40 disabled:pointer-events-none';
   return (
     <nav
@@ -68,7 +68,7 @@ export default function Pagination({
               aria-label="Rows per page"
               value={safePerPage}
               onChange={(e) => onItemsPerPageChange(Number(e.target.value))}
-              className="h-8 rounded-md border border-input bg-background px-2 text-label text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="h-9 rounded-md border border-input bg-background px-2 text-label text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               {PAGE_SIZES.map((size) => (
                 <option key={size} value={size}>

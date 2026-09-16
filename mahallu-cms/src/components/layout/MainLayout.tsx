@@ -56,10 +56,8 @@ export default function MainLayout({ children }: MainLayoutProps) {
 
         <Header />
 
-        {/* 12px gutters on a phone, 24px from `md`. The page used to keep its
-            desktop 16px inset on a 360px screen and then nest a bordered card
-            inside it, so a table had 320px to render nine columns in. */}
-        <main id="main-content" className="flex-1 overflow-y-auto px-3 pb-24 pt-4 md:px-6 md:pb-8">
+        {/* 12px gutters phone / 24px md. Compact but readable; cards breathe without stealing content width. */}
+        <main id="main-content" className="flex-1 overflow-y-auto px-3 pb-24 pt-3 sm:pt-4 md:px-6 md:pb-8">
           {/* A page that throws costs the user that page, not the whole app:
               the chrome stays up and the boundary clears on the next route. */}
           <div className="mx-auto w-full max-w-content">

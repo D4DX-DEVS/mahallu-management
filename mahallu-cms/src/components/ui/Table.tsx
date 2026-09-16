@@ -118,16 +118,9 @@ const PRIORITY_CLASS: Record<NonNullable<TableColumn['priority']>, string> = {
   tertiary: 'hidden lg:table-cell',
 };
 
-/* The two type sizes this component uses, as literal px rather than scale
- * tokens: a token only reaches the browser once the dev server restarts, which
- * left the size in the code disagreeing with the size on screen. Written here,
- * what you read is what renders.
- *
- * Both views read from them — the table's headings and cells above `md`, and
- * the card list's title, labels and values below it — so changing a number
- * here moves desktop and phone together instead of leaving one behind. */
-const HEAD_FONT = { fontSize: '15px' };
-const CELL_FONT = { fontSize: '14px' };
+/* Aligns with design tokens: label 13 for headings/meta, sm 14 for body. Central fix for literal 15/14 drift. */
+const HEAD_FONT = { fontSize: '0.8125rem' }; // label 13
+const CELL_FONT = { fontSize: '0.875rem' }; // sm 14
 
 const ALIGN_CLASS = {
   left: 'text-left',

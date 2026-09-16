@@ -100,7 +100,7 @@ export default function Header() {
           <span className="hidden sm:inline">All data is filtered to the selected tenant</span>
         </div>
       )}
-      <header className="sticky top-0 z-30 flex h-16 flex-shrink-0 items-center gap-3 border-b border-border bg-card px-4 md:px-6">
+      <header className="sticky top-0 z-30 flex h-14 flex-shrink-0 items-center gap-2 border-b border-border bg-card px-3 md:h-16 md:gap-3 md:px-6">
         <button
           onClick={toggleDesktopSidebarCollapsed}
           className={cn(iconButton, 'hidden md:inline-flex')}
@@ -118,10 +118,10 @@ export default function Header() {
         {!isMember && (
           <button
             onClick={openCommandPalette}
-            className="hidden h-10 items-center gap-2 rounded-md border border-input bg-background px-3 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:flex"
+            className="hidden h-10 w-64 items-center gap-2 rounded-full border border-border bg-muted/40 px-3.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:flex lg:w-72"
           >
-            <FiSearch className="h-4 w-4" aria-hidden="true" /> <span>Search</span>
-            <kbd className="ml-2 rounded-sm border border-border px-1.5 py-0.5 text-xs">Ctrl K</kbd>
+            <FiSearch className="h-4 w-4 flex-shrink-0" aria-hidden="true" /> <span className="flex-1 text-left">Search members, families…</span>
+            <kbd className="rounded-full border border-border bg-card px-2 py-0.5 text-xs">⌘K</kbd>
           </button>
         )}
         {/* Tenant switcher shares the flex row instead of being absolutely centred, which collided with the search and action clusters at narrow desktop widths. Below lg it was hidden outright, leaving a super admin on a phone with no way to switch tenants — the switcher itself already collapses to an icon-only button there, so it fits. */}
@@ -130,7 +130,7 @@ export default function Header() {
             <TenantSwitcher />
           </div>
         )}
-        <div className="ml-auto flex items-center gap-1">
+        <div className="ml-auto flex items-center gap-1 border-l border-border/60 pl-2 sm:gap-1.5 sm:pl-3">
           <button
             onClick={() => navigate(ROUTES.NOTIFICATIONS.INDIVIDUAL)}
             aria-label={unreadCount > 0 ? 'Notifications, ' + unreadCount + ' unread' : 'Notifications'}

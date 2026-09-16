@@ -10,8 +10,13 @@
  */
 @layer base {
   :root {
-    /* Surfaces */
-    --background: 0 0% 100%;
+    /* Surfaces
+     * The page canvas sits a step below `card`: light mode used to set both
+     * to pure white, so a card was only ever a border away from the page it
+     * sat on — every panel read as a flat rectangle rather than a surface
+     * raised off the page. One subtle tint, still in the product's own
+     * neutral hue, gives white cards something to be white against. */
+    --background: 180 14% 98%;
     --foreground: 200 18% 12%;
     --card: 0 0% 100%;
     --card-foreground: 200 18% 12%;

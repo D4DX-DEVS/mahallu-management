@@ -1,12 +1,12 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { FiEye, FiEdit2, FiTrash2, FiHome, FiUsers, FiUpload, FiPlus, FiFileText, FiFile } from 'react-icons/fi';
 import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
-import Alert from '@/components/ui/Alert';
+import EmptyState from '@/components/ui/EmptyState';
 import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
 import Dropdown, { DropdownItem } from '@/components/ui/Dropdown';
@@ -18,6 +18,9 @@ import { TableColumn, Pagination as PaginationType, SortState } from '@/types';
 import { Family } from '@/types';
 import { ROUTES } from '@/constants/routes';
 import { familyService } from '@/services/familyService';
+import { tenantService } from '@/services/tenantService';
+import { useAuthStore } from '@/store/authStore';
+import { getTenantId } from '@/utils/tenantHelper';
 import { useDebounce } from '@/hooks/useDebounce';
 import { exportToCSV, exportToPDF } from '@/utils/exportUtils';
 import { toTitleCase } from '@/utils/format';
@@ -52,17 +55,25 @@ const deleteConsequence = (family: Family | null) => {
 
 export default function FamiliesList() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  const [searchQuery, setSearchQuery] = useState('');
-  const [isFilterVisible, setIsFilterVisible] = useState(false);
-  const [areaFilter, setAreaFilter] = useState('');
-  const [sort, setSort] = useState<SortState | null>(null);
+  const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
+  const [isFilterVisible, setIsFilterVisible] = useState(!!searchParams.get('area'));
+  const [areaFilter, setAreaFilter] = useState(searchParams.get('area') || '');
+  const [sort, setSort] = useState<SortState | null>(() => {
+    const key = searchParams.get('sort');
+    const direction = searchParams.get('dir');
+    return key && (direction === 'asc' || direction === 'desc') ? { key, direction } : null;
+  });
 
   const [families, setFamilies] = useState<Family[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useState(() => {
+    const page = Number(searchParams.get('page'));
+    return page > 0 ? page : 1;
+  });
   const [itemsPerPage, setItemsPerPage] = useState(25);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
   const [isExporting, setIsExporting] = useState(false);
@@ -70,6 +81,8 @@ export default function FamiliesList() {
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [deleting, setDeleting] = useState<Family | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [globalAreaOptions, setGlobalAreaOptions] = useState<string[]>([]);
+  const { user, currentTenantId } = useAuthStore();
 
   const debouncedSearch = useDebounce(searchQuery, 400);
   const activeFilterCount = areaFilter ? 1 : 0;
@@ -105,10 +118,29 @@ export default function FamiliesList() {
 
   // A new search term invalidates the current page offset: searching from page 4
   // kept asking the API for page 4 of the new, much shorter result set and showed
-  // an empty table.
+  // an empty table. Skipped on the mount that restores a page from the URL.
+  const skipPageReset = useRef(true);
   useEffect(() => {
+    if (skipPageReset.current) {
+      skipPageReset.current = false;
+      return;
+    }
     setCurrentPage(1);
   }, [debouncedSearch]);
+
+  // Keep the URL in sync so a filtered/sorted/paged list survives navigating to
+  // a detail page and back, and survives a refresh.
+  useEffect(() => {
+    const next = new URLSearchParams();
+    if (debouncedSearch) next.set('q', debouncedSearch);
+    if (areaFilter) next.set('area', areaFilter);
+    if (sort) {
+      next.set('sort', sort.key);
+      next.set('dir', sort.direction);
+    }
+    if (currentPage > 1) next.set('page', String(currentPage));
+    setSearchParams(next, { replace: true });
+  }, [debouncedSearch, areaFilter, sort, currentPage, setSearchParams]);
 
   useEffect(() => {
     fetchFamilies();
@@ -117,11 +149,19 @@ export default function FamiliesList() {
   useEffect(() => {
     familyService
       .getStats()
-      // A response without its stats object used to replace the zeroed initial
-      // state with `undefined`, and the tiles then read through it.
       .then((stats) => stats && setMemberStats(stats))
       .catch(() => undefined);
   }, []);
+
+  // Complete area list from tenant settings — fixes incomplete dropdown when paginated. Documented limitation if backend not configured.
+  useEffect(() => {
+    const tenantId = getTenantId(user, currentTenantId);
+    if (!tenantId) return;
+    tenantService
+      .getById(tenantId)
+      .then((tenant) => setGlobalAreaOptions(tenant.settings?.areaOptions || []))
+      .catch(() => setGlobalAreaOptions([]));
+  }, [user, currentTenantId]);
 
   // A new query invalidates the selection: those rows may no longer be on screen.
   useEffect(() => {
@@ -164,87 +204,92 @@ export default function FamiliesList() {
     }
   };
 
-  /* Column priority is declared here and honoured by Table at every breakpoint,
-   * so a phone shows the five that matter rather than nine crushed columns. */
+  /* Priority drives which columns survive on phones. Desktop shows all; tablet hides tertiary. */
   const columns: TableColumn<Family>[] = [
-    /* Widths are each column's heading plus a constant, so the gap between one
-     * heading and the next is the same all the way across. A column wider than
-     * that would park its spare width beside its own heading and open a hole
-     * the neighbours do not have. */
-    { key: 'mahallId', label: 'Family ID', sortable: true, width: '8.75rem' },
+    { key: 'mahallId', label: 'Family ID', sortable: true, width: '7.5rem', priority: 'secondary' },
     {
       key: 'houseName',
       label: 'House name',
       sortable: true,
-      render: (name) => <span>{toTitleCase(name)}</span>,
-      width: '9.75rem',
+      render: (name) => <span className="font-medium">{toTitleCase(name)}</span>,
+      width: '10rem',
     },
     {
       key: 'familyHead',
       label: 'Family head',
       render: (head) => (head ? <span>{toTitleCase(head)}</span> : '—'),
-      width: '8.125rem',
+      width: '9rem',
     },
-    /* Heading and digits are both centred, so the count sits under the word
-     * that names it. A centred heading carries its slack on both sides, so the
-     * two widths either side of it are cut to absorb that and keep the gap
-     * between headings the same as everywhere else. */
     {
       key: 'members',
       label: 'Members',
       align: 'center',
-      render: (members) => members?.length ?? 0,
-      width: '10.25rem',
+      render: (members) => <span className="tabular-nums">{members?.length ?? 0}</span>,
+      width: '6rem',
     },
     {
       key: 'area',
       label: 'Area',
       priority: 'secondary',
       render: (area) => (area ? <span>{toTitleCase(area)}</span> : '—'),
-      width: '6.625rem',
+      width: '7rem',
     },
-    { key: 'houseNo', label: 'House no.', priority: 'tertiary', width: '9.125rem' },
-    /* The field on Family is `contactNo`; `phone` read undefined on every
-     * row, so the column showed a dash for all of them. */
-    { key: 'contactNo', label: 'Phone', priority: 'secondary', width: '7rem' },
+    { key: 'houseNo', label: 'House no.', priority: 'tertiary', width: '7rem' },
+    { key: 'contactNo', label: 'Phone', priority: 'secondary', width: '7.5rem' },
     {
       key: 'actions',
-      label: 'Actions',
-      align: 'center',
-      headerAlign: 'left',
-      width: '7.5rem',
+      label: '',
+      align: 'right',
+      width: '6.5rem',
+      sortable: false,
       render: (_, row) => (
-        <ActionsMenu
-          label={`Actions for ${toTitleCase(row.houseName)}`}
-          items={[
-            {
-              label: 'View',
-              icon: <FiEye className="h-4 w-4" />,
-              onClick: () => navigate(ROUTES.FAMILIES.DETAIL(row.id)),
-            },
-            {
-              label: 'Edit',
-              icon: <FiEdit2 className="h-4 w-4" />,
-              onClick: () => navigate(ROUTES.FAMILIES.EDIT(row.id)),
-            },
-            {
-              label: 'Delete',
-              icon: <FiTrash2 className="h-4 w-4" />,
-              variant: 'danger',
-              onClick: () => setDeleting(row),
-            },
-          ]}
-        />
+        <div className="flex items-center justify-end gap-1">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate(ROUTES.FAMILIES.EDIT(row.id));
+            }}
+            aria-label={`Edit ${toTitleCase(row.houseName)}`}
+            className="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <FiEdit2 className="h-4 w-4" aria-hidden="true" />
+          </button>
+          <ActionsMenu
+            label={`Actions for ${toTitleCase(row.houseName)}`}
+            items={[
+              {
+                label: 'View',
+                icon: <FiEye className="h-4 w-4" />,
+                onClick: () => navigate(ROUTES.FAMILIES.DETAIL(row.id)),
+              },
+              {
+                label: 'Edit',
+                icon: <FiEdit2 className="h-4 w-4" />,
+                onClick: () => navigate(ROUTES.FAMILIES.EDIT(row.id)),
+              },
+              {
+                label: 'Delete',
+                icon: <FiTrash2 className="h-4 w-4" />,
+                variant: 'danger',
+                onClick: () => setDeleting(row),
+              },
+            ]}
+          />
+        </div>
       ),
     },
   ];
 
+  // Prefer tenant-wide area options; fallback to visible page values if settings empty.
   const areaOptions = [
     { value: '', label: 'All areas' },
-    ...Array.from(new Set(families.map((f) => f.area).filter(Boolean))).map((area) => ({
-      value: area as string,
-      label: toTitleCase(area as string),
-    })),
+    ...(globalAreaOptions.length > 0
+      ? globalAreaOptions.map((area) => ({ value: area, label: toTitleCase(area) }))
+      : Array.from(new Set(families.map((f) => f.area).filter(Boolean))).map((area) => ({
+          value: area as string,
+          label: toTitleCase(area as string),
+        }))),
   ];
 
   return (
@@ -323,13 +368,12 @@ export default function FamiliesList() {
         )}
 
         {error ? (
-          <Alert
+          <EmptyState
             variant="error"
-            title="Couldn't load families"
+            entity="families"
+            description={error}
             action={{ label: 'Try again', onClick: fetchFamilies }}
-          >
-            {error}
-          </Alert>
+          />
         ) : (
           <>
             <Table

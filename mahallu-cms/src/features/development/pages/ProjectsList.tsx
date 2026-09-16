@@ -11,6 +11,7 @@ import { developmentService, DevelopmentProject } from '@/services/developmentSe
 import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import StatusBadge from '@/components/ui/StatusBadge';
 
 const PROJECT_AREAS = [
   { value: 'roads', label: 'Roads' },
@@ -105,17 +106,6 @@ export default function ProjectsList() {
     return colors[area] || 'bg-gray-100 text-gray-800';
   };
 
-  const getStatusBadgeColor = (status: string) => {
-    const colors: Record<string, string> = {
-      proposed: 'bg-gray-100 text-gray-800',
-      approved: 'bg-blue-100 text-blue-800',
-      in_progress: 'bg-yellow-100 text-yellow-800',
-      completed: 'bg-green-100 text-green-800',
-      dropped: 'bg-red-100 text-red-800',
-    };
-    return colors[status] || 'bg-gray-100 text-gray-800';
-  };
-
   return (
     <div>
       <div className="flex justify-between items-center mb-4">
@@ -188,9 +178,10 @@ export default function ProjectsList() {
                     <span className={`text-xs px-2 py-1 rounded ${getAreaBadgeColor(project.area)}`}>
                       {PROJECT_AREAS.find((a) => a.value === project.area)?.label}
                     </span>
-                    <span className={`text-xs px-2 py-1 rounded ${getStatusBadgeColor(project.status)}`}>
-                      {PROJECT_STATUSES.find((s) => s.value === project.status)?.label}
-                    </span>
+                    <StatusBadge
+                      status={project.status}
+                      label={PROJECT_STATUSES.find((s) => s.value === project.status)?.label}
+                    />
                   </div>
 
                   <div className="mt-3">

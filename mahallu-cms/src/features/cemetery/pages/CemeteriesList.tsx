@@ -12,6 +12,7 @@ import { FiPlus, FiEdit2, FiTrash2 } from 'react-icons/fi';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
+import StatusBadge from '@/components/ui/StatusBadge';
 
 export function CemeteriesList() {
   const navigate = useNavigate();
@@ -120,15 +121,7 @@ export function CemeteriesList() {
                       <p className="text-xs sm:text-sm text-gray-600 truncate mt-1">{toTitleCase(cemetery.location)}</p>
                     )}
                   </div>
-                  <span
-                    className={`ml-2 px-2 py-1 text-xs font-medium rounded whitespace-nowrap ${
-                      cemetery.status === 'active'
-                        ? 'bg-green-100 text-green-800'
-                        : 'bg-gray-100 text-gray-800'
-                    }`}
-                  >
-                    {cemetery.status}
-                  </span>
+                  <StatusBadge status={cemetery.status} className="ml-2 whitespace-nowrap" />
                 </div>
 
                 <div className="space-y-2">

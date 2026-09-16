@@ -7,8 +7,9 @@ import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
+import EmptyState from '@/components/ui/EmptyState';
 import { PageSkeleton } from '@/components/ui/Skeleton';
-import Modal from '@/components/ui/Modal';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
 import { toast } from '@/store/toastStore';
@@ -22,6 +23,7 @@ import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import ActionsMenu from '@/components/ui/ActionsMenu';
+import StatusBadge from '@/components/ui/StatusBadge';
 
 export default function InstitutesList() {
   const navigate = useNavigate();
@@ -118,6 +120,7 @@ export default function InstitutesList() {
       setShowDeleteModal(false);
       setSelectedInstitute(null);
       await fetchInstitutes();
+      toast.success('Institute deleted');
     } catch (err: any) {
       // The list keeps its rows; the failure belongs on the dialog the user is in.
       toast.error(errorMessage(err, { action: 'delete this institute' }));
@@ -157,17 +160,7 @@ export default function InstitutesList() {
       key: 'status',
       label: 'Status',
       width: '7.25rem',
-      render: (status) => (
-        <span
-          className={`px-2 py-1 text-xs font-medium rounded-full ${
-            status === 'active'
-              ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-              : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
-          }`}
-        >
-          {status || 'active'}
-        </span>
-      ),
+      render: (status) => <StatusBadge status={status || 'active'} />,
     },
     {
       key: 'actions',
@@ -275,18 +268,14 @@ export default function InstitutesList() {
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="text-center py-10">
-            <p className="text-red-600 dark:text-red-400">{error}</p>
-            <Button onClick={fetchInstitutes} className="mt-4" variant="outline">
-              Retry
-            </Button>
-          </div>
+          <EmptyState variant="error" entity="institutes" description={error} action={{ label: 'Retry', onClick: fetchInstitutes }} />
         ) : (
           <Table
             fixedLayout
             striped
             columns={columns}
             data={institutes}
+            entity="institutes"
             emptyMessage="No institutes found"
             onRowClick={(row) => navigate(ROUTES.INSTITUTES.DETAIL(row.id))}
           />
@@ -308,35 +297,19 @@ export default function InstitutesList() {
         )}
       </TableCard>
 
-      <Modal
+      <ConfirmDialog
         isOpen={showDeleteModal}
-        onClose={() => {
+        title="Delete institute"
+        message={`Are you sure you want to delete ${toTitleCase(selectedInstitute?.name) || 'this institute'}? This action cannot be undone.`}
+        confirmLabel="Delete"
+        variant="danger"
+        isLoading={deleting}
+        onConfirm={handleDelete}
+        onCancel={() => {
           setShowDeleteModal(false);
           setSelectedInstitute(null);
         }}
-        title="Delete Institute"
-        footer={
-          <>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setShowDeleteModal(false);
-                setSelectedInstitute(null);
-              }}
-            >
-              Cancel
-            </Button>
-            <Button variant="danger" onClick={handleDelete} isLoading={deleting}>
-              Delete
-            </Button>
-          </>
-        }
-      >
-        <p className="text-gray-600 dark:text-gray-400">
-          Are you sure you want to delete <strong>{toTitleCase(selectedInstitute?.name)}</strong>? This action cannot be
-          undone.
-        </p>
-      </Modal>
+      />
     </div>
   );
 }

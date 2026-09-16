@@ -14,12 +14,7 @@ import { assetService } from '@/services/assetService';
 import { fetchAllPages } from '@/services/api';
 import { formatDate } from '@/utils/format';
 import { toast } from '@/store/toastStore';
-import {
-  categoryLabels,
-  statusLabels,
-  maintenanceStatusLabels,
-  maintenanceStatusColors,
-} from '../assetLabels';
+import { categoryLabels, maintenanceStatusLabels } from '../assetLabels';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import StatusBadge from '@/components/ui/StatusBadge';
 import PageHeader from '@/components/layout/PageHeader';
@@ -189,13 +184,7 @@ export default function AssetDetail() {
       key: 'status',
       label: 'Status',
       width: '7.25rem',
-      render: (status) => (
-        <span
-          className={`px-2 py-1 text-xs font-medium rounded-full ${maintenanceStatusColors[status] || 'bg-gray-100 text-gray-800'}`}
-        >
-          {maintenanceStatusLabels[status] || status}
-        </span>
-      ),
+      render: (status) => <StatusBadge status={status} label={maintenanceStatusLabels[status]} />,
     },
     {
       key: 'nextMaintenanceDate',

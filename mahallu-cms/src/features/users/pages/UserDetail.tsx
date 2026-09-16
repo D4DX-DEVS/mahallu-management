@@ -12,6 +12,7 @@ import { formatDate, formatDateTime, toTitleCase } from '@/utils/format';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { useAuthStore } from '@/store/authStore';
+import StatusBadge from '@/components/ui/StatusBadge';
 
 export default function UserDetail() {
   const { id } = useParams<{ id: string }>();
@@ -122,15 +123,7 @@ export default function UserDetail() {
             </div>
             <div>
               <span className="text-sm text-gray-500 dark:text-gray-400">Status</span>
-              <span
-                className={`inline-block px-2 py-1 text-xs font-medium rounded-full ${
-                  user.status === 'active'
-                    ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                    : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
-                }`}
-              >
-                {user.status}
-              </span>
+              <StatusBadge status={user.status} />
             </div>
           </div>
         </Card>

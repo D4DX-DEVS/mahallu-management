@@ -41,6 +41,7 @@ import { getTenantId as extractTenantId } from '@/utils/tenantHelper';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
+import { toast } from '@/store/toastStore';
 
 const memberSchemaShape = z.object({
   name: z.string().max(200, 'Please keep the name to 200 characters or less.').min(1, 'Name is required'),
@@ -232,6 +233,7 @@ export default function EditMember() {
         ...normalizeConditionalFields(data),
       };
       await memberService.update(id, memberData);
+      toast.success('Member updated');
       navigate(ROUTES.MEMBERS.LIST);
     } catch (err: any) {
       setError(errorMessage(err, { action: 'update member. please try again' }));

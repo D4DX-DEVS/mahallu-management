@@ -6,6 +6,7 @@ import { rowActionClass } from '@/components/ui/rowAction';
 import Button from '@/components/ui/Button';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
+import EmptyState from '@/components/ui/EmptyState';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
@@ -19,6 +20,7 @@ import { exportInvoicesToPdf, InvoiceDetails } from '@/utils/invoiceUtils';
 import { toast } from '@/store/toastStore';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import StatusBadge from '@/components/ui/StatusBadge';
 
 export default function ZakatList() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -152,17 +154,7 @@ export default function ZakatList() {
       key: 'status',
       label: 'Status',
       width: '7.25rem',
-      render: (status) => (
-        <span
-          className={`inline-block px-2 py-1 rounded text-xs font-semibold ${
-            status === 'pending'
-              ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-              : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-          }`}
-        >
-          {status === 'pending' ? 'Pending' : 'Verified'}
-        </span>
-      ),
+      render: (status) => <StatusBadge status={status === 'pending' ? 'pending' : 'verified'} />,
     },
     {
       key: 'actions',
@@ -236,12 +228,12 @@ export default function ZakatList() {
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="text-center py-10">
-            <p className="text-red-600 dark:text-red-400">{error}</p>
-            <Button onClick={fetchZakats} className="mt-4" variant="outline">
-              Retry
-            </Button>
-          </div>
+          <EmptyState
+            variant="error"
+            entity="zakat payments"
+            description={error}
+            action={{ label: 'Retry', onClick: fetchZakats }}
+          />
         ) : (
           <Table fixedLayout striped columns={columns} data={zakats} emptyMessage="No zakat payments found" showExport={false} />
         )}

@@ -50,6 +50,18 @@ export default function TenantSwitcher() {
     };
   }, []);
 
+  // Close dropdown on Escape
+  useEffect(() => {
+    if (!isOpen) return;
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') setIsOpen(false);
+    }
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen]);
+
   // Reset search when closing dropdown
   useEffect(() => {
     if (!isOpen) {
@@ -105,13 +117,16 @@ export default function TenantSwitcher() {
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
+        aria-label={currentTenant ? `Switch tenant (currently ${currentTenant.name})` : 'Select tenant'}
+        aria-haspopup="true"
+        aria-expanded={isOpen}
         className={cn(
-          'flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors border',
+          'flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-medium transition-colors',
           isViewingAsTenant
-            ? 'bg-primary-50 text-primary-700 border-primary-200 dark:bg-primary-900/20 dark:text-primary-400 dark:border-primary-800'
+            ? 'border-primary/25 bg-primary/10 text-primary'
             : isOpen
-              ? 'bg-gray-100 text-gray-900 border-gray-200 dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700'
-              : 'border-transparent text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800'
+              ? 'border-border bg-accent text-accent-foreground'
+              : 'border-transparent text-muted-foreground hover:bg-accent hover:text-accent-foreground'
         )}
       >
         <FiLayers className="h-4 w-4" />
@@ -119,7 +134,7 @@ export default function TenantSwitcher() {
           {currentTenant ? currentTenant.name : 'Select Tenant'}
         </span>
         {isViewingAsTenant && (
-          <span className="text-xs px-1.5 py-0.5 bg-primary-100 dark:bg-primary-800 rounded">Viewing</span>
+          <span className="rounded-sm bg-primary/15 px-1.5 py-0.5 text-xs text-primary">Viewing</span>
         )}
         <FiChevronDown className={cn('h-4 w-4 transition-transform', isOpen && 'rotate-180')} />
       </button>
@@ -128,13 +143,13 @@ export default function TenantSwitcher() {
         /* Anchored by its left edge, not right: on mobile this button sits near the
          * screen's left edge (right after the hamburger), and a right-anchored panel
          * this wide pushed almost entirely off-screen to the left. */
-        <div className="absolute left-0 z-50 mt-2 flex max-h-[500px] w-80 max-w-[calc(100vw-2rem)] flex-col rounded-lg border border-gray-200 bg-white py-2 shadow-xl dark:border-gray-700 dark:bg-gray-900">
+        <div className="absolute left-0 z-50 mt-2 flex max-h-[500px] w-80 max-w-[calc(100vw-2rem)] flex-col rounded-lg border border-border bg-popover py-2 shadow-md">
           {/* Switch back to Super Admin option */}
           {isViewingAsTenant && (
-            <div className="px-3 pb-2 mb-2 border-b border-gray-200 dark:border-gray-700">
+            <div className="mb-2 border-b border-border px-3 pb-2">
               <button
                 onClick={handleSwitchToSuperAdmin}
-                className="w-full flex items-center justify-between gap-2 px-3 py-2 text-sm font-medium rounded-md bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/30 text-red-700 dark:text-red-400 transition-colors"
+                className="flex w-full items-center justify-between gap-2 rounded-md bg-destructive/10 px-3 py-2 text-sm font-medium text-destructive transition-colors hover:bg-destructive/15"
               >
                 <div className="flex items-center gap-2">
                   <FiX className="h-4 w-4" />
@@ -145,33 +160,31 @@ export default function TenantSwitcher() {
             </div>
           )}
 
-          <div className="px-3 pb-2 border-b border-gray-100 dark:border-gray-800">
+          <div className="border-b border-border px-3 pb-2">
             <div className="relative">
-              <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <FiSearch className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <input
                 aria-label="Search tenants"
                 type="text"
                 placeholder="Search tenants..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 text-sm rounded-md border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all placeholder:text-gray-400 dark:text-white"
+                className="w-full rounded-md border border-input bg-background py-2 pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 autoFocus
               />
             </div>
           </div>
 
-          <div className="overflow-y-auto max-h-[400px]">
+          <div className="max-h-[400px] overflow-y-auto">
             {isLoading ? (
-              <div className="px-4 py-8 text-sm text-gray-500 text-center">Loading...</div>
+              <div className="px-4 py-8 text-center text-sm text-muted-foreground">Loading...</div>
             ) : loadError ? (
-              <div className="px-4 py-8 text-sm text-red-600 dark:text-red-400 text-center">
+              <div className="px-4 py-8 text-center text-sm text-destructive">
                 {loadError}
-                <p className="mt-2 text-gray-500 dark:text-gray-400">
-                  Check that you are logged in as Super Admin.
-                </p>
+                <p className="mt-2 text-muted-foreground">Check that you are logged in as Super Admin.</p>
               </div>
             ) : filteredTenants.length === 0 ? (
-              <div className="px-4 py-8 text-sm text-gray-500 text-center">
+              <div className="px-4 py-8 text-center text-sm text-muted-foreground">
                 {searchQuery
                   ? 'No tenants found matching your search'
                   : 'No tenants available. Create a tenant first.'}
@@ -183,23 +196,23 @@ export default function TenantSwitcher() {
                     key={tenant.id}
                     onClick={() => handleTenantSelect(tenant)}
                     className={cn(
-                      'w-full text-left px-4 py-3 text-sm hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors border-l-4',
+                      'w-full border-l-4 px-4 py-3 text-left text-sm transition-colors hover:bg-accent',
                       currentTenantId === tenant.id
-                        ? 'border-primary-500 bg-primary-50/50 dark:bg-primary-900/10 text-primary-700 dark:text-primary-400'
-                        : 'border-transparent text-gray-700 dark:text-gray-300'
+                        ? 'border-primary bg-primary/5 text-primary'
+                        : 'border-transparent text-foreground'
                     )}
                   >
                     <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold truncate text-base mb-0.5">{tenant.name}</p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 truncate flex items-center gap-1">
+                      <div className="min-w-0 flex-1">
+                        <p className="mb-0.5 truncate text-base font-semibold">{tenant.name}</p>
+                        <p className="flex items-center gap-1 truncate text-xs text-muted-foreground">
                           <span className="opacity-75">{tenant.code}</span>
                           <span>•</span>
                           <span>{tenant.location}</span>
                         </p>
                       </div>
                       {currentTenantId === tenant.id && (
-                        <FiCheck className="h-5 w-5 mt-0.5 flex-shrink-0 text-primary-600 dark:text-primary-400" />
+                        <FiCheck className="mt-0.5 h-5 w-5 flex-shrink-0 text-primary" />
                       )}
                     </div>
                   </button>

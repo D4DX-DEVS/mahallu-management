@@ -165,104 +165,124 @@ export default function Dashboard() {
       </>
     );
   }
+  // Hierarchical overview: awaiting approval is the actionable hero, others are quiet totals.
+  const pendingStat = statCards.find((s) => s.label === 'Families awaiting approval');
+  const otherStats = statCards.filter((s) => s.label !== 'Families awaiting approval');
+
   return (
     <>
-      <PageHeader
-        title={firstName ? 'Welcome back, ' + firstName : 'Dashboard'}
-        description="What needs your attention across the mahallu today."
-      />
-      <div className="space-y-4">
-        <CommunitySnapshot>
-          {statCards.map((stat) => (
-            <DashboardStatCard key={stat.label} {...stat} />
-          ))}
-        </CommunitySnapshot>
-        <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-          <Card className="xl:col-span-2">
-            <div className="mb-4">
-              <h2 className="text-base font-semibold text-foreground">New registrations</h2>
-              <p className="text-xs text-muted-foreground">Family registrations, last 7 days</p>
+      <div className="border-b border-border/60 bg-card/50">
+        <div className="mx-auto max-w-content px-3 py-5 sm:px-0 sm:py-6">
+          <PageHeader
+            title={firstName ? `Welcome back, ${firstName}` : 'Dashboard'}
+            description="What needs your attention across the mahallu today."
+          />
+        </div>
+      </div>
+      <div className="space-y-6 py-4 sm:py-6">
+        {/* OVERVIEW — hierarchy, not 4 identical boxes */}
+        {statCards.length > 0 && (
+          <section className="grid grid-cols-1 gap-4 lg:grid-cols-12">
+            {pendingStat && (
+              <div className="flex flex-col justify-between rounded-xl bg-amber-500/10 p-5 ring-1 ring-amber-500/20 lg:col-span-5">
+                <div>
+                  <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-400">
+                    <FiClock className="h-3.5 w-3.5" aria-hidden="true" /> Needs attention
+                  </p>
+                  <p className="mt-2 text-3xl font-bold tracking-tight text-foreground tabular-nums sm:text-4xl">{pendingStat.value}</p>
+                  <p className="mt-1 text-sm text-muted-foreground">{pendingStat.label} — {pendingStat.hint}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={pendingStat.onClick}
+                  className="mt-4 inline-flex w-fit items-center gap-1.5 rounded-full bg-amber-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-amber-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-600"
+                >
+                  Review families <span aria-hidden="true">→</span>
+                </button>
+              </div>
+            )}
+            <div className={`grid gap-3 ${pendingStat ? 'lg:col-span-7 sm:grid-cols-3' : 'lg:col-span-12 sm:grid-cols-3'}`}>
+              {otherStats.map((stat) => (
+                <div key={stat.label} className="rounded-xl border border-border bg-card p-4">
+                  <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                    <span className="flex h-6 w-6 items-center justify-center rounded-md bg-muted text-muted-foreground">{stat.icon}</span>
+                    {stat.label}
+                  </p>
+                  <p className="mt-3 text-2xl font-semibold tabular-nums tracking-tight text-foreground">{stat.value}</p>
+                  {stat.hint && <p className="mt-1 text-xs tabular-nums text-muted-foreground">{stat.hint}</p>}
+                  {stat.trend && (
+                    <p className={`mt-2 inline-flex items-center gap-1 text-xs font-medium tabular-nums ${stat.trend.isPositive ? 'text-success' : 'text-destructive'}`}>
+                      <span aria-hidden="true">{stat.trend.isPositive ? '↑' : '↓'}</span> {stat.trend.value}% vs last month
+                    </p>
+                  )}
+                </div>
+              ))}
             </div>
-            <div className="h-[250px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={activityTimeline}>
-                  <defs>
-                    <linearGradient id="registrationsFill" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor={chart.primary} stopOpacity={0.2} />
-                      <stop offset="95%" stopColor={chart.primary} stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={chart.grid} />
-                  <XAxis
-                    dataKey="name"
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fill: chart.axis, fontSize: 12 }}
-                    dy={10}
-                  />
-                  <YAxis
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fill: chart.axis, fontSize: 12 }}
-                    allowDecimals={false}
-                  />
-                  <Tooltip
-                    contentStyle={tooltipStyle(chart)}
-                    formatter={(value: number) => [
-                      value + (value === 1 ? ' registration' : ' registrations'),
-                      '',
-                    ]}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="value"
-                    stroke={chart.primary}
-                    strokeWidth={2}
-                    fillOpacity={1}
-                    fill="url(#registrationsFill)"
-                    dot={{ r: 3, fill: chart.primary, strokeWidth: 0 }}
-                    activeDot={{ r: 5, fill: chart.primary, strokeWidth: 2, stroke: chart.tooltipBg }}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
+          </section>
+        )}
+
+        <CommunitySnapshot>{null}</CommunitySnapshot>
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
+          <div className="rounded-xl border border-border bg-card p-4 sm:p-5 lg:col-span-3">
+            <div className="mb-4 flex items-baseline justify-between gap-2">
+              <h2 className="text-sm font-semibold text-foreground">New registrations</h2>
+              <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium tabular-nums text-muted-foreground">Last 7 days</span>
             </div>
-          </Card>
-          <Card>
-            <div className="mb-4">
-              <h2 className="text-base font-semibold text-foreground">Latest registrations</h2>
-              <p className="text-xs text-muted-foreground">Recent family entries</p>
+            {activityTimeline.every((d) => d.value === 0) ? (
+              <div className="flex h-[160px] items-center justify-center rounded-lg bg-muted/30 sm:h-[180px]">
+                <p className="text-sm text-muted-foreground">No registrations this week</p>
+              </div>
+            ) : (
+              <div className="h-[180px] w-full sm:h-[200px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={activityTimeline}>
+                    <defs>
+                      <linearGradient id="registrationsFill" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor={chart.primary} stopOpacity={0.15} />
+                        <stop offset="95%" stopColor={chart.primary} stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={chart.grid} />
+                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: chart.axis, fontSize: 11 }} dy={10} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fill: chart.axis, fontSize: 11 }} allowDecimals={false} width={28} />
+                    <Tooltip contentStyle={tooltipStyle(chart)} formatter={(value: number) => [value + (value === 1 ? ' registration' : ' registrations'), '']} />
+                    <Area type="monotone" dataKey="value" stroke={chart.primary} strokeWidth={2} fillOpacity={1} fill="url(#registrationsFill)" dot={{ r: 3, fill: chart.primary, strokeWidth: 0 }} activeDot={{ r: 5, fill: chart.primary, strokeWidth: 2, stroke: chart.tooltipBg }} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </div>
+          <div className="lg:col-span-2">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-foreground">Latest registrations</h2>
+              <span className="text-xs tabular-nums text-muted-foreground">{recentFamilies.length} recent</span>
             </div>
             {recentFamilies.length > 0 ? (
-              <ul className="space-y-1">
+              <div className="divide-y divide-border/60 overflow-hidden rounded-xl border border-border bg-card">
                 {recentFamilies.map((family) => (
-                  <li key={family.id}>
-                    <button
-                      type="button"
-                      onClick={() => navigate('/families/' + family.id)}
-                      className="flex w-full items-center gap-3 rounded-md p-2 text-left transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    >
-                      <span
-                        className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary"
-                        aria-hidden="true"
-                      >
-                        {getInitials(family.familyName)}
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-medium text-foreground">
-                          {toTitleCase(family.familyName)}
-                        </span>
-                        <span className="block truncate text-xs text-muted-foreground">
-                          {getTimeAgo(family.createdAt)}
-                        </span>
-                      </span>
-                    </button>
-                  </li>
+                  <button
+                    key={family.id}
+                    type="button"
+                    onClick={() => navigate('/families/' + family.id)}
+                    className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+                  >
+                    <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary" aria-hidden="true">
+                      {getInitials(family.familyName)}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium text-foreground">{toTitleCase(family.familyName)}</span>
+                      <span className="block truncate text-xs text-muted-foreground">{getTimeAgo(family.createdAt)}</span>
+                    </span>
+                    <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center text-muted-foreground" aria-hidden="true">→</span>
+                  </button>
                 ))}
-              </ul>
+              </div>
             ) : (
-              <EmptyState variant="empty" entity="families" className="py-8" />
+              <div className="rounded-xl border border-dashed border-border p-8 text-center">
+                <p className="text-sm text-muted-foreground">No recent families</p>
+              </div>
             )}
-          </Card>
+          </div>
         </div>
         <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
           <Card>

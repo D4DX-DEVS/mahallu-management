@@ -6,11 +6,15 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import { PageSkeleton } from '@/components/ui/Skeleton';
+import EmptyState from '@/components/ui/EmptyState';
 import { pettyCashService, PettyCashFund } from '@/services/pettyCashService';
 import { instituteService } from '@/services/instituteService';
 import { useAuthStore } from '@/store/authStore';
+import { toast } from '@/store/toastStore';
+import { errorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
+import StatusBadge from '@/components/ui/StatusBadge';
 
 export default function PettyCashList() {
   const navigate = useNavigate();
@@ -45,7 +49,7 @@ export default function PettyCashList() {
       const data = await pettyCashService.getAll(params);
       setFunds(data);
     } catch (err) {
-      console.error(err);
+      toast.error(errorMessage(err, { action: 'load petty cash funds' }));
     } finally {
       setLoading(false);
     }
@@ -62,9 +66,10 @@ export default function PettyCashList() {
       });
       setShowCreate(false);
       setCreateForm({ instituteId: '', custodianName: '', floatAmount: '' });
+      toast.success('Petty cash fund created');
       fetchFunds();
     } catch (err) {
-      console.error(err);
+      toast.error(errorMessage(err, { action: 'create petty cash fund' }));
     } finally {
       setSaving(false);
     }
@@ -145,9 +150,10 @@ export default function PettyCashList() {
         {loading ? (
           <PageSkeleton variant="section" />
         ) : funds.length === 0 ? (
-          <div className="text-center py-10 text-gray-500 dark:text-gray-400">
-            No petty cash funds found. Create one to get started.
-          </div>
+          <EmptyState
+            entity="petty cash funds"
+            action={{ label: 'New Fund', onClick: () => setShowCreate(true) }}
+          />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {funds.map((fund) => {
@@ -164,15 +170,7 @@ export default function PettyCashList() {
                       <h3 className="font-semibold text-foreground">{toTitleCase(fund.custodianName)}</h3>
                       <p className="text-xs text-gray-500">{getInstituteName(fund)}</p>
                     </div>
-                    <span
-                      className={`px-2 py-0.5 text-xs font-medium rounded-full ${
-                        fund.status === 'active'
-                          ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                          : 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300'
-                      }`}
-                    >
-                      {fund.status}
-                    </span>
+                    <StatusBadge status={fund.status} />
                   </div>
                   <div className="space-y-2 mt-3">
                     <div className="flex justify-between text-sm">

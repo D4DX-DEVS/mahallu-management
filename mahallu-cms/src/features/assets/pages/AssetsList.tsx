@@ -5,6 +5,7 @@ import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
+import EmptyState from '@/components/ui/EmptyState';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import Modal from '@/components/ui/Modal';
 import Pagination from '@/components/ui/Pagination';
@@ -160,8 +161,13 @@ export default function AssetsList() {
       await fetchAssets();
       setShowDeleteModal(false);
       setSelectedAsset(null);
+      toast.success('Asset deleted');
     } catch (err: any) {
-      setError(errorMessage(err, { action: 'delete asset' }));
+      /* A failed delete used to reuse the page-level `error` state, which also
+       * drives the table-vs-error-box branch below — so a delete failure made
+       * the whole list disappear behind a full-page error instead of just
+       * failing the one action. */
+      toast.error(errorMessage(err, { action: 'delete asset' }));
     } finally {
       setDeleting(false);
     }
@@ -371,12 +377,7 @@ export default function AssetsList() {
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="text-center py-10">
-            <p className="text-red-600 dark:text-red-400">{error}</p>
-            <Button onClick={fetchAssets} className="mt-4" variant="outline">
-              Retry
-            </Button>
-          </div>
+          <EmptyState variant="error" entity="assets" description={error} action={{ label: 'Retry', onClick: fetchAssets }} />
         ) : (
           <Table
             fixedLayout

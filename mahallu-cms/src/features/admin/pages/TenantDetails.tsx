@@ -8,6 +8,7 @@ import { Tenant } from '@/types/tenant';
 import { tenantService } from '@/services/tenantService';
 import { formatDate, toTitleCase } from '@/utils/format';
 import { loadErrorMessage } from '@/utils/errors';
+import StatusBadge from '@/components/ui/StatusBadge';
 
 export default function TenantDetails() {
   const { id } = useParams<{ id: string }>();
@@ -98,17 +99,7 @@ export default function TenantDetails() {
 
       {/* Status Badge */}
       <div>
-        <span
-          className={`inline-flex px-3 py-1 text-sm font-medium rounded-full ${
-            tenant.status === 'active'
-              ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-              : tenant.status === 'suspended'
-                ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-                : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
-          }`}
-        >
-          {tenant.status?.charAt(0).toUpperCase() + tenant.status?.slice(1)}
-        </span>
+        <StatusBadge status={tenant.status} size="md" />
       </div>
 
       {/* Basic Information */}

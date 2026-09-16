@@ -13,6 +13,8 @@ export interface DashboardStatCardProps {
   trend?: { value: number; isPositive: boolean };
   onClick?: () => void;
   className?: string;
+  /** `compact` for a secondary grid shown alongside the page's headline stats. */
+  size?: 'default' | 'compact';
 }
 
 export default function DashboardStatCard({
@@ -23,6 +25,7 @@ export default function DashboardStatCard({
   trend,
   onClick,
   className,
+  size,
 }: DashboardStatCardProps) {
   return (
     <StatCard
@@ -33,6 +36,7 @@ export default function DashboardStatCard({
       trend={trend}
       onClick={onClick}
       className={className}
+      size={size}
     />
   );
 }

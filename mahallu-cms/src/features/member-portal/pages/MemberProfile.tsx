@@ -13,6 +13,7 @@ import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { FieldRule, validateForm as checkFields, firstError } from '@/utils/validation';
 import { toTitleCase } from '@/utils/format';
+import StatusBadge from '@/components/ui/StatusBadge';
 
 /** The two fields a member may change directly; the API allows only these. */
 const PROFILE_RULES: Record<string, FieldRule> = {
@@ -491,17 +492,7 @@ export default function MemberProfile() {
                     )}
                   </div>
                   <div className="flex flex-col items-end gap-2">
-                    <span
-                      className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${
-                        req.status === 'pending'
-                          ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
-                          : req.status === 'approved'
-                            ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-                            : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
-                      }`}
-                    >
-                      {req.status}
-                    </span>
+                    <StatusBadge status={req.status} />
                     <div className="flex items-center gap-1">
                       {req.status === 'pending' && (
                         <button

@@ -5,6 +5,7 @@ import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
+import EmptyState from '@/components/ui/EmptyState';
 import Pagination from '@/components/ui/Pagination';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import TableToolbar from '@/components/ui/TableToolbar';
@@ -149,12 +150,12 @@ export default function WalletsList() {
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="text-center py-10">
-            <p className="text-red-600 dark:text-red-400">{error}</p>
-            <Button onClick={fetchWallets} className="mt-4" variant="outline">
-              Retry
-            </Button>
-          </div>
+          <EmptyState
+            variant="error"
+            entity="wallets"
+            description={error}
+            action={{ label: 'Retry', onClick: fetchWallets }}
+          />
         ) : (
           <>
             <Table fixedLayout striped columns={columns} data={filteredWallets} emptyMessage="No wallets found" showExport={false} />

@@ -9,12 +9,13 @@ import Table from '@/components/ui/Table';
 import Modal from '@/components/ui/Modal';
 import Pagination from '@/components/ui/Pagination';
 import { PageSkeleton } from '@/components/ui/Skeleton';
-import { Khutbah, religiousService, KHUTBAH_STATUS_OPTIONS } from '@/services/religiousService';
+import { Khutbah, religiousService } from '@/services/religiousService';
 import { useDebounce } from '@/hooks/useDebounce';
 import { formatDate, toTitleCase } from '@/utils/format';
 import { ROUTES } from '@/constants/routes';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import StatusBadge from '@/components/ui/StatusBadge';
 
 export default function KhutbahSchedule() {
   const navigate = useNavigate();
@@ -98,15 +99,6 @@ export default function KhutbahSchedule() {
     return '—';
   };
 
-  const getStatusBadge = (status: string) => {
-    const colors: Record<string, string> = {
-      scheduled: 'bg-blue-100 text-blue-800',
-      delivered: 'bg-green-100 text-green-800',
-      cancelled: 'bg-red-100 text-red-800',
-    };
-    return colors[status] || 'bg-gray-100 text-gray-800';
-  };
-
   const columns = [
     {
       key: 'date',
@@ -126,11 +118,7 @@ export default function KhutbahSchedule() {
     {
       key: 'status',
       label: 'Status',
-      render: (_: any, khutbah: Khutbah) => (
-        <span className={`px-2 py-1 rounded text-xs font-medium ${getStatusBadge(khutbah.status)}`}>
-          {KHUTBAH_STATUS_OPTIONS.find((s) => s.value === khutbah.status)?.label}
-        </span>
-      ),
+      render: (_: any, khutbah: Khutbah) => <StatusBadge status={khutbah.status} />,
     },
     {
       key: 'actions',

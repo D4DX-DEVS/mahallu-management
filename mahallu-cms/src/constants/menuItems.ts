@@ -58,6 +58,8 @@ export interface MenuItem {
   moduleKey?: ModuleKey;
   /** Hidden unless the user's permissions.sensitiveModules includes this key. */
   sensitiveKey?: SensitiveModuleKey;
+  /** CEO decision: hidden for current ERP version, retained for future. Do not delete. */
+  hidden?: boolean;
 }
 
 /* ===========================================================================
@@ -338,12 +340,14 @@ export const menuItems: MenuItem[] = [
         moduleKey: 'zakat',
       },
       {
+        // HIDDEN per CEO decision (Interest-Free Loan & Relief Fund — Qard Hasan) — retained for future, do not delete.
         id: 'qard-hasan',
         label: 'Qard Hasan',
         icon: FiCreditCard,
         path: '/loans',
         allowedRoles: ADMIN_ROLES,
         moduleKey: 'loans',
+        hidden: true,
       },
       {
         id: 'emergency-relief',
@@ -354,20 +358,24 @@ export const menuItems: MenuItem[] = [
         moduleKey: 'loans',
       },
       {
+        // HIDDEN per CEO decision (Employment & Economic Development) — retained for future, do not delete.
         id: 'employment',
         label: 'Employment',
         icon: FiBriefcase,
         path: '/employment/employers',
         allowedRoles: ADMIN_ROLES,
         moduleKey: 'employment',
+        hidden: true,
       },
       {
+        // HIDDEN per CEO decision (Youth Volunteer Wing / Sevana Vedi + Women's Forum / Vanitha Vedi via volunteer wings) — retained for future, do not delete.
         id: 'volunteers',
         label: 'Volunteers',
         icon: FiUsers,
         path: '/volunteers',
         allowedRoles: ADMIN_ROLES,
         moduleKey: 'volunteers',
+        hidden: true,
       },
       {
         id: 'health',
@@ -378,14 +386,17 @@ export const menuItems: MenuItem[] = [
         moduleKey: 'health',
       },
       {
+        // HIDDEN per CEO decision (Islamic Awareness & Religious Services — Khutbah Management) — retained for future, do not delete.
         id: 'religious',
         label: 'Religious services',
         icon: FiCalendar,
         path: '/religious/khutbahs',
         allowedRoles: ADMIN_ROLES,
         moduleKey: 'religious',
+        hidden: true,
       },
       {
+        // HIDDEN per CEO decision (Counselling Services) — retained for future, do not delete.
         id: 'counselling',
         label: 'Counselling',
         icon: FiMessageSquare,
@@ -393,8 +404,10 @@ export const menuItems: MenuItem[] = [
         allowedRoles: ADMIN_ROLES,
         moduleKey: 'counselling',
         sensitiveKey: 'counselling',
+        hidden: true,
       },
       {
+        // HIDDEN per CEO decision (Maslahat / Reconciliation Committee) — retained for future, do not delete.
         // Glossed for anyone outside the domain — it sat unexplained beside
         // English labels like "Counselling" and "Inheritance".
         id: 'maslahat',
@@ -404,6 +417,7 @@ export const menuItems: MenuItem[] = [
         allowedRoles: ADMIN_ROLES,
         moduleKey: 'maslahat',
         sensitiveKey: 'maslahat',
+        hidden: true,
       },
       {
         id: 'inheritance',
@@ -423,12 +437,14 @@ export const menuItems: MenuItem[] = [
         moduleKey: 'cemetery',
       },
       {
+        // HIDDEN per CEO decision (Mosque Library & Reading Room) — retained for future, do not delete.
         id: 'library',
         label: 'Library',
         icon: FiBook,
         path: '/library/books',
         allowedRoles: ADMIN_ROLES,
         moduleKey: 'library',
+        hidden: true,
       },
     ],
   },
@@ -728,12 +744,14 @@ export const menuItems: MenuItem[] = [
       { id: 'employees', label: 'Staff', icon: FiUser, path: '/employees', allowedRoles: INSTITUTE_ROLES },
       { id: 'salary', label: 'Salary', icon: FiCreditCard, path: '/salary', allowedRoles: INSTITUTE_ROLES },
       {
+        // HIDDEN per CEO decision (Education Management — Holiday/Weekend Madrasa + Adult Qur'an Learning / madrasa classes) — retained for future, do not delete. Scholarships & Academic Support remain visible.
         id: 'education-classes',
         label: 'Classes and students',
         icon: FiBookOpen,
         path: '/education',
         allowedRoles: INSTITUTE_ROLES,
         moduleKey: 'education',
+        hidden: true,
       },
       {
         id: 'education-scholarships',

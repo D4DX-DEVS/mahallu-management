@@ -1,6 +1,8 @@
 import { FiEdit2, FiDownload, FiCheckCircle } from 'react-icons/fi';
 
-import { rowActionClass } from '@/components/ui/rowAction';import { TableColumn } from '@/types';
+import { rowActionClass } from '@/components/ui/rowAction';
+import StatusBadge from '@/components/ui/StatusBadge';
+import { TableColumn } from '@/types';
 import { Varisangya } from '@/services/collectibleService';
 import { formatDate, toTitleCase } from '@/utils/format';
 
@@ -61,17 +63,7 @@ export const buildVarisangyaColumns = ({
     key: 'status',
     label: 'Status',
     width: '7.25rem',
-    render: (status) => (
-      <span
-        className={`inline-block px-2 py-1 rounded text-xs font-semibold ${
-          status === 'pending'
-            ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-            : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-        }`}
-      >
-        {status === 'pending' ? 'Pending' : 'Verified'}
-      </span>
-    ),
+    render: (status) => <StatusBadge status={status || 'verified'} />,
   },
   {
     key: 'actions',

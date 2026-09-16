@@ -13,6 +13,7 @@ import { ROUTES } from '@/constants/routes';
 import { employeeService } from '@/services/employeeService';
 import { instituteService } from '@/services/instituteService';
 import { useAuthStore } from '@/store/authStore';
+import { toast } from '@/store/toastStore';
 import { errorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
@@ -102,9 +103,12 @@ export default function CreateEmployee() {
       }
 
       await employeeService.create(employeeData);
+      toast.success('Employee created');
       navigate(ROUTES.EMPLOYEES.LIST);
     } catch (err: any) {
-      setError(errorMessage(err, { action: 'create employee. please try again' }));
+      const message = errorMessage(err, { action: 'create employee. please try again' });
+      setError(message);
+      toast.error(message);
     }
   };
 

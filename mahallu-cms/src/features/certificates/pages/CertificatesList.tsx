@@ -5,6 +5,7 @@ import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
 import Table from '@/components/ui/Table';
+import EmptyState from '@/components/ui/EmptyState';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
@@ -16,6 +17,7 @@ import { useDebounce } from '@/hooks/useDebounce';
 import { formatDate, toTitleCase } from '@/utils/format';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import StatusBadge from '@/components/ui/StatusBadge';
 
 export default function CertificatesList() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -129,17 +131,7 @@ export default function CertificatesList() {
     certificateNo: cert.certificateNo,
     type: typeLabels[cert.type] || cert.type,
     issueDate: formatDate(cert.issueDate),
-    status: (
-      <span
-        className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${
-          cert.status === 'valid'
-            ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-            : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-        }`}
-      >
-        {cert.status === 'valid' ? 'Valid' : 'Revoked'}
-      </span>
-    ),
+    status: <StatusBadge status={cert.status === 'valid' ? 'valid' : 'revoked'} />,
     issuedBy: cert.issuedBy ? toTitleCase(cert.issuedBy) : '-',
     actions: (
       <div className="flex items-center gap-2">
@@ -213,9 +205,12 @@ export default function CertificatesList() {
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="text-center py-8">
-            <p className="text-red-600 dark:text-red-400">{error}</p>
-          </div>
+          <EmptyState
+            variant="error"
+            entity="certificates"
+            description={error}
+            action={{ label: 'Retry', onClick: fetchCertificates }}
+          />
         ) : certificates.length === 0 ? (
           <div className="text-center py-8">
             <p className="text-gray-500 dark:text-gray-400">No certificates found</p>
