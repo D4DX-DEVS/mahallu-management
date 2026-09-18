@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import Card from '@/components/ui/Card';
+import Alert from '@/components/ui/Alert';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import { demographicsReportService, DemographicsReport as ReportData } from '@/services/reportService';
 import { loadErrorMessage } from '@/utils/errors';
@@ -44,12 +45,18 @@ export default function DemographicsReport() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const loadReport = () => {
+    setLoading(true);
+    setError(null);
     demographicsReportService
       .get()
       .then(setReport)
       .catch((err) => setError(loadErrorMessage(err, 'report')))
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    loadReport();
   }, []);
 
   if (loading) {
@@ -58,9 +65,12 @@ export default function DemographicsReport() {
 
   if (error || !report) {
     return (
-      <Card>
-        <p className="text-red-600 dark:text-red-400">{error || 'No report data'}</p>
-      </Card>
+      <div className="space-y-4">
+        <PageHeader title="Demographics Report" breadcrumbs={[{ label: 'Reports' }]} />
+        <Alert variant="error" title="Couldn't load report" action={{ label: 'Try again', onClick: loadReport }}>
+          {error || 'No report data'}
+        </Alert>
+      </div>
     );
   }
 

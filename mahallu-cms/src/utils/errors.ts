@@ -108,12 +108,20 @@ export function errorMessage(error: unknown, options: ErrorCopyOptions = {}): st
 
 /** "Couldn't load families." — the standard load-failure line. */
 export function loadErrorMessage(error: unknown, entity: string): string {
-  const err = error as { response?: { status?: number } };
-  if (err?.response?.status === 403) {
+  const err = error as { response?: { status?: number; data?: { message?: unknown; error?: unknown } } };
+  const status = err?.response?.status;
+  if (status === 403) {
     return "You don't have permission to view " + entity + '. Please contact your Mahallu admin.';
   }
   if (!err?.response) {
     return "We couldn't load " + entity + '. Please check your connection and try again.';
+  }
+  // A 400 usually means the request is missing something the user can fix
+  // themselves — e.g. a super admin who hasn't picked a Mahallu yet. That
+  // message is worth showing verbatim instead of a generic "try again".
+  if (status === 400) {
+    const raw = err.response?.data?.message ?? err.response?.data?.error;
+    if (looksHumanReadable(raw)) return raw;
   }
   return "We couldn't load " + entity + '. Please try again in a moment.';
 }

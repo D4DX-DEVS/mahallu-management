@@ -50,8 +50,8 @@ export interface StatCardProps {
  * h-5, h-6, occasionally unsized. The child selector outranks the class on
  * the svg itself, so every stat icon is a fixed size without touching a call site. */
 const ICON_BOX = {
-  default: 'flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-md [&>svg]:h-[18px] [&>svg]:w-[18px]',
-  compact: 'flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md [&>svg]:h-4 [&>svg]:w-4',
+  default: 'flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md [&>svg]:h-4 [&>svg]:w-4',
+  compact: 'flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md [&>svg]:h-3.5 [&>svg]:w-3.5',
 };
 
 /* The icon tile carries the tone too, not just the number under it — a
@@ -98,15 +98,15 @@ export default function StatCard({
       </div>
       <p
         className={cn(
-          'mt-1.5 truncate font-semibold leading-none tabular-nums tracking-tight',
-          compact ? 'text-lg' : 'text-3xl',
+          'mt-1 truncate font-semibold leading-none tabular-nums tracking-tight',
+          compact ? 'text-lg' : 'text-2xl',
           TONE_CLASS[tone]
         )}
       >
         {value}
       </p>
       {(hint || trend) && (
-        <div className="mt-2 flex items-center gap-2">
+        <div className="mt-1.5 flex items-center gap-2">
           {hint && <span className="truncate text-xs text-muted-foreground">{hint}</span>}
           {trend && (
             <span
@@ -138,7 +138,7 @@ export default function StatCard({
         onClick={onClick}
         className={cn(
           'w-full rounded-lg border border-border bg-card text-left shadow-sm transition-all',
-          compact ? 'p-3' : 'p-4',
+          compact ? 'p-2.5' : 'p-3.5',
           'hover:-translate-y-px hover:shadow-md',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
           className
@@ -150,7 +150,7 @@ export default function StatCard({
   }
 
   return (
-    <Card padding="none" className={cn(compact ? 'p-3' : 'p-4', className)}>
+    <Card padding="none" className={cn(compact ? 'p-2.5' : 'p-3.5', className)}>
       {body}
     </Card>
   );

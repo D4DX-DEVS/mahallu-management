@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { FiUsers, FiBook, FiPercent, FiFileText, FiGift } from 'react-icons/fi';
 import Card from '@/components/ui/Card';
 import StatCard from '@/components/ui/StatCard';
+import Alert from '@/components/ui/Alert';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import { reportService } from '@/services/reportService';
 import { loadErrorMessage } from '@/utils/errors';
@@ -30,18 +31,21 @@ export default function EducationReport() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
+  const fetchReport = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      const response = await reportService.getEducationReport();
+      setData(response);
+    } catch (err: any) {
+      setError(loadErrorMessage(err, 'report'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetch = async () => {
-      try {
-        const response = await reportService.getEducationReport();
-        setData(response);
-      } catch (err: any) {
-        setError(loadErrorMessage(err, 'report'));
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetch();
+    fetchReport();
   }, []);
 
   if (loading) {
@@ -49,7 +53,14 @@ export default function EducationReport() {
   }
 
   if (error || !data) {
-    return <div className="text-center py-8 text-red-600">{error || "Couldn't load report"}</div>;
+    return (
+      <div className="space-y-4">
+        <PageHeader title="Education Report" />
+        <Alert variant="error" title="Couldn't load report" action={{ label: 'Try again', onClick: fetchReport }}>
+          {error || 'No report data'}
+        </Alert>
+      </div>
+    );
   }
 
   return (

@@ -84,6 +84,18 @@ function SubmenuFlyout({
   useEffect(() => {
     firstLinkRef.current?.focus();
   }, []);
+  /*
+   * The panel used to assume a fixed 320px height for both its vertical
+   * position and its `max-h-80` clamp — a short menu (few leaves) still had
+   * that height reserved as scrollable overflow, and a long menu (e.g.
+   * Administration) was clipped to 320px and forced to scroll even when the
+   * viewport had far more room below the trigger. Sizing `top` and
+   * `maxHeight` off the actual remaining viewport space instead means the
+   * panel grows with its content and only turns on its scrollbar once it
+   * genuinely runs out of screen. */
+  const VIEWPORT_MARGIN = 12;
+  const top = Math.min(anchor.top, window.innerHeight - VIEWPORT_MARGIN);
+  const maxHeight = window.innerHeight - top - VIEWPORT_MARGIN;
   return createPortal(
     <div
       role="menu"
@@ -91,10 +103,11 @@ function SubmenuFlyout({
       data-sidebar-flyout
       style={{
         position: 'fixed',
-        top: Math.min(anchor.top, window.innerHeight - 320),
+        top,
         left: anchor.right + 8,
+        maxHeight,
       }}
-      className="z-[70] max-h-80 w-60 overflow-y-auto rounded-md border border-border bg-popover p-1 shadow-md"
+      className="z-[70] w-60 overflow-y-auto rounded-md border border-border bg-popover p-1 shadow-md"
     >
       <p className="px-3 py-2 text-label font-semibold text-muted-foreground">{item.label}</p>
       {leaves.map((leaf, index) => (

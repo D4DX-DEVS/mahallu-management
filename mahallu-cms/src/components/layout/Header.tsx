@@ -100,7 +100,7 @@ export default function Header() {
           <span className="hidden sm:inline">All data is filtered to the selected tenant</span>
         </div>
       )}
-      <header className="sticky top-0 z-30 flex h-14 flex-shrink-0 items-center gap-2 border-b border-border bg-card px-3 md:h-16 md:gap-3 md:px-6">
+      <header className="sticky top-0 z-30 flex h-14 flex-shrink-0 items-center gap-2 border-b border-border bg-card px-3 md:gap-3 md:px-6">
         <button
           onClick={toggleDesktopSidebarCollapsed}
           className={cn(iconButton, 'hidden md:inline-flex')}

@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react';
 import Card from '@/components/ui/Card';
 import StatCard from '@/components/ui/StatCard';
+import Alert from '@/components/ui/Alert';
+import { PageSkeleton } from '@/components/ui/Skeleton';
 import { reportService } from '@/services/reportService';
+import { loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 
 interface CommunityReportData {
@@ -26,6 +29,7 @@ interface CommunityReportData {
 export default function CommunityReport() {
   const [data, setData] = useState<CommunityReportData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     loadReport();
@@ -33,17 +37,29 @@ export default function CommunityReport() {
 
   const loadReport = async () => {
     try {
+      setLoading(true);
+      setError(null);
       const response = await reportService.getCommunityReport();
       setData(response);
-    } catch (error) {
-      console.error("Couldn't load community report:", error);
+    } catch (err) {
+      setError(loadErrorMessage(err, 'report'));
     } finally {
       setLoading(false);
     }
   };
 
-  if (loading) return <div className="p-4">Loading...</div>;
-  if (!data) return <div className="p-4">Couldn't load report</div>;
+  if (loading) return <PageSkeleton variant="section" />;
+
+  if (error || !data) {
+    return (
+      <div className="space-y-4">
+        <PageHeader title="Community Report" />
+        <Alert variant="error" title="Couldn't load report" action={{ label: 'Try again', onClick: loadReport }}>
+          {error || 'No report data'}
+        </Alert>
+      </div>
+    );
+  }
 
   return (
     <div>

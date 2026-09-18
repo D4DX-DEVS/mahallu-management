@@ -85,7 +85,7 @@ export default function CommunitySnapshot({ children }: CommunitySnapshotProps) 
     .map((row) => (row.key in COUNT_OVERRIDES ? { ...row, count: COUNT_OVERRIDES[row.key] } : row))
     .slice(0, 8);
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {(surveyOverdue || expiringCommittees > 0) && (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {surveyOverdue && (
@@ -108,10 +108,10 @@ export default function CommunitySnapshot({ children }: CommunitySnapshotProps) 
           )}
         </div>
       )}
-      {children && <div className="space-y-4">{children}</div>}
+      {children && <div className="space-y-3">{children}</div>}
       {topRegisters.length > 0 && (
         <section className="overflow-hidden rounded-xl border border-border bg-card">
-          <div className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-5">
+          <div className="flex items-center justify-between border-b border-border px-4 py-2 sm:px-5">
             <h2 className="text-sm font-semibold text-foreground">Community registers</h2>
             <Link
               to="/registers"
@@ -126,10 +126,10 @@ export default function CommunitySnapshot({ children }: CommunitySnapshotProps) 
                 key={row.key}
                 type="button"
                 onClick={() => navigate('/registers/' + row.key)}
-                className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sm:px-5"
+                className="flex w-full items-center justify-between gap-3 px-4 py-2 text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sm:px-5"
               >
                 <span className="flex min-w-0 items-center gap-3">
-                  <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                  <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
                     {REGISTER_ICONS[row.key] ?? <FiUsers className="h-4 w-4" />}
                   </span>
                   <span className="truncate text-sm font-medium text-foreground">{row.label}</span>

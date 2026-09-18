@@ -3,6 +3,7 @@ import { FiDownload } from 'react-icons/fi';
 import Card from '@/components/ui/Card';
 import StatCard from '@/components/ui/StatCard';
 import Button from '@/components/ui/Button';
+import Alert from '@/components/ui/Alert';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import { reportService } from '@/services/reportService';
 import api from '@/services/api';
@@ -89,9 +90,13 @@ export default function DataQualityPage() {
   if (error) {
     return (
       <div className="space-y-4">
-        <Card>
-          <p className="text-red-600 dark:text-red-400">{error}</p>
-        </Card>
+        <PageHeader
+          title="Data Quality Report"
+          description="Monitor data quality metrics and identify duplicates"
+        />
+        <Alert variant="error" title="Couldn't load report" action={{ label: 'Try again', onClick: fetchData }}>
+          {error}
+        </Alert>
       </div>
     );
   }

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, ChangeEvent } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -15,14 +15,26 @@ import { errorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 
 const instituteSchema = z.object({
-  name: z.string().max(200, 'Please keep the name to 200 characters or less.').min(1, 'Name is required'),
+  name: z
+    .string()
+    .max(200, 'Please keep the name to 200 characters or less.')
+    .min(1, 'Name is required')
+    .regex(/^[^0-9]*$/, 'Name must contain text only.'),
   nameMl: z.string().max(200, 'Please keep the name to 200 characters or less.').optional(),
-  place: z.string().max(300, 'Please keep the place to 300 characters or less.').min(1, 'Place is required'),
+  place: z
+    .string()
+    .max(300, 'Please keep the place to 300 characters or less.')
+    .min(1, 'Place is required')
+    .regex(/^[^0-9]*$/, 'Place must contain text only.'),
   placeMl: z.string().max(300, 'Please keep the place to 300 characters or less.').optional(),
   type: z.enum(['institute', 'madrasa', 'orphanage', 'hospital', 'other']),
   joinDate: z.string().max(200, 'Please keep the join date to 200 characters or less.').min(1, 'Join Date is required'),
   description: z.string().max(3000, 'Please keep the description to 3000 characters or less.').optional(),
-  contactNo: z.string().max(200, 'Please keep the contact no to 200 characters or less.').optional(),
+  contactNo: z
+    .string()
+    .max(200, 'Please keep the contact no to 200 characters or less.')
+    .regex(/^[0-9]*$/, 'Contact number must contain numbers only.')
+    .optional(),
   email: z.string().max(254, 'Please keep the email to 254 characters or less.').email('Invalid email').optional().or(z.literal('')),
   status: z.enum(['active', 'inactive']).optional(),
 });
@@ -44,6 +56,16 @@ export default function CreateInstitute() {
       joinDate: new Date().toISOString().split('T')[0],
     },
   });
+
+  /*
+   * Strips non-digit characters as they're typed or pasted, so a pasted
+   * "987abc123" lands as "987123" instead of failing validation only at
+   * submit time. */
+  const contactNoField = register('contactNo');
+  const handleContactNoChange = (event: ChangeEvent<HTMLInputElement>) => {
+    event.target.value = event.target.value.replace(/\D/g, '');
+    contactNoField.onChange(event);
+  };
 
   const onSubmit = async (data: InstituteFormData) => {
     try {
@@ -139,7 +161,15 @@ export default function CreateInstitute() {
               error={errors.joinDate?.message}
               required
             />
-            <Input label="Contact No." type="tel" {...register('contactNo')} placeholder="Contact Number" />
+            <Input
+              label="Contact No."
+              type="tel"
+              inputMode="numeric"
+              {...contactNoField}
+              onChange={handleContactNoChange}
+              error={errors.contactNo?.message}
+              placeholder="Contact Number"
+            />
             <Input
               label="Email"
               type="email"

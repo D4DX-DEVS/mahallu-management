@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
+import Alert from '@/components/ui/Alert';
+import { PageSkeleton } from '@/components/ui/Skeleton';
 import { reportService, type AnnualReport as AnnualReportData } from '@/services/reportService';
 import { exportToPDF } from '@/utils/exportUtils';
+import { loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 
 const currentYear = new Date().getFullYear();
@@ -30,20 +33,25 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 export default function AnnualReport() {
   const [year, setYear] = useState(currentYear);
+  const [reloadKey, setReloadKey] = useState(0);
   const [data, setData] = useState<AnnualReportData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
+    setError(null);
     reportService
       .getAnnualReport(year)
       .then((res) => {
         if (!cancelled) setData(res);
       })
-      .catch((error) => {
-        console.error("Couldn't load annual report:", error);
-        if (!cancelled) setData(null);
+      .catch((err) => {
+        if (!cancelled) {
+          setError(loadErrorMessage(err, 'report'));
+          setData(null);
+        }
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -51,7 +59,7 @@ export default function AnnualReport() {
     return () => {
       cancelled = true;
     };
-  }, [year]);
+  }, [year, reloadKey]);
 
   // ponytail: flat metric/value rows through the existing exportToPDF helper.
   // No bespoke PDF layout until someone asks for one.
@@ -113,8 +121,16 @@ export default function AnnualReport() {
         </div>
       </div>
 
-      {loading && <div>Loading...</div>}
-      {!loading && !data && <div>Couldn't load report</div>}
+      {loading && <PageSkeleton variant="section" />}
+      {!loading && (error || !data) && (
+        <Alert
+          variant="error"
+          title="Couldn't load report"
+          action={{ label: 'Try again', onClick: () => setReloadKey((k) => k + 1) }}
+        >
+          {error || 'No report data'}
+        </Alert>
+      )}
 
       {!loading && data && (
         <>
