@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FiEye, FiEdit2, FiX, FiUsers, FiCheckCircle, FiXCircle } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
-import Card from '@/components/ui/Card';
+import { FiCheckCircle, FiEdit2, FiEye, FiPlus, FiUsers, FiXCircle } from 'react-icons/fi';
+import TableCard from '@/components/ui/TableCard';
+import FilterPanel from '@/components/ui/FilterPanel';
 import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
+import EmptyState from '@/components/ui/EmptyState';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
@@ -17,6 +18,11 @@ import { useDebounce } from '@/hooks/useDebounce';
 import { formatDate } from '@/utils/format';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
 import { toast } from '@/store/toastStore';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
+import ActionsMenu from '@/components/ui/ActionsMenu';
+import StatusBadge from '@/components/ui/StatusBadge';
+import { toTitleCase } from '@/utils/format';
 
 export default function AllUsersList() {
   const navigate = useNavigate();
@@ -33,6 +39,11 @@ export default function AllUsersList() {
   const [isExporting, setIsExporting] = useState(false);
 
   const debouncedSearch = useDebounce(searchQuery, 500);
+
+  // A new search or filter invalidates the current page offset
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearch, roleFilter, statusFilter]);
 
   useEffect(() => {
     fetchUsers();
@@ -61,7 +72,7 @@ export default function AllUsersList() {
         setPagination(result.pagination);
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch users');
+      setError(loadErrorMessage(err, 'users'));
       console.error('Error fetching users:', err);
     } finally {
       setLoading(false);
@@ -71,15 +82,14 @@ export default function AllUsersList() {
   const handleExport = async (type: 'csv' | 'json' | 'pdf') => {
     try {
       setIsExporting(true);
-      
-      // Fetch all filtered data without pagination
-      const params: any = { limit: 10000 };
+
+      // Fetch all filtered data, a page at a time — the API caps `limit` at 100
+      const params: any = {};
       if (debouncedSearch) params.search = debouncedSearch;
       if (roleFilter !== 'all') params.role = roleFilter;
       if (statusFilter !== 'all') params.status = statusFilter;
-      
-      const result = await userService.getAll(params);
-      const dataToExport = result.data;
+
+      const dataToExport = await userService.getAllForExport(params);
 
       if (dataToExport.length === 0) {
         toast.info('No data to export');
@@ -102,20 +112,20 @@ export default function AllUsersList() {
       }
     } catch (error: any) {
       console.error('Export error:', error);
-      toast.error(error?.response?.data?.message || 'Failed to export data');
+      toast.error(errorMessage(error, { action: 'export data' }));
     } finally {
       setIsExporting(false);
     }
   };
 
   const columns: TableColumn<User>[] = [
-    { key: 'id', label: 'No.', render: (_, __, index) => index + 1 },
-    { key: 'name', label: 'Name', sortable: true },
-    { key: 'phone', label: 'Phone' },
-    { key: 'email', label: 'Email', render: (email) => email || '-' },
+    { key: 'name', label: 'Name', width: '6.75rem', sortable: true, render: (name) => toTitleCase(name) },
+    { key: 'phone', label: 'Phone', width: '6.75rem' },
+    { key: 'email', label: 'Email', width: '6.75rem', render: (email) => email || '-' },
     {
       key: 'role',
       label: 'Role',
+      width: '6rem',
       render: (role) => (
         <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 capitalize">
           {role}
@@ -125,49 +135,39 @@ export default function AllUsersList() {
     {
       key: 'status',
       label: 'Status',
-      render: (status) => (
-        <span
-          className={`px-2 py-1 text-xs font-medium rounded-full ${
-            status === 'active'
-              ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-              : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
-          }`}
-        >
-          {status || 'active'}
-        </span>
-      ),
+      width: '7.25rem',
+      render: (status) => <StatusBadge status={status || 'active'} />,
     },
     {
       key: 'createdAt',
       label: 'Created',
+      width: '7.75rem',
       render: (date) => formatDate(date),
     },
     {
       key: 'actions',
       label: 'Actions',
+      width: '8rem',
+      align: 'center',
       render: (_, row) => (
-        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(`/admin/users/${row.id}`);
-            }}
-            className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
-            title="View"
-          >
-            <FiEye className="h-4 w-4" />
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(`/admin/users/${row.id}/edit`);
-            }}
-            className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
-            title="Edit"
-          >
-            <FiEdit2 className="h-4 w-4" />
-          </button>
-        </div>
+        <ActionsMenu
+          items={[
+            {
+              label: 'View',
+              icon: <FiEye className="h-4 w-4" />,
+              onClick: () => {
+                navigate(`/admin/users/${row.id}`);
+              },
+            },
+            {
+              label: 'Edit',
+              icon: <FiEdit2 className="h-4 w-4" />,
+              onClick: () => {
+                navigate(`/admin/users/${row.id}/edit`);
+              },
+            },
+          ]}
+        />
       ),
     },
   ];
@@ -189,22 +189,16 @@ export default function AllUsersList() {
   return (
     <div className="space-y-4">
       <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">All Users</h1>
-            <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">Manage all system users</p>
-          </div>
-          <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'All Users' }]} />
-        </div>
+        <PageHeader title="All Users" description="Manage all system users" />
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {stats.map((stat, index) => (
             <StatCard key={index} {...stat} />
           ))}
         </div>
       </div>
 
-      <Card>
+      <TableCard>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -216,22 +210,14 @@ export default function AllUsersList() {
           isExporting={isExporting}
           actionButtons={
             <Link to="/admin/users/create">
-              <Button size="md">
-                + New User
-              </Button>
+              <Button size="md" icon={<FiPlus />} collapseLabel>New User</Button>
             </Link>
           }
         />
 
         {isFilterVisible && (
-          <div className="relative flex flex-wrap items-center gap-4 mb-6 p-4 border border-gray-200 rounded-lg bg-white dark:bg-gray-800 dark:border-gray-700 animate-in fade-in slide-in-from-top-2 duration-200">
-            <button
-              onClick={() => setIsFilterVisible(false)}
-              className="absolute right-4 top-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-            >
-              <FiX className="h-4 w-4" />
-            </button>
-            <div className="w-40">
+          <FilterPanel onClose={() => setIsFilterVisible(false)}>
+            <div className="w-full sm:w-40">
               <Select
                 options={[
                   { value: 'all', label: 'All Roles' },
@@ -244,7 +230,7 @@ export default function AllUsersList() {
                 onChange={(e) => setRoleFilter(e.target.value)}
               />
             </div>
-            <div className="w-32">
+            <div className="w-full sm:w-32">
               <Select
                 options={[
                   { value: 'all', label: 'All Status' },
@@ -255,25 +241,27 @@ export default function AllUsersList() {
                 onChange={(e) => setStatusFilter(e.target.value)}
               />
             </div>
-          </div>
+          </FilterPanel>
         )}
 
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="text-center py-12">
-            <p className="text-red-600 dark:text-red-400">{error}</p>
-            <Button onClick={fetchUsers} className="mt-4" variant="outline">
-              Retry
-            </Button>
-          </div>
+          <EmptyState
+            variant="error"
+            entity="users"
+            description={error}
+            action={{ label: 'Retry', onClick: fetchUsers }}
+          />
         ) : (
           <Table
+            fixedLayout
+            striped
             columns={columns}
             data={users}
             emptyMessage="No users found"
             showExport={false}
-            onRowClick={(row) => navigate(`/users/${row.id}`)}
+            onRowClick={(row) => navigate(`/admin/users/${row.id}`)}
           />
         )}
 
@@ -291,8 +279,7 @@ export default function AllUsersList() {
             />
           </div>
         )}
-      </Card>
+      </TableCard>
     </div>
   );
 }
-

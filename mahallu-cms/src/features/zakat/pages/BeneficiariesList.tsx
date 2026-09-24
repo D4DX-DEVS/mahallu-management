@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
+import ActionsMenu from '@/components/ui/ActionsMenu';
+import { FiCheck, FiPlus, FiX } from 'react-icons/fi';
 import { Link, useNavigate } from 'react-router-dom';
 import { FiSend } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
-import Card from '@/components/ui/Card';
+import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import Table from '@/components/ui/Table';
-import SearchInput from '@/components/ui/SearchInput';
+import ExpandableSearch from '@/components/ui/ExpandableSearch';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import Pagination from '@/components/ui/Pagination';
 import EmptyState from '@/components/ui/EmptyState';
@@ -19,6 +20,9 @@ import {
   VerificationStatus,
 } from '@/services/zakatDistributionService';
 import { useDebounce } from '@/hooks/useDebounce';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 
 const STATUS_TABS: Array<{ value: string; label: string }> = [
   { value: '', label: 'All' },
@@ -28,8 +32,8 @@ const STATUS_TABS: Array<{ value: string; label: string }> = [
 ];
 
 const beneficiaryName = (row: ZakatBeneficiary) => {
-  if (row.memberId && typeof row.memberId === 'object') return row.memberId.name;
-  return row.name || '-';
+  if (row.memberId && typeof row.memberId === 'object') return toTitleCase(row.memberId.name);
+  return row.name ? toTitleCase(row.name) : '-';
 };
 
 export default function BeneficiariesList() {
@@ -47,6 +51,12 @@ export default function BeneficiariesList() {
 
   const debouncedSearch = useDebounce(searchQuery, 500);
 
+  // A page number that only made sense for the previous search must not
+  // survive into the new one - reset it once the debounce settles.
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearch]);
+
   useEffect(() => {
     fetchRows();
   }, [statusFilter, debouncedSearch, currentPage]);
@@ -62,7 +72,7 @@ export default function BeneficiariesList() {
       setRows(result.data);
       setPagination(result.pagination);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to load beneficiaries');
+      setError(loadErrorMessage(err, 'beneficiaries'));
     } finally {
       setLoading(false);
     }
@@ -79,7 +89,7 @@ export default function BeneficiariesList() {
       }
       fetchRows();
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to update verification');
+      toast.error(errorMessage(err, { action: 'update verification' }));
     } finally {
       setBusyId(null);
     }
@@ -97,67 +107,67 @@ export default function BeneficiariesList() {
   };
 
   const columns: TableColumn<ZakatBeneficiary>[] = [
-    { key: 'name', label: 'Beneficiary', render: (_v, row) => beneficiaryName(row) },
+    { key: 'name', label: 'Beneficiary', width: '9.25rem', render: (_v, row) => beneficiaryName(row) },
     {
       key: 'category',
       label: 'Category',
+      width: '8.25rem',
       render: (v) => ZAKAT_CATEGORY_OPTIONS.find((o) => o.value === v)?.label || v,
     },
-    { key: 'priorityArea', label: 'Priority', render: (v) => v || '-' },
-    { key: 'verificationStatus', label: 'Verification' },
+    { key: 'priorityArea', label: 'Priority', width: '7.75rem', render: (v) => v || '-' },
+    { key: 'verificationStatus', label: 'Verification', width: '9.5rem' },
     {
       key: 'actions',
-      label: '',
+      label: 'Actions',
+      width: '8rem',
+      align: 'center',
       render: (_v, row) => (
-        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-          {row.verificationStatus === 'verified' && (
-            <button
-              className="text-blue-600 hover:text-blue-800 disabled:opacity-50"
-              disabled={busyId === row.id}
-              onClick={() => navigate('/zakat/distributions/create', { state: { beneficiaryId: row.id } })}
-              title="Record a distribution for this beneficiary"
-            >
-              <FiSend size={16} />
-            </button>
-          )}
-          {row.verificationStatus !== 'verified' && (
-            <button
-              className="text-emerald-600 hover:underline disabled:opacity-50"
-              disabled={busyId === row.id}
-              onClick={() => setVerification(row, 'verified')}
-            >
-              {busyId === row.id ? 'Working...' : 'Verify'}
-            </button>
-          )}
-          {row.verificationStatus === 'pending' && (
-            <button
-              className="text-red-600 hover:underline disabled:opacity-50"
-              disabled={busyId === row.id}
-              onClick={() => setRejectConfirm(row)}
-            >
-              {busyId === row.id ? 'Working...' : 'Reject'}
-            </button>
-          )}
-        </div>
+        <ActionsMenu
+          items={[
+            ...(row.verificationStatus === 'verified'
+              ? [
+                  {
+                    label: 'Record a distribution',
+                    icon: <FiSend className="h-4 w-4" />,
+                    onClick: () =>
+                      navigate('/zakat/distributions/create', { state: { beneficiaryId: row.id } }),
+                    disabled: busyId === row.id,
+                  },
+                ]
+              : [
+                  {
+                    label: 'Verify',
+                    icon: <FiCheck className="h-4 w-4" />,
+                    onClick: () => setVerification(row, 'verified'),
+                    disabled: busyId === row.id,
+                  },
+                ]),
+            ...(row.verificationStatus === 'pending'
+              ? [
+                  {
+                    label: 'Reject',
+                    icon: <FiX className="h-4 w-4" />,
+                    onClick: () => setRejectConfirm(row),
+                    disabled: busyId === row.id,
+                    variant: 'danger' as const,
+                  },
+                ]
+              : []),
+          ]}
+        />
       ),
     },
   ];
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">Zakat Beneficiaries</h1>
-          <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-            Only verified beneficiaries can receive distributions
-          </p>
-        </div>
-        <Breadcrumb
-          items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Zakat' }, { label: 'Beneficiaries' }]}
-        />
-      </div>
+      <PageHeader
+        title="Zakat Beneficiaries"
+        description="Only verified beneficiaries can receive distributions"
+        breadcrumbs={[{ label: 'Zakat' }]}
+      />
 
-      <Card>
+      <TableCard>
         <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div className="grid grid-cols-4 gap-1.5 sm:flex">
             {STATUS_TABS.map((tab) => (
@@ -168,30 +178,28 @@ export default function BeneficiariesList() {
                   setCurrentPage(1);
                 }}
                 className={[
-                  'rounded-lg border px-2 py-1.5 text-xs font-medium',
+                  'rounded-lg border px-2 py-1.5 text-xs font-medium transition-colors',
                   statusFilter === tab.value
-                    ? 'border-primary-300 bg-primary-50 text-primary-900'
-                    : 'border-gray-200 bg-white text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300',
+                    ? 'border-primary/30 bg-primary/10 text-primary'
+                    : 'border-border bg-background text-muted-foreground hover:bg-accent hover:text-accent-foreground',
                 ].join(' ')}
               >
                 {tab.label}
               </button>
             ))}
           </div>
-          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-            <div className="w-full sm:w-56">
-              <SearchInput
+          <div className="flex min-w-0 items-center gap-2">
+            <div className="min-w-0 flex-1 sm:w-56 sm:flex-none">
+              <ExpandableSearch
                 value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value);
-                  setCurrentPage(1);
-                }}
-                placeholder="Search by name..."
+                onChange={setSearchQuery}
+                entity="beneficiaries"
+                placeholder="Search by name"
               />
             </div>
             <Link to="/zakat/beneficiaries/create">
-              <Button size="md" className="w-full sm:w-auto">
-                + New Beneficiary
+              <Button size="md" icon={<FiPlus />} collapseLabel>
+                New Beneficiary
               </Button>
             </Link>
           </div>
@@ -200,12 +208,12 @@ export default function BeneficiariesList() {
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="py-12 text-center">
-            <p className="text-red-600 dark:text-red-400">{error}</p>
-            <Button onClick={fetchRows} className="mt-4" variant="outline">
-              Retry
-            </Button>
-          </div>
+          <EmptyState
+            variant="error"
+            entity="beneficiaries"
+            description={error}
+            action={{ label: 'Retry', onClick: fetchRows }}
+          />
         ) : rows.length === 0 ? (
           <EmptyState
             title="No beneficiaries yet"
@@ -213,9 +221,7 @@ export default function BeneficiariesList() {
             action={{ label: '+ New Beneficiary', onClick: () => navigate('/zakat/beneficiaries/create') }}
           />
         ) : (
-          <div className="overflow-x-auto">
-            <Table columns={columns} data={rows} showExport={false} />
-          </div>
+          <Table fixedLayout striped columns={columns} data={rows} />
         )}
 
         {pagination && (
@@ -229,7 +235,7 @@ export default function BeneficiariesList() {
             />
           </div>
         )}
-      </Card>
+      </TableCard>
 
       <ConfirmDialog
         isOpen={!!rejectConfirm}

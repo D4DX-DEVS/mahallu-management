@@ -39,3 +39,15 @@ export const truncateText = (text: string, maxLength: number): string => {
   return `${text.slice(0, maxLength)}...`;
 };
 
+/**
+ * Display-only normaliser: DB values come in mixed case ("KOTTARAYIL", "farzan",
+ * "Al-Hamd House"). CSS `capitalize` only uppercases the first letter and leaves
+ * the rest untouched, so an all-caps value stays all-caps. This lowercases the
+ * whole string first, then capitalises the first letter of each word.
+ */
+export const toTitleCase = (text?: string | null): string => {
+  if (!text) return '';
+  return text
+    .toLowerCase()
+    .replace(/(^|[\s-])([a-z])/g, (_, boundary, letter) => `${boundary}${letter.toUpperCase()}`);
+};

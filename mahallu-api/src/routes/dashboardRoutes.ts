@@ -2,14 +2,16 @@ import express from 'express';
 import { getDashboardStats, getRecentFamilies, getActivityTimeline, getFinancialSummary } from '../controllers/dashboardController';
 import { authMiddleware, allowRoles } from '../middleware/authMiddleware';
 import { tenantMiddleware } from '../middleware/tenantMiddleware';
+import { validationHandler } from '../middleware/validationHandler';
+import { idParam, listQuery } from '../validations/common';
 
 const router = express.Router();
 
 router.use(authMiddleware);
 router.use(tenantMiddleware);
 
-router.get('/recent-families', allowRoles(['super_admin', 'mahall', 'survey', 'institute']), getRecentFamilies);
-router.get('/activity-timeline', allowRoles(['super_admin', 'mahall', 'survey', 'institute']), getActivityTimeline);
+router.get('/recent-families', listQuery(), validationHandler, allowRoles(['super_admin', 'mahall', 'survey', 'institute']), getRecentFamilies);
+router.get('/activity-timeline', listQuery(), validationHandler, allowRoles(['super_admin', 'mahall', 'survey', 'institute']), getActivityTimeline);
 
 /**
  * @swagger
@@ -116,8 +118,8 @@ router.get('/activity-timeline', allowRoles(['super_admin', 'mahall', 'survey', 
  *       500:
  *         description: Internal server error
  */
-router.get('/stats', allowRoles(['super_admin', 'mahall', 'survey', 'institute', 'member']), getDashboardStats);
-router.get('/financial-summary', allowRoles(['super_admin', 'mahall', 'institute']), getFinancialSummary);
+router.get('/stats', listQuery(), validationHandler, allowRoles(['super_admin', 'mahall', 'survey', 'institute', 'member']), getDashboardStats);
+router.get('/financial-summary', listQuery(), validationHandler, allowRoles(['super_admin', 'mahall', 'institute']), getFinancialSummary);
 
 export default router;
 

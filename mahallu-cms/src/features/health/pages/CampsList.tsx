@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { FiPlus, FiSearch, FiEdit2, FiTrash2, FiCalendar, FiMapPin } from 'react-icons/fi';
+import { FiPlus, FiEdit2, FiTrash2, FiCalendar, FiMapPin } from 'react-icons/fi';
 import { getMedicalCamps, deleteMedicalCamp, IMedicalCamp } from '@/services/healthService';
 import Pagination from '@/components/ui/Pagination';
+import ExpandableSearch from '@/components/ui/ExpandableSearch';
 import Button from '@/components/ui/Button';
-import Input from '@/components/ui/Input';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { toast } from '@/store/toastStore';
 import { useNavigate } from 'react-router-dom';
+import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 
 export default function CampsList() {
   const navigate = useNavigate();
@@ -33,7 +35,7 @@ export default function CampsList() {
       setTotalItems(response.pagination.total);
       setCurrentPage(response.pagination.page);
     } catch (error) {
-      console.error('Failed to fetch medical camps:', error);
+      console.error("Couldn't load medical camps:", error);
     } finally {
       setLoading(false);
     }
@@ -51,10 +53,10 @@ export default function CampsList() {
       setConfirmDelete(false);
       setDeleteId(null);
       fetchCamps(currentPage, search, statusFilter);
-      toast.success('Medical camp deleted successfully');
+      toast.success('Medical camp deleted');
     } catch (error) {
-      toast.error('Failed to delete medical camp');
-      console.error('Failed to delete camp:', error);
+      toast.error("Couldn't delete medical camp. Please try again.");
+      console.error("Couldn't delete camp:", error);
     } finally {
       setDeleting(false);
     }
@@ -77,32 +79,24 @@ export default function CampsList() {
   }
 
   return (
-    <div className="flex-1 overflow-auto">
-      <div className="p-4 sm:p-6 max-w-full">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+    <div>
+      <div className="max-w-full">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold">Medical Camps</h1>
-            <p className="text-sm sm:text-base text-gray-600 mt-1">{camps.length} camps found</p>
+            <PageHeader title="Medical Camps" description={`${camps.length} camps found`} />
           </div>
-          <Button
-            onClick={() => navigate('/health/camps/create')}
-            className="flex items-center gap-2"
-          >
+          <Button onClick={() => navigate('/health/camps/create')} className="flex items-center gap-2">
             <FiPlus /> Add Camp
           </Button>
         </div>
 
-        <div className="mb-6 space-y-3">
-          <div className="flex items-center gap-2 bg-white border border-gray-300 rounded-lg px-3 py-2">
-            <FiSearch className="text-gray-400" />
-            <Input
-              type="text"
-              placeholder="Search by name..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="flex-1 border-none focus:ring-0"
-            />
-          </div>
+        <div className="mb-4 space-y-3">
+          <ExpandableSearch
+            value={search}
+            onChange={(value) => setSearch(value)}
+            entity="medical camps"
+            placeholder="Search by name"
+          />
           <div className="flex gap-2 flex-wrap">
             {['', 'planned', 'completed', 'cancelled'].map((status) => (
               <button
@@ -126,12 +120,12 @@ export default function CampsList() {
           </div>
         ) : (
           <>
-            <div className="space-y-3 mb-6">
+            <div className="space-y-3 mb-4">
               {camps.map((camp) => (
-                <div key={camp.id} className="bg-white border border-gray-200 rounded-lg p-4">
+                <div key={camp.id} className="rounded-lg border border-border bg-card p-3 sm:p-4">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <div className="flex-1">
-                      <h3 className="text-base sm:text-lg font-semibold">{camp.name}</h3>
+                      <h3 className="text-base sm:text-lg font-semibold">{toTitleCase(camp.name)}</h3>
                       <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 mt-2 text-xs sm:text-sm text-gray-600">
                         <div className="flex items-center gap-1">
                           <FiCalendar className="text-blue-600" />
@@ -139,24 +133,21 @@ export default function CampsList() {
                         </div>
                         <div className="flex items-center gap-1">
                           <FiMapPin className="text-green-600" />
-                          {camp.location}
+                          {toTitleCase(camp.location)}
                         </div>
                       </div>
                       {camp.organizer && (
                         <p className="text-xs sm:text-sm text-gray-600 mt-2">
-                          Organizer: {camp.organizer}
+                          Organizer: <span>{toTitleCase(camp.organizer)}</span>
                         </p>
                       )}
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 items-center">
                       <Button
                         variant="secondary"
                         size="sm"
                         onClick={() => navigate(`/health/camps/${camp.id}/edit`)}
-                        className="flex items-center gap-1"
-                      >
-                        <FiEdit2 className="w-4 h-4" /> Edit
-                      </Button>
+                        className="flex items-center gap-1" icon={<FiEdit2 />} collapseLabel>Edit</Button>
                       <Button
                         variant="danger"
                         size="sm"
@@ -164,10 +155,7 @@ export default function CampsList() {
                           setDeleteId(camp.id);
                           setConfirmDelete(true);
                         }}
-                        className="flex items-center gap-1"
-                      >
-                        <FiTrash2 className="w-4 h-4" /> Delete
-                      </Button>
+                        className="flex items-center gap-1" icon={<FiTrash2 />} collapseLabel>Delete</Button>
                     </div>
                   </div>
                 </div>

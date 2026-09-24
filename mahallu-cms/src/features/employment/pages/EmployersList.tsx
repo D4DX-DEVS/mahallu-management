@@ -1,11 +1,18 @@
 import { useEffect, useState, useCallback } from 'react';
+import { FiPlus } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import { employmentService, type Employer } from '@/services/employmentService';
 import Button from '@/components/ui/Button';
+import ExpandableSearch from '@/components/ui/ExpandableSearch';
 import Card from '@/components/ui/Card';
 import Pagination from '@/components/ui/Pagination';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { toast } from '@/store/toastStore';
+import StatusBadge from '@/components/ui/StatusBadge';
+import PageHeader from '@/components/layout/PageHeader';
+import SortableTh from '@/components/ui/SortableTh';
+import { useSortableRows } from '@/hooks/useSortableRows';
+import { toTitleCase } from '@/utils/format';
 
 export default function EmployersList() {
   const navigate = useNavigate();
@@ -41,7 +48,7 @@ export default function EmployersList() {
         setEmployers(result.data);
         setTotalPages(result.pagination?.totalPages || 1);
       } catch (error) {
-        console.error('Failed to fetch employers:', error);
+        console.error("Couldn't load employers:", error);
       } finally {
         setLoading(false);
       }
@@ -60,77 +67,69 @@ export default function EmployersList() {
     try {
       setDeleting(true);
       await employmentService.deleteEmployer(deleteId);
-      setEmployers((prev) => prev.filter((e) => e._id !== deleteId));
-      toast.success('Employer deleted successfully');
+      setEmployers((prev) => prev.filter((e) => e.id !== deleteId));
+      toast.success('Employer deleted');
       setShowDeleteConfirm(false);
       setDeleteId(null);
     } catch (error) {
-      toast.error('Failed to delete employer');
-      console.error('Failed to delete employer:', error);
+      toast.error("Couldn't delete employer. Please try again.");
+      console.error("Couldn't delete employer:", error);
     } finally {
       setDeleting(false);
     }
   }, [deleteId]);
 
-  const statusColor = (status: string) => {
-    switch (status) {
-      case 'active':
-        return 'bg-green-100 text-green-800';
-      case 'inactive':
-        return 'bg-gray-100 text-gray-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
+  const { rows: sortedEmployers, sort, toggleSort } = useSortableRows(employers);
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
-        <div className="flex-1 space-y-2">
-          <input
-            type="text"
-            placeholder="Search by employer name..."
+    <div className="space-y-4">
+      <PageHeader
+        title="Employers"
+        description="Local employers registered with the mahallu."
+        breadcrumbs={[{ label: 'Employment' }]}
+      />
+      <div className="space-y-2">
+        <div className="flex items-center gap-2">
+          <ExpandableSearch
             value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
+            onChange={(value) => {
+              setSearch(value);
               setCurrentPage(1);
             }}
-            className="w-full px-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            entity="employers"
+            placeholder="Search by employer name"
           />
-          <div className="flex gap-2 flex-wrap">
-            {['', 'active', 'inactive'].map((status) => (
-              <button
-                key={status}
-                onClick={() => {
-                  setStatusFilter(status);
-                  setCurrentPage(1);
-                }}
-                className={`px-3 py-1 text-xs rounded-full ${
-                  statusFilter === status
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                {status || 'All'}
-              </button>
-            ))}
-          </div>
+          <Button onClick={() => navigate('/employment/employers/create')} icon={<FiPlus />} collapseLabel>
+            New Employer
+          </Button>
         </div>
-        <Button
-          onClick={() => navigate('/employment/employers/create')}
-          className="w-full sm:w-auto"
-        >
-          + New Employer
-        </Button>
+        <div className="flex gap-2 flex-wrap">
+          {['', 'active', 'inactive'].map((status) => (
+            <button
+              key={status}
+              onClick={() => {
+                setStatusFilter(status);
+                setCurrentPage(1);
+              }}
+              className={`px-3 py-1 text-xs rounded-full ${
+                statusFilter === status
+                  ? 'bg-blue-500 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              {status || 'All'}
+            </button>
+          ))}
+        </div>
       </div>
 
       {loading ? (
         <Card>
-          <div className="p-8 text-center">Loading employers...</div>
+          <div className="py-8 text-center">Loading employers...</div>
         </Card>
       ) : employers.length === 0 ? (
         <Card>
-          <div className="p-8 text-center text-gray-500">
+          <div className="py-8 text-center text-gray-500">
             <p>No employers found</p>
           </div>
         </Card>
@@ -140,47 +139,63 @@ export default function EmployersList() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-gray-50">
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700">Name</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 hidden sm:table-cell">
+                  <SortableTh sortKey="name" sort={sort} onSort={toggleSort}>
+                    Name
+                  </SortableTh>
+                  <SortableTh
+                    sortKey="contactPerson"
+                    sort={sort}
+                    onSort={toggleSort}
+                    responsiveClassName="hidden sm:table-cell"
+                  >
                     Contact
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 hidden md:table-cell">
+                  </SortableTh>
+                  <SortableTh
+                    sortKey="location"
+                    sort={sort}
+                    onSort={toggleSort}
+                    responsiveClassName="hidden md:table-cell"
+                  >
                     Location
+                  </SortableTh>
+                  <SortableTh sortKey="status" sort={sort} onSort={toggleSort}>
+                    Status
+                  </SortableTh>
+                  <th className="px-4 py-3 text-right text-label font-semibold text-muted-foreground">
+                    Actions
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700">Status</th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {employers.map((employer) => (
-                  <tr key={employer._id} className="border-b hover:bg-gray-50">
+                {sortedEmployers.map((employer) => (
+                  <tr key={employer.id} className="border-b hover:bg-gray-50">
                     <td className="px-4 py-3 text-sm">
-                      <div className="font-medium text-gray-900">{employer.name}</div>
-                      <div className="text-xs text-gray-500">{employer.businessType || '—'}</div>
+                      <div className="font-medium text-gray-900">{toTitleCase(employer.name)}</div>
+                      <div className="text-xs text-gray-500">{employer.businessType ? toTitleCase(employer.businessType) : '—'}</div>
                     </td>
                     <td className="px-4 py-3 text-sm hidden sm:table-cell text-gray-700">
-                      {employer.contactPerson || '—'}
+                      {employer.contactPerson ? toTitleCase(employer.contactPerson) : '—'}
                     </td>
                     <td className="px-4 py-3 text-sm hidden md:table-cell text-gray-700">
-                      {employer.location || '—'}
+                      {employer.location ? toTitleCase(employer.location) : '—'}
                     </td>
                     <td className="px-4 py-3">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${statusColor(employer.status)}`}>
-                        {employer.status}
-                      </span>
+                      <StatusBadge status={employer.status} />
                     </td>
                     <td className="px-4 py-3 text-right space-x-2">
                       <button
-                        onClick={() => navigate(`/employment/employers/${employer._id}`)}
+                        onClick={() => navigate(`/employment/employers/${employer.id}`)}
                         className="text-blue-600 hover:text-blue-900 px-2 py-1 text-xs hover:bg-blue-50 rounded"
                         title="Edit"
+                        aria-label="Edit"
                       >
                         Edit
                       </button>
                       <button
-                        onClick={() => handleDeleteClick(employer._id)}
+                        onClick={() => handleDeleteClick(employer.id)}
                         className="text-red-600 hover:text-red-900 px-2 py-1 text-xs hover:bg-red-50 rounded"
                         title="Delete"
+                        aria-label="Delete"
                       >
                         Delete
                       </button>

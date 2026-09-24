@@ -15,6 +15,7 @@ import {
   getMeetingValidation,
   deleteMeetingValidation,
 } from '../validations/meetingValidation';
+import { idParam, listQuery } from '../validations/common';
 
 const router = express.Router();
 
@@ -98,7 +99,7 @@ router.use(tenantFilter);
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  */
-router.get('/', getAllMeetings);
+router.get('/', listQuery(), validationHandler, getAllMeetings);
 
 /**
  * @swagger

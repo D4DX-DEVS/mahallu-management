@@ -1,13 +1,22 @@
-import api from './api';
+import api, { asList } from './api';
 import { Asset, AssetMaintenance } from '@/types';
 
 export const assetService = {
-  getAll: async (params?: { status?: string; category?: string; search?: string; mosqueId?: string; page?: number; limit?: number }) => {
-    const response = await api.get<{ success: boolean; data: Asset[]; pagination?: any }>('/assets', { params });
+  getAll: async (params?: {
+    status?: string;
+    category?: string;
+    search?: string;
+    mosqueId?: string;
+    page?: number;
+    limit?: number;
+  }) => {
+    const response = await api.get<{ success: boolean; data: Asset[]; pagination?: any }>('/assets', {
+      params,
+    });
     if (response.data.pagination) {
-      return { data: response.data.data, pagination: response.data.pagination };
+      return { data: asList(response.data.data), pagination: response.data.pagination };
     }
-    return { data: response.data.data, pagination: null };
+    return { data: asList(response.data.data), pagination: null };
   },
 
   getById: async (id: string) => {
@@ -37,9 +46,9 @@ export const assetService = {
       { params }
     );
     if (response.data.pagination) {
-      return { data: response.data.data, pagination: response.data.pagination };
+      return { data: asList(response.data.data), pagination: response.data.pagination };
     }
-    return { data: response.data.data, pagination: null };
+    return { data: asList(response.data.data), pagination: null };
   },
 
   createMaintenance: async (assetId: string, data: Partial<AssetMaintenance>) => {

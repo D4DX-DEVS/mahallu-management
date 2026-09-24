@@ -1,4 +1,4 @@
-import api from './api';
+import api, { asList } from './api';
 
 export interface Khateeb {
   id: string;
@@ -56,7 +56,7 @@ export const religiousService = {
   // Khateebs
   getAllKhateebs: async (params?: any) => {
     const response = await api.get('/khateebs', { params });
-    return response.data;
+    return { ...response.data, data: asList(response.data?.data) };
   },
 
   getKhateebById: async (id: string) => {
@@ -82,7 +82,7 @@ export const religiousService = {
   // Khutbahs
   getAllKhutbahs: async (params?: any) => {
     const response = await api.get('/khutbahs', { params });
-    return response.data;
+    return { ...response.data, data: asList(response.data?.data) };
   },
 
   getKhutbahById: async (id: string) => {

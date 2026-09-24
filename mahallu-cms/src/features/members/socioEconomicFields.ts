@@ -40,8 +40,7 @@ const toList = (value?: string): string[] =>
     .map((item) => item.trim())
     .filter(Boolean);
 
-const csv = (value?: string[] | string): string =>
-  Array.isArray(value) ? value.join(', ') : value || '';
+const csv = (value?: string[] | string): string => (Array.isArray(value) ? value.join(', ') : value || '');
 
 /** Form values -> API payload: comma strings become arrays, blanks are dropped. */
 export const normalizeSocioEconomic = (data: Record<string, any>) => ({

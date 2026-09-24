@@ -1,14 +1,22 @@
-import api from './api';
+import api, { asList } from './api';
 import { Committee } from '@/types';
 
 export const committeeService = {
-  getAll: async (params?: { status?: string; search?: string; page?: number; limit?: number; expiring?: string }) => {
-    const response = await api.get<{ success: boolean; data: Committee[]; pagination?: any }>('/committees', { params });
+  getAll: async (params?: {
+    status?: string;
+    search?: string;
+    page?: number;
+    limit?: number;
+    expiring?: string;
+  }) => {
+    const response = await api.get<{ success: boolean; data: Committee[]; pagination?: any }>('/committees', {
+      params,
+    });
     // Handle both paginated and non-paginated responses
     if (response.data.pagination) {
-      return { data: response.data.data, pagination: response.data.pagination };
+      return { data: asList(response.data.data), pagination: response.data.pagination };
     }
-    return { data: response.data.data, pagination: null };
+    return { data: asList(response.data.data), pagination: null };
   },
 
   getById: async (id: string) => {
@@ -18,7 +26,7 @@ export const committeeService = {
 
   getMeetings: async (id: string) => {
     const response = await api.get<{ success: boolean; data: any[] }>(`/committees/${id}/meetings`);
-    return response.data.data;
+    return asList(response.data.data);
   },
 
   create: async (committeeData: Partial<Committee>) => {
@@ -36,4 +44,3 @@ export const committeeService = {
     return response.data;
   },
 };
-

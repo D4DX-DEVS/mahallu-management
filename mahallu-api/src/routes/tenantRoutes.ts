@@ -19,6 +19,7 @@ import {
   deleteTenantValidation,
 } from '../validations/tenantValidation';
 import { param } from 'express-validator';
+import { idParam, listQuery } from '../validations/common';
 
 const router = express.Router();
 
@@ -80,7 +81,7 @@ router.use(tenantMiddleware);
  *       403:
  *         description: Super admin access required
  */
-router.get('/', superAdminOnly, getAllTenants);
+router.get('/', listQuery(), validationHandler, superAdminOnly, getAllTenants);
 
 /**
  * @swagger

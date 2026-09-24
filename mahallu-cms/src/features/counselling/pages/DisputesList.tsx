@@ -2,11 +2,15 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiPlus, FiEye, FiEdit2, FiTrash2, FiLock, FiAlertCircle } from 'react-icons/fi';
 import Button from '@/components/ui/Button';
+import ExpandableSearch from '@/components/ui/ExpandableSearch';
 import Card from '@/components/ui/Card';
 import Pagination from '@/components/ui/Pagination';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { toast } from '@/store/toastStore';
 import { getDisputeCases, deleteDisputeCase, IDisputeCase } from '@/services/counsellingService';
+import PageHeader from '@/components/layout/PageHeader';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import { toTitleCase } from '@/utils/format';
 
 const TYPES = ['family', 'marriage', 'divorce', 'community', 'inheritance', 'other'];
 const STATUSES = ['registered', 'mediation', 'resolved', 'referred', 'closed'];
@@ -29,26 +33,30 @@ export default function DisputesList() {
 
   const itemsPerPage = 10;
 
-  const fetchCases = useCallback(async (page: number) => {
-    try {
-      setLoading(true);
-      const response = await getDisputeCases(page, itemsPerPage, selectedType, selectedStatus, search);
-      setCases(response.data);
-      setTotalPages(response.pagination.totalPages);
-      setTotalItems(response.pagination.total);
-      setCurrentPage(response.pagination.page);
-      setAccessDenied(false);
-    } catch (error: any) {
-      if (error.response?.status === 403) {
-        setAccessDenied(true);
-        setCases([]);
-      } else {
-        console.error('Failed to fetch cases:', error);
+  const fetchCases = useCallback(
+    async (page: number) => {
+      try {
+        setLoading(true);
+        const response = await getDisputeCases(page, itemsPerPage, selectedType, selectedStatus, search);
+        setCases(response.data);
+        setTotalPages(response.pagination.totalPages);
+        setTotalItems(response.pagination.total);
+        setCurrentPage(response.pagination.page);
+        setAccessDenied(false);
+      } catch (error: any) {
+        if (error.response?.status === 403) {
+          setAccessDenied(true);
+          setCases([]);
+        } else {
+          console.error("Couldn't load cases:", error);
+          toast.error(loadErrorMessage(error, 'dispute cases'));
+        }
+      } finally {
+        setLoading(false);
       }
-    } finally {
-      setLoading(false);
-    }
-  }, [selectedType, selectedStatus, search, itemsPerPage]);
+    },
+    [selectedType, selectedStatus, search, itemsPerPage]
+  );
 
   useEffect(() => {
     fetchCases(1);
@@ -65,8 +73,8 @@ export default function DisputesList() {
       toast.success('Dispute case deleted');
       fetchCases(currentPage);
     } catch (error) {
-      console.error('Failed to delete case:', error);
-      toast.error((error as any).response?.data?.message || 'Failed to delete dispute case');
+      console.error("Couldn't delete case:", error);
+      toast.error(errorMessage(error, { action: 'delete dispute case' }));
     } finally {
       setIsDeleting(false);
     }
@@ -85,12 +93,13 @@ export default function DisputesList() {
       <div className="flex-1 flex items-center justify-center">
         <div className="text-center max-w-md px-4">
           <FiLock className="w-16 h-16 mx-auto text-red-500 mb-4" />
-          <h1 className="text-2xl font-bold mb-2">Maslahat (Dispute Resolution)</h1>
+          <PageHeader title="Maslahat (Dispute Resolution)" />
           <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
             <div className="flex gap-2">
               <FiAlertCircle className="text-amber-600 flex-shrink-0 mt-0.5" />
               <p className="text-amber-800 text-sm">
-                Access to dispute cases requires special permission. Please contact your administrator to request access.
+                Access to dispute cases requires special permission. Please contact your administrator to
+                request access.
               </p>
             </div>
           </div>
@@ -100,34 +109,29 @@ export default function DisputesList() {
   }
 
   return (
-    <div className="flex-1 overflow-auto">
-      <div className="p-4 sm:p-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold">Maslahat - Dispute Cases</h1>
-            <p className="text-sm sm:text-base text-gray-600 mt-1">{totalItems} cases found</p>
-          </div>
+    <div>
+      <div>
+        <PageHeader
+          title="Maslahat (disputes)"
+          description={`${totalItems} ${totalItems === 1 ? 'case' : 'cases'}`}
+        />
+        <div className="mb-4 flex gap-4 items-center">
           <Button
             variant="primary"
             size="sm"
             onClick={() => navigate('/maslahat/create')}
-            className="flex items-center gap-2"
-          >
-            <FiPlus size={18} />
-            New Case
-          </Button>
+            className="flex items-center gap-2" icon={<FiPlus />} collapseLabel>New Case</Button>
         </div>
 
         {/* Filters */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-6">
-          <input
-            type="text"
-            placeholder="Search cases..."
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+          <ExpandableSearch
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg text-sm"
+            onChange={(value) => setSearch(value)}
+            entity="cases"
           />
           <select
+            aria-label="Filter"
             value={selectedType}
             onChange={(e) => setSelectedType(e.target.value)}
             className="px-4 py-2 border border-gray-300 rounded-lg text-sm"
@@ -140,6 +144,7 @@ export default function DisputesList() {
             ))}
           </select>
           <select
+            aria-label="Filter"
             value={selectedStatus}
             onChange={(e) => setSelectedStatus(e.target.value)}
             className="px-4 py-2 border border-gray-300 rounded-lg text-sm"
@@ -156,7 +161,7 @@ export default function DisputesList() {
         {/* Cases List */}
         {cases.length === 0 ? (
           <Card>
-            <div className="text-center py-12">
+            <div className="text-center py-10">
               <p className="text-gray-500 mb-4">No dispute cases found</p>
               <Button variant="primary" onClick={() => navigate('/maslahat/create')}>
                 Create First Case
@@ -165,9 +170,9 @@ export default function DisputesList() {
           </Card>
         ) : (
           <>
-            <div className="space-y-4 mb-6">
+            <div className="space-y-4 mb-4">
               {cases.map((caseRecord) => (
-                <Card key={caseRecord.id} className="p-4">
+                <Card key={caseRecord.id}>
                   <div className="flex flex-col sm:flex-row sm:items-center gap-4">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
@@ -175,29 +180,31 @@ export default function DisputesList() {
                         <span className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded">
                           {caseRecord.type}
                         </span>
-                        <span className={`text-xs px-2 py-1 rounded ${
-                          caseRecord.status === 'closed'
-                            ? 'bg-gray-100 text-gray-800'
-                            : 'bg-green-100 text-green-800'
-                        }`}>
+                        <span
+                          className={`text-xs px-2 py-1 rounded ${
+                            caseRecord.status === 'closed'
+                              ? 'bg-gray-100 text-gray-800'
+                              : 'bg-green-100 text-green-800'
+                          }`}
+                        >
                           {caseRecord.status}
                         </span>
                       </div>
                       <p className="text-sm text-gray-600">
-                        Parties: {caseRecord.parties.join(', ')}
+                        Parties: {(caseRecord.parties ?? []).map((party) => toTitleCase(party)).join(', ')}
                       </p>
                       {caseRecord.mediators && caseRecord.mediators.length > 0 && (
                         <p className="text-sm text-gray-600">
-                          Mediators: {caseRecord.mediators.join(', ')}
+                          Mediators: {caseRecord.mediators.map((mediator) => toTitleCase(mediator)).join(', ')}
                         </p>
                       )}
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 items-center">
                       <Button
                         variant="secondary"
                         size="sm"
                         onClick={() => navigate(`/maslahat/${caseRecord.id}`)}
-                        className="flex items-center gap-2"
+                        className="flex flex-wrap items-center gap-2"
                       >
                         <FiEye size={16} />
                       </Button>

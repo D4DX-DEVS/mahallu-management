@@ -3,6 +3,7 @@ import { FiDownload, FiCheckCircle, FiXCircle, FiEye } from 'react-icons/fi';
 import Button from './Button';
 import LoadingSpinner from './LoadingSpinner';
 import Modal from './Modal';
+import StatusBadge from './StatusBadge';
 import { toast } from '@/store/toastStore';
 import { registrationService, DocumentFile } from '@/services/registrationService';
 import { formatDate } from '@/utils/format';
@@ -36,7 +37,7 @@ export default function DocumentsPanel({ ownerType, ownerId, isAdmin = false }: 
       });
       setDocuments(result.data);
     } catch (err: any) {
-      setError('Failed to load documents');
+      setError("Couldn't load documents");
     } finally {
       setLoading(false);
     }
@@ -52,7 +53,7 @@ export default function DocumentsPanel({ ownerType, ownerId, isAdmin = false }: 
       link.click();
       document.body.removeChild(link);
     } catch (err: any) {
-      toast.error('Failed to load document');
+      toast.error("Couldn't load document. Please try again.");
     }
   };
 
@@ -65,19 +66,19 @@ export default function DocumentsPanel({ ownerType, ownerId, isAdmin = false }: 
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      toast.success('Document downloaded successfully');
+      toast.success('Document downloaded');
     } catch (err: any) {
-      toast.error('Failed to download document');
+      toast.error("Couldn't download document. Please try again.");
     }
   };
 
   const handleVerify = async (id: string) => {
     try {
       await registrationService.updateDocumentStatus(id, 'verified');
-      toast.success('Document verified successfully');
+      toast.success('Document verified');
       await fetchDocuments();
     } catch (err: any) {
-      toast.error('Failed to verify document');
+      toast.error("Couldn't verify document. Please try again.");
     }
   };
 
@@ -88,35 +89,20 @@ export default function DocumentsPanel({ ownerType, ownerId, isAdmin = false }: 
 
   const handleReject = async () => {
     if (!rejectModal.docId || !rejectionReason.trim()) {
-      toast.error('Please provide a rejection reason');
+      toast.error('Please enter a reason for rejecting this.');
       return;
     }
 
     try {
       setRejecting(true);
-      await registrationService.updateDocumentStatus(
-        rejectModal.docId,
-        'rejected',
-        rejectionReason
-      );
-      toast.success('Document rejected successfully');
+      await registrationService.updateDocumentStatus(rejectModal.docId, 'rejected', rejectionReason);
+      toast.success('Document rejected');
       setRejectModal({ open: false });
       await fetchDocuments();
     } catch (err: any) {
-      toast.error('Failed to reject document');
+      toast.error("Couldn't reject document. Please try again.");
     } finally {
       setRejecting(false);
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'verified':
-        return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
-      case 'rejected':
-        return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
-      default:
-        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
     }
   };
 
@@ -129,11 +115,11 @@ export default function DocumentsPanel({ ownerType, ownerId, isAdmin = false }: 
   }
 
   if (error) {
-    return <div className="text-center py-8 text-red-600 dark:text-red-400">{error}</div>;
+    return <div className="text-center py-8 text-destructive">{error}</div>;
   }
 
   if (documents.length === 0) {
-    return <div className="text-center py-8 text-gray-500 dark:text-gray-400">No documents attached</div>;
+    return <div className="text-center py-8 text-muted-foreground">No documents attached</div>;
   }
 
   return (
@@ -141,31 +127,23 @@ export default function DocumentsPanel({ ownerType, ownerId, isAdmin = false }: 
       {documents.map((doc) => (
         <div
           key={doc._id || doc.id}
-          className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+          className="flex flex-col gap-3 rounded-lg border border-border p-3 transition-colors hover:bg-accent/50 sm:flex-row sm:items-center sm:justify-between sm:p-4"
         >
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-3">
               <div className="flex-1 min-w-0">
-                <p className="font-medium text-gray-900 dark:text-gray-100 truncate">
-                  {doc.fileName}
-                </p>
-                <div className="flex items-center gap-2 mt-1">
-                  <span className="text-xs text-gray-500 dark:text-gray-400">
-                    {doc.documentType}
-                  </span>
-                  <span className={`inline-block px-2 py-1 rounded text-xs font-semibold ${getStatusColor(doc.status)}`}>
-                    {doc.status?.charAt(0).toUpperCase() + doc.status?.slice(1)}
-                  </span>
+                <p className="font-medium text-foreground truncate">{doc.fileName}</p>
+                <div className="mt-1 flex flex-wrap items-center gap-2">
+                  <span className="text-xs text-muted-foreground">{doc.documentType}</span>
+                  <StatusBadge status={doc.status || 'pending'} />
                 </div>
                 {doc.status === 'rejected' && doc.rejectionReason && (
-                  <p className="text-xs text-red-600 dark:text-red-400 mt-1">
-                    Reason: {doc.rejectionReason}
-                  </p>
+                  <p className="mt-1 break-words text-xs text-destructive">Reason: {doc.rejectionReason}</p>
                 )}
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2 ml-4 flex-shrink-0">
+          <div className="flex flex-shrink-0 flex-wrap items-center gap-2 sm:ml-4">
             <Button
               size="sm"
               variant="outline"
@@ -188,7 +166,7 @@ export default function DocumentsPanel({ ownerType, ownerId, isAdmin = false }: 
                   size="sm"
                   variant="outline"
                   onClick={() => handleVerify(doc._id || doc.id || '')}
-                  className="text-green-600 dark:text-green-400"
+                  className="text-success"
                   title="Verify"
                 >
                   <FiCheckCircle className="h-4 w-4" />
@@ -197,7 +175,7 @@ export default function DocumentsPanel({ ownerType, ownerId, isAdmin = false }: 
                   size="sm"
                   variant="outline"
                   onClick={() => handleRejectClick(doc._id || doc.id || '')}
-                  className="text-red-600 dark:text-red-400"
+                  className="text-destructive"
                   title="Reject"
                 >
                   <FiXCircle className="h-4 w-4" />
@@ -216,30 +194,21 @@ export default function DocumentsPanel({ ownerType, ownerId, isAdmin = false }: 
       >
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Rejection Reason
-            </label>
+            <label className="mb-2 block text-label font-medium text-foreground">Rejection Reason</label>
             <textarea
+              aria-label="Reason for rejection"
               value={rejectionReason}
               onChange={(e) => setRejectionReason(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-gray-100"
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               rows={4}
               placeholder="Explain why this document is being rejected..."
             />
           </div>
-          <div className="flex gap-3 justify-end">
-            <Button
-              variant="outline"
-              onClick={() => setRejectModal({ open: false })}
-              disabled={rejecting}
-            >
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end sm:gap-3">
+            <Button variant="outline" onClick={() => setRejectModal({ open: false })} disabled={rejecting}>
               Cancel
             </Button>
-            <Button
-              onClick={handleReject}
-              isLoading={rejecting}
-              className="bg-red-600 hover:bg-red-700"
-            >
+            <Button variant="danger" onClick={handleReject} isLoading={rejecting}>
               Reject Document
             </Button>
           </div>

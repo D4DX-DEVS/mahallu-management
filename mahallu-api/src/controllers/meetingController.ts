@@ -5,6 +5,8 @@ import { sendWhatsAppMessage } from '../services/dxingService';
 import { AuthRequest } from '../middleware/authMiddleware';
 import { getPaginationParams, createPaginationResponse } from '../utils/pagination';
 
+import { sendFailure } from '../utils/userMessages';
+
 export const getAllMeetings = async (req: AuthRequest, res: Response) => {
   try {
     const { committeeId, status, tenantId } = req.query;
@@ -33,7 +35,7 @@ export const getAllMeetings = async (req: AuthRequest, res: Response) => {
 
     res.json(createPaginationResponse(meetings, total, page, limit));
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the meetings right now. Please try again.');
   }
 };
 
@@ -43,11 +45,11 @@ export const getMeetingById = async (req: Request, res: Response) => {
       .populate('committeeId', 'name')
       .populate('attendance', 'name familyName');
     if (!meeting) {
-      return res.status(404).json({ success: false, message: 'Meeting not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that meeting. It may have been removed." });
     }
     res.json({ success: true, data: meeting });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the meeting right now. Please try again.');
   }
 };
 
@@ -58,7 +60,7 @@ export const createMeeting = async (req: AuthRequest, res: Response) => {
     // Get committee to calculate attendance
     const committee = await Committee.findById(committeeId).populate('members', 'name phone familyName');
     if (!committee) {
-      return res.status(404).json({ success: false, message: 'Committee not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that committee. It may have been removed." });
     }
 
     const totalMembers = committee.members.length;
@@ -77,7 +79,7 @@ export const createMeeting = async (req: AuthRequest, res: Response) => {
     if (!meeting.tenantId && !req.isSuperAdmin) {
       return res.status(400).json({
         success: false,
-        message: 'Tenant ID is required',
+        message: 'Please select a Mahallu before continuing.',
       });
     }
 
@@ -111,7 +113,7 @@ export const createMeeting = async (req: AuthRequest, res: Response) => {
     );
     res.status(201).json({ success: true, data: populated });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t save the meeting. Please try again.');
   }
 };
 
@@ -121,7 +123,7 @@ export const updateMeeting = async (req: Request, res: Response) => {
     const meeting = await Meeting.findById(req.params.id);
 
     if (!meeting) {
-      return res.status(404).json({ success: false, message: 'Meeting not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that meeting. It may have been removed." });
     }
 
     // Recalculate attendance if updated
@@ -145,7 +147,7 @@ export const updateMeeting = async (req: Request, res: Response) => {
 
     res.json({ success: true, data: updatedMeeting });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t update the meeting. Please try again.');
   }
 };
 
@@ -153,11 +155,11 @@ export const deleteMeeting = async (req: Request, res: Response) => {
   try {
     const meeting = await Meeting.findByIdAndDelete(req.params.id);
     if (!meeting) {
-      return res.status(404).json({ success: false, message: 'Meeting not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that meeting. It may have been removed." });
     }
-    res.json({ success: true, message: 'Meeting deleted successfully' });
+    res.json({ success: true, message: 'Meeting deleted' });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t delete the meeting. Please try again.');
   }
 };
 

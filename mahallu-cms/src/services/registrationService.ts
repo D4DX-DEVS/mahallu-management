@@ -1,4 +1,4 @@
-import api from './api';
+import api, { asList } from './api';
 
 export interface NikahRegistration {
   id: string;
@@ -19,7 +19,7 @@ export interface NikahRegistration {
   witness2?: string;
   mahrAmount?: number;
   mahrDescription?: string;
-  status?: 'pending' | 'approved' | 'rejected';
+  status?: 'pending' | 'correction_required' | 'approved' | 'rejected';
   remarks?: string;
   createdAt: string;
 }
@@ -38,7 +38,7 @@ export interface DeathRegistration {
   informantName?: string;
   informantRelation?: string;
   informantPhone?: string;
-  status?: 'pending' | 'approved' | 'rejected';
+  status?: 'pending' | 'correction_required' | 'approved' | 'rejected';
   remarks?: string;
   createdAt: string;
 }
@@ -56,20 +56,22 @@ export interface NOC {
   purposeDescription?: string;
   purpose?: string;
   type: 'common' | 'nikah';
-  nikahRegistrationId?: string | {
-    _id?: string;
-    groomName?: string;
-    groomAge?: number;
-    brideName?: string;
-    brideAge?: number;
-    nikahDate?: string;
-    waliName?: string;
-    mahrAmount?: number;
-    mahrDescription?: string;
-    witness1?: string;
-    witness2?: string;
-  };
-  status?: 'pending' | 'approved' | 'rejected';
+  nikahRegistrationId?:
+    | string
+    | {
+        _id?: string;
+        groomName?: string;
+        groomAge?: number;
+        brideName?: string;
+        brideAge?: number;
+        nikahDate?: string;
+        waliName?: string;
+        mahrAmount?: number;
+        mahrDescription?: string;
+        witness1?: string;
+        witness2?: string;
+      };
+  status?: 'pending' | 'correction_required' | 'approved' | 'rejected';
   approvedBy?: string;
   issuedDate?: string;
   expiryDate?: string;
@@ -116,66 +118,97 @@ export interface ChangeRequest {
 export const registrationService = {
   // Nikah Registrations
   getAllNikah: async (params?: { status?: string; search?: string; page?: number; limit?: number }) => {
-    const response = await api.get<{ success: boolean; data: NikahRegistration[]; pagination?: any }>('/registrations/nikah', {
-      params,
-    });
+    const response = await api.get<{ success: boolean; data: NikahRegistration[]; pagination?: any }>(
+      '/registrations/nikah',
+      {
+        params,
+      }
+    );
     // Handle both paginated and non-paginated responses
     if (response.data.pagination) {
-      return { data: response.data.data, pagination: response.data.pagination };
+      return { data: asList(response.data.data), pagination: response.data.pagination };
     }
-    return { data: response.data.data, pagination: null };
+    return { data: asList(response.data.data), pagination: null };
   },
 
   getNikahById: async (id: string) => {
-    const response = await api.get<{ success: boolean; data: NikahRegistration }>(`/registrations/nikah/${id}`);
+    const response = await api.get<{ success: boolean; data: NikahRegistration }>(
+      `/registrations/nikah/${id}`
+    );
     return response.data.data;
   },
 
   createNikah: async (data: Partial<NikahRegistration>) => {
-    const response = await api.post<{ success: boolean; data: NikahRegistration }>('/registrations/nikah', data);
+    const response = await api.post<{ success: boolean; data: NikahRegistration }>(
+      '/registrations/nikah',
+      data
+    );
     return response.data.data;
   },
 
   updateNikah: async (id: string, data: Partial<NikahRegistration>) => {
-    const response = await api.put<{ success: boolean; data: NikahRegistration }>(`/registrations/nikah/${id}`, data);
+    const response = await api.put<{ success: boolean; data: NikahRegistration }>(
+      `/registrations/nikah/${id}`,
+      data
+    );
     return response.data.data;
   },
 
   // Death Registrations
   getAllDeath: async (params?: { status?: string; search?: string; page?: number; limit?: number }) => {
-    const response = await api.get<{ success: boolean; data: DeathRegistration[]; pagination?: any }>('/registrations/death', {
-      params,
-    });
+    const response = await api.get<{ success: boolean; data: DeathRegistration[]; pagination?: any }>(
+      '/registrations/death',
+      {
+        params,
+      }
+    );
     // Handle both paginated and non-paginated responses
     if (response.data.pagination) {
-      return { data: response.data.data, pagination: response.data.pagination };
+      return { data: asList(response.data.data), pagination: response.data.pagination };
     }
-    return { data: response.data.data, pagination: null };
+    return { data: asList(response.data.data), pagination: null };
   },
 
   getDeathById: async (id: string) => {
-    const response = await api.get<{ success: boolean; data: DeathRegistration }>(`/registrations/death/${id}`);
+    const response = await api.get<{ success: boolean; data: DeathRegistration }>(
+      `/registrations/death/${id}`
+    );
     return response.data.data;
   },
 
   createDeath: async (data: Partial<DeathRegistration>) => {
-    const response = await api.post<{ success: boolean; data: DeathRegistration }>('/registrations/death', data);
+    const response = await api.post<{ success: boolean; data: DeathRegistration }>(
+      '/registrations/death',
+      data
+    );
     return response.data.data;
   },
 
   updateDeath: async (id: string, data: Partial<DeathRegistration>) => {
-    const response = await api.put<{ success: boolean; data: DeathRegistration }>(`/registrations/death/${id}`, data);
+    const response = await api.put<{ success: boolean; data: DeathRegistration }>(
+      `/registrations/death/${id}`,
+      data
+    );
     return response.data.data;
   },
 
   // NOC
-  getAllNOC: async (params?: { type?: string; status?: string; search?: string; page?: number; limit?: number }) => {
-    const response = await api.get<{ success: boolean; data: NOC[]; pagination?: any }>('/registrations/noc', { params });
+  getAllNOC: async (params?: {
+    type?: string;
+    status?: string;
+    search?: string;
+    page?: number;
+    limit?: number;
+  }) => {
+    const response = await api.get<{ success: boolean; data: NOC[]; pagination?: any }>(
+      '/registrations/noc',
+      { params }
+    );
     // Handle both paginated and non-paginated responses
     if (response.data.pagination) {
-      return { data: response.data.data, pagination: response.data.pagination };
+      return { data: asList(response.data.data), pagination: response.data.pagination };
     }
-    return { data: response.data.data, pagination: null };
+    return { data: asList(response.data.data), pagination: null };
   },
 
   getNOCById: async (id: string) => {
@@ -194,45 +227,69 @@ export const registrationService = {
   },
 
   // Documents
-  getDocuments: async (params?: { ownerType?: string; ownerId?: string; status?: string; page?: number; limit?: number }) => {
-    const response = await api.get<{ success: boolean; data: DocumentFile[]; pagination?: any }>('/documents', { params });
+  getDocuments: async (params?: {
+    ownerType?: string;
+    ownerId?: string;
+    status?: string;
+    page?: number;
+    limit?: number;
+  }) => {
+    const response = await api.get<{ success: boolean; data: DocumentFile[]; pagination?: any }>(
+      '/documents',
+      { params }
+    );
     if (response.data.pagination) {
-      return { data: response.data.data, pagination: response.data.pagination };
+      return { data: asList(response.data.data), pagination: response.data.pagination };
     }
-    return { data: response.data.data, pagination: null };
+    return { data: asList(response.data.data), pagination: null };
   },
 
   getDocumentUrl: async (id: string) => {
-    const response = await api.get<{ success: boolean; data: { url: string; fileName: string } }>(`/documents/${id}/url`);
+    const response = await api.get<{ success: boolean; data: { url: string; fileName: string } }>(
+      `/documents/${id}/url`
+    );
     return response.data.data;
   },
 
   updateDocumentStatus: async (id: string, status: 'verified' | 'rejected', rejectionReason?: string) => {
-    const response = await api.put<{ success: boolean; data: DocumentFile }>(`/documents/${id}/status`, { status, rejectionReason });
+    const response = await api.put<{ success: boolean; data: DocumentFile }>(`/documents/${id}/status`, {
+      status,
+      rejectionReason,
+    });
     return response.data.data;
   },
 
   // Certificates
   issueCertificate: async (type: 'nikah' | 'death' | 'noc', registrationId: string) => {
-    const response = await api.post<{ success: boolean; data: Certificate }>('/certificates/issue', { type, registrationId });
+    const response = await api.post<{ success: boolean; data: Certificate }>('/certificates/issue', {
+      type,
+      registrationId,
+    });
     return response.data.data;
   },
 
   getCertificates: async (params?: { type?: string; status?: string; page?: number; limit?: number }) => {
-    const response = await api.get<{ success: boolean; data: Certificate[]; pagination?: any }>('/certificates', { params });
+    const response = await api.get<{ success: boolean; data: Certificate[]; pagination?: any }>(
+      '/certificates',
+      { params }
+    );
     if (response.data.pagination) {
-      return { data: response.data.data, pagination: response.data.pagination };
+      return { data: asList(response.data.data), pagination: response.data.pagination };
     }
-    return { data: response.data.data, pagination: null };
+    return { data: asList(response.data.data), pagination: null };
   },
 
   getCertificateUrl: async (id: string) => {
-    const response = await api.get<{ success: boolean; data: { url: string; fileName: string } }>(`/certificates/${id}/download`);
+    const response = await api.get<{ success: boolean; data: { url: string; fileName: string } }>(
+      `/certificates/${id}/download`
+    );
     return response.data.data;
   },
 
   revokeCertificate: async (id: string, reason: string) => {
-    const response = await api.put<{ success: boolean; data: Certificate }>(`/certificates/${id}/revoke`, { reason });
+    const response = await api.put<{ success: boolean; data: Certificate }>(`/certificates/${id}/revoke`, {
+      reason,
+    });
     return response.data.data;
   },
 
@@ -242,17 +299,27 @@ export const registrationService = {
   },
 
   // Change Requests
-  getChangeRequests: async (params?: { status?: string; targetType?: string; page?: number; limit?: number }) => {
-    const response = await api.get<{ success: boolean; data: ChangeRequest[]; pagination?: any }>('/change-requests', { params });
+  getChangeRequests: async (params?: {
+    status?: string;
+    targetType?: string;
+    page?: number;
+    limit?: number;
+  }) => {
+    const response = await api.get<{ success: boolean; data: ChangeRequest[]; pagination?: any }>(
+      '/change-requests',
+      { params }
+    );
     if (response.data.pagination) {
-      return { data: response.data.data, pagination: response.data.pagination };
+      return { data: asList(response.data.data), pagination: response.data.pagination };
     }
-    return { data: response.data.data, pagination: null };
+    return { data: asList(response.data.data), pagination: null };
   },
 
   reviewChangeRequest: async (id: string, status: 'approved' | 'rejected', remarks?: string) => {
-    const response = await api.put<{ success: boolean; data: ChangeRequest }>(`/change-requests/${id}/review`, { status, remarks });
+    const response = await api.put<{ success: boolean; data: ChangeRequest }>(
+      `/change-requests/${id}/review`,
+      { status, remarks }
+    );
     return response.data.data;
   },
 };
-

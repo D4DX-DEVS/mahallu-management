@@ -1,38 +1,48 @@
 import { useState, useEffect } from 'react';
 import { FiBell, FiCheck, FiMail, FiInbox } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
+import EmptyState from '@/components/ui/EmptyState';
 import Select from '@/components/ui/Select';
 import StatCard from '@/components/ui/StatCard';
+import Pagination from '@/components/ui/Pagination';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import { notificationService, Notification } from '@/services/notificationService';
 import { useNotificationStore } from '@/store/notificationStore';
 import { formatDate } from '@/utils/format';
+import { loadErrorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
+import { Pagination as PaginationType } from '@/types';
 
 export default function NotificationsList() {
   const [typeFilter, setTypeFilter] = useState('all');
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pagination, setPagination] = useState<PaginationType | null>(null);
   const { fetchUnreadCount } = useNotificationStore();
 
   useEffect(() => {
     fetchNotifications();
-  }, [typeFilter]);
+  }, [typeFilter, currentPage]);
 
   const fetchNotifications = async () => {
     try {
       setLoading(true);
       setError(null);
-      const params: any = {};
+      // The API caps and defaults `limit` server-side (10 per page) — without
+      // an explicit page/limit here, and without showing pagination, the list
+      // silently stuck at the 10 most recent notifications forever.
+      const params: any = { page: currentPage, limit: 20 };
       if (typeFilter !== 'all') {
         params.recipientType = typeFilter;
       }
       const result = await notificationService.getAll(params);
       setNotifications(result.data || []);
+      setPagination(result.pagination);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch notifications');
+      setError(loadErrorMessage(err, 'notifications'));
       console.error('Error fetching notifications:', err);
     } finally {
       setLoading(false);
@@ -62,7 +72,11 @@ export default function NotificationsList() {
   const unreadCount = notifications.filter((n) => !n.isRead).length;
 
   const stats = [
-    { title: 'Total Notifications', value: notifications.length, icon: <FiBell className="h-5 w-5" /> },
+    {
+      title: 'Total Notifications',
+      value: pagination?.total ?? notifications.length,
+      icon: <FiBell className="h-5 w-5" />,
+    },
     { title: 'Unread', value: unreadCount, icon: <FiInbox className="h-5 w-5" /> },
     { title: 'Read', value: notifications.length - unreadCount, icon: <FiMail className="h-5 w-5" /> },
   ];
@@ -72,10 +86,6 @@ export default function NotificationsList() {
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <div>
-              <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Notifications</h1>
-              <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">Manage notifications</p>
-            </div>
             {unreadCount > 0 && (
               <Button onClick={handleMarkAllAsRead} variant="outline">
                 <FiCheck className="h-4 w-4 mr-2" />
@@ -83,10 +93,10 @@ export default function NotificationsList() {
               </Button>
             )}
           </div>
-          <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Notifications' }]} />
+          <PageHeader description="Manage notifications" title="Notifications" />
         </div>
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {stats.map((stat, index) => (
             <StatCard key={index} {...stat} />
           ))}
@@ -94,7 +104,7 @@ export default function NotificationsList() {
       </div>
 
       <Card>
-        <div className="flex justify-between mb-6">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <Select
             options={[
               { value: 'all', label: 'All Notifications' },
@@ -102,24 +112,27 @@ export default function NotificationsList() {
               { value: 'collection', label: 'Collection' },
             ]}
             value={typeFilter}
-            onChange={(e) => setTypeFilter(e.target.value)}
-            className="w-48"
+            onChange={(e) => {
+              setTypeFilter(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="w-full sm:w-48"
           />
         </div>
 
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="text-center py-12">
-            <p className="text-red-600 dark:text-red-400">{error}</p>
-            <Button onClick={fetchNotifications} className="mt-4" variant="outline">
-              Retry
-            </Button>
-          </div>
+          <EmptyState
+            variant="error"
+            entity="notifications"
+            description={error}
+            action={{ label: 'Retry', onClick: fetchNotifications }}
+          />
         ) : (
           <div className="space-y-2">
             {notifications.length === 0 ? (
-              <p className="text-center py-12 text-gray-500 dark:text-gray-400">No notifications found</p>
+              <p className="text-center py-10 text-gray-500 dark:text-gray-400">No notifications found</p>
             ) : (
               notifications.map((notification) => (
                 <div
@@ -134,7 +147,9 @@ export default function NotificationsList() {
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
                         <FiBell className="h-4 w-4 text-gray-500" />
-                        <h3 className="font-semibold text-gray-900 dark:text-gray-100">{notification.title}</h3>
+                        <h3 className="font-semibold text-foreground">
+                          {notification.title}
+                        </h3>
                         {!notification.isRead && (
                           <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-800 dark:bg-blue-200">
                             New
@@ -154,11 +169,7 @@ export default function NotificationsList() {
                       </p>
                     </div>
                     {!notification.isRead && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleMarkAsRead(notification.id)}
-                      >
+                      <Button variant="outline" size="sm" onClick={() => handleMarkAsRead(notification.id)}>
                         <FiCheck className="h-3 w-3 mr-1" />
                         Mark Read
                       </Button>
@@ -169,8 +180,19 @@ export default function NotificationsList() {
             )}
           </div>
         )}
+
+        {pagination && pagination.totalPages > 1 && (
+          <div className="mt-4">
+            <Pagination
+              currentPage={pagination.page}
+              totalPages={pagination.totalPages}
+              totalItems={pagination.total}
+              itemsPerPage={pagination.limit}
+              onPageChange={setCurrentPage}
+            />
+          </div>
+        )}
       </Card>
     </div>
   );
 }
-

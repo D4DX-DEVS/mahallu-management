@@ -1,14 +1,16 @@
-import api from './api';
+import api, { asList } from './api';
 import { Meeting } from '@/types';
 
 export const meetingService = {
   getAll: async (params?: { committeeId?: string; status?: string; page?: number; limit?: number }) => {
-    const response = await api.get<{ success: boolean; data: Meeting[]; pagination?: any }>('/meetings', { params });
+    const response = await api.get<{ success: boolean; data: Meeting[]; pagination?: any }>('/meetings', {
+      params,
+    });
     // Handle both paginated and non-paginated responses
     if (response.data.pagination) {
-      return { data: response.data.data, pagination: response.data.pagination };
+      return { data: asList(response.data.data), pagination: response.data.pagination };
     }
-    return { data: response.data.data, pagination: null };
+    return { data: asList(response.data.data), pagination: null };
   },
 
   getById: async (id: string) => {
@@ -31,4 +33,3 @@ export const meetingService = {
     return response.data;
   },
 };
-

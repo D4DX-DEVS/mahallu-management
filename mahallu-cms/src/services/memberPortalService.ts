@@ -1,4 +1,4 @@
-import api from './api';
+import api, { asList } from './api';
 
 export interface MemberOverviewResponse {
   member: {
@@ -182,7 +182,8 @@ export interface DocumentRecord {
   _id: string;
   id?: string; // normalized alias of _id
   fileName: string;
-  documentType: 'id_proof' | 'age_proof' | 'photo' | 'address_proof' | 'divorce_doc' | 'death_proof' | 'other';
+  documentType:
+    'id_proof' | 'age_proof' | 'photo' | 'address_proof' | 'divorce_doc' | 'death_proof' | 'other';
   status: 'pending' | 'uploaded' | 'verified' | 'rejected';
   ownerType?: string;
   createdAt: string;
@@ -219,7 +220,9 @@ export interface PaginationResponse<T> {
 
 export const memberPortalService = {
   getOverview: async () => {
-    const response = await api.get<{ success: boolean; data: MemberOverviewResponse }>('/member-user/overview');
+    const response = await api.get<{ success: boolean; data: MemberOverviewResponse }>(
+      '/member-user/overview'
+    );
     return response.data.data;
   },
 
@@ -239,7 +242,7 @@ export const memberPortalService = {
       '/member-user/payments',
       { params }
     );
-    return { data: response.data.data, pagination: (response.data as any).pagination };
+    return { data: asList(response.data.data), pagination: (response.data as any).pagination };
   },
 
   getOwnRegistrations: async (type?: 'nikah' | 'death' | 'noc') => {
@@ -271,10 +274,7 @@ export const memberPortalService = {
   },
 
   updateProfile: async (data: { phone?: string; email?: string }) => {
-    const response = await api.put<{ success: boolean; data: any }>(
-      '/member-user/profile',
-      data
-    );
+    const response = await api.put<{ success: boolean; data: any }>('/member-user/profile', data);
     return response.data.data;
   },
 
@@ -379,18 +379,12 @@ export const memberPortalService = {
     targetId: string;
     changes: Array<{ field: string; newValue: string }>;
   }) => {
-    const response = await api.post<{ success: boolean; data: ChangeRequest }>(
-      '/change-requests',
-      data
-    );
+    const response = await api.post<{ success: boolean; data: ChangeRequest }>('/change-requests', data);
     return response.data.data;
   },
 
   updateChangeRequest: async (id: string, data: { field: string; newValue: string }) => {
-    const response = await api.put<{ success: boolean; data: ChangeRequest }>(
-      `/change-requests/${id}`,
-      data
-    );
+    const response = await api.put<{ success: boolean; data: ChangeRequest }>(`/change-requests/${id}`, data);
     return response.data.data;
   },
 

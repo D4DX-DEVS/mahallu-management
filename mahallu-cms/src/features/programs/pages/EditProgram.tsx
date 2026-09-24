@@ -4,7 +4,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useNavigate, useParams } from 'react-router-dom';
 import { FiSave, FiX } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -12,29 +11,35 @@ import Select from '@/components/ui/Select';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import { ROUTES } from '@/constants/routes';
 import { programService } from '@/services/programService';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
 
 const programSchema = z.object({
-  name: z.string().min(1, 'Name is required'),
-  nameMl: z.string().optional(),
-  place: z.string().min(1, 'Place is required'),
-  placeMl: z.string().optional(),
-  joinDate: z.string().min(1, 'Join Date is required'),
-  description: z.string().optional(),
-  contactNo: z.string().regex(/^[0-9]{10,11}$/, 'Contact number must be 10 or 11 digits').optional().or(z.literal('')),
-  email: z.string().email('Invalid email').optional().or(z.literal('')),
+  name: z.string().max(200, 'Please keep the name to 200 characters or less.').min(1, 'Name is required'),
+  nameMl: z.string().max(200, 'Please keep the name to 200 characters or less.').optional(),
+  place: z.string().max(300, 'Please keep the place to 300 characters or less.').min(1, 'Place is required'),
+  placeMl: z.string().max(300, 'Please keep the place to 300 characters or less.').optional(),
+  joinDate: z.string().max(200, 'Please keep the join date to 200 characters or less.').min(1, 'Join Date is required'),
+  description: z.string().max(3000, 'Please keep the description to 3000 characters or less.').optional(),
+  contactNo: z
+    .string()
+    .regex(/^[0-9]{10,11}$/, 'Contact number must be 10 or 11 digits')
+    .optional()
+    .or(z.literal('')),
+  email: z.string().max(254, 'Please keep the email to 254 characters or less.').email('Invalid email').optional().or(z.literal('')),
   address: z
     .object({
-      state: z.string().optional(),
-      district: z.string().optional(),
-      pinCode: z.string().optional(),
-      postOffice: z.string().optional(),
+      state: z.string().max(200, 'Please keep the state to 200 characters or less.').optional(),
+      district: z.string().max(200, 'Please keep the district to 200 characters or less.').optional(),
+      pinCode: z.string().max(200, 'Please keep the pin code to 200 characters or less.').optional(),
+      postOffice: z.string().max(200, 'Please keep the post office to 200 characters or less.').optional(),
     })
     .optional(),
   status: z.enum(['active', 'inactive']).optional(),
   audience: z.enum(['all', 'men', 'women', 'youth', 'children', 'families']).optional(),
   programType: z.enum(['quran_class', 'hadith', 'fiqh', 'lecture', 'family', 'other']).optional(),
-  eventDate: z.string().optional(),
-  awards: z.string().optional(),
+  eventDate: z.string().max(200, 'Please keep the event date to 200 characters or less.').optional(),
+  awards: z.string().max(200, 'Please keep the awards to 200 characters or less.').optional(),
 });
 
 type ProgramFormData = z.infer<typeof programSchema>;
@@ -80,12 +85,17 @@ export default function EditProgram() {
         setValue('address.postOffice', program.address.postOffice || '');
       }
       setValue('status', (program.status || 'active') as 'active' | 'inactive');
-      if (program.audience) setValue('audience', program.audience as 'all' | 'men' | 'women' | 'youth' | 'children' | 'families');
-      if (program.programType) setValue('programType', program.programType as 'quran_class' | 'hadith' | 'fiqh' | 'lecture' | 'family' | 'other');
+      if (program.audience)
+        setValue('audience', program.audience as 'all' | 'men' | 'women' | 'youth' | 'children' | 'families');
+      if (program.programType)
+        setValue(
+          'programType',
+          program.programType as 'quran_class' | 'hadith' | 'fiqh' | 'lecture' | 'family' | 'other'
+        );
       setValue('eventDate', program.eventDate ? new Date(program.eventDate).toISOString().split('T')[0] : '');
       setValue('awards', program.awards || '');
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to load program');
+      setError(loadErrorMessage(err, 'program'));
     } finally {
       setLoading(false);
     }
@@ -118,35 +128,25 @@ export default function EditProgram() {
       await programService.update(id, programData);
       navigate(ROUTES.PROGRAMS.LIST);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to update program. Please try again.');
+      setError(errorMessage(err, { action: 'update program. please try again' }));
       console.error('Error updating program:', err);
     }
   };
 
   if (loading) {
-    return (
-      <PageSkeleton />
-    );
+    return <PageSkeleton />;
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Edit Program</h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Update program information</p>
-        </div>
-        <Breadcrumb
-          items={[
-            { label: 'Dashboard', path: '/dashboard' },
-            { label: 'Programs', path: ROUTES.PROGRAMS.LIST },
-            { label: 'Edit' },
-          ]}
-        />
-      </div>
+    <div className="space-y-4">
+      <PageHeader
+        title="Edit Program"
+        description="Update program information"
+        breadcrumbs={[{ label: 'Programs', path: ROUTES.PROGRAMS.LIST }]}
+      />
 
       <form onSubmit={handleSubmit(onSubmit)}>
-        <Card className="space-y-6">
+        <Card className="space-y-4">
           {error && (
             <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm dark:bg-red-900 dark:border-red-700 dark:text-red-200">
               {error}
@@ -155,14 +155,38 @@ export default function EditProgram() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input label="Name" {...register('name')} error={errors.name?.message} required />
-            <div className="hidden"><Input label="Name (Malayalam)" {...register('nameMl')} placeholder="പ്രോഗ്രാമിന്റെ പേര്" className="font-malayalam" /></div>
+            <div className="hidden">
+              <Input
+                label="Name (Malayalam)"
+                {...register('nameMl')}
+                placeholder="പ്രോഗ്രാമിന്റെ പേര്"
+                className="font-malayalam"
+              />
+            </div>
             <Input label="Place" {...register('place')} error={errors.place?.message} required />
-            <div className="hidden"><Input label="Place (Malayalam)" {...register('placeMl')} placeholder="സ്ഥലം" className="font-malayalam" /></div>
+            <div className="hidden">
+              <Input
+                label="Place (Malayalam)"
+                {...register('placeMl')}
+                placeholder="സ്ഥലം"
+                className="font-malayalam"
+              />
+            </div>
             <Input label="Join Date" type="date" {...register('joinDate')} error={errors.joinDate?.message} />
             <Input label="Contact No" {...register('contactNo')} error={errors.contactNo?.message} />
             <Input label="Email" type="email" {...register('email')} error={errors.email?.message} />
-            <Input label="Event Date" type="date" {...register('eventDate')} error={errors.eventDate?.message} />
-            <Input label="Awards" {...register('awards')} error={errors.awards?.message} placeholder="e.g. Best participation trophy" />
+            <Input
+              label="Event Date"
+              type="date"
+              {...register('eventDate')}
+              error={errors.eventDate?.message}
+            />
+            <Input
+              label="Awards"
+              {...register('awards')}
+              error={errors.awards?.message}
+              placeholder="e.g. Best participation trophy"
+            />
             <Select
               label="Status"
               {...register('status')}
@@ -202,12 +226,24 @@ export default function EditProgram() {
               <Input label="Description" {...register('description')} error={errors.description?.message} />
             </div>
             <Input label="State" {...register('address.state')} error={errors.address?.state?.message} />
-            <Input label="District" {...register('address.district')} error={errors.address?.district?.message} />
-            <Input label="PIN Code" {...register('address.pinCode')} error={errors.address?.pinCode?.message} />
-            <Input label="Post Office" {...register('address.postOffice')} error={errors.address?.postOffice?.message} />
+            <Input
+              label="District"
+              {...register('address.district')}
+              error={errors.address?.district?.message}
+            />
+            <Input
+              label="PIN Code"
+              {...register('address.pinCode')}
+              error={errors.address?.pinCode?.message}
+            />
+            <Input
+              label="Post Office"
+              {...register('address.postOffice')}
+              error={errors.address?.postOffice?.message}
+            />
           </div>
 
-          <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+          <div className="flex gap-2 flex-col-reverse sm:flex-row sm:justify-end sm:gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
             <Button type="button" variant="outline" onClick={() => navigate(ROUTES.PROGRAMS.LIST)}>
               <FiX className="h-4 w-4 mr-2" />
               Cancel
@@ -222,4 +258,3 @@ export default function EditProgram() {
     </div>
   );
 }
-

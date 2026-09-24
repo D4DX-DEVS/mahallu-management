@@ -4,29 +4,34 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useNavigate } from 'react-router-dom';
 import { FiSave, FiX } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import { ROUTES } from '@/constants/routes';
 import { programService } from '@/services/programService';
+import { errorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
 
 const programSchema = z.object({
-  name: z.string().min(1, 'Name is required'),
-  nameMl: z.string().optional(),
-  place: z.string().min(1, 'Place is required'),
-  placeMl: z.string().optional(),
-  joinDate: z.string().min(1, 'Join Date is required'),
-  description: z.string().optional(),
-  contactNo: z.string().regex(/^[0-9]{10,11}$/, 'Contact number must be 10 or 11 digits').optional().or(z.literal('')),
-  email: z.string().email('Invalid email').optional().or(z.literal('')),
+  name: z.string().max(200, 'Please keep the name to 200 characters or less.').min(1, 'Name is required'),
+  nameMl: z.string().max(200, 'Please keep the name to 200 characters or less.').optional(),
+  place: z.string().max(300, 'Please keep the place to 300 characters or less.').min(1, 'Place is required'),
+  placeMl: z.string().max(300, 'Please keep the place to 300 characters or less.').optional(),
+  joinDate: z.string().max(200, 'Please keep the join date to 200 characters or less.').min(1, 'Join Date is required'),
+  description: z.string().max(3000, 'Please keep the description to 3000 characters or less.').optional(),
+  contactNo: z
+    .string()
+    .regex(/^[0-9]{10,11}$/, 'Contact number must be 10 or 11 digits')
+    .optional()
+    .or(z.literal('')),
+  email: z.string().max(254, 'Please keep the email to 254 characters or less.').email('Invalid email').optional().or(z.literal('')),
   address: z
     .object({
-      state: z.string().optional(),
-      district: z.string().optional(),
-      pinCode: z.string().optional(),
-      postOffice: z.string().optional(),
+      state: z.string().max(200, 'Please keep the state to 200 characters or less.').optional(),
+      district: z.string().max(200, 'Please keep the district to 200 characters or less.').optional(),
+      pinCode: z.string().max(200, 'Please keep the pin code to 200 characters or less.').optional(),
+      postOffice: z.string().max(200, 'Please keep the post office to 200 characters or less.').optional(),
     })
     .optional(),
   status: z.enum(['active', 'inactive']).optional(),
@@ -76,29 +81,21 @@ export default function CreateProgram() {
       await programService.create(programData);
       navigate(ROUTES.PROGRAMS.LIST);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to create program. Please try again.');
+      setError(errorMessage(err, { action: 'create program. please try again' }));
       console.error('Error creating program:', err);
     }
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Create Program</h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Add a new program</p>
-        </div>
-        <Breadcrumb
-          items={[
-            { label: 'Dashboard', path: '/dashboard' },
-            { label: 'Programs', path: ROUTES.PROGRAMS.LIST },
-            { label: 'Create' },
-          ]}
-        />
-      </div>
+    <div className="space-y-4">
+      <PageHeader
+        title="Create Program"
+        description="Add a new program"
+        breadcrumbs={[{ label: 'Programs', path: ROUTES.PROGRAMS.LIST }]}
+      />
 
       <form onSubmit={handleSubmit(onSubmit)}>
-        <Card className="space-y-6">
+        <Card className="space-y-4">
           {error && (
             <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm dark:bg-red-900 dark:border-red-700 dark:text-red-200">
               {error}
@@ -115,12 +112,12 @@ export default function CreateProgram() {
               className="md:col-span-2"
             />
             <div className="hidden">
-            <Input
-              label="Name (Malayalam)"
-              {...register('nameMl')}
-              placeholder="പ്രോഗ്രാമിന്റെ പേര്"
-              className="md:col-span-2 font-malayalam"
-            />
+              <Input
+                label="Name (Malayalam)"
+                {...register('nameMl')}
+                placeholder="പ്രോഗ്രാമിന്റെ പേര്"
+                className="md:col-span-2 font-malayalam"
+              />
             </div>
             <Input
               label="Place"
@@ -130,12 +127,12 @@ export default function CreateProgram() {
               placeholder="Place"
             />
             <div className="hidden">
-            <Input
-              label="Place (Malayalam)"
-              {...register('placeMl')}
-              placeholder="സ്ഥലം"
-              className="font-malayalam"
-            />
+              <Input
+                label="Place (Malayalam)"
+                {...register('placeMl')}
+                placeholder="സ്ഥലം"
+                className="font-malayalam"
+              />
             </div>
             <Input
               label="Join Date"
@@ -144,12 +141,7 @@ export default function CreateProgram() {
               error={errors.joinDate?.message}
               required
             />
-            <Input
-              label="Contact No."
-              type="tel"
-              {...register('contactNo')}
-              placeholder="Contact Number"
-            />
+            <Input label="Contact No." type="tel" {...register('contactNo')} placeholder="Contact Number" />
             <Input
               label="Email"
               type="email"
@@ -201,7 +193,7 @@ export default function CreateProgram() {
             />
           </div>
 
-          <div className="flex justify-end gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+          <div className="flex gap-2 flex-col-reverse sm:flex-row sm:justify-end sm:gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
             <Button type="button" variant="outline" onClick={() => navigate(ROUTES.PROGRAMS.LIST)}>
               <FiX className="h-4 w-4 mr-2" />
               Cancel
@@ -216,4 +208,3 @@ export default function CreateProgram() {
     </div>
   );
 }
-

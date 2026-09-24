@@ -474,6 +474,24 @@ All responses follow this format:
             example: 'Healthy',
             description: 'Health status information (optional)',
           },
+          healthNotes: {
+            type: 'string',
+            maxLength: 500,
+            example: 'Type 2 diabetes, on insulin since 2019',
+            description: 'Details of the health issue (optional, captured when healthStatus is not healthy)',
+          },
+          dateOfBirth: {
+            type: 'string',
+            format: 'date',
+            example: '1999-04-12',
+            description: 'Date of birth (optional). When provided, age is derived from it.',
+          },
+          relationshipOther: {
+            type: 'string',
+            maxLength: 100,
+            example: 'Nephew',
+            description: "Free-text relationship (optional, captured when relationship is 'other')",
+          },
           phone: {
             type: 'string',
             example: '9876543210',
@@ -484,6 +502,12 @@ All responses follow this format:
             type: 'string',
             example: 'Bachelor Degree',
             description: 'Education qualification (optional)',
+          },
+          externalInstitution: {
+            type: 'string',
+            maxLength: 150,
+            example: 'Govt. Higher Secondary School',
+            description: 'Free-text external school/college the member studies at (optional, for one not in the locality registry)',
           },
           mahallId: {
             type: 'string',
@@ -545,6 +569,24 @@ All responses follow this format:
             example: 'Healthy',
             description: 'Health status information (optional)',
           },
+          healthNotes: {
+            type: 'string',
+            maxLength: 500,
+            example: 'Type 2 diabetes, on insulin since 2019',
+            description: 'Details of the health issue (optional, captured when healthStatus is not healthy)',
+          },
+          dateOfBirth: {
+            type: 'string',
+            format: 'date',
+            example: '1999-04-12',
+            description: 'Date of birth (optional). When provided, age is derived from it.',
+          },
+          relationshipOther: {
+            type: 'string',
+            maxLength: 100,
+            example: 'Nephew',
+            description: "Free-text relationship (optional, captured when relationship is 'other')",
+          },
           phone: {
             type: 'string',
             example: '9876543210',
@@ -555,6 +597,12 @@ All responses follow this format:
             type: 'string',
             example: 'Bachelor Degree',
             description: 'Education qualification (optional)',
+          },
+          externalInstitution: {
+            type: 'string',
+            maxLength: 150,
+            example: 'Govt. Higher Secondary School',
+            description: 'Free-text external school/college the member studies at (optional, for one not in the locality registry)',
           },
           mahallId: {
             type: 'string',
@@ -1332,7 +1380,7 @@ All responses follow this format:
           _id: { type: 'string', example: '507f1f77bcf86cd799439030' },
           userId: { type: 'string', example: '507f1f77bcf86cd799439011' },
           subject: { type: 'string', example: 'Login Issue', minLength: 2, maxLength: 200 },
-          message: { type: 'string', example: 'Unable to login to the system' },
+          message: { type: 'string', example: "We couldn't sign you in. Please try again." },
           status: { type: 'string', enum: ['open', 'in_progress', 'resolved', 'closed'], example: 'open' },
           priority: { type: 'string', enum: ['low', 'medium', 'high'], example: 'high' },
           response: { type: 'string', example: 'We are looking into this issue' },
@@ -1347,7 +1395,7 @@ All responses follow this format:
         required: ['subject', 'message'],
         properties: {
           subject: { type: 'string', example: 'Login Issue', minLength: 2, maxLength: 200 },
-          message: { type: 'string', example: 'Unable to login to the system', minLength: 10 },
+          message: { type: 'string', example: "We couldn't sign you in. Please try again.", minLength: 10 },
           priority: { type: 'string', enum: ['low', 'medium', 'high'], example: 'medium' },
         },
       },
@@ -1403,7 +1451,7 @@ All responses follow this format:
                 },
                 message: {
                   type: 'string',
-                  example: 'Validation failed',
+                  example: 'Some details are missing or incorrect. Please check the form and try again.',
                 },
                 errors: {
                   type: 'array',
@@ -1442,7 +1490,7 @@ All responses follow this format:
         },
       },
       NotFound: {
-        description: 'Resource not found',
+        description: "We couldn't find that resource. It may have been removed.",
         content: {
           'application/json': {
             schema: {

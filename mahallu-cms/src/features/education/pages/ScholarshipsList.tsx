@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Button from '@/components/ui/Button';
+import ExpandableSearch from '@/components/ui/ExpandableSearch';
 import Card from '@/components/ui/Card';
 import Pagination from '@/components/ui/Pagination';
 import { PageSkeleton } from '@/components/ui/Skeleton';
@@ -13,6 +14,11 @@ import {
   SCHOLARSHIP_STATUS_OPTIONS,
   scholarshipStatusLabel,
 } from '@/services/scholarshipService';
+import { errorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
+import SortableTh from '@/components/ui/SortableTh';
+import { useSortableRows } from '@/hooks/useSortableRows';
 
 export default function ScholarshipsList() {
   const navigate = useNavigate();
@@ -24,6 +30,15 @@ export default function ScholarshipsList() {
   const [loading, setLoading] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  /* Status renders a label, so it sorts on the label rather than the enum. */
+  const {
+    rows: sortedScholarships,
+    sort,
+    toggleSort,
+  } = useSortableRows(scholarships, null, {
+    status: (row) => scholarshipStatusLabel(row.status),
+  });
 
   const fetchScholarships = useCallback(async () => {
     setLoading(true);
@@ -37,7 +52,7 @@ export default function ScholarshipsList() {
       setScholarships(data);
       setPagination(pagination);
     } catch (error) {
-      console.error('Failed to fetch scholarships:', error);
+      console.error("Couldn't load scholarships:", error);
     } finally {
       setLoading(false);
     }
@@ -57,35 +72,32 @@ export default function ScholarshipsList() {
       setDeleting(true);
       await scholarshipService.deleteScholarship(deleteConfirm.id);
       setDeleteConfirm(null);
-      toast.success(`"${deleteConfirm.name}" deleted`);
+      toast.success(`"${toTitleCase(deleteConfirm.name)}" deleted`);
       await fetchScholarships();
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to delete scholarship');
+      toast.error(errorMessage(error, { action: 'delete scholarship' }));
     } finally {
       setDeleting(false);
     }
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <h1 className="text-2xl font-bold">Scholarships</h1>
-        <Button onClick={() => navigate('/education/scholarships/create')}>
-          New Scholarship
-        </Button>
+        <PageHeader title="Scholarships" />
+        <Button onClick={() => navigate('/education/scholarships/create')}>New Scholarship</Button>
       </div>
 
       <Card>
-        <div className="p-6 space-y-4">
+        <div className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <input
-              type="text"
-              placeholder="Search..."
+            <ExpandableSearch
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700"
+              onChange={(value) => setSearch(value)}
+              entity="scholarships"
             />
             <select
+              aria-label="Filter"
               value={status}
               onChange={(e) => setStatus(e.target.value)}
               className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700"
@@ -105,8 +117,16 @@ export default function ScholarshipsList() {
           ) : scholarships.length === 0 ? (
             <EmptyState
               title="No scholarships found"
-              description={search || status ? "Try adjusting your search or filters" : "Create your first scholarship to get started"}
-              action={!search && !status ? { label: 'New Scholarship', onClick: () => navigate('/education/scholarships/create') } : undefined}
+              description={
+                search || status
+                  ? 'Try adjusting your search or filters'
+                  : 'Create your first scholarship to get started'
+              }
+              action={
+                !search && !status
+                  ? { label: 'New Scholarship', onClick: () => navigate('/education/scholarships/create') }
+                  : undefined
+              }
             />
           ) : (
             <>
@@ -114,23 +134,50 @@ export default function ScholarshipsList() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b">
-                      <th className="text-left py-2">Name</th>
-                      <th className="text-left py-2 hidden sm:table-cell">Year</th>
-                      <th className="text-left py-2 hidden md:table-cell">Amount</th>
-                      <th className="text-left py-2 hidden lg:table-cell">Criteria</th>
-                      <th className="text-left py-2">Status</th>
-                      <th className="text-left py-2">Actions</th>
+                      <SortableTh sortKey="name" sort={sort} onSort={toggleSort}>
+                        Name
+                      </SortableTh>
+                      <SortableTh
+                        sortKey="academicYear"
+                        sort={sort}
+                        onSort={toggleSort}
+                        responsiveClassName="hidden sm:table-cell"
+                      >
+                        Year
+                      </SortableTh>
+                      <SortableTh
+                        sortKey="amount"
+                        sort={sort}
+                        onSort={toggleSort}
+                        responsiveClassName="hidden md:table-cell"
+                      >
+                        Amount
+                      </SortableTh>
+                      <SortableTh
+                        sortKey="criteria"
+                        sort={sort}
+                        onSort={toggleSort}
+                        responsiveClassName="hidden lg:table-cell"
+                      >
+                        Criteria
+                      </SortableTh>
+                      <SortableTh sortKey="status" sort={sort} onSort={toggleSort}>
+                        Status
+                      </SortableTh>
+                      <th className="px-3 py-2.5 text-left text-label font-semibold text-muted-foreground">
+                        Actions
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
-                    {scholarships.map((s) => (
+                    {sortedScholarships.map((s) => (
                       <tr key={s.id} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
                         <td className="py-2 font-medium">
                           <button
                             onClick={() => navigate(`/education/scholarships/${s.id}`)}
                             className="text-blue-600 hover:underline"
                           >
-                            {s.name}
+                            {toTitleCase(s.name)}
                           </button>
                         </td>
                         <td className="py-2 hidden sm:table-cell">{s.academicYear}</td>
@@ -164,7 +211,7 @@ export default function ScholarshipsList() {
               </div>
 
               {pagination && (
-                <div className="mt-6">
+                <div className="mt-4">
                   <Pagination
                     currentPage={pagination.page}
                     totalPages={pagination.totalPages}
@@ -182,7 +229,7 @@ export default function ScholarshipsList() {
       <ConfirmDialog
         isOpen={deleteConfirm !== null}
         title="Delete Scholarship"
-        message={deleteConfirm ? `Are you sure you want to delete "${deleteConfirm.name}"?` : ''}
+        message={deleteConfirm ? `Are you sure you want to delete "${toTitleCase(deleteConfirm.name)}"?` : ''}
         consequence="This action cannot be undone."
         isLoading={deleting}
         variant="danger"

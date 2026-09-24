@@ -11,6 +11,12 @@ import {
 } from '../controllers/clusterController';
 import { authMiddleware, allowRoles } from '../middleware/authMiddleware';
 import { tenantMiddleware, tenantFilter } from '../middleware/tenantMiddleware';
+import { validationHandler } from '../middleware/validationHandler';
+import { idParam, listQuery } from '../validations/common';
+import {
+  createClusterValidation,
+  updateClusterValidation,
+} from '../validations/moduleValidation';
 
 const router = express.Router();
 
@@ -55,7 +61,7 @@ router.use(tenantFilter);
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  */
-router.get('/', getAllClusters);
+router.get('/', listQuery(), validationHandler, getAllClusters);
 
 /**
  * @swagger
@@ -77,7 +83,7 @@ router.get('/', getAllClusters);
  *       404:
  *         $ref: '#/components/responses/NotFound'
  */
-router.get('/:id', getClusterById);
+router.get('/:id', idParam('id', 'cluster'), validationHandler, getClusterById);
 
 /**
  * @swagger
@@ -106,7 +112,7 @@ router.get('/:id', getClusterById);
  *       200:
  *         description: Paginated families
  */
-router.get('/:id/families', getClusterFamilies);
+router.get('/:id/families', idParam('id', 'cluster'), validationHandler, getClusterFamilies);
 
 /**
  * @swagger
@@ -143,7 +149,7 @@ router.get('/:id/families', getClusterFamilies);
  *       403:
  *         description: Role not allowed
  */
-router.post('/', allowRoles(['mahall', 'survey']), createCluster);
+router.post('/', createClusterValidation, validationHandler, allowRoles(['mahall', 'survey']), createCluster);
 
 /**
  * @swagger
@@ -175,7 +181,7 @@ router.post('/', allowRoles(['mahall', 'survey']), createCluster);
  *       200:
  *         description: Assigned count
  */
-router.post('/:id/assign-families', allowRoles(['mahall', 'survey']), assignFamilies);
+router.post('/:id/assign-families', idParam('id', 'cluster'), validationHandler, allowRoles(['mahall', 'survey']), assignFamilies);
 
 /**
  * @swagger
@@ -195,7 +201,7 @@ router.post('/:id/assign-families', allowRoles(['mahall', 'survey']), assignFami
  *       200:
  *         description: Updated
  */
-router.put('/:id', allowRoles(['mahall', 'survey']), updateCluster);
+router.put('/:id', updateClusterValidation, validationHandler, allowRoles(['mahall', 'survey']), updateCluster);
 
 /**
  * @swagger
@@ -220,7 +226,7 @@ router.put('/:id', allowRoles(['mahall', 'survey']), updateCluster);
  *       200:
  *         description: Removed
  */
-router.delete('/:id/families/:familyId', allowRoles(['mahall', 'survey']), unassignFamily);
+router.delete('/:id/families/:familyId', idParam('id', 'cluster'), idParam('familyId', 'family'), validationHandler, allowRoles(['mahall', 'survey']), unassignFamily);
 
 /**
  * @swagger
@@ -240,6 +246,6 @@ router.delete('/:id/families/:familyId', allowRoles(['mahall', 'survey']), unass
  *       200:
  *         description: Deleted
  */
-router.delete('/:id', allowRoles(['mahall']), deleteCluster);
+router.delete('/:id', idParam('id', 'cluster'), validationHandler, allowRoles(['mahall']), deleteCluster);
 
 export default router;

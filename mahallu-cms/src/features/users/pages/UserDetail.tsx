@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { FiEdit2, FiArrowLeft, FiTrash2 } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
+import { FiEdit2, FiTrash2 } from 'react-icons/fi';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import { PageSkeleton } from '@/components/ui/Skeleton';
@@ -9,16 +8,24 @@ import Modal from '@/components/ui/Modal';
 import { ROUTES } from '@/constants/routes';
 import { userService } from '@/services/userService';
 import { User } from '@/types';
-import { formatDate, formatDateTime } from '@/utils/format';
+import { formatDate, formatDateTime, toTitleCase } from '@/utils/format';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
+import { useAuthStore } from '@/store/authStore';
+import StatusBadge from '@/components/ui/StatusBadge';
 
 export default function UserDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const currentUser = useAuthStore((state) => state.user);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  // Deactivating your own account locks you out mid-session — the backend
+  // rejects every next request with 403 once status flips to inactive.
+  const isSelf = !!currentUser && !!user && currentUser.id === user.id;
 
   useEffect(() => {
     if (id) {
@@ -32,33 +39,31 @@ export default function UserDetail() {
       const data = await userService.getById(id!);
       setUser(data);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to load user');
+      setError(loadErrorMessage(err, 'user'));
     } finally {
       setLoading(false);
     }
   };
 
   const handleDelete = async () => {
-    if (!id) return;
+    if (!id || isSelf) return;
     try {
       setDeleting(true);
       await userService.delete(id);
       navigate(ROUTES.USERS.MAHALL);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to delete user');
+      setError(errorMessage(err, { action: 'delete user' }));
       setDeleting(false);
     }
   };
 
   if (loading) {
-    return (
-      <PageSkeleton />
-    );
+    return <PageSkeleton />;
   }
 
   if (error || !user) {
     return (
-      <div className="text-center py-12">
+      <div className="text-center py-10">
         <p className="text-red-600 dark:text-red-400">{error || 'User not found'}</p>
         <Button onClick={() => navigate(ROUTES.USERS.MAHALL)} className="mt-4" variant="outline">
           Back to Users
@@ -68,48 +73,39 @@ export default function UserDetail() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-            {user.name}
-          </h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            User Details
-          </p>
-        </div>
+    <div className="space-y-4">
+      <div className="flex gap-2 items-center justify-between">
         <div className="flex items-center gap-4">
-          <Breadcrumb
-            items={[
-              { label: 'Dashboard', path: '/dashboard' },
-              { label: 'Mahall Users', path: ROUTES.USERS.MAHALL },
-              { label: user.name },
-            ]}
+          <PageHeader
+            description="User Details"
+            title={toTitleCase(user.name)}
+            breadcrumbs={[{ label: 'Mahall Users', path: ROUTES.USERS.MAHALL }]}
           />
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-center">
             <Link to={ROUTES.USERS.EDIT_MAHALL(user.id)}>
-              <Button variant="outline">
-                <FiEdit2 className="h-4 w-4 mr-2" />
-                Edit
-              </Button>
+              <Button variant="outline" icon={<FiEdit2 />} collapseLabel>Edit</Button>
             </Link>
-            <Button variant="danger" onClick={() => setShowDeleteModal(true)}>
-              <FiTrash2 className="h-4 w-4 mr-2" />
+            <Button
+              variant="danger"
+              onClick={() => setShowDeleteModal(true)}
+              icon={<FiTrash2 />}
+              collapseLabel
+              disabled={isSelf}
+              title={isSelf ? "You can't deactivate your own account." : undefined}
+            >
               Delete
             </Button>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card>
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
-            Basic Information
-          </h2>
+          <h2 className="text-lg font-semibold mb-3 text-foreground">Basic Information</h2>
           <div className="space-y-3">
             <div>
               <span className="text-sm text-gray-500 dark:text-gray-400">Name</span>
-              <p className="text-gray-900 dark:text-gray-100">{user.name}</p>
+              <p className="text-gray-900 dark:text-gray-100">{toTitleCase(user.name)}</p>
             </div>
             <div>
               <span className="text-sm text-gray-500 dark:text-gray-400">Phone</span>
@@ -127,21 +123,13 @@ export default function UserDetail() {
             </div>
             <div>
               <span className="text-sm text-gray-500 dark:text-gray-400">Status</span>
-              <span
-                className={`inline-block px-2 py-1 text-xs font-medium rounded-full ${
-                  user.status === 'active'
-                    ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                    : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
-                }`}
-              >
-                {user.status}
-              </span>
+              <StatusBadge status={user.status} />
             </div>
           </div>
         </Card>
 
         <Card>
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+          <h2 className="text-lg font-semibold mb-3 text-foreground">
             Additional Information
           </h2>
           <div className="space-y-3">
@@ -158,7 +146,7 @@ export default function UserDetail() {
             {user.tenant && (
               <div>
                 <span className="text-sm text-gray-500 dark:text-gray-400">Tenant</span>
-                <p className="text-gray-900 dark:text-gray-100">{user.tenant.name}</p>
+                <p className="text-gray-900 dark:text-gray-100">{toTitleCase(user.tenant.name)}</p>
               </div>
             )}
           </div>
@@ -166,33 +154,23 @@ export default function UserDetail() {
 
         {user.permissions && (
           <Card className="md:col-span-2">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
-              Permissions
-            </h2>
+            <h2 className="text-lg font-semibold mb-3 text-foreground">Permissions</h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div>
                 <span className="text-sm text-gray-500 dark:text-gray-400">View</span>
-                <p className="text-gray-900 dark:text-gray-100">
-                  {user.permissions.view ? 'Yes' : 'No'}
-                </p>
+                <p className="text-gray-900 dark:text-gray-100">{user.permissions.view ? 'Yes' : 'No'}</p>
               </div>
               <div>
                 <span className="text-sm text-gray-500 dark:text-gray-400">Add</span>
-                <p className="text-gray-900 dark:text-gray-100">
-                  {user.permissions.add ? 'Yes' : 'No'}
-                </p>
+                <p className="text-gray-900 dark:text-gray-100">{user.permissions.add ? 'Yes' : 'No'}</p>
               </div>
               <div>
                 <span className="text-sm text-gray-500 dark:text-gray-400">Edit</span>
-                <p className="text-gray-900 dark:text-gray-100">
-                  {user.permissions.edit ? 'Yes' : 'No'}
-                </p>
+                <p className="text-gray-900 dark:text-gray-100">{user.permissions.edit ? 'Yes' : 'No'}</p>
               </div>
               <div>
                 <span className="text-sm text-gray-500 dark:text-gray-400">Delete</span>
-                <p className="text-gray-900 dark:text-gray-100">
-                  {user.permissions.delete ? 'Yes' : 'No'}
-                </p>
+                <p className="text-gray-900 dark:text-gray-100">{user.permissions.delete ? 'Yes' : 'No'}</p>
               </div>
             </div>
           </Card>
@@ -215,10 +193,9 @@ export default function UserDetail() {
         }
       >
         <p className="text-gray-600 dark:text-gray-400">
-          Are you sure you want to delete <strong>{user.name}</strong>? This action cannot be undone.
+          Are you sure you want to delete <strong>{toTitleCase(user.name)}</strong>? This action cannot be undone.
         </p>
       </Modal>
     </div>
   );
 }
-

@@ -49,7 +49,7 @@ export default function SocioEconomicSection({ register, defaultOpen = false }: 
   const [open, setOpen] = useState(defaultOpen);
 
   return (
-    <Card className="p-3 sm:p-4">
+    <Card>
       <button
         type="button"
         onClick={() => setOpen(!open)}
@@ -75,13 +75,25 @@ export default function SocioEconomicSection({ register, defaultOpen = false }: 
               {...register('occupationSector')}
               options={OCCUPATION_SECTOR_OPTIONS}
             />
-            <Select label="Monthly Income" {...register('monthlyIncomeRange')} options={INCOME_RANGE_OPTIONS} />
-            <Input label="Skills" {...register('skills')} placeholder="Comma separated, e.g. plumbing, driving" />
+            <Select
+              label="Monthly Income"
+              {...register('monthlyIncomeRange')}
+              options={INCOME_RANGE_OPTIONS}
+            />
+            <Input
+              label="Skills"
+              {...register('skills')}
+              placeholder="Comma separated, e.g. plumbing, driving"
+            />
             <div className="md:col-span-2">
               <Input label="Disability Details" {...register('disabilityDetails')} />
             </div>
             <div className="md:col-span-2">
-              <Input label="Volunteer Skills" {...register('volunteerSkills')} placeholder="Comma separated" />
+              <Input
+                label="Volunteer Skills"
+                {...register('volunteerSkills')}
+                placeholder="Comma separated"
+              />
             </div>
           </div>
 
@@ -92,6 +104,7 @@ export default function SocioEconomicSection({ register, defaultOpen = false }: 
                 className="flex items-center gap-2 rounded-xl border border-gray-200 px-2.5 py-2 dark:border-gray-700"
               >
                 <input
+                  aria-label="Select row"
                   type="checkbox"
                   {...register(flag.name)}
                   className="rounded border-gray-300 text-primary-600"

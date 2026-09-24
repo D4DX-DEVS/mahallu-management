@@ -1,4 +1,4 @@
-import api from './api';
+import api, { asList } from './api';
 
 export interface DevelopmentProject {
   id: string;
@@ -37,7 +37,7 @@ export const developmentService = {
       '/development-projects',
       { params }
     );
-    return { data: response.data.data, pagination: response.data.pagination || null };
+    return { data: asList(response.data.data), pagination: response.data.pagination || null };
   },
 
   getProject: async (id: string) => {
@@ -64,9 +64,7 @@ export const developmentService = {
   },
 
   deleteProject: async (id: string) => {
-    const response = await api.delete<{ success: boolean; message: string }>(
-      `/development-projects/${id}`
-    );
+    const response = await api.delete<{ success: boolean; message: string }>(`/development-projects/${id}`);
     return response.data;
   },
 

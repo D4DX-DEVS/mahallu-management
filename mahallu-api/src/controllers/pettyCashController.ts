@@ -4,6 +4,8 @@ import { PettyCash, PettyCashTransaction } from '../models/PettyCash';
 import { postLedgerEntry } from '../services/ledgerPostingService';
 import mongoose from 'mongoose';
 
+import { sendFailure } from '../utils/userMessages';
+
 const toObjectId = (id: string) => mongoose.Types.ObjectId.isValid(id) ? new mongoose.Types.ObjectId(id) : null;
 
 /**
@@ -21,7 +23,7 @@ export const getAllPettyCash = async (req: AuthRequest, res: Response) => {
 
     res.json({ success: true, data: funds });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the petty cash right now. Please try again.');
   }
 };
 
@@ -36,11 +38,11 @@ export const getPettyCash = async (req: AuthRequest, res: Response) => {
 
     const fund = await PettyCash.findOne(query).populate('instituteId', 'name');
     if (!fund) {
-      return res.status(404).json({ success: false, message: 'Petty cash fund not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that petty cash fund. It may have been removed." });
     }
     res.json({ success: true, data: fund });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the petty cash right now. Please try again.');
   }
 };
 
@@ -94,7 +96,7 @@ export const createPettyCash = async (req: AuthRequest, res: Response) => {
     const populated = await PettyCash.findById(fund._id).populate('instituteId', 'name');
     res.status(201).json({ success: true, data: populated });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t save the petty cash. Please try again.');
   }
 };
 
@@ -109,7 +111,7 @@ export const updatePettyCash = async (req: AuthRequest, res: Response) => {
 
     const fund = await PettyCash.findOne(query);
     if (!fund) {
-      return res.status(404).json({ success: false, message: 'Petty cash fund not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that petty cash fund. It may have been removed." });
     }
 
     const { custodianName, status } = req.body;
@@ -120,7 +122,7 @@ export const updatePettyCash = async (req: AuthRequest, res: Response) => {
     const populated = await PettyCash.findById(fund._id).populate('instituteId', 'name');
     res.json({ success: true, data: populated });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t update the petty cash. Please try again.');
   }
 };
 
@@ -140,7 +142,7 @@ export const getPettyCashTransactions = async (req: AuthRequest, res: Response) 
 
     res.json({ success: true, data: transactions });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the petty cash transactions right now. Please try again.');
   }
 };
 
@@ -155,16 +157,16 @@ export const recordExpense = async (req: AuthRequest, res: Response) => {
 
     const fund = await PettyCash.findOne(queryFund);
     if (!fund) {
-      return res.status(404).json({ success: false, message: 'Active petty cash fund not found' });
+      return res.status(404).json({ success: false, message: 'There is no active petty cash fund yet. Please create one first.' });
     }
 
     const { amount, description, categoryId, receiptNo, date } = req.body;
 
     if (!amount || amount <= 0) {
-      return res.status(400).json({ success: false, message: 'Amount must be positive' });
+      return res.status(400).json({ success: false, message: 'Please enter an amount greater than zero.' });
     }
     if (amount > fund.currentBalance) {
-      return res.status(400).json({ success: false, message: 'Insufficient petty cash balance' });
+      return res.status(400).json({ success: false, message: "There isn't enough petty cash left for this amount." });
     }
 
     const txn = new PettyCashTransaction({
@@ -186,7 +188,7 @@ export const recordExpense = async (req: AuthRequest, res: Response) => {
 
     res.status(201).json({ success: true, data: txn });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t save the expense. Please try again.');
   }
 };
 
@@ -201,12 +203,12 @@ export const replenishPettyCash = async (req: AuthRequest, res: Response) => {
 
     const fund = await PettyCash.findOne(queryFund);
     if (!fund) {
-      return res.status(404).json({ success: false, message: 'Active petty cash fund not found' });
+      return res.status(404).json({ success: false, message: 'There is no active petty cash fund yet. Please create one first.' });
     }
 
     const spentAmount = fund.floatAmount - fund.currentBalance;
     if (spentAmount <= 0) {
-      return res.status(400).json({ success: false, message: 'No expenses to replenish' });
+      return res.status(400).json({ success: false, message: 'There are no expenses to replenish yet.' });
     }
 
     // Create replenishment transaction
@@ -227,7 +229,7 @@ export const replenishPettyCash = async (req: AuthRequest, res: Response) => {
       const unpostedExpenses = await PettyCashTransaction.find({
         pettyCashId: fund._id,
         type: 'expense',
-        date: { $gte: fund.updatedAt }, // Expenses since last replenishment
+        postedToLedger: { $ne: true },
       });
 
       for (const expense of unpostedExpenses) {
@@ -244,6 +246,8 @@ export const replenishPettyCash = async (req: AuthRequest, res: Response) => {
           paymentMethod: 'cash',
           referenceNo: expense.receiptNo,
         });
+        expense.postedToLedger = true;
+        await expense.save();
       }
     } catch (ledgerError) {
       console.error('Failed to post petty cash expenses to ledger:', ledgerError);
@@ -255,6 +259,6 @@ export const replenishPettyCash = async (req: AuthRequest, res: Response) => {
 
     res.json({ success: true, data: txn, message: `Replenished ₹${spentAmount}` });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t save the petty cash. Please try again.');
   }
 };

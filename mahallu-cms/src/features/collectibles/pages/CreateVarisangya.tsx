@@ -4,7 +4,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useNavigate } from 'react-router-dom';
 import { FiSave, FiX } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -13,21 +12,26 @@ import MultiSelect from '@/components/ui/MultiSelect';
 import { collectibleService } from '@/services/collectibleService';
 import { familyService } from '@/services/familyService';
 import { memberService } from '@/services/memberService';
+import { fetchAllPages } from '@/services/api';
 import { tenantService } from '@/services/tenantService';
 import { Family, Member } from '@/types';
 import { Tenant } from '@/types/tenant';
 import { downloadInvoicePdf, InvoiceDetails } from '@/utils/invoiceUtils';
+import { toast } from '@/store/toastStore';
 import { useAuthStore } from '@/store/authStore';
 import { getTenantId as extractTenantId } from '@/utils/tenantHelper';
+import { errorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 
 const varisangyaSchema = z.object({
-  familyIds: z.array(z.string()).optional(),
-  memberIds: z.array(z.string()).optional(),
+  familyIds: z.array(z.string()).max(500, 'Please choose 500 families or fewer at a time.').optional(),
+  memberIds: z.array(z.string()).max(500, 'Please choose 500 members or fewer at a time.').optional(),
   amount: z.number().min(0.01, 'Amount is required'),
-  paymentDate: z.string().min(1, 'Payment date is required'),
-  paymentMethod: z.string().optional(),
-  remarks: z.string().optional(),
-  remarksMl: z.string().optional(),
+  paymentDate: z.string().max(200, 'Please keep the payment date to 200 characters or less.').min(1, 'Payment date is required'),
+  paymentMethod: z.string().max(200, 'Please keep the payment method to 200 characters or less.').optional(),
+  remarks: z.string().max(2000, 'Please keep the remarks to 2000 characters or less.').optional(),
+  remarksMl: z.string().max(2000, 'Please keep the remarks to 2000 characters or less.').optional(),
 });
 
 type VarisangyaFormData = z.infer<typeof varisangyaSchema>;
@@ -71,7 +75,12 @@ export default function CreateVarisangya() {
   }, []);
 
   useEffect(() => {
-    if ((selectedFamilyIds.length > 0 || selectedMemberIds.length > 0) && !loadingTenant && tenantData && families.length > 0) {
+    if (
+      (selectedFamilyIds.length > 0 || selectedMemberIds.length > 0) &&
+      !loadingTenant &&
+      tenantData &&
+      families.length > 0
+    ) {
       clearErrors('familyIds');
       setSuggestedAmount();
     }
@@ -95,27 +104,33 @@ export default function CreateVarisangya() {
 
   const fetchFamilies = async () => {
     try {
-      const result = await familyService.getAll();
-      setFamilies(result.data || []);
+      // No limit defaults to 10 rows server-side - fetch every page so this
+      // picker offers every family, not just the first page.
+      const all = await fetchAllPages<Family>((p) => familyService.getAll(p));
+      setFamilies(all);
     } catch (err) {
       console.error('Error fetching families:', err);
+      toast.error(errorMessage(err, { action: 'load families' }));
       setFamilies([]);
     }
   };
 
   const fetchMembers = async () => {
     try {
-      const result = await memberService.getAll({ limit: 10000 });
-      setMembers(result.data || []);
+      // /members caps limit at 100 and 400s above it, so the old limit:10000
+      // request always failed and left this payer picker empty.
+      const all = await fetchAllPages<Member>((p) => memberService.getAll(p));
+      setMembers(all);
     } catch (err) {
       console.error('Error fetching members:', err);
+      toast.error(errorMessage(err, { action: 'load members' }));
     }
   };
 
   const fetchNextReceiptNo = async () => {
     try {
       const receiptNo = await collectibleService.getNextReceiptNo('varisangya');
-      setNextReceiptNo(receiptNo);
+      setNextReceiptNo(receiptNo || 'Auto-generated');
     } catch (err) {
       console.error('Error fetching receipt number:', err);
       setNextReceiptNo('Auto-generated');
@@ -126,24 +141,16 @@ export default function CreateVarisangya() {
     if (!tenantData || loadingTenant) return;
     if (!families.length && !members.length) return;
 
-    console.log('Setting suggested amount...', {
-      selectedFamilyIds,
-      selectedMemberIds,
-      tenantData: tenantData.settings,
-    });
-
     // Suggest amount based on first selected entity
     let suggestedAmount = 0;
 
     // If family is selected, use the first family's grade amount
     if (selectedFamilyIds.length > 0) {
       const firstFamily = families.find((f) => f.id === selectedFamilyIds[0]);
-      console.log('First family:', firstFamily);
       if (firstFamily?.varisangyaGrade && tenantData.settings?.varisangyaGrades) {
         const gradeConfig = tenantData.settings.varisangyaGrades.find(
           (grade) => grade.name === firstFamily.varisangyaGrade
         );
-        console.log('Grade config:', gradeConfig);
         if (gradeConfig) {
           suggestedAmount = gradeConfig.amount;
         }
@@ -153,11 +160,8 @@ export default function CreateVarisangya() {
     // If no amount found from family, and members are selected, use default member amount
     if (suggestedAmount === 0 && selectedMemberIds.length > 0) {
       suggestedAmount = tenantData.settings?.varisangyaAmount || 0;
-      console.log('Using member amount:', suggestedAmount);
     }
 
-    // Set the suggested amount
-    console.log('Final suggested amount:', suggestedAmount);
     if (suggestedAmount > 0) {
       setValue('amount', suggestedAmount);
     }
@@ -213,7 +217,7 @@ export default function CreateVarisangya() {
           title: 'Varisangya Invoice',
           receiptNo: entry.receiptNo,
           payerLabel: member ? 'Member' : 'Family',
-          payerName: member?.name || family?.houseName || 'Unknown',
+          payerName: toTitleCase(member?.name || family?.houseName) || 'Unknown',
           amount: entry.amount,
           paymentDate: entry.paymentDate,
           paymentMethod: entry.paymentMethod,
@@ -233,7 +237,7 @@ export default function CreateVarisangya() {
         remarksMl: '',
       });
     } catch (err: any) {
-      setSubmitError(err.response?.data?.message || 'Failed to create varisangya payment. Please try again.');
+      setSubmitError(errorMessage(err, { action: 'create varisangya payment. please try again' }));
       console.error('Error creating varisangya:', err);
     }
   };
@@ -241,7 +245,8 @@ export default function CreateVarisangya() {
   const getMemberFamilyId = (member: Member): string => {
     const f = member.familyId;
     if (typeof f === 'string') return f;
-    if (f && typeof f === 'object') return (f as { id?: string }).id ?? String((f as { _id?: unknown })._id ?? '');
+    if (f && typeof f === 'object')
+      return (f as { id?: string }).id ?? String((f as { _id?: unknown })._id ?? '');
     return '';
   };
 
@@ -251,23 +256,15 @@ export default function CreateVarisangya() {
   }, [members, selectedFamilyIds]);
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Create Varisangya Payment</h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Record a new varisangya payment</p>
-        </div>
-        <Breadcrumb
-          items={[
-            { label: 'Dashboard', path: '/dashboard' },
-            { label: 'Varisangyas', path: '/collectibles/varisangya' },
-            { label: 'Create' },
-          ]}
-        />
-      </div>
+    <div className="space-y-4">
+      <PageHeader
+        title="Create Varisangya Payment"
+        description="Record a new varisangya payment"
+        breadcrumbs={[{ label: 'Varisangyas', path: '/collectibles/varisangya' }]}
+      />
 
       <form onSubmit={handleSubmit(onSubmit)}>
-        <Card className="space-y-6">
+        <Card className="space-y-4">
           {submitError && (
             <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm dark:bg-red-900 dark:border-red-700 dark:text-red-200">
               {submitError}
@@ -293,7 +290,7 @@ export default function CreateVarisangya() {
                     }
                     return {
                       value: family.id,
-                      label: `${family.houseName}${amountInfo}`,
+                      label: `${toTitleCase(family.houseName)}${amountInfo}`,
                     };
                   })}
                   value={field.value || []}
@@ -315,7 +312,7 @@ export default function CreateVarisangya() {
                     label={`Members (Optional)${memberAmount > 0 ? ` - ₹${memberAmount} each` : ''}`}
                     options={filteredMembers.map((member) => ({
                       value: member.id,
-                      label: `${member.name} (${member.familyName})`,
+                      label: `${toTitleCase(member.name)} (${toTitleCase(member.familyName)})`,
                     }))}
                     value={field.value || []}
                     onChange={field.onChange}
@@ -360,28 +357,19 @@ export default function CreateVarisangya() {
               disabled
               helperText="Each payment will increment this number."
             />
-            <Input
-              label="Remarks"
-              {...register('remarks')}
-              placeholder="Remarks"
-              className="md:col-span-2"
-            />
+            <Input label="Remarks" {...register('remarks')} placeholder="Remarks" className="md:col-span-2" />
             <div className="hidden">
-            <Input
-              label="Remarks (Malayalam)"
-              {...register('remarksMl')}
-              placeholder="കുറിപ്പ്"
-              className="md:col-span-2 font-malayalam"
-            />
+              <Input
+                label="Remarks (Malayalam)"
+                {...register('remarksMl')}
+                placeholder="കുറിപ്പ്"
+                className="md:col-span-2 font-malayalam"
+              />
             </div>
           </div>
 
-          <div className="flex justify-end gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => navigate('/collectibles/varisangya')}
-            >
+          <div className="flex gap-2 flex-col-reverse sm:flex-row sm:justify-end sm:gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+            <Button type="button" variant="outline" onClick={() => navigate('/collectibles/varisangya')}>
               <FiX className="h-4 w-4 mr-2" />
               Cancel
             </Button>
@@ -397,8 +385,10 @@ export default function CreateVarisangya() {
         <Card className="space-y-3">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Created Invoices</h2>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Download receipts for the new payments</p>
+              <h2 className="text-lg font-semibold text-foreground">Created Invoices</h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Download receipts for the new payments
+              </p>
             </div>
             <Button variant="outline" onClick={() => navigate('/collectibles/varisangya')}>
               Go to Varisangyas
@@ -412,16 +402,13 @@ export default function CreateVarisangya() {
               >
                 <div>
                   <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                    {invoice.payerName}
+                    {toTitleCase(invoice.payerName)}
                   </div>
                   <div className="text-xs text-gray-500 dark:text-gray-400">
                     Receipt: {invoice.receiptNo || 'Auto-generated'}
                   </div>
                 </div>
-                <Button
-                  variant="outline"
-                  onClick={() => downloadInvoicePdf(invoice)}
-                >
+                <Button variant="outline" onClick={() => downloadInvoicePdf(invoice)}>
                   Download PDF
                 </Button>
               </div>
@@ -432,4 +419,3 @@ export default function CreateVarisangya() {
     </div>
   );
 }
-

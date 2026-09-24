@@ -5,6 +5,7 @@ import Input from '@/components/ui/Input';
 import { formatCurrency } from '@/utils/format';
 import { toast } from '@/store/toastStore';
 import { qardService } from '@/services/qardService';
+import { errorMessage } from '@/utils/errors';
 
 interface RepaymentModalProps {
   isOpen: boolean;
@@ -60,7 +61,7 @@ export default function RepaymentModal({
       onRecorded();
       onClose();
     } catch (err: any) {
-      const errorMsg = err.response?.data?.message || 'Failed to record the repayment';
+      const errorMsg = errorMessage(err, { action: 'record the repayment' });
       setError(errorMsg);
       toast.error(errorMsg);
     } finally {
@@ -74,7 +75,7 @@ export default function RepaymentModal({
       onClose={onClose}
       title="Record a repayment"
       footer={
-        <div className="flex justify-end gap-2">
+        <div className="flex gap-2 flex-col-reverse sm:flex-row sm:justify-end sm:gap-2">
           <Button variant="secondary" onClick={onClose} disabled={saving}>
             Cancel
           </Button>
@@ -86,7 +87,7 @@ export default function RepaymentModal({
     >
       <div className="space-y-3">
         <p className="text-sm text-gray-500 dark:text-gray-400">
-          Outstanding balance:{' '}
+          Outstanding balance:
           <span className="font-medium text-gray-900 dark:text-gray-100">
             {formatCurrency(outstandingBalance)}
           </span>

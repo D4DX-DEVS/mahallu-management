@@ -1,12 +1,34 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiPlus } from 'react-icons/fi';
-import { volunteerService, SERVICE_TYPE_OPTIONS, VOLUNTEER_WINGS, AVAILABILITY_OPTIONS } from '@/services/volunteerService';
+import {
+  volunteerService,
+  SERVICE_TYPE_OPTIONS,
+  VOLUNTEER_WINGS,
+  AVAILABILITY_OPTIONS,
+} from '@/services/volunteerService';
 import { memberService } from '@/services/memberService';
+import { fetchAllPages } from '@/services/api';
 import QuickAddMember from '@/components/quick-add/QuickAddMember';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import SearchableSelect from '@/components/ui/SearchableSelect';
+import { toast } from '@/store/toastStore';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import { useFormValidation } from '@/hooks/useFormValidation';
+import { FieldRule, LIMITS, firstError, validateForm } from '@/utils/validation';
+import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
+
+/**
+ * The same limits the API applies, so a form that passes here is not
+ * refused there. Required matches what each input already declares.
+ */
+const RULES: Record<string, FieldRule> = {
+  memberId: { label: 'member', required: true, type: 'id' },
+  availability: { label: 'availability', maxLength: LIMITS.shortText.max },
+  notes: { label: 'notes', maxLength: LIMITS.notes.max },
+};
 
 export default function VolunteerCreate() {
   const navigate = useNavigate();
@@ -18,6 +40,7 @@ export default function VolunteerCreate() {
     availability: 'anytime',
     notes: '',
   });
+  const { errors, setErrors } = useFormValidation(RULES);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loadingMembers, setLoadingMembers] = useState(true);
@@ -26,10 +49,13 @@ export default function VolunteerCreate() {
   useEffect(() => {
     const fetchMembers = async () => {
       try {
-        const result = await memberService.getAll({ page: 1, limit: 500 } as any);
-        setMembers(result.data || []);
+        // /members caps `limit` at 100 and answers 400 above it, so the old
+        // `limit: 500` request always failed and this picker was always empty.
+        const rows = await fetchAllPages((params) => memberService.getAll(params));
+        setMembers(rows);
       } catch (err) {
-        console.error('Failed to fetch members:', err);
+        setMembers([]);
+        toast.error(loadErrorMessage(err, 'members'));
       } finally {
         setLoadingMembers(false);
       }
@@ -41,9 +67,7 @@ export default function VolunteerCreate() {
   const toggleWing = (wing: string) => {
     setFormData((prev) => ({
       ...prev,
-      wings: prev.wings.includes(wing)
-        ? prev.wings.filter((w) => w !== wing)
-        : [...prev.wings, wing],
+      wings: prev.wings.includes(wing) ? prev.wings.filter((w) => w !== wing) : [...prev.wings, wing],
     }));
   };
 
@@ -58,6 +82,14 @@ export default function VolunteerCreate() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    // Every field checked at once. Fields rendered with this app's
+    // inputs mark themselves; the rest report through the banner.
+    const problems = validateForm(formData, RULES);
+    if (Object.keys(problems).length > 0) {
+      setErrors(problems);
+      setError(firstError(problems));
+      return;
+    }
     if (!formData.memberId || formData.wings.length === 0 || formData.serviceTypes.length === 0) {
       setError('Member, at least one wing, and at least one service type are required');
       return;
@@ -69,7 +101,7 @@ export default function VolunteerCreate() {
       await volunteerService.createVolunteer(formData);
       navigate('/volunteers');
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to create volunteer');
+      setError(errorMessage(err, { action: 'create volunteer' }));
     } finally {
       setSaving(false);
     }
@@ -77,11 +109,12 @@ export default function VolunteerCreate() {
 
   return (
     <div className="max-w-2xl mx-auto">
+      <PageHeader title="Add volunteer" breadcrumbs={[{ label: 'Volunteers', path: '/volunteers' }]} />
       <Card>
-        <div className="p-6">
-          <h2 className="text-xl font-semibold mb-6">Add Volunteer</h2>
+        <div>
+          <h2 className="text-lg font-semibold mb-4">Add Volunteer</h2>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-4">
             {/* Member Picker */}
             <div>
               <div className="flex items-end gap-2">
@@ -89,10 +122,11 @@ export default function VolunteerCreate() {
                   <SearchableSelect
                     label="Member *"
                     value={formData.memberId}
+                    error={errors.memberId}
                     onChange={(v) => setFormData((prev) => ({ ...prev, memberId: v }))}
                     options={members.map((m) => ({
                       value: m.id,
-                      label: `${m.name}${m.familyName ? ` (${m.familyName})` : ''}`,
+                      label: `${toTitleCase(m.name)}${m.familyName ? ` (${toTitleCase(m.familyName)})` : ''}`,
                     }))}
                     placeholder={loadingMembers ? 'Loading members...' : 'Search and select member'}
                     disabled={loadingMembers}
@@ -117,6 +151,7 @@ export default function VolunteerCreate() {
                 {VOLUNTEER_WINGS.map((wing) => (
                   <label key={wing.value} className="flex items-center gap-2 cursor-pointer">
                     <input
+                      aria-label="Wings"
                       type="checkbox"
                       checked={formData.wings.includes(wing.value)}
                       onChange={() => toggleWing(wing.value)}
@@ -135,6 +170,7 @@ export default function VolunteerCreate() {
                 {SERVICE_TYPE_OPTIONS.map((st) => (
                   <label key={st.value} className="flex items-center gap-2 cursor-pointer">
                     <input
+                      aria-label="Service Types"
                       type="checkbox"
                       checked={formData.serviceTypes.includes(st.value)}
                       onChange={() => toggleServiceType(st.value)}
@@ -145,7 +181,7 @@ export default function VolunteerCreate() {
                 ))}
               </div>
               {error && error.includes('service type') && (
-                <p className="mt-2 text-xs text-red-600">{error}</p>
+                <p className="mt-2 text-label text-red-600">{error}</p>
               )}
             </div>
 
@@ -153,10 +189,9 @@ export default function VolunteerCreate() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Availability</label>
               <select
+                aria-label="Availability"
                 value={formData.availability}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, availability: e.target.value }))
-                }
+                onChange={(e) => setFormData((prev) => ({ ...prev, availability: e.target.value }))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 {AVAILABILITY_OPTIONS.map((opt) => (
@@ -171,6 +206,7 @@ export default function VolunteerCreate() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Notes</label>
               <textarea
+                aria-label="Notes"
                 value={formData.notes}
                 onChange={(e) => setFormData((prev) => ({ ...prev, notes: e.target.value }))}
                 placeholder="Additional notes about the volunteer..."
@@ -179,13 +215,9 @@ export default function VolunteerCreate() {
               />
             </div>
 
-            {error && (
-              <div className="rounded-md bg-red-50 p-3 text-sm text-red-700">
-                {error}
-              </div>
-            )}
+            {error && <div className="rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</div>}
 
-            <div className="flex gap-3 pt-4">
+            <div className="flex flex-wrap gap-3 pt-4">
               <Button type="submit" disabled={saving}>
                 {saving ? 'Saving...' : 'Create Volunteer'}
               </Button>

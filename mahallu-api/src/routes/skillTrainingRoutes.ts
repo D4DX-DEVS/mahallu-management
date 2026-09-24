@@ -11,6 +11,12 @@ import {
 } from '../controllers/employmentController';
 import { authMiddleware, allowRoles } from '../middleware/authMiddleware';
 import { tenantMiddleware, tenantFilter } from '../middleware/tenantMiddleware';
+import { validationHandler } from '../middleware/validationHandler';
+import { idParam, listQuery } from '../validations/common';
+import {
+  createTrainingValidation,
+  updateTrainingValidation,
+} from '../validations/moduleValidation';
 
 const trainingsRouter = express.Router();
 trainingsRouter.use(authMiddleware);
@@ -91,8 +97,8 @@ trainingsRouter.use(tenantFilter);
  *       201:
  *         description: Training created
  */
-trainingsRouter.get('/', getAllTrainings);
-trainingsRouter.post('/', allowRoles(['mahall']), createTraining);
+trainingsRouter.get('/', listQuery(), validationHandler, getAllTrainings);
+trainingsRouter.post('/', createTrainingValidation, validationHandler, allowRoles(['mahall']), createTraining);
 
 /**
  * @swagger
@@ -148,9 +154,9 @@ trainingsRouter.post('/', allowRoles(['mahall']), createTraining);
  *       200:
  *         description: Training deleted
  */
-trainingsRouter.get('/:id', getTrainingById);
-trainingsRouter.put('/:id', allowRoles(['mahall']), updateTraining);
-trainingsRouter.delete('/:id', allowRoles(['mahall']), deleteTraining);
+trainingsRouter.get('/:id', idParam('id', 'training'), validationHandler, getTrainingById);
+trainingsRouter.put('/:id', updateTrainingValidation, validationHandler, allowRoles(['mahall']), updateTraining);
+trainingsRouter.delete('/:id', idParam('id', 'training'), validationHandler, allowRoles(['mahall']), deleteTraining);
 
 // ============= SKILL TRAINING PARTICIPANTS =============
 
@@ -185,7 +191,7 @@ trainingsRouter.delete('/:id', allowRoles(['mahall']), deleteTraining);
  *       200:
  *         description: Participant added
  */
-trainingsRouter.post('/:id/participants', allowRoles(['mahall']), addParticipant);
+trainingsRouter.post('/:id/participants', idParam('id', 'training'), validationHandler, allowRoles(['mahall']), addParticipant);
 
 /**
  * @swagger
@@ -244,7 +250,7 @@ trainingsRouter.post('/:id/participants', allowRoles(['mahall']), addParticipant
  *       200:
  *         description: Participant removed
  */
-trainingsRouter.put('/:id/participants/:memberId', allowRoles(['mahall']), updateParticipant);
-trainingsRouter.delete('/:id/participants/:memberId', allowRoles(['mahall']), removeParticipant);
+trainingsRouter.put('/:id/participants/:memberId', idParam('id', 'training'), idParam('memberId', 'member'), validationHandler, allowRoles(['mahall']), updateParticipant);
+trainingsRouter.delete('/:id/participants/:memberId', idParam('id', 'training'), idParam('memberId', 'member'), validationHandler, allowRoles(['mahall']), removeParticipant);
 
 export { trainingsRouter };

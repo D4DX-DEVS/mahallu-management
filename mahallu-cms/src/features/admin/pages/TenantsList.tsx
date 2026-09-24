@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FiTrash2, FiCheckCircle, FiXCircle, FiEye, FiX, FiGlobe, FiAlertCircle } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
-import Card from '@/components/ui/Card';
+import { FiAlertCircle, FiCheckCircle, FiEye, FiGlobe, FiPlus, FiTrash2, FiXCircle } from 'react-icons/fi';
+import TableCard from '@/components/ui/TableCard';
+import { rowActionClass } from '@/components/ui/rowAction';
+import FilterPanel from '@/components/ui/FilterPanel';
 import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
 import StatCard from '@/components/ui/StatCard';
@@ -13,11 +14,16 @@ import Pagination from '@/components/ui/Pagination';
 import { TableColumn, Pagination as PaginationType } from '@/types';
 import { Tenant } from '@/types/tenant';
 import { tenantService } from '@/services/tenantService';
+import { fetchAllPages } from '@/services/api';
 import { useAuthStore } from '@/store/authStore';
 import { formatDate } from '@/utils/format';
 import { useDebounce } from '@/hooks/useDebounce';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
 import { toast } from '@/store/toastStore';
+import { errorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
+import StatusBadge from '@/components/ui/StatusBadge';
 
 export default function TenantsList() {
   const { isSuperAdmin } = useAuthStore();
@@ -69,22 +75,32 @@ export default function TenantsList() {
   const handleExport = async (type: 'csv' | 'json' | 'pdf') => {
     try {
       setIsExporting(true);
-      const params: any = { limit: 10000 };
+      const params: any = {};
       if (statusFilter !== 'all') params.status = statusFilter;
       if (debouncedSearch) params.search = debouncedSearch;
-      const response = await tenantService.getAll(params);
-      const dataToExport = response.data || [];
-      if (dataToExport.length === 0) { toast.info('No data to export'); return; }
+      const dataToExport = await fetchAllPages((pageParams) =>
+        tenantService.getAll({ ...params, ...pageParams })
+      );
+      if (dataToExport.length === 0) {
+        toast.info('No data to export');
+        return;
+      }
       const filename = 'tenants';
       const title = 'All Tenants';
       switch (type) {
-        case 'csv': exportToCSV(columns, dataToExport, filename); break;
-        case 'json': exportToJSON(columns, dataToExport, filename); break;
-        case 'pdf': exportToPDF(columns, dataToExport, filename, title); break;
+        case 'csv':
+          exportToCSV(columns, dataToExport, filename);
+          break;
+        case 'json':
+          exportToJSON(columns, dataToExport, filename);
+          break;
+        case 'pdf':
+          exportToPDF(columns, dataToExport, filename, title);
+          break;
       }
     } catch (error: any) {
       console.error('Export error:', error);
-      toast.error(error?.response?.data?.message || 'Failed to export data');
+      toast.error(errorMessage(error, { action: 'export data' }));
     } finally {
       setIsExporting(false);
     }
@@ -95,7 +111,7 @@ export default function TenantsList() {
 
   const handleSuspend = async () => {
     if (selectedTenant) {
-      const name = selectedTenant.name;
+      const name = toTitleCase(selectedTenant.name);
       try {
         await tenantService.suspend(selectedTenant.id);
         await loadTenants();
@@ -103,7 +119,7 @@ export default function TenantsList() {
         setSelectedTenant(null);
         toast.success(`${name} suspended`);
       } catch (error: any) {
-        toast.error(error.response?.data?.message || `Failed to suspend ${name}`);
+        toast.error(errorMessage(error, { action: `suspend ${name}` }));
       }
     }
   };
@@ -112,15 +128,15 @@ export default function TenantsList() {
     try {
       await tenantService.activate(tenant.id);
       await loadTenants();
-      toast.success(`${tenant.name} activated`);
+      toast.success(`${toTitleCase(tenant.name)} activated`);
     } catch (error: any) {
-      toast.error(error.response?.data?.message || `Failed to activate ${tenant.name}`);
+      toast.error(errorMessage(error, { action: `activate ${toTitleCase(tenant.name)}` }));
     }
   };
 
   const handleDelete = async () => {
     if (selectedTenant) {
-      const name = selectedTenant.name;
+      const name = toTitleCase(selectedTenant.name);
       try {
         await tenantService.delete(selectedTenant.id);
         await loadTenants();
@@ -128,28 +144,36 @@ export default function TenantsList() {
         setSelectedTenant(null);
         toast.success(`${name} deleted`);
       } catch (error: any) {
-        toast.error(error.response?.data?.message || `Failed to delete ${name}`);
+        toast.error(errorMessage(error, { action: `delete ${name}` }));
       }
     }
   };
 
   const columns: TableColumn<Tenant>[] = [
-    { key: 'id', label: 'No.', render: (_, __, index) => index + 1 },
-    { key: 'name', label: 'Tenant Name', sortable: true },
-    { key: 'code', label: 'Code' },
+    {
+      key: 'name',
+      label: 'Tenant Name',
+      width: '10.25rem',
+      sortable: true,
+      render: (value) => <span>{toTitleCase(value)}</span>,
+    },
+    { key: 'code', label: 'Code', width: '6.25rem' },
     {
       key: 'type',
       label: 'Type',
+      width: '6.25rem',
       render: (type) => (
         <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
           {type}
         </span>
       ),
     },
-    { key: 'location', label: 'Location' },
+    { key: 'location', label: 'Location', width: '8rem', render: (location) => toTitleCase(location) },
     {
       key: 'userCount',
       label: 'Users',
+      width: '8.5rem',
+      align: 'center',
       render: (count) => (
         <span className="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200">
           {count ?? 0}
@@ -159,28 +183,20 @@ export default function TenantsList() {
     {
       key: 'status',
       label: 'Status',
-      render: (status) => (
-        <span
-          className={`px-2 py-1 text-xs font-medium rounded-full ${
-            status === 'active'
-              ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-              : status === 'suspended'
-              ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-              : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
-          }`}
-        >
-          {status}
-        </span>
-      ),
+      width: '7.25rem',
+      render: (status) => <StatusBadge status={status} />,
     },
     {
       key: 'since',
       label: 'Since',
+      width: '6.5rem',
       render: (since) => formatDate(since),
     },
     {
       key: 'actions',
       label: 'Actions',
+      width: '8rem',
+      align: 'center',
       render: (_, row) => (
         <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
           <button
@@ -188,8 +204,9 @@ export default function TenantsList() {
               e.stopPropagation();
               navigate(`/admin/tenants/${row.id}`);
             }}
-            className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
+            className={rowActionClass()}
             title="View Details"
+            aria-label="View Details"
           >
             <FiEye className="h-4 w-4" />
           </button>
@@ -200,8 +217,9 @@ export default function TenantsList() {
                 setSelectedTenant(row);
                 setShowSuspendModal(true);
               }}
-              className="p-1.5 rounded-md hover:bg-yellow-50 dark:hover:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400 transition-colors"
+              className={rowActionClass('warning')}
               title="Suspend"
+              aria-label="Suspend"
             >
               <FiXCircle className="h-4 w-4" />
             </button>
@@ -211,8 +229,9 @@ export default function TenantsList() {
                 e.stopPropagation();
                 handleActivate(row);
               }}
-              className="p-1.5 rounded-md hover:bg-green-50 dark:hover:bg-green-900/20 text-green-600 dark:text-green-400 transition-colors"
+              className={rowActionClass()}
               title="Activate"
+              aria-label="Activate"
             >
               <FiCheckCircle className="h-4 w-4" />
             </button>
@@ -223,8 +242,9 @@ export default function TenantsList() {
               setSelectedTenant(row);
               setShowDeleteModal(true);
             }}
-            className="p-1.5 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 transition-colors"
+            className={rowActionClass('danger')}
             title="Delete"
+            aria-label="Delete"
           >
             <FiTrash2 className="h-4 w-4" />
           </button>
@@ -255,9 +275,7 @@ export default function TenantsList() {
   if (!isSuperAdmin) {
     return (
       <div className="flex items-center justify-center h-64">
-        <p className="text-gray-500 dark:text-gray-400">
-          Super admin access required
-        </p>
+        <p className="text-gray-500 dark:text-gray-400">Super admin access required</p>
       </div>
     );
   }
@@ -265,17 +283,7 @@ export default function TenantsList() {
   return (
     <div className="space-y-4">
       <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">
-              Tenants Management
-            </h1>
-            <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
-              Manage all tenants (Mahalls) in the system
-            </p>
-          </div>
-          <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Tenants Management' }]} />
-        </div>
+        <PageHeader title="Tenants Management" description="Manage all tenants (Mahalls) in the system" />
 
         {/* Statistics Cards */}
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -286,7 +294,7 @@ export default function TenantsList() {
       </div>
 
       {/* Actions and Table */}
-      <Card>
+      <TableCard>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -298,20 +306,14 @@ export default function TenantsList() {
           isExporting={isExporting}
           actionButtons={
             <Link to="/admin/tenants/create">
-              <Button size="md">+ New Tenant</Button>
+              <Button size="md" icon={<FiPlus />} collapseLabel>New Tenant</Button>
             </Link>
           }
         />
 
         {isFilterVisible && (
-          <div className="relative flex flex-wrap items-center gap-4 mb-6 p-4 border border-gray-200 rounded-lg bg-white dark:bg-gray-800 dark:border-gray-700">
-            <button
-              onClick={() => setIsFilterVisible(false)}
-              className="absolute right-4 top-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-            >
-              <FiX className="h-4 w-4" />
-            </button>
-            <div className="w-40">
+          <FilterPanel onClose={() => setIsFilterVisible(false)}>
+            <div className="w-full sm:w-40">
               <Select
                 options={[
                   { value: 'all', label: 'All Status' },
@@ -323,10 +325,12 @@ export default function TenantsList() {
                 onChange={(e) => setStatusFilter(e.target.value)}
               />
             </div>
-          </div>
+          </FilterPanel>
         )}
 
         <Table
+          fixedLayout
+          striped
           columns={columns}
           data={tenants}
           isLoading={isLoading}
@@ -348,7 +352,7 @@ export default function TenantsList() {
             />
           </div>
         )}
-      </Card>
+      </TableCard>
 
       {/* Suspend Modal */}
       <Modal
@@ -376,7 +380,8 @@ export default function TenantsList() {
         }
       >
         <p className="text-gray-600 dark:text-gray-400">
-          Are you sure you want to suspend <strong>{selectedTenant?.name}</strong>? This will prevent all users from accessing this tenant.
+          Are you sure you want to suspend <strong>{toTitleCase(selectedTenant?.name)}</strong>? This will prevent all
+          users from accessing this tenant.
         </p>
       </Modal>
 
@@ -406,10 +411,10 @@ export default function TenantsList() {
         }
       >
         <p className="text-gray-600 dark:text-gray-400">
-          Are you sure you want to delete <strong>{selectedTenant?.name}</strong>? This action cannot be undone and will delete all associated data.
+          Are you sure you want to delete <strong>{toTitleCase(selectedTenant?.name)}</strong>? This action cannot be
+          undone and will delete all associated data.
         </p>
       </Modal>
     </div>
   );
 }
-

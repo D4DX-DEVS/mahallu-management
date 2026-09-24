@@ -1,11 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
-import Button from '@/components/ui/Button';
+import TableCard from '@/components/ui/TableCard';
 import Select from '@/components/ui/Select';
 import Table from '@/components/ui/Table';
-import SearchInput from '@/components/ui/SearchInput';
+import ExpandableSearch from '@/components/ui/ExpandableSearch';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import EmptyState from '@/components/ui/EmptyState';
 import Pagination from '@/components/ui/Pagination';
@@ -13,6 +12,8 @@ import { Pagination as PaginationType } from '@/types';
 import { registerService } from '@/services/registerService';
 import { useDebounce } from '@/hooks/useDebounce';
 import { columnsFor, findRegisterConfig } from '../registerConfigs';
+import { loadErrorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
 
 /**
  * One page serves every community register - the config carries title,
@@ -57,7 +58,7 @@ export default function RegisterList() {
       setRows(result.data);
       setPagination(result.pagination);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to load register');
+      setError(loadErrorMessage(err, 'register'));
     } finally {
       setLoading(false);
     }
@@ -66,9 +67,11 @@ export default function RegisterList() {
   if (!config) {
     return (
       <Card>
-        <p className="text-sm text-gray-600 dark:text-gray-300">
-          Unknown register.{' '}
-          <Link className="text-primary-600 underline" to="/registers">
+        {/* JSX collapses the newline between the sentence and the link, so this
+            used to render as "Unknown register.Back to registers". */}
+        <p className="text-sm text-muted-foreground">
+          That register doesn&rsquo;t exist. It may have been renamed or removed.{' '}
+          <Link className="rounded-sm text-primary underline" to="/registers">
             Back to registers
           </Link>
         </p>
@@ -78,35 +81,27 @@ export default function RegisterList() {
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">{config.title}</h1>
-          <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">{config.description}</p>
-        </div>
-        <Breadcrumb
-          items={[
-            { label: 'Dashboard', path: '/dashboard' },
-            { label: 'Registers', path: '/registers' },
-            { label: config.title },
-          ]}
-        />
-      </div>
+      <PageHeader
+        title={config.title}
+        description={config.description}
+        breadcrumbs={[{ label: 'Registers', path: '/registers' }]}
+      />
 
-      <Card>
+      <TableCard>
         <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div className="w-full sm:max-w-xs">
-            <SearchInput
+            <ExpandableSearch
               value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
+              onChange={(value) => {
+                setSearchQuery(value);
                 setCurrentPage(1);
               }}
-              placeholder="Search..."
+              entity="records"
             />
           </div>
 
           {config.filters && config.filters.length > 0 && (
-            <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center">
+            <div className="grid grid-cols-1 gap-2 sm:flex sm:items-center">
               {config.filters.map((filter) => (
                 <Select
                   key={filter.name}
@@ -129,19 +124,14 @@ export default function RegisterList() {
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="py-12 text-center">
-            <p className="text-red-600 dark:text-red-400">{error}</p>
-            <Button onClick={fetchRows} className="mt-4" variant="outline">
-              Retry
-            </Button>
-          </div>
+          <EmptyState variant="error" entity="records" description={error} action={{ label: 'Retry', onClick: fetchRows }} />
         ) : rows.length === 0 ? (
           <EmptyState
             title="No records found"
             description={
               searchQuery || Object.values(filterValues).some((v) => v)
-                ? "Try adjusting your search or filters"
-                : "No records in this register yet"
+                ? 'Try adjusting your search or filters'
+                : 'No records in this register yet'
             }
             action={
               searchQuery || Object.values(filterValues).some((v) => v)
@@ -157,14 +147,14 @@ export default function RegisterList() {
             }
           />
         ) : (
-          <div className="overflow-x-auto">
-            <Table
-              columns={columnsFor(config.source)}
-              data={rows}
-              emptyMessage="No records found"
-              showExport={false}
-            />
-          </div>
+          <Table
+            fixedLayout
+            striped
+            columns={columnsFor(config.source)}
+            data={rows}
+            emptyMessage="No records found"
+            showExport={false}
+          />
         )}
 
         {pagination && (
@@ -178,7 +168,7 @@ export default function RegisterList() {
             />
           </div>
         )}
-      </Card>
+      </TableCard>
     </div>
   );
 }

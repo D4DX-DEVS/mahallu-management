@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { FiArrowLeft } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import { PageSkeleton } from '@/components/ui/Skeleton';
@@ -9,6 +8,9 @@ import { meetingService } from '@/services/meetingService';
 import { Meeting } from '@/types';
 import { formatDateTime } from '@/utils/format';
 import { ROUTES } from '@/constants/routes';
+import { loadErrorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 
 export default function MeetingDetail() {
   const { id } = useParams<{ id: string }>();
@@ -24,7 +26,7 @@ export default function MeetingDetail() {
         const data = await meetingService.getById(id!);
         setMeeting(data);
       } catch (err: any) {
-        setError(err.response?.data?.message || 'Failed to load meeting');
+        setError(loadErrorMessage(err, 'meeting'));
       } finally {
         setLoading(false);
       }
@@ -33,14 +35,12 @@ export default function MeetingDetail() {
   }, [id]);
 
   if (loading) {
-    return (
-      <PageSkeleton />
-    );
+    return <PageSkeleton />;
   }
 
   if (error || !meeting) {
     return (
-      <div className="text-center py-12">
+      <div className="text-center py-10">
         <p className="text-red-600 dark:text-red-400">{error || 'Meeting not found'}</p>
         <Button onClick={() => navigate(ROUTES.COMMITTEES.MEETINGS)} className="mt-4" variant="outline">
           Back to Meetings
@@ -50,30 +50,24 @@ export default function MeetingDetail() {
   }
 
   const attendanceNames = Array.isArray(meeting.attendance)
-    ? meeting.attendance.map((m: any) => m.name).join(', ')
+    ? meeting.attendance.map((m: any) => toTitleCase(m.name)).join(', ')
     : '-';
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{meeting.title}</h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Meeting Details</p>
-        </div>
-        <Breadcrumb
-          items={[
-            { label: 'Dashboard', path: '/dashboard' },
-            { label: 'Meetings', path: ROUTES.COMMITTEES.MEETINGS },
-            { label: meeting.title },
-          ]}
-        />
-      </div>
+    <div className="space-y-4">
+      <PageHeader
+        title={toTitleCase(meeting.title)}
+        description="Meeting Details"
+        breadcrumbs={[{ label: 'Meetings', path: ROUTES.COMMITTEES.MEETINGS }]}
+      />
 
       <Card>
         <div className="space-y-4">
           <div>
             <span className="text-sm text-gray-500 dark:text-gray-400">Committee</span>
-            <p className="text-gray-900 dark:text-gray-100">{meeting.committeeName || (meeting.committeeId as any)?.name || '-'}</p>
+            <p className="text-gray-900 dark:text-gray-100">
+              {toTitleCase(meeting.committeeName || (meeting.committeeId as any)?.name) || '-'}
+            </p>
           </div>
           <div>
             <span className="text-sm text-gray-500 dark:text-gray-400">Date & Time</span>

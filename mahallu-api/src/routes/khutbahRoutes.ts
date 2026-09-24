@@ -16,6 +16,13 @@ import { authMiddleware, allowRoles } from '../middleware/authMiddleware';
 import { tenantMiddleware, tenantFilter } from '../middleware/tenantMiddleware';
 import { validationHandler } from '../middleware/validationHandler';
 import { param } from 'express-validator';
+import { idParam, listQuery } from '../validations/common';
+import {
+  createKhateebValidation,
+  createKhutbahValidation,
+  updateKhateebValidation,
+  updateKhutbahValidation,
+} from '../validations/moduleValidation';
 
 const router = express.Router();
 
@@ -57,7 +64,7 @@ router.use(tenantFilter);
  *       200:
  *         description: List of khateebs
  */
-router.get('/khateebs', getAllKhateebs);
+router.get('/khateebs', listQuery(), validationHandler, getAllKhateebs);
 
 /**
  * @swagger
@@ -112,7 +119,7 @@ router.get('/khateebs/:id', param('id').isMongoId(), validationHandler, getKhate
  *       201:
  *         description: Khateeb created
  */
-router.post('/khateebs', allowRoles(['mahall']), createKhateeb);
+router.post('/khateebs', createKhateebValidation, validationHandler, allowRoles(['mahall']), createKhateeb);
 
 /**
  * @swagger
@@ -150,7 +157,7 @@ router.post('/khateebs', allowRoles(['mahall']), createKhateeb);
  *       200:
  *         description: Khateeb updated
  */
-router.put('/khateebs/:id', allowRoles(['mahall']), param('id').isMongoId(), validationHandler, updateKhateeb);
+router.put('/khateebs/:id', allowRoles(['mahall']), updateKhateebValidation, validationHandler, updateKhateeb);
 
 /**
  * @swagger
@@ -215,7 +222,7 @@ router.delete('/khateebs/:id', allowRoles(['mahall']), param('id').isMongoId(), 
  *       200:
  *         description: List of khutbahs
  */
-router.get('/khutbahs', getAllKhutbahs);
+router.get('/khutbahs', listQuery(), validationHandler, getAllKhutbahs);
 
 /**
  * @swagger
@@ -273,7 +280,7 @@ router.get('/khutbahs/:id', param('id').isMongoId(), validationHandler, getKhutb
  *       201:
  *         description: Khutbah created
  */
-router.post('/khutbahs', allowRoles(['mahall']), createKhutbah);
+router.post('/khutbahs', createKhutbahValidation, validationHandler, allowRoles(['mahall']), createKhutbah);
 
 /**
  * @swagger
@@ -316,7 +323,7 @@ router.post('/khutbahs', allowRoles(['mahall']), createKhutbah);
  *       200:
  *         description: Khutbah updated
  */
-router.put('/khutbahs/:id', allowRoles(['mahall']), param('id').isMongoId(), validationHandler, updateKhutbah);
+router.put('/khutbahs/:id', allowRoles(['mahall']), updateKhutbahValidation, validationHandler, updateKhutbah);
 
 /**
  * @swagger
@@ -352,6 +359,6 @@ router.delete('/khutbahs/:id', allowRoles(['mahall']), param('id').isMongoId(), 
  *       200:
  *         description: Mosque institute
  */
-router.get('/religious/mosque-institute', getMosqueInstituteHandler);
+router.get('/religious/mosque-institute', listQuery(), validationHandler, getMosqueInstituteHandler);
 
 export default router;

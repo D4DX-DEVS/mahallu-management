@@ -8,6 +8,12 @@ import {
 } from '../controllers/scholarshipController';
 import { authMiddleware, allowRoles } from '../middleware/authMiddleware';
 import { tenantMiddleware, tenantFilter } from '../middleware/tenantMiddleware';
+import { validationHandler } from '../middleware/validationHandler';
+import { idParam, listQuery } from '../validations/common';
+import {
+  createSupportCaseValidation,
+  updateSupportCaseValidation,
+} from '../validations/moduleValidation';
 
 const supportRouter = express.Router();
 supportRouter.use(authMiddleware);
@@ -92,8 +98,8 @@ supportRouter.use(tenantFilter);
  *       400:
  *         description: Member does not belong to this Mahallu
  */
-supportRouter.get('/', getAllSupportCases);
-supportRouter.post('/', allowRoles(['mahall']), createSupportCase);
+supportRouter.get('/', listQuery(), validationHandler, getAllSupportCases);
+supportRouter.post('/', createSupportCaseValidation, validationHandler, allowRoles(['mahall']), createSupportCase);
 
 /**
  * @swagger
@@ -171,8 +177,8 @@ supportRouter.post('/', allowRoles(['mahall']), createSupportCase);
  *       404:
  *         description: Not found
  */
-supportRouter.get('/:id', getSupportCaseById);
-supportRouter.put('/:id', allowRoles(['mahall']), updateSupportCase);
-supportRouter.delete('/:id', allowRoles(['mahall']), deleteSupportCase);
+supportRouter.get('/:id', idParam('id', 'case'), validationHandler, getSupportCaseById);
+supportRouter.put('/:id', updateSupportCaseValidation, validationHandler, allowRoles(['mahall']), updateSupportCase);
+supportRouter.delete('/:id', idParam('id', 'case'), validationHandler, allowRoles(['mahall']), deleteSupportCase);
 
 export { supportRouter };

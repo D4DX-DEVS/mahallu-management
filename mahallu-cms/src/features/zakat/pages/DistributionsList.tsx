@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
-import Breadcrumb from '@/components/layout/Breadcrumb';
-import Card from '@/components/ui/Card';
+import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
@@ -18,6 +17,10 @@ import {
   ZakatBeneficiary,
   DISTRIBUTION_TYPE_OPTIONS,
 } from '@/services/zakatDistributionService';
+import { fetchAllPages } from '@/services/api';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 
 const emptyForm = {
   beneficiaryId: '',
@@ -32,7 +35,10 @@ const emptyForm = {
 
 const targetName = (row: ZakatDistribution) => {
   const b = row.beneficiaryId;
-  if (b && typeof b === 'object') return b.memberId?.name || b.name || '-';
+  if (b && typeof b === 'object') {
+    const name = b.memberId?.name || b.name;
+    return name ? toTitleCase(name) : '-';
+  }
   return '-';
 };
 
@@ -53,11 +59,17 @@ export default function DistributionsList() {
   }, [typeFilter, currentPage]);
 
   useEffect(() => {
-    // Only verified beneficiaries can be paid, so only those are offered
-    zakatDistributionService
-      .getBeneficiaries({ verificationStatus: 'verified', status: 'active', limit: 200 })
-      .then((result) => setVerified(result.data))
-      .catch(() => setVerified([]));
+    // Only verified beneficiaries can be paid, so only those are offered.
+    // /zakat/beneficiaries caps limit at 100 and 400s above it, so the old
+    // limit:200 request always failed and left this picker empty.
+    fetchAllPages<ZakatBeneficiary>((p) =>
+      zakatDistributionService.getBeneficiaries({ verificationStatus: 'verified', status: 'active', ...p })
+    )
+      .then((rows) => setVerified(rows))
+      .catch((err) => {
+        setVerified([]);
+        toast.error(loadErrorMessage(err, 'beneficiaries'));
+      });
   }, []);
 
   const fetchRows = async () => {
@@ -70,7 +82,7 @@ export default function DistributionsList() {
       setRows(result.data);
       setPagination(result.pagination);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to load distributions');
+      setError(loadErrorMessage(err, 'distributions'));
     } finally {
       setLoading(false);
     }
@@ -78,7 +90,7 @@ export default function DistributionsList() {
 
   const handleSave = async () => {
     if (!form.beneficiaryId || !form.amount) {
-      toast.error('Beneficiary and amount are required');
+      toast.error('Please select a beneficiary and enter an amount.');
       return;
     }
     try {
@@ -94,7 +106,7 @@ export default function DistributionsList() {
       setForm(emptyForm);
       fetchRows();
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to record distribution');
+      toast.error(errorMessage(err, { action: 'record distribution' }));
     } finally {
       setSaving(false);
     }
@@ -104,33 +116,29 @@ export default function DistributionsList() {
     {
       key: 'distributionDate',
       label: 'Date',
+      width: '6.25rem',
       render: (v) => (v ? new Date(v).toLocaleDateString() : '-'),
     },
-    { key: 'beneficiaryId', label: 'Beneficiary', render: (_v, row) => targetName(row) },
-    { key: 'amount', label: 'Amount', render: (v) => `Rs ${v ?? 0}` },
+    { key: 'beneficiaryId', label: 'Beneficiary', width: '9.25rem', render: (_v, row) => targetName(row) },
+    { key: 'amount', label: 'Amount', width: '7.75rem', render: (v) => `Rs ${v ?? 0}` },
     {
       key: 'type',
       label: 'Type',
+      width: '6.25rem',
       render: (v) => DISTRIBUTION_TYPE_OPTIONS.find((o) => o.value === v)?.label || v,
     },
-    { key: 'receiptNo', label: 'Receipt', render: (v) => v || '-' },
+    { key: 'receiptNo', label: 'Receipt', width: '7.5rem', render: (v) => v || '-' },
   ];
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">Zakat Distributions</h1>
-          <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-            Payments made to verified beneficiaries
-          </p>
-        </div>
-        <Breadcrumb
-          items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Zakat' }, { label: 'Distributions' }]}
-        />
-      </div>
+      <PageHeader
+        title="Zakat Distributions"
+        description="Payments made to verified beneficiaries"
+        breadcrumbs={[{ label: 'Zakat' }]}
+      />
 
-      <Card>
+      <TableCard>
         <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div className="w-full sm:w-48">
             <Select
@@ -150,12 +158,7 @@ export default function DistributionsList() {
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="py-12 text-center">
-            <p className="text-red-600 dark:text-red-400">{error}</p>
-            <Button onClick={fetchRows} className="mt-4" variant="outline">
-              Retry
-            </Button>
-          </div>
+          <EmptyState variant="error" entity="distributions" description={error} action={{ label: 'Retry', onClick: fetchRows }} />
         ) : rows.length === 0 ? (
           <EmptyState
             title="No distributions yet"
@@ -163,9 +166,7 @@ export default function DistributionsList() {
             action={{ label: '+ Record Distribution', onClick: () => setFormOpen(true) }}
           />
         ) : (
-          <div className="overflow-x-auto">
-            <Table columns={columns} data={rows} showExport={false} />
-          </div>
+          <Table fixedLayout striped columns={columns} data={rows} showExport={false} />
         )}
 
         {pagination && (
@@ -179,7 +180,7 @@ export default function DistributionsList() {
             />
           </div>
         )}
-      </Card>
+      </TableCard>
 
       <Modal isOpen={isFormOpen} onClose={() => setFormOpen(false)} title="Record Zakat Distribution">
         {verified.length === 0 ? (
@@ -197,8 +198,9 @@ export default function DistributionsList() {
                   { value: '', label: 'Select a verified beneficiary' },
                   ...verified.map((b) => ({
                     value: b.id,
-                    label:
-                      (b.memberId && typeof b.memberId === 'object' ? b.memberId.name : b.name) || 'Unnamed',
+                    label: toTitleCase(
+                      (b.memberId && typeof b.memberId === 'object' ? b.memberId.name : b.name) || ''
+                    ) || 'Unnamed',
                   })),
                 ]}
                 required

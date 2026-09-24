@@ -7,6 +7,9 @@ import { AuthRequest } from '../middleware/authMiddleware';
 import { getPaginationParams, createPaginationResponse } from '../utils/pagination';
 import { postLedgerEntry, reverseLedgerEntry } from '../services/ledgerPostingService';
 import { stripImmutable } from '../utils/sanitizeUpdate';
+import { sendFailure } from '../utils/userMessages';
+
+import { regexLiteral } from '../utils/queryGuard';
 import {
   computeFamilyDues,
   sendVarisangyaReceipt,
@@ -113,7 +116,7 @@ export const getAllVarisangyas = async (req: AuthRequest, res: Response) => {
     console.log('[Varisangya API] Result:', { returned: varisangyas.length, total, sampleDates: varisangyas.slice(0, 2).map((v: any) => v.paymentDate?.toISOString?.()) });
     res.json(createPaginationResponse(varisangyas, total, page, limit));
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the varisangyas right now. Please try again.');
   }
 };
 
@@ -123,11 +126,11 @@ export const getNextReceiptNumber = async (req: AuthRequest, res: Response) => {
     const finalTenantId = req.tenantId || (tenantId && req.isSuperAdmin ? tenantId : undefined);
 
     if (!finalTenantId && !req.isSuperAdmin) {
-      return res.status(400).json({ success: false, message: 'Tenant ID is required' });
+      return res.status(400).json({ success: false, message: 'Please select a Mahallu before continuing.' });
     }
 
     if (type !== 'varisangya' && type !== 'zakat') {
-      return res.status(400).json({ success: false, message: 'Invalid receipt type' });
+      return res.status(400).json({ success: false, message: 'Please choose a valid receipt type.' });
     }
 
     const model = type === 'varisangya' ? Varisangya : Zakat;
@@ -135,7 +138,7 @@ export const getNextReceiptNumber = async (req: AuthRequest, res: Response) => {
 
     res.json({ success: true, data: { receiptNo } });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the next receipt number right now. Please try again.');
   }
 };
 
@@ -144,7 +147,7 @@ export const getFamilyDues = async (req: AuthRequest, res: Response) => {
   try {
     const tenantId = req.tenantId || (req.isSuperAdmin ? (req.query.tenantId as string) : undefined);
     if (!tenantId) {
-      return res.status(400).json({ success: false, message: 'Tenant ID is required' });
+      return res.status(400).json({ success: false, message: 'Please select a Mahallu before continuing.' });
     }
 
     let dues = await computeFamilyDues(tenantId);
@@ -184,7 +187,7 @@ export const getFamilyDues = async (req: AuthRequest, res: Response) => {
       pagination: { page, limit, total, totalPages },
     });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the family dues right now. Please try again.');
   }
 };
 
@@ -260,7 +263,7 @@ export const createVarisangya = async (req: AuthRequest, res: Response) => {
     if (!varisangyaData.tenantId && !req.isSuperAdmin) {
       return res.status(400).json({
         success: false,
-        message: 'Tenant ID is required',
+        message: 'Please select a Mahallu before continuing.',
       });
     }
 
@@ -275,7 +278,7 @@ export const createVarisangya = async (req: AuthRequest, res: Response) => {
 
     res.status(201).json({ success: true, data: varisangya });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t save the varisangya. Please try again.');
   }
 };
 
@@ -284,7 +287,7 @@ export const updateVarisangya = async (req: AuthRequest, res: Response) => {
     const { id } = req.params;
     const updates = req.body as { amount?: number; paymentDate?: string; paymentMethod?: string; remarks?: string };
     if (!id || !toObjectId(id)) {
-      return res.status(400).json({ success: false, message: 'Valid varisangya ID is required' });
+      return res.status(400).json({ success: false, message: 'Please select a varisangya payment.' });
     }
 
     const query: any = { _id: toObjectId(id) };
@@ -292,7 +295,7 @@ export const updateVarisangya = async (req: AuthRequest, res: Response) => {
 
     const existing = await Varisangya.findOne(query);
     if (!existing) {
-      return res.status(404).json({ success: false, message: 'Varisangya payment not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that varisangya payment. It may have been removed." });
     }
 
     const oldAmount = existing.amount;
@@ -345,7 +348,7 @@ export const updateVarisangya = async (req: AuthRequest, res: Response) => {
       .populate({ path: 'memberId', select: 'name familyName', populate: { path: 'familyId', select: 'houseName' } });
     res.json({ success: true, data: updated });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t update the varisangya. Please try again.');
   }
 };
 
@@ -353,7 +356,7 @@ export const deleteVarisangya = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
     if (!id || !toObjectId(id)) {
-      return res.status(400).json({ success: false, message: 'Valid varisangya ID is required' });
+      return res.status(400).json({ success: false, message: 'Please select a varisangya payment.' });
     }
 
     const query: any = { _id: toObjectId(id) };
@@ -361,7 +364,7 @@ export const deleteVarisangya = async (req: AuthRequest, res: Response) => {
 
     const existing = await Varisangya.findOne(query);
     if (!existing) {
-      return res.status(404).json({ success: false, message: 'Varisangya payment not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that varisangya payment. It may have been removed." });
     }
 
     // Reverse wallet balance
@@ -385,9 +388,9 @@ export const deleteVarisangya = async (req: AuthRequest, res: Response) => {
     }
 
     await Varisangya.findByIdAndDelete(existing._id);
-    res.json({ success: true, message: 'Varisangya payment deleted successfully' });
+    res.json({ success: true, message: 'Varisangya payment deleted' });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t delete the varisangya. Please try again.');
   }
 };
 
@@ -406,7 +409,7 @@ export const getAllZakats = async (req: AuthRequest, res: Response) => {
     }
 
     if (search) {
-      query.payerName = { $regex: search, $options: 'i' };
+      query.payerName = { $regex: regexLiteral(search), $options: 'i' };
     }
 
     const [zakats, total] = await Promise.all([
@@ -420,7 +423,7 @@ export const getAllZakats = async (req: AuthRequest, res: Response) => {
 
     res.json(createPaginationResponse(zakats, total, page, limit));
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the zakats right now. Please try again.');
   }
 };
 
@@ -462,7 +465,7 @@ export const verifyVarisangya = async (req: AuthRequest, res: Response) => {
 
     const varisangya = await Varisangya.findOne(query);
     if (!varisangya) {
-      return res.status(404).json({ success: false, message: 'Pending varisangya payment not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find a pending varisangya payment." });
     }
 
     if (!varisangya.receiptNo) {
@@ -475,7 +478,7 @@ export const verifyVarisangya = async (req: AuthRequest, res: Response) => {
 
     res.json({ success: true, data: varisangya, message: 'Payment verified' });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t verify the varisangya. Please try again.');
   }
 };
 
@@ -487,7 +490,7 @@ export const verifyZakat = async (req: AuthRequest, res: Response) => {
 
     const zakat = await Zakat.findOne(query);
     if (!zakat) {
-      return res.status(404).json({ success: false, message: 'Pending zakat payment not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find a pending zakat payment." });
     }
 
     if (!zakat.receiptNo) {
@@ -500,7 +503,7 @@ export const verifyZakat = async (req: AuthRequest, res: Response) => {
 
     res.json({ success: true, data: zakat, message: 'Payment verified' });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t verify the zakat. Please try again.');
   }
 };
 
@@ -514,7 +517,7 @@ export const createZakat = async (req: AuthRequest, res: Response) => {
     if (!zakatData.tenantId && !req.isSuperAdmin) {
       return res.status(400).json({
         success: false,
-        message: 'Tenant ID is required',
+        message: 'Please select a Mahallu before continuing.',
       });
     }
 
@@ -529,7 +532,7 @@ export const createZakat = async (req: AuthRequest, res: Response) => {
 
     res.status(201).json({ success: true, data: zakat });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t save the zakat. Please try again.');
   }
 };
 
@@ -537,7 +540,7 @@ export const updateZakat = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
     if (!id || !toObjectId(id)) {
-      return res.status(400).json({ success: false, message: 'Valid zakat ID is required' });
+      return res.status(400).json({ success: false, message: 'Please select a zakat payment.' });
     }
 
     const query: any = { _id: toObjectId(id) };
@@ -545,7 +548,7 @@ export const updateZakat = async (req: AuthRequest, res: Response) => {
 
     const existing = await Zakat.findOne(query);
     if (!existing) {
-      return res.status(404).json({ success: false, message: 'Zakat payment not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that zakat payment. It may have been removed." });
     }
 
     const amountChanged = req.body.amount && req.body.amount !== existing.amount;
@@ -577,7 +580,7 @@ export const updateZakat = async (req: AuthRequest, res: Response) => {
     const updated = await Zakat.findById(existing._id).populate('payerId', 'name');
     res.json({ success: true, data: updated });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t update the zakat. Please try again.');
   }
 };
 
@@ -585,7 +588,7 @@ export const deleteZakat = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
     if (!id || !toObjectId(id)) {
-      return res.status(400).json({ success: false, message: 'Valid zakat ID is required' });
+      return res.status(400).json({ success: false, message: 'Please select a zakat payment.' });
     }
 
     const query: any = { _id: toObjectId(id) };
@@ -593,7 +596,7 @@ export const deleteZakat = async (req: AuthRequest, res: Response) => {
 
     const existing = await Zakat.findOne(query);
     if (!existing) {
-      return res.status(404).json({ success: false, message: 'Zakat payment not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that zakat payment. It may have been removed." });
     }
 
     // Reverse ledger entry
@@ -604,9 +607,9 @@ export const deleteZakat = async (req: AuthRequest, res: Response) => {
     }
 
     await Zakat.findByIdAndDelete(existing._id);
-    res.json({ success: true, message: 'Zakat payment deleted successfully' });
+    res.json({ success: true, message: 'Zakat payment deleted' });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t delete the zakat. Please try again.');
   }
 };
 
@@ -642,7 +645,7 @@ export const getWallet = async (req: AuthRequest, res: Response) => {
     }
     res.json({ success: true, data: wallet });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the wallet right now. Please try again.');
   }
 };
 
@@ -659,7 +662,7 @@ export const getWalletTransactions = async (req: AuthRequest, res: Response) => 
       .sort({ createdAt: -1 });
     res.json({ success: true, data: transactions });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the wallet transactions right now. Please try again.');
   }
 };
 

@@ -1,45 +1,51 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, ChangeEvent } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useNavigate } from 'react-router-dom';
 import {
-  FiLock,
-  FiPhone,
   FiRefreshCw,
   FiUser,
   FiHome,
   FiBookOpen,
   FiClipboard,
   FiChevronRight,
+  FiLock,
   FiShield,
   FiUsers,
   FiBarChart2,
+  FiPhone,
 } from 'react-icons/fi';
+import { FaMosque } from 'react-icons/fa';
 import { authService, AccountOption, AuthResponse } from '@/services/authService';
 import { initAndSubscribe } from '@/services/oneSignalService';
 import { useAuthStore } from '@/store/authStore';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
+import Alert from '@/components/ui/Alert';
 import { BRAND_NAME, LOGO_PATH } from '@/constants/theme';
 import { ROUTES } from '@/constants/routes';
+import { errorMessage } from '@/utils/errors';
+import { toTitleCase } from '@/utils/format';
+
+/* Login is India-only, so the country code is fixed and never typed by the
+   user - the field itself holds the bare 10-digit national number. */
+const PHONE_COUNTRY_CODE = '+91';
+const PHONE_LENGTH = 10;
 
 const phoneSchema = z.object({
-  phone: z.string().min(10, 'Phone number must be at least 10 digits'),
+  phone: z
+    .string()
+    .trim()
+    .regex(/^[0-9]{10}$/, 'Enter a 10-digit mobile number'),
 });
 
-const otpSchema = z.object({
-  otp: z.string().length(6, 'OTP must be 6 digits'),
+const codeSchema = z.object({
+  code: z.string().max(200, 'Please keep the code to 200 characters or less.').length(6, 'Enter the 6-digit code'),
 });
 
 type PhoneFormData = z.infer<typeof phoneSchema>;
-type OTPFormData = z.infer<typeof otpSchema>;
-
-const HIGHLIGHTS = [
-  { icon: FiUsers, title: 'Member', subtitle: 'Management' },
-  { icon: FiBarChart2, title: 'Financial', subtitle: 'Control' },
-  { icon: FiShield, title: 'Secure &', subtitle: 'Reliable' },
-];
+type CodeFormData = z.infer<typeof codeSchema>;
 
 // Brand name renders as "<accent>Mahal</accent> Connect" on the promo panel.
 const [BRAND_ACCENT, ...BRAND_REST] = BRAND_NAME.split(' ');
@@ -54,7 +60,11 @@ export default function Login() {
   const [error, setError] = useState('');
   const [otpSent, setOtpSent] = useState(false);
   const [countdown, setCountdown] = useState(0);
+  /* The one-time passcode is never rendered in a production build. It used to
+     appear on screen whenever the API returned it, putting a live credential in
+     the DOM of the shipping bundle. */
   const [devOTP, setDevOTP] = useState<string | null>(null);
+  const showDevOTP = import.meta.env.DEV && devOTP;
   const [accounts, setAccounts] = useState<AccountOption[]>([]);
   const [preAuthToken, setPreAuthToken] = useState('');
 
@@ -62,8 +72,24 @@ export default function Login() {
     resolver: zodResolver(phoneSchema),
   });
 
-  const otpForm = useForm<OTPFormData>({
-    resolver: zodResolver(otpSchema),
+  const phoneField = phoneForm.register('phone');
+
+  /* Strip everything but digits before react-hook-form reads the event, so a
+     pasted "+91 98765 43210" or "(98765) 43210" lands as the 10 national digits
+     rather than failing validation. A pasted 91 prefix is dropped rather than
+     truncated - that is why the cap lives here and not in maxLength, which the
+     browser would apply to the raw paste first. */
+  const handlePhoneChange = (event: ChangeEvent<HTMLInputElement>) => {
+    let digits = event.target.value.replace(/\D/g, '');
+    if (digits.length > PHONE_LENGTH && digits.startsWith('91')) {
+      digits = digits.slice(2);
+    }
+    event.target.value = digits.slice(0, PHONE_LENGTH);
+    phoneField.onChange(event);
+  };
+
+  const otpForm = useForm<CodeFormData>({
+    resolver: zodResolver(codeSchema),
   });
 
   // Countdown timer for OTP resend
@@ -90,7 +116,7 @@ export default function Login() {
         console.log('OTP (dev mode):', response.otp);
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to send OTP. Please try again.');
+      setError(errorMessage(err, { action: 'send otp. please try again' }));
     } finally {
       setIsSendingOTP(false);
     }
@@ -101,13 +127,13 @@ export default function Login() {
     await handleSendOTP({ phone });
   };
 
-  const handleVerifyOTP = async (data: OTPFormData) => {
+  const handleVerifyOTP = async (data: CodeFormData) => {
     try {
       setIsLoading(true);
       setError('');
       const response = await authService.verifyOTP({
         phone,
-        otp: data.otp,
+        otp: data.code,
       });
 
       if ('requiresRoleSelection' in response && response.requiresRoleSelection) {
@@ -134,7 +160,7 @@ export default function Login() {
 
       navigate(auth.user.role === 'member' ? ROUTES.MEMBER.OVERVIEW : ROUTES.DASHBOARD);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Invalid OTP. Please try again.');
+      setError(errorMessage(err, { action: 'verify that code' }));
     } finally {
       setIsLoading(false);
     }
@@ -170,7 +196,7 @@ export default function Login() {
 
       navigate(response.user.role === 'member' ? ROUTES.MEMBER.OVERVIEW : ROUTES.DASHBOARD);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to select account. Please try again.');
+      setError(errorMessage(err, { action: 'open that account' }));
     } finally {
       setIsLoading(false);
     }
@@ -178,238 +204,246 @@ export default function Login() {
 
   const getRoleLabel = (role: string, instituteName?: string | null) => {
     switch (role) {
-      case 'member': return 'Community Member';
-      case 'mahall': return 'Mahallu Admin';
-      case 'survey': return 'Survey Admin';
-      case 'institute': return instituteName ? `Institute Admin — ${instituteName}` : 'Institute Admin';
-      case 'super_admin': return 'Super Admin';
-      default: return role;
+      case 'member':
+        return 'Member';
+      case 'mahall':
+        return 'Mahallu admin';
+      case 'survey':
+        return 'Survey admin';
+      case 'institute':
+        return instituteName ? `Institute admin — ${toTitleCase(instituteName)}` : 'Institute admin';
+      case 'super_admin':
+        return 'Super admin';
+      default:
+        return role;
     }
   };
 
   const getRoleIcon = (role: string) => {
     switch (role) {
-      case 'member': return <FiUser className="h-5 w-5 text-primary-600 dark:text-primary-400" />;
-      case 'mahall': return <FiHome className="h-5 w-5 text-primary-600 dark:text-primary-400" />;
-      case 'survey': return <FiClipboard className="h-5 w-5 text-primary-600 dark:text-primary-400" />;
-      case 'institute': return <FiBookOpen className="h-5 w-5 text-primary-600 dark:text-primary-400" />;
-      default: return <FiUser className="h-5 w-5 text-primary-600 dark:text-primary-400" />;
+      case 'member':
+        return <FiUser className="h-5 w-5 text-primary-600 dark:text-primary-400" />;
+      case 'mahall':
+        return <FiHome className="h-5 w-5 text-primary-600 dark:text-primary-400" />;
+      case 'survey':
+        return <FiClipboard className="h-5 w-5 text-primary-600 dark:text-primary-400" />;
+      case 'institute':
+        return <FiBookOpen className="h-5 w-5 text-primary-600 dark:text-primary-400" />;
+      default:
+        return <FiUser className="h-5 w-5 text-primary-600 dark:text-primary-400" />;
     }
   };
 
   return (
-    // ponytail: h-[100dvh] + overflow-hidden shell, only the form column scrolls
-    <div className="grid h-[100dvh] w-full place-items-center overflow-hidden bg-gradient-to-br from-slate-100 via-white to-primary-50 p-0 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 sm:p-6">
-      <div className="grid h-full max-h-full w-full max-w-6xl overflow-hidden bg-white dark:bg-slate-950 sm:h-auto sm:max-h-full sm:rounded-[28px] sm:shadow-[0_30px_90px_rgba(15,23,42,0.14)] lg:grid-cols-[1.04fr,0.96fr]">
-        {/* Promo panel */}
-        <section className="relative hidden overflow-hidden bg-[radial-gradient(circle_at_0%_105%,rgba(34,197,94,0.55),transparent_52%),radial-gradient(circle_at_75%_-10%,rgba(22,163,74,0.18),transparent_42%),linear-gradient(140deg,#03150e_0%,#062a1e_58%,#04241a_100%)] p-10 text-white lg:flex lg:flex-col lg:justify-between">
-          {/* dotted grid accent */}
-          <div className="pointer-events-none absolute right-10 top-24 h-24 w-28 bg-[radial-gradient(rgba(255,255,255,0.35)_1.1px,transparent_1.1px)] bg-[length:14px_14px] opacity-40" />
-          {/* mosque silhouette */}
-          <svg
-            viewBox="0 0 220 120"
+    <div className="flex min-h-[100dvh] items-center justify-center bg-gradient-to-br from-slate-50 via-white to-primary-50 p-4 py-10 lg:p-10">
+      <div className="grid w-full max-w-6xl overflow-hidden rounded-3xl bg-card shadow-[0_30px_70px_-25px_rgba(21,128,61,0.35)] lg:grid-cols-2">
+        {/* Promo panel — mirrors the live marketing side, hidden below lg */}
+        <div className="relative hidden flex-col justify-between overflow-hidden bg-gradient-to-br from-emerald-950 via-primary-900 to-emerald-900 p-10 text-white lg:flex">
+          <div
+            className="pointer-events-none absolute right-10 top-10 h-40 w-40 opacity-20"
+            style={{
+              backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.8) 1px, transparent 1px)',
+              backgroundSize: '14px 14px',
+            }}
             aria-hidden="true"
-            className="pointer-events-none absolute -bottom-1 right-0 h-40 w-[62%] text-white/[0.07]"
-            fill="currentColor"
-          >
-            <path d="M96 120V54c0-4 3-7 3-12s-3-6-3-11 4-7 4-11 4 6 4 11-3 6-3 11 3 8 3 12v66H96z" />
-            <path d="M132 120V72c0-16 12-28 26-28s26 12 26 28v48h-52zm-56 0V78c0-13 9-23 21-23s21 10 21 23v42H76z" />
-            <path d="M40 120V88c0-9 6-16 14-16s14 7 14 16v32H40zm150 0V92c0-7 5-13 12-13s12 6 12 13v28h-24z" />
-            <circle cx="158" cy="34" r="5" />
-            <circle cx="97" cy="18" r="4" />
-          </svg>
+          />
+          <FaMosque
+            className="pointer-events-none absolute -bottom-6 -right-6 h-56 w-56 text-white/5"
+            aria-hidden="true"
+          />
 
-          <div className="relative flex items-center gap-4">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white shadow-lg">
-              <img src={LOGO_PATH} alt={BRAND_NAME} className="h-10 w-10 object-contain" />
+          <div className="relative">
+            <div className="flex items-center gap-3">
+              <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-white p-1.5">
+                <img src={LOGO_PATH} alt="" aria-hidden="true" className="h-full w-full object-contain" />
+              </span>
+              <div>
+                <p className="text-lg font-bold leading-tight">
+                  <span className="text-primary-300">{BRAND_ACCENT}</span> {BRAND_REST.join(' ')}
+                </p>
+                <p className="text-[10px] font-semibold tracking-[0.2em] text-white/60">MANAGEMENT SUITE</p>
+              </div>
             </div>
-            <div>
-              <p className="text-2xl font-bold leading-tight">
-                <span className="text-primary-400">{BRAND_ACCENT}</span>{' '}
-                <span className="text-white">{BRAND_REST.join(' ')}</span>
-              </p>
-              <p className="text-[0.68rem] font-medium uppercase tracking-[0.32em] text-white/45">
-                Management Suite
-              </p>
-            </div>
-          </div>
 
-          <div className="relative max-w-lg py-8">
-            <span className="inline-flex rounded-full bg-primary-500/15 px-4 py-1.5 text-[0.68rem] font-bold uppercase tracking-[0.24em] text-primary-300">
-              Modern admin experience
+            <span className="mt-10 inline-block rounded-full bg-white/10 px-3 py-1 text-xs font-semibold tracking-wide text-primary-200">
+              MODERN ADMIN EXPERIENCE
             </span>
-            <h1 className="mt-7 text-[2.6rem] font-bold leading-[1.1] tracking-tight xl:text-5xl">
-              A cleaner control center for your{' '}
-              <span className="text-primary-400">Mahallu</span> operations.
-            </h1>
-            <p className="mt-6 max-w-md text-[0.95rem] leading-7 text-slate-300">
-              Sign in to manage members, services, finance, and institute operations from one
-              streamlined workspace.
+
+            <h2 className="mt-6 text-3xl font-bold leading-tight sm:text-4xl">
+              A cleaner control center for your <span className="text-primary-300">Mahallu</span> operations.
+            </h2>
+
+            <p className="mt-4 max-w-sm text-sm text-white/70">
+              Sign in to manage members, services, finance, and institute operations from one streamlined workspace.
             </p>
           </div>
 
-          <div className="relative flex flex-wrap gap-3">
-            {HIGHLIGHTS.map(({ icon: Icon, title, subtitle }) => (
-              <div key={title} className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-white/[0.07]">
-                  <Icon className="h-5 w-5 text-primary-400" />
-                </div>
-                <p className="text-sm font-medium leading-tight text-white/85">
-                  {title}
-                  <br />
-                  {subtitle}
-                </p>
-              </div>
-            ))}
+          <div className="relative flex flex-nowrap gap-3 text-[11px] font-medium text-white/80">
+            <div className="flex items-center gap-1.5 whitespace-nowrap">
+              <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-white/10 text-primary-300">
+                <FiUsers className="h-3.5 w-3.5" />
+              </span>
+              Member Management
+            </div>
+            <div className="flex items-center gap-1.5 whitespace-nowrap">
+              <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-white/10 text-primary-300">
+                <FiBarChart2 className="h-3.5 w-3.5" />
+              </span>
+              Financial Control
+            </div>
+            <div className="flex items-center gap-1.5 whitespace-nowrap">
+              <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-white/10 text-primary-300">
+                <FiShield className="h-3.5 w-3.5" />
+              </span>
+              Secure &amp; Reliable
+            </div>
           </div>
-        </section>
+        </div>
 
-        {/* Auth panel */}
-        <section className="flex min-h-0 flex-col justify-center overflow-y-auto bg-slate-50 px-5 py-8 dark:bg-slate-900/40 sm:px-10 sm:py-10">
+        {/* Form panel */}
+        <div className="flex flex-col justify-center p-8 sm:p-10">
           <div className="mx-auto w-full max-w-sm">
             <div className="text-center">
-              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-white shadow-[0_10px_30px_rgba(15,23,42,0.1)] dark:bg-slate-800">
-                <img src={LOGO_PATH} alt={BRAND_NAME} className="h-10 w-10 object-contain" />
-              </div>
-              <p className="mt-5 text-[0.7rem] font-bold uppercase tracking-[0.28em] text-primary-600 dark:text-primary-400">
-                <span className="mr-2 text-primary-400">•</span>
-                Welcome back
-                <span className="ml-2 text-primary-400">•</span>
-              </p>
-              <h2 className="mt-3 text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
-                Sign in to continue.
-              </h2>
-              <p className="mx-auto mt-3 max-w-xs text-sm leading-6 text-slate-500 dark:text-slate-400">
-                Use your phone number to receive a one-time passcode and access the admin workspace.
+              <img src={LOGO_PATH} alt="" aria-hidden="true" className="mx-auto h-14 w-14 object-contain" />
+              <p className="mt-4 text-xs font-semibold tracking-[0.2em] text-primary">• WELCOME BACK •</p>
+              <h1 className="mt-2 text-2xl font-bold tracking-tight text-foreground">
+                {step === 'otp'
+                  ? 'Enter verification code.'
+                  : step === 'select'
+                    ? 'Choose an account.'
+                    : 'Sign in to continue.'}
+              </h1>
+              <p className="mt-2 text-sm text-muted-foreground">
+                {step === 'phone' &&
+                  'Use your phone number to receive a one-time passcode and access the admin workspace.'}
+                {step === 'otp' && (
+                  <>
+                    We sent a 6-digit code to{' '}
+                    <span className="font-medium text-foreground">
+                      {PHONE_COUNTRY_CODE} {phone}
+                    </span>
+                    .
+                  </>
+                )}
+                {step === 'select' && 'This number has more than one account. Pick one to continue.'}
               </p>
             </div>
 
             {error && (
-              <div className="mt-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200 animate-in fade-in slide-in-from-top-2">
+              <Alert variant="error" className="mt-6">
                 {error}
-              </div>
+              </Alert>
             )}
 
-            <div className="mt-6 rounded-2xl border border-slate-100 bg-white p-5 shadow-[0_16px_40px_rgba(15,23,42,0.06)] dark:border-white/10 dark:bg-slate-900 sm:p-6">
+            <div className="mt-6">
               {step === 'phone' ? (
-                <form onSubmit={phoneForm.handleSubmit(handleSendOTP)} className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
+                <form onSubmit={phoneForm.handleSubmit(handleSendOTP)} className="space-y-4">
                   <Input
                     label="Phone Number"
                     type="tel"
-                    {...phoneForm.register('phone')}
+                    inputMode="numeric"
+                    autoComplete="tel-national"
+                    autoFocus
+                    pattern="[0-9]{10}"
+                    {...phoneField}
+                    onChange={handlePhoneChange}
                     error={phoneForm.formState.errors.phone?.message}
                     placeholder="Enter your phone number"
                     required
-                    icon={<FiPhone className="h-5 w-5" />}
-                    className="h-12 rounded-xl"
+                    icon={<FiPhone className="h-4 w-4" />}
                   />
 
-                  <div className="flex gap-3 rounded-xl border border-primary-100 bg-primary-50/70 px-4 py-3 text-[0.8rem] leading-5 text-slate-600 dark:border-primary-900/50 dark:bg-primary-950/25 dark:text-slate-300">
-                    <FiShield className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary-600 dark:text-primary-400" />
-                    <p>A six-digit OTP will be sent to your registered phone number for secure sign-in.</p>
+                  <div className="flex items-start gap-2 rounded-lg border border-primary/20 bg-primary/5 p-3 text-xs text-muted-foreground">
+                    <FiShield className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary" aria-hidden="true" />
+                    <span>A six-digit OTP will be sent to your registered phone number for secure sign-in.</span>
                   </div>
 
                   <Button
                     type="submit"
-                    className="h-12 w-full rounded-xl bg-gradient-to-r from-primary-700 via-primary-600 to-primary-400 text-base font-semibold shadow-lg shadow-primary-600/25 hover:from-primary-800 hover:to-primary-500"
+                    size="lg"
+                    className="w-full bg-gradient-to-r from-primary-600 to-primary-400 hover:from-primary-700 hover:to-primary-500"
+                    icon={<FiLock />}
                     isLoading={isSendingOTP}
+                    loadingText="Sending"
                   >
-                    <FiLock className="mr-2 h-4 w-4" />
                     Send OTP
                   </Button>
                 </form>
               ) : step === 'select' ? (
-                <div className="space-y-3 animate-in fade-in slide-in-from-right-4 duration-300">
-                  <p className="text-sm text-slate-500 dark:text-slate-400">
-                    Multiple accounts found. Pick one to continue.
-                  </p>
-
+                <div className="space-y-2">
                   {accounts.map((account) => (
                     <button
                       key={account.userId}
                       type="button"
                       onClick={() => handleSelectAccount(account.userId)}
                       disabled={isLoading}
-                      className="group w-full rounded-xl border border-slate-200 bg-white p-3 text-left transition-all duration-200 hover:border-primary-300 hover:bg-primary-50/60 hover:shadow-sm dark:border-white/10 dark:bg-white/5 dark:hover:border-primary-500 dark:hover:bg-primary-950/25 disabled:cursor-not-allowed disabled:opacity-50"
+                      className="group flex w-full items-center gap-3 rounded-md border border-border bg-background p-3 text-left transition-colors hover:border-primary hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                      <div className="flex flex-row items-center gap-3">
-                        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-primary-100 transition-colors group-hover:bg-primary-200 dark:bg-primary-900/40 dark:group-hover:bg-primary-900/60">
-                          {getRoleIcon(account.role)}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">
-                            {getRoleLabel(account.role, account.instituteName)}
-                          </p>
-                          {account.tenantName && (
-                            <p className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">
-                              {account.tenantName}
-                            </p>
-                          )}
-                        </div>
-                        <FiChevronRight className="h-5 w-5 flex-shrink-0 text-slate-400 transition-colors group-hover:text-primary-500" />
-                      </div>
+                      <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-md bg-primary/10">
+                        {getRoleIcon(account.role)}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-medium text-foreground">
+                          {getRoleLabel(account.role, account.instituteName)}
+                        </span>
+                        {account.tenantName && (
+                          <span className="block truncate text-xs text-muted-foreground">
+                            {toTitleCase(account.tenantName)}
+                          </span>
+                        )}
+                      </span>
+                      <FiChevronRight
+                        className="h-4 w-4 flex-shrink-0 text-muted-foreground"
+                        aria-hidden="true"
+                      />
                     </button>
                   ))}
 
-                  <button
-                    type="button"
-                    onClick={handleBackToPhone}
-                    className="w-full pt-1 text-center text-sm font-medium text-slate-600 transition-colors hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
-                  >
-                    ← Back to login
-                  </button>
+                  <Button type="button" variant="ghost" onClick={handleBackToPhone} className="w-full">
+                    Use a different number
+                  </Button>
                 </div>
               ) : (
-                <form onSubmit={otpForm.handleSubmit(handleVerifyOTP)} className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
-                  <p className="text-sm text-slate-500 dark:text-slate-400">
-                    Code sent to{' '}
-                    <span className="font-mono font-medium text-slate-900 dark:text-white">{phone}</span>
-                  </p>
-
-                  {devOTP && (
-                    <div className="rounded-xl border border-primary-300 bg-primary-50 px-4 py-3 text-sm text-primary-800 dark:border-primary-800 dark:bg-primary-950/30 dark:text-primary-200 animate-in fade-in slide-in-from-top-2">
-                      Dev mode code:{' '}
-                      <span className="font-mono text-base font-bold tracking-widest">{devOTP}</span>
-                    </div>
+                <form onSubmit={otpForm.handleSubmit(handleVerifyOTP)} className="space-y-4">
+                  {showDevOTP && (
+                    <Alert variant="info" title="Development build">
+                      Code: <span className="font-mono font-semibold tracking-widest">{devOTP}</span>
+                    </Alert>
                   )}
 
                   <Input
-                    label="Verification Code"
+                    label="Verification code"
                     type="text"
                     inputMode="numeric"
+                    autoComplete="one-time-code"
+                    autoFocus
                     maxLength={6}
-                    {...otpForm.register('otp', {
-                      pattern: {
-                        value: /^\d{6}$/,
-                        message: 'OTP must be 6 digits',
-                      },
-                    })}
-                    error={otpForm.formState.errors.otp?.message}
+                    {...otpForm.register('code')}
+                    error={otpForm.formState.errors.code?.message}
                     placeholder="000000"
                     required
-                    icon={<FiLock className="h-5 w-5" />}
-                    className="h-14 rounded-xl text-center font-mono text-2xl tracking-[0.4em]"
+                    className="text-center font-mono text-lg tracking-widest"
                   />
 
                   <div className="flex items-center justify-between text-sm">
                     <button
                       type="button"
                       onClick={handleBackToPhone}
-                      className="font-medium text-slate-600 transition-colors hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+                      className="rounded-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     >
-                      ← Change number
+                      Change number
                     </button>
                     <button
                       type="button"
                       onClick={handleResendOTP}
                       disabled={countdown > 0 || isSendingOTP}
-                      className="flex items-center gap-1.5 font-medium text-primary-600 transition-colors hover:text-primary-700 disabled:cursor-not-allowed disabled:text-slate-400 dark:text-primary-400"
+                      className="inline-flex items-center gap-1.5 rounded-sm font-medium text-primary transition-colors hover:underline disabled:cursor-not-allowed disabled:text-muted-foreground disabled:no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     >
                       {countdown > 0 ? (
                         <>Resend in {countdown}s</>
                       ) : (
                         <>
-                          <FiRefreshCw className="h-4 w-4" />
+                          <FiRefreshCw className="h-4 w-4" aria-hidden="true" />
                           Resend code
                         </>
                       )}
@@ -418,41 +452,39 @@ export default function Login() {
 
                   <Button
                     type="submit"
-                    className="h-12 w-full rounded-xl bg-gradient-to-r from-primary-700 via-primary-600 to-primary-400 text-base font-semibold shadow-lg shadow-primary-600/25 hover:from-primary-800 hover:to-primary-500"
+                    size="lg"
+                    className="w-full"
                     isLoading={isLoading}
+                    loadingText="Verifying"
                   >
-                    <FiLock className="mr-2 h-4 w-4" />
-                    Verify &amp; Sign In
+                    Verify and sign in
                   </Button>
                 </form>
               )}
             </div>
 
-            <div className="mt-6 flex items-center gap-3">
-              <span className="h-px flex-1 bg-slate-200 dark:bg-white/10" />
-              <span className="text-xs text-slate-400 dark:text-slate-500">Secured &amp; trusted</span>
-              <span className="h-px flex-1 bg-slate-200 dark:bg-white/10" />
-            </div>
-
-            <div className="mt-4 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400 dark:text-slate-500">
-              <span className="flex items-center gap-1.5">
-                <FiLock className="h-3.5 w-3.5" />
-                Your data is protected
-              </span>
-              <span className="font-medium">
-                Powered by{' '}
-                <a
-                  href="https://d4dx.co/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-primary-600 hover:underline dark:text-primary-400"
-                >
-                  D4DX Innovations LLP
-                </a>
-              </span>
+            <div className="mt-8 space-y-3 border-t border-border pt-5 text-center">
+              <p className="text-xs text-muted-foreground">Secured &amp; trusted</p>
+              <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
+                <span className="inline-flex items-center gap-1.5">
+                  <FiLock className="h-3.5 w-3.5" aria-hidden="true" />
+                  Your data is protected
+                </span>
+                <span>
+                  Powered by{' '}
+                  <a
+                    href="https://d4dx.co/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    D4DX Innovations LLP
+                  </a>
+                </span>
+              </div>
             </div>
           </div>
-        </section>
+        </div>
       </div>
     </div>
   );

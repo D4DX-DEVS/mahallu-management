@@ -1,14 +1,22 @@
-import api from './api';
+import api, { asList } from './api';
 import { Tenant, TenantStats } from '@/types/tenant';
 
 export const tenantService = {
-  getAll: async (params?: { status?: string; search?: string; type?: string; page?: number; limit?: number }) => {
-    const response = await api.get<{ success: boolean; data: Tenant[]; pagination?: any }>('/tenants', { params });
+  getAll: async (params?: {
+    status?: string;
+    search?: string;
+    type?: string;
+    page?: number;
+    limit?: number;
+  }) => {
+    const response = await api.get<{ success: boolean; data: Tenant[]; pagination?: any }>('/tenants', {
+      params,
+    });
     // Handle both paginated and non-paginated responses
     if (response.data.pagination) {
-      return { data: response.data.data, pagination: response.data.pagination };
+      return { data: asList(response.data.data), pagination: response.data.pagination };
     }
-    return { data: response.data.data, pagination: null };
+    return { data: asList(response.data.data), pagination: null };
   },
 
   getById: async (id: string) => {
@@ -46,4 +54,3 @@ export const tenantService = {
     return response.data.data;
   },
 };
-

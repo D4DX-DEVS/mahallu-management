@@ -4,7 +4,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useNavigate } from 'react-router-dom';
 import { FiSave, FiX } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -12,17 +11,25 @@ import Select from '@/components/ui/Select';
 import MultiSelect from '@/components/ui/MultiSelect';
 import { collectibleService } from '@/services/collectibleService';
 import { memberService } from '@/services/memberService';
+import { fetchAllPages } from '@/services/api';
 import { Member } from '@/types';
 import { downloadInvoicePdf, InvoiceDetails } from '@/utils/invoiceUtils';
+import { toast } from '@/store/toastStore';
+import { errorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 
 const zakatSchema = z.object({
-  payerIds: z.array(z.string()).min(1, 'Payer name is required'),
+  payerIds: z
+    .array(z.string())
+    .min(1, 'Please choose at least one payer.')
+    .max(500, 'Please choose 500 payers or fewer at a time.'),
   amount: z.number().min(0.01, 'Amount is required'),
-  paymentDate: z.string().min(1, 'Payment date is required'),
-  paymentMethod: z.string().optional(),
-  category: z.string().optional(),
-  remarks: z.string().optional(),
-  remarksMl: z.string().optional(),
+  paymentDate: z.string().max(200, 'Please keep the payment date to 200 characters or less.').min(1, 'Payment date is required'),
+  paymentMethod: z.string().max(200, 'Please keep the payment method to 200 characters or less.').optional(),
+  category: z.string().max(200, 'Please keep the category to 200 characters or less.').optional(),
+  remarks: z.string().max(2000, 'Please keep the remarks to 2000 characters or less.').optional(),
+  remarksMl: z.string().max(2000, 'Please keep the remarks to 2000 characters or less.').optional(),
 });
 
 type ZakatFormData = z.infer<typeof zakatSchema>;
@@ -54,17 +61,20 @@ export default function CreateZakat() {
 
   const fetchMembers = async () => {
     try {
-      const result = await memberService.getAll({ limit: 10000 });
-      setMembers(result.data || []);
+      // /members caps limit at 100 and 400s above it, so the old limit:10000
+      // request always failed and left this payer picker empty.
+      const all = await fetchAllPages<Member>((p) => memberService.getAll(p));
+      setMembers(all);
     } catch (err) {
       console.error('Error fetching members:', err);
+      toast.error(errorMessage(err, { action: 'load members' }));
     }
   };
 
   const fetchNextReceiptNo = async () => {
     try {
       const receiptNo = await collectibleService.getNextReceiptNo('zakat');
-      setNextReceiptNo(receiptNo);
+      setNextReceiptNo(receiptNo || 'Auto-generated');
     } catch (err) {
       console.error('Error fetching receipt number:', err);
       setNextReceiptNo('Auto-generated');
@@ -92,7 +102,7 @@ export default function CreateZakat() {
         return {
           ...payloadBase,
           payerId,
-          payerName: member?.name || 'Unknown',
+          payerName: toTitleCase(member?.name) || 'Unknown',
         };
       });
 
@@ -106,7 +116,7 @@ export default function CreateZakat() {
           title: 'Zakat Invoice',
           receiptNo: entry.receiptNo,
           payerLabel: 'Payer',
-          payerName: member?.name || entry.payerName || 'Unknown',
+          payerName: toTitleCase(member?.name || entry.payerName) || 'Unknown',
           amount: entry.amount,
           paymentDate: entry.paymentDate,
           paymentMethod: entry.paymentMethod,
@@ -126,29 +136,21 @@ export default function CreateZakat() {
         remarksMl: '',
       });
     } catch (err: any) {
-      setSubmitError(err.response?.data?.message || 'Failed to create zakat payment. Please try again.');
+      setSubmitError(errorMessage(err, { action: 'create zakat payment. please try again' }));
       console.error('Error creating zakat:', err);
     }
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Create Zakat Payment</h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Record a new zakat payment</p>
-        </div>
-        <Breadcrumb
-          items={[
-            { label: 'Dashboard', path: '/dashboard' },
-            { label: 'Zakat', path: '/collectibles/zakat' },
-            { label: 'Create' },
-          ]}
-        />
-      </div>
+    <div className="space-y-4">
+      <PageHeader
+        title="Create Zakat Payment"
+        description="Record a new zakat payment"
+        breadcrumbs={[{ label: 'Zakat', path: '/collectibles/zakat' }]}
+      />
 
       <form onSubmit={handleSubmit(onSubmit)}>
-        <Card className="space-y-6">
+        <Card className="space-y-4">
           {submitError && (
             <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm dark:bg-red-900 dark:border-red-700 dark:text-red-200">
               {submitError}
@@ -164,7 +166,7 @@ export default function CreateZakat() {
                   label="Payer Name"
                   options={members.map((member) => ({
                     value: member.id,
-                    label: `${member.name} (${member.familyName})`,
+                    label: `${toTitleCase(member.name)} (${toTitleCase(member.familyName)})`,
                   }))}
                   value={field.value || []}
                   onChange={field.onChange}
@@ -208,23 +210,18 @@ export default function CreateZakat() {
               helperText="Each payment will increment this number."
             />
             <Input label="Category" {...register('category')} placeholder="Category" />
-            <Input
-              label="Remarks"
-              {...register('remarks')}
-              placeholder="Remarks"
-              className="md:col-span-2"
-            />
+            <Input label="Remarks" {...register('remarks')} placeholder="Remarks" className="md:col-span-2" />
             <div className="hidden">
-            <Input
-              label="Remarks (Malayalam)"
-              {...register('remarksMl')}
-              placeholder="കുറിപ്പ്"
-              className="md:col-span-2 font-malayalam"
-            />
+              <Input
+                label="Remarks (Malayalam)"
+                {...register('remarksMl')}
+                placeholder="കുറിപ്പ്"
+                className="md:col-span-2 font-malayalam"
+              />
             </div>
           </div>
 
-          <div className="flex justify-end gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+          <div className="flex gap-2 flex-col-reverse sm:flex-row sm:justify-end sm:gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
             <Button type="button" variant="outline" onClick={() => navigate('/collectibles/zakat')}>
               <FiX className="h-4 w-4 mr-2" />
               Cancel
@@ -241,8 +238,10 @@ export default function CreateZakat() {
         <Card className="space-y-3">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Created Invoices</h2>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Download receipts for the new payments</p>
+              <h2 className="text-lg font-semibold text-foreground">Created Invoices</h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Download receipts for the new payments
+              </p>
             </div>
             <Button variant="outline" onClick={() => navigate('/collectibles/zakat')}>
               Go to Zakat
@@ -256,16 +255,13 @@ export default function CreateZakat() {
               >
                 <div>
                   <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                    {invoice.payerName}
+                    {toTitleCase(invoice.payerName)}
                   </div>
                   <div className="text-xs text-gray-500 dark:text-gray-400">
                     Receipt: {invoice.receiptNo || 'Auto-generated'}
                   </div>
                 </div>
-                <Button
-                  variant="outline"
-                  onClick={() => downloadInvoicePdf(invoice)}
-                >
+                <Button variant="outline" onClick={() => downloadInvoicePdf(invoice)}>
                   Download PDF
                 </Button>
               </div>
@@ -276,4 +272,3 @@ export default function CreateZakat() {
     </div>
   );
 }
-

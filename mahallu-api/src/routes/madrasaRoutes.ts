@@ -15,6 +15,14 @@ import {
 import { getClassProgress } from '../controllers/attendanceController';
 import { authMiddleware, allowRoles } from '../middleware/authMiddleware';
 import { tenantMiddleware, tenantFilter } from '../middleware/tenantMiddleware';
+import { validationHandler } from '../middleware/validationHandler';
+import { idParam, listQuery } from '../validations/common';
+import {
+  createEnrollmentValidation,
+  createClassValidation,
+  updateEnrollmentValidation,
+  updateClassValidation,
+} from '../validations/moduleValidation';
 
 const router = express.Router();
 
@@ -39,7 +47,7 @@ router.use(tenantFilter);
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  */
-router.get('/summary', getMadrasaSummary);
+router.get('/summary', listQuery(), validationHandler, getMadrasaSummary);
 
 /**
  * @swagger
@@ -106,8 +114,8 @@ router.get('/summary', getMadrasaSummary);
  *       400:
  *         description: Already enrolled, or a reference from another tenant
  */
-router.get('/enrollments', getAllEnrollments);
-router.post('/enrollments', allowRoles(['mahall', 'institute']), createEnrollment);
+router.get('/enrollments', listQuery(), validationHandler, getAllEnrollments);
+router.post('/enrollments', createEnrollmentValidation, validationHandler, allowRoles(['mahall', 'institute']), createEnrollment);
 
 /**
  * @swagger
@@ -162,8 +170,8 @@ router.post('/enrollments', allowRoles(['mahall', 'institute']), createEnrollmen
  *       404:
  *         description: Enrollment not found
  */
-router.put('/enrollments/:id', allowRoles(['mahall', 'institute']), updateEnrollment);
-router.delete('/enrollments/:id', allowRoles(['mahall', 'institute']), deleteEnrollment);
+router.put('/enrollments/:id', updateEnrollmentValidation, validationHandler, allowRoles(['mahall', 'institute']), updateEnrollment);
+router.delete('/enrollments/:id', idParam('id', 'record'), validationHandler, allowRoles(['mahall', 'institute']), deleteEnrollment);
 
 /**
  * @swagger
@@ -246,8 +254,8 @@ router.delete('/enrollments/:id', allowRoles(['mahall', 'institute']), deleteEnr
  *       400:
  *         description: Institute or teacher belongs to another tenant
  */
-router.get('/classes', getAllClasses);
-router.post('/classes', allowRoles(['mahall', 'institute']), createClass);
+router.get('/classes', listQuery(), validationHandler, getAllClasses);
+router.post('/classes', createClassValidation, validationHandler, allowRoles(['mahall', 'institute']), createClass);
 
 /**
  * @swagger
@@ -338,9 +346,9 @@ router.post('/classes', allowRoles(['mahall', 'institute']), createClass);
  *       404:
  *         description: Class not found
  */
-router.get('/classes/:id', getClassById);
-router.put('/classes/:id', allowRoles(['mahall', 'institute']), updateClass);
-router.delete('/classes/:id', allowRoles(['mahall', 'institute']), deleteClass);
+router.get('/classes/:id', idParam('id', 'record'), validationHandler, getClassById);
+router.put('/classes/:id', updateClassValidation, validationHandler, allowRoles(['mahall', 'institute']), updateClass);
+router.delete('/classes/:id', idParam('id', 'record'), validationHandler, allowRoles(['mahall', 'institute']), deleteClass);
 
 /**
  * @swagger
@@ -372,7 +380,7 @@ router.delete('/classes/:id', allowRoles(['mahall', 'institute']), deleteClass);
  *       404:
  *         description: Class not found
  */
-router.get('/classes/:id/students', getClassStudents);
+router.get('/classes/:id/students', idParam('id', 'record'), validationHandler, getClassStudents);
 
 /**
  * @swagger
@@ -397,6 +405,6 @@ router.get('/classes/:id/students', getClassStudents);
  *       404:
  *         description: Class not found
  */
-router.get('/classes/:id/progress', getClassProgress);
+router.get('/classes/:id/progress', idParam('id', 'record'), validationHandler, getClassProgress);
 
 export default router;

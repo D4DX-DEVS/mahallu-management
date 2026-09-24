@@ -1,58 +1,96 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Single source of truth for colour, radius and elevation.
+ * Components must consume these through Tailwind's token-mapped utilities
+ * (bg-primary, bg-card, text-muted-foreground, rounded-md ...) and never
+ * through a parallel palette. See tailwind.config.js.
+ */
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* Surfaces
+     * The page canvas sits a step below `card`: light mode used to set both
+     * to pure white, so a card was only ever a border away from the page it
+     * sat on — every panel read as a flat rectangle rather than a surface
+     * raised off the page. One subtle tint, still in the product's own
+     * neutral hue, gives white cards something to be white against. */
+    --background: 180 14% 98%;
+    --foreground: 200 18% 12%;
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 200 18% 12%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 173 80% 40%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 174 34% 94%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 174 34% 94%;
-    --muted-foreground: 215.4 16.3% 40%;
-    --accent: 36 100% 92%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 172 23% 88%;
-    --input: 172 23% 88%;
-    --ring: 173 80% 40%;
-    --radius: 1rem;
+    --popover-foreground: 200 18% 12%;
+
+    /* Brand — green. The one primary. */
+    --primary: 142 76% 36%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Neutral supporting surfaces */
+    --secondary: 180 14% 96%;
+    --secondary-foreground: 200 18% 12%;
+    --muted: 180 14% 96%;
+    --muted-foreground: 200 9% 42%;
+    --accent: 142 40% 95%;
+    --accent-foreground: 142 84% 22%;
+
+    /* Semantic state — four roles, one ramp each */
+    --destructive: 0 72% 46%;
+    --destructive-foreground: 0 0% 100%;
+    --success: 152 62% 33%;
+    --success-foreground: 0 0% 100%;
+    --warning: 32 88% 40%;
+    --warning-foreground: 0 0% 100%;
+    --info: 214 80% 45%;
+    --info-foreground: 0 0% 100%;
+
+    /* Lines and focus */
+    --border: 180 12% 88%;
+    --input: 180 12% 85%;
+    --ring: 142 76% 36%;
+
+    /* Geometry — three radii derived from one value */
+    --radius: 0.5rem;
+
+    /* Elevation — two levels only */
+    --shadow-sm: 0 1px 2px 0 hsl(200 18% 12% / 0.05);
+    --shadow-md: 0 4px 12px -2px hsl(200 18% 12% / 0.10), 0 2px 4px -2px hsl(200 18% 12% / 0.06);
   }
 
-  /*
-   * Dark palette is aligned to the Tailwind gray ramp the components already
-   * use (dark:bg-gray-900 / gray-800 / gray-700). Pure-black grounds make
-   * elevated panels float; gray-900 as the page ground keeps surfaces stacked.
-   */
   .dark {
-    --background: 221 39% 11%;        /* gray-900  #111827 */
-    --foreground: 210 20% 98%;        /* gray-50   */
-    --card: 215 28% 17%;              /* gray-800  #1f2937 */
-    --card-foreground: 210 20% 98%;
-    --popover: 215 28% 17%;
-    --popover-foreground: 210 20% 98%;
-    --primary: 142 69% 48%;
-    --primary-foreground: 221 39% 11%;
-    --secondary: 215 28% 17%;
-    --secondary-foreground: 210 20% 98%;
-    --muted: 215 28% 17%;
-    --muted-foreground: 218 11% 65%;  /* gray-400  */
-    --accent: 217 19% 27%;            /* gray-700  */
-    --accent-foreground: 210 20% 98%;
-    --destructive: 0 72% 51%;
-    --destructive-foreground: 210 20% 98%;
-    --border: 217 19% 27%;            /* gray-700  */
-    --input: 217 19% 27%;
-    --ring: 142 69% 48%;
+    --background: 200 24% 8%;
+    --foreground: 180 12% 95%;
+    --card: 200 20% 12%;
+    --card-foreground: 180 12% 95%;
+    --popover: 200 20% 12%;
+    --popover-foreground: 180 12% 95%;
+
+    --primary: 142 71% 45%;
+    --primary-foreground: 200 24% 8%;
+
+    --secondary: 200 16% 17%;
+    --secondary-foreground: 180 12% 95%;
+    --muted: 200 16% 17%;
+    --muted-foreground: 195 8% 64%;
+    --accent: 142 30% 18%;
+    --accent-foreground: 142 66% 72%;
+
+    --destructive: 0 68% 56%;
+    --destructive-foreground: 200 24% 8%;
+    --success: 152 52% 48%;
+    --success-foreground: 200 24% 8%;
+    --warning: 36 82% 56%;
+    --warning-foreground: 200 24% 8%;
+    --info: 213 74% 62%;
+    --info-foreground: 200 24% 8%;
+
+    --border: 200 14% 22%;
+    --input: 200 14% 26%;
+    --ring: 142 71% 45%;
+
+    --shadow-sm: 0 1px 2px 0 hsl(0 0% 0% / 0.4);
+    --shadow-md: 0 4px 12px -2px hsl(0 0% 0% / 0.5), 0 2px 4px -2px hsl(0 0% 0% / 0.4);
   }
 }
 
@@ -71,16 +109,21 @@
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
     font-feature-settings: "rlig" 1, "calt" 1;
-    font-family: 'Plus Jakarta Sans', 'Avenir Next', 'Segoe UI', sans-serif;
-    @apply antialiased;
+    @apply font-sans antialiased;
   }
 
   ::selection {
     background-color: hsl(var(--primary) / 0.18);
   }
+
+  /* One visible focus treatment for every interactive element. */
+  :focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
 }
 
-/* Custom scrollbar */
+/* Scrollbar follows the neutral ramp rather than fixed greys. */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -90,28 +133,143 @@
   background-color: transparent;
 }
 
-.dark ::-webkit-scrollbar-track {
-  background-color: transparent;
-}
-
 ::-webkit-scrollbar-thumb {
-  background-color: #d1d5db;
+  background-color: hsl(var(--border));
   border-radius: 9999px;
 }
 
-.dark ::-webkit-scrollbar-thumb {
-  background-color: #4b5563;
-}
-
 ::-webkit-scrollbar-thumb:hover {
-  background-color: #9ca3af;
+  background-color: hsl(var(--muted-foreground) / 0.5);
 }
 
-.dark ::-webkit-scrollbar-thumb:hover {
-  background-color: #6b7280;
+
+/*
+ * Native form controls.
+ *
+ * 77 date fields and 65 selects are still native elements. A native control
+ * cannot be fully restyled, but it can be made to sit on the same control
+ * ladder as Input and Select — 40px tall, 8px radius, token border and
+ * background — instead of rendering as raw browser chrome beside them.
+ * Converting the remaining call sites to DatePicker/Select is P2 follow-up
+ * work; this keeps them visually consistent until then.
+ */
+@layer base {
+  input[type='date'],
+  input[type='datetime-local'],
+  input[type='time'],
+  input[type='month'],
+  select:not(.sr-only) {
+    height: 2.5rem;
+    border-radius: var(--radius);
+    border: 1px solid hsl(var(--input));
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    padding-inline: 0.75rem;
+    font-size: 0.875rem;
+    font-family: inherit;
+  }
+
+  input[type='date']:focus-visible,
+  input[type='datetime-local']:focus-visible,
+  input[type='time']:focus-visible,
+  input[type='month']:focus-visible,
+  select:not(.sr-only):focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+    border-color: hsl(var(--ring));
+  }
+
+  input[type='date']:disabled,
+  select:not(.sr-only):disabled {
+    background-color: hsl(var(--muted));
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+
+
+  /*
+   * Checkboxes and radios. 35 raw inputs render at ~16px with no focus ring
+   * and a light-only border. 20px clears the minimum target size, and the ring
+   * matches every other control.
+   */
+  input[type='checkbox'],
+  input[type='radio'] {
+    width: 1.25rem;
+    height: 1.25rem;
+    accent-color: hsl(var(--primary));
+    border-color: hsl(var(--input));
+    cursor: pointer;
+  }
+
+  input[type='checkbox']:focus-visible,
+  input[type='radio']:focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+
+  input[type='checkbox']:disabled,
+  input[type='radio']:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+
+  /* The picker glyph is black by default and disappears on a dark ground. */
+  .dark input[type='date']::-webkit-calendar-picker-indicator,
+  .dark input[type='datetime-local']::-webkit-calendar-picker-indicator,
+  .dark input[type='time']::-webkit-calendar-picker-indicator {
+    filter: invert(1) opacity(0.6);
+  }
+
+  input[type='date']::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+    opacity: 0.6;
+  }
+
+  input[type='date']::-webkit-calendar-picker-indicator:hover {
+    opacity: 1;
+  }
 }
 
-/* Malayalam font utility */
+/*
+ * Phone form controls.
+ *
+ * Every control on the ladder renders at 14px. iOS Safari zooms the viewport
+ * whenever a focused field is under 16px, so tapping any input on an iPhone
+ * scaled the page up and left it scrolled sideways — the single most common
+ * source of "the page moves when I type" on this product. 16px below the `md`
+ * breakpoint removes the trigger; the desktop scale is untouched.
+ */
+@layer base {
+  @media (max-width: 767px) {
+    input:not([type='checkbox']):not([type='radio']):not([type='range']),
+    select,
+    textarea {
+      font-size: 16px;
+    }
+  }
+}
+
+/* Long unbroken strings — an email, a URL, a reference number — used to set the
+ * minimum width of their column and push the layout past the viewport. */
+@layer base {
+  h1,
+  h2,
+  h3,
+  h4,
+  p,
+  dd,
+  dt,
+  li,
+  span,
+  td,
+  th,
+  label {
+    overflow-wrap: break-word;
+  }
+}
+
+/* Malayalam is served by the fallback in the single font stack; this utility
+   forces it where a field is known to hold Malayalam only. */
 .font-malayalam {
   font-family: 'Noto Sans Malayalam', sans-serif;
 }
@@ -136,4 +294,15 @@ input[type='number']::-webkit-inner-spin-button {
 input[type='number'] {
   -moz-appearance: textfield;
   appearance: textfield;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

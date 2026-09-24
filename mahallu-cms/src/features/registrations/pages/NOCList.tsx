@@ -3,39 +3,41 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { FiEye, FiEdit2, FiX, FiFileText, FiClock, FiCheckCircle, FiDownload } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
-import Card from '@/components/ui/Card';
+import { FiCheckCircle, FiClock, FiFileText, FiPlus } from 'react-icons/fi';
+import TableCard from '@/components/ui/TableCard';
+import FilterPanel from '@/components/ui/FilterPanel';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import RichTextEditor from '@/components/ui/RichTextEditor';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
+import EmptyState from '@/components/ui/EmptyState';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
 import { toast } from '@/store/toastStore';
 import { TableColumn, Pagination as PaginationType } from '@/types';
 import { registrationService, NOC } from '@/services/registrationService';
+import { fetchAllPages } from '@/services/api';
 import { memberService } from '@/services/memberService';
 import { Member } from '@/types';
 import { useDebounce } from '@/hooks/useDebounce';
-import { formatDate } from '@/utils/format';
+import { formatDate, toTitleCase } from '@/utils/format';
 import { ROUTES } from '@/constants/routes';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
 import { downloadNocPdf } from '@/utils/nocPdf';
 import { DEFAULT_NOC_DESCRIPTION, createNocSchema, CreateNocFormData } from '../nocFormConfig';
 import { buildNocColumns } from '../nocColumns';
-
-
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
 
 export default function NOCList() {
   const navigate = useNavigate();
   const location = useLocation();
   const isNikahNOC = location.pathname === ROUTES.REGISTRATIONS.NOC.NIKAH;
   const isCommonNOC = location.pathname === ROUTES.REGISTRATIONS.NOC.COMMON;
-  
+
   const [searchQuery, setSearchQuery] = useState('');
   const [isFilterVisible, setIsFilterVisible] = useState(false);
   const [typeFilter, setTypeFilter] = useState<string>(() => {
@@ -86,17 +88,23 @@ export default function NOCList() {
   }, [isNikahNOC, isCommonNOC, setValue]);
 
   useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearch]);
+
+  useEffect(() => {
     fetchNOCs();
   }, [debouncedSearch, typeFilter, statusFilter, currentPage]);
 
   useEffect(() => {
     const fetchMembers = async () => {
       try {
-        const result = await memberService.getAll({ limit: 1000 });
-        setMembers(result.data || []);
+        // The list endpoint caps a page at 100 and answers 400 above it, so the
+        // old single `limit: 1000` call failed and left this dropdown empty.
+        const all = await fetchAllPages<Member>((params) => memberService.getAll(params), 10);
+        setMembers(all);
       } catch (err) {
-        console.error('Error fetching members:', err);
         setMembers([]);
+        toast.error(loadErrorMessage(err, 'members'));
       }
     };
     fetchMembers();
@@ -133,7 +141,7 @@ export default function NOCList() {
         setPagination(result.pagination);
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch NOCs');
+      setError(loadErrorMessage(err, 'nocs'));
       console.error('Error fetching NOCs:', err);
     } finally {
       setLoading(false);
@@ -162,9 +170,12 @@ export default function NOCList() {
     } catch (err: any) {
       const fieldErrors = err.response?.data?.errors;
       const detail = Array.isArray(fieldErrors)
-        ? fieldErrors.map((e: any) => e.msg).filter(Boolean).join('; ')
+        ? fieldErrors
+            .map((e: any) => e.msg)
+            .filter(Boolean)
+            .join('; ')
         : null;
-      setCreateError(detail || err.response?.data?.message || 'Failed to create NOC. Please try again.');
+      setCreateError(detail || errorMessage(err, { action: 'create noc. please try again' }));
       console.error('Error creating NOC:', err);
     }
   };
@@ -172,14 +183,17 @@ export default function NOCList() {
   const handleExport = async (type: 'csv' | 'json' | 'pdf') => {
     try {
       setIsExporting(true);
-      
-      const params: any = { limit: 10000 };
-      if (debouncedSearch) params.search = debouncedSearch;
-      if (typeFilter !== 'all') params.type = typeFilter;
-      if (statusFilter !== 'all') params.status = statusFilter;
-      
-      const result = await registrationService.getAllNOC(params);
-      const dataToExport = result.data;
+
+      const filters: any = {};
+      if (debouncedSearch) filters.search = debouncedSearch;
+      if (typeFilter !== 'all') filters.type = typeFilter;
+      if (statusFilter !== 'all') filters.status = statusFilter;
+
+      // The list endpoint caps a page at 100 and answers 400 above it, so the
+      // old single `limit: 10000` export call failed for any non-empty result.
+      const dataToExport = await fetchAllPages<NOC>((params) =>
+        registrationService.getAllNOC({ ...filters, ...params })
+      );
 
       if (dataToExport.length === 0) {
         toast.info('No NOCs to export');
@@ -201,8 +215,7 @@ export default function NOCList() {
           break;
       }
     } catch (error: any) {
-      console.error('Export error:', error);
-      toast.error(error?.message || 'Failed to export NOCs');
+      toast.error(errorMessage(error, { action: 'export NOCs' }));
     } finally {
       setIsExporting(false);
     }
@@ -211,7 +224,11 @@ export default function NOCList() {
   const columns = buildNocColumns({ navigate });
 
   const stats = [
-    { title: 'Total NOCs', value: pagination?.total || nocs.length, icon: <FiFileText className="h-5 w-5" /> },
+    {
+      title: 'Total NOCs',
+      value: pagination?.total || nocs.length,
+      icon: <FiFileText className="h-5 w-5" />,
+    },
     {
       title: 'Pending',
       value: nocs.filter((n) => n.status === 'pending' || !n.status).length,
@@ -227,43 +244,34 @@ export default function NOCList() {
   return (
     <div className="space-y-4">
       <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">
-              {isNikahNOC ? 'Nikah NOC' : isCommonNOC ? 'Common NOC' : 'NOC (No Objection Certificate)'}
-            </h1>
-            <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
-              {isNikahNOC ? 'Manage Nikah NOC requests' : isCommonNOC ? 'Manage Common NOC requests' : 'Manage NOC requests'}
-            </p>
-          </div>
-          <Breadcrumb
-            items={[
-              { label: 'Dashboard', path: '/dashboard' },
-              { label: 'Registrations', path: ROUTES.REGISTRATIONS.NIKAH },
-              {
-                label: isNikahNOC ? 'Nikah NOC' : isCommonNOC ? 'Common NOC' : 'NOC',
-                path: isNikahNOC ? ROUTES.REGISTRATIONS.NOC.NIKAH : isCommonNOC ? ROUTES.REGISTRATIONS.NOC.COMMON : '#',
-              },
-            ]}
-          />
-        </div>
+        <PageHeader
+          title={isNikahNOC ? 'Nikah NOC' : isCommonNOC ? 'Common NOC' : 'NOC (No Objection Certificate)'}
+          description={
+            isNikahNOC
+              ? 'Manage Nikah NOC requests'
+              : isCommonNOC
+                ? 'Manage Common NOC requests'
+                : 'Manage NOC requests'
+          }
+          breadcrumbs={[{ label: 'Registrations', path: ROUTES.REGISTRATIONS.NIKAH }]}
+        />
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {stats.map((stat, index) => (
             <StatCard key={index} {...stat} />
           ))}
         </div>
       </div>
 
-      <Card>
-        <div className="mb-6">
+      <TableCard>
+        <div className="mb-4">
           <Button variant="outline" onClick={() => setShowCreate(!showCreate)}>
             {showCreate ? 'Close NOC Form' : '+ Create NOC'}
           </Button>
         </div>
 
         {showCreate && (
-          <div className="mb-8 p-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800">
+          <div className="mb-4 p-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800">
             <form onSubmit={handleSubmit(handleCreateNoc)} className="space-y-4">
               {createError && (
                 <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm dark:bg-red-900 dark:border-red-700 dark:text-red-200">
@@ -277,7 +285,7 @@ export default function NOCList() {
                     { value: '', label: 'Select applicant...' },
                     ...members.map((member) => ({
                       value: member.id,
-                      label: `${member.name} (${member.familyName})`,
+                      label: `${toTitleCase(member.name)} (${toTitleCase(member.familyName)})`,
                     })),
                   ]}
                   {...register('applicantId')}
@@ -291,12 +299,12 @@ export default function NOCList() {
                   placeholder="Applicant Name"
                 />
                 <div className="hidden">
-                <Input
-                  label="Applicant Name (Malayalam)"
-                  {...register('applicantNameMl')}
-                  placeholder="അപേക്ഷകന്റെ പേര്"
-                  className="font-malayalam"
-                />
+                  <Input
+                    label="Applicant Name (Malayalam)"
+                    {...register('applicantNameMl')}
+                    placeholder="അപേക്ഷകന്റെ പേര്"
+                    className="font-malayalam"
+                  />
                 </div>
                 <Input
                   label="Applicant Phone"
@@ -313,12 +321,12 @@ export default function NOCList() {
                   className="md:col-span-2"
                 />
                 <div className="hidden">
-                <Input
-                  label="Purpose Title (Malayalam)"
-                  {...register('purposeTitleMl')}
-                  placeholder="ഉദ്ദേശ്യം"
-                  className="md:col-span-2 font-malayalam"
-                />
+                  <Input
+                    label="Purpose Title (Malayalam)"
+                    {...register('purposeTitleMl')}
+                    placeholder="ഉദ്ദേശ്യം"
+                    className="md:col-span-2 font-malayalam"
+                  />
                 </div>
                 <Select
                   label="NOC Type"
@@ -339,7 +347,7 @@ export default function NOCList() {
                   />
                 </div>
               </div>
-              <div className="flex justify-end gap-3 pt-2">
+              <div className="flex gap-2 flex-col-reverse sm:flex-row sm:justify-end sm:gap-3 pt-2">
                 <Button type="button" variant="outline" onClick={() => setShowCreate(false)}>
                   Cancel
                 </Button>
@@ -361,22 +369,16 @@ export default function NOCList() {
           onExport={handleExport}
           isExporting={isExporting}
           actionButtons={
-            <Button size="md" onClick={() => setShowCreate(true)}>
-              + New NOC
+            <Button size="md" onClick={() => setShowCreate(true)} icon={<FiPlus />} collapseLabel>
+              New NOC
             </Button>
           }
         />
 
         {isFilterVisible && (
-          <div className="relative flex flex-wrap items-center gap-4 mb-6 p-4 border border-gray-200 rounded-lg bg-white dark:bg-gray-800 dark:border-gray-700">
-            <button
-              onClick={() => setIsFilterVisible(false)}
-              className="absolute right-4 top-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-            >
-              <FiX className="h-4 w-4" />
-            </button>
+          <FilterPanel onClose={() => setIsFilterVisible(false)}>
             {!isNikahNOC && !isCommonNOC && (
-              <div className="w-32">
+              <div className="w-full sm:w-32">
                 <Select
                   options={[
                     { value: 'all', label: 'All Types' },
@@ -384,36 +386,45 @@ export default function NOCList() {
                     { value: 'nikah', label: 'Nikah' },
                   ]}
                   value={typeFilter}
-                  onChange={(e) => setTypeFilter(e.target.value)}
+                  onChange={(e) => {
+                    setTypeFilter(e.target.value);
+                    setCurrentPage(1);
+                  }}
                 />
               </div>
             )}
-            <div className="w-32">
+            <div className="w-full sm:w-32">
               <Select
                 options={[
                   { value: 'all', label: 'All Status' },
                   { value: 'pending', label: 'Pending' },
+                  { value: 'correction_required', label: 'Correction Required' },
                   { value: 'approved', label: 'Approved' },
                   { value: 'rejected', label: 'Rejected' },
                 ]}
                 value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
+                onChange={(e) => {
+                  setStatusFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
               />
             </div>
-          </div>
+          </FilterPanel>
         )}
 
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="text-center py-12">
-            <p className="text-red-600 dark:text-red-400">{error}</p>
-            <Button onClick={fetchNOCs} className="mt-4" variant="outline">
-              Retry
-            </Button>
-          </div>
+          <EmptyState
+            variant="error"
+            entity="NOCs"
+            description={error}
+            action={{ label: 'Retry', onClick: fetchNOCs }}
+          />
         ) : (
           <Table
+            fixedLayout
+            striped
             columns={columns}
             data={nocs}
             emptyMessage="No NOCs found"
@@ -436,8 +447,7 @@ export default function NOCList() {
             />
           </div>
         )}
-      </Card>
+      </TableCard>
     </div>
   );
 }
-

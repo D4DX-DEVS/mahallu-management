@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { FiArrowLeft, FiEdit2, FiFilePlus } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
+import { FiArrowLeft, FiCheck, FiEdit2, FiFilePlus, FiRotateCcw, FiXCircle } from 'react-icons/fi';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
@@ -9,8 +8,11 @@ import { PageSkeleton } from '@/components/ui/Skeleton';
 import DocumentsPanel from '@/components/ui/DocumentsPanel';
 import { ROUTES } from '@/constants/routes';
 import { registrationService, NOC } from '@/services/registrationService';
-import { formatDate } from '@/utils/format';
+import { formatDate, toTitleCase } from '@/utils/format';
 import { toast } from '@/store/toastStore';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import StatusBadge from '@/components/ui/StatusBadge';
+import PageHeader from '@/components/layout/PageHeader';
 
 export default function NOCDetail() {
   const { id } = useParams<{ id: string }>();
@@ -37,7 +39,7 @@ export default function NOCDetail() {
       const data = await registrationService.getNOCById(id!);
       setNOC(data);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to load NOC');
+      setError(loadErrorMessage(err, 'noc'));
     } finally {
       setLoading(false);
     }
@@ -48,11 +50,11 @@ export default function NOCDetail() {
     try {
       setIssuingCert(true);
       const cert = await registrationService.issueCertificate('noc', noc.id);
-      toast.success(`Certificate ${cert.certificateNo} issued successfully`);
+      toast.success(`Certificate ${cert.certificateNo} issued`);
       setShowCertModal(false);
       await fetchNOC();
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to issue certificate');
+      toast.error(errorMessage(err, { action: 'issue certificate' }));
     } finally {
       setIssuingCert(false);
     }
@@ -61,7 +63,7 @@ export default function NOCDetail() {
   const handleUpdateStatus = async (newStatus: string) => {
     if (!noc?.id) return;
     if ((newStatus === 'correction_required' || newStatus === 'rejected') && !statusRemark.trim()) {
-      toast.error('Please provide remarks for this action');
+      toast.error('Please enter remarks for this action.');
       return;
     }
 
@@ -71,37 +73,34 @@ export default function NOCDetail() {
         status: newStatus as any,
         remarks: statusRemark || undefined,
       });
-      toast.success('Status updated successfully');
+      toast.success('Status updated');
       setShowStatusModal(false);
       setStatusRemark('');
       await fetchNOC();
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to update status');
+      toast.error(errorMessage(err, { action: 'update status' }));
     } finally {
       setUpdatingStatus(false);
     }
   };
 
   if (loading) {
-    return (
-      <PageSkeleton />
-    );
+    return <PageSkeleton />;
   }
 
   if (error || !noc) {
     return (
-      <div className="space-y-6">
-        <Breadcrumb
-          items={[
-            { label: 'Dashboard', path: '/dashboard' },
-            { label: 'NOC', path: noc?.type === 'nikah' ? ROUTES.REGISTRATIONS.NOC.NIKAH : ROUTES.REGISTRATIONS.NOC.COMMON },
-          ]}
-        />
+      <div className="space-y-4">
+        <PageHeader description="NOC details" title="NOC" />
         <Card>
-          <div className="text-center py-12">
+          <div className="text-center py-10">
             <p className="text-red-600 dark:text-red-400">{error || 'NOC not found'}</p>
             <Button
-              onClick={() => navigate(noc?.type === 'nikah' ? ROUTES.REGISTRATIONS.NOC.NIKAH : ROUTES.REGISTRATIONS.NOC.COMMON)}
+              onClick={() =>
+                navigate(
+                  noc?.type === 'nikah' ? ROUTES.REGISTRATIONS.NOC.NIKAH : ROUTES.REGISTRATIONS.NOC.COMMON
+                )
+              }
               className="mt-4"
               variant="outline"
             >
@@ -113,70 +112,46 @@ export default function NOCDetail() {
     );
   }
 
-  const statusColors: Record<string, string> = {
-    pending: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
-    approved: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-    rejected: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
-  };
-
   const typeColors: Record<string, string> = {
     common: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
     nikah: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
   };
 
   return (
-    <div className="space-y-6">
-      <Breadcrumb
-        items={[
-          { label: 'Dashboard', path: '/dashboard' },
+    <div className="space-y-4">
+      <PageHeader
+        title={toTitleCase(noc.applicantName)}
+        breadcrumbs={[
           {
             label: 'NOC',
             path: noc.type === 'nikah' ? ROUTES.REGISTRATIONS.NOC.NIKAH : ROUTES.REGISTRATIONS.NOC.COMMON,
           },
-          { label: noc.applicantName },
         ]}
       />
 
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-            NOC - {noc.applicantName}
-          </h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">NOC details</p>
-        </div>
-        <div className="flex gap-2">
+      <div className="flex gap-2 items-center justify-between">
+        <div className="flex gap-2 items-center">
           {noc.status === 'approved' && (
-            <Button onClick={() => setShowCertModal(true)} className="bg-green-600 hover:bg-green-700">
-              <FiFilePlus className="h-4 w-4 mr-2" />
-              Issue Certificate
-            </Button>
+            <Button onClick={() => setShowCertModal(true)} className="bg-green-600 hover:bg-green-700" icon={<FiFilePlus />} collapseLabel>Issue Certificate</Button>
           )}
           <Link to={`/registrations/noc/${noc.id}/edit`}>
-            <Button variant="outline">
-              <FiEdit2 className="h-4 w-4 mr-2" />
-              Edit
-            </Button>
+            <Button variant="outline" icon={<FiEdit2 />} collapseLabel>Edit</Button>
           </Link>
-          <Link
-            to={noc.type === 'nikah' ? ROUTES.REGISTRATIONS.NOC.NIKAH : ROUTES.REGISTRATIONS.NOC.COMMON}
-          >
-            <Button variant="outline">
-              <FiArrowLeft className="h-4 w-4 mr-2" />
-              Back to List
-            </Button>
+          <Link to={noc.type === 'nikah' ? ROUTES.REGISTRATIONS.NOC.NIKAH : ROUTES.REGISTRATIONS.NOC.COMMON}>
+            <Button variant="outline" icon={<FiArrowLeft />} collapseLabel>Back to List</Button>
           </Link>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card>
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+          <h2 className="text-lg font-semibold mb-3 text-foreground">
             Applicant Information
           </h2>
           <div className="space-y-3">
             <div>
               <span className="text-sm text-gray-500 dark:text-gray-400">Applicant Name</span>
-              <p className="text-gray-900 dark:text-gray-100 font-medium">{noc.applicantName}</p>
+              <p className="text-gray-900 dark:text-gray-100 font-medium">{toTitleCase(noc.applicantName)}</p>
             </div>
             {noc.applicantPhone && (
               <div>
@@ -199,24 +174,18 @@ export default function NOCDetail() {
             <div>
               <span className="text-sm text-gray-500 dark:text-gray-400">Status</span>
               <div className="mt-1">
-                <span
-                  className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                    statusColors[noc.status || 'pending']
-                  }`}
-                >
-                  {noc.status || 'pending'}
-                </span>
+                <StatusBadge status={noc.status} />
               </div>
             </div>
           </div>
         </Card>
 
         <Card>
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">NOC Details</h2>
+          <h2 className="text-lg font-semibold mb-3 text-foreground">NOC Details</h2>
           <div className="space-y-3">
             <div>
               <span className="text-sm text-gray-500 dark:text-gray-400">Purpose Title</span>
-              <p className="text-gray-900 dark:text-gray-100">{noc.purposeTitle || noc.purpose}</p>
+              <p className="text-gray-900 dark:text-gray-100">{toTitleCase(noc.purposeTitle || noc.purpose)}</p>
             </div>
             {(noc.purposeDescription || noc.purpose) && (
               <div>
@@ -256,13 +225,15 @@ export default function NOCDetail() {
 
       {noc.remarks && (
         <Card>
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Remarks</h2>
+          <h2 className="text-lg font-semibold mb-3 text-foreground">Remarks</h2>
           <p className="text-gray-700 dark:text-gray-300">{noc.remarks}</p>
         </Card>
       )}
 
       <Card>
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Registration Information</h2>
+        <h2 className="text-lg font-semibold mb-3 text-foreground">
+          Registration Information
+        </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <span className="text-sm text-gray-500 dark:text-gray-400">NOC ID</span>
@@ -276,50 +247,40 @@ export default function NOCDetail() {
       </Card>
 
       <Card>
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Attached Documents</h2>
+        <h2 className="text-lg font-semibold mb-3 text-foreground">Attached Documents</h2>
         <DocumentsPanel ownerType="noc" ownerId={noc.id} isAdmin={true} />
       </Card>
 
       {noc.status === 'pending' && (
         <Card>
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Review Status</h2>
-          <div className="flex flex-wrap gap-2">
-            <Button onClick={() => handleUpdateStatus('approved')} className="bg-green-600 hover:bg-green-700">
-              Approve
-            </Button>
+          <h2 className="text-lg font-semibold mb-3 text-foreground">Review Status</h2>
+          <div className="flex gap-2 items-center">
+            <Button
+              onClick={() => handleUpdateStatus('approved')}
+              className="bg-green-600 hover:bg-green-700" icon={<FiCheck />} collapseLabel>Approve</Button>
             <Button
               onClick={() => {
                 setStatusRemark('');
                 setShowStatusModal(true);
               }}
-              className="bg-blue-600 hover:bg-blue-700"
-            >
-              Request Correction
-            </Button>
+              className="bg-blue-600 hover:bg-blue-700" icon={<FiRotateCcw />} collapseLabel>Request Correction</Button>
             <Button
               onClick={() => {
                 setStatusRemark('');
                 setShowStatusModal(true);
               }}
-              className="bg-red-600 hover:bg-red-700"
-            >
-              Reject
-            </Button>
+              className="bg-red-600 hover:bg-red-700" icon={<FiXCircle />} collapseLabel>Reject</Button>
           </div>
         </Card>
       )}
 
       {/* Certificate Modal */}
-      <Modal
-        isOpen={showCertModal}
-        onClose={() => setShowCertModal(false)}
-        title="Issue Certificate"
-      >
+      <Modal isOpen={showCertModal} onClose={() => setShowCertModal(false)} title="Issue Certificate">
         <div className="space-y-4">
           <p className="text-gray-600 dark:text-gray-400">
             Are you sure you want to issue a NOC certificate for this request?
           </p>
-          <div className="flex gap-3 justify-end">
+          <div className="flex gap-2 flex-col-reverse sm:flex-row sm:justify-end sm:gap-3">
             <Button variant="outline" onClick={() => setShowCertModal(false)} disabled={issuingCert}>
               Cancel
             </Button>
@@ -335,17 +296,12 @@ export default function NOCDetail() {
       </Modal>
 
       {/* Status Modal */}
-      <Modal
-        isOpen={showStatusModal}
-        onClose={() => setShowStatusModal(false)}
-        title="Update Status"
-      >
+      <Modal isOpen={showStatusModal} onClose={() => setShowStatusModal(false)} title="Update Status">
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Remarks
-            </label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Remarks</label>
             <textarea
+              aria-label="Remarks"
               value={statusRemark}
               onChange={(e) => setStatusRemark(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-gray-100"
@@ -353,12 +309,8 @@ export default function NOCDetail() {
               placeholder="Enter remarks..."
             />
           </div>
-          <div className="flex gap-3 justify-end">
-            <Button
-              variant="outline"
-              onClick={() => setShowStatusModal(false)}
-              disabled={updatingStatus}
-            >
+          <div className="flex gap-2 flex-col-reverse sm:flex-row sm:justify-end sm:gap-3">
+            <Button variant="outline" onClick={() => setShowStatusModal(false)} disabled={updatingStatus}>
               Cancel
             </Button>
             <Button
@@ -381,4 +333,3 @@ export default function NOCDetail() {
     </div>
   );
 }
-

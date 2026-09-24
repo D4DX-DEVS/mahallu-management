@@ -16,10 +16,10 @@ export interface IFamily extends Document {
   place?: string;
   placeMl?: string;
   // Welfare / socio-economic profile (spec 7.6) - optional, older documents stay valid
-  economicStatus?: 'stable' | 'struggling' | 'needs_assistance';
+  economicStatus?: string; // Category key: 'economic_status'
   welfareStatus?: 'none' | 'receiving' | 'applied' | 'needs_review';
   specialRequirements?: string;
-  housingType?: 'own' | 'rented' | 'shared' | 'none';
+  housingType?: string; // Category key: 'housing_type'
   clusterId?: mongoose.Types.ObjectId;
   status: 'approved' | 'unapproved' | 'pending';
   createdAt: Date;
@@ -31,7 +31,7 @@ const FamilySchema = new Schema<IFamily>(
     tenantId: {
       type: Schema.Types.ObjectId,
       ref: 'Tenant',
-      required: [true, 'Tenant ID is required'],
+      required: [true, 'Please select a Mahallu before continuing.'],
       index: true,
     },
     mahallId: {
@@ -86,8 +86,8 @@ const FamilySchema = new Schema<IFamily>(
       trim: true,
     },
     economicStatus: {
+      // Category key: 'economic_status'.
       type: String,
-      enum: ['stable', 'struggling', 'needs_assistance'],
     },
     welfareStatus: {
       type: String,
@@ -98,8 +98,8 @@ const FamilySchema = new Schema<IFamily>(
       trim: true,
     },
     housingType: {
+      // Category key: 'housing_type'.
       type: String,
-      enum: ['own', 'rented', 'shared', 'none'],
     },
     clusterId: {
       type: Schema.Types.ObjectId,

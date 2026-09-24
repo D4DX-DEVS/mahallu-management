@@ -8,6 +8,11 @@ import {
 } from '../controllers/surveyController';
 import { authMiddleware, allowRoles } from '../middleware/authMiddleware';
 import { tenantMiddleware, tenantFilter } from '../middleware/tenantMiddleware';
+import { validationHandler } from '../middleware/validationHandler';
+import { idParam, listQuery } from '../validations/common';
+import {
+  generateSurveyValidation,
+} from '../validations/moduleValidation';
 
 const router = express.Router();
 
@@ -48,7 +53,7 @@ router.use(tenantFilter);
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  */
-router.get('/', getAllSurveys);
+router.get('/', listQuery(), validationHandler, getAllSurveys);
 
 /**
  * @swagger
@@ -67,7 +72,7 @@ router.get('/', getAllSurveys);
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  */
-router.get('/status', getSurveyStatus);
+router.get('/status', listQuery(), validationHandler, getSurveyStatus);
 
 /**
  * @swagger
@@ -89,7 +94,7 @@ router.get('/status', getSurveyStatus);
  *       404:
  *         $ref: '#/components/responses/NotFound'
  */
-router.get('/:id', getSurveyById);
+router.get('/:id', idParam('id', 'survey'), validationHandler, getSurveyById);
 
 /**
  * @swagger
@@ -122,7 +127,7 @@ router.get('/:id', getSurveyById);
  *       403:
  *         description: Role not allowed
  */
-router.post('/generate', allowRoles(['mahall', 'survey']), generateSurvey);
+router.post('/generate', generateSurveyValidation, validationHandler, allowRoles(['mahall', 'survey']), generateSurvey);
 
 /**
  * @swagger
@@ -144,6 +149,6 @@ router.post('/generate', allowRoles(['mahall', 'survey']), generateSurvey);
  *       403:
  *         description: Role not allowed
  */
-router.delete('/:id', allowRoles(['mahall']), deleteSurvey);
+router.delete('/:id', idParam('id', 'survey'), validationHandler, allowRoles(['mahall']), deleteSurvey);
 
 export default router;

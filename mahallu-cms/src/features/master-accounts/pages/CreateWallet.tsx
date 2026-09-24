@@ -4,16 +4,17 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useNavigate } from 'react-router-dom';
 import { FiSave, FiX } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import { ROUTES } from '@/constants/routes';
 import { masterAccountService } from '@/services/masterAccountService';
+import { errorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
 
 const walletSchema = z.object({
-  name: z.string().min(1, 'Name is required'),
+  name: z.string().max(200, 'Please keep the name to 200 characters or less.').min(1, 'Name is required'),
   type: z.enum(['main', 'reserve', 'charity'], { required_error: 'Type is required' }),
   balance: z.number().min(0, 'Balance must be 0 or greater').default(0),
 });
@@ -45,28 +46,21 @@ export default function CreateWallet() {
       });
       navigate(ROUTES.MASTER_ACCOUNTS.WALLETS);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to create wallet. Please try again.');
+      setError(errorMessage(err, { action: 'create wallet. please try again' }));
       console.error('Error creating wallet:', err);
     }
   };
 
   return (
-    <div className="space-y-6">
-      <Breadcrumb
-        items={[
-          { label: 'Dashboard', path: '/dashboard' },
-          { label: 'Wallets', path: ROUTES.MASTER_ACCOUNTS.WALLETS },
-          { label: 'Create' },
-        ]}
+    <div className="space-y-4">
+      <PageHeader
+        description="Add a new master wallet"
+        title="Create"
+        breadcrumbs={[{ label: 'Wallets', path: ROUTES.MASTER_ACCOUNTS.WALLETS }]}
       />
 
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Create Wallet</h1>
-        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Add a new master wallet</p>
-      </div>
-
       <form onSubmit={handleSubmit(onSubmit)}>
-        <Card className="space-y-6">
+        <Card className="space-y-4">
           {error && (
             <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm dark:bg-red-900 dark:border-red-700 dark:text-red-200">
               {error}
@@ -75,7 +69,12 @@ export default function CreateWallet() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="md:col-span-2">
-              <Input label="Wallet Name" {...register('name')} error={errors.name?.message} placeholder="e.g., Main Wallet, Reserve Fund" />
+              <Input
+                label="Wallet Name"
+                {...register('name')}
+                error={errors.name?.message}
+                placeholder="e.g., Main Wallet, Reserve Fund"
+              />
             </div>
 
             <Select
@@ -99,7 +98,7 @@ export default function CreateWallet() {
             />
           </div>
 
-          <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+          <div className="flex gap-2 flex-col-reverse sm:flex-row sm:justify-end sm:gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
             <Button type="button" variant="outline" onClick={() => navigate(ROUTES.MASTER_ACCOUNTS.WALLETS)}>
               <FiX className="h-4 w-4 mr-2" />
               Cancel
@@ -114,4 +113,3 @@ export default function CreateWallet() {
     </div>
   );
 }
-

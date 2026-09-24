@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
+import ActionsMenu from '@/components/ui/ActionsMenu';
+import { FiArrowLeft, FiEye, FiPlus, FiTrash2 } from 'react-icons/fi';
 import { useParams, useNavigate } from 'react-router-dom';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
+import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import Table from '@/components/ui/Table';
 import Pagination from '@/components/ui/Pagination';
@@ -11,9 +13,12 @@ import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import Select from '@/components/ui/Select';
 import { toast } from '@/store/toastStore';
 import { Pagination as PaginationType, TableColumn } from '@/types';
-import { formatDate } from '@/utils/format';
+import { formatDate, toTitleCase } from '@/utils/format';
 import { examService, Exam, ExamStatus } from '@/services/attendanceService';
 import { madrasaService } from '@/services/madrasaService';
+import { errorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
+import StatusBadge from '@/components/ui/StatusBadge';
 
 const STATUS_OPTIONS = [
   { value: '', label: 'All status' },
@@ -46,7 +51,7 @@ export default function ExamsList() {
     try {
       setCls(await madrasaService.getClass(classId));
     } catch (err: any) {
-      console.error('Failed to load class', err);
+      console.error("Couldn't load class", err);
     }
   };
 
@@ -64,7 +69,7 @@ export default function ExamsList() {
       setExams(result.data);
       setPagination(result.pagination);
     } catch (err: any) {
-      console.error('Failed to load exams', err);
+      console.error("Couldn't load exams", err);
     } finally {
       setLoading(false);
     }
@@ -77,83 +82,70 @@ export default function ExamsList() {
       setDeleting(true);
       await examService.deleteExam(deleteConfirm.id);
       setDeleteConfirm(null);
-      toast.success(`Exam "${deleteConfirm.name}" deleted`);
+      toast.success(`Exam "${toTitleCase(deleteConfirm.name)}" deleted`);
       if (classId) {
         fetchExams(classId);
       }
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to delete exam');
+      toast.error(errorMessage(err, { action: 'delete exam' }));
     } finally {
       setDeleting(false);
     }
   };
 
   const columns: TableColumn<Exam>[] = [
-    { key: 'name', label: 'Exam', render: (v) => v },
-    { key: 'examDate', label: 'Date', render: (v) => formatDate(v) },
-    { key: 'maxMarks', label: 'Max Marks', render: (v) => v },
+    { key: 'name', label: 'Exam', width: '6.75rem', render: (v) => <span>{toTitleCase(v)}</span> },
+    { key: 'examDate', label: 'Date', width: '6.25rem', render: (v) => formatDate(v) },
+    { key: 'maxMarks', label: 'Max Marks', width: '9.5rem', render: (v) => v },
     {
       key: 'status',
       label: 'Status',
-      render: (v: ExamStatus) => {
-        const colors: Record<ExamStatus, string> = {
-          scheduled: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
-          completed: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
-          cancelled: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
-        };
-        return (
-          <span className={`inline-block rounded px-2 py-1 text-xs font-medium ${colors[v] || ''}`}>
-            {v}
-          </span>
-        );
-      },
+      width: '7.25rem',
+      render: (v: ExamStatus) => <StatusBadge status={v} />,
     },
     {
       key: 'actions',
-      label: '',
+      label: 'Actions',
+      width: '8rem',
+      align: 'center',
       render: (_v, row) => (
-        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-          <button
-            onClick={() => navigate(`/education/exams/${row.id}`)}
-            className="text-xs font-medium text-blue-600 hover:underline dark:text-blue-400"
-          >
-            View
-          </button>
-          <button
-            onClick={() => setDeleteConfirm({ id: row.id, name: row.name })}
-            disabled={deleting}
-            className="text-xs font-medium text-red-600 hover:underline disabled:opacity-50 dark:text-red-400"
-          >
-            Delete
-          </button>
-        </div>
+        <ActionsMenu
+          label={'Actions for ' + toTitleCase(row.name)}
+          items={[
+            {
+              label: 'View',
+              icon: <FiEye className="h-4 w-4" />,
+              onClick: () => navigate(`/education/exams/${row.id}`),
+            },
+            {
+              label: 'Delete',
+              icon: <FiTrash2 className="h-4 w-4" />,
+              onClick: () => setDeleteConfirm({ id: row.id, name: row.name }),
+              disabled: deleting,
+              variant: 'danger' as const,
+            },
+          ]}
+        />
       ),
     },
   ];
 
   return (
     <div>
-      <Breadcrumb
-        items={[
+      <PageHeader
+        description={cls?.name ? toTitleCase(cls.name) : undefined}
+        title="Exams"
+        breadcrumbs={[
           { label: 'Services' },
           { label: 'Education', path: '/education' },
-          { label: cls?.name || 'Class', path: `/education/classes/${classId}` },
-          { label: 'Exams' },
+          { label: cls?.name ? toTitleCase(cls.name) : 'Class', path: `/education/classes/${classId}` },
         ]}
       />
 
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Exams</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400">{cls?.name}</p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="secondary" onClick={() => navigate(`/education/classes/${classId}`)}>
-            Back
-          </Button>
-          <Button onClick={() => navigate(`/education/exams/create?classId=${classId}`)}>
-            New exam
-          </Button>
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <div className="flex gap-2 items-center">
+          <Button variant="secondary" onClick={() => navigate(`/education/classes/${classId}`)} icon={<FiArrowLeft />} collapseLabel>Back</Button>
+          <Button onClick={() => navigate(`/education/exams/create?classId=${classId}`)} icon={<FiPlus />} collapseLabel>New exam</Button>
         </div>
       </div>
 
@@ -175,8 +167,8 @@ export default function ExamsList() {
           <EmptyState title="No exams yet" description="Create an exam to start recording results." />
         </Card>
       ) : (
-        <Card>
-          <Table columns={columns} data={exams} />
+        <TableCard>
+          <Table fixedLayout striped columns={columns} data={exams} />
           {pagination && pagination.totalPages > 1 && (
             <Pagination
               currentPage={pagination.page}
@@ -186,13 +178,13 @@ export default function ExamsList() {
               onPageChange={setCurrentPage}
             />
           )}
-        </Card>
+        </TableCard>
       )}
 
       <ConfirmDialog
         isOpen={deleteConfirm !== null}
         title="Delete Exam"
-        message={deleteConfirm ? `Delete the exam "${deleteConfirm.name}"?` : ''}
+        message={deleteConfirm ? `Delete the exam "${toTitleCase(deleteConfirm.name)}"?` : ''}
         consequence="This action cannot be undone."
         isLoading={deleting}
         variant="danger"

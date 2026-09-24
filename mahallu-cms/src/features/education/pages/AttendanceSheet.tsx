@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
+import { FiArrowLeft } from 'react-icons/fi';
 import { useParams, useNavigate } from 'react-router-dom';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import { PageSkeleton } from '@/components/ui/Skeleton';
@@ -8,6 +8,11 @@ import { toast } from '@/store/toastStore';
 import { madrasaService } from '@/services/madrasaService';
 import { attendanceService, AttendanceRecord } from '@/services/attendanceService';
 import { StudentEnrollment } from '@/services/madrasaService';
+import { errorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
+import DatePicker from '@/components/ui/DatePicker';
+import { fetchAllPages } from '@/services/api';
+import { toTitleCase } from '@/utils/format';
 
 export default function AttendanceSheet() {
   const { classId } = useParams<{ classId: string }>();
@@ -39,15 +44,15 @@ export default function AttendanceSheet() {
     try {
       setCls(await madrasaService.getClass(classId));
     } catch (err: any) {
-      setError('Failed to load class');
+      setError("Couldn't load class");
     }
   };
 
   const fetchStudents = async (classId: string) => {
     try {
       setLoading(true);
-      const result = await madrasaService.getClassStudents(classId, { limit: 100 });
-      const activeStudents = result.data.filter((s) => s.status === 'active');
+      const rows = await fetchAllPages((params) => madrasaService.getClassStudents(classId, params));
+      const activeStudents = rows.filter((s) => s.status === 'active');
       setStudents(activeStudents);
 
       // Initialize attendance state
@@ -57,7 +62,7 @@ export default function AttendanceSheet() {
       });
       setAttendance(initial);
     } catch (err: any) {
-      setError('Failed to load students');
+      setError("Couldn't load students");
     } finally {
       setLoading(false);
     }
@@ -118,13 +123,16 @@ export default function AttendanceSheet() {
       }));
 
       await attendanceService.upsertAttendance(classId, selectedDate, records);
-      const dateStr = new Date(selectedDate).toLocaleDateString('en-US', {
+      // Build the Date from local y/m/d parts — `new Date("YYYY-MM-DD")` parses as
+      // UTC midnight, which can roll back a day in a negative-UTC-offset timezone.
+      const [y, m, d] = selectedDate.split('-').map(Number);
+      const dateStr = new Date(y, m - 1, d).toLocaleDateString('en-US', {
         month: 'short',
         day: 'numeric',
       });
       toast.success(`Attendance saved for ${dateStr}`);
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to save attendance');
+      toast.error(errorMessage(err, { action: 'save attendance' }));
     } finally {
       setSaving(false);
     }
@@ -137,23 +145,18 @@ export default function AttendanceSheet() {
 
   return (
     <div>
-      <Breadcrumb
-        items={[
+      <PageHeader
+        description={toTitleCase(cls?.name)}
+        title="Attendance"
+        breadcrumbs={[
           { label: 'Services' },
           { label: 'Education', path: '/education' },
-          { label: cls?.name || 'Class', path: `/education/classes/${classId}` },
-          { label: 'Attendance' },
+          { label: cls?.name ? toTitleCase(cls.name) : 'Class', path: `/education/classes/${classId}` },
         ]}
       />
 
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Attendance Sheet</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400">{cls?.name}</p>
-        </div>
-        <Button variant="secondary" onClick={() => navigate(`/education/classes/${classId}`)}>
-          Back
-        </Button>
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <Button variant="secondary" onClick={() => navigate(`/education/classes/${classId}`)} icon={<FiArrowLeft />} collapseLabel>Back</Button>
       </div>
 
       {error && (
@@ -165,13 +168,7 @@ export default function AttendanceSheet() {
       <Card className="mb-4">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
-            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">Date</label>
-            <input
-              type="date"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              className="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-            />
+            <DatePicker label="Date" value={selectedDate} onChange={(value) => setSelectedDate(value)} />
           </div>
           <div className="flex items-end">
             <div className="text-sm text-gray-600 dark:text-gray-400">
@@ -194,9 +191,7 @@ export default function AttendanceSheet() {
               {students.map((student) => {
                 const isPresent = attendance[student.id] || false;
                 const memberName =
-                  student.memberId && typeof student.memberId === 'object'
-                    ? student.memberId.name
-                    : '-';
+                  student.memberId && typeof student.memberId === 'object' ? student.memberId.name : '-';
 
                 return (
                   <div
@@ -211,11 +206,11 @@ export default function AttendanceSheet() {
                           : 'border-gray-300 dark:border-gray-600'
                       }`}
                     >
-                      {isPresent && <span className="text-white text-xs font-bold">✓</span>}
+                      {isPresent && <span className="text-white text-xs font-semibold">✓</span>}
                     </button>
                     <div className="flex-1">
                       <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                        {memberName}
+                        {toTitleCase(memberName)}
                       </div>
                       {student.rollNo && (
                         <div className="text-xs text-gray-500 dark:text-gray-400">Roll: {student.rollNo}</div>
@@ -234,11 +229,7 @@ export default function AttendanceSheet() {
             </div>
 
             <div className="border-t border-gray-200 pt-4 dark:border-gray-700">
-              <Button
-                onClick={saveAttendance}
-                disabled={saving}
-                className="w-full sm:w-auto"
-              >
+              <Button onClick={saveAttendance} disabled={saving} className="w-full sm:w-auto">
                 {saving ? 'Saving...' : 'Save Attendance'}
               </Button>
             </div>

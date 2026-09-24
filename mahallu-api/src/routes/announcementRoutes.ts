@@ -9,6 +9,12 @@ import {
 } from '../controllers/announcementController';
 import { authMiddleware, allowRoles } from '../middleware/authMiddleware';
 import { tenantMiddleware, tenantFilter } from '../middleware/tenantMiddleware';
+import { validationHandler } from '../middleware/validationHandler';
+import { idParam, listQuery } from '../validations/common';
+import {
+  createAnnouncementValidation,
+  updateAnnouncementValidation,
+} from '../validations/moduleValidation';
 
 const router = express.Router();
 
@@ -53,7 +59,7 @@ router.use(tenantFilter);
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  */
-router.get('/', getAllAnnouncements);
+router.get('/', listQuery(), validationHandler, getAllAnnouncements);
 
 /**
  * @swagger
@@ -75,7 +81,7 @@ router.get('/', getAllAnnouncements);
  *       404:
  *         $ref: '#/components/responses/NotFound'
  */
-router.get('/:id', getAnnouncementById);
+router.get('/:id', idParam('id', 'announcement'), validationHandler, getAnnouncementById);
 
 /**
  * @swagger
@@ -120,7 +126,7 @@ router.get('/:id', getAnnouncementById);
  *       403:
  *         description: Role not allowed
  */
-router.post('/', allowRoles(['mahall']), createAnnouncement);
+router.post('/', createAnnouncementValidation, validationHandler, allowRoles(['mahall']), createAnnouncement);
 
 /**
  * @swagger
@@ -145,7 +151,7 @@ router.post('/', allowRoles(['mahall']), createAnnouncement);
  *       400:
  *         description: Already sent
  */
-router.post('/:id/send', allowRoles(['mahall']), sendAnnouncement);
+router.post('/:id/send', idParam('id', 'announcement'), validationHandler, allowRoles(['mahall']), sendAnnouncement);
 
 /**
  * @swagger
@@ -167,7 +173,7 @@ router.post('/:id/send', allowRoles(['mahall']), sendAnnouncement);
  *       400:
  *         description: Sent announcements cannot be edited
  */
-router.put('/:id', allowRoles(['mahall']), updateAnnouncement);
+router.put('/:id', updateAnnouncementValidation, validationHandler, allowRoles(['mahall']), updateAnnouncement);
 
 /**
  * @swagger
@@ -187,6 +193,6 @@ router.put('/:id', allowRoles(['mahall']), updateAnnouncement);
  *       200:
  *         description: Deleted
  */
-router.delete('/:id', allowRoles(['mahall']), deleteAnnouncement);
+router.delete('/:id', idParam('id', 'announcement'), validationHandler, allowRoles(['mahall']), deleteAnnouncement);
 
 export default router;

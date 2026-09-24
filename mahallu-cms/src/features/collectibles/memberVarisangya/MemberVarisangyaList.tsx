@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { FiEye, FiDollarSign, FiUsers, FiCreditCard, FiDownload } from 'react-icons/fi';
-import Card from '@/components/ui/Card';
-import Button from '@/components/ui/Button';
+import TableCard from '@/components/ui/TableCard';
+import { rowActionClass } from '@/components/ui/rowAction';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
+import EmptyState from '@/components/ui/EmptyState';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import Pagination from '@/components/ui/Pagination';
@@ -12,13 +13,15 @@ import TableToolbar from '@/components/ui/TableToolbar';
 import Dropdown from '@/components/ui/Dropdown';
 import { TableColumn, Pagination as PaginationType, Member } from '@/types';
 import { memberService } from '@/services/memberService';
-import { collectibleService } from '@/services/collectibleService';
+import { collectibleService, Varisangya } from '@/services/collectibleService';
+import { fetchAllPages } from '@/services/api';
 import { useDebounce } from '@/hooks/useDebounce';
-import { formatDate } from '@/utils/format';
+import { formatDate, toTitleCase } from '@/utils/format';
 import { ROUTES } from '@/constants/routes';
 import { exportToCSV, exportToJSON } from '@/utils/exportUtils';
 import { exportInvoicesToPdf, InvoiceDetails } from '@/utils/invoiceUtils';
 import { toast } from '@/store/toastStore';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
 
 interface MemberVarisangyaData extends Member {
   totalVarisangya?: number;
@@ -28,7 +31,8 @@ interface MemberVarisangyaData extends Member {
 
 const MEMBER_BASE = ROUTES.COLLECTIBLES.MEMBER_VARISANGYA.BASE;
 
-const getMemberId = (v: any) => (typeof v.memberId === 'object' && v.memberId != null ? v.memberId.id : v.memberId);
+const getMemberId = (v: any) =>
+  typeof v.memberId === 'object' && v.memberId != null ? v.memberId.id : v.memberId;
 
 export default function MemberVarisangyaList() {
   const navigate = useNavigate();
@@ -45,6 +49,12 @@ export default function MemberVarisangyaList() {
 
   const debouncedSearch = useDebounce(searchQuery, 500);
 
+  // A page number that only made sense for the previous search must not
+  // survive into the new one - reset it once the debounce settles.
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearch]);
+
   useEffect(() => {
     fetchMembers();
   }, [debouncedSearch, currentPage]);
@@ -57,8 +67,9 @@ export default function MemberVarisangyaList() {
       if (debouncedSearch) params.search = debouncedSearch;
       const membersResult = await memberService.getAll(params);
       const membersData = membersResult.data;
-      const varisangyasResult = await collectibleService.getAllVarisangyas();
-      const allVarisangyas = varisangyasResult.data;
+      // /collectibles/varisangya defaults to 10 rows with no limit passed - fetch every
+      // page so per-member totals aren't computed off an arbitrary slice.
+      const allVarisangyas = await fetchAllPages<Varisangya>((p) => collectibleService.getAllVarisangyas(p));
       const membersWithVarisangya = membersData.map((member) => {
         const memberVarisangyas = allVarisangyas.filter((v) => getMemberId(v) === member.id);
         const totalVarisangya = memberVarisangyas.reduce((sum, v) => sum + (v.amount || 0), 0);
@@ -75,7 +86,7 @@ export default function MemberVarisangyaList() {
       setMembers(membersWithVarisangya);
       if (membersResult.pagination) setPagination(membersResult.pagination);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch members');
+      setError(loadErrorMessage(err, 'members'));
       console.error('Error fetching members:', err);
     } finally {
       setLoading(false);
@@ -85,12 +96,12 @@ export default function MemberVarisangyaList() {
   const handleExport = async (type: 'csv' | 'json' | 'pdf') => {
     try {
       setIsExporting(true);
-      const params: any = { limit: 10000 };
-      if (debouncedSearch) params.search = debouncedSearch;
-      const membersResult = await memberService.getAll(params);
-      const membersData = membersResult.data;
-      const varisangyasResult = await collectibleService.getAllVarisangyas();
-      const allVarisangyas = varisangyasResult.data;
+      const filters: any = {};
+      if (debouncedSearch) filters.search = debouncedSearch;
+      // /members and /collectibles/varisangya cap limit at 100 and 400 above it, so a
+      // single limit:10000 request always failed - page through both instead.
+      const membersData = await fetchAllPages<Member>((p) => memberService.getAll({ ...filters, ...p }));
+      const allVarisangyas = await fetchAllPages<Varisangya>((p) => collectibleService.getAllVarisangyas(p));
       const dataToExport = membersData.map((member) => {
         const memberVarisangyas = allVarisangyas.filter((v) => getMemberId(v) === member.id);
         const totalVarisangya = memberVarisangyas.reduce((sum, v) => sum + (v.amount || 0), 0);
@@ -125,7 +136,7 @@ export default function MemberVarisangyaList() {
                   title: 'Member Varisangya Payment',
                   receiptNo: entry.receiptNo,
                   payerLabel: 'Member',
-                  payerName: member.name || '-',
+                  payerName: toTitleCase(member.name) || '-',
                   amount: entry.amount,
                   paymentDate: entry.paymentDate,
                   paymentMethod: entry.paymentMethod,
@@ -133,13 +144,15 @@ export default function MemberVarisangyaList() {
                 });
               }
             }
-            await exportInvoicesToPdf(invoices, `member-varisangya-invoices-${new Date().toISOString().split('T')[0]}`);
+            await exportInvoicesToPdf(
+              invoices,
+              `member-varisangya-invoices-${new Date().toISOString().split('T')[0]}`
+            );
           }
           break;
       }
     } catch (error: any) {
-      console.error('Export error:', error);
-      toast.error(error?.message || 'Failed to export member varisangya data');
+      toast.error(errorMessage(error, { action: 'export member varisangya data' }));
     } finally {
       setIsExporting(false);
     }
@@ -159,8 +172,9 @@ export default function MemberVarisangyaList() {
           break;
         case 'pdf':
           {
-            const varisangyasResult = await collectibleService.getAllVarisangyas({ memberId: row.id });
-            const memberVarisangyas = varisangyasResult.data || [];
+            const memberVarisangyas = await fetchAllPages<Varisangya>((p) =>
+              collectibleService.getAllVarisangyas({ memberId: row.id, ...p })
+            );
             if (memberVarisangyas.length === 0) {
               toast.info('No payment records to export for this member');
               return;
@@ -169,7 +183,7 @@ export default function MemberVarisangyaList() {
               title: 'Member Varisangya Payment',
               receiptNo: entry.receiptNo || '-',
               payerLabel: 'Member',
-              payerName: row.name || '-',
+              payerName: toTitleCase(row.name) || '-',
               amount: entry.amount,
               paymentDate: entry.paymentDate,
               paymentMethod: entry.paymentMethod || '-',
@@ -180,31 +194,41 @@ export default function MemberVarisangyaList() {
           break;
       }
     } catch (error: any) {
-      console.error('Row export error:', error);
-      toast.error(error?.message || 'Failed to export member varisangya records');
+      toast.error(errorMessage(error, { action: 'export member varisangya records' }));
     } finally {
       setExportingRowId(null);
     }
   };
 
   const columns: TableColumn<MemberVarisangyaData>[] = [
-    { key: 'id', label: 'No.', render: (_, __, index) => index + 1 },
     {
       key: 'name',
       label: 'Member Name',
+      width: '10.75rem',
       render: (name, row) => (
-        <Link to={ROUTES.MEMBERS.DETAIL(row.id)} className="text-primary-600 hover:text-primary-700 dark:text-primary-400">
-          {name}
+        <Link
+          to={ROUTES.MEMBERS.DETAIL(row.id)}
+          className="text-primary-600 hover:text-primary-700 dark:text-primary-400"
+        >
+          {toTitleCase(name)}
         </Link>
       ),
     },
-    { key: 'familyName', label: 'Family' },
-    { key: 'varisangyaCount', label: 'Payments', render: (count) => count || 0 },
-    { key: 'totalVarisangya', label: 'Total Amount', render: (amount) => `₹${(amount || 0).toLocaleString()}` },
-    { key: 'lastPaymentDate', label: 'Last Payment', render: (date) => (date ? formatDate(date) : '-') },
+    { key: 'familyName', label: 'Family', width: '7.25rem', render: (name) => toTitleCase(name) },
+    { key: 'varisangyaCount', label: 'Payments', width: '8.75rem', render: (count) => count || 0 },
+    {
+      key: 'totalVarisangya',
+      label: 'Total Amount',
+      width: '12rem',
+      align: 'center',
+      render: (amount) => `₹${(amount || 0).toLocaleString()}`,
+    },
+    { key: 'lastPaymentDate', label: 'Last Payment', width: '10.75rem', render: (date) => (date ? formatDate(date) : '-') },
     {
       key: 'actions',
       label: 'Actions',
+      width: '8rem',
+      align: 'center',
       render: (_, row) => (
         <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
           <button
@@ -212,8 +236,9 @@ export default function MemberVarisangyaList() {
               e.stopPropagation();
               navigate(`${MEMBER_BASE}?view=transactions&memberId=${row.id}`);
             }}
-            className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
+            className={rowActionClass()}
             title="View Transactions"
+            aria-label="View Transactions"
           >
             <FiEye className="h-4 w-4" />
           </button>
@@ -222,8 +247,9 @@ export default function MemberVarisangyaList() {
               e.stopPropagation();
               navigate(`${MEMBER_BASE}?view=wallet&memberId=${row.id}`);
             }}
-            className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
+            className={rowActionClass()}
             title="View Wallet"
+            aria-label="View Wallet"
           >
             <FiDollarSign className="h-4 w-4" />
           </button>
@@ -233,10 +259,15 @@ export default function MemberVarisangyaList() {
               <button
                 onClick={(e) => e.stopPropagation()}
                 disabled={exportingRowId === row.id}
-                className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors disabled:opacity-50"
+                className={rowActionClass('default', 'disabled:opacity-50')}
                 title="Export"
+                aria-label="Export"
               >
-                {exportingRowId === row.id ? <LoadingSpinner size="sm" /> : <FiDownload className="h-4 w-4" />}
+                {exportingRowId === row.id ? (
+                  <LoadingSpinner size="sm" />
+                ) : (
+                  <FiDownload className="h-4 w-4" />
+                )}
               </button>
             }
             items={[
@@ -253,9 +284,17 @@ export default function MemberVarisangyaList() {
   const totalAmount = members.reduce((sum, m) => sum + (m.totalVarisangya || 0), 0);
   const totalPayments = members.reduce((sum, m) => sum + (m.varisangyaCount || 0), 0);
   const stats = [
-    { title: 'Total Members', value: pagination?.total || members.length, icon: <FiUsers className="h-5 w-5" /> },
+    {
+      title: 'Total Members',
+      value: pagination?.total || members.length,
+      icon: <FiUsers className="h-5 w-5" />,
+    },
     { title: 'Total Payments', value: totalPayments, icon: <FiCreditCard className="h-5 w-5" /> },
-    { title: 'Total Amount', value: `₹${totalAmount.toLocaleString()}`, icon: <FiDollarSign className="h-5 w-5" /> },
+    {
+      title: 'Total Amount',
+      value: `₹${totalAmount.toLocaleString()}`,
+      icon: <FiDollarSign className="h-5 w-5" />,
+    },
   ];
 
   return (
@@ -265,7 +304,7 @@ export default function MemberVarisangyaList() {
           <StatCard key={index} {...stat} />
         ))}
       </div>
-      <Card>
+      <TableCard>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -279,14 +318,14 @@ export default function MemberVarisangyaList() {
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="text-center py-12">
-            <p className="text-red-600 dark:text-red-400">{error}</p>
-            <Button onClick={fetchMembers} className="mt-4" variant="outline">
-              Retry
-            </Button>
-          </div>
+          <EmptyState
+            variant="error"
+            entity="members"
+            description={error}
+            action={{ label: 'Retry', onClick: fetchMembers }}
+          />
         ) : (
-          <Table columns={columns} data={members} emptyMessage="No members found" showExport={false} />
+          <Table fixedLayout striped columns={columns} data={members} emptyMessage="No members found" showExport={false} />
         )}
         {pagination && (
           <div className="mt-4">
@@ -299,7 +338,7 @@ export default function MemberVarisangyaList() {
             />
           </div>
         )}
-      </Card>
+      </TableCard>
     </div>
   );
 }

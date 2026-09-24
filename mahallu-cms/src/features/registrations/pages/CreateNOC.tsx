@@ -4,7 +4,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { FiSave, FiX } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -13,7 +12,12 @@ import RichTextEditor from '@/components/ui/RichTextEditor';
 import { ROUTES } from '@/constants/routes';
 import { registrationService } from '@/services/registrationService';
 import { memberService } from '@/services/memberService';
+import { fetchAllPages } from '@/services/api';
 import { Member } from '@/types';
+import { toast } from '@/store/toastStore';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 
 const DEFAULT_NOC_DESCRIPTION = `
 <p>To Whom It May Concern,</p>
@@ -53,13 +57,13 @@ const DEFAULT_NOC_DESCRIPTION = `
 `.trim();
 
 const nocSchema = z.object({
-  applicantId: z.string().optional(),
-  applicantName: z.string().min(1, 'Applicant name is required'),
-  applicantNameMl: z.string().optional(),
-  applicantPhone: z.string().optional(),
-  purposeTitle: z.string().min(1, 'Purpose title is required'),
-  purposeTitleMl: z.string().optional(),
-  purposeDescription: z.string().min(1, 'Purpose description is required'),
+  applicantId: z.string().max(200, 'Please keep the applicant to 200 characters or less.').optional(),
+  applicantName: z.string().max(200, 'Please keep the applicant name to 200 characters or less.').min(1, 'Applicant name is required'),
+  applicantNameMl: z.string().max(200, 'Please keep the applicant name to 200 characters or less.').optional(),
+  applicantPhone: z.string().max(200, 'Please keep the applicant phone to 200 characters or less.').optional(),
+  purposeTitle: z.string().max(2000, 'Please keep the purpose title to 2000 characters or less.').min(1, 'Purpose title is required'),
+  purposeTitleMl: z.string().max(2000, 'Please keep the purpose title to 2000 characters or less.').optional(),
+  purposeDescription: z.string().max(3000, 'Please keep the purpose description to 3000 characters or less.').min(1, 'Purpose description is required'),
   type: z.enum(['common', 'nikah']),
 });
 
@@ -91,11 +95,13 @@ export default function CreateNOC() {
   useEffect(() => {
     const fetchMembers = async () => {
       try {
-        const result = await memberService.getAll({ limit: 1000 });
-        setMembers(result.data || []);
+        // The list endpoint caps a page at 100 and answers 400 above it, so the
+        // old single `limit: 1000` call failed and left this dropdown empty.
+        const all = await fetchAllPages<Member>((params) => memberService.getAll(params), 10);
+        setMembers(all);
       } catch (err) {
-        console.error('Error fetching members:', err);
         setMembers([]);
+        toast.error(loadErrorMessage(err, 'members'));
       }
     };
     fetchMembers();
@@ -124,29 +130,21 @@ export default function CreateNOC() {
       });
       navigate(ROUTES.REGISTRATIONS.NOC.COMMON);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to create NOC. Please try again.');
+      setError(errorMessage(err, { action: 'create noc. please try again' }));
       console.error('Error creating NOC:', err);
     }
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Create NOC</h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Create a new No Objection Certificate</p>
-        </div>
-        <Breadcrumb
-          items={[
-            { label: 'Dashboard', path: '/dashboard' },
-            { label: 'NOC', path: ROUTES.REGISTRATIONS.NOC.COMMON },
-            { label: 'Create' },
-          ]}
-        />
-      </div>
+    <div className="space-y-4">
+      <PageHeader
+        title="Create NOC"
+        description="Create a new No Objection Certificate"
+        breadcrumbs={[{ label: 'NOC', path: ROUTES.REGISTRATIONS.NOC.COMMON }]}
+      />
 
       <form onSubmit={handleSubmit(onSubmit)}>
-        <Card className="space-y-6">
+        <Card className="space-y-4">
           {error && (
             <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm dark:bg-red-900 dark:border-red-700 dark:text-red-200">
               {error}
@@ -160,7 +158,7 @@ export default function CreateNOC() {
                 { value: '', label: 'Select applicant...' },
                 ...members.map((member) => ({
                   value: member.id,
-                  label: `${member.name} (${member.familyName})`,
+                  label: `${toTitleCase(member.name)} (${toTitleCase(member.familyName)})`,
                 })),
               ]}
               {...register('applicantId')}
@@ -174,12 +172,12 @@ export default function CreateNOC() {
               placeholder="Applicant Name"
             />
             <div className="hidden">
-            <Input
-              label="Applicant Name (Malayalam)"
-              {...register('applicantNameMl')}
-              placeholder="അപേക്ഷകന്റെ പേര്"
-              className="font-malayalam"
-            />
+              <Input
+                label="Applicant Name (Malayalam)"
+                {...register('applicantNameMl')}
+                placeholder="അപേക്ഷകന്റെ പേര്"
+                className="font-malayalam"
+              />
             </div>
             <Input
               label="Applicant Phone"
@@ -196,12 +194,12 @@ export default function CreateNOC() {
               className="md:col-span-2"
             />
             <div className="hidden">
-            <Input
-              label="Purpose Title (Malayalam)"
-              {...register('purposeTitleMl')}
-              placeholder="ഉദ്ദേശ്യം"
-              className="md:col-span-2 font-malayalam"
-            />
+              <Input
+                label="Purpose Title (Malayalam)"
+                {...register('purposeTitleMl')}
+                placeholder="ഉദ്ദേശ്യം"
+                className="md:col-span-2 font-malayalam"
+              />
             </div>
             <Select
               label="NOC Type"
@@ -223,7 +221,7 @@ export default function CreateNOC() {
             </div>
           </div>
 
-          <div className="flex justify-end gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+          <div className="flex gap-2 flex-col-reverse sm:flex-row sm:justify-end sm:gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
             <Button type="button" variant="outline" onClick={() => navigate(ROUTES.REGISTRATIONS.NOC.COMMON)}>
               <FiX className="h-4 w-4 mr-2" />
               Cancel
@@ -238,4 +236,3 @@ export default function CreateNOC() {
     </div>
   );
 }
-

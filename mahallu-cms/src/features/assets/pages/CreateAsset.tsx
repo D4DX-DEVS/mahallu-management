@@ -4,7 +4,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { FiSave, FiX } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -12,20 +11,23 @@ import Select from '@/components/ui/Select';
 import { ROUTES } from '@/constants/routes';
 import { assetService } from '@/services/assetService';
 import { mosqueService, MosqueProfile } from '@/services/mosqueService';
+import PageHeader from '@/components/layout/PageHeader';
+import { errorMessage, safeApiMessage } from '@/utils/errors';
+import { toTitleCase } from '@/utils/format';
 
 const assetSchema = z.object({
-  name: z.string().min(1, 'Asset name is required').max(200),
-  nameMl: z.string().optional(),
-  description: z.string().optional(),
-  purchaseDate: z.string().min(1, 'Purchase date is required'),
-  estimatedValue: z.string().min(1, 'Estimated value is required'),
+  name: z.string().min(2, 'Asset name must be at least 2 characters.').max(200),
+  nameMl: z.string().max(200, 'Please keep the name to 200 characters or less.').optional(),
+  description: z.string().max(3000, 'Please keep the description to 3000 characters or less.').optional(),
+  purchaseDate: z.string().max(200, 'Please keep the purchase date to 200 characters or less.').min(1, 'Purchase date is required'),
+  estimatedValue: z.string().max(200, 'Please keep the estimated value to 200 characters or less.').min(1, 'Estimated value is required'),
   category: z.enum(['furniture', 'electronics', 'vehicle', 'building', 'land', 'equipment', 'other'], {
     required_error: 'Category is required',
   }),
   status: z.enum(['active', 'in_use', 'under_maintenance', 'disposed', 'damaged']).optional(),
-  location: z.string().optional(),
-  locationMl: z.string().optional(),
-  mosqueId: z.string().optional(),
+  location: z.string().max(300, 'Please keep the location to 300 characters or less.').optional(),
+  locationMl: z.string().max(300, 'Please keep the location to 300 characters or less.').optional(),
+  mosqueId: z.string().max(200, 'Please keep the mosque to 200 characters or less.').optional(),
 });
 
 type AssetFormData = z.infer<typeof assetSchema>;
@@ -84,33 +86,25 @@ export default function CreateAsset() {
       await assetService.create(assetData);
       navigate(ROUTES.ASSETS.LIST);
     } catch (err: any) {
-      const message = err.response?.data?.message 
-        || err.response?.data?.errors?.[0]?.msg 
-        || err.message 
-        || 'Failed to create asset. Please try again.';
+      const message =
+        safeApiMessage(err, '') ||
+        err.response?.data?.errors?.[0]?.msg ||
+        errorMessage(err, { action: 'save this asset' });
       setError(message);
       console.error('Error creating asset:', err.response?.data || err);
     }
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Add New Asset</h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Register a new asset</p>
-        </div>
-        <Breadcrumb
-          items={[
-            { label: 'Dashboard', path: '/dashboard' },
-            { label: 'Assets', path: ROUTES.ASSETS.LIST },
-            { label: 'Create' },
-          ]}
-        />
-      </div>
+    <div className="space-y-4">
+      <PageHeader
+        title="Add New Asset"
+        description="Register a new asset"
+        breadcrumbs={[{ label: 'Assets', path: ROUTES.ASSETS.LIST }]}
+      />
 
       <form onSubmit={handleSubmit(onSubmit)}>
-        <Card className="space-y-6">
+        <Card className="space-y-4">
           {error && (
             <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm dark:bg-red-900 dark:border-red-700 dark:text-red-200">
               {error}
@@ -127,12 +121,12 @@ export default function CreateAsset() {
               className="md:col-span-2"
             />
             <div className="hidden">
-            <Input
-              label="Asset Name (Malayalam)"
-              {...register('nameMl')}
-              placeholder="അസറ്റിന്റെ പേര്"
-              className="md:col-span-2 font-malayalam"
-            />
+              <Input
+                label="Asset Name (Malayalam)"
+                {...register('nameMl')}
+                placeholder="അസറ്റിന്റെ പേര്"
+                className="md:col-span-2 font-malayalam"
+              />
             </div>
             <Input
               label="Purchase Date"
@@ -171,7 +165,7 @@ export default function CreateAsset() {
               label="Mosque"
               options={[
                 { value: '', label: 'Unassigned' },
-                ...mosques.map((m) => ({ value: m.id, label: m.name })),
+                ...mosques.map((m) => ({ value: m.id, label: toTitleCase(m.name) })),
               ]}
               {...register('mosqueId')}
             />
@@ -193,16 +187,19 @@ export default function CreateAsset() {
               className="md:col-span-2"
             />
             <div className="hidden">
-            <Input
-              label="Location (Malayalam)"
-              {...register('locationMl')}
-              placeholder="സ്ഥലം"
-              className="md:col-span-2 font-malayalam"
-            />
+              <Input
+                label="Location (Malayalam)"
+                {...register('locationMl')}
+                placeholder="സ്ഥലം"
+                className="md:col-span-2 font-malayalam"
+              />
             </div>
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Description
+              </label>
               <textarea
+                aria-label="Description"
                 {...register('description')}
                 rows={3}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
@@ -211,7 +208,7 @@ export default function CreateAsset() {
             </div>
           </div>
 
-          <div className="flex justify-end gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+          <div className="flex gap-2 flex-col-reverse sm:flex-row sm:justify-end sm:gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
             <Button type="button" variant="outline" onClick={() => navigate(ROUTES.ASSETS.LIST)}>
               <FiX className="h-4 w-4 mr-2" />
               Cancel

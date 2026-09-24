@@ -43,4 +43,3 @@ export interface TenantStats {
   families: number;
   members: number;
 }
-

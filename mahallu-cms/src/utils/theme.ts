@@ -3,7 +3,7 @@ import { useThemeStore } from '@/store/themeStore';
 export const applyTheme = () => {
   const { theme } = useThemeStore.getState();
   const root = window.document.documentElement;
-  
+
   if (theme === 'dark') {
     root.classList.add('dark');
   } else {
@@ -15,4 +15,3 @@ export const applyTheme = () => {
 if (typeof window !== 'undefined') {
   applyTheme();
 }
-

@@ -1,11 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiUsers, FiCalendar } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
+import { FiCalendar, FiPlus, FiUsers } from 'react-icons/fi';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import StatCard from '@/components/ui/StatCard';
-import SearchInput from '@/components/ui/SearchInput';
+import ExpandableSearch from '@/components/ui/ExpandableSearch';
 import Select from '@/components/ui/Select';
 import Pagination from '@/components/ui/Pagination';
 import { PageSkeleton } from '@/components/ui/Skeleton';
@@ -20,6 +19,9 @@ import {
   classTypeLabel,
   teacherName,
 } from '@/services/madrasaService';
+import { loadErrorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 
 const TYPE_FILTER = [{ value: '', label: 'All types' }, ...CLASS_TYPE_OPTIONS];
 const STATUS_FILTER = [
@@ -65,7 +67,7 @@ export default function ClassesList() {
       setRows(result.data);
       setPagination(result.pagination);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to load classes');
+      setError(loadErrorMessage(err, 'classes'));
     } finally {
       setLoading(false);
     }
@@ -73,20 +75,18 @@ export default function ClassesList() {
 
   return (
     <div>
-      <Breadcrumb items={[{ label: 'Services' }, { label: 'Education' }]} />
+      <PageHeader
+        description="Madrasa classes and the students enrolled in them."
+        title="Education"
+        breadcrumbs={[{ label: 'Services' }]}
+      />
 
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Education</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            Madrasa classes and the students enrolled in them.
-          </p>
-        </div>
-        <Button onClick={() => navigate('/education/classes/create')}>New class</Button>
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <Button onClick={() => navigate('/education/classes/create')} icon={<FiPlus />} collapseLabel>New class</Button>
       </div>
 
       {summary && (
-        <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
           <StatCard title="Classes" value={summary.totalClasses} />
           <StatCard title="Active students" value={summary.activeStudents} />
           <StatCard title="Completed" value={summary.completedStudents} />
@@ -96,12 +96,13 @@ export default function ClassesList() {
 
       <Card className="mb-4">
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto_auto] sm:items-end">
-          <SearchInput
+          <ExpandableSearch
             value={searchQuery}
-            onChange={(e) => {
-              setSearchQuery(e.target.value);
+            onChange={(value) => {
+              setSearchQuery(value);
               setCurrentPage(1);
             }}
+            entity="classes"
             placeholder="Search by class name"
           />
           <Select
@@ -133,13 +134,10 @@ export default function ClassesList() {
         <PageSkeleton variant="section" />
       ) : rows.length === 0 ? (
         <Card>
-          <EmptyState
-            title="No classes yet"
-            description="Create a class to start enrolling students."
-          />
+          <EmptyState title="No classes yet" description="Create a class to start enrolling students." />
         </Card>
       ) : (
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {rows.map((cls) => (
             <Card
               key={cls.id}
@@ -147,9 +145,7 @@ export default function ClassesList() {
               onClick={() => navigate(`/education/classes/${cls.id}`)}
             >
               <div className="mb-2 flex items-start justify-between gap-2">
-                <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-                  {cls.name}
-                </h3>
+                <h3 className="text-sm font-semibold text-foreground">{toTitleCase(cls.name)}</h3>
                 {cls.status === 'inactive' && (
                   <span className="whitespace-nowrap rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600 dark:bg-gray-700 dark:text-gray-300">
                     inactive
@@ -157,16 +153,12 @@ export default function ClassesList() {
                 )}
               </div>
 
-              {cls.nameMl && (
-                <p className="mb-1 text-xs text-gray-500 dark:text-gray-400">{cls.nameMl}</p>
-              )}
+              {cls.nameMl && <p className="mb-1 text-xs text-gray-500 dark:text-gray-400">{cls.nameMl}</p>}
 
-              <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">
-                {classTypeLabel(cls.classType)}
-              </p>
+              <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">{classTypeLabel(cls.classType)}</p>
 
               <div className="space-y-1 text-xs text-gray-600 dark:text-gray-300">
-                <p className="truncate">{teacherName(cls)}</p>
+                <p className="truncate">{toTitleCase(teacherName(cls))}</p>
                 <p className="flex items-center gap-1">
                   <FiCalendar className="h-3 w-3 shrink-0" />
                   {cls.academicYear}

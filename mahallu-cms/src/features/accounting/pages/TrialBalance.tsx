@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -8,6 +7,9 @@ import { PageSkeleton } from '@/components/ui/Skeleton';
 import { accountingReportService, TrialBalanceEntry } from '@/services/accountingReportService';
 import { instituteService } from '@/services/instituteService';
 import { useAuthStore } from '@/store/authStore';
+import { loadErrorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 
 export default function TrialBalance() {
   const { currentInstituteId: userInstituteId } = useAuthStore();
@@ -31,7 +33,9 @@ export default function TrialBalance() {
     try {
       const result = await instituteService.getAll({ limit: 1000 });
       setInstitutes(result.data.map((i: any) => ({ id: i.id, name: i.name })));
-    } catch (err) { console.error('Error:', err); }
+    } catch (err) {
+      console.error('Error:', err);
+    }
   };
 
   const fetchTrialBalance = async () => {
@@ -43,7 +47,7 @@ export default function TrialBalance() {
       const data = await accountingReportService.getTrialBalance(params);
       setEntries(data || []);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch trial balance');
+      setError(loadErrorMessage(err, 'trial balance'));
     } finally {
       setLoading(false);
     }
@@ -53,28 +57,35 @@ export default function TrialBalance() {
   const totalCredit = entries.reduce((sum, e) => sum + (e.credit || 0), 0);
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Trial Balance</h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Summary of all ledger balances</p>
-        </div>
-        <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Trial Balance' }]} />
-      </div>
+    <div className="space-y-4">
+      <PageHeader title="Trial Balance" description="Summary of all ledger balances" />
 
       <Card>
-        <div className="flex flex-wrap items-end gap-4 mb-6">
-          <div className="w-44">
-            <Input label="Start Date" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+        <div className="flex flex-wrap items-end gap-4 mb-4">
+          <div className="w-full sm:w-44">
+            <Input
+              label="Start Date"
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+            />
           </div>
-          <div className="w-44">
-            <Input label="End Date" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+          <div className="w-full sm:w-44">
+            <Input
+              label="End Date"
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+            />
           </div>
           {!userInstituteId && (
-            <div className="w-48">
+            <div className="w-full sm:w-48">
               <Select
                 label="Institute"
-                options={[{ value: 'all', label: 'All Institutes' }, ...institutes.map(i => ({ value: i.id, label: i.name }))]}
+                options={[
+                  { value: 'all', label: 'All Institutes' },
+                  ...institutes.map((i) => ({ value: i.id, label: toTitleCase(i.name) })),
+                ]}
                 value={instituteFilter}
                 onChange={(e) => setInstituteFilter(e.target.value)}
               />
@@ -88,34 +99,48 @@ export default function TrialBalance() {
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="text-center py-12">
+          <div className="text-center py-10">
             <p className="text-red-600 dark:text-red-400">{error}</p>
           </div>
         ) : entries.length === 0 ? (
-          <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+          <div className="text-center py-10 text-gray-500 dark:text-gray-400">
             Select a date range and click "Generate" to view the trial balance
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-              <thead className="bg-gray-50 dark:bg-gray-800">
+            <table className="min-w-full divide-y divide-border">
+              <thead className="bg-muted">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Ledger</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Type</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Debit (₹)</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Credit (₹)</th>
+                  <th className="px-4 py-3 text-left text-label font-medium text-gray-500 dark:text-gray-400 uppercase">
+                    Ledger
+                  </th>
+                  <th className="px-4 py-3 text-left text-label font-medium text-gray-500 dark:text-gray-400 uppercase">
+                    Type
+                  </th>
+                  <th className="px-4 py-3 text-right text-label font-medium text-gray-500 dark:text-gray-400 uppercase">
+                    Debit (₹)
+                  </th>
+                  <th className="px-4 py-3 text-right text-label font-medium text-gray-500 dark:text-gray-400 uppercase">
+                    Credit (₹)
+                  </th>
                 </tr>
               </thead>
-              <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+              <tbody className="bg-white dark:bg-gray-900 divide-y divide-border">
                 {entries.map((entry, idx) => (
                   <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-800">
-                    <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100 font-medium">{entry.ledgerName}</td>
+                    <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100 font-medium">
+                      {toTitleCase(entry.ledgerName)}
+                    </td>
                     <td className="px-4 py-3 text-sm">
-                      <span className={`px-2 py-1 text-xs font-medium rounded-full capitalize ${
-                        entry.type === 'income' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                          : entry.type === 'bank' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
-                          : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                      }`}>
+                      <span
+                        className={`px-2 py-1 text-xs font-medium rounded-full capitalize ${
+                          entry.type === 'income'
+                            ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                            : entry.type === 'bank'
+                              ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+                              : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                        }`}
+                      >
                         {entry.type}
                       </span>
                     </td>
@@ -128,17 +153,28 @@ export default function TrialBalance() {
                   </tr>
                 ))}
               </tbody>
-              <tfoot className="bg-gray-50 dark:bg-gray-800">
+              <tfoot className="bg-muted">
                 <tr>
-                  <td colSpan={2} className="px-4 py-3 text-sm font-bold text-gray-900 dark:text-gray-100">Total</td>
-                  <td className="px-4 py-3 text-sm text-right font-bold text-gray-900 dark:text-gray-100">₹{totalDebit.toLocaleString()}</td>
-                  <td className="px-4 py-3 text-sm text-right font-bold text-gray-900 dark:text-gray-100">₹{totalCredit.toLocaleString()}</td>
+                  <td colSpan={2} className="px-4 py-3 text-sm font-semibold text-gray-900 dark:text-gray-100">
+                    Total
+                  </td>
+                  <td className="px-4 py-3 text-sm text-right font-semibold text-gray-900 dark:text-gray-100">
+                    ₹{totalDebit.toLocaleString()}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-right font-semibold text-gray-900 dark:text-gray-100">
+                    ₹{totalCredit.toLocaleString()}
+                  </td>
                 </tr>
                 <tr>
-                  <td colSpan={2} className="px-4 py-3 text-sm font-bold text-gray-900 dark:text-gray-100">Difference</td>
-                  <td colSpan={2} className={`px-4 py-3 text-sm text-right font-bold ${
-                    totalDebit - totalCredit === 0 ? 'text-green-600' : 'text-red-600'
-                  }`}>
+                  <td colSpan={2} className="px-4 py-3 text-sm font-semibold text-gray-900 dark:text-gray-100">
+                    Difference
+                  </td>
+                  <td
+                    colSpan={2}
+                    className={`px-4 py-3 text-sm text-right font-semibold ${
+                      totalDebit - totalCredit === 0 ? 'text-green-600' : 'text-red-600'
+                    }`}
+                  >
                     ₹{Math.abs(totalDebit - totalCredit).toLocaleString()}
                     {totalDebit - totalCredit === 0 && ' (Balanced ✓)'}
                   </td>

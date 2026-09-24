@@ -1,6 +1,5 @@
 import { useState, useEffect, ReactNode } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -9,6 +8,9 @@ import { PageSkeleton } from '@/components/ui/Skeleton';
 import { formatCurrency, formatDate } from '@/utils/format';
 import { reliefService, ReliefCase, ReliefStatus, RELIEF_TRANSITIONS } from '@/services/qardService';
 import { ReliefStatusBadge, UrgencyBadge } from '../components/LoanStatusBadge';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import { toTitleCase } from '@/utils/format';
+import PageHeader from '@/components/layout/PageHeader';
 
 const Field = ({ label, value }: { label: string; value: ReactNode }) => (
   <div>
@@ -44,7 +46,7 @@ export default function ReliefDetail() {
       setAmount(data.amount ? String(data.amount) : '');
       setNextStatus((RELIEF_TRANSITIONS[data.status] || [])[0] ?? '');
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to load the case');
+      setError(loadErrorMessage(err, 'the case'));
     } finally {
       setLoading(false);
     }
@@ -61,7 +63,7 @@ export default function ReliefDetail() {
       await reliefService.updateCaseStatus(reliefCase.id, payload);
       if (id) fetchCase(id);
     } catch (err: any) {
-      setActionError(err.response?.data?.message || 'Failed to update the case');
+      setActionError(errorMessage(err, { action: 'update the case' }));
     } finally {
       setSaving(false);
     }
@@ -72,9 +74,7 @@ export default function ReliefDetail() {
   if (error || !reliefCase) {
     return (
       <div>
-        <Breadcrumb
-          items={[{ label: 'Services' }, { label: 'Emergency Relief', path: '/relief' }]}
-        />
+        <PageHeader title="Emergency Relief" breadcrumbs={[{ label: 'Services' }]} />
         <Card>
           <p className="text-sm text-red-600 dark:text-red-400">{error || 'Case not found'}</p>
           <Button className="mt-3" variant="secondary" onClick={() => navigate('/relief')}>
@@ -90,31 +90,25 @@ export default function ReliefDetail() {
 
   return (
     <div>
-      <Breadcrumb
-        items={[
-          { label: 'Services' },
-          { label: 'Emergency Relief', path: '/relief' },
-          { label: reliefCase.title },
-        ]}
+      <PageHeader
+        title={reliefCase.title}
+        breadcrumbs={[{ label: 'Services' }, { label: 'Emergency Relief', path: '/relief' }]}
       />
 
       <div className="mb-4 flex flex-wrap items-center gap-3">
-        <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
-          {reliefCase.title}
-        </h1>
         <ReliefStatusBadge status={reliefCase.status} />
         <UrgencyBadge urgency={reliefCase.urgency} />
       </div>
 
       <Card className="mb-4">
-        <h2 className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100">Case</h2>
+        <h2 className="mb-3 text-sm font-semibold text-foreground">Case</h2>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
           <Field label="Title (Malayalam)" value={reliefCase.titleMl || '-'} />
           <Field
             label="Family"
             value={
               reliefCase.familyId && typeof reliefCase.familyId === 'object'
-                ? reliefCase.familyId.houseName
+                ? toTitleCase(reliefCase.familyId.houseName)
                 : '-'
             }
           />
@@ -122,7 +116,7 @@ export default function ReliefDetail() {
             label="Member"
             value={
               reliefCase.memberId && typeof reliefCase.memberId === 'object'
-                ? reliefCase.memberId.name
+                ? toTitleCase(reliefCase.memberId.name)
                 : '-'
             }
           />
@@ -131,10 +125,7 @@ export default function ReliefDetail() {
             label="Follow-up"
             value={reliefCase.followUpDate ? formatDate(reliefCase.followUpDate) : '-'}
           />
-          <Field
-            label="Assistance"
-            value={reliefCase.amount ? formatCurrency(reliefCase.amount) : '-'}
-          />
+          <Field label="Assistance" value={reliefCase.amount ? formatCurrency(reliefCase.amount) : '-'} />
           <div className="col-span-2 sm:col-span-3 lg:col-span-4">
             <Field label="Description" value={reliefCase.description || '-'} />
           </div>
@@ -145,16 +136,14 @@ export default function ReliefDetail() {
       </Card>
 
       <Card>
-        <h2 className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100">
-          Move this case
-        </h2>
+        <h2 className="mb-3 text-sm font-semibold text-foreground">Move this case</h2>
 
         {options.length === 0 ? (
           <p className="text-sm text-gray-500 dark:text-gray-400">
             A closed case cannot be moved any further.
           </p>
         ) : (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 lg:items-end">
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:items-end">
             <Select
               label="New status"
               value={nextStatus}

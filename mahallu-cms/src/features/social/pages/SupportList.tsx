@@ -1,21 +1,27 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FiEye, FiX, FiHelpCircle, FiAlertCircle, FiCheckCircle } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
-import Card from '@/components/ui/Card';
+import { FiAlertCircle, FiCheckCircle, FiEye, FiHelpCircle, FiPlus } from 'react-icons/fi';
+import TableCard from '@/components/ui/TableCard';
+import { rowActionClass } from '@/components/ui/rowAction';
+import FilterPanel from '@/components/ui/FilterPanel';
 import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
+import EmptyState from '@/components/ui/EmptyState';
 import Pagination from '@/components/ui/Pagination';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import TableToolbar from '@/components/ui/TableToolbar';
 import { TableColumn, Pagination as PaginationType } from '@/types';
 import { socialService, Support } from '@/services/socialService';
+import { fetchAllPages } from '@/services/api';
 import { formatDate } from '@/utils/format';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
 import { toast } from '@/store/toastStore';
 import { ROUTES } from '@/constants/routes';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import StatusBadge from '@/components/ui/StatusBadge';
+import PageHeader from '@/components/layout/PageHeader';
 
 export default function SupportList() {
   const navigate = useNavigate();
@@ -55,7 +61,7 @@ export default function SupportList() {
         setPagination(result.pagination);
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch support tickets');
+      setError(loadErrorMessage(err, 'support tickets'));
       console.error('Error fetching support:', err);
       setSupport([]);
     } finally {
@@ -66,13 +72,14 @@ export default function SupportList() {
   const handleExport = async (type: 'csv' | 'json' | 'pdf') => {
     try {
       setIsExporting(true);
-      
-      const params: any = { limit: 10000 };
-      if (statusFilter !== 'all') params.status = statusFilter;
-      if (priorityFilter !== 'all') params.priority = priorityFilter;
-      
-      const result = await socialService.getAllSupport(params);
-      const dataToExport = Array.isArray(result.data) ? result.data : [];
+
+      const filters: any = {};
+      if (statusFilter !== 'all') filters.status = statusFilter;
+      if (priorityFilter !== 'all') filters.priority = priorityFilter;
+
+      const dataToExport = await fetchAllPages<Support>(({ page, limit }) =>
+        socialService.getAllSupport({ ...filters, page, limit })
+      );
 
       if (dataToExport.length === 0) {
         toast.info('No data to export');
@@ -95,18 +102,18 @@ export default function SupportList() {
       }
     } catch (error: any) {
       console.error('Export error:', error);
-      toast.error(error?.response?.data?.message || 'Failed to export data');
+      toast.error(errorMessage(error, { action: 'export data' }));
     } finally {
       setIsExporting(false);
     }
   };
 
   const columns: TableColumn<Support>[] = [
-    { key: 'id', label: 'No.', render: (_, __, index) => index + 1 },
-    { key: 'subject', label: 'Subject', sortable: true },
+    { key: 'subject', label: 'Subject', width: '7.5rem', sortable: true },
     {
       key: 'priority',
       label: 'Priority',
+      width: '7.75rem',
       render: (priority) => {
         const priorityColors: Record<string, string> = {
           low: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
@@ -114,7 +121,9 @@ export default function SupportList() {
           high: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
         };
         return (
-          <span className={`px-2 py-1 text-xs font-medium rounded-full ${priorityColors[priority || 'medium']}`}>
+          <span
+            className={`px-2 py-1 text-xs font-medium rounded-full ${priorityColors[priority || 'medium']}`}
+          >
             {priority || 'medium'}
           </span>
         );
@@ -123,28 +132,22 @@ export default function SupportList() {
     {
       key: 'status',
       label: 'Status',
+      width: '7.25rem',
       render: (status) => {
-        const statusColors: Record<string, string> = {
-          open: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-          in_progress: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
-          resolved: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-          closed: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200',
-        };
-        return (
-          <span className={`px-2 py-1 text-xs font-medium rounded-full ${statusColors[status || 'open']}`}>
-            {status || 'open'}
-          </span>
-        );
+        return <StatusBadge status={status} />;
       },
     },
     {
       key: 'createdAt',
       label: 'Created',
+      width: '7.75rem',
       render: (date) => formatDate(date),
     },
     {
       key: 'actions',
       label: 'Actions',
+      width: '8rem',
+      align: 'center',
       render: (_, row) => (
         <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
           <button
@@ -152,8 +155,9 @@ export default function SupportList() {
               e.stopPropagation();
               navigate(ROUTES.SOCIAL.SUPPORT_DETAIL(row.id));
             }}
-            className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
+            className={rowActionClass()}
             title="View"
+            aria-label="View"
           >
             <FiEye className="h-4 w-4" />
           </button>
@@ -179,13 +183,7 @@ export default function SupportList() {
   return (
     <div className="space-y-4">
       <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Support Tickets</h1>
-            <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">Manage support tickets</p>
-          </div>
-          <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Support' }]} />
-        </div>
+        <PageHeader title="Support Tickets" description="Manage support tickets" />
 
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {stats.map((stat, index) => (
@@ -194,7 +192,7 @@ export default function SupportList() {
         </div>
       </div>
 
-      <Card>
+      <TableCard>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -206,22 +204,14 @@ export default function SupportList() {
           isExporting={isExporting}
           actionButtons={
             <Link to={ROUTES.SOCIAL.CREATE_SUPPORT}>
-              <Button size="md">
-                + New Ticket
-              </Button>
+              <Button size="md" icon={<FiPlus />} collapseLabel>New Ticket</Button>
             </Link>
           }
         />
 
         {isFilterVisible && (
-          <div className="relative flex flex-wrap items-center gap-4 mb-6 p-4 border border-gray-200 rounded-lg bg-white dark:bg-gray-800 dark:border-gray-700">
-            <button
-              onClick={() => setIsFilterVisible(false)}
-              className="absolute right-4 top-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-            >
-              <FiX className="h-4 w-4" />
-            </button>
-            <div className="w-40">
+          <FilterPanel onClose={() => setIsFilterVisible(false)}>
+            <div className="w-full sm:w-40">
               <Select
                 options={[
                   { value: 'all', label: 'All Status' },
@@ -231,10 +221,13 @@ export default function SupportList() {
                   { value: 'closed', label: 'Closed' },
                 ]}
                 value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
+                onChange={(e) => {
+                  setStatusFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
               />
             </div>
-            <div className="w-40">
+            <div className="w-full sm:w-40">
               <Select
                 options={[
                   { value: 'all', label: 'All Priority' },
@@ -243,26 +236,36 @@ export default function SupportList() {
                   { value: 'high', label: 'High' },
                 ]}
                 value={priorityFilter}
-                onChange={(e) => setPriorityFilter(e.target.value)}
+                onChange={(e) => {
+                  setPriorityFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
               />
             </div>
-          </div>
+          </FilterPanel>
         )}
 
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="text-center py-12">
-            <p className="text-red-600 dark:text-red-400">{error}</p>
-            <Button onClick={fetchSupport} className="mt-4" variant="outline">
-              Retry
-            </Button>
-          </div>
+          <EmptyState
+            variant="error"
+            entity="support tickets"
+            description={error}
+            action={{ label: 'Retry', onClick: fetchSupport }}
+          />
         ) : (
           <>
-            <Table columns={columns} data={support} emptyMessage="No support tickets found" showExport={false} />
+            <Table
+              fixedLayout
+              striped
+              columns={columns}
+              data={support}
+              emptyMessage="No support tickets found"
+              showExport={false}
+            />
             {pagination && pagination.totalPages > 1 && (
-              <div className="mt-6">
+              <div className="mt-4">
                 <Pagination
                   currentPage={currentPage}
                   totalPages={pagination.totalPages}
@@ -274,8 +277,7 @@ export default function SupportList() {
             )}
           </>
         )}
-      </Card>
+      </TableCard>
     </div>
   );
 }
-

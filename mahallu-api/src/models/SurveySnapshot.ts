@@ -38,7 +38,7 @@ const SurveySnapshotSchema = new Schema<ISurveySnapshot>(
     tenantId: {
       type: Schema.Types.ObjectId,
       ref: 'Tenant',
-      required: [true, 'Tenant ID is required'],
+      required: [true, 'Please select a Mahallu before continuing.'],
       index: true,
     },
     surveyDate: {

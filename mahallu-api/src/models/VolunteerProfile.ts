@@ -38,7 +38,7 @@ const VolunteerProfileSchema = new Schema<IVolunteerProfile>(
     tenantId: {
       type: Schema.Types.ObjectId,
       ref: 'Tenant',
-      required: [true, 'Tenant ID is required'],
+      required: [true, 'Please select a Mahallu before continuing.'],
       index: true,
     },
     memberId: {
@@ -100,7 +100,7 @@ const VolunteerAssignmentSchema = new Schema<IVolunteerAssignment>(
     tenantId: {
       type: Schema.Types.ObjectId,
       ref: 'Tenant',
-      required: [true, 'Tenant ID is required'],
+      required: [true, 'Please select a Mahallu before continuing.'],
       index: true,
     },
     volunteerIds: {
@@ -109,7 +109,7 @@ const VolunteerAssignmentSchema = new Schema<IVolunteerAssignment>(
       required: [true, 'At least one volunteer is required'],
       validate: {
         validator: (arr: mongoose.Types.ObjectId[]) => arr.length > 0,
-        message: 'At least one volunteer must be assigned',
+        message: 'Please assign at least one volunteer.',
       },
     },
     serviceType: {

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
+import { FiEdit2, FiPackage, FiSave, FiTrash2 } from 'react-icons/fi';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -9,6 +9,22 @@ import { PageSkeleton } from '@/components/ui/Skeleton';
 import { toast } from '@/store/toastStore';
 import { ROUTES } from '@/constants/routes';
 import { mosqueService, MOSQUE_FACILITY_OPTIONS, MosqueProfile } from '@/services/mosqueService';
+import { errorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
+import { FieldRule, validateForm, firstError, LIMITS } from '@/utils/validation';
+
+/** Matches `createMosqueValidation` on the API. */
+const RULES: Record<string, FieldRule> = {
+  name: { label: 'mosque name', required: true, minLength: LIMITS.name.min, maxLength: LIMITS.title.max },
+  nameMl: { label: 'mosque name', maxLength: LIMITS.title.max },
+  capacity: { label: 'capacity', type: 'integer', min: 0, max: 100000 },
+  imamName: { label: 'imam’s name', maxLength: LIMITS.name.max },
+  muazzinName: { label: 'muazzin’s name', maxLength: LIMITS.name.max },
+  khateebName: { label: 'khateeb’s name', maxLength: LIMITS.name.max },
+  prayerFacilityNotes: { label: 'notes', maxLength: 1000 },
+  staffNotes: { label: 'notes', maxLength: 1000 },
+};
 
 const emptyProfile: Omit<MosqueProfile, 'id'> = {
   name: '',
@@ -55,10 +71,16 @@ export default function MosqueDetail() {
   };
 
   const handleSave = async () => {
-    if (!id || !form.name.trim()) {
-      toast.error('Mosque name is required');
+    if (!id) return;
+
+    // Only the name was checked, and a blank one returned in silence.
+    const problems = validateForm(form, RULES);
+    if (Object.keys(problems).length > 0) {
+      toast.error(firstError(problems));
       return;
     }
+
+    if (saving) return; // a second click while the first save is open
     try {
       setSaving(true);
       const saved = await mosqueService.update(id, form);
@@ -67,7 +89,7 @@ export default function MosqueDetail() {
       setEditing(false);
       toast.success('Mosque profile saved');
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to save mosque profile');
+      toast.error(errorMessage(err, { action: 'save mosque profile' }));
     } finally {
       setSaving(false);
     }
@@ -80,7 +102,7 @@ export default function MosqueDetail() {
       toast.success('Mosque deleted');
       navigate('/mosque');
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to delete mosque');
+      toast.error(errorMessage(err, { action: 'delete mosque' }));
       setConfirmDeleteOpen(false);
     }
   };
@@ -111,30 +133,27 @@ export default function MosqueDetail() {
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">{profile.name}</h1>
-          <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-            Capacity, facilities and religious staff
-          </p>
-        </div>
-        <Breadcrumb
-          items={[
-            { label: 'Dashboard', path: '/dashboard' },
-            { label: 'Mosque', path: '/mosque' },
-            { label: profile.name },
-          ]}
-        />
-      </div>
+      <PageHeader
+        title={toTitleCase(profile.name)}
+        description="Capacity, facilities and religious staff"
+        breadcrumbs={[{ label: 'Mosque', path: '/mosque' }]}
+      />
 
-      <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
-        <Link to={`${ROUTES.ASSETS.LIST}?mosqueId=${profile.id}`}>
-          <Button variant="outline" size="md" className="w-full sm:w-auto">
+      <div className="flex items-center justify-end gap-2">
+        <Link to={`${ROUTES.ASSETS.LIST}?mosqueId=${profile.id}`} className="flex-shrink-0">
+          <Button variant="outline" size="md" icon={<FiPackage />} collapseLabel>
             Maintenance &amp; Assets
           </Button>
         </Link>
         {editing ? (
-          <Button size="md" onClick={handleSave} disabled={saving} className="w-full sm:w-auto">
+          <Button
+            size="md"
+            onClick={handleSave}
+            disabled={saving}
+            icon={<FiSave />}
+            collapseLabel
+            title="Save profile"
+          >
             {saving ? 'Saving...' : 'Save Profile'}
           </Button>
         ) : (
@@ -142,12 +161,13 @@ export default function MosqueDetail() {
             <Button
               variant="outline"
               size="md"
-              className="w-full sm:w-auto"
               onClick={() => setConfirmDeleteOpen(true)}
+              icon={<FiTrash2 />}
+              collapseLabel
             >
               Delete Mosque
             </Button>
-            <Button size="md" onClick={() => setEditing(true)} className="w-full sm:w-auto">
+            <Button size="md" onClick={() => setEditing(true)} icon={<FiEdit2 />} collapseLabel>
               Edit Profile
             </Button>
           </>
@@ -155,7 +175,7 @@ export default function MosqueDetail() {
       </div>
 
       {editing ? (
-        <Card className="p-3 sm:p-4">
+        <Card>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <Input
               label="Mosque Name"
@@ -234,20 +254,20 @@ export default function MosqueDetail() {
         </Card>
       ) : (
         <>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             {infoCards.map((card) => (
-              <Card key={card.label} className="p-3 sm:p-4">
+              <Card key={card.label}>
                 <p className="text-xs font-medium text-gray-500 dark:text-gray-400 sm:text-sm">
                   {card.label}
                 </p>
                 <p className="mt-1 break-words text-sm font-semibold text-gray-900 dark:text-gray-100 sm:text-base">
-                  {card.value}
+                  {card.label !== 'Capacity' ? toTitleCase(card.value) : card.value}
                 </p>
               </Card>
             ))}
           </div>
 
-          <Card className="p-3 sm:p-4">
+          <Card>
             <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">Facilities</p>
             {profile.facilities.length === 0 ? (
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">None recorded</p>
@@ -274,9 +294,10 @@ export default function MosqueDetail() {
       )}
 
       <ConfirmDialog
+        isLoading={saving}
         isOpen={isConfirmDeleteOpen}
         title="Delete Mosque"
-        message={`Delete "${profile.name}"? Its assets will remain but become unassigned.`}
+        message={`Delete "${toTitleCase(profile.name)}"? Its assets will remain but become unassigned.`}
         variant="danger"
         confirmLabel="Delete"
         onConfirm={handleDelete}

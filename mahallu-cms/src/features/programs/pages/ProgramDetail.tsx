@@ -1,15 +1,17 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { FiEdit2, FiArrowLeft } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import { Institute } from '@/types';
 import { ROUTES } from '@/constants/routes';
 import { programService } from '@/services/programService';
-import { formatDate } from '@/utils/format';
+import { formatDate, toTitleCase } from '@/utils/format';
 import ProgramRegistrations from '../components/ProgramRegistrations';
+import { loadErrorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
+import StatusBadge from '@/components/ui/StatusBadge';
 
 export default function ProgramDetail() {
   const { id } = useParams<{ id: string }>();
@@ -31,7 +33,7 @@ export default function ProgramDetail() {
       const data = await programService.getById(id);
       setProgram(data);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch program');
+      setError(loadErrorMessage(err, 'program'));
       console.error('Error fetching program:', err);
     } finally {
       setLoading(false);
@@ -39,14 +41,12 @@ export default function ProgramDetail() {
   };
 
   if (loading) {
-    return (
-      <PageSkeleton />
-    );
+    return <PageSkeleton />;
   }
 
   if (error || !program) {
     return (
-      <div className="text-center py-12">
+      <div className="text-center py-10">
         <p className="text-red-600 dark:text-red-400">{error || 'Program not found'}</p>
         <Link to={ROUTES.PROGRAMS.LIST} className="mt-4 inline-block">
           <Button variant="outline">Back to Programs</Button>
@@ -56,48 +56,36 @@ export default function ProgramDetail() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{program.name}</h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Program Details</p>
-        </div>
+    <div className="space-y-4">
+      <div className="flex gap-2 items-center justify-between">
         <div className="flex items-center gap-4">
-          <Breadcrumb
-            items={[
-              { label: 'Dashboard', path: '/dashboard' },
-              { label: 'Programs', path: ROUTES.PROGRAMS.LIST },
-              { label: program.name },
-            ]}
+          <PageHeader
+            description="Program Details"
+            title={toTitleCase(program.name)}
+            breadcrumbs={[{ label: 'Programs', path: ROUTES.PROGRAMS.LIST }]}
           />
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-center">
             <Link to={ROUTES.PROGRAMS.LIST}>
-              <Button variant="outline">
-                <FiArrowLeft className="h-4 w-4 mr-2" />
-                Back
-              </Button>
+              <Button variant="outline" icon={<FiArrowLeft />} collapseLabel>Back</Button>
             </Link>
             <Link to={`/programs/${program.id}/edit`}>
-              <Button>
-                <FiEdit2 className="h-4 w-4 mr-2" />
-                Edit
-              </Button>
+              <Button icon={<FiEdit2 />} collapseLabel>Edit</Button>
             </Link>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card>
-          <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">Basic Information</h2>
+          <h2 className="text-lg font-semibold mb-3 text-foreground">Basic Information</h2>
           <div className="space-y-4">
             <div>
               <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Name</label>
-              <p className="mt-1 text-gray-900 dark:text-gray-100">{program.name}</p>
+              <p className="mt-1 text-gray-900 dark:text-gray-100">{toTitleCase(program.name)}</p>
             </div>
             <div>
               <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Place</label>
-              <p className="mt-1 text-gray-900 dark:text-gray-100">{program.place}</p>
+              <p className="mt-1 text-gray-900 dark:text-gray-100">{toTitleCase(program.place)}</p>
             </div>
             <div>
               <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Join Date</label>
@@ -106,22 +94,14 @@ export default function ProgramDetail() {
             <div>
               <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Status</label>
               <p className="mt-1">
-                <span
-                  className={`px-2 py-1 text-xs font-medium rounded-full ${
-                    program.status === 'active'
-                      ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                      : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
-                  }`}
-                >
-                  {program.status || 'active'}
-                </span>
+                <StatusBadge status={program.status || 'active'} />
               </p>
             </div>
           </div>
         </Card>
 
         <Card>
-          <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">Contact Information</h2>
+          <h2 className="text-lg font-semibold mb-3 text-foreground">Contact Information</h2>
           <div className="space-y-4">
             {program.contactNo && (
               <div>
@@ -140,7 +120,7 @@ export default function ProgramDetail() {
 
         {program.description && (
           <Card className="md:col-span-2">
-            <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">Description</h2>
+            <h2 className="text-lg font-semibold mb-3 text-foreground">Description</h2>
             <p className="text-gray-700 dark:text-gray-300">{program.description}</p>
           </Card>
         )}
@@ -148,24 +128,33 @@ export default function ProgramDetail() {
         {/* Event details (Task C3) — only meaningful once a program is run as an event */}
         {(program.eventDate || program.competitions?.length || program.awards) && (
           <Card className="md:col-span-2">
-            <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">Event</h2>
+            <h2 className="text-lg font-semibold mb-3 text-foreground">Event</h2>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
               <div>
-                <label className="text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400">Event Date</label>
+                <label className="text-label sm:text-sm font-medium text-gray-500 dark:text-gray-400">
+                  Event Date
+                </label>
                 <p className="mt-1 text-gray-900 dark:text-gray-100">
                   {program.eventDate ? formatDate(program.eventDate) : '—'}
                 </p>
               </div>
               <div>
-                <label className="text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400">Awards</label>
+                <label className="text-label sm:text-sm font-medium text-gray-500 dark:text-gray-400">
+                  Awards
+                </label>
                 <p className="mt-1 text-gray-900 dark:text-gray-100">{program.awards || '—'}</p>
               </div>
               <div className="col-span-2 md:col-span-1">
-                <label className="text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400">Competitions</label>
+                <label className="text-label sm:text-sm font-medium text-gray-500 dark:text-gray-400">
+                  Competitions
+                </label>
                 <p className="mt-1 text-gray-900 dark:text-gray-100">
                   {program.competitions?.length
                     ? program.competitions
-                        .map((c) => `${c.name}${c.winners?.length ? ` (${c.winners.join(', ')})` : ''}`)
+                        .map(
+                          (c) =>
+                            `${toTitleCase(c.name)}${c.winners?.length ? ` (${c.winners.map((w) => toTitleCase(w)).join(', ')})` : ''}`
+                        )
                         .join('; ')
                     : '—'}
                 </p>
@@ -181,4 +170,3 @@ export default function ProgramDetail() {
     </div>
   );
 }
-

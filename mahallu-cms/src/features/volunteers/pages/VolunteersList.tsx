@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
+import { FiPlus } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import { volunteerService, type VolunteerProfile, VOLUNTEER_WINGS } from '@/services/volunteerService';
 import Button from '@/components/ui/Button';
@@ -6,6 +7,9 @@ import Card from '@/components/ui/Card';
 import Pagination from '@/components/ui/Pagination';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { toast } from '@/store/toastStore';
+import StatusBadge from '@/components/ui/StatusBadge';
+import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 
 export default function VolunteersList() {
   const navigate = useNavigate();
@@ -33,7 +37,7 @@ export default function VolunteersList() {
         setVolunteers(result.data);
         setTotalPages(result.pagination?.totalPages || 1);
       } catch (error) {
-        console.error('Failed to fetch volunteers:', error);
+        console.error("Couldn't load volunteers:", error);
       } finally {
         setLoading(false);
       }
@@ -53,30 +57,27 @@ export default function VolunteersList() {
       setDeleting(true);
       await volunteerService.deleteVolunteer(deleteId);
       setVolunteers((prev) => prev.filter((v) => v.id !== deleteId));
-      toast.success('Volunteer deleted successfully');
+      toast.success('Volunteer deleted');
       setShowDeleteConfirm(false);
       setDeleteId(null);
     } catch (error) {
-      toast.error('Failed to delete volunteer');
-      console.error('Failed to delete volunteer:', error);
+      toast.error("Couldn't delete volunteer. Please try again.");
+      console.error("Couldn't delete volunteer:", error);
     } finally {
       setDeleting(false);
     }
   }, [deleteId]);
 
-  const statusColor = (status: string) => {
-    return status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800';
-  };
-
   const volunteerName = (volunteer: VolunteerProfile) => {
     if (volunteer.memberId && typeof volunteer.memberId === 'object') {
-      return volunteer.memberId.name;
+      return toTitleCase(volunteer.memberId.name);
     }
     return '-';
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
+      <PageHeader title="Volunteers" description="People who have signed up to help, by wing." />
       <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
         <div className="flex-1">
           <div className="flex gap-2 flex-wrap">
@@ -101,18 +102,18 @@ export default function VolunteersList() {
             ))}
           </div>
         </div>
-        <Button onClick={() => navigate('/volunteers/create')} className="w-full sm:w-auto">
-          + Add Volunteer
+        <Button onClick={() => navigate('/volunteers/create')} icon={<FiPlus />} collapseLabel>
+          Add Volunteer
         </Button>
       </div>
 
       {loading ? (
         <Card>
-          <div className="p-8 text-center">Loading volunteers...</div>
+          <div className="py-8 text-center">Loading volunteers...</div>
         </Card>
       ) : volunteers.length === 0 ? (
         <Card>
-          <div className="p-8 text-center text-gray-500">
+          <div className="py-8 text-center text-gray-500">
             <p>No volunteers found</p>
           </div>
         </Card>
@@ -125,27 +126,23 @@ export default function VolunteersList() {
                 className="cursor-pointer hover:shadow-md transition-shadow"
                 onClick={() => navigate(`/volunteers/${volunteer.id}`)}
               >
-                <div className="p-4 space-y-3">
+                <div className="space-y-3">
                   <div className="flex justify-between items-start gap-2">
                     <div className="flex-1">
-                      <h3 className="font-medium text-gray-900">{volunteerName(volunteer)}</h3>
+                      <h3 className="font-semibold text-foreground">{volunteerName(volunteer)}</h3>
                       <p className="text-xs text-gray-500 mt-1">
-                        {volunteer.wings.map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(', ')}
+                        {(volunteer.wings ?? [])
+                          .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+                          .join(', ')}
                       </p>
                     </div>
-                    <span
-                      className={`px-2 py-1 text-xs font-medium rounded-full whitespace-nowrap ${statusColor(
-                        volunteer.status
-                      )}`}
-                    >
-                      {volunteer.status}
-                    </span>
+                    <StatusBadge status={volunteer.status} />
                   </div>
 
                   <div className="pt-2 border-t border-gray-200">
                     <p className="text-xs text-gray-600">Service Types:</p>
                     <div className="flex flex-wrap gap-1 mt-1">
-                      {volunteer.serviceTypes.slice(0, 3).map((st) => (
+                      {(volunteer.serviceTypes ?? []).slice(0, 3).map((st) => (
                         <span
                           key={st}
                           className="inline-block bg-blue-50 text-blue-700 px-2 py-1 text-xs rounded"
@@ -153,9 +150,9 @@ export default function VolunteersList() {
                           {st.replace(/_/g, ' ')}
                         </span>
                       ))}
-                      {volunteer.serviceTypes.length > 3 && (
+                      {(volunteer.serviceTypes ?? []).length > 3 && (
                         <span className="text-xs text-gray-500">
-                          +{volunteer.serviceTypes.length - 3}
+                          +{(volunteer.serviceTypes ?? []).length - 3}
                         </span>
                       )}
                     </div>

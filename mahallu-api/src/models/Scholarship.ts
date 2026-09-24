@@ -36,7 +36,7 @@ const ScholarshipSchema = new Schema<IScholarship>(
     tenantId: {
       type: Schema.Types.ObjectId,
       ref: 'Tenant',
-      required: [true, 'Tenant ID is required'],
+      required: [true, 'Please select a Mahallu before continuing.'],
       index: true,
     },
     name: { type: String, required: [true, 'Scholarship name is required'], trim: true },
@@ -74,7 +74,7 @@ const ScholarshipAwardSchema = new Schema<IScholarshipAward>(
     tenantId: {
       type: Schema.Types.ObjectId,
       ref: 'Tenant',
-      required: [true, 'Tenant ID is required'],
+      required: [true, 'Please select a Mahallu before continuing.'],
       index: true,
     },
     scholarshipId: {
@@ -120,7 +120,7 @@ const AcademicSupportCaseSchema = new Schema<IAcademicSupportCase>(
     tenantId: {
       type: Schema.Types.ObjectId,
       ref: 'Tenant',
-      required: [true, 'Tenant ID is required'],
+      required: [true, 'Please select a Mahallu before continuing.'],
       index: true,
     },
     memberId: {

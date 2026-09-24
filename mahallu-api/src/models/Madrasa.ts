@@ -32,7 +32,7 @@ const MadrasaClassSchema = new Schema<IMadrasaClass>(
     tenantId: {
       type: Schema.Types.ObjectId,
       ref: 'Tenant',
-      required: [true, 'Tenant ID is required'],
+      required: [true, 'Please select a Mahallu before continuing.'],
       index: true,
     },
     instituteId: { type: Schema.Types.ObjectId, ref: 'Institute', index: true },
@@ -71,7 +71,7 @@ const StudentEnrollmentSchema = new Schema<IStudentEnrollment>(
     tenantId: {
       type: Schema.Types.ObjectId,
       ref: 'Tenant',
-      required: [true, 'Tenant ID is required'],
+      required: [true, 'Please select a Mahallu before continuing.'],
       index: true,
     },
     classId: {

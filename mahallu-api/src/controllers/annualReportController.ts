@@ -14,6 +14,8 @@ import { JobVacancy, SkillTraining } from '../models/Employment';
 import Institute from '../models/Institute';
 import { DevelopmentProject } from '../models/DevelopmentProject';
 
+import { sendFailure } from '../utils/userMessages';
+
 export const yearRange = (year: number) => ({
   start: new Date(Date.UTC(year, 0, 1)),
   end: new Date(Date.UTC(year + 1, 0, 1)),
@@ -129,17 +131,17 @@ export const getAnnualReport = async (req: AuthRequest, res: Response) => {
   try {
     const tenantId = req.tenantId || (req.isSuperAdmin ? (req.query.tenantId as string) : undefined);
     if (!tenantId) {
-      return res.status(400).json({ success: false, message: 'Tenant ID is required' });
+      return res.status(400).json({ success: false, message: 'Please select a Mahallu before continuing.' });
     }
 
     const year = parseInt(req.query.year as string, 10) || new Date().getFullYear();
     if (year < 1900 || year > 3000) {
-      return res.status(400).json({ success: false, message: 'Invalid year' });
+      return res.status(400).json({ success: false, message: 'Please enter a valid year.' });
     }
 
     const data = await computeAnnualReport(new mongoose.Types.ObjectId(tenantId as string), year);
     res.json({ success: true, data });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the annual report right now. Please try again.');
   }
 };

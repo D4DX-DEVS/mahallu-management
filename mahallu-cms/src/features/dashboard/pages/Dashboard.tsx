@@ -1,34 +1,58 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiUsers, FiHome, FiInbox, FiDollarSign } from 'react-icons/fi';
-import { PieChart, Pie, Cell, BarChart, Bar, LabelList, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
+import { FiHome, FiUsers, FiDollarSign, FiClock } from 'react-icons/fi';
+import {
+  PieChart,
+  Pie,
+  Cell,
+  BarChart,
+  Bar,
+  LabelList,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+} from 'recharts';
 import Card from '@/components/ui/Card';
-import PhaseAInsights from '../components/PhaseAInsights';
-import WelcomeBanner from '../components/WelcomeBanner';
+import Alert from '@/components/ui/Alert';
+import EmptyState from '@/components/ui/EmptyState';
+import PageHeader from '@/components/layout/PageHeader';
+import CommunitySnapshot from '../components/CommunitySnapshot';
 import DashboardStatCard from '../components/DashboardStatCard';
 import { PageSkeleton } from '@/components/ui/Skeleton';
-import { dashboardService, DashboardStats, RecentFamily, ActivityTimelineData, FinancialSummary } from '@/services/dashboardService';
+import {
+  dashboardService,
+  DashboardStats,
+  RecentFamily,
+  ActivityTimelineData,
+  FinancialSummary,
+} from '@/services/dashboardService';
 import { ROUTES } from '@/constants/routes';
-import { formatDate } from '@/utils/format';
-
-const GENDER_COLORS = ['#16a34a', '#4ade80'];
-
+import { formatDate, toTitleCase } from '@/utils/format';
+import { loadErrorMessage } from '@/utils/errors';
+import { useChartTheme, tooltipStyle } from '@/utils/chartTheme';
+import { useAuthStore } from '@/store/authStore';
 export default function Dashboard() {
   const navigate = useNavigate();
+  const chart = useChartTheme();
+  const user = useAuthStore((state) => state.user);
+  const firstName = user?.name?.split(' ')[0];
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [recentFamilies, setRecentFamilies] = useState<RecentFamily[]>([]);
   const [activityTimeline, setActivityTimeline] = useState<ActivityTimelineData[]>([]);
   const [financialSummary, setFinancialSummary] = useState<FinancialSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
   useEffect(() => {
     fetchDashboardData();
   }, []);
-
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
+      setError(null);
       const [statsData, familiesData, timelineData, financialData] = await Promise.all([
         dashboardService.getStats(),
         dashboardService.getRecentFamilies(5),
@@ -40,76 +64,85 @@ export default function Dashboard() {
       setActivityTimeline(timelineData);
       setFinancialSummary(financialData);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to load dashboard data');
-      console.error('Error fetching dashboard data:', err);
+      setError(loadErrorMessage(err, 'the dashboard'));
     } finally {
       setLoading(false);
     }
   };
-
   const getInitials = (name: string | undefined) => {
-    if (!name) return 'NA';
-    const words = name.split(' ').filter(word => word.length > 0);
-    if (words.length >= 2) {
-      return (words[0][0] + words[1][0]).toUpperCase();
-    }
+    if (!name) return '—';
+    const words = name.split(' ').filter(Boolean);
+    if (words.length >= 2) return (words[0][0] + words[1][0]).toUpperCase();
     return name.substring(0, 2).toUpperCase();
   };
-
   const getTimeAgo = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffInMs = now.getTime() - date.getTime();
-    const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
-    
+    const diffInDays = Math.floor((Date.now() - new Date(dateString).getTime()) / 86400000);
     if (diffInDays === 0) return 'Today';
     if (diffInDays === 1) return 'Yesterday';
-    if (diffInDays < 7) return `${diffInDays} days ago`;
-    if (diffInDays < 30) return `${Math.floor(diffInDays / 7)} weeks ago`;
+    if (diffInDays < 7) return diffInDays + ' days ago';
+    if (diffInDays < 30) return Math.floor(diffInDays / 7) + ' weeks ago';
     return formatDate(dateString);
   };
-
+  /*
+   *
+   * Tiles lead with what a Mahall admin can act on today.
+   *
+   * "Total Users" — the count of admin accounts — used to be the first figure
+   * on a community operations dashboard. A tile earns its place if someone
+   * would click it or act on it. */
   const statCards = stats
     ? [
         {
-          label: 'Total Users',
-          value: stats.users.total.toString(),
-          icon: <FiUsers className="h-4 w-4" />,
-          accent: 'violet' as const,
-          onClick: () => navigate(ROUTES.USERS.MAHALL),
-        },
-        {
-          label: 'Total Families',
-          value: stats.families.total.toString(),
-          icon: <FiHome className="h-4 w-4" />,
-          accent: 'emerald' as const,
+          label: 'Families awaiting approval',
+          value: stats.families.pending,
+          icon: <FiClock className="h-4 w-4" />,
+          hint: 'of ' + stats.families.total + ' families',
           onClick: () => navigate(ROUTES.FAMILIES.LIST),
         },
         {
-          label: 'Monthly Income',
-          value: `₹${(financialSummary?.monthlyIncome || 0).toLocaleString()}`,
-          icon: <FiDollarSign className="h-4 w-4" />,
-          accent: 'amber' as const,
-          trend: financialSummary?.incomeGrowthPercent != null
-            ? { value: Math.abs(financialSummary.incomeGrowthPercent), isPositive: financialSummary.incomeGrowthPercent >= 0 }
-            : undefined,
+          label: 'Families',
+          value: stats.families.total,
+          icon: <FiHome className="h-4 w-4" />,
+          onClick: () => navigate(ROUTES.FAMILIES.LIST),
         },
         {
-          label: 'Bank Balance',
-          value: `₹${(financialSummary?.totalBankBalance || 0).toLocaleString()}`,
-          icon: <FiInbox className="h-4 w-4" />,
-          accent: 'indigo' as const,
+          label: 'Members',
+          value: stats.members.total,
+          icon: <FiUsers className="h-4 w-4" />,
+          onClick: () => navigate(ROUTES.MEMBERS.LIST),
         },
+        /*
+         * Financial summary is only fetched successfully for roles the backend
+         * grants it to (super_admin, mahall, institute) - a survey admin gets a
+         * 403 that the fetch swallows into `null`. Only show the tile once real
+         * data has loaded, so a role without finance access sees no tile
+         * instead of a fabricated "₹0" that reads as a real, empty balance.
+         */
+        ...(financialSummary
+          ? [
+              {
+                label: 'Income this month',
+                value: '₹' + (financialSummary.monthlyIncome || 0).toLocaleString('en-IN'),
+                icon: <FiDollarSign className="h-4 w-4" />,
+                hint: 'Bank balance ₹' + (financialSummary.totalBankBalance || 0).toLocaleString('en-IN'),
+                trend:
+                  financialSummary.incomeGrowthPercent != null
+                    ? {
+                        value: Math.abs(financialSummary.incomeGrowthPercent),
+                        isPositive: financialSummary.incomeGrowthPercent >= 0,
+                      }
+                    : undefined,
+              },
+            ]
+          : []),
       ]
     : [];
-
   const genderData = stats
     ? [
         { name: 'Male', value: stats.members.male },
         { name: 'Female', value: stats.members.female },
       ]
     : [];
-
   const familyStatusData = stats
     ? [
         { name: 'Approved', value: stats.families.approved },
@@ -117,265 +150,267 @@ export default function Dashboard() {
         { name: 'Unapproved', value: stats.families.unapproved },
       ]
     : [];
-
-  if (loading) {
-    return (
-      <PageSkeleton />
-    );
-  }
-
+  if (loading) return <PageSkeleton />;
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center h-[calc(100vh-100px)]">
-        <p className="text-red-600 dark:text-red-400 mb-4 text-lg">{error}</p>
-        <button
-          onClick={fetchDashboardData}
-          className="px-6 py-2.5 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-colors shadow-sm font-medium"
+      <>
+        <PageHeader title="Dashboard" />
+        <Alert
+          variant="error"
+          title="Couldn't load the dashboard"
+          action={{ label: 'Try again', onClick: fetchDashboardData }}
         >
-          Retry
-        </button>
-      </div>
+          {error}
+        </Alert>
+      </>
     );
   }
+  // Hierarchical overview: awaiting approval is the actionable hero, others are quiet totals.
+  const pendingStat = statCards.find((s) => s.label === 'Families awaiting approval');
+  const otherStats = statCards.filter((s) => s.label !== 'Families awaiting approval');
 
   return (
-    <div className="space-y-4 animate-in fade-in duration-500">
-      <WelcomeBanner />
-
-      <PhaseAInsights>
-        {statCards.map((stat, index) => (
-          <DashboardStatCard key={index} {...stat} />
-        ))}
-      </PhaseAInsights>
-
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-        {/* Main Chart Area */}
-        <Card className="lg:col-span-2 h-full">
-            <div className="mb-4 flex items-center justify-between">
+    <>
+      <div className="border-b border-border/60 bg-card/50">
+        <div className="mx-auto max-w-content px-3 py-3 sm:px-0 sm:py-4">
+          <PageHeader
+            title={firstName ? `Welcome back, ${firstName}` : 'Dashboard'}
+            description="What needs your attention across the mahallu today."
+          />
+        </div>
+      </div>
+      <div className="space-y-4 py-3 sm:py-4">
+        {/* OVERVIEW — four equal-sized cards, not a hero + siblings */}
+        {statCards.length > 0 && (
+          <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {pendingStat && (
+              <div className="flex min-h-[136px] flex-col justify-between rounded-xl bg-amber-500/10 p-3.5 ring-1 ring-amber-500/20">
                 <div>
-                    <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">
-                        New Registrations
-                    </h2>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">Family registrations, last 7 days</p>
+                  <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-400">
+                    <FiClock className="h-3.5 w-3.5" aria-hidden="true" /> Needs attention
+                  </p>
+                  <p className="mt-1.5 text-2xl font-bold tracking-tight text-foreground tabular-nums">{pendingStat.value}</p>
+                  <p className="mt-0.5 truncate text-xs text-muted-foreground">{pendingStat.label} — {pendingStat.hint}</p>
                 </div>
-            </div>
-            <div className="h-[250px] w-full">
-                 <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={activityTimeline}>
-                        <defs>
-                            <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#16a34a" stopOpacity={0.18}/>
-                                <stop offset="95%" stopColor="#16a34a" stopOpacity={0}/>
-                            </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
-                        <XAxis
-                            dataKey="name"
-                            axisLine={false}
-                            tickLine={false}
-                            tick={{ fill: '#9ca3af', fontSize: 12 }}
-                            dy={10}
-                        />
-                        <YAxis
-                            axisLine={false}
-                            tickLine={false}
-                            tick={{ fill: '#9ca3af', fontSize: 12 }}
-                        />
-                        <Tooltip
-                            contentStyle={{
-                                backgroundColor: '#fff',
-                                border: '1px solid #e5e7eb',
-                                borderRadius: '8px',
-                                boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
-                            }}
-                            formatter={(value: number) => [`${value} registration${value === 1 ? '' : 's'}`, '']}
-                            labelFormatter={(label) => label}
-                        />
-                        <Area
-                            type="monotone"
-                            dataKey="value"
-                            stroke="#16a34a"
-                            strokeWidth={3}
-                            fillOpacity={1}
-                            fill="url(#colorValue)"
-                            dot={{ r: 3, fill: '#16a34a', strokeWidth: 0 }}
-                            activeDot={{ r: 5, fill: '#16a34a', strokeWidth: 2, stroke: '#fff' }}
-                        />
-                    </AreaChart>
-                </ResponsiveContainer>
-            </div>
-        </Card>
-
-        {/* Latest Registrations / List */}
-        <Card className="h-full">
-          <div className="mb-4">
-            <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">
-                    Latest Registrations
-                </h2>
-             <p className="text-xs text-gray-500 dark:text-gray-400">Recent family entries</p>
-            </div>
-          <div className="space-y-2.5">
-                {recentFamilies.length > 0 ? (
-                  recentFamilies.map((family) => (
-                    <div 
-                      key={family.id} 
-                className="flex cursor-pointer items-center gap-3 rounded-lg border border-transparent p-2.5 transition-colors hover:border-gray-100 hover:bg-gray-50 dark:hover:border-gray-800 dark:hover:bg-gray-800/50"
-                      onClick={() => navigate(`/families/${family.id}`)}
-                    >
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary-100 text-xs font-bold text-primary-600 dark:bg-primary-900/30 dark:text-primary-400">
-                            {getInitials(family.familyName)}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                  <p className="truncate text-[0.82rem] font-semibold text-gray-900 dark:text-white">
-                                {family.familyName}
-                            </p>
-                  <p className="truncate text-[0.72rem] text-gray-500 dark:text-gray-400">
-                                {getTimeAgo(family.createdAt)}
-                            </p>
-                        </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                    No recent families
-                  </div>
-                )}
-            </div>
-        </Card>
-      </div>
-
-      {/* Secondary Charts Section */}
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-        <Card className="h-full">
-          <div className="mb-4">
-            <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">
-              Gender Distribution
-            </h2>
-            <p className="text-xs text-gray-500 dark:text-gray-400">Overview of member demographics</p>
-          </div>
-          {genderData.length > 0 && stats ? (
-            <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-around">
-              <div className="relative h-[220px] w-[220px] flex-shrink-0">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={genderData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={65}
-                      outerRadius={90}
-                      paddingAngle={3}
-                      dataKey="value"
-                      stroke="none"
-                    >
-                      {genderData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={GENDER_COLORS[index % GENDER_COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: '#fff',
-                        borderRadius: '8px',
-                        border: '1px solid #e5e7eb',
-                        boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
-                      }}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-                <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-                  <span className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                    {stats.members.total}
-                  </span>
-                  <span className="text-[11px] text-gray-500 dark:text-gray-400">Total Members</span>
-                </div>
-              </div>
-              <div className="w-full space-y-4 sm:w-auto">
-                {genderData.map((entry, index) => {
-                  const percent =
-                    stats.members.total > 0 ? Math.round((entry.value / stats.members.total) * 100) : 0;
-                  return (
-                    <div key={entry.name} className="flex items-center justify-between gap-8">
-                      <span className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
-                        <span
-                          className="h-2.5 w-2.5 rounded-full"
-                          style={{ backgroundColor: GENDER_COLORS[index % GENDER_COLORS.length] }}
-                        />
-                        {entry.name}
-                      </span>
-                      <span className="text-right">
-                        <span className="block text-sm font-bold text-gray-900 dark:text-gray-100">
-                          {percent}%
-                        </span>
-                        <span className="block text-[11px] text-gray-400 dark:text-gray-500">
-                          {entry.value} members
-                        </span>
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          ) : (
-            <div className="h-64 flex items-center justify-center text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
-              No data available
-            </div>
-          )}
-        </Card>
-        <Card className="h-full">
-          <div className="mb-4">
-            <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">
-              Family Status
-            </h2>
-             <p className="text-xs text-gray-500 dark:text-gray-400">Registration status overview</p>
-          </div>
-          {familyStatusData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={250}>
-              <BarChart data={familyStatusData}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
-                <XAxis 
-                  dataKey="name" 
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fill: '#6b7280', fontSize: 12 }}
-                  dy={10}
-                />
-                <YAxis 
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fill: '#6b7280', fontSize: 12 }}
-                />
-                <Tooltip
-                  cursor={{ fill: 'rgba(0,0,0,0.05)' }}
-                  contentStyle={{ 
-                    backgroundColor: '#fff',
-                    borderRadius: '8px',
-                    border: '1px solid #e5e7eb',
-                    boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
-                  }}
-                />
-                <Bar
-                  dataKey="value"
-                  fill="#16a34a"
-                  radius={[6, 6, 0, 0]}
-                  barSize={40}
+                <button
+                  type="button"
+                  onClick={pendingStat.onClick}
+                  className="mt-2 inline-flex w-fit items-center gap-1.5 rounded-full bg-amber-600 px-3 py-1 text-xs font-medium text-white transition-colors hover:bg-amber-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-600"
                 >
-                  <LabelList
-                    dataKey="value"
-                    position="top"
-                    offset={8}
-                    style={{ fill: '#374151', fontSize: 12, fontWeight: 600 }}
-                  />
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          ) : (
-             <div className="h-64 flex items-center justify-center text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
-              No data available
+                  Review families <span aria-hidden="true">→</span>
+                </button>
+              </div>
+            )}
+            {otherStats.map((stat) => (
+              <div
+                key={stat.label}
+                className="flex min-h-[136px] flex-col justify-between rounded-xl border border-border bg-card p-3.5"
+              >
+                <div>
+                  <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                    <span className="flex h-5 w-5 items-center justify-center rounded-md bg-muted text-muted-foreground">{stat.icon}</span>
+                    {stat.label}
+                  </p>
+                  <p className="mt-1.5 text-2xl font-semibold tabular-nums tracking-tight text-foreground">{stat.value}</p>
+                </div>
+                <div>
+                  {stat.hint && <p className="truncate text-xs tabular-nums text-muted-foreground">{stat.hint}</p>}
+                  {stat.trend && (
+                    <p className={`mt-0.5 inline-flex items-center gap-1 text-xs font-medium tabular-nums ${stat.trend.isPositive ? 'text-success' : 'text-destructive'}`}>
+                      <span aria-hidden="true">{stat.trend.isPositive ? '↑' : '↓'}</span> {stat.trend.value}% vs last month
+                    </p>
+                  )}
+                </div>
+              </div>
+            ))}
+          </section>
+        )}
+
+        <CommunitySnapshot>{null}</CommunitySnapshot>
+        <div className="grid grid-cols-1 items-stretch gap-4 lg:grid-cols-5">
+          <div className="flex h-full flex-col rounded-xl border border-border bg-card p-3 sm:p-3.5 lg:col-span-3 lg:min-h-[230px]">
+            <div className="mb-2.5 flex items-baseline justify-between gap-2">
+              <h2 className="text-sm font-semibold text-foreground">New registrations</h2>
+              <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium tabular-nums text-muted-foreground">Last 7 days</span>
             </div>
-          )}
-        </Card>
+            {activityTimeline.every((d) => d.value === 0) ? (
+              <div className="flex min-h-[120px] flex-1 items-center justify-center rounded-lg bg-muted/30">
+                <p className="text-sm text-muted-foreground">No registrations this week</p>
+              </div>
+            ) : (
+              <div className="min-h-[120px] w-full flex-1">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={activityTimeline}>
+                    <defs>
+                      <linearGradient id="registrationsFill" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor={chart.primary} stopOpacity={0.15} />
+                        <stop offset="95%" stopColor={chart.primary} stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={chart.grid} />
+                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: chart.axis, fontSize: 11 }} dy={10} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fill: chart.axis, fontSize: 11 }} allowDecimals={false} width={28} />
+                    <Tooltip contentStyle={tooltipStyle(chart)} formatter={(value: number) => [value + (value === 1 ? ' registration' : ' registrations'), '']} />
+                    <Area type="monotone" dataKey="value" stroke={chart.primary} strokeWidth={2} fillOpacity={1} fill="url(#registrationsFill)" dot={{ r: 3, fill: chart.primary, strokeWidth: 0 }} activeDot={{ r: 5, fill: chart.primary, strokeWidth: 2, stroke: chart.tooltipBg }} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </div>
+          <div className="flex h-full flex-col rounded-xl border border-border bg-card p-3 sm:p-3.5 lg:col-span-2 lg:min-h-[230px]">
+            <div className="mb-2.5 flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-foreground">Latest registrations</h2>
+              <span className="text-xs tabular-nums text-muted-foreground">{recentFamilies.length} recent</span>
+            </div>
+            {recentFamilies.length > 0 ? (
+              <div className="flex-1 divide-y divide-border/60 overflow-hidden rounded-lg border border-border/60">
+                {recentFamilies.map((family) => (
+                  <button
+                    key={family.id}
+                    type="button"
+                    onClick={() => navigate('/families/' + family.id)}
+                    className="flex w-full items-center gap-3 px-3 py-1.5 text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+                  >
+                    <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary" aria-hidden="true">
+                      {getInitials(family.familyName)}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium text-foreground">{toTitleCase(family.familyName)}</span>
+                      <span className="block truncate text-xs text-muted-foreground">{getTimeAgo(family.createdAt)}</span>
+                    </span>
+                    <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center text-muted-foreground" aria-hidden="true">→</span>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="flex min-h-[100px] flex-1 items-center justify-center rounded-lg border border-dashed border-border text-center">
+                <p className="text-sm text-muted-foreground">No recent families</p>
+              </div>
+            )}
+          </div>
+        </div>
+        <div className="grid grid-cols-1 items-stretch gap-3 xl:grid-cols-2">
+          <Card className="flex h-full flex-col xl:min-h-[240px]">
+            <div className="mb-2.5">
+              <h2 className="text-base font-semibold text-foreground">Gender split</h2>
+              <p className="text-xs text-muted-foreground">Across {stats?.members.total ?? 0} members</p>
+            </div>
+            {genderData.length > 0 && stats ? (
+              <div className="flex flex-1 flex-col items-center justify-center gap-4 sm:flex-row sm:justify-around">
+                <div className="relative h-[150px] w-[150px] flex-shrink-0">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={genderData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={42}
+                        outerRadius={60}
+                        paddingAngle={3}
+                        dataKey="value"
+                        stroke="none"
+                      >
+                        {genderData.map((entry, index) => (
+                          <Cell key={entry.name} fill={chart.categorical[index % chart.categorical.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip contentStyle={tooltipStyle(chart)} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+                    <span className="text-2xl font-semibold tabular-nums text-foreground">
+                      {stats.members.total}
+                    </span>
+                    <span className="text-xs text-muted-foreground">Members</span>
+                  </div>
+                </div>
+                <dl className="w-full space-y-3 sm:w-auto">
+                  {genderData.map((entry, index) => {
+                    const percent =
+                      stats.members.total > 0 ? Math.round((entry.value / stats.members.total) * 100) : 0;
+                    return (
+                      <div key={entry.name} className="flex items-center justify-between gap-8">
+                        <dt className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <span
+                            className="h-2.5 w-2.5 rounded-full"
+                            style={{ backgroundColor: chart.categorical[index % chart.categorical.length] }}
+                            aria-hidden="true"
+                          />
+                          {entry.name}
+                        </dt>
+                        <dd className="text-right">
+                          <span className="block text-sm font-semibold tabular-nums text-foreground">
+                            {percent}%
+                          </span>
+                          <span className="block text-xs tabular-nums text-muted-foreground">
+                            {entry.value} members
+                          </span>
+                        </dd>
+                      </div>
+                    );
+                  })}
+                </dl>
+              </div>
+            ) : (
+              <EmptyState variant="empty" entity="member records" className="flex-1 py-8" />
+            )}
+          </Card>
+          <Card className="flex h-full flex-col xl:min-h-[240px]">
+            <div className="mb-2.5">
+              <h2 className="text-base font-semibold text-foreground">Family status</h2>
+              <p className="text-xs text-muted-foreground">Registration status across all families</p>
+            </div>
+            {familyStatusData.length > 0 ? (
+              <div className="min-h-[150px] flex-1">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={familyStatusData}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={chart.grid} />
+                  <XAxis
+                    dataKey="name"
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fill: chart.axis, fontSize: 12 }}
+                    dy={10}
+                  />
+                  <YAxis
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fill: chart.axis, fontSize: 12 }}
+                    allowDecimals={false}
+                  />
+                  <Tooltip
+                    cursor={{ fill: chart.grid, fillOpacity: 0.3 }}
+                    contentStyle={tooltipStyle(chart)}
+                  />
+                  <Bar dataKey="value" radius={[6, 6, 0, 0]} barSize={40}>
+                    {familyStatusData.map((entry) => (
+                      <Cell
+                        key={entry.name}
+                        fill={
+                          entry.name === 'Approved'
+                            ? chart.success
+                            : entry.name === 'Pending'
+                              ? chart.warning
+                              : chart.destructive
+                        }
+                      />
+                    ))}
+                    <LabelList
+                      dataKey="value"
+                      position="top"
+                      offset={8}
+                      style={{ fill: chart.label, fontSize: 12, fontWeight: 600 }}
+                    />
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+              </div>
+            ) : (
+              <EmptyState variant="empty" entity="families" className="flex-1 py-8" />
+            )}
+          </Card>
+        </div>
       </div>
-    </div>
+    </>
   );
 }
-

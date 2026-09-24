@@ -14,6 +14,14 @@ import {
 } from '../controllers/cemeteryController';
 import { authMiddleware, allowRoles } from '../middleware/authMiddleware';
 import { tenantMiddleware, tenantFilter } from '../middleware/tenantMiddleware';
+import { validationHandler } from '../middleware/validationHandler';
+import { idParam, listQuery } from '../validations/common';
+import {
+  createCemeteryValidation,
+  createGraveRecordValidation,
+  updateCemeteryValidation,
+  updateGraveRecordValidation,
+} from '../validations/moduleValidation';
 
 // Middleware stack helper
 const applyAuth = (router: express.Router) => {
@@ -69,7 +77,7 @@ applyAuth(gravesRouter);
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  */
-cemeteriesRouter.get('/', getAllCemeteries);
+cemeteriesRouter.get('/', listQuery(), validationHandler, getAllCemeteries);
 
 /**
  * @swagger
@@ -91,7 +99,7 @@ cemeteriesRouter.get('/', getAllCemeteries);
  *       404:
  *         $ref: '#/components/responses/NotFound'
  */
-cemeteriesRouter.get('/:id', getCemeteryById);
+cemeteriesRouter.get('/:id', idParam('id', 'cemetery'), validationHandler, getCemeteryById);
 
 /**
  * @swagger
@@ -128,7 +136,7 @@ cemeteriesRouter.get('/:id', getCemeteryById);
  *       404:
  *         description: Cemetery not found
  */
-cemeteriesRouter.get('/:id/graves', getCemeteryGraves);
+cemeteriesRouter.get('/:id/graves', idParam('id', 'cemetery'), validationHandler, getCemeteryGraves);
 
 /**
  * @swagger
@@ -167,7 +175,7 @@ cemeteriesRouter.get('/:id/graves', getCemeteryGraves);
  *       400:
  *         description: Validation error
  */
-cemeteriesRouter.post('/', allowRoles(['mahall']), createCemetery);
+cemeteriesRouter.post('/', createCemeteryValidation, validationHandler, allowRoles(['mahall']), createCemetery);
 
 /**
  * @swagger
@@ -197,7 +205,7 @@ cemeteriesRouter.post('/', allowRoles(['mahall']), createCemetery);
  *       404:
  *         description: Cemetery not found
  */
-cemeteriesRouter.put('/:id', allowRoles(['mahall']), updateCemetery);
+cemeteriesRouter.put('/:id', updateCemeteryValidation, validationHandler, allowRoles(['mahall']), updateCemetery);
 
 /**
  * @swagger
@@ -224,7 +232,7 @@ cemeteriesRouter.put('/:id', allowRoles(['mahall']), updateCemetery);
  *       404:
  *         description: Cemetery not found
  */
-cemeteriesRouter.delete('/:id', allowRoles(['mahall']), deleteCemetery);
+cemeteriesRouter.delete('/:id', idParam('id', 'cemetery'), validationHandler, allowRoles(['mahall']), deleteCemetery);
 
 // ==================== GRAVE RECORDS ROUTES ====================
 
@@ -264,7 +272,7 @@ cemeteriesRouter.delete('/:id', allowRoles(['mahall']), deleteCemetery);
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  */
-gravesRouter.get('/', getAllGraveRecords);
+gravesRouter.get('/', listQuery(), validationHandler, getAllGraveRecords);
 
 /**
  * @swagger
@@ -286,7 +294,7 @@ gravesRouter.get('/', getAllGraveRecords);
  *       404:
  *         $ref: '#/components/responses/NotFound'
  */
-gravesRouter.get('/:id', getGraveRecordById);
+gravesRouter.get('/:id', idParam('id', 'grave record'), validationHandler, getGraveRecordById);
 
 /**
  * @swagger
@@ -333,7 +341,7 @@ gravesRouter.get('/:id', getGraveRecordById);
  *       400:
  *         description: Validation error or duplicate graveNo
  */
-gravesRouter.post('/', allowRoles(['mahall']), createGraveRecord);
+gravesRouter.post('/', createGraveRecordValidation, validationHandler, allowRoles(['mahall']), createGraveRecord);
 
 /**
  * @swagger
@@ -364,7 +372,7 @@ gravesRouter.post('/', allowRoles(['mahall']), createGraveRecord);
  *       404:
  *         description: Grave record not found
  */
-gravesRouter.put('/:id', allowRoles(['mahall']), updateGraveRecord);
+gravesRouter.put('/:id', updateGraveRecordValidation, validationHandler, allowRoles(['mahall']), updateGraveRecord);
 
 /**
  * @swagger
@@ -388,4 +396,4 @@ gravesRouter.put('/:id', allowRoles(['mahall']), updateGraveRecord);
  *       404:
  *         description: Grave record not found
  */
-gravesRouter.delete('/:id', allowRoles(['mahall']), deleteGraveRecord);
+gravesRouter.delete('/:id', idParam('id', 'grave record'), validationHandler, allowRoles(['mahall']), deleteGraveRecord);

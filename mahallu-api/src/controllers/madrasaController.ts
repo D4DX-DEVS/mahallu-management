@@ -8,6 +8,9 @@ import { AuthRequest } from '../middleware/authMiddleware';
 import { getPaginationParams, createPaginationResponse } from '../utils/pagination';
 import { stripImmutable, refBelongsToTenant } from '../utils/sanitizeUpdate';
 
+import { sendFailure } from '../utils/userMessages';
+import { regexLiteral } from '../utils/queryGuard';
+
 const tenantScope = (req: AuthRequest): Record<string, any> =>
   req.tenantId ? { tenantId: req.tenantId } : {};
 
@@ -47,7 +50,7 @@ export const getAllClasses = async (req: AuthRequest, res: Response) => {
     if (req.query.classType) query.classType = req.query.classType;
     if (req.query.status) query.status = req.query.status;
     if (req.query.instituteId) query.instituteId = req.query.instituteId;
-    if (req.query.search) query.name = { $regex: String(req.query.search), $options: 'i' };
+    if (req.query.search) query.name = { $regex: regexLiteral(String(req.query.search)), $options: 'i' };
 
     const [classes, total] = await Promise.all([
       MadrasaClass.find(query)
@@ -67,7 +70,7 @@ export const getAllClasses = async (req: AuthRequest, res: Response) => {
 
     res.json(createPaginationResponse(withCounts, total, page, limit));
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the classes right now. Please try again.');
   }
 };
 
@@ -78,7 +81,7 @@ export const getClassById = async (req: AuthRequest, res: Response) => {
       .populate('instituteId', 'name');
 
     if (!cls) {
-      return res.status(404).json({ success: false, message: 'Class not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that class. It may have been removed." });
     }
 
     const counts = await countStudents([cls._id as mongoose.Types.ObjectId]);
@@ -90,7 +93,7 @@ export const getClassById = async (req: AuthRequest, res: Response) => {
       },
     });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the class right now. Please try again.');
   }
 };
 
@@ -107,7 +110,7 @@ export const createClass = async (req: AuthRequest, res: Response) => {
     });
     res.status(201).json({ success: true, data: cls });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t save the class. Please try again.');
   }
 };
 
@@ -115,7 +118,7 @@ export const updateClass = async (req: AuthRequest, res: Response) => {
   try {
     const existing = await MadrasaClass.findOne({ _id: req.params.id, ...tenantScope(req) });
     if (!existing) {
-      return res.status(404).json({ success: false, message: 'Class not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that class. It may have been removed." });
     }
 
     const refError = await validateClassRefs(req);
@@ -129,7 +132,7 @@ export const updateClass = async (req: AuthRequest, res: Response) => {
     });
     res.json({ success: true, data: cls });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t update the class. Please try again.');
   }
 };
 
@@ -137,21 +140,21 @@ export const deleteClass = async (req: AuthRequest, res: Response) => {
   try {
     const cls = await MadrasaClass.findOne({ _id: req.params.id, ...tenantScope(req) });
     if (!cls) {
-      return res.status(404).json({ success: false, message: 'Class not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that class. It may have been removed." });
     }
 
     const enrolled = await StudentEnrollment.countDocuments({ classId: cls._id });
     if (enrolled > 0) {
       return res.status(400).json({
         success: false,
-        message: `Cannot delete a class with ${enrolled} enrolled student(s). Mark it inactive instead.`,
+        message: `This class has ${enrolled} enrolled student(s), so it can't be deleted. Please mark it inactive instead.`,
       });
     }
 
     await cls.deleteOne();
     res.json({ success: true, message: 'Class deleted' });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t delete the class. Please try again.');
   }
 };
 
@@ -159,7 +162,7 @@ export const getClassStudents = async (req: AuthRequest, res: Response) => {
   try {
     const cls = await MadrasaClass.findOne({ _id: req.params.id, ...tenantScope(req) });
     if (!cls) {
-      return res.status(404).json({ success: false, message: 'Class not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that class. It may have been removed." });
     }
 
     const { page, limit, skip } = getPaginationParams(req);
@@ -177,7 +180,7 @@ export const getClassStudents = async (req: AuthRequest, res: Response) => {
 
     res.json(createPaginationResponse(students, total, page, limit));
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the class students right now. Please try again.');
   }
 };
 
@@ -201,7 +204,7 @@ export const getAllEnrollments = async (req: AuthRequest, res: Response) => {
 
     res.json(createPaginationResponse(enrollments, total, page, limit));
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the enrollments right now. Please try again.');
   }
 };
 
@@ -212,19 +215,19 @@ export const createEnrollment = async (req: AuthRequest, res: Response) => {
     if (!(await refBelongsToTenant(MadrasaClass, classId, req.tenantId))) {
       return res
         .status(400)
-        .json({ success: false, message: 'Class does not belong to this Mahallu' });
+        .json({ success: false, message: 'This class belongs to another Mahallu.' });
     }
     if (!(await refBelongsToTenant(Member, memberId, req.tenantId))) {
       return res
         .status(400)
-        .json({ success: false, message: 'Student does not belong to this Mahallu' });
+        .json({ success: false, message: 'This student belongs to another Mahallu.' });
     }
 
     const duplicate = await StudentEnrollment.findOne({ classId, memberId });
     if (duplicate) {
       return res
         .status(400)
-        .json({ success: false, message: 'This student is already enrolled in the class' });
+        .json({ success: false, message: 'This student is already enrolled in this class.' });
     }
 
     const enrollment = await StudentEnrollment.create({
@@ -240,7 +243,7 @@ export const createEnrollment = async (req: AuthRequest, res: Response) => {
 
     res.status(201).json({ success: true, data: populated });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t save the enrollment. Please try again.');
   }
 };
 
@@ -248,7 +251,7 @@ export const updateEnrollment = async (req: AuthRequest, res: Response) => {
   try {
     const existing = await StudentEnrollment.findOne({ _id: req.params.id, ...tenantScope(req) });
     if (!existing) {
-      return res.status(404).json({ success: false, message: 'Enrollment not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that enrollment. It may have been removed." });
     }
 
     // Moving a student between classes is a new enrollment, not an edit.
@@ -263,7 +266,7 @@ export const updateEnrollment = async (req: AuthRequest, res: Response) => {
 
     res.json({ success: true, data: enrollment });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t update the enrollment. Please try again.');
   }
 };
 
@@ -274,11 +277,11 @@ export const deleteEnrollment = async (req: AuthRequest, res: Response) => {
       ...tenantScope(req),
     });
     if (!enrollment) {
-      return res.status(404).json({ success: false, message: 'Enrollment not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that enrollment. It may have been removed." });
     }
     res.json({ success: true, message: 'Enrollment removed' });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t delete the enrollment. Please try again.');
   }
 };
 
@@ -320,6 +323,6 @@ export const getMadrasaSummary = async (req: AuthRequest, res: Response) => {
       },
     });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the madrasa summary right now. Please try again.');
   }
 };

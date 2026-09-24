@@ -4,17 +4,21 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useNavigate } from 'react-router-dom';
 import { FiSave, FiX } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import { ROUTES } from '@/constants/routes';
 import { socialService } from '@/services/socialService';
+import PageHeader from '@/components/layout/PageHeader';
+import { safeApiMessage } from '@/utils/errors';
 
 const supportSchema = z.object({
-  subject: z.string().min(2, 'Subject must be between 2 and 200 characters').max(200, 'Subject must be between 2 and 200 characters'),
-  message: z.string().min(10, 'Message must be at least 10 characters'),
+  subject: z
+    .string()
+    .min(2, 'Subject must be between 2 and 200 characters')
+    .max(200, 'Subject must be between 2 and 200 characters'),
+  message: z.string().max(5000, 'Please keep the message to 5000 characters or less.').min(10, 'Message must be at least 10 characters'),
   priority: z.enum(['low', 'medium', 'high']),
 });
 
@@ -41,29 +45,21 @@ export default function CreateSupport() {
       await socialService.createSupport(data);
       navigate(ROUTES.SOCIAL.SUPPORT);
     } catch (err: unknown) {
-      const apiMessage = (err as any)?.response?.data?.message;
-      setError(apiMessage || 'Failed to create support ticket. Please try again.');
+      const apiMessage = safeApiMessage(err, '');
+      setError(apiMessage || "Couldn't create support ticket. Please try again.");
     }
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">New Support Ticket</h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Log a support request</p>
-        </div>
-        <Breadcrumb
-          items={[
-            { label: 'Dashboard', path: '/dashboard' },
-            { label: 'Support', path: ROUTES.SOCIAL.SUPPORT },
-            { label: 'Create' },
-          ]}
-        />
-      </div>
+    <div className="space-y-4">
+      <PageHeader
+        title="New Support Ticket"
+        description="Log a support request"
+        breadcrumbs={[{ label: 'Support', path: ROUTES.SOCIAL.SUPPORT }]}
+      />
 
       <form onSubmit={handleSubmit(onSubmit)}>
-        <Card className="space-y-6">
+        <Card className="space-y-4">
           {error && (
             <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm dark:bg-red-900 dark:border-red-700 dark:text-red-200">
               {error}
@@ -85,6 +81,7 @@ export default function CreateSupport() {
                 Message <span className="text-red-500">*</span>
               </label>
               <textarea
+                aria-label="Message"
                 {...register('message')}
                 placeholder="Describe the issue in detail..."
                 rows={6}
@@ -106,7 +103,7 @@ export default function CreateSupport() {
             />
           </div>
 
-          <div className="flex justify-end gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+          <div className="flex gap-2 flex-col-reverse sm:flex-row sm:justify-end sm:gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
             <Button type="button" variant="outline" onClick={() => navigate(ROUTES.SOCIAL.SUPPORT)}>
               <FiX className="h-4 w-4 mr-2" />
               Cancel

@@ -8,7 +8,7 @@ export default function Skeleton({ className }: SkeletonProps) {
   return (
     <div
       className={cn(
-        'relative overflow-hidden rounded-md bg-gray-200/70 dark:bg-gray-700/50',
+        'relative overflow-hidden rounded-md bg-muted',
         'after:absolute after:inset-0 after:-translate-x-full after:animate-shimmer',
         'after:bg-gradient-to-r after:from-transparent after:via-white/60 after:to-transparent',
         'dark:after:via-white/10',
@@ -35,15 +35,17 @@ export function PageSkeleton({ variant = 'page' }: PageSkeletonProps) {
   return (
     <div className="space-y-4">
       <div className="space-y-2">
-        <Skeleton className="h-6 w-56" />
-        <Skeleton className="h-3.5 w-80" />
+        <Skeleton className="h-6 w-56 max-w-full" />
+        <Skeleton className="h-3.5 w-80 max-w-full" />
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         {Array.from({ length: 3 }).map((_, i) => (
           <Skeleton key={i} className="h-20 rounded-xl" />
         ))}
       </div>
-      <div className="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
+      {/* The list surface is only drawn from `md`, where the page draws one
+          too. Below it the loaded page has no outer frame. */}
+      <div className="md:rounded-lg md:border md:border-border md:p-4">
         <TableSkeleton columns={4} rows={7} />
       </div>
     </div>
@@ -57,7 +59,7 @@ interface TableSkeletonProps {
 
 export function TableSkeleton({ columns, rows = 8 }: TableSkeletonProps) {
   return (
-    <div className="divide-y divide-gray-200 dark:divide-gray-700">
+    <div className="divide-y divide-border">
       {Array.from({ length: rows }).map((_, r) => (
         <div key={r} className="flex items-center gap-3 px-3 py-3">
           {Array.from({ length: columns }).map((_, c) => (

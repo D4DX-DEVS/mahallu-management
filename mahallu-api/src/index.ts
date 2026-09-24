@@ -1,9 +1,13 @@
-﻿import express from 'express';
+﻿// First import on purpose: this registers a global Mongoose plugin, and a
+// plugin only reaches schemas compiled after it is registered.
+import './config/schemaGuards';
+import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import * as swaggerUi from 'swagger-ui-express';
 import { connectDatabase } from './config/database';
 import { errorHandler } from './middleware/errorHandler';
+import { sanitizeRequest } from './middleware/sanitizeRequest';
 import { activityLogger } from './middleware/activityLogger';
 import { swaggerSpec } from './config/swagger';
 import authRoutes from './routes/authRoutes';
@@ -27,6 +31,7 @@ import masterAccountRoutes from './routes/masterAccountRoutes';
 import tenantRoutes from './routes/tenantRoutes';
 import memberUserRoutes from './routes/memberUserRoutes';
 import assetRoutes from './routes/assetRoutes';
+import categoryRoutes from './routes/categoryRoutes';
 import pettyCashRoutes from './routes/pettyCashRoutes';
 import uploadRoutes from './routes/uploadRoutes';
 import documentRoutes from './routes/documentRoutes';
@@ -60,6 +65,7 @@ import { booksRouter, issuesRouter } from './routes/libraryRoutes';
 import developmentRoutes from './routes/developmentRoutes';
 import developmentIndexRoutes from './routes/developmentIndexRoutes';
 import assistantRoutes from './routes/assistantRoutes';
+import { seedCategories } from './utils/seedCategories';
 import { startVarisangyaReminderScheduler } from './services/varisangyaNotificationService';
 import { startCommitteeTermScheduler } from './services/committeeTermService';
 import path from 'path';
@@ -89,16 +95,67 @@ console.info('MONGODB_URI exists:', !!process.env.MONGODB_URI);
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+/** Assigned once the HTTP server is listening; used to shut down cleanly. */
+let server: import('http').Server | undefined;
+
+/*
+ * Nothing used to catch a promise that rejected outside a request.
+ *
+ * Since Node 15 an unhandled rejection terminates the process by default, so a
+ * stray `.then()` in a scheduler, a background write, or a fire-and-forget
+ * notification could take the whole API down and every Mahallu with it. These
+ * handlers keep the server serving and put the real failure in the log.
+ */
+process.on('unhandledRejection', (reason) => {
+  console.error('[unhandledRejection]', reason);
+});
+
+process.on('uncaughtException', (error) => {
+  // An exception this far out leaves the process in an unknown state, so the
+  // only safe move is to stop taking new work and let the supervisor restart.
+  console.error('[uncaughtException]', error);
+  server?.close(() => process.exit(1));
+  setTimeout(() => process.exit(1), 10000).unref();
+});
+
 // Middleware
 app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// An explicit cap, rather than body-parser's default, so the limit is a
+// decision recorded here: forms and bulk-import payloads fit well inside 1 MB,
+// and anything larger is answered 413 instead of being buffered.
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb', parameterLimit: 1000 }));
+
+/*
+ * A truncated or malformed body used to answer with the parser's own words —
+ * "Unexpected end of JSON input" — which reads as a bug in the app rather than
+ * a bad request. Body-parser failures are caught here, before any route sees
+ * them, so the caller gets one sentence it can act on.
+ */
+app.use((err: any, _req: express.Request, res: express.Response, next: express.NextFunction) => {
+  if (err && (err.type === 'entity.parse.failed' || err instanceof SyntaxError) && 'body' in err) {
+    return res.status(400).json({
+      success: false,
+      message: "We couldn't read that request. Please try again.",
+    });
+  }
+  if (err && err.type === 'entity.too.large') {
+    return res.status(413).json({
+      success: false,
+      message: 'That request is too large. Please send less data at a time.',
+    });
+  }
+  return next(err);
+});
 
 // Swagger Documentation
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
   customCss: '.swagger-ui .topbar { display: none }',
   customSiteTitle: 'Mahallu API Documentation',
 }));
+
+// Mongo operator syntax out of query, body and params before any route runs.
+app.use(sanitizeRequest);
 
 // Activity logging middleware (must be after body parsers, before routes)
 app.use(activityLogger);
@@ -160,6 +217,7 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/master-accounts', masterAccountRoutes);
 app.use('/api/member-user', memberUserRoutes);
 app.use('/api/assets', assetRoutes);
+app.use('/api/categories', categoryRoutes);
 app.use('/api/petty-cash', pettyCashRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/documents', documentRoutes);
@@ -206,11 +264,26 @@ app.use('/api/development-projects', developmentRoutes);
 app.use('/api/development-index', developmentIndexRoutes);
 app.use('/api/assistant', assistantRoutes);
 
+// Unmatched routes: answer in JSON, never Express's default HTML page (it
+// echoes the request path back to whoever asked).
+app.use((_req, res) => {
+  res.status(404).json({
+    success: false,
+    message: "We couldn't find what you were looking for. It may have been removed.",
+  });
+});
+
 // Error handling middleware (must be last)
 app.use(errorHandler);
 
 // Connect to database
-connectDatabase();
+connectDatabase()
+  .then(() => {
+    // Inert shared reference data every dropdown in the app depends on —
+    // safe to re-run on every boot (upsert-only, never overwrites an edit).
+    seedCategories().catch((err) => console.error('Category seeding failed:', err.message));
+  })
+  .catch((err) => console.error('Database startup failed:', err));
 
 // Monthly varisangya WhatsApp reminders
 startVarisangyaReminderScheduler();
@@ -219,7 +292,17 @@ startVarisangyaReminderScheduler();
 startCommitteeTermScheduler();
 
 // Start server
-app.listen(PORT, () => {
+server = app.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
+});
+
+// A port already in use used to surface as a bare stack trace and a dead process.
+server.on('error', (error: NodeJS.ErrnoException) => {
+  if (error.code === 'EADDRINUSE') {
+    console.error(`❌ Port ${PORT} is already in use. Stop the other process or set a different PORT.`);
+  } else {
+    console.error('❌ Server failed to start:', error);
+  }
+  process.exit(1);
 });
 

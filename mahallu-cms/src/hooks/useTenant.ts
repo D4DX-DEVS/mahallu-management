@@ -5,19 +5,24 @@ import { Tenant } from '@/types/tenant';
 
 export function useTenant() {
   const { currentTenantId } = useAuthStore();
+  const role = useAuthStore((state) => state.user?.role);
   const setTenantFeatures = useAuthStore((state) => state.setTenantFeatures);
   const [tenant, setTenant] = useState<Tenant | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Loads for every role: module gating needs settings.features, not just super admins.
+  // Loads for every staff role: module gating needs settings.features.
+  // Members are not gated by modules and cannot read tenant settings, so
+  // asking for them only produced a 403 on every member-portal page.
+  const isMember = role === 'member';
+
   useEffect(() => {
-    if (currentTenantId) {
+    if (currentTenantId && !isMember) {
       loadTenant();
     }
-  }, [currentTenantId]);
+  }, [currentTenantId, isMember]);
 
   const loadTenant = async () => {
-    if (!currentTenantId) return;
+    if (!currentTenantId || isMember) return;
     try {
       setIsLoading(true);
       const data = await tenantService.getById(currentTenantId);
@@ -32,4 +37,3 @@ export function useTenant() {
 
   return { tenant, isLoading, reload: loadTenant };
 }
-

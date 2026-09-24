@@ -24,6 +24,7 @@ import {
   createZakatValidation,
   getWalletTransactionsValidation,
 } from '../validations/collectibleValidation';
+import { idParam, listQuery } from '../validations/common';
 
 const router = express.Router();
 
@@ -107,9 +108,9 @@ router.use(allowRoles(['super_admin', 'mahall', 'institute']));
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  */
-router.get('/varisangya', getAllVarisangyas);
-router.get('/receipt-next', getNextReceiptNumber);
-router.get('/dues', getFamilyDues);
+router.get('/varisangya', listQuery(), validationHandler, getAllVarisangyas);
+router.get('/receipt-next', listQuery(), validationHandler, getNextReceiptNumber);
+router.get('/dues', listQuery(), validationHandler, getFamilyDues);
 
 /**
  * @swagger
@@ -165,9 +166,9 @@ router.get('/dues', getFamilyDues);
  *         $ref: '#/components/responses/Unauthorized'
  */
 router.post('/varisangya', createVarisangyaValidation, validationHandler, createVarisangya);
-router.put('/varisangya/:id/verify', allowRoles(['super_admin', 'mahall']), verifyVarisangya);
+router.put('/varisangya/:id/verify', idParam('id', 'payment'), validationHandler, allowRoles(['super_admin', 'mahall']), verifyVarisangya);
 router.put('/varisangya/:id', updateVarisangyaValidation, validationHandler, updateVarisangya);
-router.delete('/varisangya/:id', deleteVarisangya);
+router.delete('/varisangya/:id', idParam('id', 'payment'), validationHandler, deleteVarisangya);
 
 /**
  * @swagger
@@ -244,7 +245,7 @@ router.delete('/varisangya/:id', deleteVarisangya);
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  */
-router.get('/zakat', getAllZakats);
+router.get('/zakat', listQuery(), validationHandler, getAllZakats);
 
 /**
  * @swagger
@@ -300,9 +301,9 @@ router.get('/zakat', getAllZakats);
  *         $ref: '#/components/responses/Unauthorized'
  */
 router.post('/zakat', createZakatValidation, validationHandler, createZakat);
-router.put('/zakat/:id/verify', allowRoles(['super_admin', 'mahall']), verifyZakat);
-router.put('/zakat/:id', updateZakat);
-router.delete('/zakat/:id', deleteZakat);
+router.put('/zakat/:id/verify', idParam('id', 'payment'), validationHandler, allowRoles(['super_admin', 'mahall']), verifyZakat);
+router.put('/zakat/:id', idParam('id', 'payment'), validationHandler, updateZakat);
+router.delete('/zakat/:id', idParam('id', 'payment'), validationHandler, deleteZakat);
 
 /**
  * @swagger
@@ -346,7 +347,7 @@ router.delete('/zakat/:id', deleteZakat);
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  */
-router.get('/wallet', getWallet);
+router.get('/wallet', listQuery(), validationHandler, getWallet);
 
 /**
  * @swagger

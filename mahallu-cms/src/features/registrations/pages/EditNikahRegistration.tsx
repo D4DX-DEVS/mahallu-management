@@ -4,7 +4,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useNavigate, useParams } from 'react-router-dom';
 import { FiSave, FiX } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -15,23 +14,35 @@ import { ROUTES } from '@/constants/routes';
 import { registrationService } from '@/services/registrationService';
 import { memberService } from '@/services/memberService';
 import { Member } from '@/types';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 
 const nikahSchema = z.object({
-  groomName: z.string().min(1, 'Groom name is required'),
-  groomAge: z.preprocess((val) => (val === '' || Number.isNaN(val) ? undefined : val), z.number().min(0).max(150).optional()),
-  brideName: z.string().min(1, 'Bride name is required'),
-  brideAge: z.preprocess((val) => (val === '' || Number.isNaN(val) ? undefined : val), z.number().min(0).max(150).optional()),
+  groomName: z.string().max(200, 'Please keep the groom name to 200 characters or less.').min(1, 'Groom name is required'),
+  groomAge: z.preprocess(
+    (val) => (val === '' || Number.isNaN(val) ? undefined : val),
+    z.number().min(0).max(150).optional()
+  ),
+  brideName: z.string().max(200, 'Please keep the bride name to 200 characters or less.').min(1, 'Bride name is required'),
+  brideAge: z.preprocess(
+    (val) => (val === '' || Number.isNaN(val) ? undefined : val),
+    z.number().min(0).max(150).optional()
+  ),
   mahallMemberType: z.enum(['groom', 'bride']).optional().or(z.literal('')),
-  mahallMemberId: z.string().optional(),
-  nikahDate: z.string().min(1, 'Nikah date is required'),
-  mahallId: z.string().optional(),
-  waliName: z.string().optional(),
-  witness1: z.string().optional(),
-  witness2: z.string().optional(),
-  mahrAmount: z.preprocess((val) => (val === '' || Number.isNaN(val) ? undefined : val), z.number().min(0).optional()),
-  mahrDescription: z.string().optional(),
-  status: z.enum(['pending', 'approved', 'rejected']).optional(),
-  remarks: z.string().optional(),
+  mahallMemberId: z.string().max(200, 'Please keep the mahall member to 200 characters or less.').optional(),
+  nikahDate: z.string().max(200, 'Please keep the nikah date to 200 characters or less.').min(1, 'Nikah date is required'),
+  mahallId: z.string().max(200, 'Please keep the mahall to 200 characters or less.').optional(),
+  waliName: z.string().max(200, 'Please keep the wali name to 200 characters or less.').optional(),
+  witness1: z.string().max(200, 'Please keep the witness1 to 200 characters or less.').optional(),
+  witness2: z.string().max(200, 'Please keep the witness2 to 200 characters or less.').optional(),
+  mahrAmount: z.preprocess(
+    (val) => (val === '' || Number.isNaN(val) ? undefined : val),
+    z.number().min(0).optional()
+  ),
+  mahrDescription: z.string().max(3000, 'Please keep the mahr description to 3000 characters or less.').optional(),
+  status: z.enum(['pending', 'correction_required', 'approved', 'rejected']).optional(),
+  remarks: z.string().max(2000, 'Please keep the remarks to 2000 characters or less.').optional(),
 });
 
 type NikahFormData = z.infer<typeof nikahSchema>;
@@ -42,7 +53,9 @@ export default function EditNikahRegistration() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [members, setMembers] = useState<Member[]>([]);
-  const [memberOptions, setMemberOptions] = useState<{ value: string; label: string; sublabel?: string }[]>([]);
+  const [memberOptions, setMemberOptions] = useState<{ value: string; label: string; sublabel?: string }[]>(
+    []
+  );
   const [isMemberSearching, setIsMemberSearching] = useState(false);
   const {
     register,
@@ -81,7 +94,7 @@ export default function EditNikahRegistration() {
           remarks: data.remarks || '',
         });
       } catch (err: any) {
-        setError(err.response?.data?.message || 'Failed to load nikah registration');
+        setError(loadErrorMessage(err, 'nikah registration'));
       } finally {
         setLoading(false);
       }
@@ -105,8 +118,8 @@ export default function EditNikahRegistration() {
         setMemberOptions(
           fetchedMembers.map((member: Member) => ({
             value: member.id,
-            label: member.name,
-            sublabel: member.familyName ? `Family: ${member.familyName}` : undefined,
+            label: toTitleCase(member.name),
+            sublabel: member.familyName ? `Family: ${toTitleCase(member.familyName)}` : undefined,
           }))
         );
       } catch (err) {
@@ -161,35 +174,25 @@ export default function EditNikahRegistration() {
       });
       navigate(ROUTES.REGISTRATIONS.NIKAH);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to update nikah registration. Please try again.');
+      setError(errorMessage(err, { action: 'update nikah registration. please try again' }));
       console.error('Error updating registration:', err);
     }
   };
 
   if (loading) {
-    return (
-      <PageSkeleton variant="section" />
-    );
+    return <PageSkeleton variant="section" />;
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Edit Nikah Registration</h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Update nikah registration details</p>
-        </div>
-        <Breadcrumb
-          items={[
-            { label: 'Dashboard', path: '/dashboard' },
-            { label: 'Nikah Registrations', path: ROUTES.REGISTRATIONS.NIKAH },
-            { label: 'Edit' },
-          ]}
-        />
-      </div>
+    <div className="space-y-4">
+      <PageHeader
+        title="Edit Nikah Registration"
+        description="Update nikah registration details"
+        breadcrumbs={[{ label: 'Nikah Registrations', path: ROUTES.REGISTRATIONS.NIKAH }]}
+      />
 
       <form onSubmit={handleSubmit(onSubmit)}>
-        <Card className="space-y-6">
+        <Card className="space-y-4">
           {error && (
             <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm dark:bg-red-900 dark:border-red-700 dark:text-red-200">
               {error}
@@ -197,7 +200,7 @@ export default function EditNikahRegistration() {
           )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <h3 className="md:col-span-2 text-lg font-semibold text-gray-900 dark:text-gray-100">
+            <h3 className="md:col-span-2 text-lg font-semibold text-foreground">
               Mahall Member Selection
             </h3>
             <Select
@@ -223,7 +226,9 @@ export default function EditNikahRegistration() {
                 className="md:col-span-2"
               />
             )}
-            <h3 className="md:col-span-2 text-lg font-semibold text-gray-900 dark:text-gray-100">Groom Information</h3>
+            <h3 className="md:col-span-2 text-lg font-semibold text-foreground">
+              Groom Information
+            </h3>
             <Input
               label="Groom Name"
               {...register('groomName')}
@@ -238,7 +243,9 @@ export default function EditNikahRegistration() {
               error={errors.groomAge?.message}
               placeholder="Age"
             />
-            <h3 className="md:col-span-2 text-lg font-semibold text-gray-900 dark:text-gray-100 mt-4">Bride Information</h3>
+            <h3 className="md:col-span-2 text-lg font-semibold mt-4 text-foreground">
+              Bride Information
+            </h3>
             <Input
               label="Bride Name"
               {...register('brideName')}
@@ -253,7 +260,9 @@ export default function EditNikahRegistration() {
               error={errors.brideAge?.message}
               placeholder="Age"
             />
-            <h3 className="md:col-span-2 text-lg font-semibold text-gray-900 dark:text-gray-100 mt-4">Nikah Details</h3>
+            <h3 className="md:col-span-2 text-lg font-semibold mt-4 text-foreground">
+              Nikah Details
+            </h3>
             <Input
               label="Nikah Date"
               type="date"
@@ -282,20 +291,17 @@ export default function EditNikahRegistration() {
               label="Status"
               options={[
                 { value: 'pending', label: 'Pending' },
+                { value: 'correction_required', label: 'Correction Required' },
                 { value: 'approved', label: 'Approved' },
                 { value: 'rejected', label: 'Rejected' },
               ]}
               {...register('status')}
               error={errors.status?.message as string | undefined}
             />
-            <Input
-              label="Remarks"
-              {...register('remarks')}
-              placeholder="Remarks"
-            />
+            <Input label="Remarks" {...register('remarks')} placeholder="Remarks" />
           </div>
 
-          <div className="flex justify-end gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+          <div className="flex gap-2 flex-col-reverse sm:flex-row sm:justify-end sm:gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
             <Button type="button" variant="outline" onClick={() => navigate(ROUTES.REGISTRATIONS.NIKAH)}>
               <FiX className="h-4 w-4 mr-2" />
               Cancel

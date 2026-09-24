@@ -7,6 +7,8 @@ import { normalizeIndianPhone } from '../services/dxingService';
 import { AuthRequest } from '../middleware/authMiddleware';
 import { getPaginationParams, createPaginationResponse } from '../utils/pagination';
 
+import { sendFailure } from '../utils/userMessages';
+
 // Only these fields may be changed through self-service.
 // Eligibility / financial / workflow fields stay admin-only.
 const MEMBER_EDITABLE_FIELDS = [
@@ -23,17 +25,17 @@ const isAdmin = (req: AuthRequest): boolean =>
 export const createChangeRequest = async (req: AuthRequest, res: Response) => {
   try {
     if (!req.user?.memberId) {
-      return res.status(403).json({ success: false, message: 'Member account required' });
+      return res.status(403).json({ success: false, message: 'This is available to member accounts only.' });
     }
 
     const member = await Member.findById(req.user.memberId);
     if (!member) {
-      return res.status(404).json({ success: false, message: 'Member not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that member. It may have been removed." });
     }
 
     const { targetType, targetId, changes } = req.body;
     if (!['member', 'family'].includes(targetType) || !targetId || !Array.isArray(changes) || changes.length === 0) {
-      return res.status(400).json({ success: false, message: 'targetType, targetId and changes are required' });
+      return res.status(400).json({ success: false, message: 'Please choose what to change and enter the new details.' });
     }
 
     // Authorization: self, or family head over own family and its members
@@ -41,20 +43,20 @@ export const createChangeRequest = async (req: AuthRequest, res: Response) => {
     if (targetType === 'member') {
       target = await Member.findOne({ _id: targetId, tenantId: member.tenantId });
       if (!target) {
-        return res.status(404).json({ success: false, message: 'Target member not found' });
+        return res.status(404).json({ success: false, message: "We couldn't find that target member. It may have been removed." });
       }
       const isSelf = String(target._id) === String(member._id);
       const isHeadOfFamily = member.isFamilyHead === true && String(target.familyId) === String(member.familyId);
       if (!isSelf && !isHeadOfFamily) {
-        return res.status(403).json({ success: false, message: 'You can only request changes for yourself or your own family members' });
+        return res.status(403).json({ success: false, message: 'You can request changes only for yourself or your own family members.' });
       }
     } else {
       if (member.isFamilyHead !== true || String(targetId) !== String(member.familyId)) {
-        return res.status(403).json({ success: false, message: 'Only the family head can request family detail changes' });
+        return res.status(403).json({ success: false, message: 'Only the family head can request changes to family details.' });
       }
       target = await Family.findOne({ _id: targetId, tenantId: member.tenantId });
       if (!target) {
-        return res.status(404).json({ success: false, message: 'Family not found' });
+        return res.status(404).json({ success: false, message: "We couldn't find that family. It may have been removed." });
       }
     }
 
@@ -63,7 +65,7 @@ export const createChangeRequest = async (req: AuthRequest, res: Response) => {
     if (invalid.length > 0) {
       return res.status(400).json({
         success: false,
-        message: `These fields cannot be changed via self-service: ${invalid.map((c: any) => c?.field).join(', ')}`,
+        message: `These details can't be changed here: ${invalid.map((c: any) => c?.field).join(', ')}. Please contact your Mahallu admin.`,
       });
     }
 
@@ -74,7 +76,7 @@ export const createChangeRequest = async (req: AuthRequest, res: Response) => {
       if (!phoneOtp) {
         return res.status(400).json({
           success: false,
-          message: 'phoneOtp is required: request an OTP on the new phone number first',
+          message: 'Please request an OTP on the new phone number first, then enter it here.',
           code: 'PHONE_OTP_REQUIRED',
         });
       }
@@ -86,7 +88,7 @@ export const createChangeRequest = async (req: AuthRequest, res: Response) => {
         expiresAt: { $gt: new Date() },
       });
       if (!otpRecord) {
-        return res.status(400).json({ success: false, message: 'Invalid or expired OTP for the new phone number' });
+        return res.status(400).json({ success: false, message: 'That OTP is incorrect or has expired. Please request a new one for the new phone number.' });
       }
       otpRecord.isUsed = true;
       await otpRecord.save();
@@ -107,7 +109,7 @@ export const createChangeRequest = async (req: AuthRequest, res: Response) => {
 
     res.status(201).json({ success: true, data: changeRequest, message: 'Change request submitted for verification' });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t save the change request. Please try again.');
   }
 };
 
@@ -115,12 +117,12 @@ export const createChangeRequest = async (req: AuthRequest, res: Response) => {
 export const updateChangeRequest = async (req: AuthRequest, res: Response) => {
   try {
     if (!req.user?.memberId) {
-      return res.status(403).json({ success: false, message: 'Member account required' });
+      return res.status(403).json({ success: false, message: 'This is available to member accounts only.' });
     }
 
     const { field, newValue } = req.body;
     if (!field || newValue === undefined) {
-      return res.status(400).json({ success: false, message: 'field and newValue are required' });
+      return res.status(400).json({ success: false, message: 'Please choose what to change and enter the new value.' });
     }
 
     const changeRequest = await ChangeRequest.findOne({
@@ -129,18 +131,18 @@ export const updateChangeRequest = async (req: AuthRequest, res: Response) => {
       status: 'pending',
     });
     if (!changeRequest) {
-      return res.status(404).json({ success: false, message: 'Editable change request not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find a change request that can be edited." });
     }
 
     const editable = changeRequest.targetType === 'member' ? MEMBER_EDITABLE_FIELDS : FAMILY_EDITABLE_FIELDS;
     if (field === 'phone' || !editable.includes(field)) {
-      return res.status(400).json({ success: false, message: `Field cannot be changed via self-service: ${field}` });
+      return res.status(400).json({ success: false, message: `"${field}" can't be changed here. Please contact your Mahallu admin.` });
     }
 
     const Model: any = changeRequest.targetType === 'member' ? Member : Family;
     const target = await Model.findOne({ _id: changeRequest.targetId, tenantId: changeRequest.tenantId });
     if (!target) {
-      return res.status(404).json({ success: false, message: 'Target record no longer exists' });
+      return res.status(404).json({ success: false, message: 'That record no longer exists. It may have been removed.' });
     }
 
     changeRequest.changes = [
@@ -154,7 +156,7 @@ export const updateChangeRequest = async (req: AuthRequest, res: Response) => {
 
     res.json({ success: true, data: changeRequest, message: 'Change request updated' });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t update the change request. Please try again.');
   }
 };
 
@@ -162,7 +164,7 @@ export const updateChangeRequest = async (req: AuthRequest, res: Response) => {
 export const deleteChangeRequest = async (req: AuthRequest, res: Response) => {
   try {
     if (!req.user?.memberId) {
-      return res.status(403).json({ success: false, message: 'Member account required' });
+      return res.status(403).json({ success: false, message: 'This is available to member accounts only.' });
     }
 
     const changeRequest = await ChangeRequest.findOneAndDelete({
@@ -171,12 +173,12 @@ export const deleteChangeRequest = async (req: AuthRequest, res: Response) => {
       status: 'pending',
     });
     if (!changeRequest) {
-      return res.status(404).json({ success: false, message: 'Pending change request not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find a pending change request." });
     }
 
     res.json({ success: true, message: 'Change request deleted' });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t delete the change request. Please try again.');
   }
 };
 
@@ -192,7 +194,7 @@ export const listChangeRequests = async (req: AuthRequest, res: Response) => {
     } else if (req.user?.memberId) {
       query.requestedByMemberId = req.user.memberId;
     } else {
-      return res.status(403).json({ success: false, message: 'Access denied' });
+      return res.status(403).json({ success: false, message: "You don't have permission to do this. Please contact your Mahallu admin." });
     }
 
     const [requests, total] = await Promise.all([
@@ -206,7 +208,7 @@ export const listChangeRequests = async (req: AuthRequest, res: Response) => {
 
     res.json(createPaginationResponse(requests, total, page, limit));
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the change requests right now. Please try again.');
   }
 };
 
@@ -215,7 +217,7 @@ export const reviewChangeRequest = async (req: AuthRequest, res: Response) => {
   try {
     const { status, remarks } = req.body;
     if (!['approved', 'rejected'].includes(status)) {
-      return res.status(400).json({ success: false, message: 'status must be approved or rejected' });
+      return res.status(400).json({ success: false, message: 'Please choose either approve or reject.' });
     }
 
     const changeRequest = await ChangeRequest.findOne({
@@ -224,14 +226,14 @@ export const reviewChangeRequest = async (req: AuthRequest, res: Response) => {
       status: 'pending',
     });
     if (!changeRequest) {
-      return res.status(404).json({ success: false, message: 'Pending change request not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find a pending change request." });
     }
 
     if (status === 'approved') {
       const Model: any = changeRequest.targetType === 'member' ? Member : Family;
       const target = await Model.findOne({ _id: changeRequest.targetId, tenantId: changeRequest.tenantId });
       if (!target) {
-        return res.status(404).json({ success: false, message: 'Target record no longer exists' });
+        return res.status(404).json({ success: false, message: 'That record no longer exists. It may have been removed.' });
       }
       changeRequest.changes.forEach((c) => {
         (target as any)[c.field] = c.newValue;
@@ -247,6 +249,6 @@ export const reviewChangeRequest = async (req: AuthRequest, res: Response) => {
 
     res.json({ success: true, data: changeRequest, message: `Change request ${status}` });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t update the change request. Please try again.');
   }
 };

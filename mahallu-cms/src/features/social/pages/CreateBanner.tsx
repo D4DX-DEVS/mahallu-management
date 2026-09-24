@@ -4,21 +4,25 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useNavigate } from 'react-router-dom';
 import { FiSave, FiUpload, FiX } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import { ROUTES } from '@/constants/routes';
 import { socialService } from '@/services/socialService';
+import PageHeader from '@/components/layout/PageHeader';
+import { safeApiMessage } from '@/utils/errors';
 
 const bannerSchema = z.object({
-  title: z.string().min(2, 'Title must be at least 2 characters').max(200, 'Title must be at most 200 characters'),
-  image: z.string().optional(),
-  link: z.string().optional(),
+  title: z
+    .string()
+    .min(2, 'Title must be at least 2 characters')
+    .max(200, 'Title must be at most 200 characters'),
+  image: z.string().max(200, 'Please keep the image to 200 characters or less.').optional(),
+  link: z.string().max(200, 'Please keep the link to 200 characters or less.').optional(),
   status: z.enum(['active', 'inactive']).optional(),
-  startDate: z.string().optional(),
-  endDate: z.string().optional(),
+  startDate: z.string().max(200, 'Please keep the start date to 200 characters or less.').optional(),
+  endDate: z.string().max(200, 'Please keep the end date to 200 characters or less.').optional(),
 });
 
 type BannerFormData = z.infer<typeof bannerSchema>;
@@ -119,7 +123,7 @@ export default function CreateBanner() {
       }
 
       if (!bannerImage) {
-        setError('Failed to determine banner image. Please try again.');
+        setError("Couldn't determine banner image. Please try again.");
         return;
       }
 
@@ -136,31 +140,23 @@ export default function CreateBanner() {
       await socialService.createBanner(bannerData);
       navigate(ROUTES.SOCIAL.BANNERS);
     } catch (err: unknown) {
-      const apiMessage = (err as any)?.response?.data?.message;
-      setError(apiMessage || 'Failed to create banner. Please try again.');
+      const apiMessage = safeApiMessage(err, '');
+      setError(apiMessage || "Couldn't create banner. Please try again.");
     } finally {
       setIsUploadingImage(false);
     }
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Create Banner</h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Add a new banner</p>
-        </div>
-        <Breadcrumb
-          items={[
-            { label: 'Dashboard', path: '/dashboard' },
-            { label: 'Banners', path: ROUTES.SOCIAL.BANNERS },
-            { label: 'Create' },
-          ]}
-        />
-      </div>
+    <div className="space-y-4">
+      <PageHeader
+        title="Create Banner"
+        description="Add a new banner"
+        breadcrumbs={[{ label: 'Banners', path: ROUTES.SOCIAL.BANNERS }]}
+      />
 
       <form onSubmit={handleSubmit(onSubmit)}>
-        <Card className="space-y-6">
+        <Card className="space-y-4">
           {error && (
             <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm dark:bg-red-900 dark:border-red-700 dark:text-red-200">
               {error}
@@ -208,9 +204,12 @@ export default function CreateBanner() {
               ) : (
                 <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:border-primary-400 dark:hover:border-primary-500 transition-colors bg-gray-50 dark:bg-gray-800/50">
                   <FiUpload className="h-8 w-8 text-gray-400 mb-2" />
-                  <span className="text-sm text-gray-500 dark:text-gray-400">Click to choose image from your computer</span>
+                  <span className="text-sm text-gray-500 dark:text-gray-400">
+                    Click to choose image from your computer
+                  </span>
                   <span className="text-xs text-gray-400 mt-1">JPEG, PNG, WebP or GIF · max 5 MB</span>
                   <input
+                    aria-label="Choose a file"
                     ref={fileInputRef}
                     type="file"
                     accept="image/jpeg,image/png,image/webp,image/gif"
@@ -221,7 +220,9 @@ export default function CreateBanner() {
               )}
 
               {imageUrl && !imageFile && (
-                <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">Using image URL from the field above.</p>
+                <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                  Using image URL from the field above.
+                </p>
               )}
             </div>
 
@@ -231,16 +232,8 @@ export default function CreateBanner() {
               placeholder="https://example.com (Optional)"
               className="md:col-span-2"
             />
-            <Input
-              label="Start Date"
-              type="date"
-              {...register('startDate')}
-            />
-            <Input
-              label="End Date"
-              type="date"
-              {...register('endDate')}
-            />
+            <Input label="Start Date" type="date" {...register('startDate')} />
+            <Input label="End Date" type="date" {...register('endDate')} />
             <Select
               label="Status"
               options={[
@@ -252,7 +245,7 @@ export default function CreateBanner() {
             />
           </div>
 
-          <div className="flex justify-end gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+          <div className="flex gap-2 flex-col-reverse sm:flex-row sm:justify-end sm:gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
             <Button type="button" variant="outline" onClick={() => navigate(ROUTES.SOCIAL.BANNERS)}>
               <FiX className="h-4 w-4 mr-2" />
               Cancel

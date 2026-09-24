@@ -1,22 +1,27 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { FiTrash2, FiImage, FiCheckCircle, FiEdit2 } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
-import Card from '@/components/ui/Card';
+import { Link, useSearchParams } from 'react-router-dom';
+import { FiCheckCircle, FiEdit2, FiImage, FiPlus, FiTrash2 } from 'react-icons/fi';
+import TableCard from '@/components/ui/TableCard';
+import { rowActionClass } from '@/components/ui/rowAction';
 import Button from '@/components/ui/Button';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
+import EmptyState from '@/components/ui/EmptyState';
 import { PageSkeleton } from '@/components/ui/Skeleton';
-import Modal from '@/components/ui/Modal';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
 import { TableColumn, Pagination as PaginationType } from '@/types';
 import { socialService, Banner } from '@/services/socialService';
+import { fetchAllPages } from '@/services/api';
 import { formatDate } from '@/utils/format';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
 import { toast } from '@/store/toastStore';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
 
 export default function BannersList() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [searchQuery, setSearchQuery] = useState('');
   const [isFilterVisible, setIsFilterVisible] = useState(false);
   const [banners, setBanners] = useState<Banner[]>([]);
@@ -25,10 +30,20 @@ export default function BannersList() {
   const [selectedBanner, setSelectedBanner] = useState<Banner | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useState(() => {
+    const page = Number(searchParams.get('page'));
+    return page > 0 ? page : 1;
+  });
   const [itemsPerPage] = useState(10);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
   const [isExporting, setIsExporting] = useState(false);
+
+  // Keep the page number in the URL so returning from edit/create restores it.
+  useEffect(() => {
+    const next = new URLSearchParams();
+    if (currentPage > 1) next.set('page', String(currentPage));
+    setSearchParams(next, { replace: true });
+  }, [currentPage, setSearchParams]);
 
   useEffect(() => {
     fetchBanners();
@@ -48,7 +63,7 @@ export default function BannersList() {
         setPagination(result.pagination);
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch banners');
+      setError(loadErrorMessage(err, 'banners'));
       console.error('Error fetching banners:', err);
     } finally {
       setLoading(false);
@@ -58,10 +73,10 @@ export default function BannersList() {
   const handleExport = async (type: 'csv' | 'json' | 'pdf') => {
     try {
       setIsExporting(true);
-      
-      const params: any = { limit: 10000 };
-      const result = await socialService.getAllBanners(params);
-      const dataToExport = result.data;
+
+      const dataToExport = await fetchAllPages<Banner>(({ page, limit }) =>
+        socialService.getAllBanners({ page, limit })
+      );
 
       if (dataToExport.length === 0) {
         toast.info('No data to export');
@@ -84,7 +99,7 @@ export default function BannersList() {
       }
     } catch (error: any) {
       console.error('Export error:', error);
-      toast.error(error?.response?.data?.message || 'Failed to export data');
+      toast.error(errorMessage(error, { action: 'export data' }));
     } finally {
       setIsExporting(false);
     }
@@ -96,21 +111,22 @@ export default function BannersList() {
       setDeleting(true);
       await socialService.deleteBanner(selectedBanner.id);
       await fetchBanners();
+      toast.success('Banner deleted');
       setShowDeleteModal(false);
       setSelectedBanner(null);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to delete banner');
+      toast.error(errorMessage(err, { action: 'delete banner' }));
     } finally {
       setDeleting(false);
     }
   };
 
   const columns: TableColumn<Banner>[] = [
-    { key: 'id', label: 'No.', render: (_, __, index) => index + 1 },
-    { key: 'title', label: 'Title', sortable: true },
+    { key: 'title', label: 'Title', width: '6.25rem', sortable: true },
     {
       key: 'status',
       label: 'Status',
+      width: '7.25rem',
       render: (status) => (
         <span
           className={`px-2 py-1 text-xs font-medium rounded-full ${
@@ -126,16 +142,19 @@ export default function BannersList() {
     {
       key: 'createdAt',
       label: 'Created',
+      width: '7.75rem',
       render: (date) => formatDate(date),
     },
     {
       key: 'actions',
       label: 'Actions',
+      width: '8rem',
+      align: 'center',
       render: (_, row) => (
         <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
           <Link
             to={`/social/banners/${row.id}/edit`}
-            className="p-1.5 rounded-md hover:bg-blue-50 dark:hover:bg-blue-900/20 text-blue-600 dark:text-blue-400 transition-colors"
+            className={rowActionClass()}
             title="Edit"
           >
             <FiEdit2 className="h-4 w-4" />
@@ -147,8 +166,9 @@ export default function BannersList() {
               setSelectedBanner(row);
               setShowDeleteModal(true);
             }}
-            className="p-1.5 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 transition-colors"
+            className={rowActionClass('danger')}
             title="Delete"
+            aria-label="Delete"
           >
             <FiTrash2 className="h-4 w-4" />
           </button>
@@ -158,7 +178,11 @@ export default function BannersList() {
   ];
 
   const stats = [
-    { title: 'Total Banners', value: pagination?.total || banners.length, icon: <FiImage className="h-5 w-5" /> },
+    {
+      title: 'Total Banners',
+      value: pagination?.total || banners.length,
+      icon: <FiImage className="h-5 w-5" />,
+    },
     {
       title: 'Active',
       value: banners.filter((b) => b.status === 'active' || !b.status).length,
@@ -169,22 +193,16 @@ export default function BannersList() {
   return (
     <div className="space-y-4">
       <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Banners</h1>
-            <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">Manage banners</p>
-          </div>
-          <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Banners' }]} />
-        </div>
+        <PageHeader title="Banners" description="Manage banners" />
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-2">
           {stats.map((stat, index) => (
             <StatCard key={index} {...stat} />
           ))}
         </div>
       </div>
 
-      <Card>
+      <TableCard>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -196,9 +214,7 @@ export default function BannersList() {
           isExporting={isExporting}
           actionButtons={
             <Link to="/social/banners/create">
-              <Button size="md">
-                + New Banner
-              </Button>
+              <Button size="md" icon={<FiPlus />} collapseLabel>New Banner</Button>
             </Link>
           }
         />
@@ -206,14 +222,14 @@ export default function BannersList() {
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="text-center py-12">
-            <p className="text-red-600 dark:text-red-400">{error}</p>
-            <Button onClick={fetchBanners} className="mt-4" variant="outline">
-              Retry
-            </Button>
-          </div>
+          <EmptyState
+            variant="error"
+            entity="banners"
+            description={error}
+            action={{ label: 'Retry', onClick: fetchBanners }}
+          />
         ) : (
-          <Table columns={columns} data={banners} emptyMessage="No banners found" showExport={false} />
+          <Table fixedLayout striped columns={columns} data={banners} emptyMessage="No banners found" showExport={false} />
         )}
 
         {/* Pagination */}
@@ -230,39 +246,22 @@ export default function BannersList() {
             />
           </div>
         )}
-      </Card>
+      </TableCard>
 
-      <Modal
+      <ConfirmDialog
         isOpen={showDeleteModal}
-        onClose={() => {
+        title="Delete banner"
+        message={`Are you sure you want to delete ${selectedBanner?.title ? `"${selectedBanner.title}"` : 'this banner'}? This action cannot be undone.`}
+        confirmLabel="Delete"
+        variant="danger"
+        isLoading={deleting}
+        onConfirm={handleDelete}
+        onCancel={() => {
           setShowDeleteModal(false);
           setSelectedBanner(null);
           setDeleting(false);
         }}
-        title="Delete Banner"
-        footer={
-          <>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setShowDeleteModal(false);
-                setSelectedBanner(null);
-                setDeleting(false);
-              }}
-            >
-              Cancel
-            </Button>
-            <Button variant="danger" onClick={handleDelete} isLoading={deleting}>
-              Delete
-            </Button>
-          </>
-        }
-      >
-        <p className="text-gray-600 dark:text-gray-400">
-          Are you sure you want to delete <strong>{selectedBanner?.title}</strong>? This action cannot be undone.
-        </p>
-      </Modal>
+      />
     </div>
   );
 }
-

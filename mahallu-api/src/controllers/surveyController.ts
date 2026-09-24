@@ -7,6 +7,9 @@ import { AuthRequest } from '../middleware/authMiddleware';
 import { getPaginationParams, createPaginationResponse } from '../utils/pagination';
 import { stripImmutable } from '../utils/sanitizeUpdate';
 
+import { sendFailure } from '../utils/userMessages';
+import { regexLiteral } from '../utils/queryGuard';
+
 const tenantScope = (req: AuthRequest) => {
   if (req.tenantId) return req.tenantId;
   if (req.isSuperAdmin && req.query.tenantId) return req.query.tenantId as string;
@@ -21,7 +24,10 @@ const addYears = (date: Date, years: number): Date => {
 
 /** Live aggregate of every demographic stat the snapshot stores. */
 const computeStats = async (tenantId: string) => {
-  const memberBase = { tenantId, status: 'active', isDead: { $ne: true } };
+  // $nin (not `status: 'active'`) so members migrated in from the old cluster -
+  // raw driver inserts, schema defaults never applied, no `status` field - still
+  // count as live. A missing field matches $nin, an explicit inactive/deleted does not.
+  const memberBase = { tenantId, status: { $nin: ['deleted', 'inactive'] }, isDead: { $ne: true } };
 
   const [
     totalHouseholds,
@@ -92,7 +98,7 @@ export const generateSurvey = async (req: AuthRequest, res: Response) => {
   try {
     const tenantId = tenantScope(req);
     if (!tenantId) {
-      return res.status(400).json({ success: false, message: 'Tenant ID is required' });
+      return res.status(400).json({ success: false, message: 'Please select a Mahallu before continuing.' });
     }
 
     const type = req.body.type === 'comprehensive' ? 'comprehensive' : 'annual';
@@ -112,7 +118,7 @@ export const generateSurvey = async (req: AuthRequest, res: Response) => {
 
     res.status(201).json({ success: true, data: snapshot });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t prepare the survey for download. Please try again.');
   }
 };
 
@@ -132,7 +138,7 @@ export const getAllSurveys = async (req: AuthRequest, res: Response) => {
 
     res.json(createPaginationResponse(data, total, page, limit));
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the surveys right now. Please try again.');
   }
 };
 
@@ -140,7 +146,7 @@ export const getSurveyById = async (req: AuthRequest, res: Response) => {
   try {
     const snapshot = await SurveySnapshot.findById(req.params.id);
     if (!snapshot || (req.tenantId && snapshot.tenantId.toString() !== req.tenantId)) {
-      return res.status(404).json({ success: false, message: 'Survey not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that survey. It may have been removed." });
     }
 
     // Previous snapshot lets the UI show movement without a second request
@@ -151,7 +157,7 @@ export const getSurveyById = async (req: AuthRequest, res: Response) => {
 
     res.json({ success: true, data: { snapshot, previous } });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the survey right now. Please try again.');
   }
 };
 
@@ -168,7 +174,7 @@ export const getSurveyStatus = async (req: AuthRequest, res: Response) => {
       data: { latest, isOverdue, liveStats: await computeStats(tenantId.toString()) },
     });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the survey status right now. Please try again.');
   }
 };
 
@@ -176,12 +182,12 @@ export const deleteSurvey = async (req: AuthRequest, res: Response) => {
   try {
     const snapshot = await SurveySnapshot.findById(req.params.id);
     if (!snapshot || (req.tenantId && snapshot.tenantId.toString() !== req.tenantId)) {
-      return res.status(404).json({ success: false, message: 'Survey not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that survey. It may have been removed." });
     }
     await snapshot.deleteOne();
     res.json({ success: true, message: 'Survey snapshot deleted' });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t delete the survey. Please try again.');
   }
 };
 
@@ -200,9 +206,9 @@ export const getAllFacilities = async (req: AuthRequest, res: Response) => {
     if (status) query.status = status;
     if (search) {
       query.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { nameMl: { $regex: search, $options: 'i' } },
-        { address: { $regex: search, $options: 'i' } },
+        { name: { $regex: regexLiteral(search), $options: 'i' } },
+        { nameMl: { $regex: regexLiteral(search), $options: 'i' } },
+        { address: { $regex: regexLiteral(search), $options: 'i' } },
       ];
     }
 
@@ -213,7 +219,7 @@ export const getAllFacilities = async (req: AuthRequest, res: Response) => {
 
     res.json(createPaginationResponse(data, total, page, limit));
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the facilities right now. Please try again.');
   }
 };
 
@@ -221,11 +227,11 @@ export const getFacilityById = async (req: AuthRequest, res: Response) => {
   try {
     const facility = await LocalityFacility.findById(req.params.id);
     if (!facility || (req.tenantId && facility.tenantId.toString() !== req.tenantId)) {
-      return res.status(404).json({ success: false, message: 'Facility not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that facility. It may have been removed." });
     }
     res.json({ success: true, data: facility });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the facility right now. Please try again.');
   }
 };
 
@@ -233,12 +239,12 @@ export const createFacility = async (req: AuthRequest, res: Response) => {
   try {
     const tenantId = tenantScope(req) || req.body.tenantId;
     if (!tenantId) {
-      return res.status(400).json({ success: false, message: 'Tenant ID is required' });
+      return res.status(400).json({ success: false, message: 'Please select a Mahallu before continuing.' });
     }
     const facility = await LocalityFacility.create({ ...req.body, tenantId });
     res.status(201).json({ success: true, data: facility });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t save the facility. Please try again.');
   }
 };
 
@@ -246,7 +252,7 @@ export const updateFacility = async (req: AuthRequest, res: Response) => {
   try {
     const existing = await LocalityFacility.findById(req.params.id);
     if (!existing || (req.tenantId && existing.tenantId.toString() !== req.tenantId)) {
-      return res.status(404).json({ success: false, message: 'Facility not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that facility. It may have been removed." });
     }
     const facility = await LocalityFacility.findByIdAndUpdate(req.params.id, stripImmutable(req.body), {
       new: true,
@@ -254,7 +260,7 @@ export const updateFacility = async (req: AuthRequest, res: Response) => {
     });
     res.json({ success: true, data: facility });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t update the facility. Please try again.');
   }
 };
 
@@ -262,11 +268,11 @@ export const deleteFacility = async (req: AuthRequest, res: Response) => {
   try {
     const existing = await LocalityFacility.findById(req.params.id);
     if (!existing || (req.tenantId && existing.tenantId.toString() !== req.tenantId)) {
-      return res.status(404).json({ success: false, message: 'Facility not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that facility. It may have been removed." });
     }
     await existing.deleteOne();
     res.json({ success: true, message: 'Facility deleted' });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t delete the facility. Please try again.');
   }
 };

@@ -23,6 +23,7 @@ import {
   createSupportValidation,
   updateSupportValidation,
 } from '../validations/socialValidation';
+import { idParam, listQuery } from '../validations/common';
 
 const router = express.Router();
 
@@ -86,7 +87,7 @@ router.use(tenantFilter);
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  */
-router.get('/banners', getAllBanners);
+router.get('/banners', listQuery(), validationHandler, getAllBanners);
 router.get('/banners/:id', bannerIdParamValidation, validationHandler, getBannerById);
 
 /**
@@ -217,7 +218,7 @@ router.delete('/banners/:id', bannerIdParamValidation, validationHandler, delete
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  */
-router.get('/feeds', getAllFeeds);
+router.get('/feeds', listQuery(), validationHandler, getAllFeeds);
 
 /**
  * @swagger
@@ -353,7 +354,7 @@ router.post('/feeds', createFeedValidation, validationHandler, createFeed);
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  */
-router.get('/activity-logs', getActivityLogs);
+router.get('/activity-logs', listQuery(), validationHandler, getActivityLogs);
 
 /**
  * @swagger
@@ -424,7 +425,7 @@ router.get('/activity-logs', getActivityLogs);
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  */
-router.get('/support', getAllSupport);
+router.get('/support', listQuery(), validationHandler, getAllSupport);
 
 /**
  * @swagger
@@ -448,12 +449,12 @@ router.get('/support', getAllSupport);
  *               summary: Create basic support ticket
  *               value:
  *                 subject: 'Login Issue'
- *                 message: 'Unable to login to the system'
+ *                 message: "We couldn't sign you in. Please try again."
  *             completeSupport:
  *               summary: Create support ticket with priority
  *               value:
  *                 subject: 'Login Issue'
- *                 message: 'Unable to login to the system. Getting error message.'
+ *                 message: "We couldn't sign you in. Please try again."
  *                 priority: 'high'
  *     responses:
  *       201:

@@ -4,7 +4,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useNavigate } from 'react-router-dom';
 import { FiSave, FiX } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -15,13 +14,16 @@ import { masterAccountService } from '@/services/masterAccountService';
 import { instituteService } from '@/services/instituteService';
 import { useAuthStore } from '@/store/authStore';
 import { Institute } from '@/types';
+import { errorMessage } from '@/utils/errors';
+import { toTitleCase } from '@/utils/format';
+import PageHeader from '@/components/layout/PageHeader';
 
 const instituteAccountSchema = z.object({
-  instituteId: z.string().min(1, 'Institute is required'),
-  accountName: z.string().min(1, 'Account Name is required'),
-  accountNumber: z.string().optional(),
-  bankName: z.string().optional(),
-  ifscCode: z.string().optional(),
+  instituteId: z.string().max(200, 'Please keep the institute to 200 characters or less.').min(1, 'Institute is required'),
+  accountName: z.string().max(200, 'Please keep the account name to 200 characters or less.').min(1, 'Account Name is required'),
+  accountNumber: z.string().max(200, 'Please keep the account number to 200 characters or less.').optional(),
+  bankName: z.string().max(200, 'Please keep the bank name to 200 characters or less.').optional(),
+  ifscCode: z.string().max(200, 'Please keep the ifsc code to 200 characters or less.').optional(),
   balance: z.number().min(0, 'Balance must be 0 or greater').default(0),
   status: z.enum(['active', 'inactive']).optional(),
 });
@@ -66,8 +68,11 @@ export default function CreateInstituteAccount() {
         setInstitutes([own]);
         setValue('instituteId', own.id, { shouldValidate: true });
       } else {
-        const result = await instituteService.getAll({ status: 'active' });
-        setInstitutes(result.data || []);
+        // No `limit` here defaults to the API's page size of 10, so a Mahallu
+        // with more than 10 active institutes silently lost the rest from this
+        // picker. getAllForExport pages through all of them.
+        const rows = await instituteService.getAllForExport({ status: 'active' });
+        setInstitutes(rows);
       }
     } catch (err) {
       console.error('Error fetching institutes:', err);
@@ -91,32 +96,21 @@ export default function CreateInstituteAccount() {
       });
       navigate(ROUTES.MASTER_ACCOUNTS.INSTITUTE_ACCOUNTS);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to create institute account. Please try again.');
+      setError(errorMessage(err, { action: 'create institute account. please try again' }));
       console.error('Error creating institute account:', err);
     }
   };
 
   return (
-    <div className="space-y-6">
-      <Breadcrumb
-        items={[
-          { label: 'Dashboard', path: '/dashboard' },
-          { label: 'Institute Accounts', path: ROUTES.MASTER_ACCOUNTS.INSTITUTE_ACCOUNTS },
-          { label: 'Create' },
-        ]}
+    <div className="space-y-4">
+      <PageHeader
+        description="Add a new bank account for an institute"
+        title="Create"
+        breadcrumbs={[{ label: 'Institute Accounts', path: ROUTES.MASTER_ACCOUNTS.INSTITUTE_ACCOUNTS }]}
       />
 
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-          Create Institute Account
-        </h1>
-        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-          Add a new bank account for an institute
-        </p>
-      </div>
-
       <form onSubmit={handleSubmit(onSubmit)}>
-        <Card className="space-y-6">
+        <Card className="space-y-4">
           {error && (
             <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm dark:bg-red-900 dark:border-red-700 dark:text-red-200">
               {error}
@@ -137,7 +131,7 @@ export default function CreateInstituteAccount() {
                   { value: '', label: 'Select an institute' },
                   ...institutes.map((institute) => ({
                     value: institute.id,
-                    label: `${institute.name} - ${institute.place}`,
+                    label: `${toTitleCase(institute.name)} - ${toTitleCase(institute.place)}`,
                   })),
                 ]}
               />
@@ -193,7 +187,7 @@ export default function CreateInstituteAccount() {
             />
           </div>
 
-          <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+          <div className="flex gap-2 flex-col-reverse sm:flex-row sm:justify-end sm:gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
             <Button
               type="button"
               variant="outline"
@@ -221,4 +215,3 @@ export default function CreateInstituteAccount() {
     </div>
   );
 }
-

@@ -175,7 +175,7 @@ export const phaseBRoutes = [
   route('/counselling', <CounsellingList />, mahallOnly),
   route('/counselling/create', <CounsellingCreate />, mahallOnly),
   route('/counselling/:id', <CounsellingDetail />, mahallOnly),
-  route('/counselling/:id/edit', <CounsellingCreate />, mahallOnly),
+  route('/counselling/:id/edit', <CounsellingDetail />, mahallOnly),
   route('/maslahat', <DisputesList />, mahallOnly),
   route('/maslahat/create', <DisputesCreate />, mahallOnly),
   route('/maslahat/:id', <DisputesDetail />, mahallOnly),

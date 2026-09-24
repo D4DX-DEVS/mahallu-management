@@ -6,6 +6,8 @@ import { AuthRequest } from '../middleware/authMiddleware';
 import { getPaginationParams, createPaginationResponse } from '../utils/pagination';
 import { stripImmutable, refBelongsToTenant } from '../utils/sanitizeUpdate';
 
+import { sendFailure } from '../utils/userMessages';
+
 const tenantScope = (req: AuthRequest): Record<string, any> =>
   req.tenantId ? { tenantId: req.tenantId } : {};
 
@@ -13,7 +15,7 @@ const tenantScope = (req: AuthRequest): Record<string, any> =>
 const validateVolunteerRefs = async (req: AuthRequest): Promise<string | null> => {
   const { memberId } = req.body;
   if (memberId && !(await refBelongsToTenant(Member, memberId, req.tenantId))) {
-    return 'Member does not belong to this Mahallu';
+    return 'This member belongs to another Mahallu.';
   }
   return null;
 };
@@ -22,7 +24,7 @@ const validateVolunteerRefs = async (req: AuthRequest): Promise<string | null> =
 const validateAssignmentRefs = async (req: AuthRequest): Promise<string | null> => {
   const { volunteerIds } = req.body;
   if (!Array.isArray(volunteerIds) || volunteerIds.length === 0) {
-    return 'At least one volunteer must be assigned';
+    return 'Please assign at least one volunteer.';
   }
 
   // Check all volunteers belong to this tenant
@@ -60,7 +62,7 @@ export const getAllVolunteers = async (req: AuthRequest, res: Response) => {
 
     res.json(createPaginationResponse(volunteers, total, page, limit));
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the volunteers right now. Please try again.');
   }
 };
 
@@ -72,12 +74,12 @@ export const getVolunteerById = async (req: AuthRequest, res: Response) => {
     }).populate('memberId', 'name contactNo');
 
     if (!volunteer) {
-      return res.status(404).json({ success: false, message: 'Volunteer not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that volunteer. It may have been removed." });
     }
 
     res.json({ success: true, data: volunteer });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the volunteer right now. Please try again.');
   }
 };
 
@@ -103,7 +105,7 @@ export const createVolunteer = async (req: AuthRequest, res: Response) => {
 
     res.status(201).json({ success: true, data: populated });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t save the volunteer. Please try again.');
   }
 };
 
@@ -115,7 +117,7 @@ export const updateVolunteer = async (req: AuthRequest, res: Response) => {
     });
 
     if (!existing) {
-      return res.status(404).json({ success: false, message: 'Volunteer not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that volunteer. It may have been removed." });
     }
 
     const refError = await validateVolunteerRefs(req);
@@ -131,7 +133,7 @@ export const updateVolunteer = async (req: AuthRequest, res: Response) => {
 
     res.json({ success: true, data: volunteer });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t update the volunteer. Please try again.');
   }
 };
 
@@ -143,13 +145,13 @@ export const deleteVolunteer = async (req: AuthRequest, res: Response) => {
     });
 
     if (!volunteer) {
-      return res.status(404).json({ success: false, message: 'Volunteer not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that volunteer. It may have been removed." });
     }
 
     await VolunteerProfile.deleteOne({ _id: req.params.id });
     res.json({ success: true, message: 'Volunteer deleted' });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t delete the volunteer. Please try again.');
   }
 };
 
@@ -164,7 +166,7 @@ export const getVolunteerAssignments = async (req: AuthRequest, res: Response) =
     });
 
     if (!volunteer) {
-      return res.status(404).json({ success: false, message: 'Volunteer not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that volunteer. It may have been removed." });
     }
 
     const query: any = { ...tenantScope(req), volunteerIds: volunteer._id };
@@ -180,7 +182,7 @@ export const getVolunteerAssignments = async (req: AuthRequest, res: Response) =
 
     res.json(createPaginationResponse(assignments, total, page, limit));
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the volunteer assignments right now. Please try again.');
   }
 };
 
@@ -215,7 +217,7 @@ export const getAllAssignments = async (req: AuthRequest, res: Response) => {
 
     res.json(createPaginationResponse(assignments, total, page, limit));
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the assignments right now. Please try again.');
   }
 };
 
@@ -227,12 +229,12 @@ export const getAssignmentById = async (req: AuthRequest, res: Response) => {
     }).populate('volunteerIds', 'name contactNo');
 
     if (!assignment) {
-      return res.status(404).json({ success: false, message: 'Assignment not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that assignment. It may have been removed." });
     }
 
     res.json({ success: true, data: assignment });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the assignment right now. Please try again.');
   }
 };
 
@@ -255,7 +257,7 @@ export const createAssignment = async (req: AuthRequest, res: Response) => {
 
     res.status(201).json({ success: true, data: populated });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t save the assignment. Please try again.');
   }
 };
 
@@ -267,7 +269,7 @@ export const updateAssignment = async (req: AuthRequest, res: Response) => {
     });
 
     if (!existing) {
-      return res.status(404).json({ success: false, message: 'Assignment not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that assignment. It may have been removed." });
     }
 
     const refError = await validateAssignmentRefs(req);
@@ -283,7 +285,7 @@ export const updateAssignment = async (req: AuthRequest, res: Response) => {
 
     res.json({ success: true, data: assignment });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t update the assignment. Please try again.');
   }
 };
 
@@ -295,13 +297,13 @@ export const deleteAssignment = async (req: AuthRequest, res: Response) => {
     });
 
     if (!assignment) {
-      return res.status(404).json({ success: false, message: 'Assignment not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that assignment. It may have been removed." });
     }
 
     await VolunteerAssignment.deleteOne({ _id: req.params.id });
     res.json({ success: true, message: 'Assignment deleted' });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t delete the assignment. Please try again.');
   }
 };
 
@@ -354,6 +356,6 @@ export const getVolunteerSummary = async (req: AuthRequest, res: Response) => {
       },
     });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the volunteer summary right now. Please try again.');
   }
 };

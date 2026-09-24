@@ -15,9 +15,7 @@ export const filterByDateRange = (rows: Varisangya[], from?: string, to?: string
   const fromParsed = from ? parseYMD(from) : null;
   const toParsed = to ? parseYMD(to) : null;
   if (!fromParsed && !toParsed) return rows;
-  const startMs = fromParsed
-    ? Date.UTC(fromParsed.y, fromParsed.m - 1, fromParsed.d, 0, 0, 0, 0)
-    : 0;
+  const startMs = fromParsed ? Date.UTC(fromParsed.y, fromParsed.m - 1, fromParsed.d, 0, 0, 0, 0) : 0;
   const endMs = toParsed
     ? Date.UTC(toParsed.y, toParsed.m - 1, toParsed.d, 23, 59, 59, 999)
     : Number.MAX_SAFE_INTEGER;

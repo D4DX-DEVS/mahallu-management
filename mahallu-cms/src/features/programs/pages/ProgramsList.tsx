@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FiEdit2, FiTrash2, FiEye, FiX, FiLayers, FiCheckCircle, FiXCircle } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
-import Card from '@/components/ui/Card';
+import { FiCheckCircle, FiEdit2, FiEye, FiLayers, FiPlus, FiTrash2, FiXCircle } from 'react-icons/fi';
+import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
+import EmptyState from '@/components/ui/EmptyState';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import Modal from '@/components/ui/Modal';
 import Pagination from '@/components/ui/Pagination';
@@ -15,9 +15,14 @@ import { TableColumn, Pagination as PaginationType } from '@/types';
 import { Institute } from '@/types';
 import { ROUTES } from '@/constants/routes';
 import { programService } from '@/services/programService';
+import { fetchAllPages } from '@/services/api';
 import { useDebounce } from '@/hooks/useDebounce';
-import { formatDate } from '@/utils/format';
+import { formatDate, toTitleCase } from '@/utils/format';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
+import ActionsMenu from '@/components/ui/ActionsMenu';
+import StatusBadge from '@/components/ui/StatusBadge';
 
 export default function ProgramsList() {
   const navigate = useNavigate();
@@ -65,7 +70,7 @@ export default function ProgramsList() {
         setPagination(result.pagination);
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch programs');
+      setError(loadErrorMessage(err, 'programs'));
       console.error('Error fetching programs:', err);
     } finally {
       setLoading(false);
@@ -75,12 +80,15 @@ export default function ProgramsList() {
   const handleExport = async (type: 'csv' | 'json' | 'pdf') => {
     try {
       setIsExporting(true);
-      
-      const params: any = { limit: 10000 };
+
+      const params: any = {};
       if (debouncedSearch) params.search = debouncedSearch;
-      
-      const result = await programService.getAll(params);
-      const dataToExport = result.data;
+      if (selectedAudience) params.audience = selectedAudience;
+      if (selectedProgramType) params.programType = selectedProgramType;
+
+      const dataToExport = await fetchAllPages((pageParams) =>
+        programService.getAll({ ...params, ...pageParams })
+      );
 
       if (dataToExport.length === 0) {
         toast.info('No programs to export');
@@ -103,7 +111,7 @@ export default function ProgramsList() {
       }
     } catch (error: any) {
       console.error('Export error:', error);
-      toast.error(error?.message || 'Failed to export programs');
+      toast.error(error?.message || "Couldn't export programs");
     } finally {
       setIsExporting(false);
     }
@@ -118,92 +126,101 @@ export default function ProgramsList() {
       setShowDeleteModal(false);
       setSelectedProgram(null);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to delete program');
+      setError(errorMessage(err, { action: 'delete program' }));
       setDeleting(false);
     }
   };
 
   const columns: TableColumn<Institute>[] = [
-    { key: 'id', label: 'No.', render: (_, __, index) => index + 1 },
-    { key: 'name', label: 'Name', sortable: true },
-    { key: 'place', label: 'Place' },
+    {
+      key: 'name',
+      label: 'Name',
+      width: '6.75rem',
+      sortable: true,
+      render: (v) => <span>{toTitleCase(v)}</span>,
+    },
+    { key: 'place', label: 'Place', width: '6.5rem', render: (place) => toTitleCase(place) },
     {
       key: 'audience',
       label: 'Audience',
+      width: '8rem',
       render: (audience) => (
-        <span className="text-sm">{audience ? audience.charAt(0).toUpperCase() + audience.slice(1) : '—'}</span>
+        <span className="text-sm">
+          {audience ? audience.charAt(0).toUpperCase() + audience.slice(1) : '—'}
+        </span>
       ),
     },
     {
       key: 'programType',
       label: 'Type',
+      width: '6.25rem',
       render: (type) => (
-        <span className="text-sm">{type ? type.replace(/_/g, ' ').split(' ').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') : '—'}</span>
+        <span className="text-sm">
+          {type
+            ? type
+                .replace(/_/g, ' ')
+                .split(' ')
+                .map((w: string) => w.charAt(0).toUpperCase() + w.slice(1))
+                .join(' ')
+            : '—'}
+        </span>
       ),
     },
     {
       key: 'joinDate',
       label: 'Join Date',
+      width: '8.75rem',
       render: (date) => formatDate(date),
     },
     {
       key: 'status',
       label: 'Status',
-      render: (status) => (
-        <span
-          className={`px-2 py-1 text-xs font-medium rounded-full ${
-            status === 'active'
-              ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-              : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
-          }`}
-        >
-          {status || 'active'}
-        </span>
-      ),
+      width: '7.25rem',
+      render: (status) => <StatusBadge status={status || 'active'} />,
     },
     {
       key: 'actions',
       label: 'Actions',
+      width: '8rem',
+      align: 'center',
       render: (_, row) => (
-        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(ROUTES.PROGRAMS.DETAIL(row.id));
-            }}
-            className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
-            title="View"
-          >
-            <FiEye className="h-4 w-4" />
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(`/programs/${row.id}/edit`);
-            }}
-            className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
-            title="Edit"
-          >
-            <FiEdit2 className="h-4 w-4" />
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setSelectedProgram(row);
-              setShowDeleteModal(true);
-            }}
-            className="p-1.5 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 transition-colors"
-            title="Delete"
-          >
-            <FiTrash2 className="h-4 w-4" />
-          </button>
-        </div>
+        <ActionsMenu
+          items={[
+            {
+              label: 'View',
+              icon: <FiEye className="h-4 w-4" />,
+              onClick: () => {
+                navigate(ROUTES.PROGRAMS.DETAIL(row.id));
+              },
+            },
+            {
+              label: 'Edit',
+              icon: <FiEdit2 className="h-4 w-4" />,
+              onClick: () => {
+                navigate(`/programs/${row.id}/edit`);
+              },
+            },
+            {
+              label: 'Delete',
+              icon: <FiTrash2 className="h-4 w-4" />,
+              onClick: () => {
+                setSelectedProgram(row);
+                setShowDeleteModal(true);
+              },
+              variant: 'danger',
+            },
+          ]}
+        />
       ),
     },
   ];
 
   const stats = [
-    { title: 'Total Programs', value: pagination?.total || programs.length, icon: <FiLayers className="h-5 w-5" /> },
+    {
+      title: 'Total Programs',
+      value: pagination?.total || programs.length,
+      icon: <FiLayers className="h-5 w-5" />,
+    },
     {
       title: 'Active',
       value: programs.filter((p) => p.status === 'active' || !p.status).length,
@@ -219,13 +236,7 @@ export default function ProgramsList() {
   return (
     <div className="space-y-4">
       <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Programs</h1>
-            <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">Manage programs</p>
-          </div>
-          <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Programs' }]} />
-        </div>
+        <PageHeader title="Programs" description="Manage programs" />
 
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {stats.map((stat, index) => (
@@ -234,7 +245,7 @@ export default function ProgramsList() {
         </div>
       </div>
 
-      <Card>
+      <TableCard>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -246,9 +257,7 @@ export default function ProgramsList() {
           isExporting={isExporting}
           actionButtons={
             <Link to={ROUTES.PROGRAMS.CREATE}>
-              <Button size="md">
-                + New Program
-              </Button>
+              <Button size="md" icon={<FiPlus />} collapseLabel>New Program</Button>
             </Link>
           }
         />
@@ -259,7 +268,10 @@ export default function ProgramsList() {
               {['all', 'men', 'women', 'youth', 'children', 'families'].map((audience) => (
                 <button
                   key={audience}
-                  onClick={() => setSelectedAudience(selectedAudience === audience ? '' : audience)}
+                  onClick={() => {
+                    setSelectedAudience(selectedAudience === audience ? '' : audience);
+                    setCurrentPage(1);
+                  }}
                   className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
                     selectedAudience === audience
                       ? 'bg-blue-600 text-white dark:bg-blue-500'
@@ -274,14 +286,21 @@ export default function ProgramsList() {
               {['quran_class', 'hadith', 'fiqh', 'lecture', 'family', 'other'].map((type) => (
                 <button
                   key={type}
-                  onClick={() => setSelectedProgramType(selectedProgramType === type ? '' : type)}
+                  onClick={() => {
+                    setSelectedProgramType(selectedProgramType === type ? '' : type);
+                    setCurrentPage(1);
+                  }}
                   className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
                     selectedProgramType === type
                       ? 'bg-green-600 text-white dark:bg-green-500'
                       : 'bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
                   }`}
                 >
-                  {type.replace(/_/g, ' ').split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
+                  {type
+                    .replace(/_/g, ' ')
+                    .split(' ')
+                    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+                    .join(' ')}
                 </button>
               ))}
             </div>
@@ -291,14 +310,16 @@ export default function ProgramsList() {
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="text-center py-12">
-            <p className="text-red-600 dark:text-red-400">{error}</p>
-            <Button onClick={fetchPrograms} className="mt-4" variant="outline">
-              Retry
-            </Button>
-          </div>
+          <EmptyState
+            variant="error"
+            entity="programs"
+            description={error}
+            action={{ label: 'Retry', onClick: fetchPrograms }}
+          />
         ) : (
           <Table
+            fixedLayout
+            striped
             columns={columns}
             data={programs}
             emptyMessage="No programs found"
@@ -321,7 +342,7 @@ export default function ProgramsList() {
             />
           </div>
         )}
-      </Card>
+      </TableCard>
 
       <Modal
         isOpen={showDeleteModal}
@@ -348,10 +369,10 @@ export default function ProgramsList() {
         }
       >
         <p className="text-gray-600 dark:text-gray-400">
-          Are you sure you want to delete <strong>{selectedProgram?.name}</strong>? This action cannot be undone.
+          Are you sure you want to delete <strong>{toTitleCase(selectedProgram?.name)}</strong>? This action cannot be
+          undone.
         </p>
       </Modal>
     </div>
   );
 }
-

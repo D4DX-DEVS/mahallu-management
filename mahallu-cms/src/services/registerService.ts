@@ -1,4 +1,4 @@
-import api from './api';
+import api, { asList } from './api';
 
 export interface RegisterSummaryRow {
   key: string;
@@ -19,15 +19,14 @@ export interface RegisterQuery {
 
 export const registerService = {
   getRegister: async (key: string, params?: RegisterQuery) => {
-    const response = await api.get<{ success: boolean; data: any[]; pagination?: any }>(
-      `/registers/${key}`,
-      { params }
-    );
-    return { data: response.data.data, pagination: response.data.pagination || null };
+    const response = await api.get<{ success: boolean; data: any[]; pagination?: any }>(`/registers/${key}`, {
+      params,
+    });
+    return { data: asList(response.data.data), pagination: response.data.pagination || null };
   },
 
   getSummary: async () => {
     const response = await api.get<{ success: boolean; data: RegisterSummaryRow[] }>('/registers/summary');
-    return response.data.data;
+    return asList(response.data.data);
   },
 };

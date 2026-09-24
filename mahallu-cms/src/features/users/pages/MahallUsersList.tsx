@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FiEdit2, FiUsers, FiCheckCircle, FiXCircle } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
-import Card from '@/components/ui/Card';
+import { FiCheckCircle, FiEdit2, FiPlus, FiUsers, FiXCircle } from 'react-icons/fi';
+import TableCard from '@/components/ui/TableCard';
+import { rowActionClass } from '@/components/ui/rowAction';
 import Button from '@/components/ui/Button';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
+import EmptyState from '@/components/ui/EmptyState';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
@@ -17,6 +18,10 @@ import { useDebounce } from '@/hooks/useDebounce';
 import { formatDate, formatDateTime } from '@/utils/format';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
 import { toast } from '@/store/toastStore';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
+import StatusBadge from '@/components/ui/StatusBadge';
+import { toTitleCase } from '@/utils/format';
 
 export default function MahallUsersList() {
   const navigate = useNavigate();
@@ -29,8 +34,13 @@ export default function MahallUsersList() {
   const [itemsPerPage] = useState(10);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
   const [isExporting, setIsExporting] = useState(false);
-  
+
   const debouncedSearch = useDebounce(searchQuery, 500);
+
+  // A new search invalidates the current page offset
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearch]);
 
   useEffect(() => {
     fetchUsers();
@@ -54,7 +64,7 @@ export default function MahallUsersList() {
         setPagination(result.pagination);
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch users');
+      setError(loadErrorMessage(err, 'users'));
       console.error('Error fetching users:', err);
     } finally {
       setLoading(false);
@@ -64,12 +74,12 @@ export default function MahallUsersList() {
   const handleExport = async (type: 'csv' | 'json' | 'pdf') => {
     try {
       setIsExporting(true);
-      
-      const params: any = { role: 'mahall', limit: 10000 };
+
+      // Gathered a page at a time — the API caps `limit` at 100
+      const params: any = { role: 'mahall' };
       if (debouncedSearch) params.search = debouncedSearch;
-      
-      const result = await userService.getAll(params);
-      const dataToExport = result.data;
+
+      const dataToExport = await userService.getAllForExport(params);
 
       if (dataToExport.length === 0) {
         toast.info('No data to export');
@@ -92,60 +102,60 @@ export default function MahallUsersList() {
       }
     } catch (error: any) {
       console.error('Export error:', error);
-      toast.error(error?.response?.data?.message || 'Failed to export data');
+      toast.error(errorMessage(error, { action: 'export data' }));
     } finally {
       setIsExporting(false);
     }
   };
 
   const columns: TableColumn<User>[] = [
-    { key: 'id', label: 'No.', render: (_, __, index) => index + 1 },
-    { 
-      key: 'name', 
+    {
+      key: 'name',
       label: 'Name',
+      width: '6.75rem',
       render: (name, row) => (
         <div>
-          <div className="font-medium text-gray-900 dark:text-white">{name}</div>
-          <span
-            className={`inline-block mt-1 px-2 py-0.5 text-xs font-medium rounded-full ${
-              row.status === 'active'
-                ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
-            }`}
-          >
-            {row.status}
-          </span>
+          <div className="font-medium text-gray-900 dark:text-white">{toTitleCase(name)}</div>
+          <div className="mt-1">
+            <StatusBadge status={row.status} />
+          </div>
         </div>
       ),
     },
     {
       key: 'tenant',
       label: 'Tenant',
+      width: '7.25rem',
       render: (tenant, row: any) => {
         // Check both tenant and tenantId fields (populated reference)
         const tenantData = tenant || row.tenantId;
-        return tenantData?.name || '-';
+        return tenantData?.name ? toTitleCase(tenantData.name) : '-';
       },
     },
-    { key: 'phone', label: 'Phone' },
+    { key: 'phone', label: 'Phone', width: '6.75rem' },
     {
       key: 'email',
       label: 'Email',
+      width: '6.75rem',
       render: (email) => email || '-',
     },
     {
       key: 'joiningDate',
       label: 'Joining Date',
+      width: '10rem',
       render: (date) => (date ? formatDate(date) : '-'),
     },
     {
       key: 'lastLogin',
       label: 'Last Login',
+      width: '9.25rem',
       render: (lastLogin) => (lastLogin ? formatDateTime(lastLogin) : '-'),
     },
     {
       key: 'actions',
       label: 'Actions',
+      width: '8rem',
+      align: 'center',
       render: (_, row) => (
         <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
           <button
@@ -153,8 +163,9 @@ export default function MahallUsersList() {
               e.stopPropagation();
               navigate(ROUTES.USERS.EDIT_MAHALL(row.id));
             }}
-            className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
+            className={rowActionClass()}
             title="Edit"
+            aria-label="Edit"
           >
             <FiEdit2 className="h-4 w-4" />
           </button>
@@ -180,17 +191,7 @@ export default function MahallUsersList() {
   return (
     <div className="space-y-4">
       <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">
-              All Mahall Users
-            </h1>
-            <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
-              Manage mahall users and their permissions
-            </p>
-          </div>
-          <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'All Mahall Users' }]} />
-        </div>
+        <PageHeader title="All Mahall Users" description="Manage mahall users and their permissions" />
 
         {/* Statistics Cards */}
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -201,7 +202,7 @@ export default function MahallUsersList() {
       </div>
 
       {/* Actions and Table */}
-      <Card>
+      <TableCard>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -213,9 +214,7 @@ export default function MahallUsersList() {
           isExporting={isExporting}
           actionButtons={
             <Link to={ROUTES.USERS.CREATE_MAHALL}>
-              <Button size="md">
-                + New User
-              </Button>
+              <Button size="md" icon={<FiPlus />} collapseLabel>New User</Button>
             </Link>
           }
         />
@@ -223,14 +222,16 @@ export default function MahallUsersList() {
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="text-center py-12">
-            <p className="text-red-600 dark:text-red-400">{error}</p>
-            <Button onClick={fetchUsers} className="mt-4" variant="outline">
-              Retry
-            </Button>
-          </div>
+          <EmptyState
+            variant="error"
+            entity="mahall users"
+            description={error}
+            action={{ label: 'Retry', onClick: fetchUsers }}
+          />
         ) : (
           <Table
+            fixedLayout
+            striped
             columns={columns}
             data={users}
             emptyMessage="No users found"
@@ -253,8 +254,7 @@ export default function MahallUsersList() {
             />
           </div>
         )}
-      </Card>
+      </TableCard>
     </div>
   );
 }
-

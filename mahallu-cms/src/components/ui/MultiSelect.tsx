@@ -119,7 +119,12 @@ export default function MultiSelect({
             className
           )}
         >
-          <span className={cn('truncate text-left', selectedLabels.length === 0 && 'text-gray-400 dark:text-gray-500')}>
+          <span
+            className={cn(
+              'truncate text-left',
+              selectedLabels.length === 0 && 'text-gray-400 dark:text-gray-500'
+            )}
+          >
             {displayValue}
           </span>
           <FiChevronDown
@@ -139,6 +144,7 @@ export default function MultiSelect({
                 <input
                   ref={searchInputRef}
                   type="text"
+                  aria-label="Search options"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search..."
@@ -152,6 +158,7 @@ export default function MultiSelect({
                       searchInputRef.current?.focus();
                     }}
                     className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                    aria-label="Close"
                   >
                     <FiX className="h-4 w-4" />
                   </button>
@@ -167,7 +174,7 @@ export default function MultiSelect({
                   className="w-full px-3.5 py-2.5 text-left text-sm transition-colors duration-150 hover:bg-gray-50 dark:hover:bg-gray-800 border-b border-gray-100 dark:border-gray-800"
                 >
                   <span className="inline-flex items-center gap-2">
-                    <input type="checkbox" readOnly checked={isAllSelected} />
+                    <input type="checkbox" readOnly checked={isAllSelected} aria-label="Select all options" />
                     {isAllSelected ? 'Clear all' : selectAllLabel}
                   </span>
                 </button>
@@ -188,11 +195,12 @@ export default function MultiSelect({
                       className={cn(
                         'w-full px-3.5 py-2.5 text-left text-sm transition-colors duration-150',
                         'hover:bg-gray-50 dark:hover:bg-gray-800',
-                        checked && 'bg-primary-50 text-primary-700 dark:bg-primary-900/20 dark:text-primary-400'
+                        checked &&
+                          'bg-primary-50 text-primary-700 dark:bg-primary-900/20 dark:text-primary-400'
                       )}
                     >
                       <span className="inline-flex items-center gap-2">
-                        <input type="checkbox" readOnly checked={checked} />
+                        <input type="checkbox" readOnly checked={checked} aria-hidden="true" tabIndex={-1} />
                         {option.label}
                       </span>
                     </button>
@@ -203,11 +211,7 @@ export default function MultiSelect({
           </div>
         )}
       </div>
-      {error && (
-        <p className="mt-1.5 ml-1 text-sm text-red-600 dark:text-red-400 animate-in slide-in-from-top-1 fade-in duration-200">
-          {error}
-        </p>
-      )}
+      {error && <p className="mt-1.5 ml-1 text-sm text-red-600 dark:text-red-400    duration-200">{error}</p>}
       {helperText && !error && (
         <p className="mt-1.5 ml-1 text-sm text-gray-500 dark:text-gray-400">{helperText}</p>
       )}

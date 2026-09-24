@@ -18,6 +18,7 @@ import {
   deleteSalaryPaymentValidation,
   getEmployeeSalaryHistoryValidation,
 } from '../validations/salaryValidation';
+import { idParam, listQuery } from '../validations/common';
 
 const router = express.Router();
 
@@ -77,7 +78,7 @@ router.use(tenantFilter);
  *       200:
  *         description: List of salary payments
  */
-router.get('/', getAllSalaryPayments);
+router.get('/', listQuery(), validationHandler, getAllSalaryPayments);
 
 /**
  * @swagger
@@ -105,7 +106,7 @@ router.get('/', getAllSalaryPayments);
  *       200:
  *         description: Salary summary data
  */
-router.get('/summary', getSalarySummary);
+router.get('/summary', listQuery(), validationHandler, getSalarySummary);
 
 /**
  * @swagger

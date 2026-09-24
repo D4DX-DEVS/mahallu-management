@@ -4,7 +4,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useNavigate } from 'react-router-dom';
 import { FiSave, FiX } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -14,24 +13,36 @@ import { ROUTES } from '@/constants/routes';
 import { registrationService } from '@/services/registrationService';
 import { memberService } from '@/services/memberService';
 import { Member } from '@/types';
+import { errorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 
 const nikahSchema = z.object({
-  groomName: z.string().min(1, 'Groom name is required'),
-  groomNameMl: z.string().optional(),
-  groomAge: z.preprocess((val) => (val === '' || Number.isNaN(val) ? undefined : val), z.number().min(0).max(150).optional()),
-  brideName: z.string().min(1, 'Bride name is required'),
-  brideNameMl: z.string().optional(),
-  brideAge: z.preprocess((val) => (val === '' || Number.isNaN(val) ? undefined : val), z.number().min(0).max(150).optional()),
+  groomName: z.string().max(200, 'Please keep the groom name to 200 characters or less.').min(1, 'Groom name is required'),
+  groomNameMl: z.string().max(200, 'Please keep the groom name to 200 characters or less.').optional(),
+  groomAge: z.preprocess(
+    (val) => (val === '' || Number.isNaN(val) ? undefined : val),
+    z.number().min(0).max(150).optional()
+  ),
+  brideName: z.string().max(200, 'Please keep the bride name to 200 characters or less.').min(1, 'Bride name is required'),
+  brideNameMl: z.string().max(200, 'Please keep the bride name to 200 characters or less.').optional(),
+  brideAge: z.preprocess(
+    (val) => (val === '' || Number.isNaN(val) ? undefined : val),
+    z.number().min(0).max(150).optional()
+  ),
   mahallMemberType: z.enum(['groom', 'bride']).optional().or(z.literal('')),
-  mahallMemberId: z.string().optional(),
-  nikahDate: z.string().min(1, 'Nikah date is required'),
-  mahallId: z.string().optional(),
-  waliName: z.string().optional(),
-  witness1: z.string().optional(),
-  witness2: z.string().optional(),
-  mahrAmount: z.preprocess((val) => (val === '' || Number.isNaN(val) ? undefined : val), z.number().min(0).optional()),
-  mahrDescription: z.string().optional(),
-  remarks: z.string().optional(),
+  mahallMemberId: z.string().max(200, 'Please keep the mahall member to 200 characters or less.').optional(),
+  nikahDate: z.string().max(200, 'Please keep the nikah date to 200 characters or less.').min(1, 'Nikah date is required'),
+  mahallId: z.string().max(200, 'Please keep the mahall to 200 characters or less.').optional(),
+  waliName: z.string().max(200, 'Please keep the wali name to 200 characters or less.').optional(),
+  witness1: z.string().max(200, 'Please keep the witness1 to 200 characters or less.').optional(),
+  witness2: z.string().max(200, 'Please keep the witness2 to 200 characters or less.').optional(),
+  mahrAmount: z.preprocess(
+    (val) => (val === '' || Number.isNaN(val) ? undefined : val),
+    z.number().min(0).optional()
+  ),
+  mahrDescription: z.string().max(3000, 'Please keep the mahr description to 3000 characters or less.').optional(),
+  remarks: z.string().max(2000, 'Please keep the remarks to 2000 characters or less.').optional(),
 });
 
 type NikahFormData = z.infer<typeof nikahSchema>;
@@ -40,7 +51,9 @@ export default function CreateNikahRegistration() {
   const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
-  const [memberOptions, setMemberOptions] = useState<{ value: string; label: string; sublabel?: string }[]>([]);
+  const [memberOptions, setMemberOptions] = useState<{ value: string; label: string; sublabel?: string }[]>(
+    []
+  );
   const [isMemberSearching, setIsMemberSearching] = useState(false);
   const {
     register,
@@ -87,8 +100,8 @@ export default function CreateNikahRegistration() {
         setMemberOptions(
           fetchedMembers.map((member: Member) => ({
             value: member.id,
-            label: member.name,
-            sublabel: member.familyName ? `Family: ${member.familyName}` : undefined,
+            label: toTitleCase(member.name),
+            sublabel: member.familyName ? `Family: ${toTitleCase(member.familyName)}` : undefined,
           }))
         );
       } catch (err) {
@@ -144,29 +157,21 @@ export default function CreateNikahRegistration() {
       });
       navigate(ROUTES.REGISTRATIONS.NIKAH);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to create nikah registration. Please try again.');
+      setError(errorMessage(err, { action: 'create nikah registration. please try again' }));
       console.error('Error creating registration:', err);
     }
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Create Nikah Registration</h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Register a new nikah</p>
-        </div>
-        <Breadcrumb
-          items={[
-            { label: 'Dashboard', path: '/dashboard' },
-            { label: 'Nikah Registrations', path: ROUTES.REGISTRATIONS.NIKAH },
-            { label: 'Create' },
-          ]}
-        />
-      </div>
+    <div className="space-y-4">
+      <PageHeader
+        title="Create Nikah Registration"
+        description="Register a new nikah"
+        breadcrumbs={[{ label: 'Nikah Registrations', path: ROUTES.REGISTRATIONS.NIKAH }]}
+      />
 
       <form onSubmit={handleSubmit(onSubmit)}>
-        <Card className="space-y-6">
+        <Card className="space-y-4">
           {error && (
             <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm dark:bg-red-900 dark:border-red-700 dark:text-red-200">
               {error}
@@ -174,7 +179,7 @@ export default function CreateNikahRegistration() {
           )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <h3 className="md:col-span-2 text-lg font-semibold text-gray-900 dark:text-gray-100">
+            <h3 className="md:col-span-2 text-lg font-semibold text-foreground">
               Mahall Member Selection
             </h3>
             <Select
@@ -200,7 +205,9 @@ export default function CreateNikahRegistration() {
                 className="md:col-span-2"
               />
             )}
-            <h3 className="md:col-span-2 text-lg font-semibold text-gray-900 dark:text-gray-100">Groom Information</h3>
+            <h3 className="md:col-span-2 text-lg font-semibold text-foreground">
+              Groom Information
+            </h3>
             <Input
               label="Groom Name"
               {...register('groomName')}
@@ -209,12 +216,12 @@ export default function CreateNikahRegistration() {
               placeholder="Groom Name"
             />
             <div className="hidden">
-            <Input
-              label="Groom Name (Malayalam)"
-              {...register('groomNameMl')}
-              placeholder="വരന്റെ പേര്"
-              className="font-malayalam"
-            />
+              <Input
+                label="Groom Name (Malayalam)"
+                {...register('groomNameMl')}
+                placeholder="വരന്റെ പേര്"
+                className="font-malayalam"
+              />
             </div>
             <Input
               label="Groom Age"
@@ -223,7 +230,9 @@ export default function CreateNikahRegistration() {
               error={errors.groomAge?.message}
               placeholder="Age"
             />
-            <h3 className="md:col-span-2 text-lg font-semibold text-gray-900 dark:text-gray-100 mt-4">Bride Information</h3>
+            <h3 className="md:col-span-2 text-lg font-semibold mt-4 text-foreground">
+              Bride Information
+            </h3>
             <Input
               label="Bride Name"
               {...register('brideName')}
@@ -232,12 +241,12 @@ export default function CreateNikahRegistration() {
               placeholder="Bride Name"
             />
             <div className="hidden">
-            <Input
-              label="Bride Name (Malayalam)"
-              {...register('brideNameMl')}
-              placeholder="വധുവിന്റെ പേര്"
-              className="font-malayalam"
-            />
+              <Input
+                label="Bride Name (Malayalam)"
+                {...register('brideNameMl')}
+                placeholder="വധുവിന്റെ പേര്"
+                className="font-malayalam"
+              />
             </div>
             <Input
               label="Bride Age"
@@ -246,7 +255,9 @@ export default function CreateNikahRegistration() {
               error={errors.brideAge?.message}
               placeholder="Age"
             />
-            <h3 className="md:col-span-2 text-lg font-semibold text-gray-900 dark:text-gray-100 mt-4">Nikah Details</h3>
+            <h3 className="md:col-span-2 text-lg font-semibold mt-4 text-foreground">
+              Nikah Details
+            </h3>
             <Input
               label="Nikah Date"
               type="date"
@@ -271,15 +282,10 @@ export default function CreateNikahRegistration() {
               placeholder="Mahr Description"
               className="md:col-span-2"
             />
-            <Input
-              label="Remarks"
-              {...register('remarks')}
-              placeholder="Remarks"
-              className="md:col-span-2"
-            />
+            <Input label="Remarks" {...register('remarks')} placeholder="Remarks" className="md:col-span-2" />
           </div>
 
-          <div className="flex justify-end gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+          <div className="flex gap-2 flex-col-reverse sm:flex-row sm:justify-end sm:gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
             <Button type="button" variant="outline" onClick={() => navigate(ROUTES.REGISTRATIONS.NIKAH)}>
               <FiX className="h-4 w-4 mr-2" />
               Cancel
@@ -294,4 +300,3 @@ export default function CreateNikahRegistration() {
     </div>
   );
 }
-

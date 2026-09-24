@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FiEdit2, FiTrash2, FiEye, FiCalendar, FiX, FiUsers, FiCheckCircle, FiXCircle } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
-import Card from '@/components/ui/Card';
+import { FiCalendar, FiCheckCircle, FiEdit2, FiEye, FiPlus, FiTrash2, FiUsers, FiXCircle } from 'react-icons/fi';
+import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
+import EmptyState from '@/components/ui/EmptyState';
 import { PageSkeleton } from '@/components/ui/Skeleton';
-import Modal from '@/components/ui/Modal';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
 import { toast } from '@/store/toastStore';
@@ -15,9 +15,14 @@ import { TableColumn, Pagination as PaginationType } from '@/types';
 import { Committee } from '@/types';
 import { ROUTES } from '@/constants/routes';
 import { committeeService } from '@/services/committeeService';
+import { fetchAllPages } from '@/services/api';
 import { useDebounce } from '@/hooks/useDebounce';
-import { formatDate } from '@/utils/format';
+import { formatDate, toTitleCase } from '@/utils/format';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
+import ActionsMenu from '@/components/ui/ActionsMenu';
+import StatusBadge from '@/components/ui/StatusBadge';
 
 export default function CommitteesList() {
   const navigate = useNavigate();
@@ -57,7 +62,7 @@ export default function CommitteesList() {
         setPagination(result.pagination);
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch committees');
+      setError(loadErrorMessage(err, 'committees'));
       console.error('Error fetching committees:', err);
     } finally {
       setLoading(false);
@@ -67,12 +72,13 @@ export default function CommitteesList() {
   const handleExport = async (type: 'csv' | 'json' | 'pdf') => {
     try {
       setIsExporting(true);
-      
-      const params: any = { limit: 10000 };
+
+      const params: any = {};
       if (debouncedSearch) params.search = debouncedSearch;
-      
-      const result = await committeeService.getAll(params);
-      const dataToExport = result.data;
+
+      const dataToExport = await fetchAllPages((pageParams) =>
+        committeeService.getAll({ ...params, ...pageParams })
+      );
 
       if (dataToExport.length === 0) {
         toast.info('No committees to export');
@@ -95,7 +101,7 @@ export default function CommitteesList() {
       }
     } catch (error: any) {
       console.error('Export error:', error);
-      toast.error(error?.message || 'Failed to export committees');
+      toast.error(error?.message || "Couldn't export committees");
     } finally {
       setIsExporting(false);
     }
@@ -107,25 +113,35 @@ export default function CommitteesList() {
       setDeleting(true);
       await committeeService.delete(selectedCommittee.id);
       await fetchCommittees();
+      toast.success('Committee deleted');
       setShowDeleteModal(false);
       setSelectedCommittee(null);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to delete committee');
+      toast.error(errorMessage(err, { action: 'delete committee' }));
+    } finally {
       setDeleting(false);
     }
   };
 
   const columns: TableColumn<Committee>[] = [
-    { key: 'id', label: 'No.', render: (_, __, index) => index + 1 },
-    { key: 'name', label: 'Name', sortable: true },
+    {
+      key: 'name',
+      label: 'Name',
+      width: '6.75rem',
+      sortable: true,
+      render: (v) => <span>{toTitleCase(v)}</span>,
+    },
     {
       key: 'members',
       label: 'Members',
+      width: '10rem',
+      align: 'center',
       render: (members) => (Array.isArray(members) ? members.length : 0),
     },
     {
       key: 'termEndDate',
       label: 'Term Ends',
+      width: '9.25rem',
       render: (value) => {
         if (!value) return '-';
         const endsOn = new Date(value);
@@ -147,76 +163,65 @@ export default function CommitteesList() {
     {
       key: 'status',
       label: 'Status',
-      render: (status) => (
-        <span
-          className={`px-2 py-1 text-xs font-medium rounded-full ${
-            status === 'active'
-              ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-              : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
-          }`}
-        >
-          {status || 'active'}
-        </span>
-      ),
+      width: '7.25rem',
+      render: (status) => <StatusBadge status={status || 'active'} />,
     },
     {
       key: 'createdAt',
       label: 'Created',
+      width: '7.75rem',
       render: (date) => formatDate(date),
     },
     {
       key: 'actions',
       label: 'Actions',
+      width: '8rem',
+      align: 'center',
       render: (_, row) => (
-        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(ROUTES.COMMITTEES.DETAIL(row.id));
-            }}
-            className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
-            title="View"
-          >
-            <FiEye className="h-4 w-4" />
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(`/committees/${row.id}/meetings`);
-            }}
-            className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
-            title="Meetings"
-          >
-            <FiCalendar className="h-4 w-4" />
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(`/committees/${row.id}/edit`);
-            }}
-            className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
-            title="Edit"
-          >
-            <FiEdit2 className="h-4 w-4" />
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setSelectedCommittee(row);
-              setShowDeleteModal(true);
-            }}
-            className="p-1.5 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 transition-colors"
-            title="Delete"
-          >
-            <FiTrash2 className="h-4 w-4" />
-          </button>
-        </div>
+        <ActionsMenu
+          items={[
+            {
+              label: 'View',
+              icon: <FiEye className="h-4 w-4" />,
+              onClick: () => {
+                navigate(ROUTES.COMMITTEES.DETAIL(row.id));
+              },
+            },
+            {
+              label: 'Meetings',
+              icon: <FiCalendar className="h-4 w-4" />,
+              onClick: () => {
+                navigate(`/committees/${row.id}/meetings`);
+              },
+            },
+            {
+              label: 'Edit',
+              icon: <FiEdit2 className="h-4 w-4" />,
+              onClick: () => {
+                navigate(`/committees/${row.id}/edit`);
+              },
+            },
+            {
+              label: 'Delete',
+              icon: <FiTrash2 className="h-4 w-4" />,
+              onClick: () => {
+                setSelectedCommittee(row);
+                setShowDeleteModal(true);
+              },
+              variant: 'danger',
+            },
+          ]}
+        />
       ),
     },
   ];
 
   const stats = [
-    { title: 'Total Committees', value: pagination?.total || committees.length, icon: <FiUsers className="h-5 w-5" /> },
+    {
+      title: 'Total Committees',
+      value: pagination?.total || committees.length,
+      icon: <FiUsers className="h-5 w-5" />,
+    },
     {
       title: 'Active',
       value: committees.filter((c) => c.status === 'active' || !c.status).length,
@@ -232,13 +237,7 @@ export default function CommitteesList() {
   return (
     <div className="space-y-4">
       <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Committees</h1>
-            <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">Manage committees and meetings</p>
-          </div>
-          <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Committees' }]} />
-        </div>
+        <PageHeader title="Committees" description="Manage committees and meetings" />
 
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {stats.map((stat, index) => (
@@ -247,7 +246,7 @@ export default function CommitteesList() {
         </div>
       </div>
 
-      <Card>
+      <TableCard>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -260,15 +259,10 @@ export default function CommitteesList() {
           actionButtons={
             <>
               <Link to={ROUTES.COMMITTEES.MEETINGS}>
-                <Button variant="outline" size="md">
-                  <FiCalendar className="h-4 w-4 mr-2" />
-                  Meetings
-                </Button>
+                <Button variant="outline" size="md" icon={<FiCalendar />} collapseLabel>Meetings</Button>
               </Link>
               <Link to="/committees/create">
-                <Button size="md">
-                  + New Committee
-                </Button>
+                <Button size="md" icon={<FiPlus />} collapseLabel>New Committee</Button>
               </Link>
             </>
           }
@@ -277,16 +271,14 @@ export default function CommitteesList() {
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="text-center py-12">
-            <p className="text-red-600 dark:text-red-400">{error}</p>
-            <Button onClick={fetchCommittees} className="mt-4" variant="outline">
-              Retry
-            </Button>
-          </div>
+          <EmptyState variant="error" entity="committees" description={error} action={{ label: 'Retry', onClick: fetchCommittees }} />
         ) : (
           <Table
+            fixedLayout
+            striped
             columns={columns}
             data={committees}
+            entity="committees"
             emptyMessage="No committees found"
             showExport={false}
             onRowClick={(row) => navigate(ROUTES.COMMITTEES.DETAIL(row.id))}
@@ -307,38 +299,22 @@ export default function CommitteesList() {
             />
           </div>
         )}
-      </Card>
+      </TableCard>
 
-      <Modal
+      <ConfirmDialog
         isOpen={showDeleteModal}
-        onClose={() => {
+        title="Delete committee"
+        message={`Are you sure you want to delete ${toTitleCase(selectedCommittee?.name) || 'this committee'}? This action cannot be undone.`}
+        consequence="This will also delete all associated meetings."
+        confirmLabel="Delete"
+        variant="danger"
+        isLoading={deleting}
+        onConfirm={handleDelete}
+        onCancel={() => {
           setShowDeleteModal(false);
           setSelectedCommittee(null);
         }}
-        title="Delete Committee"
-        footer={
-          <>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setShowDeleteModal(false);
-                setSelectedCommittee(null);
-              }}
-            >
-              Cancel
-            </Button>
-            <Button variant="danger" onClick={handleDelete} isLoading={deleting}>
-              Delete
-            </Button>
-          </>
-        }
-      >
-        <p className="text-gray-600 dark:text-gray-400">
-          Are you sure you want to delete <strong>{selectedCommittee?.name}</strong>? This will also delete all
-          associated meetings. This action cannot be undone.
-        </p>
-      </Modal>
+      />
     </div>
   );
 }
-

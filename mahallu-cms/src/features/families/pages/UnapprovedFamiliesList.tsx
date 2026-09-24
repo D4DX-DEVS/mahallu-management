@@ -1,11 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FiEye, FiEdit2, FiCheck, FiX, FiHome, FiUsers } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
-import Card from '@/components/ui/Card';
-import Button from '@/components/ui/Button';
+import { FiEye, FiEdit2, FiCheck, FiHome, FiUsers } from 'react-icons/fi';
+import TableCard from '@/components/ui/TableCard';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
+import EmptyState from '@/components/ui/EmptyState';
 import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
 import { TableColumn, Pagination as PaginationType } from '@/types';
@@ -13,9 +12,12 @@ import { Family } from '@/types';
 import { ROUTES } from '@/constants/routes';
 import { familyService } from '@/services/familyService';
 import { useDebounce } from '@/hooks/useDebounce';
-import { formatDate } from '@/utils/format';
+import { formatDate, toTitleCase } from '@/utils/format';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
 import { toast } from '@/store/toastStore';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
+import ActionsMenu from '@/components/ui/ActionsMenu';
 
 export default function UnapprovedFamiliesList() {
   const navigate = useNavigate();
@@ -52,7 +54,7 @@ export default function UnapprovedFamiliesList() {
       setFamilies(result.data || []);
       setPagination(result.pagination);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch unapproved families');
+      setError(loadErrorMessage(err, 'unapproved families'));
       console.error('Error fetching families:', err);
     } finally {
       setLoading(false);
@@ -62,10 +64,10 @@ export default function UnapprovedFamiliesList() {
   const handleExport = async (type: 'csv' | 'json' | 'pdf') => {
     try {
       setIsExporting(true);
-      const params: any = { status: 'unapproved', limit: 10000 };
-      if (debouncedSearch) params.search = debouncedSearch;
-      const result = await familyService.getAll(params);
-      const dataToExport = result.data || [];
+      const dataToExport = await familyService.getAllForExport({
+        status: 'unapproved',
+        search: debouncedSearch || undefined,
+      });
       if (dataToExport.length === 0) {
         toast.info('No unapproved families to export');
         return;
@@ -73,13 +75,19 @@ export default function UnapprovedFamiliesList() {
       const filename = 'unapproved-families';
       const title = 'Unapproved Families';
       switch (type) {
-        case 'csv': exportToCSV(columns, dataToExport, filename); break;
-        case 'json': exportToJSON(columns, dataToExport, filename); break;
-        case 'pdf': exportToPDF(columns, dataToExport, filename, title); break;
+        case 'csv':
+          exportToCSV(columns, dataToExport, filename);
+          break;
+        case 'json':
+          exportToJSON(columns, dataToExport, filename);
+          break;
+        case 'pdf':
+          exportToPDF(columns, dataToExport, filename, title);
+          break;
       }
     } catch (error: any) {
       console.error('Export error:', error);
-      toast.error(error?.response?.data?.message || 'Failed to export data');
+      toast.error(errorMessage(error, { action: 'export data' }));
     } finally {
       setIsExporting(false);
     }
@@ -90,73 +98,77 @@ export default function UnapprovedFamiliesList() {
       await familyService.update(id, { status: 'approved' });
       await fetchFamilies();
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to approve family');
+      // A failed approval is not a failed page load: setting `error` here
+      // replaced the whole table with the retry screen and lost the list.
+      toast.error(errorMessage(err, { action: 'approve this family' }));
     }
   };
 
   const columns: TableColumn<Family>[] = [
-    { key: 'id', label: 'No.', render: (_, __, index) => index + 1 },
-    { key: 'mahallId', label: 'Mahall ID', render: (id) => id || '-' },
-    { key: 'houseName', label: 'House Name', sortable: true },
+    { key: 'mahallId', label: 'Mahall ID', width: '8.75rem', render: (id) => id || '-' },
+    { key: 'houseName', label: 'House Name', width: '9.75rem', sortable: true, render: (name) => toTitleCase(name) },
     {
       key: 'familyHead',
       label: 'Family Head',
-      render: (head) => head || '-',
+      width: '9.75rem',
+      render: (head) => (head ? toTitleCase(head) : '-'),
     },
     {
       key: 'members',
       label: 'Members',
+      width: '10rem',
+      align: 'center',
       render: (members) => members?.length || 0,
     },
-    { key: 'area', label: 'Area' },
+    { key: 'area', label: 'Area', width: '6.25rem', render: (area) => (area ? toTitleCase(area) : '-') },
     {
       key: 'createdAt',
       label: 'Created',
+      width: '7.75rem',
       render: (date) => formatDate(date),
     },
     {
       key: 'actions',
       label: 'Actions',
+      width: '8rem',
+      align: 'center',
       render: (_, row) => (
-        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(ROUTES.FAMILIES.DETAIL(row.id));
-            }}
-            className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
-            title="View"
-          >
-            <FiEye className="h-4 w-4" />
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(ROUTES.FAMILIES.EDIT(row.id));
-            }}
-            className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
-            title="Edit"
-          >
-            <FiEdit2 className="h-4 w-4" />
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              handleApprove(row.id);
-            }}
-            className="p-1.5 rounded-md hover:bg-green-50 dark:hover:bg-green-900/20 text-green-600 dark:text-green-400 transition-colors"
-            title="Approve"
-          >
-            <FiCheck className="h-4 w-4" />
-          </button>
-        </div>
+        <ActionsMenu
+          items={[
+            {
+              label: 'View',
+              icon: <FiEye className="h-4 w-4" />,
+              onClick: () => {
+                navigate(ROUTES.FAMILIES.DETAIL(row.id));
+              },
+            },
+            {
+              label: 'Edit',
+              icon: <FiEdit2 className="h-4 w-4" />,
+              onClick: () => {
+                navigate(ROUTES.FAMILIES.EDIT(row.id));
+              },
+            },
+            {
+              label: 'Approve',
+              icon: <FiCheck className="h-4 w-4" />,
+              onClick: () => {
+                handleApprove(row.id);
+              },
+            },
+          ]}
+        />
       ),
     },
   ];
 
   const stats = [
     // ponytail: total from server; the members stat still sums the current page
-    { title: 'Unapproved Families', value: pagination?.total ?? families.length, icon: <FiHome className="h-5 w-5" /> },
+    {
+      title: 'Unapproved Families',
+      value: pagination?.total ?? families.length,
+      icon: <FiHome className="h-5 w-5" />,
+    },
     {
       title: 'Total Members',
       value: families.reduce((sum, f) => sum + (f.members?.length || 0), 0),
@@ -167,13 +179,10 @@ export default function UnapprovedFamiliesList() {
   return (
     <div className="space-y-4">
       <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Unapproved Families</h1>
-            <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">Review and approve pending family registrations</p>
-          </div>
-          <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Unapproved Families' }]} />
-        </div>
+        <PageHeader
+          title="Unapproved Families"
+          description="Review and approve pending family registrations"
+        />
 
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-2">
           {stats.map((stat, index) => (
@@ -182,7 +191,7 @@ export default function UnapprovedFamiliesList() {
         </div>
       </div>
 
-      <Card>
+      <TableCard>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -195,15 +204,17 @@ export default function UnapprovedFamiliesList() {
         />
 
         {error ? (
-          <div className="text-center py-12">
-            <p className="text-red-600 dark:text-red-400">{error}</p>
-            <Button onClick={fetchFamilies} className="mt-4" variant="outline">
-              Retry
-            </Button>
-          </div>
+          <EmptyState
+            variant="error"
+            entity="unapproved families"
+            description={error}
+            action={{ label: 'Retry', onClick: fetchFamilies }}
+          />
         ) : (
           <>
             <Table
+              fixedLayout
+              striped
               columns={columns}
               data={families}
               isLoading={loading}
@@ -228,8 +239,7 @@ export default function UnapprovedFamiliesList() {
             )}
           </>
         )}
-      </Card>
+      </TableCard>
     </div>
   );
 }
-

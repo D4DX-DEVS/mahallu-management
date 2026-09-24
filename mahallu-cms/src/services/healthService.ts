@@ -1,4 +1,4 @@
-import api from './api';
+import api, { asList } from './api';
 
 export interface IHealthResource {
   id: string;
@@ -78,20 +78,27 @@ export const getHealthResources = async (
   if (search) params.append('search', search);
 
   const response = await api.get(`/health-resources?${params.toString()}`);
-  return response.data;
+  return { ...response.data, data: asList(response.data?.data) };
 };
 
-export const getHealthResourceById = async (id: string): Promise<{ success: boolean; data: IHealthResource }> => {
+export const getHealthResourceById = async (
+  id: string
+): Promise<{ success: boolean; data: IHealthResource }> => {
   const response = await api.get(`/health-resources/${id}`);
   return response.data;
 };
 
-export const createHealthResource = async (data: Partial<IHealthResource>): Promise<{ success: boolean; data: IHealthResource }> => {
+export const createHealthResource = async (
+  data: Partial<IHealthResource>
+): Promise<{ success: boolean; data: IHealthResource }> => {
   const response = await api.post('/health-resources', data);
   return response.data;
 };
 
-export const updateHealthResource = async (id: string, data: Partial<IHealthResource>): Promise<{ success: boolean; data: IHealthResource }> => {
+export const updateHealthResource = async (
+  id: string,
+  data: Partial<IHealthResource>
+): Promise<{ success: boolean; data: IHealthResource }> => {
   const response = await api.put(`/health-resources/${id}`, data);
   return response.data;
 };
@@ -118,10 +125,12 @@ export const getSensitiveHealthResources = async (
   if (search) params.append('search', search);
 
   const response = await api.get(`/health-resources/sensitive?${params.toString()}`);
-  return response.data;
+  return { ...response.data, data: asList(response.data?.data) };
 };
 
-export const createSensitiveHealthResource = async (data: Partial<IHealthResource>): Promise<{ success: boolean; data: IHealthResource }> => {
+export const createSensitiveHealthResource = async (
+  data: Partial<IHealthResource>
+): Promise<{ success: boolean; data: IHealthResource }> => {
   const response = await api.post('/health-resources/sensitive', data);
   return response.data;
 };
@@ -146,7 +155,7 @@ export const getMedicalCamps = async (
   if (search) params.append('search', search);
 
   const response = await api.get(`/medical-camps?${params.toString()}`);
-  return response.data;
+  return { ...response.data, data: asList(response.data?.data) };
 };
 
 export const getMedicalCampById = async (id: string): Promise<{ success: boolean; data: IMedicalCamp }> => {
@@ -154,12 +163,17 @@ export const getMedicalCampById = async (id: string): Promise<{ success: boolean
   return response.data;
 };
 
-export const createMedicalCamp = async (data: Partial<IMedicalCamp>): Promise<{ success: boolean; data: IMedicalCamp }> => {
+export const createMedicalCamp = async (
+  data: Partial<IMedicalCamp>
+): Promise<{ success: boolean; data: IMedicalCamp }> => {
   const response = await api.post('/medical-camps', data);
   return response.data;
 };
 
-export const updateMedicalCamp = async (id: string, data: Partial<IMedicalCamp>): Promise<{ success: boolean; data: IMedicalCamp }> => {
+export const updateMedicalCamp = async (
+  id: string,
+  data: Partial<IMedicalCamp>
+): Promise<{ success: boolean; data: IMedicalCamp }> => {
   const response = await api.put(`/medical-camps/${id}`, data);
   return response.data;
 };

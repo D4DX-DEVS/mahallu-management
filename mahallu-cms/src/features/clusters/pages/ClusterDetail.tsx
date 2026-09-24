@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
+import ActionsMenu from '@/components/ui/ActionsMenu';
+import { FiUserMinus } from 'react-icons/fi';
 import { useParams, Link } from 'react-router-dom';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
+import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Modal from '@/components/ui/Modal';
@@ -15,10 +17,20 @@ import { Pagination as PaginationType, TableColumn } from '@/types';
 import { clusterService, clusterVisitService, Cluster, ClusterVisit } from '@/services/clusterService';
 import { familyService } from '@/services/familyService';
 import { useDebounce } from '@/hooks/useDebounce';
+import { errorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 
 type Tab = 'families' | 'visits';
 
-const emptyVisit = { familyId: '', visitDate: '', visitedBy: '', notes: '', issuesFound: '', followUpNeeded: false };
+const emptyVisit = {
+  familyId: '',
+  visitDate: '',
+  visitedBy: '',
+  notes: '',
+  issuesFound: '',
+  followUpNeeded: false,
+};
 
 export default function ClusterDetail() {
   const { id } = useParams<{ id: string }>();
@@ -102,10 +114,10 @@ export default function ClusterDetail() {
       await clusterService.assignFamilies(id, selectedIds);
       setAssignOpen(false);
       setSelectedIds([]);
-      toast.success('Families assigned successfully');
+      toast.success('Families assigned');
       await reloadFamilies();
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to assign families');
+      toast.error(errorMessage(err, { action: 'assign families' }));
     } finally {
       setSaving(false);
     }
@@ -120,7 +132,7 @@ export default function ClusterDetail() {
       setUnassignFamilyId(null);
       await reloadFamilies();
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to remove family');
+      toast.error(errorMessage(err, { action: 'remove family' }));
       setConfirmUnassign(false);
       setUnassignFamilyId(null);
     }
@@ -145,51 +157,71 @@ export default function ClusterDetail() {
       setVisits(result.data);
       setVisitPagination(result.pagination);
       setVisitPage(1);
-      toast.success('Visit recorded successfully');
+      toast.success('Visit recorded');
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to record visit');
+      toast.error(errorMessage(err, { action: 'record visit' }));
     } finally {
       setSaving(false);
     }
   };
 
   const familyColumns: TableColumn<any>[] = [
-    { key: 'houseName', label: 'House Name' },
-    { key: 'familyHead', label: 'Family Head', render: (v) => v || '-' },
-    { key: 'contactNo', label: 'Contact', render: (v) => v || '-' },
+    {
+      key: 'houseName',
+      label: 'House Name',
+      width: '9.75rem',
+      render: (v) => <span>{toTitleCase(v)}</span>,
+    },
+    {
+      key: 'familyHead',
+      label: 'Family Head',
+      width: '9.75rem',
+      render: (v) => <span>{v ? toTitleCase(v) : '-'}</span>,
+    },
+    { key: 'contactNo', label: 'Contact', width: '7.75rem', render: (v) => v || '-' },
     {
       key: 'actions',
-      label: '',
+      label: 'Actions',
+      width: '8rem',
+      align: 'center',
       render: (_v, row) => (
-        <button
-          className="text-red-600 hover:underline"
-          onClick={() => {
-            setUnassignFamilyId(row._id || row.id);
-            setConfirmUnassign(true);
-          }}
-        >
-          Remove
-        </button>
+        <ActionsMenu
+          items={[
+            {
+              label: 'Remove from cluster',
+              icon: <FiUserMinus className="h-4 w-4" />,
+              onClick: () => {
+                setUnassignFamilyId(row._id || row.id);
+                setConfirmUnassign(true);
+              },
+              variant: 'danger' as const,
+            },
+          ]}
+        />
       ),
     },
   ];
 
   const visitColumns: TableColumn<ClusterVisit>[] = [
-    { key: 'visitDate', label: 'Date', render: (v) => (v ? new Date(v).toLocaleDateString() : '-') },
+    { key: 'visitDate', label: 'Date', width: '6.25rem', render: (v) => (v ? new Date(v).toLocaleDateString() : '-') },
     {
       key: 'familyId',
       label: 'Family',
-      render: (v) => (typeof v === 'object' && v ? v.houseName : '-'),
+      width: '7.25rem',
+      render: (v) => <span>{typeof v === 'object' && v ? toTitleCase(v.houseName) : '-'}</span>,
     },
-    { key: 'visitedBy', label: 'Visited By', render: (v) => v || '-' },
-    { key: 'issuesFound', label: 'Issues', render: (v) => v || '-' },
-    { key: 'followUpNeeded', label: 'Follow-up', render: (v) => (v ? 'Yes' : 'No') },
+    {
+      key: 'visitedBy',
+      label: 'Visited By',
+      width: '9rem',
+      render: (v) => <span>{v ? toTitleCase(v) : '-'}</span>,
+    },
+    { key: 'issuesFound', label: 'Issues', width: '7.25rem', render: (v) => v || '-' },
+    { key: 'followUpNeeded', label: 'Follow-up', width: '8.75rem', render: (v) => (v ? 'Yes' : 'No') },
   ];
 
   if (loading) {
-    return (
-      <PageSkeleton variant="section" />
-    );
+    return <PageSkeleton variant="section" />;
   }
 
   if (!cluster) {
@@ -207,22 +239,11 @@ export default function ClusterDetail() {
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">{cluster.name}</h1>
-          <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-            {cluster.familyCount ?? 0} families
-            {cluster.code ? ` - ${cluster.code}` : ''}
-          </p>
-        </div>
-        <Breadcrumb
-          items={[
-            { label: 'Dashboard', path: '/dashboard' },
-            { label: 'Clusters', path: '/clusters' },
-            { label: cluster.name },
-          ]}
-        />
-      </div>
+      <PageHeader
+        title={toTitleCase(cluster.name)}
+        description={`${cluster.familyCount ?? 0} families${cluster.code ? ` · ${cluster.code}` : ''}`}
+        breadcrumbs={[{ label: 'Clusters', path: '/clusters' }]}
+      />
 
       <div className="grid grid-cols-2 gap-3">
         <button
@@ -250,7 +271,7 @@ export default function ClusterDetail() {
       </div>
 
       {tab === 'families' ? (
-        <Card>
+        <TableCard>
           <div className="mb-3 flex items-center justify-between gap-2">
             <p className="text-xs text-gray-500 dark:text-gray-400">
               {familyPagination?.total ?? 0} assigned
@@ -259,14 +280,14 @@ export default function ClusterDetail() {
               + Assign Families
             </Button>
           </div>
-          <div className="overflow-x-auto">
-            <Table
-              columns={familyColumns}
-              data={families}
-              emptyMessage="No families assigned yet"
-              showExport={false}
-            />
-          </div>
+          <Table
+            fixedLayout
+            striped
+            columns={familyColumns}
+            data={families}
+            emptyMessage="No families assigned yet"
+            showExport={false}
+          />
           {familyPagination && (
             <div className="mt-4">
               <Pagination
@@ -278,20 +299,23 @@ export default function ClusterDetail() {
               />
             </div>
           )}
-        </Card>
+        </TableCard>
       ) : (
-        <Card>
+        <TableCard>
           <div className="mb-3 flex items-center justify-between gap-2">
-            <p className="text-xs text-gray-500 dark:text-gray-400">
-              {visitPagination?.total ?? 0} visit(s)
-            </p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">{visitPagination?.total ?? 0} visit(s)</p>
             <Button size="md" onClick={() => setVisitOpen(true)}>
               + Record Visit
             </Button>
           </div>
-          <div className="overflow-x-auto">
-            <Table columns={visitColumns} data={visits} emptyMessage="No visits recorded" showExport={false} />
-          </div>
+          <Table
+            fixedLayout
+            striped
+            columns={visitColumns}
+            data={visits}
+            emptyMessage="No visits recorded"
+            showExport={false}
+          />
           {visitPagination && (
             <div className="mt-4">
               <Pagination
@@ -303,7 +327,7 @@ export default function ClusterDetail() {
               />
             </div>
           )}
-        </Card>
+        </TableCard>
       )}
 
       <Modal isOpen={isAssignOpen} onClose={() => setAssignOpen(false)} title="Assign Families">
@@ -332,8 +356,8 @@ export default function ClusterDetail() {
                   />
                 </div>
                 <span className="min-w-0 flex-1 text-xs sm:text-sm">
-                  <span className="block truncate font-medium">{family.houseName}</span>
-                  <span className="block truncate text-gray-500">{family.familyHead || '-'}</span>
+                  <span className="block truncate font-medium">{toTitleCase(family.houseName)}</span>
+                  <span className="block truncate text-gray-500">{toTitleCase(family.familyHead) || '-'}</span>
                 </span>
               </label>
             );
@@ -379,7 +403,7 @@ export default function ClusterDetail() {
               onChange={(e) => setVisitForm({ ...visitForm, issuesFound: e.target.value })}
             />
           </div>
-          <label className="flex items-center gap-2 md:col-span-2">
+          <label className="flex flex-wrap items-center gap-2 md:col-span-2">
             <Checkbox
               checked={visitForm.followUpNeeded}
               onChange={(e) => setVisitForm({ ...visitForm, followUpNeeded: e.target.checked })}
@@ -398,6 +422,7 @@ export default function ClusterDetail() {
       </Modal>
 
       <ConfirmDialog
+        isLoading={saving}
         isOpen={confirmUnassign}
         title="Remove Family"
         message="Remove this family from the cluster?"

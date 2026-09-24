@@ -8,11 +8,19 @@ import {
   deleteBeneficiary,
   getAllDistributions,
   createDistribution,
+  updateDistribution,
   deleteDistribution,
   getZakatSummary,
 } from '../controllers/zakatDistributionController';
 import { authMiddleware, allowRoles } from '../middleware/authMiddleware';
 import { tenantMiddleware, tenantFilter } from '../middleware/tenantMiddleware';
+import { validationHandler } from '../middleware/validationHandler';
+import { validCategoryValue } from '../validations/categoryValueValidation';
+import { idParam, listQuery } from '../validations/common';
+import {
+  createZakatDistributionValidation,
+  updateZakatDistributionValidation,
+} from '../validations/moduleValidation';
 
 const router = express.Router();
 
@@ -43,7 +51,7 @@ router.use(tenantFilter);
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  */
-router.get('/summary', getZakatSummary);
+router.get('/summary', listQuery(), validationHandler, getZakatSummary);
 
 /**
  * @swagger
@@ -73,7 +81,7 @@ router.get('/summary', getZakatSummary);
  *       200:
  *         description: Beneficiary list
  */
-router.get('/beneficiaries', getAllBeneficiaries);
+router.get('/beneficiaries', listQuery(), validationHandler, getAllBeneficiaries);
 
 /**
  * @swagger
@@ -95,7 +103,7 @@ router.get('/beneficiaries', getAllBeneficiaries);
  *       404:
  *         $ref: '#/components/responses/NotFound'
  */
-router.get('/beneficiaries/:id', getBeneficiaryById);
+router.get('/beneficiaries/:id', idParam('id', 'record'), validationHandler, getBeneficiaryById);
 
 /**
  * @swagger
@@ -134,7 +142,13 @@ router.get('/beneficiaries/:id', getBeneficiaryById);
  *       400:
  *         description: Member or name missing
  */
-router.post('/beneficiaries', allowRoles(['mahall']), createBeneficiary);
+router.post(
+  '/beneficiaries',
+  allowRoles(['mahall']),
+  validCategoryValue('zakat_asnaf_category', 'category'),
+  validationHandler,
+  createBeneficiary
+);
 
 /**
  * @swagger
@@ -203,7 +217,13 @@ router.post('/beneficiaries', allowRoles(['mahall']), createBeneficiary);
  *       404:
  *         description: Beneficiary not found
  */
-router.put('/beneficiaries/:id', allowRoles(['mahall']), updateBeneficiary);
+router.put(
+  '/beneficiaries/:id', idParam('id', 'record'),
+  allowRoles(['mahall']),
+  validCategoryValue('zakat_asnaf_category', 'category'),
+  validationHandler,
+  updateBeneficiary
+);
 
 /**
  * @swagger
@@ -242,8 +262,8 @@ router.put('/beneficiaries/:id', allowRoles(['mahall']), updateBeneficiary);
  *       400:
  *         description: Invalid status, or rejection blocked by existing distributions
  */
-router.put('/beneficiaries/:id/verify', allowRoles(['mahall']), verifyBeneficiary);
-router.delete('/beneficiaries/:id', allowRoles(['mahall']), deleteBeneficiary);
+router.put('/beneficiaries/:id/verify', idParam('id', 'record'), validationHandler, allowRoles(['mahall']), verifyBeneficiary);
+router.delete('/beneficiaries/:id', idParam('id', 'record'), validationHandler, allowRoles(['mahall']), deleteBeneficiary);
 
 /**
  * @swagger
@@ -276,7 +296,7 @@ router.delete('/beneficiaries/:id', allowRoles(['mahall']), deleteBeneficiary);
  *       200:
  *         description: Distribution list
  */
-router.get('/distributions', getAllDistributions);
+router.get('/distributions', listQuery(), validationHandler, getAllDistributions);
 
 /**
  * @swagger
@@ -320,11 +340,52 @@ router.get('/distributions', getAllDistributions);
  *       400:
  *         description: Beneficiary not verified
  */
-router.post('/distributions', allowRoles(['mahall']), createDistribution);
+router.post('/distributions', createZakatDistributionValidation, validationHandler, allowRoles(['mahall']), createDistribution);
 
 /**
  * @swagger
  * /zakat/distributions/{id}:
+ *   put:
+ *     summary: Update a zakat distribution
+ *     tags: [Zakat]
+ *     description: |
+ *       Details only - the beneficiary cannot be changed here (delete and
+ *       re-record instead). Does not re-post or adjust any ledger entry.
+ *       **Access:** Super Admin, Mahall Admin
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               amount:
+ *                 type: number
+ *               distributionDate:
+ *                 type: string
+ *                 format: date
+ *               type:
+ *                 type: string
+ *                 enum: [regular, monthly, fitr, qurbani]
+ *               paymentMethod:
+ *                 type: string
+ *               receiptNo:
+ *                 type: string
+ *               remarks:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Updated distribution
+ *       404:
+ *         description: Distribution not found
  *   delete:
  *     summary: Delete a zakat distribution
  *     tags: [Zakat]
@@ -346,6 +407,7 @@ router.post('/distributions', allowRoles(['mahall']), createDistribution);
  *       404:
  *         description: Distribution not found
  */
-router.delete('/distributions/:id', allowRoles(['mahall']), deleteDistribution);
+router.put('/distributions/:id', updateZakatDistributionValidation, validationHandler, allowRoles(['mahall']), updateDistribution);
+router.delete('/distributions/:id', idParam('id', 'record'), validationHandler, allowRoles(['mahall']), deleteDistribution);
 
 export default router;

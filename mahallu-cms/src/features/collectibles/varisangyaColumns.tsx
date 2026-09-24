@@ -1,7 +1,10 @@
 import { FiEdit2, FiDownload, FiCheckCircle } from 'react-icons/fi';
+
+import { rowActionClass } from '@/components/ui/rowAction';
+import StatusBadge from '@/components/ui/StatusBadge';
 import { TableColumn } from '@/types';
 import { Varisangya } from '@/services/collectibleService';
-import { formatDate } from '@/utils/format';
+import { formatDate, toTitleCase } from '@/utils/format';
 
 interface VarisangyaColumnDeps {
   openEdit: (row: Varisangya) => void;
@@ -29,44 +32,44 @@ export const getFamilyName = (row: Varisangya): string => {
   return '-';
 };
 
-export const buildVarisangyaColumns = ({ openEdit, handleViewPdf, onVerify }: VarisangyaColumnDeps): TableColumn<Varisangya>[] => [
-  { key: 'id', label: 'No.', render: (_, __, index) => index + 1 },
-  { key: 'name', label: 'Name', render: (_, row) => getPayerName(row) },
-  { key: 'familyName', label: 'Family name', render: (_, row) => getFamilyName(row) },
+export const buildVarisangyaColumns = ({
+  openEdit,
+  handleViewPdf,
+  onVerify,
+}: VarisangyaColumnDeps): TableColumn<Varisangya>[] => [
+  { key: 'name', label: 'Name', width: '6.75rem', render: (_, row) => toTitleCase(getPayerName(row)) },
+  { key: 'familyName', label: 'Family name', width: '10rem', render: (_, row) => toTitleCase(getFamilyName(row)) },
   {
     key: 'amount',
     label: 'Amount',
+    width: '9.25rem',
+    align: 'center',
     render: (amount) => `₹${amount?.toLocaleString() || 0}`,
   },
   {
     key: 'paymentDate',
     label: 'Payment Date',
+    width: '10.75rem',
     render: (date) => formatDate(date),
   },
-  { key: 'paymentMethod', label: 'Payment Method' },
+  { key: 'paymentMethod', label: 'Payment Method', width: '12rem' },
   {
     key: 'receiptNo',
     label: 'Receipt No.',
+    width: '9.5rem',
     render: (receiptNo) => receiptNo || '-',
   },
   {
     key: 'status',
     label: 'Status',
-    render: (status) => (
-      <span
-        className={`inline-block px-2 py-1 rounded text-xs font-semibold ${
-          status === 'pending'
-            ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-            : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-        }`}
-      >
-        {status === 'pending' ? 'Pending' : 'Verified'}
-      </span>
-    ),
+    width: '7.25rem',
+    render: (status) => <StatusBadge status={status || 'verified'} />,
   },
   {
     key: 'actions',
     label: 'Actions',
+    width: '8rem',
+    align: 'center',
     render: (_, row) => (
       <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
         <button
@@ -74,8 +77,9 @@ export const buildVarisangyaColumns = ({ openEdit, handleViewPdf, onVerify }: Va
             e.stopPropagation();
             openEdit(row);
           }}
-          className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
+          className={rowActionClass()}
           title="Edit payment"
+          aria-label="Edit payment"
         >
           <FiEdit2 className="h-4 w-4" />
         </button>
@@ -84,8 +88,9 @@ export const buildVarisangyaColumns = ({ openEdit, handleViewPdf, onVerify }: Va
             e.stopPropagation();
             handleViewPdf(row);
           }}
-          className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
+          className={rowActionClass()}
           title="View/Download PDF"
+          aria-label="View/Download PDF"
         >
           <FiDownload className="h-4 w-4" />
         </button>
@@ -95,8 +100,9 @@ export const buildVarisangyaColumns = ({ openEdit, handleViewPdf, onVerify }: Va
               e.stopPropagation();
               onVerify(row);
             }}
-            className="p-1.5 rounded-md hover:bg-green-100 dark:hover:bg-green-900 text-green-600 dark:text-green-400 transition-colors"
+            className={rowActionClass()}
             title="Verify payment"
+            aria-label="Verify payment"
           >
             <FiCheckCircle className="h-4 w-4" />
           </button>

@@ -22,6 +22,7 @@ import {
   updateMaintenanceValidation,
   deleteMaintenanceValidation,
 } from '../validations/assetValidation';
+import { idParam, listQuery } from '../validations/common';
 
 const router = express.Router();
 
@@ -93,7 +94,7 @@ router.use(tenantFilter);
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  */
-router.get('/', getAllAssets);
+router.get('/', listQuery(), validationHandler, getAllAssets);
 
 /**
  * @swagger

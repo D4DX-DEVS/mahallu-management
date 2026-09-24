@@ -1,27 +1,41 @@
-import { useState } from 'react';
+import { useState, ChangeEvent } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useNavigate } from 'react-router-dom';
 import { FiSave, FiX } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import { ROUTES } from '@/constants/routes';
 import { instituteService } from '@/services/instituteService';
+import { toast } from '@/store/toastStore';
+import { errorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
 
 const instituteSchema = z.object({
-  name: z.string().min(1, 'Name is required'),
-  nameMl: z.string().optional(),
-  place: z.string().min(1, 'Place is required'),
-  placeMl: z.string().optional(),
+  name: z
+    .string()
+    .max(200, 'Please keep the name to 200 characters or less.')
+    .min(1, 'Name is required')
+    .regex(/^[^0-9]*$/, 'Name must contain text only.'),
+  nameMl: z.string().max(200, 'Please keep the name to 200 characters or less.').optional(),
+  place: z
+    .string()
+    .max(300, 'Please keep the place to 300 characters or less.')
+    .min(1, 'Place is required')
+    .regex(/^[^0-9]*$/, 'Place must contain text only.'),
+  placeMl: z.string().max(300, 'Please keep the place to 300 characters or less.').optional(),
   type: z.enum(['institute', 'madrasa', 'orphanage', 'hospital', 'other']),
-  joinDate: z.string().min(1, 'Join Date is required'),
-  description: z.string().optional(),
-  contactNo: z.string().optional(),
-  email: z.string().email('Invalid email').optional().or(z.literal('')),
+  joinDate: z.string().max(200, 'Please keep the join date to 200 characters or less.').min(1, 'Join Date is required'),
+  description: z.string().max(3000, 'Please keep the description to 3000 characters or less.').optional(),
+  contactNo: z
+    .string()
+    .max(200, 'Please keep the contact no to 200 characters or less.')
+    .regex(/^[0-9]*$/, 'Contact number must contain numbers only.')
+    .optional(),
+  email: z.string().max(254, 'Please keep the email to 254 characters or less.').email('Invalid email').optional().or(z.literal('')),
   status: z.enum(['active', 'inactive']).optional(),
 });
 
@@ -43,6 +57,16 @@ export default function CreateInstitute() {
     },
   });
 
+  /*
+   * Strips non-digit characters as they're typed or pasted, so a pasted
+   * "987abc123" lands as "987123" instead of failing validation only at
+   * submit time. */
+  const contactNoField = register('contactNo');
+  const handleContactNoChange = (event: ChangeEvent<HTMLInputElement>) => {
+    event.target.value = event.target.value.replace(/\D/g, '');
+    contactNoField.onChange(event);
+  };
+
   const onSubmit = async (data: InstituteFormData) => {
     try {
       setError(null);
@@ -60,35 +84,25 @@ export default function CreateInstitute() {
       };
 
       await instituteService.create(instituteData);
+      toast.success('Institute created');
       navigate(ROUTES.INSTITUTES.LIST);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to create institute. Please try again.');
-      console.error('Error creating institute:', err);
+      const message = errorMessage(err, { action: 'create institute. please try again' });
+      setError(message);
+      toast.error(message);
     }
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-            Create Institute
-          </h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            Add a new institute
-          </p>
-        </div>
-        <Breadcrumb
-          items={[
-            { label: 'Dashboard', path: '/dashboard' },
-            { label: 'Institutes', path: ROUTES.INSTITUTES.LIST },
-            { label: 'Create' },
-          ]}
-        />
-      </div>
+    <div className="space-y-4">
+      <PageHeader
+        title="Create Institute"
+        description="Add a new institute"
+        breadcrumbs={[{ label: 'Institutes', path: ROUTES.INSTITUTES.LIST }]}
+      />
 
       <form onSubmit={handleSubmit(onSubmit)}>
-        <Card className="space-y-6">
+        <Card className="space-y-4">
           {error && (
             <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm dark:bg-red-900 dark:border-red-700 dark:text-red-200">
               {error}
@@ -105,12 +119,12 @@ export default function CreateInstitute() {
               className="md:col-span-2"
             />
             <div className="hidden">
-            <Input
-              label="Name (Malayalam)"
-              {...register('nameMl')}
-              placeholder="സ്ഥാപനത്തിന്റെ പേര്"
-              className="md:col-span-2 font-malayalam"
-            />
+              <Input
+                label="Name (Malayalam)"
+                {...register('nameMl')}
+                placeholder="സ്ഥാപനത്തിന്റെ പേര്"
+                className="md:col-span-2 font-malayalam"
+              />
             </div>
             <Select
               label="Type"
@@ -133,12 +147,12 @@ export default function CreateInstitute() {
               placeholder="Place"
             />
             <div className="hidden">
-            <Input
-              label="Place (Malayalam)"
-              {...register('placeMl')}
-              placeholder="സ്ഥലം"
-              className="font-malayalam"
-            />
+              <Input
+                label="Place (Malayalam)"
+                {...register('placeMl')}
+                placeholder="സ്ഥലം"
+                className="font-malayalam"
+              />
             </div>
             <Input
               label="Join Date"
@@ -150,7 +164,10 @@ export default function CreateInstitute() {
             <Input
               label="Contact No."
               type="tel"
-              {...register('contactNo')}
+              inputMode="numeric"
+              {...contactNoField}
+              onChange={handleContactNoChange}
+              error={errors.contactNo?.message}
               placeholder="Contact Number"
             />
             <Input
@@ -177,12 +194,8 @@ export default function CreateInstitute() {
             />
           </div>
 
-          <div className="flex justify-end gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => navigate(ROUTES.INSTITUTES.LIST)}
-            >
+          <div className="flex gap-2 flex-col-reverse sm:flex-row sm:justify-end sm:gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+            <Button type="button" variant="outline" onClick={() => navigate(ROUTES.INSTITUTES.LIST)}>
               <FiX className="h-4 w-4 mr-2" />
               Cancel
             </Button>
@@ -196,4 +209,3 @@ export default function CreateInstitute() {
     </div>
   );
 }
-

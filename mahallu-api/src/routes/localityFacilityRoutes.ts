@@ -8,6 +8,12 @@ import {
 } from '../controllers/surveyController';
 import { authMiddleware, allowRoles } from '../middleware/authMiddleware';
 import { tenantMiddleware, tenantFilter } from '../middleware/tenantMiddleware';
+import { validationHandler } from '../middleware/validationHandler';
+import { idParam, listQuery } from '../validations/common';
+import {
+  createFacilityValidation,
+  updateFacilityValidation,
+} from '../validations/moduleValidation';
 
 const router = express.Router();
 
@@ -57,7 +63,7 @@ router.use(tenantFilter);
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  */
-router.get('/', getAllFacilities);
+router.get('/', listQuery(), validationHandler, getAllFacilities);
 
 /**
  * @swagger
@@ -79,7 +85,7 @@ router.get('/', getAllFacilities);
  *       404:
  *         $ref: '#/components/responses/NotFound'
  */
-router.get('/:id', getFacilityById);
+router.get('/:id', idParam('id', 'facility'), validationHandler, getFacilityById);
 
 /**
  * @swagger
@@ -115,7 +121,7 @@ router.get('/:id', getFacilityById);
  *       403:
  *         description: Role not allowed
  */
-router.post('/', allowRoles(['mahall', 'survey']), createFacility);
+router.post('/', createFacilityValidation, validationHandler, allowRoles(['mahall', 'survey']), createFacility);
 
 /**
  * @swagger
@@ -137,7 +143,7 @@ router.post('/', allowRoles(['mahall', 'survey']), createFacility);
  *       404:
  *         $ref: '#/components/responses/NotFound'
  */
-router.put('/:id', allowRoles(['mahall', 'survey']), updateFacility);
+router.put('/:id', updateFacilityValidation, validationHandler, allowRoles(['mahall', 'survey']), updateFacility);
 
 /**
  * @swagger
@@ -159,6 +165,6 @@ router.put('/:id', allowRoles(['mahall', 'survey']), updateFacility);
  *       403:
  *         description: Role not allowed
  */
-router.delete('/:id', allowRoles(['mahall']), deleteFacility);
+router.delete('/:id', idParam('id', 'facility'), validationHandler, allowRoles(['mahall']), deleteFacility);
 
 export default router;

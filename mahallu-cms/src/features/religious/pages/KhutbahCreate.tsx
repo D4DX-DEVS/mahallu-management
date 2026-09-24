@@ -4,7 +4,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useNavigate } from 'react-router-dom';
 import { FiSave, FiX } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -12,14 +11,17 @@ import Select from '@/components/ui/Select';
 import { ROUTES } from '@/constants/routes';
 import { religiousService, KHUTBAH_STATUS_OPTIONS } from '@/services/religiousService';
 import { Khateeb } from '@/services/religiousService';
+import { errorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 
 const khutbahSchema = z.object({
-  khateebId: z.string().min(1, 'Khateeb is required'),
-  date: z.string().min(1, 'Date is required'),
-  topic: z.string().min(1, 'Topic is required'),
-  topicMl: z.string().optional(),
-  notes: z.string().optional(),
-  resourceUrl: z.string().optional(),
+  khateebId: z.string().max(200, 'Please keep the khateeb to 200 characters or less.').min(1, 'Khateeb is required'),
+  date: z.string().max(200, 'Please keep the date to 200 characters or less.').min(1, 'Date is required'),
+  topic: z.string().max(200, 'Please keep the topic to 200 characters or less.').min(1, 'Topic is required'),
+  topicMl: z.string().max(200, 'Please keep the topic to 200 characters or less.').optional(),
+  notes: z.string().max(2000, 'Please keep the notes to 2000 characters or less.').optional(),
+  resourceUrl: z.string().max(200, 'Please keep the resource url to 200 characters or less.').optional(),
   status: z.enum(['scheduled', 'delivered', 'cancelled']).optional(),
 });
 
@@ -39,9 +41,7 @@ export default function KhutbahCreate() {
     resolver: zodResolver(khutbahSchema),
     defaultValues: {
       status: 'scheduled',
-      date: new Date(
-        Math.ceil((Date.now() + 86400000) / 604800000) * 604800000 - 432000000
-      )
+      date: new Date(Math.ceil((Date.now() + 86400000) / 604800000) * 604800000 - 432000000)
         .toISOString()
         .split('T')[0],
     },
@@ -70,41 +70,34 @@ export default function KhutbahCreate() {
       await religiousService.createKhutbah(data);
       navigate(ROUTES.RELIGIOUS.KHUTBAHS);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to create khutbah');
+      setError(errorMessage(err, { action: 'create khutbah' }));
     }
   };
 
   const khateebOptions = khateebs.map((k) => ({
     value: k.id,
-    label: k.name,
+    label: toTitleCase(k.name),
   }));
 
   return (
-    <div className="space-y-6">
-      <Breadcrumb
-        items={[
-          { label: 'Dashboard', path: ROUTES.DASHBOARD },
-          { label: 'Khutbah Schedule', path: ROUTES.RELIGIOUS.KHUTBAHS },
-          { label: 'New Khutbah' },
-        ]}
+    <div className="space-y-4">
+      <PageHeader
+        title="New Khutbah"
+        breadcrumbs={[{ label: 'Khutbah Schedule', path: ROUTES.RELIGIOUS.KHUTBAHS }]}
       />
 
       <Card>
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold">New Khutbah</h1>
-          <Button
-            variant="outline"
-            onClick={() => navigate(ROUTES.RELIGIOUS.KHUTBAHS)}
-          >
+        <div className="flex justify-between items-center mb-4">
+          <Button variant="outline" onClick={() => navigate(ROUTES.RELIGIOUS.KHUTBAHS)}>
             <FiX className="inline mr-2" />
             Cancel
           </Button>
         </div>
 
-        {error && <div className="p-4 bg-red-100 text-red-800 rounded mb-6">{error}</div>}
+        {error && <div className="p-4 bg-red-100 text-red-800 rounded mb-4">{error}</div>}
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <Select
                 label="Khateeb *"
@@ -116,12 +109,7 @@ export default function KhutbahCreate() {
             </div>
 
             <div>
-              <Input
-                label="Date *"
-                type="date"
-                {...register('date')}
-                error={errors.date?.message}
-              />
+              <Input label="Date *" type="date" {...register('date')} error={errors.date?.message} />
             </div>
 
             <div className="md:col-span-2">
@@ -144,6 +132,7 @@ export default function KhutbahCreate() {
             <div className="md:col-span-2">
               <label className="block text-sm font-medium mb-2">Notes</label>
               <textarea
+                aria-label="Notes"
                 {...register('notes')}
                 placeholder="Enter any notes or preparation details"
                 className="w-full px-3 py-2 border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary-500"
@@ -170,7 +159,7 @@ export default function KhutbahCreate() {
             </div>
           </div>
 
-          <div className="flex justify-end gap-4 pt-6 border-t">
+          <div className="flex gap-2 flex-col-reverse sm:flex-row sm:justify-end sm:gap-4 pt-6 border-t">
             <Button
               type="button"
               variant="outline"
@@ -179,11 +168,7 @@ export default function KhutbahCreate() {
             >
               Cancel
             </Button>
-            <Button
-              type="submit"
-              isLoading={isSubmitting}
-              disabled={isSubmitting}
-            >
+            <Button type="submit" isLoading={isSubmitting} disabled={isSubmitting}>
               <FiSave className="inline mr-2" />
               Create Khutbah
             </Button>

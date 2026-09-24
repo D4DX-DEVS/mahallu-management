@@ -108,11 +108,26 @@ test('stripImmutable drops every immutable field and leaves the caller body alon
   assert.equal(body.tenantId, TENANT_B, 'input body must not be mutated');
 });
 
-test('tenantFilter leaves a supplied tenantId in place - the gap stripImmutable closes', () => {
+test('tenantFilter overwrites a client-supplied tenantId with the caller own', () => {
+  // It used to fill in only a missing tenantId, so an admin of one Mahallu could
+  // POST { tenantId: <another Mahallu> } and have it written straight through by
+  // the 29 controllers that create from a spread body.
   const req: any = { tenantId: TENANT_A, query: {}, body: { tenantId: TENANT_B } };
   tenantFilter(req, fakeRes(), () => undefined);
-  assert.equal(req.body.tenantId, TENANT_B, 'tenantFilter only fills in a missing tenantId');
-  assert.equal(stripImmutable(req.body).tenantId, undefined);
+  assert.equal(req.body.tenantId, TENANT_A, 'the request body cannot name another tenant');
+  assert.equal(req.query.tenantId, TENANT_A);
+});
+
+test('tenantFilter leaves a super admin free to act across tenants', () => {
+  const req: any = { tenantId: TENANT_A, isSuperAdmin: true, query: {}, body: { tenantId: TENANT_B } };
+  tenantFilter(req, fakeRes(), () => undefined);
+  assert.equal(req.body.tenantId, TENANT_B);
+});
+
+test('tenantFilter tolerates a body that is not an object', () => {
+  const req: any = { tenantId: TENANT_A, query: {}, body: [1, 2, 3] };
+  tenantFilter(req, fakeRes(), () => undefined);
+  assert.deepEqual(req.body, [1, 2, 3]);
 });
 
 test('tenantFilter still scopes the query for a non-super-admin', () => {

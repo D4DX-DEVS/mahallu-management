@@ -17,6 +17,7 @@ import {
   deleteUserValidation,
 } from '../validations/userValidation';
 import { param } from 'express-validator';
+import { idParam, listQuery } from '../validations/common';
 
 const router = express.Router();
 
@@ -120,7 +121,7 @@ router.use(allowRoles(['super_admin', 'mahall']));
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  */
-router.get('/', getAllUsers);
+router.get('/', listQuery(), validationHandler, getAllUsers);
 
 /**
  * @swagger
@@ -263,7 +264,7 @@ router.get('/:id', getUserValidation, validationHandler, getUserById);
  *           application/json:
  *             example:
  *               success: false
- *               message: 'Validation failed'
+ *               message: 'Some details are missing or incorrect. Please check the form and try again.'
  *               errors:
  *                 - msg: 'Phone number must be exactly 10 digits'
  *                   param: 'phone'

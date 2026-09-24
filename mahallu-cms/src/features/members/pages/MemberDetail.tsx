@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { FiEdit2, FiTrash2 } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import { PageSkeleton } from '@/components/ui/Skeleton';
@@ -9,7 +8,9 @@ import Modal from '@/components/ui/Modal';
 import { ROUTES } from '@/constants/routes';
 import { memberService } from '@/services/memberService';
 import { Member } from '@/types';
-import { formatDate } from '@/utils/format';
+import { formatDate, toTitleCase } from '@/utils/format';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
 
 export default function MemberDetail() {
   const { id } = useParams<{ id: string }>();
@@ -32,7 +33,7 @@ export default function MemberDetail() {
       const data = await memberService.getById(id!);
       setMember(data);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to load member');
+      setError(loadErrorMessage(err, 'member'));
     } finally {
       setLoading(false);
     }
@@ -45,20 +46,18 @@ export default function MemberDetail() {
       await memberService.delete(id);
       navigate(ROUTES.MEMBERS.LIST);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to delete member');
+      setError(errorMessage(err, { action: 'delete member' }));
       setDeleting(false);
     }
   };
 
   if (loading) {
-    return (
-      <PageSkeleton />
-    );
+    return <PageSkeleton />;
   }
 
   if (error || !member) {
     return (
-      <div className="text-center py-12">
+      <div className="text-center py-10">
         <p className="text-red-600 dark:text-red-400">{error || 'Member not found'}</p>
         <Button onClick={() => navigate(ROUTES.MEMBERS.LIST)} className="mt-4" variant="outline">
           Back to Members
@@ -68,48 +67,30 @@ export default function MemberDetail() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-            {member.name}
-          </h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            Member Details
-          </p>
-        </div>
+    <div className="space-y-4">
+      <div className="flex gap-2 items-center justify-between">
         <div className="flex items-center gap-4">
-          <Breadcrumb
-            items={[
-              { label: 'Dashboard', path: '/dashboard' },
-              { label: 'Members', path: ROUTES.MEMBERS.LIST },
-              { label: member.name },
-            ]}
+          <PageHeader
+            description="Member Details"
+            title={toTitleCase(member.name)}
+            breadcrumbs={[{ label: 'Members', path: ROUTES.MEMBERS.LIST }]}
           />
-          <div className="flex gap-2">
-          <Link to={ROUTES.MEMBERS.EDIT(member.id)}>
-            <Button variant="outline">
-              <FiEdit2 className="h-4 w-4 mr-2" />
-              Edit
-            </Button>
-          </Link>
-          <Button variant="danger" onClick={() => setShowDeleteModal(true)}>
-            <FiTrash2 className="h-4 w-4 mr-2" />
-            Delete
-          </Button>
-        </div>
+          <div className="flex gap-2 items-center">
+            <Link to={ROUTES.MEMBERS.EDIT(member.id)}>
+              <Button variant="outline" icon={<FiEdit2 />} collapseLabel>Edit</Button>
+            </Link>
+            <Button variant="danger" onClick={() => setShowDeleteModal(true)} icon={<FiTrash2 />} collapseLabel>Delete</Button>
+          </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card>
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
-            Basic Information
-          </h2>
+          <h2 className="text-lg font-semibold mb-3 text-foreground">Basic Information</h2>
           <div className="space-y-3">
             <div>
               <span className="text-sm text-gray-500 dark:text-gray-400">Name</span>
-              <p className="text-gray-900 dark:text-gray-100">{member.name}</p>
+              <p className="text-gray-900 dark:text-gray-100">{toTitleCase(member.name)}</p>
             </div>
             <div>
               <span className="text-sm text-gray-500 dark:text-gray-400">Family</span>
@@ -117,7 +98,7 @@ export default function MemberDetail() {
                 to={ROUTES.FAMILIES.DETAIL(member.familyId)}
                 className="text-primary-600 hover:text-primary-700 dark:text-primary-400"
               >
-                {member.familyName}
+                {toTitleCase(member.familyName)}
               </Link>
             </div>
             {member.mahallId && (
@@ -172,7 +153,7 @@ export default function MemberDetail() {
         </Card>
 
         <Card>
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+          <h2 className="text-lg font-semibold mb-3 text-foreground">
             Additional Information
           </h2>
           <div className="space-y-3">
@@ -218,10 +199,9 @@ export default function MemberDetail() {
         }
       >
         <p className="text-gray-600 dark:text-gray-400">
-          Are you sure you want to delete <strong>{member.name}</strong>? This action cannot be undone.
+          Are you sure you want to delete <strong>{toTitleCase(member.name)}</strong>? This action cannot be undone.
         </p>
       </Modal>
     </div>
   );
 }
-

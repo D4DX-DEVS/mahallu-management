@@ -1,19 +1,21 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { FiCreditCard, FiDollarSign } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
-import Card from '@/components/ui/Card';
+import { FiCreditCard, FiDollarSign, FiPlus } from 'react-icons/fi';
+import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
+import EmptyState from '@/components/ui/EmptyState';
 import Pagination from '@/components/ui/Pagination';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import TableToolbar from '@/components/ui/TableToolbar';
 import { TableColumn, Pagination as PaginationType } from '@/types';
 import { masterAccountService, MasterWallet } from '@/services/masterAccountService';
-import { formatDate } from '@/utils/format';
+import { formatDate, toTitleCase } from '@/utils/format';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
 import { toast } from '@/store/toastStore';
+import { loadErrorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
 
 export default function WalletsList() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -39,7 +41,7 @@ export default function WalletsList() {
       setWallets(Array.isArray(result.data) ? result.data : []);
       if (result.pagination) setPagination(result.pagination);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch wallets');
+      setError(loadErrorMessage(err, 'wallets'));
       console.error('Error fetching wallets:', err);
       setWallets([]);
     } finally {
@@ -53,64 +55,83 @@ export default function WalletsList() {
       const params = { limit: 10000 };
       const result = await masterAccountService.getAllWallets(params);
       const dataToExport = Array.isArray(result.data) ? result.data : [];
-      if (dataToExport.length === 0) { toast.info('No wallets to export'); return; }
+      if (dataToExport.length === 0) {
+        toast.info('No wallets to export');
+        return;
+      }
       const filename = 'wallets';
       const title = 'All Wallets';
       switch (type) {
-        case 'csv': exportToCSV(columns, dataToExport, filename); break;
-        case 'json': exportToJSON(columns, dataToExport, filename); break;
-        case 'pdf': exportToPDF(columns, dataToExport, filename, title); break;
+        case 'csv':
+          exportToCSV(columns, dataToExport, filename);
+          break;
+        case 'json':
+          exportToJSON(columns, dataToExport, filename);
+          break;
+        case 'pdf':
+          exportToPDF(columns, dataToExport, filename, title);
+          break;
       }
     } catch (error: any) {
       console.error('Export error:', error);
-      toast.error(error?.message || 'Failed to export wallets');
+      toast.error(error?.message || "Couldn't export wallets");
     } finally {
       setIsExporting(false);
     }
   };
 
   const columns: TableColumn<MasterWallet>[] = [
-    { key: 'id', label: 'No.', render: (_, __, index) => index + 1 },
-    { key: 'name', label: 'Name', sortable: true },
-    { key: 'type', label: 'Type' },
+    { key: 'name', label: 'Name', width: '6.75rem', sortable: true, render: (v) => toTitleCase(v) },
+    { key: 'type', label: 'Type', width: '6.25rem' },
     {
       key: 'balance',
       label: 'Balance',
+      width: '9.25rem',
+      align: 'center',
       render: (balance) => `₹${balance?.toLocaleString() || 0}`,
     },
     {
       key: 'createdAt',
       label: 'Created',
+      width: '7.75rem',
       render: (date) => formatDate(date),
     },
   ];
 
+  // The list endpoint has no `search` query param, so — same as the Mahallu
+  // Finance list screens — the search box filters the page already loaded.
+  const filteredWallets = wallets.filter(
+    (w) => !searchQuery || w.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   const totalBalance = wallets.reduce((sum, w) => sum + (w.balance || 0), 0);
 
   const stats = [
-    { title: 'Total Wallets', value: pagination?.total || wallets.length, icon: <FiCreditCard className="h-5 w-5" /> },
-    { title: 'Total Balance', value: `₹${totalBalance.toLocaleString()}`, icon: <FiDollarSign className="h-5 w-5" /> },
+    {
+      title: 'Total Wallets',
+      value: pagination?.total || wallets.length,
+      icon: <FiCreditCard className="h-5 w-5" />,
+    },
+    {
+      title: 'Total Balance',
+      value: `₹${totalBalance.toLocaleString()}`,
+      icon: <FiDollarSign className="h-5 w-5" />,
+    },
   ];
 
   return (
     <div className="space-y-4">
       <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Master Wallets</h1>
-            <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">Manage master wallets</p>
-          </div>
-          <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Wallets' }]} />
-        </div>
+        <PageHeader title="Master Wallets" description="Manage master wallets" />
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-2">
           {stats.map((stat, index) => (
             <StatCard key={index} {...stat} />
           ))}
         </div>
       </div>
 
-      <Card>
+      <TableCard>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -120,22 +141,26 @@ export default function WalletsList() {
           onRefresh={fetchWallets}
           onExport={handleExport}
           isExporting={isExporting}
-          actionButtons={<Link to="/master-accounts/wallets/create"><Button size="md">+ New Wallet</Button></Link>}
+          actionButtons={
+            <Link to="/master-accounts/wallets/create">
+              <Button size="md" icon={<FiPlus />} collapseLabel>New Wallet</Button>
+            </Link>
+          }
         />
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="text-center py-12">
-            <p className="text-red-600 dark:text-red-400">{error}</p>
-            <Button onClick={fetchWallets} className="mt-4" variant="outline">
-              Retry
-            </Button>
-          </div>
+          <EmptyState
+            variant="error"
+            entity="wallets"
+            description={error}
+            action={{ label: 'Retry', onClick: fetchWallets }}
+          />
         ) : (
           <>
-            <Table columns={columns} data={wallets} emptyMessage="No wallets found" showExport={false} />
+            <Table fixedLayout striped columns={columns} data={filteredWallets} emptyMessage="No wallets found" showExport={false} />
             {pagination && pagination.totalPages > 1 && (
-              <div className="mt-6">
+              <div className="mt-4">
                 <Pagination
                   currentPage={currentPage}
                   totalPages={pagination.totalPages}
@@ -147,8 +172,7 @@ export default function WalletsList() {
             )}
           </>
         )}
-      </Card>
+      </TableCard>
     </div>
   );
 }
-

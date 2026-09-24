@@ -2,13 +2,16 @@ import express from 'express';
 import { login, getCurrentUser, changePassword, registerDevice, setTwoFactor, selectAccount } from '../controllers/authController';
 import { sendOTP, verifyOTP } from '../controllers/otpController';
 import { authMiddleware } from '../middleware/authMiddleware';
-import { verifyOtpRateLimiter } from '../middleware/rateLimit';
+import { verifyOtpRateLimiter, loginRateLimiter, sendOtpRateLimiter } from '../middleware/rateLimit';
 import { validationHandler } from '../middleware/validationHandler';
 import {
   loginValidation,
   sendOTPValidation,
   verifyOTPValidation,
   changePasswordValidation,
+  registerDeviceValidation,
+  twoFactorValidation,
+  selectAccountValidation,
 } from '../validations/authValidation';
 
 const router = express.Router();
@@ -65,7 +68,7 @@ const router = express.Router();
  *       403:
  *         description: Account is inactive
  */
-router.post('/login', loginValidation, validationHandler, login);
+router.post('/login', loginValidation, validationHandler, loginRateLimiter, login);
 
 /**
  * @swagger
@@ -110,7 +113,7 @@ router.post('/login', loginValidation, validationHandler, login);
  *       429:
  *         description: Too many OTP requests
  */
-router.post('/send-otp', sendOTPValidation, validationHandler, sendOTP);
+router.post('/send-otp', sendOTPValidation, validationHandler, sendOtpRateLimiter, sendOTP);
 
 /**
  * @swagger
@@ -290,7 +293,7 @@ router.get('/me', authMiddleware, getCurrentUser);
  */
 router.post('/change-password', authMiddleware, changePasswordValidation, validationHandler, changePassword);
 
-router.put('/register-device', authMiddleware, registerDevice);
+router.put('/register-device', authMiddleware, registerDeviceValidation, validationHandler, registerDevice);
 
 /**
  * @swagger
@@ -323,9 +326,9 @@ router.put('/register-device', authMiddleware, registerDevice);
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  */
-router.put('/two-factor', authMiddleware, setTwoFactor);
+router.put('/two-factor', authMiddleware, twoFactorValidation, validationHandler, setTwoFactor);
 
-router.post('/select-account', selectAccount);
+router.post('/select-account', selectAccountValidation, validationHandler, selectAccount);
 
 export default router;
 

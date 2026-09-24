@@ -62,7 +62,7 @@ const CounsellingCaseSchema = new Schema<ICounsellingCase>(
     tenantId: {
       type: Schema.Types.ObjectId,
       ref: 'Tenant',
-      required: [true, 'Tenant ID is required'],
+      required: [true, 'Please select a Mahallu before continuing.'],
       index: true,
     },
     caseNo: {
@@ -139,7 +139,7 @@ const DisputeCaseSchema = new Schema<IDisputeCase>(
     tenantId: {
       type: Schema.Types.ObjectId,
       ref: 'Tenant',
-      required: [true, 'Tenant ID is required'],
+      required: [true, 'Please select a Mahallu before continuing.'],
       index: true,
     },
     caseNo: {
@@ -207,7 +207,7 @@ const InheritanceCaseSchema = new Schema<IInheritanceCase>(
     tenantId: {
       type: Schema.Types.ObjectId,
       ref: 'Tenant',
-      required: [true, 'Tenant ID is required'],
+      required: [true, 'Please select a Mahallu before continuing.'],
       index: true,
     },
     caseNo: {

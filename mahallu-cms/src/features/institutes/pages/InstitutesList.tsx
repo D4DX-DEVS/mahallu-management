@@ -1,14 +1,15 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FiEdit2, FiTrash2, FiX, FiEye, FiInbox, FiCheckCircle, FiXCircle } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
-import Card from '@/components/ui/Card';
+import { FiCheckCircle, FiEdit2, FiEye, FiInbox, FiPlus, FiTrash2, FiXCircle } from 'react-icons/fi';
+import TableCard from '@/components/ui/TableCard';
+import FilterPanel from '@/components/ui/FilterPanel';
 import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
+import EmptyState from '@/components/ui/EmptyState';
 import { PageSkeleton } from '@/components/ui/Skeleton';
-import Modal from '@/components/ui/Modal';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
 import { toast } from '@/store/toastStore';
@@ -17,8 +18,12 @@ import { Institute } from '@/types';
 import { ROUTES } from '@/constants/routes';
 import { instituteService } from '@/services/instituteService';
 import { useDebounce } from '@/hooks/useDebounce';
-import { formatDate } from '@/utils/format';
+import { formatDate, toTitleCase } from '@/utils/format';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
+import ActionsMenu from '@/components/ui/ActionsMenu';
+import StatusBadge from '@/components/ui/StatusBadge';
 
 export default function InstitutesList() {
   const navigate = useNavigate();
@@ -37,6 +42,11 @@ export default function InstitutesList() {
   const [isExporting, setIsExporting] = useState(false);
 
   const debouncedSearch = useDebounce(searchQuery, 500);
+
+  // A new search or type filter invalidates the current page offset
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearch, typeFilter]);
 
   useEffect(() => {
     fetchInstitutes();
@@ -62,7 +72,7 @@ export default function InstitutesList() {
         setPagination(result.pagination);
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch institutes');
+      setError(loadErrorMessage(err, 'institutes'));
       console.error('Error fetching institutes:', err);
     } finally {
       setLoading(false);
@@ -72,22 +82,31 @@ export default function InstitutesList() {
   const handleExport = async (type: 'csv' | 'json' | 'pdf') => {
     try {
       setIsExporting(true);
-      const params: any = { limit: 10000 };
+      // Gathered a page at a time — the API caps `limit` at 100
+      const params: any = {};
       if (debouncedSearch) params.search = debouncedSearch;
       if (typeFilter && typeFilter !== 'all') params.type = typeFilter;
-      const result = await instituteService.getAll(params);
-      const dataToExport = result.data;
-      if (dataToExport.length === 0) { toast.info('No institutes to export'); return; }
+      const dataToExport = await instituteService.getAllForExport(params);
+      if (dataToExport.length === 0) {
+        toast.info('No institutes to export');
+        return;
+      }
       const filename = 'institutes';
       const title = 'All Institutes';
       switch (type) {
-        case 'csv': exportToCSV(columns, dataToExport, filename); break;
-        case 'json': exportToJSON(columns, dataToExport, filename); break;
-        case 'pdf': exportToPDF(columns, dataToExport, filename, title); break;
+        case 'csv':
+          exportToCSV(columns, dataToExport, filename);
+          break;
+        case 'json':
+          exportToJSON(columns, dataToExport, filename);
+          break;
+        case 'pdf':
+          exportToPDF(columns, dataToExport, filename, title);
+          break;
       }
     } catch (error: any) {
       console.error('Export error:', error);
-      toast.error(error?.message || 'Failed to export institutes');
+      toast.error(errorMessage(error, { action: 'export the institutes' }));
     } finally {
       setIsExporting(false);
     }
@@ -98,22 +117,33 @@ export default function InstitutesList() {
     try {
       setDeleting(true);
       await instituteService.delete(selectedInstitute.id);
-      await fetchInstitutes();
       setShowDeleteModal(false);
       setSelectedInstitute(null);
+      await fetchInstitutes();
+      toast.success('Institute deleted');
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to delete institute');
+      // The list keeps its rows; the failure belongs on the dialog the user is in.
+      toast.error(errorMessage(err, { action: 'delete this institute' }));
+    } finally {
+      // Left true on the happy path, the next delete opened onto a spinner that
+      // never stopped and a Delete button that could not be pressed again.
       setDeleting(false);
     }
   };
 
   const columns: TableColumn<Institute>[] = [
-    { key: 'id', label: 'No.', render: (_, __, index) => index + 1 },
-    { key: 'name', label: 'Name', sortable: true },
-    { key: 'place', label: 'Place' },
+    {
+      key: 'name',
+      label: 'Name',
+      width: '6.75rem',
+      sortable: true,
+      render: (v) => <span>{toTitleCase(v)}</span>,
+    },
+    { key: 'place', label: 'Place', width: '6.5rem', render: (v) => toTitleCase(v) },
     {
       key: 'type',
       label: 'Type',
+      width: '6.25rem',
       render: (type) => (
         <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 capitalize">
           {type}
@@ -123,66 +153,58 @@ export default function InstitutesList() {
     {
       key: 'joinDate',
       label: 'Join Date',
+      width: '8.75rem',
       render: (date) => formatDate(date),
     },
     {
       key: 'status',
       label: 'Status',
-      render: (status) => (
-        <span
-          className={`px-2 py-1 text-xs font-medium rounded-full ${
-            status === 'active'
-              ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-              : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
-          }`}
-        >
-          {status || 'active'}
-        </span>
-      ),
+      width: '7.25rem',
+      render: (status) => <StatusBadge status={status || 'active'} />,
     },
     {
       key: 'actions',
       label: 'Actions',
+      width: '8rem',
+      align: 'center',
       render: (_, row) => (
-        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(ROUTES.INSTITUTES.DETAIL(row.id));
-            }}
-            className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
-            title="View"
-          >
-            <FiEye className="h-4 w-4" />
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(`/institutes/${row.id}/edit`);
-            }}
-            className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
-            title="Edit"
-          >
-            <FiEdit2 className="h-4 w-4" />
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setSelectedInstitute(row);
-              setShowDeleteModal(true);
-            }}
-            className="p-1.5 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 transition-colors"
-            title="Delete"
-          >
-            <FiTrash2 className="h-4 w-4" />
-          </button>
-        </div>
+        <ActionsMenu
+          items={[
+            {
+              label: 'View',
+              icon: <FiEye className="h-4 w-4" />,
+              onClick: () => {
+                navigate(ROUTES.INSTITUTES.DETAIL(row.id));
+              },
+            },
+            {
+              label: 'Edit',
+              icon: <FiEdit2 className="h-4 w-4" />,
+              onClick: () => {
+                navigate(`/institutes/${row.id}/edit`);
+              },
+            },
+            {
+              label: 'Delete',
+              icon: <FiTrash2 className="h-4 w-4" />,
+              onClick: () => {
+                setSelectedInstitute(row);
+                setShowDeleteModal(true);
+              },
+              variant: 'danger',
+            },
+          ]}
+        />
       ),
     },
   ];
 
   const stats = [
-    { title: 'Total Institutes', value: pagination?.total || institutes.length, icon: <FiInbox className="h-5 w-5" /> },
+    {
+      title: 'Total Institutes',
+      value: pagination?.total || institutes.length,
+      icon: <FiInbox className="h-5 w-5" />,
+    },
     {
       title: 'Active',
       value: institutes.filter((i) => i.status === 'active' || !i.status).length,
@@ -198,26 +220,16 @@ export default function InstitutesList() {
   return (
     <div className="space-y-4">
       <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">
-              Institutes
-            </h1>
-            <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
-              Manage institutes, madrasas, and other institutions
-            </p>
-          </div>
-          <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Institutes' }]} />
-        </div>
+        <PageHeader title="Institutes" description="Manage institutes, madrasas, and other institutions" />
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {stats.map((stat, index) => (
             <StatCard key={index} {...stat} />
           ))}
         </div>
       </div>
 
-      <Card>
+      <TableCard>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -229,20 +241,14 @@ export default function InstitutesList() {
           isExporting={isExporting}
           actionButtons={
             <Link to={ROUTES.INSTITUTES.CREATE}>
-              <Button size="md">+ New Institute</Button>
+              <Button size="md" icon={<FiPlus />} collapseLabel>New Institute</Button>
             </Link>
           }
         />
 
         {isFilterVisible && (
-          <div className="relative flex flex-wrap items-center gap-4 mb-6 p-4 border border-gray-200 rounded-lg bg-white dark:bg-gray-800 dark:border-gray-700">
-            <button
-              onClick={() => setIsFilterVisible(false)}
-              className="absolute right-4 top-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-            >
-              <FiX className="h-4 w-4" />
-            </button>
-            <div className="w-40">
+          <FilterPanel onClose={() => setIsFilterVisible(false)}>
+            <div className="w-full sm:w-40">
               <Select
                 options={[
                   { value: 'all', label: 'All Types' },
@@ -256,40 +262,22 @@ export default function InstitutesList() {
                 onChange={(e) => setTypeFilter(e.target.value)}
               />
             </div>
-          </div>
+          </FilterPanel>
         )}
 
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="text-center py-12">
-            <p className="text-red-600 dark:text-red-400">{error}</p>
-            <Button onClick={fetchInstitutes} className="mt-4" variant="outline">
-              Retry
-            </Button>
-          </div>
+          <EmptyState variant="error" entity="institutes" description={error} action={{ label: 'Retry', onClick: fetchInstitutes }} />
         ) : (
           <Table
+            fixedLayout
+            striped
             columns={columns}
             data={institutes}
+            entity="institutes"
             emptyMessage="No institutes found"
-            exportFilename="institutes"
-            exportTitle="All Institutes"
-            showExport={false}
             onRowClick={(row) => navigate(ROUTES.INSTITUTES.DETAIL(row.id))}
-            onExportAll={async () => {
-              const params: any = {
-                limit: 10000,
-              };
-              if (debouncedSearch) {
-                params.search = debouncedSearch;
-              }
-              if (typeFilter !== 'all') {
-                params.type = typeFilter;
-              }
-              const result = await instituteService.getAll(params);
-              return result.data;
-            }}
           />
         )}
 
@@ -307,34 +295,21 @@ export default function InstitutesList() {
             />
           </div>
         )}
-      </Card>
+      </TableCard>
 
-      <Modal
+      <ConfirmDialog
         isOpen={showDeleteModal}
-        onClose={() => {
+        title="Delete institute"
+        message={`Are you sure you want to delete ${toTitleCase(selectedInstitute?.name) || 'this institute'}? This action cannot be undone.`}
+        confirmLabel="Delete"
+        variant="danger"
+        isLoading={deleting}
+        onConfirm={handleDelete}
+        onCancel={() => {
           setShowDeleteModal(false);
           setSelectedInstitute(null);
         }}
-        title="Delete Institute"
-        footer={
-          <>
-            <Button variant="outline" onClick={() => {
-              setShowDeleteModal(false);
-              setSelectedInstitute(null);
-            }}>
-              Cancel
-            </Button>
-            <Button variant="danger" onClick={handleDelete} isLoading={deleting}>
-              Delete
-            </Button>
-          </>
-        }
-      >
-        <p className="text-gray-600 dark:text-gray-400">
-          Are you sure you want to delete <strong>{selectedInstitute?.name}</strong>? This action cannot be undone.
-        </p>
-      </Modal>
+      />
     </div>
   );
 }
-

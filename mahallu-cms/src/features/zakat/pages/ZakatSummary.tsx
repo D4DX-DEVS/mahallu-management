@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
+import { FiSend, FiUsers } from 'react-icons/fi';
 import { Link } from 'react-router-dom';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
@@ -10,6 +10,8 @@ import {
   ZakatSummary as SummaryData,
   DISTRIBUTION_TYPE_OPTIONS,
 } from '@/services/zakatDistributionService';
+import { loadErrorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
 
 const currentYear = new Date().getFullYear();
 const YEAR_OPTIONS = Array.from({ length: 5 }, (_, i) => {
@@ -24,12 +26,26 @@ export default function ZakatSummary() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // `error` was never cleared, so one failed year left the red panel on screen
+    // for every year picked afterwards - even the ones that loaded fine. The
+    // flag drops a slow reply that lands after the year has already moved on.
+    let current = true;
     setLoading(true);
+    setError(null);
     zakatDistributionService
       .getSummary(Number(year))
-      .then(setSummary)
-      .catch((err) => setError(err.response?.data?.message || 'Failed to load summary'))
-      .finally(() => setLoading(false));
+      .then((data) => {
+        if (current) setSummary(data);
+      })
+      .catch((err) => {
+        if (current) setError(loadErrorMessage(err, 'summary'));
+      })
+      .finally(() => {
+        if (current) setLoading(false);
+      });
+    return () => {
+      current = false;
+    };
   }, [year]);
 
   const cards = [
@@ -41,28 +57,23 @@ export default function ZakatSummary() {
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">Zakat Summary</h1>
-          <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-            Collections against distributions for the selected year
-          </p>
-        </div>
-        <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Zakat' }]} />
-      </div>
+      <PageHeader
+        title="Zakat Summary"
+        description="Collections against distributions for the selected year"
+      />
 
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="w-full sm:w-40">
           <Select options={YEAR_OPTIONS} value={year} onChange={(e) => setYear(e.target.value)} />
         </div>
-        <div className="flex flex-col gap-2 sm:flex-row">
+        <div className="flex flex-shrink-0 items-center gap-2">
           <Link to="/zakat/beneficiaries">
-            <Button variant="outline" size="md" className="w-full sm:w-auto">
+            <Button variant="outline" size="md" icon={<FiUsers />} collapseLabel>
               Beneficiaries
             </Button>
           </Link>
           <Link to="/zakat/distributions">
-            <Button size="md" className="w-full sm:w-auto">
+            <Button size="md" icon={<FiSend />} collapseLabel>
               Distributions
             </Button>
           </Link>
@@ -77,27 +88,27 @@ export default function ZakatSummary() {
         </Card>
       ) : (
         <>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             {cards.map((card) => (
-              <Card key={card.label} className="p-3 sm:p-4">
+              <Card key={card.label}>
                 <p className="text-xs font-medium text-gray-500 dark:text-gray-400 sm:text-sm">
                   {card.label}
                 </p>
-                <p className="mt-1 text-base font-bold text-gray-900 dark:text-gray-100 sm:text-xl">
+                <p className="mt-1 text-base font-semibold text-gray-900 dark:text-gray-100 sm:text-xl">
                   {card.value}
                 </p>
               </Card>
             ))}
           </div>
 
-          <Card className="p-3 sm:p-4">
-            <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Distribution by Type</h2>
+          <Card>
+            <h2 className="text-sm font-semibold text-foreground">Distribution by Type</h2>
             {(summary?.byType || []).length === 0 ? (
               <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
                 No distributions recorded for {year}
               </p>
             ) : (
-              <div className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div className="mt-2 grid grid-cols-2 gap-3 lg:grid-cols-4">
                 {summary?.byType.map((row) => (
                   <div
                     key={row.type}
@@ -109,7 +120,7 @@ export default function ZakatSummary() {
                     <p className="mt-0.5 text-sm font-semibold text-gray-900 dark:text-gray-100 sm:text-base">
                       Rs {row.total}
                     </p>
-                    <p className="text-[0.65rem] text-gray-400">{row.count} payment(s)</p>
+                    <p className="text-xs text-gray-400">{row.count} payment(s)</p>
                   </div>
                 ))}
               </div>

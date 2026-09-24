@@ -9,6 +9,8 @@ import {
 } from '../controllers/accountingReportController';
 import { authMiddleware } from '../middleware/authMiddleware';
 import { tenantMiddleware, tenantFilter, instituteFilter } from '../middleware/tenantMiddleware';
+import { validationHandler } from '../middleware/validationHandler';
+import { idParam, listQuery } from '../validations/common';
 
 const router = express.Router();
 
@@ -50,7 +52,7 @@ router.use(instituteFilter);
  *       200:
  *         description: Day book entries with totals
  */
-router.get('/day-book', getDayBook);
+router.get('/day-book', listQuery(), validationHandler, getDayBook);
 
 /**
  * @swagger
@@ -79,7 +81,7 @@ router.get('/day-book', getDayBook);
  *       200:
  *         description: Trial balance with debit/credit columns
  */
-router.get('/trial-balance', getTrialBalance);
+router.get('/trial-balance', listQuery(), validationHandler, getTrialBalance);
 
 /**
  * @swagger
@@ -108,9 +110,9 @@ router.get('/trial-balance', getTrialBalance);
  *       200:
  *         description: Balance sheet with assets, income, expenses and summary
  */
-router.get('/balance-sheet', getBalanceSheet);
-router.get('/ledger-report', getLedgerReport);
-router.get('/income-expenditure', getIncomeExpenditure);
-router.get('/consolidated', getConsolidatedReport);
+router.get('/balance-sheet', listQuery(), validationHandler, getBalanceSheet);
+router.get('/ledger-report', listQuery(), validationHandler, getLedgerReport);
+router.get('/income-expenditure', listQuery(), validationHandler, getIncomeExpenditure);
+router.get('/consolidated', listQuery(), validationHandler, getConsolidatedReport);
 
 export default router;

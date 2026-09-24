@@ -7,6 +7,9 @@ import SearchableSelect from '@/components/ui/SearchableSelect';
 import QuickAddMember from '@/components/quick-add/QuickAddMember';
 import { madrasaService } from '@/services/madrasaService';
 import { memberService } from '@/services/memberService';
+import { fetchAllPages } from '@/services/api';
+import { errorMessage } from '@/utils/errors';
+import { toTitleCase } from '@/utils/format';
 
 interface EnrollStudentModalProps {
   isOpen: boolean;
@@ -33,9 +36,8 @@ export default function EnrollStudentModal({
 
   useEffect(() => {
     if (!isOpen) return;
-    memberService
-      .getAll({ page: 1, limit: 200 } as any)
-      .then((result: any) => setMembers(result.data || []))
+    fetchAllPages((params) => memberService.getAll(params) as any)
+      .then((rows) => setMembers(rows))
       .catch(() => setMembers([]));
   }, [isOpen]);
 
@@ -56,7 +58,7 @@ export default function EnrollStudentModal({
       onEnrolled();
       onClose();
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to enroll the student');
+      setError(errorMessage(err, { action: 'enroll the student' }));
     } finally {
       setSaving(false);
     }
@@ -68,7 +70,7 @@ export default function EnrollStudentModal({
       onClose={onClose}
       title="Enroll a student"
       footer={
-        <div className="flex justify-end gap-2">
+        <div className="flex gap-2 flex-col-reverse sm:flex-row sm:justify-end sm:gap-2">
           <Button variant="secondary" onClick={onClose} disabled={saving}>
             Cancel
           </Button>
@@ -87,7 +89,7 @@ export default function EnrollStudentModal({
               onChange={setMemberId}
               options={members.map((member: any) => ({
                 value: member._id || member.id,
-                label: `${member.name}${member.familyName ? ` - ${member.familyName}` : ''}`,
+                label: `${toTitleCase(member.name)}${member.familyName ? ` - ${toTitleCase(member.familyName)}` : ''}`,
               }))}
               placeholder="Search members..."
             />

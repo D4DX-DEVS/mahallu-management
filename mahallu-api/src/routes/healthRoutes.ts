@@ -19,6 +19,14 @@ import {
 import { authMiddleware, allowRoles } from '../middleware/authMiddleware';
 import { tenantMiddleware, tenantFilter } from '../middleware/tenantMiddleware';
 import { sensitiveAccess } from '../middleware/sensitiveAccess';
+import { validationHandler } from '../middleware/validationHandler';
+import { healthResourceValidation } from '../validations/healthResourceValidation';
+import { idParam, listQuery } from '../validations/common';
+import {
+  createMedicalCampValidation,
+  updateMedicalCampValidation,
+  createHealthResourceValidation,
+} from '../validations/moduleValidation';
 
 const router = express.Router();
 
@@ -46,7 +54,7 @@ router.use(tenantFilter);
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  */
-router.get('/health-resources/summary', getHealthSummary);
+router.get('/health-resources/summary', listQuery(), validationHandler, getHealthSummary);
 
 /**
  * @swagger
@@ -133,8 +141,14 @@ router.get('/health-resources/summary', getHealthSummary);
  *       201:
  *         description: Health resource created
  */
-router.get('/health-resources', getAllHealthResources);
-router.post('/health-resources', allowRoles(['mahall', 'super_admin']), createHealthResource);
+router.get('/health-resources', listQuery(), validationHandler, getAllHealthResources);
+router.post(
+  '/health-resources',
+  allowRoles(['mahall', 'super_admin']),
+  healthResourceValidation,
+  validationHandler,
+  createHealthResource
+);
 
 /**
  * @swagger
@@ -219,17 +233,25 @@ router.post('/health-resources', allowRoles(['mahall', 'super_admin']), createHe
  *         $ref: '#/components/responses/NotFound'
  */
 // Registered before the ':id' handlers below — '/sensitive' must not be captured as an id.
-router.get('/health-resources/sensitive', sensitiveAccess('health'), getAllSensitiveHealthResources);
+router.get('/health-resources/sensitive', listQuery(), validationHandler, sensitiveAccess('health'), getAllSensitiveHealthResources);
 router.post(
   '/health-resources/sensitive',
   allowRoles(['mahall', 'super_admin']),
   sensitiveAccess('health'),
+  createHealthResourceValidation,
+  validationHandler,
   createSensitiveHealthResource
 );
 
-router.get('/health-resources/:id', getHealthResourceById);
-router.put('/health-resources/:id', allowRoles(['mahall', 'super_admin']), updateHealthResource);
-router.delete('/health-resources/:id', allowRoles(['mahall', 'super_admin']), deleteHealthResource);
+router.get('/health-resources/:id', idParam('id', 'record'), validationHandler, getHealthResourceById);
+router.put(
+  '/health-resources/:id', idParam('id', 'record'),
+  allowRoles(['mahall', 'super_admin']),
+  healthResourceValidation,
+  validationHandler,
+  updateHealthResource
+);
+router.delete('/health-resources/:id', idParam('id', 'record'), validationHandler, allowRoles(['mahall', 'super_admin']), deleteHealthResource);
 
 /**
  * @swagger
@@ -358,8 +380,8 @@ router.delete('/health-resources/:id', allowRoles(['mahall', 'super_admin']), de
  *       201:
  *         description: Medical camp created
  */
-router.get('/medical-camps', getAllMedicalCamps);
-router.post('/medical-camps', allowRoles(['mahall', 'super_admin']), createMedicalCamp);
+router.get('/medical-camps', listQuery(), validationHandler, getAllMedicalCamps);
+router.post('/medical-camps', createMedicalCampValidation, validationHandler, allowRoles(['mahall', 'super_admin']), createMedicalCamp);
 
 /**
  * @swagger
@@ -444,8 +466,8 @@ router.post('/medical-camps', allowRoles(['mahall', 'super_admin']), createMedic
  *       404:
  *         $ref: '#/components/responses/NotFound'
  */
-router.get('/medical-camps/:id', getMedicalCampById);
-router.put('/medical-camps/:id', allowRoles(['mahall', 'super_admin']), updateMedicalCamp);
-router.delete('/medical-camps/:id', allowRoles(['mahall', 'super_admin']), deleteMedicalCamp);
+router.get('/medical-camps/:id', idParam('id', 'record'), validationHandler, getMedicalCampById);
+router.put('/medical-camps/:id', updateMedicalCampValidation, validationHandler, allowRoles(['mahall', 'super_admin']), updateMedicalCamp);
+router.delete('/medical-camps/:id', idParam('id', 'record'), validationHandler, allowRoles(['mahall', 'super_admin']), deleteMedicalCamp);
 
 export default router;

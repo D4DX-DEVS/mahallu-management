@@ -1,4 +1,4 @@
-import api from './api';
+import api, { asList } from './api';
 
 export type ExamStatus = 'scheduled' | 'completed' | 'cancelled';
 
@@ -64,7 +64,7 @@ export const attendanceService = {
       { params }
     );
     return {
-      data: response.data.data,
+      data: asList(response.data.data),
       pagination: response.data.pagination,
     };
   },
@@ -86,7 +86,7 @@ export const examService = {
   async listExams(params: Record<string, any>) {
     const response = await api.get<{ success: boolean; data: Exam[]; pagination: any }>('/exams', { params });
     return {
-      data: response.data.data,
+      data: asList(response.data.data),
       pagination: response.data.pagination,
     };
   },

@@ -5,6 +5,8 @@ import { issueCertificate } from '../services/certificateService';
 import { getSignedDownloadUrl } from '../services/uploadService';
 import { getPaginationParams, createPaginationResponse } from '../utils/pagination';
 
+import { sendFailure } from '../utils/userMessages';
+
 const isAdmin = (req: AuthRequest): boolean =>
   req.isSuperAdmin === true || req.user?.role === 'mahall';
 
@@ -13,10 +15,10 @@ export const issueCertificateHandler = async (req: AuthRequest, res: Response) =
   try {
     const { type, registrationId } = req.body;
     if (!['nikah', 'death', 'noc'].includes(type) || !registrationId) {
-      return res.status(400).json({ success: false, message: 'type (nikah|death|noc) and registrationId are required' });
+      return res.status(400).json({ success: false, message: 'Please choose a registration type and a registration.' });
     }
     if (!req.tenantId) {
-      return res.status(400).json({ success: false, message: 'Tenant context missing' });
+      return res.status(400).json({ success: false, message: 'Please select a Mahallu before continuing.' });
     }
 
     const cert = await issueCertificate(type, registrationId, req.tenantId, req.user?.name || 'Mahall Admin');
@@ -40,7 +42,7 @@ export const listCertificates = async (req: AuthRequest, res: Response) => {
     } else if (req.user?.memberId) {
       query.subjectMemberIds = req.user.memberId;
     } else {
-      return res.status(403).json({ success: false, message: 'Access denied' });
+      return res.status(403).json({ success: false, message: "You don't have permission to do this. Please contact your Mahallu admin." });
     }
 
     const [certs, total] = await Promise.all([
@@ -50,7 +52,7 @@ export const listCertificates = async (req: AuthRequest, res: Response) => {
 
     res.json(createPaginationResponse(certs, total, page, limit));
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the certificates right now. Please try again.');
   }
 };
 
@@ -59,7 +61,7 @@ export const downloadCertificate = async (req: AuthRequest, res: Response) => {
   try {
     const cert = await Certificate.findOne({ _id: req.params.id, tenantId: req.tenantId });
     if (!cert) {
-      return res.status(404).json({ success: false, message: 'Certificate not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that certificate. It may have been removed." });
     }
 
     const isSubject =
@@ -67,7 +69,7 @@ export const downloadCertificate = async (req: AuthRequest, res: Response) => {
       cert.subjectMemberIds.some((id) => String(id) === String(req.user.memberId));
 
     if (!isAdmin(req) && !isSubject) {
-      return res.status(403).json({ success: false, message: 'Access denied' });
+      return res.status(403).json({ success: false, message: "You don't have permission to do this. Please contact your Mahallu admin." });
     }
 
     const url = await getSignedDownloadUrl(cert.pdfKey);
@@ -76,7 +78,7 @@ export const downloadCertificate = async (req: AuthRequest, res: Response) => {
       data: { url, fileName: `${cert.certificateNo}.pdf`, expiresIn: 300 },
     });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t prepare the certificate for download. Please try again.');
   }
 };
 
@@ -85,7 +87,7 @@ export const revokeCertificate = async (req: AuthRequest, res: Response) => {
   try {
     const { reason } = req.body;
     if (!reason) {
-      return res.status(400).json({ success: false, message: 'reason is required' });
+      return res.status(400).json({ success: false, message: 'Please enter a reason.' });
     }
 
     const cert = await Certificate.findOneAndUpdate(
@@ -95,12 +97,12 @@ export const revokeCertificate = async (req: AuthRequest, res: Response) => {
     );
 
     if (!cert) {
-      return res.status(404).json({ success: false, message: 'Valid certificate not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find a valid certificate for this." });
     }
 
     res.json({ success: true, data: cert, message: 'Certificate revoked' });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t cancel the certificate. Please try again.');
   }
 };
 
@@ -112,7 +114,7 @@ export const verifyCertificate = async (req: Request, res: Response) => {
       .select('certificateNo type issueDate status tenantId');
 
     if (!cert) {
-      return res.status(404).json({ success: false, message: 'Certificate not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that certificate. It may have been removed." });
     }
 
     res.json({
@@ -126,6 +128,6 @@ export const verifyCertificate = async (req: Request, res: Response) => {
       },
     });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t verify the certificate. Please try again.');
   }
 };

@@ -2,12 +2,24 @@ import { useEffect, useState } from 'react';
 import { memberPortalService, MemberOverviewResponse, ChangeRequest } from '@/services/memberPortalService';
 import { authService } from '@/services/authService';
 import Card from '@/components/ui/Card';
+import { rowActionClass } from '@/components/ui/rowAction';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import Pagination from '@/components/ui/Pagination';
 import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { FiEdit2, FiEye, FiTrash2 } from 'react-icons/fi';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
+import { FieldRule, validateForm as checkFields, firstError } from '@/utils/validation';
+import { toTitleCase } from '@/utils/format';
+import StatusBadge from '@/components/ui/StatusBadge';
+
+/** The two fields a member may change directly; the API allows only these. */
+const PROFILE_RULES: Record<string, FieldRule> = {
+  phone: { label: 'phone number', required: true, type: 'phone' },
+  email: { label: 'email address', type: 'email' },
+};
 
 const EDITABLE_MEMBER_FIELDS = [
   'name',
@@ -74,7 +86,7 @@ export default function MemberProfile() {
         setPhone(overviewData.member.phone || '');
         setEmail('');
       } catch (err: any) {
-        setError(err.response?.data?.message || 'Failed to load profile');
+        setError(loadErrorMessage(err, 'profile'));
       } finally {
         setLoading(false);
       }
@@ -92,7 +104,7 @@ export default function MemberProfile() {
       setTotalItems(total);
       setTotalPages(Math.ceil(total / requestsLimit));
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to load change requests');
+      setError(loadErrorMessage(err, 'change requests'));
     } finally {
       setLoadingRequests(false);
     }
@@ -104,19 +116,23 @@ export default function MemberProfile() {
   }, [requestsPage]);
 
   const handleUpdateProfile = async () => {
-    if (!phone.trim()) {
-      setProfileError('Phone is required');
+    // Presence was the only check; the API also wants ten digits and a real
+    // address, and refused both silently after the fact.
+    const problems = checkFields({ phone, email }, PROFILE_RULES);
+    if (Object.keys(problems).length > 0) {
+      setProfileError(firstError(problems));
       return;
     }
+    if (updatingProfile) return;
 
     try {
       setUpdatingProfile(true);
       setProfileError(null);
       await memberPortalService.updateProfile({ phone, email: email || undefined });
-      setProfileSuccess('Profile updated successfully!');
+      setProfileSuccess('Profile updated!');
       setTimeout(() => setProfileSuccess(null), 3000);
     } catch (err: any) {
-      setProfileError(err.response?.data?.message || 'Failed to update profile');
+      setProfileError(errorMessage(err, { action: 'update profile' }));
     } finally {
       setUpdatingProfile(false);
     }
@@ -140,7 +156,7 @@ export default function MemberProfile() {
       setPhoneOtp('');
       setChangeError(null);
     } catch (err: any) {
-      setChangeError(err.response?.data?.message || 'Failed to send OTP');
+      setChangeError(errorMessage(err, { action: 'send otp' }));
     } finally {
       setSendingOtp(false);
     }
@@ -149,18 +165,27 @@ export default function MemberProfile() {
   const handleSubmitChangeRequest = async () => {
     if (!overview) return;
     if (!changeField || !changeValue.trim()) {
-      setChangeError('Please select a field and enter a value');
+      setChangeError('Please choose a field and enter a new value.');
       return;
     }
+    if (changeValue.length > 1000) {
+      setChangeError('Please keep the new value to 1000 characters or less.');
+      return;
+    }
+    if (changeField === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(changeValue.trim())) {
+      setChangeError('Please enter a valid email address.');
+      return;
+    }
+    if (submittingChange) return;
 
     // For phone field, require OTP
     if (changeField === 'phone') {
       if (!phoneOtpFlow) {
-        setChangeError('Please send OTP first');
+        setChangeError('Please ask for a code first, then enter it here.');
         return;
       }
-      if (!phoneOtp.trim()) {
-        setChangeError('Please enter the OTP');
+      if (!/^[0-9]{6}$/.test(phoneOtp.trim())) {
+        setChangeError('Please enter the 6-digit code we sent you.');
         return;
       }
     }
@@ -180,7 +205,7 @@ export default function MemberProfile() {
       }
 
       await memberPortalService.createChangeRequest(requestData);
-      setChangeSuccess('Change request submitted successfully!');
+      setChangeSuccess('Change request submitted!');
       setChangeField('');
       setChangeValue('');
       setPhoneOtpFlow(false);
@@ -190,7 +215,7 @@ export default function MemberProfile() {
       setRequestsPage(1);
       loadRequests(1);
     } catch (err: any) {
-      setChangeError(err.response?.data?.message || 'Failed to submit change request');
+      setChangeError(errorMessage(err, { action: 'submit change request' }));
     } finally {
       setSubmittingChange(false);
     }
@@ -218,7 +243,7 @@ export default function MemberProfile() {
       setEditRequest(null);
       loadRequests(requestsPage);
     } catch (err: any) {
-      setEditRequestError(err.response?.data?.message || 'Failed to update change request');
+      setEditRequestError(errorMessage(err, { action: 'update change request' }));
     } finally {
       setSavingEditRequest(false);
     }
@@ -233,42 +258,41 @@ export default function MemberProfile() {
       setDeleteRequest(null);
       loadRequests(requestsPage);
     } catch (err: any) {
-      setDeleteRequestError(err.response?.data?.message || 'Failed to delete change request');
+      setDeleteRequestError(errorMessage(err, { action: 'delete change request' }));
     } finally {
       setDeletingRequest(false);
     }
   };
 
   if (loading) {
-    return (
-      <PageSkeleton />
-    );
+    return <PageSkeleton />;
   }
 
   if (error || !overview) {
     return (
-      <div className="flex flex-col items-center justify-center h-[calc(100vh-140px)] gap-4">
+      <div className="flex flex-col items-center justify-center h-screen-content gap-4">
         <p className="text-red-600 dark:text-red-400">{error || 'Unable to load profile'}</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 max-w-2xl w-full mx-auto">
-      <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">My Profile</h1>
-
+    <div className="space-y-4 max-w-2xl w-full mx-auto">
+      <PageHeader title="My Profile" />
       {/* Current Profile */}
       <Card>
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Member Details</h2>
+        <h2 className="text-lg font-semibold mb-3 text-foreground">Member Details</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
           <div>
             <p className="text-gray-500 dark:text-gray-400">Name</p>
-            <p className="text-gray-900 dark:text-gray-100 font-medium">{overview.member.name}</p>
+            <p className="text-gray-900 dark:text-gray-100 font-medium">{toTitleCase(overview.member.name)}</p>
           </div>
           {overview.varusankhyaDetails.memberMahallId && (
             <div>
               <p className="text-gray-500 dark:text-gray-400">Member ID</p>
-              <p className="text-gray-900 dark:text-gray-100 font-medium">{overview.varusankhyaDetails.memberMahallId}</p>
+              <p className="text-gray-900 dark:text-gray-100 font-medium">
+                {overview.varusankhyaDetails.memberMahallId}
+              </p>
             </div>
           )}
           {overview.member.phone && (
@@ -280,7 +304,9 @@ export default function MemberProfile() {
           {overview.varusankhyaDetails.familyMahallId && (
             <div>
               <p className="text-gray-500 dark:text-gray-400">Family ID</p>
-              <p className="text-gray-900 dark:text-gray-100 font-medium">{overview.varusankhyaDetails.familyMahallId}</p>
+              <p className="text-gray-900 dark:text-gray-100 font-medium">
+                {overview.varusankhyaDetails.familyMahallId}
+              </p>
             </div>
           )}
         </div>
@@ -288,13 +314,16 @@ export default function MemberProfile() {
 
       {/* Edit Profile */}
       <Card>
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Update Contact Information</h2>
+        <h2 className="text-lg font-semibold mb-3 text-foreground">
+          Update Contact Information
+        </h2>
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Phone <span className="text-red-500">*</span>
             </label>
             <input
+              aria-label="Phone"
               type="tel"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
@@ -303,10 +332,9 @@ export default function MemberProfile() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Email
-            </label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email</label>
             <input
+              aria-label="Email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -338,7 +366,7 @@ export default function MemberProfile() {
 
       {/* Request Field Changes */}
       <Card>
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Request Field Changes</h2>
+        <h2 className="text-lg font-semibold mb-3 text-foreground">Request Field Changes</h2>
         <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
           Request changes to other fields that require admin approval.
         </p>
@@ -348,6 +376,7 @@ export default function MemberProfile() {
               Field to Change <span className="text-red-500">*</span>
             </label>
             <select
+              aria-label="Field to Change"
               value={changeField}
               onChange={(e) => setChangeField(e.target.value)}
               className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
@@ -367,6 +396,7 @@ export default function MemberProfile() {
             </label>
             <div className="flex gap-2">
               <input
+                aria-label="New Value"
                 type={changeField === 'phone' ? 'tel' : 'text'}
                 value={changeValue}
                 onChange={(e) => {
@@ -399,6 +429,7 @@ export default function MemberProfile() {
                 Enter OTP <span className="text-red-500">*</span>
               </label>
               <input
+                aria-label="Enter OTP"
                 type="text"
                 value={phoneOtp}
                 onChange={(e) => setPhoneOtp(e.target.value)}
@@ -432,7 +463,9 @@ export default function MemberProfile() {
 
       {/* Change Requests History */}
       <Card>
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Change Request History</h2>
+        <h2 className="text-lg font-semibold mb-3 text-foreground">
+          Change Request History
+        </h2>
         {loadingRequests ? (
           <PageSkeleton variant="section" />
         ) : changeRequests.length === 0 ? (
@@ -440,16 +473,14 @@ export default function MemberProfile() {
         ) : (
           <div className="space-y-3">
             {changeRequests.map((req) => (
-              <div
-                key={req.id}
-                className="border border-gray-200 dark:border-gray-800 rounded-lg p-3"
-              >
+              <div key={req.id} className="border border-gray-200 dark:border-gray-800 rounded-lg p-3">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1">
                     <div className="flex flex-wrap gap-2 items-center mb-2">
                       {req.changes.map((change, idx) => (
                         <span key={idx} className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                          {change.field}: <span className="text-primary-600 dark:text-primary-400">{change.newValue}</span>
+                          {change.field}:
+                          <span className="text-primary-600 dark:text-primary-400">{change.newValue}</span>
                         </span>
                       ))}
                     </div>
@@ -461,24 +492,14 @@ export default function MemberProfile() {
                     )}
                   </div>
                   <div className="flex flex-col items-end gap-2">
-                    <span
-                      className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${
-                        req.status === 'pending'
-                          ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
-                          : req.status === 'approved'
-                          ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-                          : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
-                      }`}
-                    >
-                      {req.status}
-                    </span>
+                    <StatusBadge status={req.status} />
                     <div className="flex items-center gap-1">
                       {req.status === 'pending' && (
                         <button
                           onClick={() => openEditRequest(req)}
                           title="Edit"
                           aria-label="Edit change request"
-                          className="p-1.5 rounded-lg text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors"
+                          className={rowActionClass()}
                         >
                           <FiEdit2 size={14} />
                         </button>
@@ -487,16 +508,19 @@ export default function MemberProfile() {
                         onClick={() => setViewRequest(req)}
                         title="View"
                         aria-label="View change request"
-                        className="p-1.5 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                        className={rowActionClass()}
                       >
                         <FiEye size={14} />
                       </button>
                       {req.status === 'pending' && (
                         <button
-                          onClick={() => { setDeleteRequestError(null); setDeleteRequest(req); }}
+                          onClick={() => {
+                            setDeleteRequestError(null);
+                            setDeleteRequest(req);
+                          }}
                           title="Delete"
                           aria-label="Delete change request"
-                          className="p-1.5 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                          className={rowActionClass('danger')}
                         >
                           <FiTrash2 size={14} />
                         </button>
@@ -528,7 +552,11 @@ export default function MemberProfile() {
         onClose={() => setViewRequest(null)}
         title="Change Request"
         size="sm"
-        footer={<Button variant="outline" onClick={() => setViewRequest(null)}>Close</Button>}
+        footer={
+          <Button variant="outline" onClick={() => setViewRequest(null)}>
+            Close
+          </Button>
+        }
       >
         {viewRequest && (
           <div className="space-y-4 text-sm">
@@ -536,7 +564,9 @@ export default function MemberProfile() {
               <div key={idx} className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-xs text-gray-500 dark:text-gray-400">Field</p>
-                  <p className="text-gray-900 dark:text-gray-100 capitalize">{change.field.replace(/([A-Z])/g, ' $1').trim()}</p>
+                  <p className="text-gray-900 dark:text-gray-100 capitalize">
+                    {change.field.replace(/([A-Z])/g, ' $1').trim()}
+                  </p>
                 </div>
                 <div>
                   <p className="text-xs text-gray-500 dark:text-gray-400">Current Value</p>
@@ -555,18 +585,22 @@ export default function MemberProfile() {
               </div>
               <div>
                 <p className="text-xs text-gray-500 dark:text-gray-400">Submitted</p>
-                <p className="text-gray-900 dark:text-gray-100">{new Date(viewRequest.createdAt).toLocaleDateString('en-IN')}</p>
+                <p className="text-gray-900 dark:text-gray-100">
+                  {new Date(viewRequest.createdAt).toLocaleDateString('en-IN')}
+                </p>
               </div>
               {viewRequest.reviewedBy && (
                 <div>
                   <p className="text-xs text-gray-500 dark:text-gray-400">Reviewed By</p>
-                  <p className="text-gray-900 dark:text-gray-100">{viewRequest.reviewedBy}</p>
+                  <p className="text-gray-900 dark:text-gray-100">{toTitleCase(viewRequest.reviewedBy)}</p>
                 </div>
               )}
               {viewRequest.reviewedAt && (
                 <div>
                   <p className="text-xs text-gray-500 dark:text-gray-400">Reviewed On</p>
-                  <p className="text-gray-900 dark:text-gray-100">{new Date(viewRequest.reviewedAt).toLocaleDateString('en-IN')}</p>
+                  <p className="text-gray-900 dark:text-gray-100">
+                    {new Date(viewRequest.reviewedAt).toLocaleDateString('en-IN')}
+                  </p>
                 </div>
               )}
             </div>
@@ -588,7 +622,9 @@ export default function MemberProfile() {
         size="sm"
         footer={
           <>
-            <Button variant="outline" onClick={() => setEditRequest(null)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setEditRequest(null)}>
+              Cancel
+            </Button>
             <Button onClick={handleSaveEditRequest} disabled={savingEditRequest}>
               {savingEditRequest ? 'Saving…' : 'Save Changes'}
             </Button>
@@ -601,6 +637,7 @@ export default function MemberProfile() {
               Field to Change <span className="text-red-500">*</span>
             </label>
             <select
+              aria-label="Field to Change"
               value={editRequestField}
               onChange={(e) => setEditRequestField(e.target.value)}
               className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
@@ -617,6 +654,7 @@ export default function MemberProfile() {
               New Value <span className="text-red-500">*</span>
             </label>
             <input
+              aria-label="New Value"
               type="text"
               value={editRequestValue}
               onChange={(e) => setEditRequestValue(e.target.value)}
@@ -625,7 +663,9 @@ export default function MemberProfile() {
             />
           </div>
           {editRequestError && (
-            <p className="text-red-500 text-sm bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-lg">{editRequestError}</p>
+            <p className="text-red-500 text-sm bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-lg">
+              {editRequestError}
+            </p>
           )}
         </div>
       </Modal>
@@ -638,7 +678,10 @@ export default function MemberProfile() {
         confirmLabel="Delete"
         isLoading={deletingRequest}
         onConfirm={handleDeleteRequest}
-        onCancel={() => { setDeleteRequest(null); setDeleteRequestError(null); }}
+        onCancel={() => {
+          setDeleteRequest(null);
+          setDeleteRequestError(null);
+        }}
       />
     </div>
   );

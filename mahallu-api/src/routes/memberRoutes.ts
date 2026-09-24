@@ -19,6 +19,10 @@ import {
   deleteMemberValidation,
 } from '../validations/memberValidation';
 import { param } from 'express-validator';
+import { idParam, listQuery } from '../validations/common';
+import {
+  bulkImportMembersValidation,
+} from '../validations/moduleValidation';
 
 const router = express.Router();
 
@@ -128,7 +132,7 @@ router.use(allowRoles(['super_admin', 'mahall', 'survey', 'institute']));
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  */
-router.get('/', getAllMembers);
+router.get('/', listQuery(), validationHandler, getAllMembers);
 
 /**
  * @swagger
@@ -183,7 +187,7 @@ router.get('/', getAllMembers);
  *       403:
  *         description: Family does not belong to this tenant
  */
-router.post('/bulk-import', allowRoles(['mahall', 'super_admin']), bulkImportMembers);
+router.post('/bulk-import', bulkImportMembersValidation, validationHandler, allowRoles(['mahall', 'super_admin']), bulkImportMembers);
 
 /**
  * @swagger
@@ -296,7 +300,7 @@ router.get('/:id', getMemberValidation, validationHandler, getMemberById);
  *           application/json:
  *             example:
  *               success: false
- *               message: 'Validation failed'
+ *               message: 'Some details are missing or incorrect. Please check the form and try again.'
  *               errors:
  *                 - msg: 'Name must be between 2 and 100 characters'
  *                   param: 'name'

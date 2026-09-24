@@ -44,7 +44,9 @@ export const reportService = {
   },
 
   getBloodBankReport: async (params?: { bloodGroup?: string }) => {
-    const response = await api.get<{ success: boolean; data: BloodBankReport }>('/reports/blood-bank', { params });
+    const response = await api.get<{ success: boolean; data: BloodBankReport }>('/reports/blood-bank', {
+      params,
+    });
     return response.data.data;
   },
 
@@ -131,9 +133,7 @@ export interface DemographicsReport {
 
 export const demographicsReportService = {
   get: async () => {
-    const response = await api.get<{ success: boolean; data: DemographicsReport }>(
-      '/reports/demographics'
-    );
+    const response = await api.get<{ success: boolean; data: DemographicsReport }>('/reports/demographics');
     return response.data.data;
   },
 };

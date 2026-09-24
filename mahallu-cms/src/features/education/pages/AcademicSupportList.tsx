@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Button from '@/components/ui/Button';
+import ExpandableSearch from '@/components/ui/ExpandableSearch';
 import Card from '@/components/ui/Card';
 import Pagination from '@/components/ui/Pagination';
 import { PageSkeleton } from '@/components/ui/Skeleton';
@@ -16,6 +17,11 @@ import {
   supportCaseStatusLabel,
   memberName,
 } from '@/services/scholarshipService';
+import { errorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
+import SortableTh from '@/components/ui/SortableTh';
+import { useSortableRows } from '@/hooks/useSortableRows';
 
 export default function AcademicSupportList() {
   const navigate = useNavigate();
@@ -28,6 +34,18 @@ export default function AcademicSupportList() {
   const [loading, setLoading] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  /* Student, Type and Status render a looked-up label, so they sort on that
+     label rather than on the id or enum behind it. */
+  const {
+    rows: sortedCases,
+    sort,
+    toggleSort,
+  } = useSortableRows(cases, null, {
+    student: (row) => memberName(row.memberId),
+    type: (row) => supportCaseTypeLabel(row.type),
+    status: (row) => supportCaseStatusLabel(row.status),
+  });
 
   const fetchCases = useCallback(async () => {
     setLoading(true);
@@ -42,7 +60,7 @@ export default function AcademicSupportList() {
       setCases(data);
       setPagination(pagination);
     } catch (error) {
-      console.error('Failed to fetch:', error);
+      console.error("Couldn't load:", error);
     } finally {
       setLoading(false);
     }
@@ -62,28 +80,27 @@ export default function AcademicSupportList() {
       setDeleting(true);
       await scholarshipService.deleteSupportCase(deleteConfirm.id);
       setDeleteConfirm(null);
-      toast.success('Support case deleted');
+      toast.success('Support ticket deleted');
       await fetchCases();
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to delete');
+      toast.error(errorMessage(error, { action: 'delete' }));
     } finally {
       setDeleting(false);
     }
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <h1 className="text-2xl font-bold">Academic Support Cases</h1>
-        <Button onClick={() => navigate('/education/support/create')}>
-          New Case
-        </Button>
+        <PageHeader title="Academic Support Cases" />
+        <Button onClick={() => navigate('/education/support/create')}>New Case</Button>
       </div>
 
       <Card>
-        <div className="p-6 space-y-4">
+        <div className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
             <select
+              aria-label="Filter"
               value={type}
               onChange={(e) => setType(e.target.value)}
               className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700"
@@ -96,6 +113,7 @@ export default function AcademicSupportList() {
               ))}
             </select>
             <select
+              aria-label="Filter"
               value={status}
               onChange={(e) => setStatus(e.target.value)}
               className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700"
@@ -107,12 +125,10 @@ export default function AcademicSupportList() {
                 </option>
               ))}
             </select>
-            <input
-              type="text"
-              placeholder="Search..."
+            <ExpandableSearch
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700"
+              onChange={(value) => setSearch(value)}
+              entity="academic support records"
             />
             <Button onClick={() => fetchCases()}>Refresh</Button>
           </div>
@@ -122,8 +138,16 @@ export default function AcademicSupportList() {
           ) : cases.length === 0 ? (
             <EmptyState
               title="No support cases found"
-              description={search || type || status ? "Try adjusting your search or filters" : "Create your first support case to get started"}
-              action={!search && !type && !status ? { label: 'New Case', onClick: () => navigate('/education/support/create') } : undefined}
+              description={
+                search || type || status
+                  ? 'Try adjusting your search or filters'
+                  : 'Create your first support case to get started'
+              }
+              action={
+                !search && !type && !status
+                  ? { label: 'New Case', onClick: () => navigate('/education/support/create') }
+                  : undefined
+              }
             />
           ) : (
             <>
@@ -131,21 +155,46 @@ export default function AcademicSupportList() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b">
-                      <th className="text-left py-2">Student</th>
-                      <th className="text-left py-2 hidden sm:table-cell">Type</th>
-                      <th className="text-left py-2 hidden md:table-cell">Description</th>
-                      <th className="text-left py-2 hidden lg:table-cell">Mentor</th>
-                      <th className="text-left py-2">Status</th>
-                      <th className="text-left py-2">Actions</th>
+                      <SortableTh sortKey="student" sort={sort} onSort={toggleSort}>
+                        Student
+                      </SortableTh>
+                      <SortableTh
+                        sortKey="type"
+                        sort={sort}
+                        onSort={toggleSort}
+                        responsiveClassName="hidden sm:table-cell"
+                      >
+                        Type
+                      </SortableTh>
+                      <SortableTh
+                        sortKey="description"
+                        sort={sort}
+                        onSort={toggleSort}
+                        responsiveClassName="hidden md:table-cell"
+                      >
+                        Description
+                      </SortableTh>
+                      <SortableTh
+                        sortKey="mentorName"
+                        sort={sort}
+                        onSort={toggleSort}
+                        responsiveClassName="hidden lg:table-cell"
+                      >
+                        Mentor
+                      </SortableTh>
+                      <SortableTh sortKey="status" sort={sort} onSort={toggleSort}>
+                        Status
+                      </SortableTh>
+                      <th className="px-3 py-2.5 text-left text-label font-semibold text-muted-foreground">
+                        Actions
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
-                    {cases.map((c) => (
+                    {sortedCases.map((c) => (
                       <tr key={c.id} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
-                        <td className="py-2 font-medium">{memberName(c.memberId)}</td>
-                        <td className="py-2 hidden sm:table-cell text-xs">
-                          {supportCaseTypeLabel(c.type)}
-                        </td>
+                        <td className="py-2 font-medium">{toTitleCase(memberName(c.memberId))}</td>
+                        <td className="py-2 hidden sm:table-cell text-xs">{supportCaseTypeLabel(c.type)}</td>
                         <td className="py-2 hidden md:table-cell text-xs">
                           <button
                             onClick={() => navigate(`/education/support/${c.id}`)}
@@ -154,7 +203,9 @@ export default function AcademicSupportList() {
                             {c.description}
                           </button>
                         </td>
-                        <td className="py-2 hidden lg:table-cell text-xs">{c.mentorName || '—'}</td>
+                        <td className="py-2 hidden lg:table-cell text-xs">
+                          {c.mentorName ? toTitleCase(c.mentorName) : '—'}
+                        </td>
                         <td className="py-2">
                           <span className="text-xs px-2 py-1 rounded bg-gray-100 dark:bg-gray-800">
                             {supportCaseStatusLabel(c.status)}
@@ -183,7 +234,7 @@ export default function AcademicSupportList() {
               </div>
 
               {pagination && (
-                <div className="mt-6">
+                <div className="mt-4">
                   <Pagination
                     currentPage={pagination.page}
                     totalPages={pagination.totalPages}
@@ -201,7 +252,7 @@ export default function AcademicSupportList() {
       <ConfirmDialog
         isOpen={deleteConfirm !== null}
         title="Delete Support Case"
-        message={deleteConfirm ? `Delete the support case for ${deleteConfirm.name}?` : ''}
+        message={deleteConfirm ? `Delete the support case for ${toTitleCase(deleteConfirm.name)}?` : ''}
         consequence="This action cannot be undone."
         isLoading={deleting}
         variant="danger"

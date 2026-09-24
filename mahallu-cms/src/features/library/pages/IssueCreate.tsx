@@ -13,11 +13,14 @@ import { libraryService, LibraryBook } from '@/services/libraryService';
 import { memberService } from '@/services/memberService';
 import { toast } from '@/store/toastStore';
 import { FiArrowLeft, FiPlus } from 'react-icons/fi';
+import { errorMessage } from '@/utils/errors';
+import { toTitleCase } from '@/utils/format';
+import PageHeader from '@/components/layout/PageHeader';
 
 const issueSchema = z.object({
-  bookId: z.string().min(1, 'Book is required'),
-  memberId: z.string().min(1, 'Member is required'),
-  dueDate: z.string().min(1, 'Due date is required'),
+  bookId: z.string().max(200, 'Please keep the book to 200 characters or less.').min(1, 'Book is required'),
+  memberId: z.string().max(200, 'Please keep the member to 200 characters or less.').min(1, 'Member is required'),
+  dueDate: z.string().max(200, 'Please keep the due date to 200 characters or less.').min(1, 'Due date is required'),
 });
 
 type IssueFormData = z.infer<typeof issueSchema>;
@@ -53,7 +56,7 @@ export default function IssueCreate() {
         });
         setBooks(result.data.filter((b) => b.availableCopies! > 0));
       } catch (error) {
-        console.error('Failed to fetch books:', error);
+        console.error("Couldn't load books:", error);
       } finally {
         setLoadingBooks(false);
       }
@@ -69,7 +72,7 @@ export default function IssueCreate() {
         const result = await memberService.getAll({ limit: 20 });
         setMembers(result.data || []);
       } catch (error) {
-        console.error('Failed to fetch members:', error);
+        console.error("Couldn't load members:", error);
       } finally {
         setLoadingMembers(false);
       }
@@ -96,7 +99,7 @@ export default function IssueCreate() {
       const result = await memberService.getAll({ search: query, limit: 20 });
       setMembers(result.data || []);
     } catch (error) {
-      console.error('Failed to search members:', error);
+      console.error('Member search failed:', error);
     }
   };
 
@@ -108,10 +111,10 @@ export default function IssueCreate() {
         memberId: data.memberId,
         dueDate: new Date(data.dueDate).toISOString(),
       });
-      toast.success('Book issued successfully');
+      toast.success('Book issued');
       navigate('/library/issues');
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to create issue');
+      toast.error(errorMessage(error, { action: 'create issue' }));
     } finally {
       setSubmitting(false);
     }
@@ -129,21 +132,21 @@ export default function IssueCreate() {
         Back to Issues
       </button>
 
-      <Card className="p-6 max-w-2xl">
-        <h1 className="text-2xl font-bold mb-6">Issue Book to Member</h1>
-
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+      <Card padding="lg" className="max-w-2xl">
+        <PageHeader title="Issue Book to Member" />
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           {/* Book Selection */}
           <div>
             <label className="block text-sm font-medium mb-2">Select Book *</label>
             <select
+              aria-label="Select Book"
               {...register('bookId')}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">Choose a book...</option>
               {books.map((book) => (
                 <option key={book.id} value={book.id}>
-                  {book.title} - {book.author} ({book.availableCopies}/{book.copies} available)
+                  {book.title} - {toTitleCase(book.author)} ({book.availableCopies}/{book.copies} available)
                 </option>
               ))}
             </select>
@@ -159,7 +162,7 @@ export default function IssueCreate() {
                   placeholder="Search by name..."
                   value={watch('memberId')}
                   onChange={(v) => setValue('memberId', v, { shouldValidate: true })}
-                  options={members.map((m) => ({ value: m.id, label: m.name }))}
+                  options={members.map((m) => ({ value: m.id, label: toTitleCase(m.name) }))}
                   onSearch={handleMemberSearch}
                   error={errors.memberId?.message}
                 />
@@ -179,30 +182,16 @@ export default function IssueCreate() {
           {/* Due Date */}
           <div>
             <label className="block text-sm font-medium mb-2">Due Date *</label>
-            <Input
-              {...register('dueDate')}
-              type="date"
-              error={errors.dueDate?.message}
-            />
-            <p className="text-xs text-gray-500 mt-1">
-              Set when the book should be returned
-            </p>
+            <Input {...register('dueDate')} type="date" error={errors.dueDate?.message} />
+            <p className="text-xs text-gray-500 mt-1">Set when the book should be returned</p>
           </div>
 
           {/* Buttons */}
-          <div className="flex gap-3 pt-4">
-            <Button
-              type="submit"
-              disabled={submitting}
-              onClick={handleSubmit(onSubmit)}
-            >
+          <div className="flex flex-wrap gap-3 pt-4">
+            <Button type="submit" disabled={submitting} onClick={handleSubmit(onSubmit)}>
               {submitting ? 'Creating...' : 'Issue Book'}
             </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => navigate('/library/issues')}
-            >
+            <Button type="button" variant="secondary" onClick={() => navigate('/library/issues')}>
               Cancel
             </Button>
           </div>

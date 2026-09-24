@@ -1,23 +1,31 @@
-import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { FiEye, FiEdit2, FiX, FiHome, FiUsers, FiUser, FiUpload } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
-import Card from '@/components/ui/Card';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { FiEye, FiEdit2, FiTrash2, FiHome, FiUsers, FiUpload, FiPlus, FiFileText, FiFile } from 'react-icons/fi';
+import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
-import { PageSkeleton } from '@/components/ui/Skeleton';
+import EmptyState from '@/components/ui/EmptyState';
 import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
+import Dropdown, { DropdownItem } from '@/components/ui/Dropdown';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import ActionsMenu from '@/components/ui/ActionsMenu';
+import PageHeader from '@/components/layout/PageHeader';
 import BulkImportCsv, { ColumnSpec } from '@/components/BulkImportCsv';
-import { TableColumn, Pagination as PaginationType } from '@/types';
+import { TableColumn, Pagination as PaginationType, SortState } from '@/types';
 import { Family } from '@/types';
 import { ROUTES } from '@/constants/routes';
 import { familyService } from '@/services/familyService';
+import { tenantService } from '@/services/tenantService';
+import { useAuthStore } from '@/store/authStore';
+import { getTenantId } from '@/utils/tenantHelper';
 import { useDebounce } from '@/hooks/useDebounce';
-import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
+import { exportToCSV, exportToPDF } from '@/utils/exportUtils';
+import { toTitleCase } from '@/utils/format';
 import { toast } from '@/store/toastStore';
+import { errorMessage, loadErrorMessage, pluralise } from '@/utils/errors';
 
 const FAMILY_COLUMNS: ColumnSpec[] = [
   { key: 'houseName', label: 'House Name', required: true },
@@ -32,297 +40,449 @@ const FAMILY_COLUMNS: ColumnSpec[] = [
   { key: 'varisangyaGrade', label: 'Varisangya Grade' },
 ];
 
-const FAMILY_TEMPLATE = 'houseName,houseNameMl,familyHead,familyHeadMl,contactNo,area,areaMl,place,placeMl,varisangyaGrade\nAl-Hamd House,അൽ-ഹാമ്ദ് വീട്,Ahmed Ali,അഹമ്മദ് അലി,9876543210,Area A,ഏരിയ എ,Calicut,കാലിക്കറ്റ്,Grade A\n';
+const FAMILY_TEMPLATE =
+  'houseName,houseNameMl,familyHead,familyHeadMl,contactNo,area,areaMl,place,placeMl,varisangyaGrade\nAl-Hamd House,അൽ-ഹാമ്ദ് വീട്,Ahmed Ali,അഹമ്മദ് അലി,9876543210,Area A,ഏരിയ എ,Calicut,കാലിക്കറ്റ്,Grade A\n';
+
+/**
+ * Family delete is a hard delete on the API and does not cascade, so members
+ * keep a familyId pointing at a record that is gone. The dialog says so.
+ */
+const deleteConsequence = (family: Family | null) => {
+  const count = family?.members?.length ?? 0;
+  if (count === 0) return undefined;
+  return `${pluralise(count, 'member')} will be left without a family. Move them first if you need them kept intact.`;
+};
 
 export default function FamiliesList() {
   const navigate = useNavigate();
-  const [searchQuery, setSearchQuery] = useState('');
-  const [isFilterVisible, setIsFilterVisible] = useState(false);
-  const [sortBy, setSortBy] = useState('date');
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
+  const [isFilterVisible, setIsFilterVisible] = useState(!!searchParams.get('area'));
+  const [areaFilter, setAreaFilter] = useState(searchParams.get('area') || '');
+  const [sort, setSort] = useState<SortState | null>(() => {
+    const key = searchParams.get('sort');
+    const direction = searchParams.get('dir');
+    return key && (direction === 'asc' || direction === 'desc') ? { key, direction } : null;
+  });
+
   const [families, setFamilies] = useState<Family[]>([]);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
+  const [currentPage, setCurrentPage] = useState(() => {
+    const page = Number(searchParams.get('page'));
+    return page > 0 ? page : 1;
+  });
+  const [itemsPerPage, setItemsPerPage] = useState(25);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [memberStats, setMemberStats] = useState({ totalMembers: 0, maleCount: 0, femaleCount: 0 });
   const [isImportOpen, setIsImportOpen] = useState(false);
+  const [deleting, setDeleting] = useState<Family | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [globalAreaOptions, setGlobalAreaOptions] = useState<string[]>([]);
+  const { user, currentTenantId } = useAuthStore();
 
-  const debouncedSearch = useDebounce(searchQuery, 500);
+  const debouncedSearch = useDebounce(searchQuery, 400);
+  const activeFilterCount = areaFilter ? 1 : 0;
+  const isFiltered = Boolean(debouncedSearch || areaFilter);
 
-  useEffect(() => {
-    fetchFamilies();
-  }, [debouncedSearch, sortBy, currentPage]);
+  const queryParams = useCallback(
+    (overrides: Record<string, any> = {}) => {
+      const params: Record<string, any> = { page: currentPage, limit: itemsPerPage, ...overrides };
+      if (debouncedSearch) params.search = debouncedSearch;
+      if (areaFilter) params.area = areaFilter;
+      if (sort) {
+        params.sortBy = sort.key;
+        params.sortOrder = sort.direction;
+      }
+      return params;
+    },
+    [currentPage, itemsPerPage, debouncedSearch, areaFilter, sort]
+  );
 
-  useEffect(() => {
-    familyService.getStats().then(setMemberStats).catch(console.error);
-  }, []);
-
-  const fetchFamilies = async () => {
+  const fetchFamilies = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      const params: any = {
-        page: currentPage,
-        limit: itemsPerPage,
-      };
-      if (debouncedSearch) {
-        params.search = debouncedSearch;
-      }
-      if (sortBy) {
-        params.sortBy = sortBy === 'mahallId' ? 'mahallId' : 'date';
-      }
-      const result = await familyService.getAll(params);
+      const result = await familyService.getAll(queryParams());
       setFamilies(result.data);
-      if (result.pagination) {
-        setPagination(result.pagination);
-      }
+      if (result.pagination) setPagination(result.pagination);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch families');
-      console.error('Error fetching families:', err);
+      setError(loadErrorMessage(err, 'families'));
     } finally {
       setLoading(false);
     }
-  };
+  }, [queryParams]);
 
-  const handleExport = async (type: 'csv' | 'json' | 'pdf') => {
+  // A new search term invalidates the current page offset: searching from page 4
+  // kept asking the API for page 4 of the new, much shorter result set and showed
+  // an empty table. Skipped on the mount that restores a page from the URL.
+  const skipPageReset = useRef(true);
+  useEffect(() => {
+    if (skipPageReset.current) {
+      skipPageReset.current = false;
+      return;
+    }
+    setCurrentPage(1);
+  }, [debouncedSearch]);
+
+  // Keep the URL in sync so a filtered/sorted/paged list survives navigating to
+  // a detail page and back, and survives a refresh.
+  useEffect(() => {
+    const next = new URLSearchParams();
+    if (debouncedSearch) next.set('q', debouncedSearch);
+    if (areaFilter) next.set('area', areaFilter);
+    if (sort) {
+      next.set('sort', sort.key);
+      next.set('dir', sort.direction);
+    }
+    if (currentPage > 1) next.set('page', String(currentPage));
+    setSearchParams(next, { replace: true });
+  }, [debouncedSearch, areaFilter, sort, currentPage, setSearchParams]);
+
+  useEffect(() => {
+    fetchFamilies();
+  }, [fetchFamilies]);
+
+  useEffect(() => {
+    familyService
+      .getStats()
+      .then((stats) => stats && setMemberStats(stats))
+      .catch(() => undefined);
+  }, []);
+
+  // Complete area list from tenant settings — fixes incomplete dropdown when paginated. Documented limitation if backend not configured.
+  useEffect(() => {
+    const tenantId = getTenantId(user, currentTenantId);
+    if (!tenantId) return;
+    tenantService
+      .getById(tenantId)
+      .then((tenant) => setGlobalAreaOptions(tenant.settings?.areaOptions || []))
+      .catch(() => setGlobalAreaOptions([]));
+  }, [user, currentTenantId]);
+
+  // A new query invalidates the selection: those rows may no longer be on screen.
+  useEffect(() => {
+    setSelectedIds([]);
+  }, [debouncedSearch, areaFilter, currentPage, sort]);
+
+  const handleExport = async (type: 'csv' | 'pdf') => {
     try {
       setIsExporting(true);
-      const params: any = { limit: 10000 };
-      if (debouncedSearch) params.search = debouncedSearch;
-      if (sortBy) params.sortBy = sortBy === 'mahallId' ? 'mahallId' : 'date';
-      const result = await familyService.getAll(params);
-      const dataToExport = result.data;
-      if (dataToExport.length === 0) {
-        toast.info('No families to export');
+      const rows = await familyService.getAllForExport({
+        search: debouncedSearch || undefined,
+        area: areaFilter || undefined,
+        sortBy: sort?.key,
+      });
+      if (rows.length === 0) {
+        toast.info('Nothing to export');
         return;
       }
-      const filename = 'families';
-      const title = 'All Families';
-      switch (type) {
-        case 'csv': exportToCSV(columns, dataToExport, filename); break;
-        case 'json': exportToJSON(columns, dataToExport, filename); break;
-        case 'pdf': exportToPDF(columns, dataToExport, filename, title); break;
-      }
-    } catch (error: any) {
-      console.error('Export error:', error);
-      toast.error(error?.response?.data?.message || 'Failed to export data');
+      if (type === 'csv') exportToCSV(columns, rows, 'families');
+      else exportToPDF(columns, rows, 'families', 'Families');
+    } catch (err: any) {
+      toast.error(errorMessage(err, { action: 'export this list' }));
     } finally {
       setIsExporting(false);
     }
   };
 
-  const handleBulkImport = async (rows: any[]) => {
-    return familyService.bulkImportFamilies(rows);
+  const confirmDelete = async () => {
+    if (!deleting) return;
+    try {
+      setIsDeleting(true);
+      await familyService.delete(deleting.id);
+      toast.success('Family deleted');
+      setDeleting(null);
+      fetchFamilies();
+    } catch (err: any) {
+      toast.error(errorMessage(err, { action: 'delete this family' }));
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
-  const { totalMembers, maleCount, femaleCount } = memberStats;
-  
-
+  /* Priority drives which columns survive on phones. Desktop shows all; tablet hides tertiary. */
   const columns: TableColumn<Family>[] = [
-    { key: 'id', label: 'No.', render: (_, __, index) => index + 1 },
-    { key: 'mahallId', label: 'Family ID', render: (id) => id || '-' },
-    { key: 'houseName', label: 'House Name', sortable: true },
+    { key: 'mahallId', label: 'Family ID', sortable: true, width: '7.5rem', priority: 'secondary' },
+    {
+      key: 'houseName',
+      label: 'House name',
+      sortable: true,
+      render: (name) => <span className="font-medium">{toTitleCase(name)}</span>,
+      width: '10rem',
+    },
     {
       key: 'familyHead',
-      label: 'Family Head',
-      render: (head) => head || '-',
+      label: 'Family head',
+      render: (head) => (head ? <span>{toTitleCase(head)}</span> : '—'),
+      width: '9rem',
     },
     {
       key: 'members',
       label: 'Members',
-      render: (members) => members?.length || 0,
+      align: 'center',
+      render: (members) => <span className="tabular-nums">{members?.length ?? 0}</span>,
+      width: '6rem',
     },
-    { key: 'houseNo', label: 'House No.' },
-    { key: 'area', label: 'Area' },
-    { key: 'phone', label: 'Phone' },
+    {
+      key: 'area',
+      label: 'Area',
+      priority: 'secondary',
+      render: (area) => (area ? <span>{toTitleCase(area)}</span> : '—'),
+      width: '7rem',
+    },
+    { key: 'houseNo', label: 'House no.', priority: 'tertiary', width: '7rem' },
+    { key: 'contactNo', label: 'Phone', priority: 'secondary', width: '7.5rem' },
     {
       key: 'actions',
-      label: 'Actions',
+      label: '',
+      align: 'right',
+      width: '6.5rem',
+      sortable: false,
       render: (_, row) => (
-        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-end gap-1">
           <button
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(ROUTES.FAMILIES.DETAIL(row.id));
-            }}
-            className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
-            title="View"
-          >
-            <FiEye className="h-4 w-4" />
-          </button>
-          <button
+            type="button"
             onClick={(e) => {
               e.stopPropagation();
               navigate(ROUTES.FAMILIES.EDIT(row.id));
             }}
-            className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
-            title="Edit"
+            aria-label={`Edit ${toTitleCase(row.houseName)}`}
+            className="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
-            <FiEdit2 className="h-4 w-4" />
+            <FiEdit2 className="h-4 w-4" aria-hidden="true" />
           </button>
+          <ActionsMenu
+            label={`Actions for ${toTitleCase(row.houseName)}`}
+            items={[
+              {
+                label: 'View',
+                icon: <FiEye className="h-4 w-4" />,
+                onClick: () => navigate(ROUTES.FAMILIES.DETAIL(row.id)),
+              },
+              {
+                label: 'Edit',
+                icon: <FiEdit2 className="h-4 w-4" />,
+                onClick: () => navigate(ROUTES.FAMILIES.EDIT(row.id)),
+              },
+              {
+                label: 'Delete',
+                icon: <FiTrash2 className="h-4 w-4" />,
+                variant: 'danger',
+                onClick: () => setDeleting(row),
+              },
+            ]}
+          />
         </div>
       ),
     },
   ];
 
-  const stats = [
-    {
-      title: 'Total Families',
-      value: pagination?.total || families.length,
-      icon: <FiHome className="h-5 w-5" />,
-      onClick: () => {},
-    },
-    {
-      title: 'Total Members',
-      value: totalMembers,
-      icon: <FiUsers className="h-5 w-5" />,
-      onClick: () => {},
-    },
-    {
-      title: 'Male - Female',
-      value: `${maleCount} - ${femaleCount}`,
-      icon: <FiUser className="h-5 w-5" />,
-      onClick: () => {},
-    },
+  // Prefer tenant-wide area options; fallback to visible page values if settings empty.
+  const areaOptions = [
+    { value: '', label: 'All areas' },
+    ...(globalAreaOptions.length > 0
+      ? globalAreaOptions.map((area) => ({ value: area, label: toTitleCase(area) }))
+      : Array.from(new Set(families.map((f) => f.area).filter(Boolean))).map((area) => ({
+          value: area as string,
+          label: toTitleCase(area as string),
+        }))),
   ];
 
   return (
-    <div className="space-y-3">
-      <div className="space-y-2.5">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">
-              All Families
-            </h1>
-            <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-              Manage families and their members
-            </p>
-          </div>
-          <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'All Families' }]} />
-        </div>
+    <>
+      <PageHeader
+        title="Families"
+        description="Households registered in this mahallu."
+        actions={
+          <>
+            <Button variant="outline" onClick={() => setIsImportOpen(true)}>
+              <FiUpload className="h-4 w-4" aria-hidden="true" />
+              Import CSV
+            </Button>
+            <Link to={ROUTES.FAMILIES.CREATE}>
+              <Button>
+                <FiPlus className="h-4 w-4" aria-hidden="true" />
+                New family
+              </Button>
+            </Link>
+          </>
+        }
+      />
 
-        {/* Statistics Cards */}
-        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
-          {stats.map((stat, index) => (
-            <StatCard key={index} {...stat} />
-          ))}
-        </div>
+      <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <StatCard
+          title="Families"
+          value={pagination?.total ?? families.length}
+          icon={<FiHome className="h-4 w-4" />}
+        />
+        <StatCard title="Members" value={memberStats.totalMembers} icon={<FiUsers className="h-4 w-4" />} />
+        {/* Male and female used to share one card as the string "342 - 318",
+            which cannot be read at a glance. Two figures, two cards. */}
+        <StatCard title="Male" value={memberStats.maleCount} />
+        <StatCard title="Female" value={memberStats.femaleCount} />
       </div>
 
-      {/* Actions and Filters */}
-      <Card>
-        <div className="mb-4 flex flex-col gap-3">
-          <TableToolbar
-            searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
-            onFilterClick={() => setIsFilterVisible(!isFilterVisible)}
-            isFilterVisible={isFilterVisible}
-            hasFilters={true}
-            onRefresh={fetchFamilies}
-            onExport={handleExport}
-            isExporting={isExporting}
-            actionButtons={
-              <div className="flex gap-2">
-                <Button
-                  size="md"
-                  variant="outline"
-                  onClick={() => setIsImportOpen(true)}
-                >
-                  <FiUpload className="mr-2 h-4 w-4" />
-                  Import CSV
-                </Button>
-                <Link to={ROUTES.FAMILIES.CREATE}>
-                  <Button size="md">+ New Family</Button>
-                </Link>
-              </div>
-            }
-          />
+      <TableCard padding="lg">
+        <TableToolbar
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          searchEntity="families"
+          onFilterClick={() => setIsFilterVisible((open) => !open)}
+          isFilterVisible={isFilterVisible}
+          hasFilters
+          activeFilterCount={activeFilterCount}
+          onRefresh={fetchFamilies}
+          onExport={handleExport}
+          isExporting={isExporting}
+        />
 
-          {isFilterVisible && (
-            <div className="relative mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-800">
-              <button
-                onClick={() => setIsFilterVisible(false)}
-                className="absolute right-4 top-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+        {isFilterVisible && (
+          <div className="mb-4 flex flex-wrap items-end gap-3 rounded-md border border-border bg-muted/40 p-3">
+            <div className="w-full sm:w-52">
+              <Select
+                label="Area"
+                options={areaOptions}
+                value={areaFilter}
+                onChange={(e) => {
+                  setAreaFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
+              />
+            </div>
+            {activeFilterCount > 0 && (
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setAreaFilter('');
+                  setCurrentPage(1);
+                }}
               >
-                <FiX className="h-4 w-4" />
-              </button>
-              <div className="w-40">
-                <Select
-                  options={[
-                    { value: 'date', label: 'Date' },
-                    { value: 'mahallId', label: 'Mahall ID' },
-                  ]}
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value)}
+                Clear filters
+              </Button>
+            )}
+          </div>
+        )}
+
+        {error ? (
+          <EmptyState
+            variant="error"
+            entity="families"
+            description={error}
+            action={{ label: 'Try again', onClick: fetchFamilies }}
+          />
+        ) : (
+          <>
+            <Table
+              columns={columns}
+              data={families}
+              isLoading={loading}
+              entity="families"
+              /* Every column here declares a width, so the layout can be locked
+               * to them: a long family head name now clips to an ellipsis
+               * instead of stealing width from the columns beside it. */
+              fixedLayout
+              striped
+              emptyVariant={isFiltered ? 'no-results' : 'empty'}
+              emptyAction={
+                isFiltered
+                  ? {
+                      label: 'Clear filters',
+                      onClick: () => {
+                        setSearchQuery('');
+                        setAreaFilter('');
+                        setCurrentPage(1);
+                      },
+                    }
+                  : { label: 'Add family', onClick: () => navigate(ROUTES.FAMILIES.CREATE) }
+              }
+              sort={sort}
+              onSortChange={(next) => {
+                setSort(next);
+                setCurrentPage(1);
+              }}
+              selectable
+              selectedKeys={selectedIds}
+              onSelectionChange={setSelectedIds}
+              bulkActions={
+                <Dropdown
+                  trigger={
+                    <Button variant="outline" size="sm">
+                      Export selected
+                    </Button>
+                  }
+                  items={[
+                    {
+                      label: 'Export as CSV',
+                      icon: <FiFileText />,
+                      onClick: () =>
+                        exportToCSV(
+                          columns,
+                          families.filter((f) => selectedIds.includes(f.id)),
+                          'families'
+                        ),
+                    },
+                    {
+                      label: 'Export as PDF',
+                      icon: <FiFile />,
+                      onClick: () =>
+                        exportToPDF(
+                          columns,
+                          families.filter((f) => selectedIds.includes(f.id)),
+                          'families',
+                          'Families'
+                        ),
+                    },
+                  ] as DropdownItem[]}
+                />
+              }
+              onRowClick={(row) => navigate(ROUTES.FAMILIES.DETAIL(row.id))}
+            />
+
+            {pagination && (
+              <div className="mt-4">
+                <Pagination
+                  currentPage={pagination.page}
+                  totalPages={pagination.totalPages}
+                  totalItems={pagination.total}
+                  itemsPerPage={pagination.limit}
+                  entity="families"
+                  onPageChange={setCurrentPage}
+                  onItemsPerPageChange={(size) => {
+                    setItemsPerPage(size);
+                    setCurrentPage(1);
+                  }}
                 />
               </div>
-            </div>
-          )}
-
-        </div>
-
-        {loading ? (
-          <PageSkeleton variant="section" />
-        ) : error ? (
-          <div className="text-center py-12">
-            <p className="text-red-600 dark:text-red-400">{error}</p>
-            <Button onClick={fetchFamilies} className="mt-4" variant="outline">
-              Retry
-            </Button>
-          </div>
-        ) : (
-          <Table
-            columns={columns}
-            data={families}
-            emptyMessage="No families found"
-            exportFilename="families"
-            exportTitle="All Families"
-            showExport={false}
-            onRowClick={(row) => navigate(ROUTES.FAMILIES.DETAIL(row.id))}
-            onExportAll={async () => {
-              const params: any = {
-                limit: 10000,
-              };
-              if (debouncedSearch) {
-                params.search = debouncedSearch;
-              }
-              if (sortBy) {
-                params.sortBy = sortBy === 'mahallId' ? 'mahallId' : 'date';
-              }
-              const result = await familyService.getAll(params);
-              return result.data;
-            }}
-          />
+            )}
+          </>
         )}
-
-        {/* Pagination */}
-        {pagination && (
-          <div className="mt-4">
-            <Pagination
-              currentPage={pagination.page}
-              totalPages={pagination.totalPages}
-              totalItems={pagination.total}
-              itemsPerPage={pagination.limit}
-              onPageChange={(page) => {
-                setCurrentPage(page);
-              }}
-            />
-          </div>
-        )}
-      </Card>
+      </TableCard>
 
       <BulkImportCsv
-        title="Import Families from CSV"
+        title="Import families from CSV"
         columnSpec={FAMILY_COLUMNS}
         templateCsv={FAMILY_TEMPLATE}
-        onImport={handleBulkImport}
+        onImport={(rows) => familyService.bulkImportFamilies(rows)}
         isOpen={isImportOpen}
         onClose={() => setIsImportOpen(false)}
         onImported={fetchFamilies}
       />
-    </div>
+
+      <ConfirmDialog
+        isOpen={Boolean(deleting)}
+        title={`Delete ${deleting?.houseName ? toTitleCase(deleting.houseName) : 'this family'}?`}
+        message="This permanently removes the family record and cannot be undone."
+        consequence={deleteConsequence(deleting)}
+        confirmLabel="Delete family"
+        variant="danger"
+        isLoading={isDeleting}
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleting(null)}
+      />
+    </>
   );
 }
-

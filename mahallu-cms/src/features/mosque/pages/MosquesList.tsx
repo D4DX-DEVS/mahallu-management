@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
+import { FiPlus } from 'react-icons/fi';
 import { Link } from 'react-router-dom';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
+import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Modal from '@/components/ui/Modal';
-import SearchInput from '@/components/ui/SearchInput';
+import ExpandableSearch from '@/components/ui/ExpandableSearch';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import EmptyState from '@/components/ui/EmptyState';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
@@ -14,6 +15,9 @@ import { Pagination as PaginationType } from '@/types';
 import { mosqueService, MOSQUE_FACILITY_OPTIONS, MosqueProfile } from '@/services/mosqueService';
 import { useDebounce } from '@/hooks/useDebounce';
 import { toast } from '@/store/toastStore';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 
 const emptyForm = {
   name: '',
@@ -58,7 +62,7 @@ export default function MosquesList() {
       setRows(result.data);
       setPagination(result.pagination);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to load mosques');
+      setError(loadErrorMessage(err, 'mosques'));
     } finally {
       setLoading(false);
     }
@@ -97,7 +101,7 @@ export default function MosquesList() {
       fetchRows();
       toast.success('Mosque created');
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to create mosque');
+      toast.error(errorMessage(err, { action: 'create mosque' }));
     } finally {
       setSaving(false);
     }
@@ -119,46 +123,36 @@ export default function MosquesList() {
       setDeletingName('');
       fetchRows();
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to delete mosque');
+      toast.error(errorMessage(err, { action: 'delete mosque' }));
     }
   };
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">Mosques</h1>
-          <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-            Capacity, facilities and religious staff for each mosque
-          </p>
-        </div>
-        <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Mosque' }]} />
-      </div>
+      <PageHeader title="Mosques" description="Capacity, facilities and religious staff for each mosque" />
 
-      <Card>
-        <div className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto] sm:items-center">
-          <SearchInput
+      {/* No border/padding below `md` here — each mosque/cluster
+       * below is already its own bordered card, and a second frame
+       * around the whole list drew a box around boxes on a phone. */}
+      <TableCard>
+        <div className="mb-3 flex min-w-0 items-center gap-2">
+          <ExpandableSearch
             value={searchQuery}
-            onChange={(e) => {
-              setSearchQuery(e.target.value);
+            onChange={(value) => {
+              setSearchQuery(value);
               setCurrentPage(1);
             }}
-            placeholder="Search mosques..."
+            entity="mosques"
           />
-          <Button size="md" onClick={() => setFormOpen(true)}>
-            + New Mosque
+          <Button size="md" onClick={() => setFormOpen(true)} icon={<FiPlus />} collapseLabel>
+            New Mosque
           </Button>
         </div>
 
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="py-12 text-center">
-            <p className="text-red-600 dark:text-red-400">{error}</p>
-            <Button onClick={fetchRows} className="mt-4" variant="outline">
-              Retry
-            </Button>
-          </div>
+          <EmptyState variant="error" entity="mosques" description={error} action={{ label: 'Retry', onClick: fetchRows }} />
         ) : rows.length === 0 ? (
           <EmptyState
             title="No mosques recorded"
@@ -166,13 +160,13 @@ export default function MosquesList() {
             action={{ label: 'Add First Mosque', onClick: () => setFormOpen(true) }}
           />
         ) : (
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {rows.map((mosque) => (
-              <Card key={mosque.id} className="h-full p-3 transition-shadow hover:shadow-md sm:p-4">
-                <div className="flex items-start justify-between gap-2">
+              <Card key={mosque.id} className="h-full transition-shadow hover:shadow-md">
+                <div className="flex flex-wrap items-start justify-between gap-2">
                   <Link to={`/mosque/${mosque.id}`} className="min-w-0 flex-1">
                     <p className="truncate text-sm font-semibold leading-tight text-gray-900 dark:text-gray-100 sm:text-base">
-                      {mosque.name}
+                      {toTitleCase(mosque.name)}
                     </p>
                   </Link>
                   <button
@@ -183,17 +177,21 @@ export default function MosquesList() {
                   </button>
                 </div>
                 <Link to={`/mosque/${mosque.id}`}>
+                  {/* Capacity carries the same weight Clusters gives its
+                   * headline stat (Families) - large and semibold, not a line
+                   * of small print the same size as its own label. That one
+                   * field was what made this card read as smaller. */}
                   <dl className="mt-2 space-y-1">
                     <div className="flex items-baseline justify-between gap-2">
                       <dt className="text-xs text-gray-500 dark:text-gray-400">Capacity</dt>
-                      <dd className="text-xs font-medium text-gray-700 dark:text-gray-200">
+                      <dd className="text-base font-semibold text-gray-900 dark:text-gray-100 sm:text-xl">
                         {mosque.capacity ?? '-'}
                       </dd>
                     </div>
                     <div className="flex items-baseline justify-between gap-2">
                       <dt className="text-xs text-gray-500 dark:text-gray-400">Imam</dt>
                       <dd className="truncate text-xs font-medium text-gray-700 dark:text-gray-200">
-                        {mosque.imamName || '-'}
+                        {mosque.imamName ? toTitleCase(mosque.imamName) : '-'}
                       </dd>
                     </div>
                   </dl>
@@ -214,7 +212,7 @@ export default function MosquesList() {
             />
           </div>
         )}
-      </Card>
+      </TableCard>
 
       <Modal
         isOpen={isFormOpen}
@@ -325,9 +323,10 @@ export default function MosquesList() {
       </Modal>
 
       <ConfirmDialog
+        isLoading={saving}
         isOpen={isConfirmDeleteOpen}
         title="Delete Mosque"
-        message={`Delete the mosque "${deletingName}"? Its assets will remain but become unassigned.`}
+        message={`Delete the mosque "${toTitleCase(deletingName)}"? Its assets will remain but become unassigned.`}
         variant="danger"
         confirmLabel="Delete"
         onConfirm={confirmDelete}

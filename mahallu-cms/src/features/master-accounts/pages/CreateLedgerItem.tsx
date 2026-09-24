@@ -4,7 +4,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useNavigate } from 'react-router-dom';
 import { FiSave, FiX } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -13,16 +12,19 @@ import QuickAddLedger from '@/components/quick-add/QuickAddLedger';
 import QuickAddCategory from '@/components/quick-add/QuickAddCategory';
 import { ROUTES } from '@/constants/routes';
 import { masterAccountService, Ledger, Category } from '@/services/masterAccountService';
+import { errorMessage } from '@/utils/errors';
+import { toTitleCase } from '@/utils/format';
+import PageHeader from '@/components/layout/PageHeader';
 
 const ledgerItemSchema = z.object({
-  ledgerId: z.string().min(1, 'Ledger is required'),
-  categoryId: z.string().optional(),
-  date: z.string().min(1, 'Date is required'),
+  ledgerId: z.string().max(200, 'Please keep the ledger to 200 characters or less.').min(1, 'Ledger is required'),
+  categoryId: z.string().max(200, 'Please keep the category to 200 characters or less.').optional(),
+  date: z.string().max(200, 'Please keep the date to 200 characters or less.').min(1, 'Date is required'),
   amount: z.number().min(0.01, 'Amount must be greater than 0'),
   type: z.enum(['income', 'expense'], { required_error: 'Type is required' }),
-  description: z.string().min(1, 'Description is required'),
-  paymentMethod: z.string().optional(),
-  referenceNo: z.string().optional(),
+  description: z.string().max(3000, 'Please keep the description to 3000 characters or less.').min(1, 'Description is required'),
+  paymentMethod: z.string().max(200, 'Please keep the payment method to 200 characters or less.').optional(),
+  referenceNo: z.string().max(200, 'Please keep the reference no to 200 characters or less.').optional(),
 });
 
 type LedgerItemFormData = z.infer<typeof ledgerItemSchema>;
@@ -100,28 +102,21 @@ export default function CreateLedgerItem() {
       });
       navigate(ROUTES.MASTER_ACCOUNTS.LEDGER_ITEMS);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to create ledger item. Please try again.');
+      setError(errorMessage(err, { action: 'create ledger item. please try again' }));
       console.error('Error creating ledger item:', err);
     }
   };
 
   return (
-    <div className="space-y-6">
-      <Breadcrumb
-        items={[
-          { label: 'Dashboard', path: '/dashboard' },
-          { label: 'Ledger Items', path: ROUTES.MASTER_ACCOUNTS.LEDGER_ITEMS },
-          { label: 'Create' },
-        ]}
+    <div className="space-y-4">
+      <PageHeader
+        description="Add a new income or expense entry"
+        title="Create"
+        breadcrumbs={[{ label: 'Ledger Items', path: ROUTES.MASTER_ACCOUNTS.LEDGER_ITEMS }]}
       />
 
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Create Ledger Item</h1>
-        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Add a new income or expense entry</p>
-      </div>
-
       <form onSubmit={handleSubmit(onSubmit)}>
-        <Card className="space-y-6">
+        <Card className="space-y-4">
           {error && (
             <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm dark:bg-red-900 dark:border-red-700 dark:text-red-200">
               {error}
@@ -141,7 +136,7 @@ export default function CreateLedgerItem() {
                 { value: '', label: 'Select a ledger' },
                 ...ledgers.map((ledger) => ({
                   value: ledger.id,
-                  label: `${ledger.name} (${ledger.type})`,
+                  label: `${toTitleCase(ledger.name)} (${ledger.type})`,
                 })),
               ]}
             />
@@ -167,7 +162,7 @@ export default function CreateLedgerItem() {
                 { value: '', label: 'Select a category' },
                 ...filteredCategories.map((category) => ({
                   value: category.id,
-                  label: category.name,
+                  label: toTitleCase(category.name),
                 })),
               ]}
             />
@@ -183,19 +178,38 @@ export default function CreateLedgerItem() {
               placeholder="0.00"
             />
 
-            <Input label="Payment Method (Optional)" {...register('paymentMethod')} error={errors.paymentMethod?.message} placeholder="e.g., Cash, Bank Transfer" />
+            <Input
+              label="Payment Method (Optional)"
+              {...register('paymentMethod')}
+              error={errors.paymentMethod?.message}
+              placeholder="e.g., Cash, Bank Transfer"
+            />
 
             <div className="md:col-span-2">
-              <Input label="Description" {...register('description')} error={errors.description?.message} placeholder="Enter description" />
+              <Input
+                label="Description"
+                {...register('description')}
+                error={errors.description?.message}
+                placeholder="Enter description"
+              />
             </div>
 
             <div className="md:col-span-2">
-              <Input label="Reference Number (Optional)" {...register('referenceNo')} error={errors.referenceNo?.message} placeholder="Enter reference number" />
+              <Input
+                label="Reference Number (Optional)"
+                {...register('referenceNo')}
+                error={errors.referenceNo?.message}
+                placeholder="Enter reference number"
+              />
             </div>
           </div>
 
-          <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
-            <Button type="button" variant="outline" onClick={() => navigate(ROUTES.MASTER_ACCOUNTS.LEDGER_ITEMS)}>
+          <div className="flex gap-2 flex-col-reverse sm:flex-row sm:justify-end sm:gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => navigate(ROUTES.MASTER_ACCOUNTS.LEDGER_ITEMS)}
+            >
               <FiX className="h-4 w-4 mr-2" />
               Cancel
             </Button>
@@ -211,7 +225,10 @@ export default function CreateLedgerItem() {
         open={addLedgerOpen}
         onClose={() => setAddLedgerOpen(false)}
         onCreated={(newLedger) => {
-          setLedgers((prev) => [...prev, { id: newLedger.id, name: newLedger.label, type: newLedger.type, createdAt: '' } as Ledger]);
+          setLedgers((prev) => [
+            ...prev,
+            { id: newLedger.id, name: newLedger.label, type: newLedger.type, createdAt: '' } as Ledger,
+          ]);
           setValue('ledgerId', newLedger.id, { shouldValidate: true });
         }}
       />
@@ -221,11 +238,18 @@ export default function CreateLedgerItem() {
         onClose={() => setAddCategoryOpen(false)}
         defaultType={selectedType}
         onCreated={(newCategory) => {
-          setCategories((prev) => [...prev, { id: newCategory.id, name: newCategory.label, type: newCategory.type, createdAt: '' } as Category]);
+          setCategories((prev) => [
+            ...prev,
+            {
+              id: newCategory.id,
+              name: newCategory.label,
+              type: newCategory.type,
+              createdAt: '',
+            } as Category,
+          ]);
           setValue('categoryId', newCategory.id);
         }}
       />
     </div>
   );
 }
-

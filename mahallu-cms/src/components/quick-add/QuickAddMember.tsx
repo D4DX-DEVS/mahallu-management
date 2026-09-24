@@ -10,6 +10,7 @@ import Select from '@/components/ui/Select';
 import { memberService } from '@/services/memberService';
 import { familyService } from '@/services/familyService';
 import { Family, Member } from '@/types';
+import { errorMessage } from '@/utils/errors';
 
 const memberSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -50,7 +51,7 @@ export default function QuickAddMember({ open, onClose, onCreated }: Props) {
       const result = await familyService.getAll();
       setFamilies(result.data || []);
     } catch (err) {
-      console.error('Failed to fetch families:', err);
+      console.error("Couldn't load families:", err);
       setFamilies([]);
     }
   };
@@ -74,7 +75,7 @@ export default function QuickAddMember({ open, onClose, onCreated }: Props) {
       onClose();
       reset();
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to create member. Please try again.');
+      setError(errorMessage(err, { action: 'create member. please try again' }));
     }
   };
 
@@ -126,7 +127,7 @@ export default function QuickAddMember({ open, onClose, onCreated }: Props) {
           />
         </div>
 
-        <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+        <div className="flex gap-2 flex-col-reverse sm:flex-row sm:justify-end sm:gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
           <Button type="button" variant="outline" onClick={onClose}>
             <FiX className="h-4 w-4 mr-2" />
             Cancel

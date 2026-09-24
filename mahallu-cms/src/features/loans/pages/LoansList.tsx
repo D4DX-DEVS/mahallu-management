@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
+import { FiPlus } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
-import Breadcrumb from '@/components/layout/Breadcrumb';
-import Card from '@/components/ui/Card';
+import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import Table from '@/components/ui/Table';
 import StatCard from '@/components/ui/StatCard';
-import SearchInput from '@/components/ui/SearchInput';
+import ExpandableSearch from '@/components/ui/ExpandableSearch';
 import Pagination from '@/components/ui/Pagination';
 import EmptyState from '@/components/ui/EmptyState';
 import { Pagination as PaginationType, TableColumn } from '@/types';
@@ -20,6 +20,9 @@ import {
   loanApplicantName,
 } from '@/services/qardService';
 import LoanStatusBadge from '../components/LoanStatusBadge';
+import { loadErrorMessage } from '@/utils/errors';
+import { toTitleCase } from '@/utils/format';
+import PageHeader from '@/components/layout/PageHeader';
 
 export default function LoansList() {
   const navigate = useNavigate();
@@ -56,45 +59,53 @@ export default function LoansList() {
       setRows(result.data);
       setPagination(result.pagination);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to load loans');
+      setError(loadErrorMessage(err, 'loans'));
     } finally {
       setLoading(false);
     }
   };
 
   const columns: TableColumn<QardLoan>[] = [
-    { key: 'applicantName', label: 'Applicant', render: (_v, row) => loanApplicantName(row) },
+    {
+      key: 'applicantName',
+      label: 'Applicant',
+      width: '8.25rem',
+      render: (_v, row) => toTitleCase(loanApplicantName(row)),
+    },
     {
       key: 'purpose',
       label: 'Purpose',
+      width: '7.75rem',
       render: (v) => LOAN_PURPOSE_OPTIONS.find((o) => o.value === v)?.label || v,
     },
     {
       key: 'amount',
       label: 'Amount',
+      width: '9.25rem',
+      align: 'center',
       render: (v, row) => formatCurrency(row.approvedAmount ?? v),
     },
     {
       key: 'outstandingBalance',
       label: 'Outstanding',
+      width: '11.25rem',
+      align: 'center',
       render: (v) => (v > 0 ? formatCurrency(v) : '-'),
     },
-    { key: 'appliedDate', label: 'Applied', render: (v) => formatDate(v) },
-    { key: 'status', label: 'Status', render: (v) => <LoanStatusBadge status={v} /> },
+    { key: 'appliedDate', label: 'Applied', width: '7.25rem', render: (v) => formatDate(v) },
+    { key: 'status', label: 'Status', width: '7.25rem', render: (v) => <LoanStatusBadge status={v} /> },
   ];
 
   return (
     <div>
-      <Breadcrumb items={[{ label: 'Services' }, { label: 'Qard Hasan' }]} />
+      <PageHeader
+        description="Interest-free loans, from application through repayment."
+        title="Qard Hasan"
+        breadcrumbs={[{ label: 'Services' }]}
+      />
 
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Qard Hasan</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            Interest-free loans, from application through repayment.
-          </p>
-        </div>
-        <Button onClick={() => navigate('/loans/create')}>New application</Button>
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <Button onClick={() => navigate('/loans/create')} icon={<FiPlus />} collapseLabel>New application</Button>
       </div>
 
       {summary && (
@@ -107,14 +118,15 @@ export default function LoansList() {
         </div>
       )}
 
-      <Card>
+      <TableCard>
         <div className="mb-3">
-          <SearchInput
+          <ExpandableSearch
             value={searchQuery}
-            onChange={(e) => {
-              setSearchQuery(e.target.value);
+            onChange={(value) => {
+              setSearchQuery(value);
               setCurrentPage(1);
             }}
+            entity="loan applications"
             placeholder="Search by applicant name"
           />
         </div>
@@ -152,6 +164,8 @@ export default function LoansList() {
           />
         ) : (
           <Table
+            fixedLayout
+            striped
             columns={columns}
             data={rows}
             isLoading={loading}
@@ -168,7 +182,7 @@ export default function LoansList() {
             onPageChange={setCurrentPage}
           />
         )}
-      </Card>
+      </TableCard>
     </div>
   );
 }

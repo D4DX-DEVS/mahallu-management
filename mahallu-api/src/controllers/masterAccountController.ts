@@ -5,6 +5,8 @@ import { getPaginationParams, createPaginationResponse } from '../utils/paginati
 import { verifyTenantOwnership } from '../utils/tenantCheck';
 import { stripImmutable } from '../utils/sanitizeUpdate';
 
+import { sendFailure } from '../utils/userMessages';
+
 // Institute Accounts
 export const getAllInstituteAccounts = async (req: AuthRequest, res: Response) => {
   try {
@@ -32,7 +34,7 @@ export const getAllInstituteAccounts = async (req: AuthRequest, res: Response) =
 
     res.json(createPaginationResponse(accounts, total, page, limit));
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the institute accounts right now. Please try again.');
   }
 };
 
@@ -46,7 +48,7 @@ export const createInstituteAccount = async (req: AuthRequest, res: Response) =>
     if (!accountData.tenantId && !req.isSuperAdmin) {
       return res.status(400).json({
         success: false,
-        message: 'Tenant ID is required',
+        message: 'Please select a Mahallu before continuing.',
       });
     }
 
@@ -55,7 +57,7 @@ export const createInstituteAccount = async (req: AuthRequest, res: Response) =>
     const populated = await InstituteAccount.findById(account._id).populate('instituteId', 'name');
     res.status(201).json({ success: true, data: populated });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t save the institute account. Please try again.');
   }
 };
 
@@ -87,7 +89,7 @@ export const getAllCategories = async (req: AuthRequest, res: Response) => {
 
     res.json(createPaginationResponse(categories, total, page, limit));
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the categories right now. Please try again.');
   }
 };
 
@@ -101,7 +103,7 @@ export const createCategory = async (req: AuthRequest, res: Response) => {
     if (!categoryData.tenantId && !req.isSuperAdmin) {
       return res.status(400).json({
         success: false,
-        message: 'Tenant ID is required',
+        message: 'Please select a Mahallu before continuing.',
       });
     }
 
@@ -109,7 +111,7 @@ export const createCategory = async (req: AuthRequest, res: Response) => {
     await category.save();
     res.status(201).json({ success: true, data: category });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t save the category. Please try again.');
   }
 };
 
@@ -136,7 +138,7 @@ export const getAllWallets = async (req: AuthRequest, res: Response) => {
 
     res.json(createPaginationResponse(wallets, total, page, limit));
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the wallets right now. Please try again.');
   }
 };
 
@@ -150,7 +152,7 @@ export const createWallet = async (req: AuthRequest, res: Response) => {
     if (!walletData.tenantId && !req.isSuperAdmin) {
       return res.status(400).json({
         success: false,
-        message: 'Tenant ID is required',
+        message: 'Please select a Mahallu before continuing.',
       });
     }
 
@@ -158,7 +160,7 @@ export const createWallet = async (req: AuthRequest, res: Response) => {
     await wallet.save();
     res.status(201).json({ success: true, data: wallet });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t save the wallet. Please try again.');
   }
 };
 
@@ -190,7 +192,7 @@ export const getAllLedgers = async (req: AuthRequest, res: Response) => {
 
     res.json(createPaginationResponse(ledgers, total, page, limit));
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the ledgers right now. Please try again.');
   }
 };
 
@@ -204,7 +206,7 @@ export const createLedger = async (req: AuthRequest, res: Response) => {
     if (!ledgerData.tenantId && !req.isSuperAdmin) {
       return res.status(400).json({
         success: false,
-        message: 'Tenant ID is required',
+        message: 'Please select a Mahallu before continuing.',
       });
     }
 
@@ -212,7 +214,7 @@ export const createLedger = async (req: AuthRequest, res: Response) => {
     await ledger.save();
     res.status(201).json({ success: true, data: ledger });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t save the ledger. Please try again.');
   }
 };
 
@@ -254,7 +256,7 @@ export const getLedgerItems = async (req: AuthRequest, res: Response) => {
 
     res.json(createPaginationResponse(items, total, page, limit));
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the ledger items right now. Please try again.');
   }
 };
 
@@ -268,7 +270,7 @@ export const createLedgerItem = async (req: AuthRequest, res: Response) => {
     if (!itemData.tenantId && !req.isSuperAdmin) {
       return res.status(400).json({
         success: false,
-        message: 'Tenant ID is required',
+        message: 'Please select a Mahallu before continuing.',
       });
     }
 
@@ -279,7 +281,7 @@ export const createLedgerItem = async (req: AuthRequest, res: Response) => {
       .populate('categoryId', 'name');
     res.status(201).json({ success: true, data: populated });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t save the ledger item. Please try again.');
   }
 };
 
@@ -289,7 +291,7 @@ export const updateInstituteAccount = async (req: AuthRequest, res: Response) =>
   try {
     const existing = await InstituteAccount.findById(req.params.id);
     if (!existing) {
-      return res.status(404).json({ success: false, message: 'Institute account not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that institute account. It may have been removed." });
     }
     if (!verifyTenantOwnership(req, res, existing.tenantId, 'InstituteAccount')) return;
 
@@ -297,7 +299,7 @@ export const updateInstituteAccount = async (req: AuthRequest, res: Response) =>
       .populate('instituteId', 'name');
     res.json({ success: true, data: account });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t update the institute account. Please try again.');
   }
 };
 
@@ -305,14 +307,14 @@ export const updateCategory = async (req: AuthRequest, res: Response) => {
   try {
     const existing = await Category.findById(req.params.id);
     if (!existing) {
-      return res.status(404).json({ success: false, message: 'Category not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that category. It may have been removed." });
     }
     if (!verifyTenantOwnership(req, res, existing.tenantId, 'Category')) return;
 
     const category = await Category.findByIdAndUpdate(req.params.id, stripImmutable(req.body), { new: true, runValidators: true });
     res.json({ success: true, data: category });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t update the category. Please try again.');
   }
 };
 
@@ -320,14 +322,14 @@ export const updateWallet = async (req: AuthRequest, res: Response) => {
   try {
     const existing = await MasterWallet.findById(req.params.id);
     if (!existing) {
-      return res.status(404).json({ success: false, message: 'Wallet not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that wallet. It may have been removed." });
     }
     if (!verifyTenantOwnership(req, res, existing.tenantId, 'MasterWallet')) return;
 
     const wallet = await MasterWallet.findByIdAndUpdate(req.params.id, stripImmutable(req.body), { new: true, runValidators: true });
     res.json({ success: true, data: wallet });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t update the wallet. Please try again.');
   }
 };
 
@@ -335,14 +337,14 @@ export const updateLedger = async (req: AuthRequest, res: Response) => {
   try {
     const existing = await Ledger.findById(req.params.id);
     if (!existing) {
-      return res.status(404).json({ success: false, message: 'Ledger not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that ledger. It may have been removed." });
     }
     if (!verifyTenantOwnership(req, res, existing.tenantId, 'Ledger')) return;
 
     const ledger = await Ledger.findByIdAndUpdate(req.params.id, stripImmutable(req.body), { new: true, runValidators: true });
     res.json({ success: true, data: ledger });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t update the ledger. Please try again.');
   }
 };
 
@@ -350,7 +352,7 @@ export const updateLedgerItem = async (req: AuthRequest, res: Response) => {
   try {
     const existing = await LedgerItem.findById(req.params.id);
     if (!existing) {
-      return res.status(404).json({ success: false, message: 'Ledger item not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that ledger item. It may have been removed." });
     }
     if (!verifyTenantOwnership(req, res, existing.tenantId, 'LedgerItem')) return;
 
@@ -358,7 +360,7 @@ export const updateLedgerItem = async (req: AuthRequest, res: Response) => {
     if (existing.source && existing.source !== 'manual') {
       return res.status(400).json({
         success: false,
-        message: `Cannot edit auto-posted entry from ${existing.source}. Edit the original transaction instead.`,
+        message: `This entry was created automatically from ${existing.source}. Please edit the original transaction instead.`,
       });
     }
 
@@ -367,7 +369,7 @@ export const updateLedgerItem = async (req: AuthRequest, res: Response) => {
       .populate('categoryId', 'name');
     res.json({ success: true, data: item });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t update the ledger item. Please try again.');
   }
 };
 
@@ -377,14 +379,14 @@ export const deleteInstituteAccount = async (req: AuthRequest, res: Response) =>
   try {
     const existing = await InstituteAccount.findById(req.params.id);
     if (!existing) {
-      return res.status(404).json({ success: false, message: 'Institute account not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that institute account. It may have been removed." });
     }
     if (!verifyTenantOwnership(req, res, existing.tenantId, 'InstituteAccount')) return;
 
     await InstituteAccount.findByIdAndDelete(req.params.id);
-    res.json({ success: true, message: 'Institute account deleted successfully' });
+    res.json({ success: true, message: 'Institute account deleted' });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t delete the institute account. Please try again.');
   }
 };
 
@@ -392,7 +394,7 @@ export const deleteCategory = async (req: AuthRequest, res: Response) => {
   try {
     const existing = await Category.findById(req.params.id);
     if (!existing) {
-      return res.status(404).json({ success: false, message: 'Category not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that category. It may have been removed." });
     }
     if (!verifyTenantOwnership(req, res, existing.tenantId, 'Category')) return;
 
@@ -401,14 +403,14 @@ export const deleteCategory = async (req: AuthRequest, res: Response) => {
     if (usedInItems > 0) {
       return res.status(400).json({
         success: false,
-        message: `Cannot delete category. It is used in ${usedInItems} ledger item(s).`,
+        message: `This category is used in ${usedInItems} ledger item(s), so it can't be deleted.`,
       });
     }
 
     await Category.findByIdAndDelete(req.params.id);
-    res.json({ success: true, message: 'Category deleted successfully' });
+    res.json({ success: true, message: 'Category deleted' });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t delete the category. Please try again.');
   }
 };
 
@@ -416,14 +418,14 @@ export const deleteWallet = async (req: AuthRequest, res: Response) => {
   try {
     const existing = await MasterWallet.findById(req.params.id);
     if (!existing) {
-      return res.status(404).json({ success: false, message: 'Wallet not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that wallet. It may have been removed." });
     }
     if (!verifyTenantOwnership(req, res, existing.tenantId, 'MasterWallet')) return;
 
     await MasterWallet.findByIdAndDelete(req.params.id);
-    res.json({ success: true, message: 'Wallet deleted successfully' });
+    res.json({ success: true, message: 'Wallet deleted' });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t delete the wallet. Please try again.');
   }
 };
 
@@ -431,7 +433,7 @@ export const deleteLedger = async (req: AuthRequest, res: Response) => {
   try {
     const existing = await Ledger.findById(req.params.id);
     if (!existing) {
-      return res.status(404).json({ success: false, message: 'Ledger not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that ledger. It may have been removed." });
     }
     if (!verifyTenantOwnership(req, res, existing.tenantId, 'Ledger')) return;
 
@@ -440,14 +442,14 @@ export const deleteLedger = async (req: AuthRequest, res: Response) => {
     if (itemCount > 0) {
       return res.status(400).json({
         success: false,
-        message: `Cannot delete ledger. It has ${itemCount} ledger item(s).`,
+        message: `This ledger has ${itemCount} item(s), so it can't be deleted.`,
       });
     }
 
     await Ledger.findByIdAndDelete(req.params.id);
-    res.json({ success: true, message: 'Ledger deleted successfully' });
+    res.json({ success: true, message: 'Ledger deleted' });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t delete the ledger. Please try again.');
   }
 };
 
@@ -455,7 +457,7 @@ export const deleteLedgerItem = async (req: AuthRequest, res: Response) => {
   try {
     const existing = await LedgerItem.findById(req.params.id);
     if (!existing) {
-      return res.status(404).json({ success: false, message: 'Ledger item not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that ledger item. It may have been removed." });
     }
     if (!verifyTenantOwnership(req, res, existing.tenantId, 'LedgerItem')) return;
 
@@ -463,14 +465,14 @@ export const deleteLedgerItem = async (req: AuthRequest, res: Response) => {
     if (existing.source && existing.source !== 'manual') {
       return res.status(400).json({
         success: false,
-        message: `Cannot delete auto-posted entry from ${existing.source}. Delete the original transaction instead.`,
+        message: `This entry was created automatically from ${existing.source}. Please delete the original transaction instead.`,
       });
     }
 
     await LedgerItem.findByIdAndDelete(req.params.id);
-    res.json({ success: true, message: 'Ledger item deleted successfully' });
+    res.json({ success: true, message: 'Ledger item deleted' });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t delete the ledger item. Please try again.');
   }
 };
 
@@ -497,7 +499,7 @@ export const getAllMahalluAccounts = async (req: AuthRequest, res: Response) => 
 
     res.json(createPaginationResponse(accounts, total, page, limit));
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the mahallu accounts right now. Please try again.');
   }
 };
 
@@ -509,14 +511,14 @@ export const createMahalluAccount = async (req: AuthRequest, res: Response) => {
     };
 
     if (!accountData.tenantId && !req.isSuperAdmin) {
-      return res.status(400).json({ success: false, message: 'Tenant ID is required' });
+      return res.status(400).json({ success: false, message: 'Please select a Mahallu before continuing.' });
     }
 
     const account = new MahalluAccount(accountData);
     await account.save();
     res.status(201).json({ success: true, data: account });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t save the mahallu account. Please try again.');
   }
 };
 
@@ -524,7 +526,7 @@ export const updateMahalluAccount = async (req: AuthRequest, res: Response) => {
   try {
     const existing = await MahalluAccount.findById(req.params.id);
     if (!existing) {
-      return res.status(404).json({ success: false, message: 'Mahallu account not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that mahallu account. It may have been removed." });
     }
     if (!verifyTenantOwnership(req, res, existing.tenantId, 'MahalluAccount')) return;
 
@@ -534,7 +536,7 @@ export const updateMahalluAccount = async (req: AuthRequest, res: Response) => {
     });
     res.json({ success: true, data: updated });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t update the mahallu account. Please try again.');
   }
 };
 
@@ -542,14 +544,14 @@ export const deleteMahalluAccount = async (req: AuthRequest, res: Response) => {
   try {
     const existing = await MahalluAccount.findById(req.params.id);
     if (!existing) {
-      return res.status(404).json({ success: false, message: 'Mahallu account not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that mahallu account. It may have been removed." });
     }
     if (!verifyTenantOwnership(req, res, existing.tenantId, 'MahalluAccount')) return;
 
     await MahalluAccount.findByIdAndDelete(req.params.id);
-    res.json({ success: true, message: 'Mahallu account deleted successfully' });
+    res.json({ success: true, message: 'Mahallu account deleted' });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t delete the mahallu account. Please try again.');
   }
 };
 

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import Card from '@/components/ui/Card';
+import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import Table from '@/components/ui/Table';
 import Pagination from '@/components/ui/Pagination';
@@ -8,15 +9,17 @@ import TableToolbar from '@/components/ui/TableToolbar';
 import { TableColumn, Pagination as PaginationType } from '@/types';
 import { collectibleService, Transaction, Wallet, Varisangya } from '@/services/collectibleService';
 import { familyService } from '@/services/familyService';
-import { formatDate } from '@/utils/format';
+import { fetchAllPages } from '@/services/api';
+import { formatDate, toTitleCase } from '@/utils/format';
 import { exportToCSV, exportToJSON } from '@/utils/exportUtils';
 import { exportInvoicesToPdf, InvoiceDetails } from '@/utils/invoiceUtils';
 import { toast } from '@/store/toastStore';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
 
 /** Map varisangya payment to transaction-like shape (list shows varisangya, so transactions view must match). */
 function varisangyaToTransaction(v: Varisangya): Transaction {
   const id = (v as any).id ?? (v as any)._id;
-  const familyName = v.familyId && typeof v.familyId === 'object' ? v.familyId.houseName : undefined;
+  const familyName = v.familyId && typeof v.familyId === 'object' ? toTitleCase(v.familyId.houseName) : undefined;
   const payerInfo = familyName ? ` - ${familyName}` : '';
   return {
     id: id != null ? String(id) : '',
@@ -69,7 +72,7 @@ export default function FamilyVarisangyaTransactions() {
       }
       const walletData = await collectibleService.getWallet({ familyId: familyId || undefined });
       const walletId = walletData && ((walletData as any).id ?? (walletData as any)._id);
-      setWallet(walletId ? { ...walletData!, id: String(walletId) } as Wallet : null);
+      setWallet(walletId ? ({ ...walletData!, id: String(walletId) } as Wallet) : null);
 
       // Always use varisangya records (they have populated family names).
       // The API already sorts by paymentDate desc, so no client-side re-sort.
@@ -81,7 +84,7 @@ export default function FamilyVarisangyaTransactions() {
       setTransactions((varisangyasResult.data || []).map(varisangyaToTransaction));
       setPagination(varisangyasResult.pagination);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch transactions');
+      setError(loadErrorMessage(err, 'transactions'));
       console.error('Error fetching data:', err);
     } finally {
       setLoading(false);
@@ -101,7 +104,7 @@ export default function FamilyVarisangyaTransactions() {
       setTransactions((varisangyasResult.data || []).map(varisangyaToTransaction));
       setPagination(varisangyasResult.pagination);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch transactions');
+      setError(loadErrorMessage(err, 'transactions'));
       console.error('Error fetching transactions:', err);
     } finally {
       setLoading(false);
@@ -111,13 +114,16 @@ export default function FamilyVarisangyaTransactions() {
   const handleExport = async (type: 'csv' | 'json' | 'pdf') => {
     try {
       setIsExporting(true);
-      // Export the whole result set, not just the page on screen
-      const allResult = await collectibleService.getAllVarisangyas({
-        familyId: familyId || undefined,
-        hasFamily: familyId ? undefined : true,
-        limit: 10000,
-      });
-      const transactions = (allResult.data || []).map(varisangyaToTransaction);
+      // Export the whole result set, not just the page on screen. The endpoint caps
+      // limit at 100 and 400s above it, so a single limit:10000 request always failed.
+      const allRows = await fetchAllPages<Varisangya>((p) =>
+        collectibleService.getAllVarisangyas({
+          familyId: familyId || undefined,
+          hasFamily: familyId ? undefined : true,
+          ...p,
+        })
+      );
+      const transactions = allRows.map(varisangyaToTransaction);
       if (transactions.length === 0) {
         toast.info('No transaction data to export');
         return;
@@ -138,7 +144,7 @@ export default function FamilyVarisangyaTransactions() {
                 title: 'Family Varisangya Transaction',
                 receiptNo: t.referenceId || '-',
                 payerLabel: 'Family',
-                payerName: family?.houseName || '-',
+                payerName: toTitleCase(family?.houseName) || '-',
                 amount: t.amount,
                 paymentDate: t.createdAt,
                 paymentMethod: '-',
@@ -149,18 +155,18 @@ export default function FamilyVarisangyaTransactions() {
           break;
       }
     } catch (error: any) {
-      console.error('Export error:', error);
-      toast.error(error?.message || 'Failed to export transactions');
+      toast.error(errorMessage(error, { action: 'export transactions' }));
     } finally {
       setIsExporting(false);
     }
   };
 
   const columns: TableColumn<Transaction>[] = [
-    { key: 'id', label: 'No.', render: (_, __, index) => (currentPage - 1) * itemsPerPage + index + 1 },
+    { key: 'id', label: 'No.', width: '6rem', render: (_, __, index) => (currentPage - 1) * itemsPerPage + index + 1 },
     {
       key: 'type',
       label: 'Type',
+      width: '6.25rem',
       render: (type) => (
         <span
           className={`px-2 py-1 text-xs font-medium rounded-full ${
@@ -176,30 +182,34 @@ export default function FamilyVarisangyaTransactions() {
     {
       key: 'amount',
       label: 'Amount',
+      width: '9.25rem',
+      align: 'center',
       render: (amount) => `₹${amount?.toLocaleString() || 0}`,
     },
-    { key: 'description', label: 'Description' },
+    { key: 'description', label: 'Description', width: '9.25rem' },
     {
       key: 'referenceType',
       label: 'Reference',
+      width: '8.75rem',
       render: (type) => type || '-',
     },
     {
       key: 'createdAt',
       label: 'Date',
+      width: '6.25rem',
       render: (date) => formatDate(date),
     },
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div>
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+        <h2 className="text-lg font-semibold text-foreground">
           Family Varisangya Transactions
-          {family && ` - ${family.houseName}`}
+          {family && ` - ${toTitleCase(family.houseName)}`}
         </h2>
         <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
-          View all varisangya transactions{family ? ` for ${family.houseName}` : ''}
+          View all varisangya transactions{family ? ` for ${toTitleCase(family.houseName)}` : ''}
         </p>
       </div>
 
@@ -208,7 +218,7 @@ export default function FamilyVarisangyaTransactions() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-500 dark:text-gray-400">Wallet Balance</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+              <p className="text-2xl font-semibold tabular-nums text-foreground">
                 ₹{(wallet?.balance ?? 0).toLocaleString()}
               </p>
             </div>
@@ -224,7 +234,7 @@ export default function FamilyVarisangyaTransactions() {
         </Card>
       )}
 
-      <Card>
+      <TableCard>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -236,7 +246,7 @@ export default function FamilyVarisangyaTransactions() {
           isExporting={isExporting}
         />
         {error ? (
-          <div className="text-center py-12">
+          <div className="text-center py-10">
             <p className="text-red-600 dark:text-red-400">{error}</p>
             <Button onClick={familyId ? fetchData : fetchAllTransactions} className="mt-4" variant="outline">
               Retry
@@ -244,7 +254,15 @@ export default function FamilyVarisangyaTransactions() {
           </div>
         ) : (
           <>
-            <Table columns={columns} data={transactions} isLoading={loading} emptyMessage="No transactions found" showExport={false} />
+            <Table
+              fixedLayout
+              striped
+              columns={columns}
+              data={transactions}
+              isLoading={loading}
+              emptyMessage="No transactions found"
+              showExport={false}
+            />
             {pagination && pagination.totalPages > 1 && (
               <div className="mt-4">
                 <Pagination
@@ -262,7 +280,7 @@ export default function FamilyVarisangyaTransactions() {
             )}
           </>
         )}
-      </Card>
+      </TableCard>
     </div>
   );
 }

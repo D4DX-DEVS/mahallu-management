@@ -1,30 +1,29 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { FiCreditCard, FiDollarSign, FiDownload, FiEdit2, FiX } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
-import Card from '@/components/ui/Card';
+import { FiCreditCard, FiDollarSign, FiPlus, FiX } from 'react-icons/fi';
+import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
+import EmptyState from '@/components/ui/EmptyState';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
 import Modal from '@/components/ui/Modal';
 import { TableColumn, Pagination as PaginationType } from '@/types';
 import { collectibleService, Varisangya } from '@/services/collectibleService';
-import {
-  buildVarisangyaColumns,
-  getPayerName,
-  getFamilyName,
-} from '../varisangyaColumns';
+import { fetchAllPages } from '@/services/api';
+import { buildVarisangyaColumns, getPayerName, getFamilyName } from '../varisangyaColumns';
 import { filterByDateRange } from '../varisangyaFilters';
-import { formatDate } from '@/utils/format';
+import { formatDate, toTitleCase } from '@/utils/format';
 import { exportToCSV, exportToJSON } from '@/utils/exportUtils';
 import { exportInvoicesToPdf, downloadInvoicePdf, InvoiceDetails } from '@/utils/invoiceUtils';
 import { familyService } from '@/services/familyService';
 import { memberService } from '@/services/memberService';
 import { toast } from '@/store/toastStore';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
 
 export default function VarisangyaList() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -43,7 +42,6 @@ export default function VarisangyaList() {
   const [savingEdit, setSavingEdit] = useState(false);
   const [editForm, setEditForm] = useState({ amount: 0, paymentDate: '', paymentMethod: '', remarks: '' });
 
-
   useEffect(() => {
     fetchVarisangyas();
   }, [currentPage, dateFrom, dateTo, familyNameFilter]);
@@ -55,16 +53,27 @@ export default function VarisangyaList() {
       const hasDateFilter = Boolean(dateFrom || dateTo);
       const hasFamilyFilter = familyNameFilter.trim().length > 0;
       const hasClientFilter = hasDateFilter || hasFamilyFilter;
-      const params: Record<string, unknown> = {
-        page: hasClientFilter ? 1 : currentPage,
-        limit: hasClientFilter ? 10000 : itemsPerPage,
-      };
-      if (dateFrom) params.dateFrom = dateFrom;
-      if (dateTo) params.dateTo = dateTo;
-      if (hasClientFilter) params._t = Date.now();
-      const result = await collectibleService.getAllVarisangyas(params);
-      let data = result.data ?? [];
-      let total = result.pagination?.total ?? data.length;
+      let data: Varisangya[];
+      let total: number;
+      let hasPagination: boolean;
+      if (hasClientFilter) {
+        // Client-side date/name filtering needs every matching row, not one page.
+        // The endpoint caps limit at 100 and 400s above it, so the old
+        // limit:10000 request always failed - page through instead.
+        const filterParams: Record<string, unknown> = { _t: Date.now() };
+        if (dateFrom) filterParams.dateFrom = dateFrom;
+        if (dateTo) filterParams.dateTo = dateTo;
+        data = await fetchAllPages<Varisangya>((p) =>
+          collectibleService.getAllVarisangyas({ ...filterParams, ...p })
+        );
+        total = data.length;
+        hasPagination = true;
+      } else {
+        const result = await collectibleService.getAllVarisangyas({ page: currentPage, limit: itemsPerPage });
+        data = result.data ?? [];
+        total = result.pagination?.total ?? data.length;
+        hasPagination = Boolean(result.pagination);
+      }
       if (hasDateFilter) data = filterByDateRange(data, dateFrom, dateTo);
       if (hasFamilyFilter) {
         const q = familyNameFilter.trim().toLowerCase();
@@ -75,18 +84,29 @@ export default function VarisangyaList() {
         const start = (currentPage - 1) * itemsPerPage;
         data = data.slice(start, start + itemsPerPage);
       }
-      console.log('[Varisangya Filter] Response:', { count: data.length, total, firstPaymentDate: data[0]?.paymentDate });
-      console.log('[Varisangya Filter] What the UI is showing (each row):', data.map((row, i) => ({
-        no: i + 1,
-        name: typeof row.memberId === 'object' && row.memberId?.name ? row.memberId.name : typeof row.familyId === 'object' && row.familyId?.houseName ? row.familyId.houseName : '-',
-        amount: row.amount,
-        paymentDate: row.paymentDate,
-        receiptNo: row.receiptNo,
-      })));
+      console.log('[Varisangya Filter] Response:', {
+        count: data.length,
+        total,
+        firstPaymentDate: data[0]?.paymentDate,
+      });
+      console.log(
+        '[Varisangya Filter] What the UI is showing (each row):',
+        data.map((row, i) => ({
+          no: i + 1,
+          name:
+            typeof row.memberId === 'object' && row.memberId?.name
+              ? row.memberId.name
+              : typeof row.familyId === 'object' && row.familyId?.houseName
+                ? row.familyId.houseName
+                : '-',
+          amount: row.amount,
+          paymentDate: row.paymentDate,
+          receiptNo: row.receiptNo,
+        }))
+      );
       setVarisangyas(data);
-      if (result.pagination) {
+      if (hasPagination) {
         setPagination({
-          ...result.pagination,
           page: currentPage,
           total,
           totalPages: Math.max(1, Math.ceil(total / itemsPerPage)),
@@ -94,7 +114,7 @@ export default function VarisangyaList() {
         });
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch varisangyas');
+      setError(loadErrorMessage(err, 'varisangyas'));
       console.error('Error fetching varisangyas:', err);
     } finally {
       setLoading(false);
@@ -104,12 +124,15 @@ export default function VarisangyaList() {
   const handleExport = async (type: 'csv' | 'json' | 'pdf') => {
     try {
       setIsExporting(true);
-      
-      const params: Record<string, unknown> = { limit: 10000 };
-      if (dateFrom) params.dateFrom = dateFrom;
-      if (dateTo) params.dateTo = dateTo;
-      const result = await collectibleService.getAllVarisangyas(params);
-      let dataToExport = result.data ?? [];
+
+      const filters: Record<string, unknown> = {};
+      if (dateFrom) filters.dateFrom = dateFrom;
+      if (dateTo) filters.dateTo = dateTo;
+      // The endpoint caps limit at 100 and 400s above it, so a single
+      // limit:10000 request always failed - page through instead.
+      let dataToExport = await fetchAllPages<Varisangya>((p) =>
+        collectibleService.getAllVarisangyas({ ...filters, ...p })
+      );
       if (dateFrom || dateTo) dataToExport = filterByDateRange(dataToExport, dateFrom, dateTo);
       if (familyNameFilter.trim()) {
         const q = familyNameFilter.trim().toLowerCase();
@@ -140,7 +163,7 @@ export default function VarisangyaList() {
               if (!familyId) return '-';
               if (familyCache.has(familyId)) return familyCache.get(familyId)!;
               const family = await familyService.getById(familyId);
-              const name = family.houseName || '-';
+              const name = family.houseName ? toTitleCase(family.houseName) : '-';
               familyCache.set(familyId, name);
               return name;
             };
@@ -149,7 +172,7 @@ export default function VarisangyaList() {
               if (!memberId) return '-';
               if (memberCache.has(memberId)) return memberCache.get(memberId)!;
               const member = await memberService.getById(memberId);
-              const name = member.name || '-';
+              const name = member.name ? toTitleCase(member.name) : '-';
               memberCache.set(memberId, name);
               return name;
             };
@@ -173,20 +196,22 @@ export default function VarisangyaList() {
               });
             }
 
-            await exportInvoicesToPdf(invoices, `varisangya-invoices-${new Date().toISOString().split('T')[0]}`);
+            await exportInvoicesToPdf(
+              invoices,
+              `varisangya-invoices-${new Date().toISOString().split('T')[0]}`
+            );
           }
           break;
       }
     } catch (error: any) {
-      console.error('Export error:', error);
-      toast.error(error?.message || 'Failed to export varisangya data');
+      toast.error(errorMessage(error, { action: 'export varisangya data' }));
     } finally {
       setIsExporting(false);
     }
   };
 
   const getId = (x: string | { id: string } | undefined): string | undefined =>
-    x && typeof x === 'object' ? x.id : (typeof x === 'string' ? x : undefined);
+    x && typeof x === 'object' ? x.id : typeof x === 'string' ? x : undefined;
   const handleViewPdf = async (entry: Varisangya) => {
     try {
       let payerName: string | undefined;
@@ -216,7 +241,7 @@ export default function VarisangyaList() {
         title: 'Varisangya Payment',
         receiptNo: entry.receiptNo,
         payerLabel,
-        payerName: payerName || '-',
+        payerName: payerName ? toTitleCase(payerName) : '-',
         amount: entry.amount,
         paymentDate: entry.paymentDate,
         paymentMethod: entry.paymentMethod,
@@ -226,7 +251,7 @@ export default function VarisangyaList() {
       await downloadInvoicePdf(invoiceDetails);
     } catch (error: any) {
       console.error('Error generating PDF:', error);
-      toast.error(error?.message || 'Failed to generate PDF');
+      toast.error(error?.message || "Couldn't generate PDF");
     }
   };
 
@@ -254,7 +279,7 @@ export default function VarisangyaList() {
       await fetchVarisangyas();
       toast.success('Varisangya payment updated');
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to update varisangya payment');
+      toast.error(errorMessage(err, { action: 'update varisangya payment' }));
     } finally {
       setSavingEdit(false);
     }
@@ -263,10 +288,10 @@ export default function VarisangyaList() {
   const handleVerify = async (row: Varisangya) => {
     try {
       await collectibleService.verifyVarisangya(row.id);
-      toast.success('Varisangya verified successfully');
+      toast.success('Varisangya verified');
       await fetchVarisangyas();
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to verify varisangya');
+      toast.error(errorMessage(err, { action: 'verify varisangya' }));
     }
   };
 
@@ -275,20 +300,22 @@ export default function VarisangyaList() {
   const totalAmount = varisangyas.reduce((sum, v) => sum + (v.amount || 0), 0);
 
   const stats = [
-    { title: 'Total Payments', value: pagination?.total || varisangyas.length, icon: <FiCreditCard className="h-5 w-5" /> },
-    { title: 'Total Amount', value: `₹${totalAmount.toLocaleString()}`, icon: <FiDollarSign className="h-5 w-5" /> },
+    {
+      title: 'Total Payments',
+      value: pagination?.total || varisangyas.length,
+      icon: <FiCreditCard className="h-5 w-5" />,
+    },
+    {
+      title: 'Total Amount',
+      value: `₹${totalAmount.toLocaleString()}`,
+      icon: <FiDollarSign className="h-5 w-5" />,
+    },
   ];
 
   return (
     <div className="space-y-4">
       <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Varisangyas</h1>
-            <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">Manage varisangya payments</p>
-          </div>
-          <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Varisangyas' }]} />
-        </div>
+        <PageHeader title="Varisangyas" description="Manage varisangya payments" />
 
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-2">
           {stats.map((stat, index) => (
@@ -297,7 +324,7 @@ export default function VarisangyaList() {
         </div>
       </div>
 
-      <Card>
+      <TableCard>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -309,9 +336,7 @@ export default function VarisangyaList() {
           isExporting={isExporting}
           actionButtons={
             <Link to="/collectibles/varisangya/create">
-              <Button size="md">
-                + New Payment
-              </Button>
+              <Button size="md" icon={<FiPlus />} collapseLabel>New Payment</Button>
             </Link>
           }
         />
@@ -407,14 +432,21 @@ export default function VarisangyaList() {
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="text-center py-12">
-            <p className="text-red-600 dark:text-red-400">{error}</p>
-            <Button onClick={fetchVarisangyas} className="mt-4" variant="outline">
-              Retry
-            </Button>
-          </div>
+          <EmptyState
+            variant="error"
+            entity="varisangya payments"
+            description={error}
+            action={{ label: 'Retry', onClick: fetchVarisangyas }}
+          />
         ) : (
-          <Table columns={columns} data={varisangyas} emptyMessage="No varisangya payments found" showExport={false} />
+          <Table
+            fixedLayout
+            striped
+            columns={columns}
+            data={varisangyas}
+            emptyMessage="No varisangya payments found"
+            showExport={false}
+          />
         )}
 
         {/* Pagination */}
@@ -431,7 +463,7 @@ export default function VarisangyaList() {
             />
           </div>
         )}
-      </Card>
+      </TableCard>
 
       <Modal
         isOpen={!!editingRow}
@@ -452,7 +484,7 @@ export default function VarisangyaList() {
         {editingRow && (
           <div className="space-y-4">
             <p className="text-sm text-gray-600 dark:text-gray-400">
-              Receipt: {editingRow.receiptNo ?? '-'} · {getPayerName(editingRow)}
+              Receipt: {editingRow.receiptNo ?? '-'} · {toTitleCase(getPayerName(editingRow))}
             </p>
             <Input
               label="Amount"
@@ -488,4 +520,3 @@ export default function VarisangyaList() {
     </div>
   );
 }
-

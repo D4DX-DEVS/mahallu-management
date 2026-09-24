@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import Breadcrumb from '@/components/layout/Breadcrumb';
-import Card from '@/components/ui/Card';
+import ActionsMenu from '@/components/ui/ActionsMenu';
+import { FiEdit2, FiPlus } from 'react-icons/fi';
+import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
@@ -12,6 +13,9 @@ import Pagination from '@/components/ui/Pagination';
 import { Pagination as PaginationType, TableColumn } from '@/types';
 import { welfareService, WelfareScheme } from '@/services/welfareService';
 import { toast } from '@/store/toastStore';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 
 export const WELFARE_CATEGORY_OPTIONS = [
   { value: 'medical', label: 'Medical' },
@@ -50,7 +54,7 @@ export default function SchemesList() {
       setRows(result.data);
       setPagination(result.pagination);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to load schemes');
+      setError(loadErrorMessage(err, 'schemes'));
     } finally {
       setLoading(false);
     }
@@ -92,51 +96,44 @@ export default function SchemesList() {
       setFieldErrors({});
       fetchRows();
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to save scheme');
+      toast.error(errorMessage(err, { action: 'save scheme' }));
     } finally {
       setSaving(false);
     }
   };
 
   const columns: TableColumn<WelfareScheme>[] = [
-    { key: 'name', label: 'Scheme' },
+    { key: 'name', label: 'Scheme', width: '7.75rem', render: (v) => <span>{toTitleCase(v)}</span> },
     {
       key: 'category',
       label: 'Category',
+      width: '8.25rem',
       render: (v) => WELFARE_CATEGORY_OPTIONS.find((o) => o.value === v)?.label || v,
     },
-    { key: 'budgetAmount', label: 'Budget', render: (v) => (v ? `Rs ${v}` : '-') },
-    { key: 'status', label: 'Status' },
+    { key: 'budgetAmount', label: 'Budget', width: '7.25rem', render: (v) => (v ? `Rs ${v}` : '-') },
+    { key: 'status', label: 'Status', width: '7.25rem' },
     {
       key: 'actions',
-      label: '',
+      label: 'Actions',
+      width: '8rem',
+      align: 'center',
       render: (_v, row) => (
-        <button className="text-primary-600 hover:underline" onClick={() => openEdit(row)}>
-          Edit
-        </button>
+        <ActionsMenu
+          items={[{ label: 'Edit', icon: <FiEdit2 className="h-4 w-4" />, onClick: () => openEdit(row) }]}
+        />
       ),
     },
   ];
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">Welfare Schemes</h1>
-          <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-            Assistance programmes families can apply to
-          </p>
-        </div>
-        <Breadcrumb
-          items={[
-            { label: 'Dashboard', path: '/dashboard' },
-            { label: 'Welfare', path: '/welfare/applications' },
-            { label: 'Schemes' },
-          ]}
-        />
-      </div>
+      <PageHeader
+        title="Welfare Schemes"
+        description="Assistance programmes families can apply to"
+        breadcrumbs={[{ label: 'Welfare', path: '/welfare/applications' }]}
+      />
 
-      <Card>
+      <TableCard>
         <div className="mb-3 flex items-center justify-between gap-2">
           <p className="text-xs text-gray-500 dark:text-gray-400">{pagination?.total ?? 0} scheme(s)</p>
           <Button
@@ -145,21 +142,13 @@ export default function SchemesList() {
               setEditingId(null);
               setForm(emptyForm);
               setFormOpen(true);
-            }}
-          >
-            + New Scheme
-          </Button>
+            }} icon={<FiPlus />} collapseLabel>New Scheme</Button>
         </div>
 
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="py-12 text-center">
-            <p className="text-red-600 dark:text-red-400">{error}</p>
-            <Button onClick={fetchRows} className="mt-4" variant="outline">
-              Retry
-            </Button>
-          </div>
+          <EmptyState variant="error" entity="schemes" description={error} action={{ label: 'Retry', onClick: fetchRows }} />
         ) : rows.length === 0 ? (
           <EmptyState
             title="No schemes yet"
@@ -174,9 +163,7 @@ export default function SchemesList() {
             }}
           />
         ) : (
-          <div className="overflow-x-auto">
-            <Table columns={columns} data={rows} emptyMessage="No schemes yet" showExport={false} />
-          </div>
+          <Table fixedLayout striped columns={columns} data={rows} emptyMessage="No schemes yet" showExport={false} />
         )}
 
         {pagination && (
@@ -190,7 +177,7 @@ export default function SchemesList() {
             />
           </div>
         )}
-      </Card>
+      </TableCard>
 
       <Modal
         isOpen={isFormOpen}
@@ -210,7 +197,9 @@ export default function SchemesList() {
               }}
               required
             />
-            {fieldErrors.name && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{fieldErrors.name}</p>}
+            {fieldErrors.name && (
+              <p className="mt-1 text-sm text-red-600 dark:text-red-400">{fieldErrors.name}</p>
+            )}
           </div>
           <Input
             label="Name (Malayalam)"

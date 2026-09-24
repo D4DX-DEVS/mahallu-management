@@ -1,41 +1,82 @@
-import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { FiEdit2, FiX, FiEye, FiUsers, FiUser, FiUserCheck } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
-import Card from '@/components/ui/Card';
+import { useState, useEffect, useRef } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { FiEdit2, FiEye, FiPlus, FiUser, FiUserCheck, FiUsers } from 'react-icons/fi';
+import TableCard from '@/components/ui/TableCard';
+import FilterPanel from '@/components/ui/FilterPanel';
 import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
+import EmptyState from '@/components/ui/EmptyState';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
 import { TableColumn, Pagination as PaginationType } from '@/types';
 import { Member } from '@/types';
 import { memberService } from '@/services/memberService';
+import { familyService } from '@/services/familyService';
+import { fetchAllPages } from '@/services/api';
 import { useDebounce } from '@/hooks/useDebounce';
 import { ROUTES } from '@/constants/routes';
-import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
+import { exportToCSV, exportToPDF } from '@/utils/exportUtils';
 import { toast } from '@/store/toastStore';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import { toTitleCase } from '@/utils/format';
+import PageHeader from '@/components/layout/PageHeader';
+import ActionsMenu from '@/components/ui/ActionsMenu';
 
 export default function MembersList() {
   const navigate = useNavigate();
-  const [searchQuery, setSearchQuery] = useState('');
-  const [isFilterVisible, setIsFilterVisible] = useState(false);
-  const [sortBy, setSortBy] = useState('date');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
+  const [isFilterVisible, setIsFilterVisible] = useState(!!searchParams.get('sort'));
+  const [sortBy, setSortBy] = useState(searchParams.get('sort') || 'date');
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useState(() => {
+    const page = Number(searchParams.get('page'));
+    return page > 0 ? page : 1;
+  });
   const [itemsPerPage] = useState(10);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
   const [isExporting, setIsExporting] = useState(false);
-  
+  const [memberStats, setMemberStats] = useState({ totalMembers: 0, maleCount: 0, femaleCount: 0 });
+
   const debouncedSearch = useDebounce(searchQuery, 500);
+
+  // A new search term invalidates the current page offset: searching from page 4
+  // kept asking the API for page 4 of the new, much shorter result set and showed
+  // an empty table. Skipped on the mount that restores a page from the URL.
+  const skipPageReset = useRef(true);
+  useEffect(() => {
+    if (skipPageReset.current) {
+      skipPageReset.current = false;
+      return;
+    }
+    setCurrentPage(1);
+  }, [debouncedSearch]);
+
+  // Keep the URL in sync so a searched/sorted/paged list survives navigating to
+  // a detail page and back, and survives a refresh.
+  useEffect(() => {
+    const next = new URLSearchParams();
+    if (debouncedSearch) next.set('q', debouncedSearch);
+    if (sortBy && sortBy !== 'date') next.set('sort', sortBy);
+    if (currentPage > 1) next.set('page', String(currentPage));
+    setSearchParams(next, { replace: true });
+  }, [debouncedSearch, sortBy, currentPage, setSearchParams]);
 
   useEffect(() => {
     fetchMembers();
   }, [debouncedSearch, sortBy, currentPage]);
+
+  useEffect(() => {
+    familyService
+      .getStats()
+      .then((stats) => stats && setMemberStats(stats))
+      .catch(() => undefined);
+  }, []);
 
   const fetchMembers = async () => {
     try {
@@ -48,8 +89,8 @@ export default function MembersList() {
       if (debouncedSearch) {
         params.search = debouncedSearch;
       }
-      if (sortBy) {
-        params.sortBy = sortBy === 'mahallId' ? 'mahallId' : 'date';
+      if (sortBy && sortBy !== 'date') {
+        params.sortBy = sortBy;
       }
       const result = await memberService.getAll(params);
       setMembers(result.data);
@@ -57,21 +98,22 @@ export default function MembersList() {
         setPagination(result.pagination);
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch members');
+      setError(loadErrorMessage(err, 'members'));
       console.error('Error fetching members:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleExport = async (type: 'csv' | 'json' | 'pdf') => {
+  const handleExport = async (type: 'csv' | 'pdf') => {
     try {
       setIsExporting(true);
-      const params: any = { limit: 10000 };
+      const params: any = {};
       if (debouncedSearch) params.search = debouncedSearch;
-      if (sortBy) params.sortBy = sortBy === 'mahallId' ? 'mahallId' : 'date';
-      const result = await memberService.getAll(params);
-      const dataToExport = result.data;
+      if (sortBy && sortBy !== 'date') params.sortBy = sortBy;
+      const dataToExport = await fetchAllPages((pageParams) =>
+        memberService.getAll({ ...params, ...pageParams })
+      );
       if (dataToExport.length === 0) {
         toast.info('No members to export');
         return;
@@ -79,186 +121,154 @@ export default function MembersList() {
       const filename = 'members';
       const title = 'All Members';
       switch (type) {
-        case 'csv': exportToCSV(columns, dataToExport, filename); break;
-        case 'json': exportToJSON(columns, dataToExport, filename); break;
-        case 'pdf': exportToPDF(columns, dataToExport, filename, title); break;
+        case 'csv':
+          exportToCSV(columns, dataToExport, filename);
+          break;
+        case 'pdf':
+          exportToPDF(columns, dataToExport, filename, title);
+          break;
       }
     } catch (error: any) {
       console.error('Export error:', error);
-      toast.error(error?.response?.data?.message || 'Failed to export data');
+      toast.error(errorMessage(error, { action: 'export data' }));
     } finally {
       setIsExporting(false);
     }
   };
 
   const columns: TableColumn<Member>[] = [
-    { key: 'id', label: 'No.', render: (_, __, index) => index + 1 },
-    { key: 'mahallId', label: 'Mahall ID', render: (id) => id || '-' },
-    { key: 'name', label: 'Name', sortable: true },
-    { key: 'familyName', label: 'Family Name' },
+    { key: 'mahallId', label: 'Mahall ID', width: '7rem', priority: 'secondary', render: (id) => <span className="tabular-nums">{id || '-'}</span> },
+    { key: 'name', label: 'Name', width: '9.5rem', sortable: true, render: (name) => <span className="font-medium">{toTitleCase(name)}</span> },
+    { key: 'familyName', label: 'Family', width: '9rem', priority: 'secondary', render: (name) => toTitleCase(name) },
     {
       key: 'age',
-      label: 'Age / Gender',
-      render: (_, row) => {
-        const age = row.age ? `${row.age}` : '-';
-        const gender = row.gender || '-';
-        return `${age} / ${gender}`;
-      },
+      label: 'Age',
+      width: '5.5rem',
+      align: 'center',
+      render: (_, row) => <span className="tabular-nums">{row.age ?? '-'}</span>,
     },
-    { key: 'bloodGroup', label: 'Blood Group', render: (bg) => bg || '-' },
-    {
-      key: 'healthStatus',
-      label: 'Health Status',
-      render: (status) => status || '-',
-    },
-    { key: 'phone', label: 'Phone', render: (phone) => phone || '-' },
-    {
-      key: 'education',
-      label: 'Educations',
-      render: (edu) => edu || '-',
-    },
+    { key: 'phone', label: 'Phone', width: '7.5rem', priority: 'secondary', render: (phone) => <span className="tabular-nums">{phone || '-'}</span> },
+    { key: 'education', label: 'Education', width: '8rem', priority: 'tertiary', render: (edu) => edu || '-' },
     {
       key: 'actions',
-      label: 'Actions',
+      label: '',
+      width: '6.5rem',
+      sortable: false,
+      align: 'right',
       render: (_, row) => (
-        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-end gap-1">
           <button
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(ROUTES.MEMBERS.DETAIL(row.id));
-            }}
-            className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
-            title="View"
-          >
-            <FiEye className="h-4 w-4" />
-          </button>
-          <button
+            type="button"
             onClick={(e) => {
               e.stopPropagation();
               navigate(ROUTES.MEMBERS.EDIT(row.id));
             }}
-            className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
-            title="Edit"
+            aria-label={`Edit ${toTitleCase(row.name)}`}
+            className="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
-            <FiEdit2 className="h-4 w-4" />
+            <FiEdit2 className="h-4 w-4" aria-hidden="true" />
           </button>
+          <ActionsMenu
+            label={`Actions for ${toTitleCase(row.name)}`}
+            items={[
+              { label: 'View', icon: <FiEye className="h-4 w-4" />, onClick: () => navigate(ROUTES.MEMBERS.DETAIL(row.id)) },
+              { label: 'Edit', icon: <FiEdit2 className="h-4 w-4" />, onClick: () => navigate(ROUTES.MEMBERS.EDIT(row.id)) },
+            ]}
+          />
         </div>
       ),
     },
   ];
 
   const stats = [
-    { title: 'Total Family Members', value: pagination?.total || members.length, icon: <FiUsers className="h-5 w-5" /> },
+    {
+      title: 'Total Family Members',
+      value: memberStats.totalMembers || pagination?.total || members.length,
+      icon: <FiUsers className="h-5 w-5" />,
+    },
     {
       title: 'Total Males',
-      value: members.filter((m) => m.gender === 'male').length,
+      value: memberStats.maleCount,
       icon: <FiUser className="h-5 w-5" />,
     },
     {
       title: 'Total Females',
-      value: members.filter((m) => m.gender === 'female').length,
+      value: memberStats.femaleCount,
       icon: <FiUserCheck className="h-5 w-5" />,
     },
   ];
 
   return (
-    <div className="space-y-4">
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">
-              All Family Members
-            </h1>
-            <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
-              Manage family members and their information
-            </p>
-          </div>
-          <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'All Family Members' }]} />
-        </div>
+    <div className="space-y-5">
+      <PageHeader
+        title="Members"
+        description="People registered across all families"
+        actions={
+          <Link to={ROUTES.MEMBERS.CREATE}>
+            <Button icon={<FiPlus />} collapseLabel>New member</Button>
+          </Link>
+        }
+      />
 
-        {/* Statistics Cards */}
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          {stats.map((stat, index) => (
-            <StatCard key={index} {...stat} />
-          ))}
-        </div>
+      <div className="grid grid-cols-3 gap-3">
+        {stats.map((stat, index) => (
+          <StatCard key={index} {...stat} size="compact" />
+        ))}
       </div>
 
-      {/* Actions and Filters */}
-      <Card>
-        <div className="flex flex-col gap-4 mb-6">
-          <TableToolbar
-            searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
-            onFilterClick={() => setIsFilterVisible(!isFilterVisible)}
-            isFilterVisible={isFilterVisible}
-            hasFilters={true}
-            onRefresh={fetchMembers}
-            onExport={handleExport}
-            isExporting={isExporting}
-            actionButtons={
-              <Link to={ROUTES.MEMBERS.CREATE}>
-                <Button size="md">+ New Member</Button>
-              </Link>
-            }
-          />
+      <TableCard padding="lg">
+        <TableToolbar
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          searchEntity="members"
+          onFilterClick={() => setIsFilterVisible(!isFilterVisible)}
+          isFilterVisible={isFilterVisible}
+          hasFilters
+          onRefresh={fetchMembers}
+          onExport={handleExport}
+          isExporting={isExporting}
+        />
 
           {isFilterVisible && (
-            <div className="relative flex flex-wrap items-center gap-4 mb-6 p-4 border border-gray-200 rounded-lg bg-white dark:bg-gray-800 dark:border-gray-700">
-              <button
-                onClick={() => setIsFilterVisible(false)}
-                className="absolute right-4 top-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-              >
-                <FiX className="h-4 w-4" />
-              </button>
-              <div className="w-40">
-                <Select
-                  options={[
-                    { value: 'date', label: 'Date' },
-                    { value: 'mahallId', label: 'Mahall ID' },
-                    { value: 'name', label: 'Name' },
-                  ]}
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value)}
-                />
-              </div>
+            <div className="mt-4">
+              <FilterPanel onClose={() => setIsFilterVisible(false)}>
+                <div className="w-full sm:w-40">
+                  <Select
+                    options={[
+                      { value: 'date', label: 'Date' },
+                      { value: 'mahallId', label: 'Mahall ID' },
+                      { value: 'name', label: 'Name' },
+                    ]}
+                    value={sortBy}
+                    onChange={(e) => {
+                      setSortBy(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                  />
+                </div>
+              </FilterPanel>
             </div>
           )}
-
-        </div>
 
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="text-center py-12">
-            <p className="text-red-600 dark:text-red-400">{error}</p>
-            <Button onClick={fetchMembers} className="mt-4" variant="outline">
-              Retry
-            </Button>
-          </div>
+          <EmptyState
+            variant="error"
+            entity="members"
+            description={error}
+            action={{ label: 'Retry', onClick: fetchMembers }}
+          />
         ) : (
           <Table
+            fixedLayout
+            striped
             columns={columns}
             data={members}
+            entity="members"
             emptyMessage="No Members Yet"
-            exportFilename="members"
-            exportTitle="All Family Members"
-            showExport={false}
+            emptyAction={{ label: 'Add member', onClick: () => navigate(ROUTES.MEMBERS.CREATE) }}
             onRowClick={(row) => navigate(ROUTES.MEMBERS.DETAIL(row.id))}
-            onExportAll={async () => {
-              // Fetch all filtered data without pagination
-              const params: any = {
-                limit: 10000, // Large limit to get all data
-              };
-              if (debouncedSearch) {
-                params.search = debouncedSearch;
-              }
-              if (sortBy) {
-                params.sortBy = sortBy === 'mahallId' ? 'mahallId' : 'date';
-              }
-              const result = await memberService.getAll(params);
-              return result.data;
-            }}
           />
         )}
 
@@ -276,8 +286,7 @@ export default function MembersList() {
             />
           </div>
         )}
-      </Card>
+      </TableCard>
     </div>
   );
 }
-

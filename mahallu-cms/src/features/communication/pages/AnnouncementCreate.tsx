@@ -1,6 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -13,6 +12,21 @@ import {
   ANNOUNCEMENT_AUDIENCE_OPTIONS,
   ANNOUNCEMENT_CHANNELS,
 } from '@/services/announcementService';
+import { clusterService } from '@/services/clusterService';
+import { fetchAllPages } from '@/services/api';
+import { errorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
+import { useFormValidation } from '@/hooks/useFormValidation';
+import { FieldRule, LIMITS } from '@/utils/validation';
+
+/** Matches the API's announcement rules, including the 5,000-character body. */
+const RULES: Record<string, FieldRule> = {
+  title: { label: 'title', required: true, minLength: 2, maxLength: LIMITS.title.max },
+  titleMl: { label: 'title', maxLength: LIMITS.title.max },
+  body: { label: 'message', required: true, maxLength: LIMITS.longText.max },
+  category: { label: 'category', maxLength: LIMITS.shortText.max },
+  audience: { label: 'audience', maxLength: LIMITS.shortText.max },
+};
 
 export default function AnnouncementCreate() {
   const navigate = useNavigate();
@@ -25,6 +39,19 @@ export default function AnnouncementCreate() {
     audience: 'all',
     channels: ['push'] as string[],
   });
+  const [clusterId, setClusterId] = useState('');
+  const [clusterOptions, setClusterOptions] = useState<{ value: string; label: string }[]>([]);
+  const { errors, validate } = useFormValidation(RULES);
+
+  // Without a cluster selected, the WhatsApp fan-out drops the cluster
+  // filter entirely and broadcasts to every family in the tenant instead of
+  // the chosen cluster — so the picker must be populated before send.
+  useEffect(() => {
+    if (form.audience !== 'cluster' || clusterOptions.length > 0) return;
+    fetchAllPages(({ page, limit }) => clusterService.getAll({ page, limit, status: 'active' }))
+      .then((clusters) => setClusterOptions(clusters.map((c) => ({ value: c.id, label: c.name }))))
+      .catch(() => setClusterOptions([]));
+  }, [form.audience, clusterOptions.length]);
 
   const toggleChannel = (value: string) => {
     setForm((prev) => ({
@@ -37,13 +64,19 @@ export default function AnnouncementCreate() {
 
   const handleSubmit = async (e: React.FormEvent, sendNow: boolean) => {
     e.preventDefault();
-    if (!form.title.trim() || !form.body.trim()) {
-      toast.error('Title and message are required');
+    // Length and shape as well as presence - the body reaches push, WhatsApp
+    // and SMS, and the API caps it at 5,000 characters.
+    if (!validate(form)) return;
+    if (form.audience === 'cluster' && !clusterId) {
+      toast.error('Please choose a cluster to target.');
       return;
     }
+    if (saving) return;
     try {
       setSaving(true);
-      const created = await announcementService.create(form as any);
+      const payload: any = { ...form };
+      if (form.audience === 'cluster') payload.audienceRefIds = [clusterId];
+      const created = await announcementService.create(payload);
       if (sendNow) {
         await announcementService.send(created.id);
         toast.success('Announcement sent');
@@ -52,7 +85,7 @@ export default function AnnouncementCreate() {
       }
       navigate(`/announcements/${created.id}`);
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to save announcement');
+      toast.error(errorMessage(err, { action: 'save announcement' }));
     } finally {
       setSaving(false);
     }
@@ -60,54 +93,62 @@ export default function AnnouncementCreate() {
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">New Announcement</h1>
-          <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-            Save as a draft, or publish straight away
-          </p>
-        </div>
-        <Breadcrumb
-          items={[
-            { label: 'Dashboard', path: '/dashboard' },
-            { label: 'Announcements', path: '/announcements' },
-            { label: 'New' },
-          ]}
-        />
-      </div>
+      <PageHeader
+        title="New Announcement"
+        description="Save as a draft, or publish straight away"
+        breadcrumbs={[{ label: 'Announcements', path: '/announcements' }]}
+      />
 
       <form onSubmit={(e) => handleSubmit(e, false)}>
-        <Card className="p-3 sm:p-4">
+        <Card>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <Input
               label="Title"
               value={form.title}
+              error={errors.title}
               onChange={(e) => setForm({ ...form, title: e.target.value })}
               required
             />
             <Input
               label="Title (Malayalam)"
               value={form.titleMl}
+              error={errors.titleMl}
               onChange={(e) => setForm({ ...form, titleMl: e.target.value })}
               className="font-malayalam"
             />
             <Select
               label="Category"
               value={form.category}
+              error={errors.category}
               onChange={(e) => setForm({ ...form, category: e.target.value })}
               options={ANNOUNCEMENT_CATEGORY_OPTIONS}
             />
             <Select
               label="Audience"
               value={form.audience}
-              onChange={(e) => setForm({ ...form, audience: e.target.value })}
+              error={errors.audience}
+              onChange={(e) => {
+                setForm({ ...form, audience: e.target.value });
+                setClusterId('');
+              }}
               options={ANNOUNCEMENT_AUDIENCE_OPTIONS}
             />
+            {form.audience === 'cluster' && (
+              <Select
+                label="Cluster"
+                value={clusterId}
+                onChange={(e) => setClusterId(e.target.value)}
+                options={clusterOptions}
+                placeholder="Select a cluster"
+                required
+              />
+            )}
             <div className="md:col-span-2">
               <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-200">
                 Message
               </label>
               <textarea
+                aria-label="Message"
                 value={form.body}
                 onChange={(e) => setForm({ ...form, body: e.target.value })}
                 rows={5}

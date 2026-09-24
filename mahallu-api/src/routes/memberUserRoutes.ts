@@ -23,6 +23,19 @@ import {
 } from '../controllers/memberUserController';
 import { authMiddleware, memberUserOnly } from '../middleware/authMiddleware';
 import { validationHandler } from '../middleware/validationHandler';
+import {
+  listQueryValidation,
+  paymentsQueryValidation,
+  registrationsQueryValidation,
+  updateOwnProfileValidation,
+  varisangyaPaymentValidation,
+  zakatPaymentValidation,
+  nikahRequestValidation,
+  deathRequestValidation,
+  nocRequestValidation,
+  ownRegistrationParamValidation,
+  resubmitRegistrationValidation,
+} from '../validations/memberUserValidation';
 
 const router = express.Router();
 
@@ -88,7 +101,7 @@ router.get('/overview', getOwnOverview);
  *       404:
  *         description: Member profile not found
  */
-router.put('/profile', updateOwnProfile);
+router.put('/profile', updateOwnProfileValidation, validationHandler, updateOwnProfile);
 
 /**
  * @swagger
@@ -122,8 +135,8 @@ router.put('/profile', updateOwnProfile);
  *       200:
  *         description: Payment history retrieved successfully
  */
-router.get('/payments', getOwnPayments);
-router.get('/varisangya', getOwnVarisangya);
+router.get('/payments', paymentsQueryValidation, validationHandler, getOwnPayments);
+router.get('/varisangya', listQueryValidation, validationHandler, getOwnVarisangya);
 
 /**
  * @swagger
@@ -168,7 +181,7 @@ router.get('/wallet', getOwnWallet);
  *       200:
  *         description: Transactions retrieved successfully
  */
-router.get('/wallet/transactions', getOwnWalletTransactions);
+router.get('/wallet/transactions', listQueryValidation, validationHandler, getOwnWalletTransactions);
 
 /**
  * @swagger
@@ -206,7 +219,7 @@ router.get('/wallet/transactions', getOwnWalletTransactions);
  *       201:
  *         description: Payment request submitted successfully
  */
-router.post('/payments/varisangya', requestVarisangyaPayment);
+router.post('/payments/varisangya', varisangyaPaymentValidation, validationHandler, requestVarisangyaPayment);
 
 /**
  * @swagger
@@ -246,7 +259,7 @@ router.post('/payments/varisangya', requestVarisangyaPayment);
  *       201:
  *         description: Payment request submitted successfully
  */
-router.post('/payments/zakat', requestZakatPayment);
+router.post('/payments/zakat', zakatPaymentValidation, validationHandler, requestZakatPayment);
 
 /**
  * @swagger
@@ -280,7 +293,7 @@ router.post('/payments/zakat', requestZakatPayment);
  *       200:
  *         description: Registrations retrieved successfully
  */
-router.get('/registrations', getOwnRegistrations);
+router.get('/registrations', registrationsQueryValidation, validationHandler, getOwnRegistrations);
 
 /**
  * @swagger
@@ -326,7 +339,7 @@ router.get('/registrations', getOwnRegistrations);
  *       201:
  *         description: Registration request submitted successfully
  */
-router.post('/registrations/nikah', requestNikahRegistration);
+router.post('/registrations/nikah', nikahRequestValidation, validationHandler, requestNikahRegistration);
 
 /**
  * @swagger
@@ -365,7 +378,7 @@ router.post('/registrations/nikah', requestNikahRegistration);
  *       201:
  *         description: Registration request submitted successfully
  */
-router.post('/registrations/death', requestDeathRegistration);
+router.post('/registrations/death', deathRequestValidation, validationHandler, requestDeathRegistration);
 
 /**
  * @swagger
@@ -400,13 +413,13 @@ router.post('/registrations/death', requestDeathRegistration);
  *       201:
  *         description: NOC request submitted successfully
  */
-router.post('/registrations/noc', requestNOC);
+router.post('/registrations/noc', nocRequestValidation, validationHandler, requestNOC);
 
 // Edit + resubmit an own registration while status is pending / correction_required
-router.put('/registrations/:type/:id', resubmitRegistration);
+router.put('/registrations/:type/:id', resubmitRegistrationValidation, validationHandler, resubmitRegistration);
 
 // Cancel/delete an own registration while it hasn't been approved yet
-router.delete('/registrations/:type/:id', deleteOwnRegistration);
+router.delete('/registrations/:type/:id', ownRegistrationParamValidation, validationHandler, deleteOwnRegistration);
 
 /**
  * @swagger
@@ -434,7 +447,7 @@ router.delete('/registrations/:type/:id', deleteOwnRegistration);
  *       200:
  *         description: Notifications retrieved successfully
  */
-router.get('/notifications', getOwnNotifications);
+router.get('/notifications', listQueryValidation, validationHandler, getOwnNotifications);
 
 /**
  * @swagger
@@ -462,7 +475,7 @@ router.get('/notifications', getOwnNotifications);
  *       200:
  *         description: Programs retrieved successfully
  */
-router.get('/programs', getCommunityPrograms);
+router.get('/programs', listQueryValidation, validationHandler, getCommunityPrograms);
 
 /**
  * @swagger
@@ -519,9 +532,9 @@ router.get('/programs', getCommunityPrograms);
  *       404:
  *         description: Member profile not found or not linked
  */
-router.get('/banners', getPublicBanners);
+router.get('/banners', listQueryValidation, validationHandler, getPublicBanners);
 
-router.get('/feeds', getPublicFeeds);
+router.get('/feeds', listQueryValidation, validationHandler, getPublicFeeds);
 
 /**
  * @swagger
@@ -551,7 +564,7 @@ router.get('/feeds', getPublicFeeds);
  *       404:
  *         description: Member not found or not linked to a family
  */
-router.get('/family-members', getOwnFamilyMembers);
+router.get('/family-members', listQueryValidation, validationHandler, getOwnFamilyMembers);
 
 export default router;
 

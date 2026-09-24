@@ -1,14 +1,20 @@
 import { useState, useEffect } from 'react';
+import { FiPlus } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import { PageSkeleton } from '@/components/ui/Skeleton';
+import EmptyState from '@/components/ui/EmptyState';
 import { pettyCashService, PettyCashFund } from '@/services/pettyCashService';
 import { instituteService } from '@/services/instituteService';
 import { useAuthStore } from '@/store/authStore';
+import { toast } from '@/store/toastStore';
+import { errorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
+import StatusBadge from '@/components/ui/StatusBadge';
 
 export default function PettyCashList() {
   const navigate = useNavigate();
@@ -30,7 +36,9 @@ export default function PettyCashList() {
     try {
       const result = await instituteService.getAll({ limit: 1000 });
       setInstitutes(result.data.map((i: any) => ({ id: i.id, name: i.name })));
-    } catch (err) { console.error(err); }
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const fetchFunds = async () => {
@@ -41,7 +49,7 @@ export default function PettyCashList() {
       const data = await pettyCashService.getAll(params);
       setFunds(data);
     } catch (err) {
-      console.error(err);
+      toast.error(errorMessage(err, { action: 'load petty cash funds' }));
     } finally {
       setLoading(false);
     }
@@ -58,69 +66,83 @@ export default function PettyCashList() {
       });
       setShowCreate(false);
       setCreateForm({ instituteId: '', custodianName: '', floatAmount: '' });
+      toast.success('Petty cash fund created');
       fetchFunds();
     } catch (err) {
-      console.error(err);
+      toast.error(errorMessage(err, { action: 'create petty cash fund' }));
     } finally {
       setSaving(false);
     }
   };
 
   const getInstituteName = (fund: PettyCashFund) => {
-    if (typeof fund.instituteId === 'object' && fund.instituteId?.name) return fund.instituteId.name;
+    if (typeof fund.instituteId === 'object' && fund.instituteId?.name) return toTitleCase(fund.instituteId.name);
     return '-';
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Petty Cash</h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Manage petty cash funds for daily expenses</p>
-        </div>
-        <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Petty Cash' }]} />
-      </div>
+    <div className="space-y-4">
+      <PageHeader title="Petty Cash" description="Manage petty cash funds for daily expenses" />
 
       <Card>
-        <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
-          <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
+          <div className="flex w-full flex-wrap items-center gap-4 sm:w-auto">
             {!userInstituteId && (
-              <div className="w-48">
+              <div className="w-full sm:w-48">
                 <Select
                   label="Institute"
-                  options={[{ value: 'all', label: 'All Institutes' }, ...institutes.map(i => ({ value: i.id, label: i.name }))]}
+                  options={[
+                    { value: 'all', label: 'All Institutes' },
+                    ...institutes.map((i) => ({ value: i.id, label: toTitleCase(i.name) })),
+                  ]}
                   value={instituteFilter}
                   onChange={(e) => setInstituteFilter(e.target.value)}
                 />
               </div>
             )}
           </div>
-          <Button onClick={() => setShowCreate(true)}>+ New Fund</Button>
+          <Button onClick={() => setShowCreate(true)} icon={<FiPlus />} collapseLabel>New Fund</Button>
         </div>
 
         {/* Create Form */}
         {showCreate && (
-          <div className="mb-6 p-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800">
+          <div className="mb-4 p-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800">
             <h3 className="text-sm font-semibold mb-3">Create Petty Cash Fund</h3>
             <div className="flex flex-wrap items-end gap-4">
               {!userInstituteId && (
-                <div className="w-48">
+                <div className="w-full sm:w-48">
                   <Select
                     label="Institute"
-                    options={[{ value: '', label: 'Select Institute' }, ...institutes.map(i => ({ value: i.id, label: i.name }))]}
+                    options={[
+                      { value: '', label: 'Select Institute' },
+                      ...institutes.map((i) => ({ value: i.id, label: toTitleCase(i.name) })),
+                    ]}
                     value={createForm.instituteId}
-                    onChange={(e) => setCreateForm(f => ({ ...f, instituteId: e.target.value }))}
+                    onChange={(e) => setCreateForm((f) => ({ ...f, instituteId: e.target.value }))}
                   />
                 </div>
               )}
-              <div className="w-48">
-                <Input label="Custodian Name" value={createForm.custodianName} onChange={(e) => setCreateForm(f => ({ ...f, custodianName: e.target.value }))} />
+              <div className="w-full sm:w-48">
+                <Input
+                  label="Custodian Name"
+                  value={createForm.custodianName}
+                  onChange={(e) => setCreateForm((f) => ({ ...f, custodianName: e.target.value }))}
+                />
               </div>
-              <div className="w-36">
-                <Input label="Float Amount (₹)" type="number" value={createForm.floatAmount} onChange={(e) => setCreateForm(f => ({ ...f, floatAmount: e.target.value }))} />
+              <div className="w-full sm:w-36">
+                <Input
+                  label="Float Amount (₹)"
+                  type="number"
+                  value={createForm.floatAmount}
+                  onChange={(e) => setCreateForm((f) => ({ ...f, floatAmount: e.target.value }))}
+                />
               </div>
-              <Button onClick={handleCreate} disabled={saving}>{saving ? 'Creating...' : 'Create'}</Button>
-              <Button variant="outline" onClick={() => setShowCreate(false)}>Cancel</Button>
+              <Button onClick={handleCreate} disabled={saving}>
+                {saving ? 'Creating...' : 'Create'}
+              </Button>
+              <Button variant="outline" onClick={() => setShowCreate(false)}>
+                Cancel
+              </Button>
             </div>
           </div>
         )}
@@ -128,7 +150,10 @@ export default function PettyCashList() {
         {loading ? (
           <PageSkeleton variant="section" />
         ) : funds.length === 0 ? (
-          <div className="text-center py-12 text-gray-500 dark:text-gray-400">No petty cash funds found. Create one to get started.</div>
+          <EmptyState
+            entity="petty cash funds"
+            action={{ label: 'New Fund', onClick: () => setShowCreate(true) }}
+          />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {funds.map((fund) => {
@@ -142,12 +167,10 @@ export default function PettyCashList() {
                 >
                   <div className="flex justify-between items-start mb-2">
                     <div>
-                      <h3 className="font-semibold text-gray-900 dark:text-gray-100">{fund.custodianName}</h3>
+                      <h3 className="font-semibold text-foreground">{toTitleCase(fund.custodianName)}</h3>
                       <p className="text-xs text-gray-500">{getInstituteName(fund)}</p>
                     </div>
-                    <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${
-                      fund.status === 'active' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300'
-                    }`}>{fund.status}</span>
+                    <StatusBadge status={fund.status} />
                   </div>
                   <div className="space-y-2 mt-3">
                     <div className="flex justify-between text-sm">
@@ -156,7 +179,9 @@ export default function PettyCashList() {
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-500">Balance</span>
-                      <span className={`font-bold ${fund.currentBalance < fund.floatAmount * 0.2 ? 'text-red-600' : 'text-green-600'}`}>
+                      <span
+                        className={`font-semibold ${fund.currentBalance < fund.floatAmount * 0.2 ? 'text-red-600' : 'text-green-600'}`}
+                      >
                         ₹{fund.currentBalance.toLocaleString()}
                       </span>
                     </div>
@@ -166,7 +191,9 @@ export default function PettyCashList() {
                         style={{ width: `${Math.min(spentPct, 100)}%` }}
                       ></div>
                     </div>
-                    <p className="text-xs text-gray-500 text-right">₹{spent.toLocaleString()} spent ({spentPct.toFixed(0)}%)</p>
+                    <p className="text-xs text-gray-500 text-right">
+                      ₹{spent.toLocaleString()} spent ({spentPct.toFixed(0)}%)
+                    </p>
                   </div>
                 </div>
               );

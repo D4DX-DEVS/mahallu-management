@@ -1,7 +1,9 @@
 import { useState, useEffect, ReactNode } from 'react';
+import ActionsMenu from '@/components/ui/ActionsMenu';
+import { FiCalendar, FiCheckCircle, FiEdit2, FiList, FiPlus, FiSlash, FiTrash2 } from 'react-icons/fi';
 import { useParams, useNavigate } from 'react-router-dom';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
+import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import Table from '@/components/ui/Table';
 import Select from '@/components/ui/Select';
@@ -23,6 +25,11 @@ import {
 } from '@/services/madrasaService';
 import { attendanceService, ClassProgress } from '@/services/attendanceService';
 import EnrollStudentModal from '../components/EnrollStudentModal';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
+import SortableTh from '@/components/ui/SortableTh';
+import { useSortableRows } from '@/hooks/useSortableRows';
 
 const STATUS_FILTER = [{ value: '', label: 'All students' }, ...ENROLLMENT_STATUS_OPTIONS];
 
@@ -69,7 +76,7 @@ export default function ClassDetail() {
       setError(null);
       setCls(await madrasaService.getClass(classId));
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to load the class');
+      setError(loadErrorMessage(err, 'the class'));
     } finally {
       setLoading(false);
     }
@@ -81,7 +88,7 @@ export default function ClassDetail() {
       const data = await attendanceService.getClassProgress(classId);
       setProgress(data);
     } catch (err: any) {
-      console.error('Failed to load progress', err);
+      console.error("Couldn't load progress", err);
     } finally {
       setProgressLoading(false);
     }
@@ -116,7 +123,7 @@ export default function ClassDetail() {
       toast.success('Enrollment updated');
       refresh();
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to update enrollment');
+      toast.error(errorMessage(err, { action: 'update enrollment' }));
     } finally {
       setBusyId(null);
     }
@@ -128,61 +135,76 @@ export default function ClassDetail() {
       setRemoving(true);
       await madrasaService.deleteEnrollment(removeConfirm.id);
       setRemoveConfirm(null);
-      toast.success(`${removeConfirm.name} removed from class`);
+      toast.success(`${toTitleCase(removeConfirm.name)} removed from class`);
       refresh();
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to remove student');
+      toast.error(errorMessage(err, { action: 'remove student' }));
     } finally {
       setRemoving(false);
     }
   };
 
   const columns: TableColumn<StudentEnrollment>[] = [
-    { key: 'rollNo', label: 'Roll', render: (v) => v || '-' },
-    { key: 'memberId', label: 'Student', render: (_v, row) => studentName(row) },
-    { key: 'enrollDate', label: 'Enrolled', render: (v) => formatDate(v) },
-    { key: 'status', label: 'Status' },
+    { key: 'rollNo', label: 'Roll', width: '6rem', render: (v) => v || '-' },
+    {
+      key: 'memberId',
+      label: 'Student',
+      width: '7.75rem',
+      render: (_v, row) => <span>{toTitleCase(studentName(row))}</span>,
+    },
+    { key: 'enrollDate', label: 'Enrolled', width: '7.75rem', render: (v) => formatDate(v) },
+    { key: 'status', label: 'Status', width: '7.25rem' },
     {
       key: 'actions',
-      label: '',
+      label: 'Actions',
+      width: '8rem',
+      align: 'center',
       render: (_v, row) => (
-        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-          {row.status === 'active' && (
-            <button
-              onClick={() => changeStatus(row, 'completed')}
-              disabled={busyId === row.id}
-              className="text-xs font-medium text-green-600 hover:underline disabled:opacity-50 dark:text-green-400"
-            >
-              Complete
-            </button>
-          )}
-          {row.status === 'active' && (
-            <button
-              onClick={() => changeStatus(row, 'dropped')}
-              disabled={busyId === row.id}
-              className="text-xs font-medium text-amber-600 hover:underline disabled:opacity-50 dark:text-amber-400"
-            >
-              Drop
-            </button>
-          )}
-          <button
-            onClick={() => setRemoveConfirm({ id: row.id, name: studentName(row) })}
-            disabled={removing || busyId === row.id}
-            className="text-xs font-medium text-red-600 hover:underline disabled:opacity-50 dark:text-red-400"
-          >
-            Remove
-          </button>
-        </div>
+        <ActionsMenu
+          label={'Actions for ' + toTitleCase(studentName(row))}
+          items={[
+            ...(row.status === 'active'
+              ? [
+                  {
+                    label: 'Mark completed',
+                    icon: <FiCheckCircle className="h-4 w-4" />,
+                    onClick: () => changeStatus(row, 'completed'),
+                    disabled: busyId === row.id,
+                  },
+                  {
+                    label: 'Mark dropped',
+                    icon: <FiSlash className="h-4 w-4" />,
+                    onClick: () => changeStatus(row, 'dropped'),
+                    disabled: busyId === row.id,
+                    variant: 'warning' as const,
+                  },
+                ]
+              : []),
+            {
+              label: 'Remove from class',
+              icon: <FiTrash2 className="h-4 w-4" />,
+              onClick: () => setRemoveConfirm({ id: row.id, name: studentName(row) }),
+              disabled: removing || busyId === row.id,
+              variant: 'danger' as const,
+            },
+          ]}
+        />
       ),
     },
   ];
+
+  const {
+    rows: sortedStudents,
+    sort,
+    toggleSort,
+  } = useSortableRows(progress?.students ?? []);
 
   if (loading) return <PageSkeleton />;
 
   if (error || !cls) {
     return (
       <div>
-        <Breadcrumb items={[{ label: 'Services' }, { label: 'Education', path: '/education' }]} />
+        <PageHeader title="Education" breadcrumbs={[{ label: 'Services' }]} />
         <Card>
           <p className="text-sm text-red-600 dark:text-red-400">{error || 'Class not found'}</p>
           <Button className="mt-3" variant="secondary" onClick={() => navigate('/education')}>
@@ -195,85 +217,71 @@ export default function ClassDetail() {
 
   return (
     <div>
-      <Breadcrumb
-        items={[
-          { label: 'Services' },
-          { label: 'Education', path: '/education' },
-          { label: cls.name },
-        ]}
+      <PageHeader
+        title={toTitleCase(cls.name)}
+        breadcrumbs={[{ label: 'Services' }, { label: 'Education', path: '/education' }]}
       />
 
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">{cls.name}</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            {classTypeLabel(cls.classType)} · {cls.academicYear}
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="secondary" onClick={() => navigate(`/education/classes/${cls.id}/attendance`)}>
-            Attendance
-          </Button>
-          <Button variant="secondary" onClick={() => navigate(`/education/classes/${cls.id}/exams`)}>
-            Exams
-          </Button>
-          <Button variant="secondary" onClick={() => navigate(`/education/classes/${cls.id}/edit`)}>
-            Edit class
-          </Button>
-          <Button onClick={() => setEnrollOpen(true)}>Enroll student</Button>
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <div className="flex gap-2 items-center">
+          <Button variant="secondary" onClick={() => navigate(`/education/classes/${cls.id}/attendance`)} icon={<FiCalendar />} collapseLabel>Attendance</Button>
+          <Button variant="secondary" onClick={() => navigate(`/education/classes/${cls.id}/exams`)} icon={<FiList />} collapseLabel>Exams</Button>
+          <Button variant="secondary" onClick={() => navigate(`/education/classes/${cls.id}/edit`)} icon={<FiEdit2 />} collapseLabel>Edit class</Button>
+          <Button onClick={() => setEnrollOpen(true)} icon={<FiPlus />} collapseLabel>Enroll student</Button>
         </div>
       </div>
 
       <Card className="mb-4">
-        <h2 className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100">Class</h2>
+        <h2 className="mb-3 text-sm font-semibold text-foreground">Class</h2>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
           <Field label="Name (Malayalam)" value={cls.nameMl || '-'} />
-          <Field label="Teacher" value={teacherName(cls)} />
+          <Field label="Teacher" value={<span>{toTitleCase(teacherName(cls))}</span>} />
           <Field
             label="Institute"
             value={
-              cls.instituteId && typeof cls.instituteId === 'object' ? cls.instituteId.name : '-'
+              <span>
+                {cls.instituteId && typeof cls.instituteId === 'object' ? toTitleCase(cls.instituteId.name) : '-'}
+              </span>
             }
           />
           <Field label="Schedule" value={cls.schedule || '-'} />
           <Field label="Active students" value={cls.studentCount ?? 0} />
           <Field label="Status" value={cls.status} />
           <div className="col-span-2 sm:col-span-3 lg:col-span-4">
-            <Field
-              label="Subjects"
-              value={cls.subjects?.length ? cls.subjects.join(', ') : 'None listed'}
-            />
+            <Field label="Subjects" value={cls.subjects?.length ? cls.subjects.join(', ') : 'None listed'} />
           </div>
         </div>
       </Card>
 
       {progressLoading ? (
-        <Card className="mb-4"><PageSkeleton variant="section" /></Card>
+        <Card className="mb-4">
+          <PageSkeleton variant="section" />
+        </Card>
       ) : progress ? (
         <Card className="mb-4">
-          <h2 className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100">Progress</h2>
+          <h2 className="mb-3 text-sm font-semibold text-foreground">Progress</h2>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-200 dark:border-gray-700">
-                  <th className="px-4 py-2 text-left font-medium text-gray-700 dark:text-gray-300">
+                  <SortableTh sortKey="studentName" sort={sort} onSort={toggleSort} className="px-4 py-2">
                     Student
-                  </th>
-                  <th className="px-4 py-2 text-left font-medium text-gray-700 dark:text-gray-300">
+                  </SortableTh>
+                  <SortableTh sortKey="attendance" sort={sort} onSort={toggleSort} className="px-4 py-2">
                     Attendance
-                  </th>
-                  <th className="px-4 py-2 text-left font-medium text-gray-700 dark:text-gray-300">
+                  </SortableTh>
+                  <SortableTh sortKey="examAverage" sort={sort} onSort={toggleSort} className="px-4 py-2">
                     Exam Average
-                  </th>
+                  </SortableTh>
                 </tr>
               </thead>
               <tbody>
-                {progress.students.map((student, idx) => (
+                {sortedStudents.map((student, idx) => (
                   <tr
                     key={idx}
                     className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/30"
                   >
-                    <td className="px-4 py-3 text-gray-900 dark:text-gray-100">{student.studentName}</td>
+                    <td className="px-4 py-3 text-gray-900 dark:text-gray-100">{toTitleCase(student.studentName)}</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
                         <div className="flex-1 max-w-xs h-2 bg-gray-200 rounded dark:bg-gray-700">
@@ -310,9 +318,9 @@ export default function ClassDetail() {
         </Card>
       ) : null}
 
-      <Card>
+      <TableCard>
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Students</h2>
+          <h2 className="text-sm font-semibold text-foreground">Students</h2>
           <Select
             value={statusFilter}
             onChange={(e) => {
@@ -324,6 +332,8 @@ export default function ClassDetail() {
         </div>
 
         <Table
+          fixedLayout
+          striped
           columns={columns}
           data={students}
           isLoading={studentsLoading}
@@ -339,7 +349,7 @@ export default function ClassDetail() {
             onPageChange={setCurrentPage}
           />
         )}
-      </Card>
+      </TableCard>
 
       <EnrollStudentModal
         isOpen={enrollOpen}
@@ -351,7 +361,7 @@ export default function ClassDetail() {
       <ConfirmDialog
         isOpen={removeConfirm !== null}
         title="Remove Student"
-        message={removeConfirm ? `Remove ${removeConfirm.name} from this class?` : ''}
+        message={removeConfirm ? `Remove ${toTitleCase(removeConfirm.name)} from this class?` : ''}
         consequence="The student can be re-enrolled later."
         isLoading={removing}
         variant="danger"

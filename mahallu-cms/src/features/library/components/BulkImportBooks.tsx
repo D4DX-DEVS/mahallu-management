@@ -3,6 +3,7 @@ import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
 import { libraryService, LibraryBook } from '@/services/libraryService';
 import { FiUpload } from 'react-icons/fi';
+import { errorMessage, safeApiMessage } from '@/utils/errors';
 
 interface BulkImportBooksProps {
   isOpen: boolean;
@@ -105,9 +106,7 @@ export default function BulkImportBooks({ isOpen, onClose, onImported }: BulkImp
       setRows([]);
       onImported();
     } catch (err: unknown) {
-      const message =
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-        (err instanceof Error ? err.message : 'Import failed');
+      const message = safeApiMessage(err, '') || errorMessage(err, { action: 'import these books' });
       setErrors([message]);
     } finally {
       setImporting(false);
@@ -136,13 +135,14 @@ export default function BulkImportBooks({ isOpen, onClose, onImported }: BulkImp
       <div className="space-y-4">
         <p className="text-sm text-gray-500">
           Upload a CSV with columns: <code className="text-xs">title, author, category, copies, isbn</code>.
-          Only <b>title</b> is required. Unknown categories become "general".{' '}
+          Only <b>title</b> is required. Unknown categories become "general".
           <button type="button" onClick={downloadTemplate} className="text-primary-600 underline">
             Download template
           </button>
         </p>
 
         <input
+          aria-label="Choose a file"
           ref={fileRef}
           type="file"
           accept=".csv,text/csv"
@@ -151,12 +151,12 @@ export default function BulkImportBooks({ isOpen, onClose, onImported }: BulkImp
         />
 
         {fileName && (
-          <div className="grid grid-cols-2 gap-3 text-sm">
-            <div className="rounded-lg bg-slate-50 p-3 dark:bg-slate-800">
+          <div className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
+            <div className="rounded-lg bg-gray-50 p-3 dark:bg-gray-800">
               <p className="text-xs text-gray-500">File</p>
               <p className="break-words font-medium">{fileName}</p>
             </div>
-            <div className="rounded-lg bg-slate-50 p-3 dark:bg-slate-800">
+            <div className="rounded-lg bg-gray-50 p-3 dark:bg-gray-800">
               <p className="text-xs text-gray-500">Books detected</p>
               <p className="font-medium">{rows.length}</p>
             </div>
@@ -173,7 +173,7 @@ export default function BulkImportBooks({ isOpen, onClose, onImported }: BulkImp
 
         {result && <p className="rounded-lg bg-primary-50 p-3 text-sm text-primary-800">{result}</p>}
 
-        <div className="flex justify-end gap-2">
+        <div className="flex gap-2 flex-col-reverse sm:flex-row sm:justify-end sm:gap-2">
           <Button
             variant="secondary"
             onClick={() => {

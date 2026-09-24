@@ -6,6 +6,8 @@ import { getPaginationParams, createPaginationResponse } from '../utils/paginati
 import { verifyTenantOwnership } from '../utils/tenantCheck';
 import { postLedgerEntry, reverseLedgerEntry } from '../services/ledgerPostingService';
 
+import { sendFailure } from '../utils/userMessages';
+
 export const getAllSalaryPayments = async (req: AuthRequest, res: Response) => {
   try {
     const { instituteId, employeeId, month, year, status, tenantId } = req.query;
@@ -36,7 +38,7 @@ export const getAllSalaryPayments = async (req: AuthRequest, res: Response) => {
 
     res.json(createPaginationResponse(payments, total, page, limit));
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the salary payments right now. Please try again.');
   }
 };
 
@@ -46,7 +48,7 @@ export const getSalaryPaymentById = async (req: AuthRequest, res: Response) => {
       .populate('instituteId', 'name type')
       .populate('employeeId', 'name designation salary');
     if (!payment) {
-      return res.status(404).json({ success: false, message: 'Salary payment not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that salary payment. It may have been removed." });
     }
 
     if (!verifyTenantOwnership(req, res, payment.tenantId, 'SalaryPayment')) {
@@ -55,7 +57,7 @@ export const getSalaryPaymentById = async (req: AuthRequest, res: Response) => {
 
     res.json({ success: true, data: payment });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the salary payment right now. Please try again.');
   }
 };
 
@@ -69,7 +71,7 @@ export const createSalaryPayment = async (req: AuthRequest, res: Response) => {
     if (!paymentData.tenantId && !req.isSuperAdmin) {
       return res.status(400).json({
         success: false,
-        message: 'Tenant ID is required',
+        message: 'Please select a Mahallu before continuing.',
       });
     }
 
@@ -110,10 +112,10 @@ export const createSalaryPayment = async (req: AuthRequest, res: Response) => {
     if (error.code === 11000) {
       return res.status(400).json({
         success: false,
-        message: 'Salary payment already exists for this employee in the given month/year',
+        message: 'A salary payment for this employee already exists for that month.',
       });
     }
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t save the salary payment. Please try again.');
   }
 };
 
@@ -121,7 +123,7 @@ export const updateSalaryPayment = async (req: AuthRequest, res: Response) => {
   try {
     const existing = await SalaryPayment.findById(req.params.id);
     if (!existing) {
-      return res.status(404).json({ success: false, message: 'Salary payment not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that salary payment. It may have been removed." });
     }
 
     if (!verifyTenantOwnership(req, res, existing.tenantId, 'SalaryPayment')) {
@@ -145,7 +147,7 @@ export const updateSalaryPayment = async (req: AuthRequest, res: Response) => {
       .populate('employeeId', 'name designation');
 
     if (!payment) {
-      return res.status(404).json({ success: false, message: 'Salary payment not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that salary payment. It may have been removed." });
     }
 
     // Re-post to ledger: reverse old entry, create new if paid
@@ -172,7 +174,7 @@ export const updateSalaryPayment = async (req: AuthRequest, res: Response) => {
 
     res.json({ success: true, data: payment });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t update the salary payment. Please try again.');
   }
 };
 
@@ -180,7 +182,7 @@ export const deleteSalaryPayment = async (req: AuthRequest, res: Response) => {
   try {
     const payment = await SalaryPayment.findById(req.params.id);
     if (!payment) {
-      return res.status(404).json({ success: false, message: 'Salary payment not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that salary payment. It may have been removed." });
     }
 
     if (!verifyTenantOwnership(req, res, payment.tenantId, 'SalaryPayment')) {
@@ -195,9 +197,9 @@ export const deleteSalaryPayment = async (req: AuthRequest, res: Response) => {
     }
 
     await SalaryPayment.findByIdAndDelete(req.params.id);
-    res.json({ success: true, message: 'Salary payment deleted successfully' });
+    res.json({ success: true, message: 'Salary payment deleted' });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t delete the salary payment. Please try again.');
   }
 };
 
@@ -261,7 +263,7 @@ export const getSalarySummary = async (req: AuthRequest, res: Response) => {
 
     res.json({ success: true, data: summary });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the salary summary right now. Please try again.');
   }
 };
 
@@ -271,7 +273,7 @@ export const getEmployeeSalaryHistory = async (req: AuthRequest, res: Response) 
 
     const employee = await Employee.findById(employeeId);
     if (!employee) {
-      return res.status(404).json({ success: false, message: 'Employee not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that employee. It may have been removed." });
     }
 
     if (!verifyTenantOwnership(req, res, employee.tenantId, 'Employee')) {
@@ -284,6 +286,6 @@ export const getEmployeeSalaryHistory = async (req: AuthRequest, res: Response) 
 
     res.json({ success: true, data: { employee, payments } });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the employee salary history right now. Please try again.');
   }
 };

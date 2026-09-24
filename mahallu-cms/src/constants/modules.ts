@@ -65,13 +65,7 @@ export const MODULE_LABELS: Record<ModuleKey, string> = {
 };
 
 /** Per-user restricted modules. Mirrors mahallu-api User.permissions.sensitiveModules enum. */
-export const SENSITIVE_MODULE_KEYS = [
-  'counselling',
-  'maslahat',
-  'inheritance',
-  'health',
-  'welfare',
-] as const;
+export const SENSITIVE_MODULE_KEYS = ['counselling', 'maslahat', 'inheritance', 'health', 'welfare'] as const;
 
 export type SensitiveModuleKey = (typeof SENSITIVE_MODULE_KEYS)[number];
 

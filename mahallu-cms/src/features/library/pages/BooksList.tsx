@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
+import ActionsMenu from '@/components/ui/ActionsMenu';
 import { useNavigate } from 'react-router-dom';
 import Button from '@/components/ui/Button';
-import Input from '@/components/ui/Input';
+import ExpandableSearch from '@/components/ui/ExpandableSearch';
 import Select from '@/components/ui/Select';
 import Table from '@/components/ui/Table';
 import Pagination from '@/components/ui/Pagination';
@@ -12,6 +13,9 @@ import { libraryService, LibraryBook } from '@/services/libraryService';
 import { toast } from '@/store/toastStore';
 import BulkImportBooks from '../components/BulkImportBooks';
 import { FiPlus, FiEdit2, FiTrash2, FiUpload, FiFileText } from 'react-icons/fi';
+import { errorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 
 export default function BooksList() {
   const navigate = useNavigate();
@@ -50,7 +54,7 @@ export default function BooksList() {
         setBooks(result.data);
         setPagination(result.pagination);
       } catch (error) {
-        console.error('Failed to fetch books:', error);
+        console.error("Couldn't load books:", error);
       } finally {
         setLoading(false);
       }
@@ -64,11 +68,11 @@ export default function BooksList() {
     try {
       await libraryService.deleteBook(deleteId);
       setBooks(books.filter((b) => b.id !== deleteId));
-      toast.success('Book deleted successfully');
+      toast.success('Book deleted');
       setConfirmDelete(false);
       setDeleteId(null);
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to delete book');
+      toast.error(errorMessage(error, { action: 'delete book' }));
       setConfirmDelete(false);
       setDeleteId(null);
     }
@@ -97,13 +101,11 @@ export default function BooksList() {
         </div>
       ),
     },
-    { key: 'author', label: 'Author' },
+    { key: 'author', label: 'Author', render: (_: any, book: LibraryBook) => toTitleCase(book.author) },
     {
       key: 'category',
       label: 'Category',
-      render: (_: any, book: LibraryBook) => (
-        <Badge color="purple">{book.category}</Badge>
-      ),
+      render: (_: any, book: LibraryBook) => <Badge color="purple">{book.category}</Badge>,
     },
     {
       key: 'availability',
@@ -120,50 +122,47 @@ export default function BooksList() {
     {
       key: 'actions',
       label: 'Actions',
+      align: 'center' as const,
       render: (_: any, book: LibraryBook) => (
-        <div className="flex gap-2">
-          {book.resourceType === 'physical' && book.availableCopies! > 0 && (
-            <button
-              onClick={() => navigate('/library/issues/create', { state: { bookId: book.id } })}
-              className="text-green-600 hover:text-green-800"
-              title="Issue this book to a member"
-            >
-              <FiFileText size={16} />
-            </button>
-          )}
-          <button
-            onClick={() => navigate(`/library/books/${book.id}/edit`)}
-            className="text-blue-600 hover:text-blue-800"
-          >
-            <FiEdit2 size={16} />
-          </button>
-          <button
-            onClick={() => {
-              setDeleteId(book.id);
-              setConfirmDelete(true);
-            }}
-            className="text-red-600 hover:text-red-800"
-          >
-            <FiTrash2 size={16} />
-          </button>
-        </div>
+        <ActionsMenu
+          label={'Actions for ' + book.title}
+          items={[
+            ...(book.resourceType === 'physical' && book.availableCopies! > 0
+              ? [
+                  {
+                    label: 'Issue to a member',
+                    icon: <FiFileText className="h-4 w-4" />,
+                    onClick: () => navigate('/library/issues/create', { state: { bookId: book.id } }),
+                  },
+                ]
+              : []),
+            {
+              label: 'Edit',
+              icon: <FiEdit2 className="h-4 w-4" />,
+              onClick: () => navigate(`/library/books/${book.id}/edit`),
+            },
+            {
+              label: 'Delete',
+              icon: <FiTrash2 className="h-4 w-4" />,
+              onClick: () => {
+                setDeleteId(book.id);
+                setConfirmDelete(true);
+              },
+              variant: 'danger' as const,
+            },
+          ]}
+        />
       ),
     },
   ];
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <h1 className="text-2xl font-bold">Library Books</h1>
-        <div className="flex gap-2">
-          <Button variant="secondary" onClick={() => setImportOpen(true)}>
-            <FiUpload className="h-4 w-4 mr-2" />
-            Import CSV
-          </Button>
-          <Button onClick={() => navigate('/library/books/create')}>
-            <FiPlus className="h-4 w-4 mr-2" />
-            Add Book
-          </Button>
+      <div className="flex justify-between gap-4 items-center">
+        <PageHeader title="Library Books" />
+        <div className="flex gap-2 items-center">
+          <Button variant="secondary" onClick={() => setImportOpen(true)} icon={<FiUpload />} collapseLabel>Import CSV</Button>
+          <Button onClick={() => navigate('/library/books/create')} icon={<FiPlus />} collapseLabel>Add Book</Button>
         </div>
       </div>
 
@@ -175,14 +174,14 @@ export default function BooksList() {
 
       {/* Filters */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
-        <Input
-          type="text"
-          placeholder="Search by title or author..."
+        <ExpandableSearch
           value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
+          onChange={(value) => {
+            setSearch(value);
             setCurrentPage(1);
           }}
+          entity="books"
+          placeholder="Search by title or author"
         />
         <Select
           value={category}
@@ -221,7 +220,7 @@ export default function BooksList() {
         <PageSkeleton variant="section" />
       ) : (
         <>
-          <Table columns={columns} data={books} />
+          <Table fixedLayout striped columns={columns} data={books} />
           {pagination && (
             <Pagination
               currentPage={pagination.page}
@@ -235,6 +234,7 @@ export default function BooksList() {
       )}
 
       <ConfirmDialog
+        isLoading={loading}
         isOpen={confirmDelete}
         title="Delete Book"
         message="Delete this book? This action cannot be undone."

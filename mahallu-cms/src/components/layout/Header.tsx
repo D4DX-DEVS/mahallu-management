@@ -1,328 +1,228 @@
-import { FiMenu, FiBell, FiSun, FiMoon, FiUser, FiLogOut, FiSearch, FiMail, FiPhone, FiShield, FiCalendar, FiMapPin, FiAlertTriangle } from 'react-icons/fi';
+import {
+  FiMenu,
+  FiBell,
+  FiSun,
+  FiMoon,
+  FiUser,
+  FiLogOut,
+  FiSearch,
+  FiSettings,
+  FiShield,
+} from 'react-icons/fi';
 import { useThemeStore } from '@/store/themeStore';
 import { useAuthStore } from '@/store/authStore';
 import { useLayoutStore } from '@/store/layoutStore';
 import { applyTheme } from '@/utils/theme';
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import TenantSwitcher from './TenantSwitcher';
 import CommandPalette from '@/components/ui/CommandPalette';
-import Modal from '@/components/ui/Modal';
-import { tenantService } from '@/services/tenantService';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { useNotificationStore } from '@/store/notificationStore';
-import { Tenant } from '@/types/tenant';
 import { ROUTES } from '@/constants/routes';
-
+import { cn } from '@/utils/cn';
 export default function Header() {
   const navigate = useNavigate();
   const { theme, toggleTheme } = useThemeStore();
   const { user, logout, isSuperAdmin, currentTenantId } = useAuthStore();
-  const { toggleDesktopSidebarCollapsed } = useLayoutStore();
+  const { toggleDesktopSidebarCollapsed, setMobileSidebarOpen } = useLayoutStore();
+  const isCommandPaletteOpen = useLayoutStore((s) => s.isCommandPaletteOpen);
+  const openCommandPalette = useLayoutStore((s) => s.openCommandPalette);
+  const closeCommandPalette = useLayoutStore((s) => s.closeCommandPalette);
   const [mounted, setMounted] = useState(false);
-  const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-  const [tenantInfo, setTenantInfo] = useState<Tenant | null>(null);
   const { unreadCount, fetchUnreadCount } = useNotificationStore();
   const userMenuRef = useRef<HTMLDivElement>(null);
-
   const isViewingAsTenant = isSuperAdmin && currentTenantId;
-
   useEffect(() => {
     setMounted(true);
     applyTheme();
   }, []);
-
   useEffect(() => {
     fetchUnreadCount();
     const interval = setInterval(fetchUnreadCount, 60000);
     return () => clearInterval(interval);
   }, [fetchUnreadCount]);
-
   useEffect(() => {
-    const loadTenantInfo = async () => {
-      // Don't load tenant info for super admin without selected tenant
-      if (!currentTenantId) {
-        setTenantInfo(null);
-        return;
-      }
-      try {
-        const data = await tenantService.getById(currentTenantId);
-        setTenantInfo(data);
-      } catch (err) {
-        console.error('Error loading tenant info:', err);
-        setTenantInfo(null);
-      }
-    };
-    loadTenantInfo();
-  }, [currentTenantId]);
-
-  useEffect(() => {
-    if (mounted) {
-      applyTheme();
-    }
+    if (mounted) applyTheme();
   }, [theme, mounted]);
-
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Cmd/Ctrl + K to open command palette
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault();
-        setShowCommandPalette(true);
+        openCommandPalette();
       }
     };
-
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
-
-  // Close user menu when clicking outside
+  }, [openCommandPalette]);
   useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
-        setShowUserMenu(false);
-      }
-    }
-    if (showUserMenu) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
+    if (!showUserMenu) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) setShowUserMenu(false);
+    };
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setShowUserMenu(false);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
     };
   }, [showUserMenu]);
-
-  const handleThemeToggle = () => {
-    toggleTheme();
-  };
-
   const handleLogout = () => {
     logout();
     window.location.href = '/login';
   };
-
-  const handleNotificationsClick = () => {
-    setShowUserMenu(false);
-    navigate(ROUTES.NOTIFICATIONS.INDIVIDUAL);
-  };
-
-  const formatMemberSince = (date: string) => {
-    try {
-      const d = new Date(date);
-      return d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-    } catch {
-      return '-';
-    }
-  };
-
-  const getAccountTypeLabel = () => {
-    if (isSuperAdmin) return 'Super Admin';
-    if (user?.role === 'mahall') return 'Mahall Admin';
-    if (user?.role === 'survey') return 'Survey Admin';
-    if (user?.role === 'institute') return 'Institute Admin';
+  const accountTypeLabel = () => {
+    if (isSuperAdmin) return 'Super admin';
+    if (user?.role === 'mahall') return 'Mahall admin';
+    if (user?.role === 'survey') return 'Survey admin';
+    if (user?.role === 'institute') return 'Institute admin';
     if (user?.role === 'member') return 'Member';
     return 'User';
   };
-
+  const iconButton =
+    'inline-flex h-10 w-10 items-center justify-center rounded-md text-muted-foreground transition-colors ' +
+    'hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 ' +
+    'focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background';
+  const isMember = user?.role === 'member';
   return (
     <>
-      <CommandPalette isOpen={showCommandPalette} onClose={() => setShowCommandPalette(false)} />
-      
-      {/* Viewing as Tenant Banner */}
+      <CommandPalette isOpen={isCommandPaletteOpen} onClose={closeCommandPalette} />
+      {/* The banner sits above the header in the stacking order as well as on screen — it used to be z-40 against a z-30 sticky header, so it overlapped the header instead of stacking with it. */}
       {isViewingAsTenant && (
-        <div className="sticky top-0 z-40 flex items-center justify-center gap-2 px-4 py-2 bg-primary-600 dark:bg-primary-700 text-white text-sm">
-          <FiShield className="h-4 w-4" />
-          <span className="font-medium">Viewing as Tenant</span>
-          <span className="opacity-75">•</span>
-          <span className="opacity-90">All data is filtered for the selected tenant</span>
+        <div className="sticky top-0 z-20 flex items-center justify-center gap-2 bg-primary px-4 py-1.5 text-label text-primary-foreground">
+          <FiShield className="h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
+          <span className="font-medium">Viewing as tenant</span> <span aria-hidden="true">·</span>
+          <span className="hidden sm:inline">All data is filtered to the selected tenant</span>
         </div>
       )}
-      
-      <header className="sticky top-0 z-30 relative flex h-16 items-center justify-between border-b border-gray-200/50 bg-white/80 backdrop-blur-md px-4 md:px-6 shadow-[0_4px_16px_rgba(15,23,42,0.06)] dark:border-gray-800/50 dark:bg-gray-900/80 dark:shadow-[0_4px_16px_rgba(0,0,0,0.35)]">
-        {/* Tenant Switcher (Super Admin Only) — centered in header */}
+      <header className="sticky top-0 z-30 flex h-14 flex-shrink-0 items-center gap-2 border-b border-border bg-card px-3 md:gap-3 md:px-6">
+        <button
+          onClick={toggleDesktopSidebarCollapsed}
+          className={cn(iconButton, 'hidden md:inline-flex')}
+          aria-label="Toggle sidebar"
+        >
+          <FiMenu className="h-5 w-5" />
+        </button>
+        <button
+          onClick={() => setMobileSidebarOpen(true)}
+          className={cn(iconButton, 'md:hidden')}
+          aria-label="Open navigation"
+        >
+          <FiMenu className="h-5 w-5" />
+        </button>
+        {!isMember && (
+          <button
+            onClick={openCommandPalette}
+            className="hidden h-10 w-64 items-center gap-2 rounded-full border border-border bg-muted/40 px-3.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:flex lg:w-72"
+          >
+            <FiSearch className="h-4 w-4 flex-shrink-0" aria-hidden="true" /> <span className="flex-1 text-left">Search members, families…</span>
+            <kbd className="rounded-full border border-border bg-card px-2 py-0.5 text-xs">⌘K</kbd>
+          </button>
+        )}
+        {/* Tenant switcher shares the flex row instead of being absolutely centred, which collided with the search and action clusters at narrow desktop widths. Below lg it was hidden outright, leaving a super admin on a phone with no way to switch tenants — the switcher itself already collapses to an icon-only button there, so it fits. */}
         {isSuperAdmin && (
-          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+          <div className="ml-2 min-w-0 flex-shrink-0 sm:max-w-xs lg:flex-1">
             <TenantSwitcher />
           </div>
         )}
-
-        <div className="flex items-center gap-2 md:gap-4">
-          {/* Mobile: no header buttons — footer nav "Menu" opens the sidebar */}
+        <div className="ml-auto flex items-center gap-1 border-l border-border/60 pl-2 sm:gap-1.5 sm:pl-3">
           <button
-            onClick={toggleDesktopSidebarCollapsed}
-            className="hidden md:inline-flex p-2 rounded-xl text-slate-600 hover:bg-slate-100 transition-colors dark:text-gray-400 dark:hover:bg-gray-800"
-            aria-label="Toggle sidebar"
+            onClick={() => navigate(ROUTES.NOTIFICATIONS.INDIVIDUAL)}
+            aria-label={unreadCount > 0 ? 'Notifications, ' + unreadCount + ' unread' : 'Notifications'}
+            className={cn(iconButton, 'relative')}
           >
-            <FiMenu className="h-5 w-5" />
+            <FiBell className="h-5 w-5" />
+            {unreadCount > 0 && (
+              <span
+                aria-hidden="true"
+                className="absolute right-1 top-1 min-w-5 rounded-full bg-destructive px-1 text-center text-xs font-semibold leading-5 text-destructive-foreground tabular-nums"
+              >
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </span>
+            )}
           </button>
-          {/* Search / Command Palette Trigger */}
-          {user?.role !== 'member' && (
+          <button
+            onClick={toggleTheme}
+            aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+            className={iconButton}
+          >
+            {mounted && theme === 'dark' ? <FiSun className="h-5 w-5" /> : <FiMoon className="h-5 w-5" />}
+          </button>
+          <div className="relative ml-1" ref={userMenuRef}>
             <button
-              onClick={() => setShowCommandPalette(true)}
-              className="hidden md:flex items-center gap-2 px-3 py-2 text-sm text-gray-500 bg-gray-100/80 rounded-lg hover:bg-gray-200/80 dark:bg-gray-800/80 dark:hover:bg-gray-700/80 dark:text-gray-400 transition-colors"
+              onClick={() => setShowUserMenu((open) => !open)}
+              aria-label="Account menu"
+              aria-haspopup="menu"
+              aria-expanded={showUserMenu}
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary transition-colors hover:bg-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             >
-              <FiSearch className="h-4 w-4" />
-              <span className="hidden md:inline">Search menu...</span>
-              <kbd className="hidden md:inline-flex items-center gap-1 px-1.5 py-0.5 text-xs font-mono bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded">
-                ⌘K
-              </kbd>
+              {(user?.name || 'U').charAt(0).toUpperCase()}
             </button>
-          )}
-        </div>
-
-        <div className="flex items-center gap-3">
-        {/* Notifications */}
-        <button
-          onClick={handleNotificationsClick}
-          aria-label="View notifications"
-          className="relative inline-flex p-2 rounded-xl text-slate-600 hover:bg-slate-100 transition-colors dark:text-gray-400 dark:hover:bg-gray-800"
-        >
-          <FiBell className="h-5 w-5" />
-          {unreadCount > 0 && (
-            <span className="absolute top-1 right-1 min-w-[1rem] h-4 rounded-full bg-red-500 px-1 text-center text-[0.6rem] font-semibold leading-4 text-white">
-              {unreadCount > 99 ? '99+' : unreadCount}
-            </span>
-          )}
-        </button>
-
-        {/* Theme Toggle */}
-        <button
-          onClick={handleThemeToggle}
-          aria-label="Toggle theme"
-          className="inline-flex p-2 rounded-xl text-slate-600 hover:bg-slate-100 transition-colors dark:text-gray-400 dark:hover:bg-gray-800"
-        >
-          {mounted && theme === 'dark' ? <FiSun className="h-5 w-5" /> : <FiMoon className="h-5 w-5" />}
-        </button>
-
-        {/* User Menu */}
-        <div className="flex items-center gap-3 ml-2 pl-4 border-l border-gray-200/50 dark:border-gray-700/50 relative" ref={userMenuRef}>
-          <button
-            onClick={() => setShowUserMenu(!showUserMenu)}
-            aria-label="Open user menu"
-            className="flex items-center p-1 rounded-full hover:bg-gray-100/80 dark:hover:bg-gray-800/80 transition-colors"
-          >
-            <div className="h-9 w-9 rounded-full bg-gradient-to-br from-primary-100 to-primary-200 dark:from-primary-900 dark:to-primary-800 flex items-center justify-center ring-2 ring-white dark:ring-gray-800 relative">
-              <FiUser className="h-4 w-4 text-primary-600 dark:text-primary-400" />
-              <span className="absolute bottom-0 right-0 h-3 w-3 bg-green-500 rounded-full border-2 border-white dark:border-gray-800"></span>
-            </div>
-          </button>
-
-          {/* User Dropdown Menu */}
-          {showUserMenu && (
-            <div className="absolute right-0 top-full mt-2 w-72 origin-top-right rounded-2xl border border-gray-200/70 bg-white/95 backdrop-blur-xl shadow-2xl shadow-gray-900/10 ring-1 ring-black/5 overflow-hidden z-50 dark:border-gray-700/60 dark:bg-gray-900/95 dark:shadow-black/40">
-              {/* Identity */}
-              <div className="flex items-center gap-3 px-4 pt-4 pb-3">
-                <div className="relative h-11 w-11 shrink-0 rounded-full bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center text-white font-semibold">
-                  {(user?.name || 'U').charAt(0).toUpperCase()}
-                  <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-green-500 ring-2 ring-white dark:ring-gray-900" />
+            {showUserMenu && (
+              <div
+                role="menu"
+                aria-label="Account"
+                className="absolute right-0 top-full z-50 mt-2 w-64 max-w-[calc(100vw-2rem)] overflow-hidden rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-md"
+              >
+                <div className="px-3 py-2.5">
+                  <p className="truncate text-sm font-semibold text-foreground">{user?.name || 'User'}</p>
+                  <p className="truncate text-label text-muted-foreground">{accountTypeLabel()}</p>
+                  {user?.phone && (
+                    <p className="truncate text-label text-muted-foreground">{user.phone}</p>
+                  )}
                 </div>
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold text-gray-900 dark:text-gray-100">
-                    {user?.name || 'User'}
-                  </p>
-                  <p className="truncate text-xs text-gray-500 dark:text-gray-400">
-                    {getAccountTypeLabel()}
-                  </p>
-                </div>
-              </div>
-
-              {/* Badges */}
-              <div className="flex flex-wrap gap-1.5 px-4 pb-3">
-                <span className="inline-flex items-center gap-1 rounded-full bg-primary-50 px-2 py-0.5 text-[0.68rem] font-medium text-primary-700 dark:bg-primary-900/30 dark:text-primary-300">
-                  <FiShield className="h-3 w-3" />
-                  {getAccountTypeLabel()}
-                </span>
-                {user?.joiningDate && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-[0.68rem] font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-400">
-                    <FiCalendar className="h-3 w-3" />
-                    Since {formatMemberSince(user.joiningDate)}
-                  </span>
+                <div className="my-1 h-px bg-border" />
+                {/* Profile and settings reach the account menu. They used to be four levels deep in the sidebar, while this menu held only Sign out beneath a block of read-only detail. */}
+                <Link
+                  to={isMember ? ROUTES.MEMBER.PROFILE : ROUTES.MAHALL_MAIN}
+                  role="menuitem"
+                  onClick={() => setShowUserMenu(false)}
+                  className="flex w-full items-center gap-2.5 rounded-sm px-3 py-2 text-sm text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                >
+                  <FiUser className="h-4 w-4" aria-hidden="true" />
+                  {isMember ? 'My profile' : 'Mahall settings'}
+                </Link>
+                {!isMember && (
+                  <Link
+                    to="/settings/security"
+                    role="menuitem"
+                    onClick={() => setShowUserMenu(false)}
+                    className="flex w-full items-center gap-2.5 rounded-sm px-3 py-2 text-sm text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                  >
+                    <FiSettings className="h-4 w-4" aria-hidden="true" /> Security and access
+                  </Link>
                 )}
-              </div>
-
-              {/* Details */}
-              <div className="border-t border-gray-100 px-4 py-2.5 text-xs dark:border-gray-800">
-                {user?.phone && (
-                  <div className="flex items-center gap-2 py-1 text-gray-600 dark:text-gray-400">
-                    <FiPhone className="h-3.5 w-3.5 shrink-0" />
-                    <span className="truncate">{user.phone}</span>
-                  </div>
-                )}
-                {user?.email && (
-                  <div className="flex items-center gap-2 py-1 text-gray-600 dark:text-gray-400">
-                    <FiMail className="h-3.5 w-3.5 shrink-0" />
-                    <span className="truncate">{user.email}</span>
-                  </div>
-                )}
-                {tenantInfo && (
-                  <div className="flex items-start gap-2 py-1 text-gray-600 dark:text-gray-400">
-                    <FiMapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                    <span className="truncate">
-                      {tenantInfo.name}
-                      <span className="text-gray-400 dark:text-gray-500">
-                        {' · '}
-                        {tenantInfo.code}
-                        {tenantInfo.location ? ` · ${tenantInfo.location}` : ''}
-                      </span>
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              {/* Actions */}
-              <div className="border-t border-gray-100 p-1.5 dark:border-gray-800">
+                <div className="my-1 h-px bg-border" />
                 <button
+                  role="menuitem"
                   onClick={() => {
                     setShowUserMenu(false);
                     setShowLogoutConfirm(true);
                   }}
-                  className="group flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
+                  className="flex w-full items-center gap-2.5 rounded-sm px-3 py-2 text-sm text-destructive transition-colors hover:bg-destructive/10"
                 >
-                  <FiLogOut className="h-4 w-4" />
-                  Sign out
+                  <FiLogOut className="h-4 w-4" aria-hidden="true" /> Sign out
                 </button>
               </div>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
         </div>
       </header>
-
-      {/* Logout Confirmation Modal */}
-      <Modal
+      {/* Sign-out is reversible, so it gets the neutral confirm rather than the red destructive treatment with a warning triangle it used to carry. */}
+      <ConfirmDialog
         isOpen={showLogoutConfirm}
-        onClose={() => setShowLogoutConfirm(false)}
-        title="Confirm Sign Out"
-        size="sm"
-        footer={
-          <>
-            <button
-              onClick={() => setShowLogoutConfirm(false)}
-              className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={() => {
-                setShowLogoutConfirm(false);
-                handleLogout();
-              }}
-              className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
-            >
-              Sign Out
-            </button>
-          </>
-        }
-      >
-        <div className="flex flex-col items-center text-center gap-4">
-          <div className="flex items-center justify-center w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30">
-            <FiAlertTriangle className="h-6 w-6 text-red-600 dark:text-red-400" />
-          </div>
-          <p className="text-gray-600 dark:text-gray-400">
-            Are you sure you want to sign out? You will need to log in again to access your account.
-          </p>
-        </div>
-      </Modal>
+        title="Sign out?"
+        message="You'll need your phone number and a verification code to sign back in."
+        confirmLabel="Sign out"
+        variant="primary"
+        onConfirm={handleLogout}
+        onCancel={() => setShowLogoutConfirm(false)}
+      />
     </>
   );
 }
-

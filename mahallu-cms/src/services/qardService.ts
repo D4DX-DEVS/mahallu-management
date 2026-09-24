@@ -1,14 +1,7 @@
-import api from './api';
+import api, { asList } from './api';
 
 export type LoanStatus =
-  | 'applied'
-  | 'under_review'
-  | 'approved'
-  | 'rejected'
-  | 'disbursed'
-  | 'repaying'
-  | 'closed'
-  | 'defaulted';
+  'applied' | 'under_review' | 'approved' | 'rejected' | 'disbursed' | 'repaying' | 'closed' | 'defaulted';
 
 export type InstallmentStatus = 'due' | 'partial' | 'paid' | 'overdue';
 
@@ -153,11 +146,10 @@ export const loanApplicantName = (loan: QardLoan): string => {
 
 export const qardService = {
   getLoans: async (params?: Record<string, any>) => {
-    const response = await api.get<{ success: boolean; data: QardLoan[]; pagination?: any }>(
-      '/qard/loans',
-      { params }
-    );
-    return { data: response.data.data, pagination: response.data.pagination || null };
+    const response = await api.get<{ success: boolean; data: QardLoan[]; pagination?: any }>('/qard/loans', {
+      params,
+    });
+    return { data: asList(response.data.data), pagination: response.data.pagination || null };
   },
 
   getLoan: async (id: string) => {
@@ -171,18 +163,12 @@ export const qardService = {
   },
 
   updateLoan: async (id: string, payload: Record<string, any>) => {
-    const response = await api.put<{ success: boolean; data: QardLoan }>(
-      `/qard/loans/${id}`,
-      payload
-    );
+    const response = await api.put<{ success: boolean; data: QardLoan }>(`/qard/loans/${id}`, payload);
     return response.data.data;
   },
 
   updateLoanStatus: async (id: string, payload: Record<string, any>) => {
-    const response = await api.put<{ success: boolean; data: QardLoan }>(
-      `/qard/loans/${id}/status`,
-      payload
-    );
+    const response = await api.put<{ success: boolean; data: QardLoan }>(`/qard/loans/${id}/status`, payload);
     return response.data.data;
   },
 
@@ -210,7 +196,7 @@ export const reliefService = {
       '/relief/cases',
       { params }
     );
-    return { data: response.data.data, pagination: response.data.pagination || null };
+    return { data: asList(response.data.data), pagination: response.data.pagination || null };
   },
 
   getCase: async (id: string) => {
@@ -219,18 +205,12 @@ export const reliefService = {
   },
 
   createCase: async (payload: Record<string, any>) => {
-    const response = await api.post<{ success: boolean; data: ReliefCase }>(
-      '/relief/cases',
-      payload
-    );
+    const response = await api.post<{ success: boolean; data: ReliefCase }>('/relief/cases', payload);
     return response.data.data;
   },
 
   updateCase: async (id: string, payload: Record<string, any>) => {
-    const response = await api.put<{ success: boolean; data: ReliefCase }>(
-      `/relief/cases/${id}`,
-      payload
-    );
+    const response = await api.put<{ success: boolean; data: ReliefCase }>(`/relief/cases/${id}`, payload);
     return response.data.data;
   },
 

@@ -1,13 +1,20 @@
 import { useState, useEffect } from 'react';
+import { FiArrowLeft } from 'react-icons/fi';
 import { useParams, useNavigate } from 'react-router-dom';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import { toast } from '@/store/toastStore';
 import { examService, Exam } from '@/services/attendanceService';
-import { madrasaService, StudentEnrollment, studentName as rosterStudentName } from '@/services/madrasaService';
-import { formatDate } from '@/utils/format';
+import {
+  madrasaService,
+  StudentEnrollment,
+  studentName as rosterStudentName,
+} from '@/services/madrasaService';
+import { formatDate, toTitleCase } from '@/utils/format';
+import { fetchAllPages } from '@/services/api';
+import { errorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
 
 export default function ExamDetail() {
   const { id } = useParams<{ id: string }>();
@@ -18,9 +25,7 @@ export default function ExamDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [editingResults, setEditingResults] = useState<
-    Record<string, { marks: number; grade?: string }>
-  >({});
+  const [editingResults, setEditingResults] = useState<Record<string, { marks: number; grade?: string }>>({});
   const [isEditingResults, setIsEditingResults] = useState(false);
 
   useEffect(() => {
@@ -38,7 +43,9 @@ export default function ExamDetail() {
       // exam has no results yet, so relying on data.results would leave nothing to mark.
       const classId = typeof data.classId === 'string' ? data.classId : data.classId?.id;
       const classStudents = classId
-        ? (await madrasaService.getClassStudents(classId, { limit: 200, status: 'active' })).data
+        ? await fetchAllPages((params) =>
+            madrasaService.getClassStudents(classId, { ...params, status: 'active' })
+          )
         : [];
       setRoster(classStudents);
 
@@ -54,7 +61,7 @@ export default function ExamDetail() {
       });
       setEditingResults(initial);
     } catch (err: any) {
-      setError('Failed to load exam');
+      setError("Couldn't load exam");
     } finally {
       setLoading(false);
     }
@@ -92,11 +99,11 @@ export default function ExamDetail() {
       }));
 
       await examService.updateExamResults(exam.id, results);
-      toast.success('Results saved successfully');
+      toast.success('Results saved');
       setIsEditingResults(false);
       if (id) fetchExam(id);
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to save results');
+      toast.error(errorMessage(err, { action: 'save results' }));
     } finally {
       setSaving(false);
     }
@@ -107,7 +114,7 @@ export default function ExamDetail() {
   if (error || !exam) {
     return (
       <div>
-        <Breadcrumb items={[{ label: 'Services' }, { label: 'Education', path: '/education' }]} />
+        <PageHeader title="Education" breadcrumbs={[{ label: 'Services' }]} />
         <Card>
           <p className="text-sm text-red-600 dark:text-red-400">{error || 'Exam not found'}</p>
           <Button className="mt-3" variant="secondary" onClick={() => navigate('/education')}>
@@ -123,29 +130,21 @@ export default function ExamDetail() {
 
   return (
     <div>
-      <Breadcrumb
-        items={[
+      <PageHeader
+        title={toTitleCase(exam.name)}
+        breadcrumbs={[
           { label: 'Services' },
           { label: 'Education', path: '/education' },
-          { label: className, path: `/education/classes/${classId}` },
+          { label: toTitleCase(className), path: `/education/classes/${classId}` },
           { label: 'Exams', path: `/education/classes/${classId}/exams` },
-          { label: exam.name },
         ]}
       />
 
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">{exam.name}</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            {formatDate(exam.examDate)} · Max {exam.maxMarks} marks
-          </p>
-        </div>
-        <Button variant="secondary" onClick={() => navigate(`/education/classes/${classId}/exams`)}>
-          Back
-        </Button>
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <Button variant="secondary" onClick={() => navigate(`/education/classes/${classId}/exams`)} icon={<FiArrowLeft />} collapseLabel>Back</Button>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 mb-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 mb-4">
         <Card>
           <p className="text-xs text-gray-500 dark:text-gray-400">Date</p>
           <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{formatDate(exam.examDate)}</p>
@@ -170,7 +169,7 @@ export default function ExamDetail() {
 
       <Card>
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Results</h2>
+          <h2 className="text-sm font-semibold text-foreground">Results</h2>
           {!isEditingResults && (
             <Button variant="secondary" size="sm" onClick={() => setIsEditingResults(true)}>
               Edit results
@@ -239,11 +238,14 @@ export default function ExamDetail() {
                           key={row.enrollmentId}
                           className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/30"
                         >
-                          <td className="px-4 py-3 text-gray-900 dark:text-gray-100">{row.studentName}</td>
+                          <td className="px-4 py-3 text-gray-900 dark:text-gray-100">
+                            {toTitleCase(row.studentName)}
+                          </td>
                           <td className="px-4 py-3 text-gray-600 dark:text-gray-400">{row.rollNo}</td>
                           <td className="px-4 py-3">
                             {isEditingResults ? (
                               <input
+                                aria-label="Value"
                                 type="number"
                                 min="0"
                                 max={exam.maxMarks}
@@ -258,6 +260,7 @@ export default function ExamDetail() {
                           <td className="px-4 py-3">
                             {isEditingResults ? (
                               <input
+                                aria-label="A, B, C"
                                 type="text"
                                 value={grade || ''}
                                 onChange={(e) => handleGradeChange(row.enrollmentId, e.target.value)}
@@ -276,15 +279,11 @@ export default function ExamDetail() {
               </div>
 
               {isEditingResults && (
-                <div className="mt-4 flex gap-2 border-t border-gray-200 pt-4 dark:border-gray-700">
+                <div className="mt-4 flex flex-wrap gap-2 border-t border-gray-200 pt-4 dark:border-gray-700">
                   <Button onClick={saveResults} disabled={saving}>
                     {saving ? 'Saving...' : 'Save results'}
                   </Button>
-                  <Button
-                    variant="secondary"
-                    onClick={() => setIsEditingResults(false)}
-                    disabled={saving}
-                  >
+                  <Button variant="secondary" onClick={() => setIsEditingResults(false)} disabled={saving}>
                     Cancel
                   </Button>
                 </div>

@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { FiDollarSign, FiArrowRight } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import StatCard from '@/components/ui/StatCard';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import { collectibleService } from '@/services/collectibleService';
 import { ROUTES } from '@/constants/routes';
+import PageHeader from '@/components/layout/PageHeader';
 
 export default function CollectionsOverview() {
   const [loading, setLoading] = useState(true);
@@ -22,17 +22,17 @@ export default function CollectionsOverview() {
   const fetchStats = async () => {
     try {
       setLoading(true);
-      
+
       // Fetch varisangya stats
       const varisangyaResult = await collectibleService.getAllVarisangyas({ page: 1, limit: 1 });
       const varisangyaTotal = varisangyaResult.pagination?.total || 0;
       const varisangyaAmount = varisangyaResult.data.reduce((sum, v) => sum + (v.amount || 0), 0);
-      
+
       // Fetch zakat stats
       const zakatResult = await collectibleService.getAllZakats({ page: 1, limit: 1 });
       const zakatTotal = zakatResult.pagination?.total || 0;
       const zakatAmount = zakatResult.data.reduce((sum, z) => sum + (z.amount || 0), 0);
-      
+
       setStats({
         varisangya: { total: varisangyaTotal, amount: varisangyaAmount },
         zakat: { total: zakatTotal, amount: zakatAmount },
@@ -71,16 +71,11 @@ export default function CollectionsOverview() {
   const totalPayments = stats.varisangya.total + stats.zakat.total;
 
   return (
-    <div className="space-y-6">
-      <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Collections' }]} />
-
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Collections</h1>
-        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Overview of all collectible types</p>
-      </div>
+    <div className="space-y-4">
+      <PageHeader description="Overview of all collectible types" title="Collections" />
 
       {/* Summary Stats */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-2">
         <StatCard title="Total Payments" value={totalPayments} />
         <StatCard title="Total Amount" value={`₹${totalAmount.toLocaleString()}`} />
       </div>
@@ -88,19 +83,17 @@ export default function CollectionsOverview() {
       {loading ? (
         <PageSkeleton variant="section" />
       ) : (
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {collectibleTypes.map((type) => (
             <Card key={type.id} className="hover:shadow-lg transition-shadow">
-              <div className="p-6">
+              <div>
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center space-x-3">
                     <div className="p-3 bg-blue-100 dark:bg-blue-900 rounded-lg">
                       <FiDollarSign className="h-6 w-6 text-blue-600 dark:text-blue-400" />
                     </div>
                     <div>
-                      <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                        {type.title}
-                      </h3>
+                      <h3 className="text-lg font-semibold text-foreground">{type.title}</h3>
                       <p className="text-sm text-gray-500 dark:text-gray-400">{type.description}</p>
                     </div>
                   </div>
@@ -136,4 +129,3 @@ export default function CollectionsOverview() {
     </div>
   );
 }
-

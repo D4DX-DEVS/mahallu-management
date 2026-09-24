@@ -1,105 +1,139 @@
-import { useState, useRef, useEffect } from 'react';
-import { FiMoreVertical } from 'react-icons/fi';
+import { ReactNode } from 'react';
+import {
+  FiEye,
+  FiEdit2,
+  FiTrash2,
+  FiDownload,
+  FiCheck,
+  FiX,
+  FiPrinter,
+  FiSend,
+  FiCopy,
+  FiList,
+  FiDollarSign,
+  FiUpload,
+  FiRefreshCw,
+  FiExternalLink,
+} from 'react-icons/fi';
 import { cn } from '@/utils/cn';
+import { ROW_ACTION_BASE, ROW_ACTION_VARIANT, RowActionVariant } from './rowAction';
 
 export interface ActionMenuItem {
   label: string;
-  icon?: React.ReactNode;
+  icon?: ReactNode;
   onClick: () => void;
   disabled?: boolean;
+  /** Why the action is unavailable. Shown to the user instead of hiding it. */
+  disabledReason?: string;
   className?: string;
-  variant?: 'default' | 'danger' | 'warning';
+  variant?: RowActionVariant;
 }
 
 interface ActionsMenuProps {
   items: ActionMenuItem[];
   className?: string;
+  /** Names the group for assistive tech, e.g. "Actions for Al-Hamd House". */
+  label?: string;
 }
 
-export default function ActionsMenu({ items, className }: ActionsMenuProps) {
-  const [isOpen, setIsOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
+/* Every call site passes an icon today. The fallback exists so a new action
+ * added without one gets a recognisable glyph rather than an empty square, and
+ * so the icon for a given verb is the same icon on every table. */
+const ICON_BY_VERB: Array<[RegExp, ReactNode]> = [
+  [/^view|^open|^details/i, <FiEye />],
+  [/^edit|^update|^rename/i, <FiEdit2 />],
+  [/^delete|^remove/i, <FiTrash2 />],
+  [/^download|^export/i, <FiDownload />],
+  [/^upload|^import/i, <FiUpload />],
+  [/^approve|^accept|^mark/i, <FiCheck />],
+  [/^reject|^cancel|^decline/i, <FiX />],
+  [/^print/i, <FiPrinter />],
+  [/^send|^notify|^share/i, <FiSend />],
+  [/^duplicate|^copy|^clone/i, <FiCopy />],
+  [/^pay|^collect|^wallet|^transaction/i, <FiDollarSign />],
+  [/^refresh|^sync|^retry/i, <FiRefreshCw />],
+  [/^all |^back|^go to/i, <FiExternalLink />],
+];
 
-  // Filter out disabled items and check if we have any items
-  const visibleItems = items.filter(item => !item.disabled);
+function fallbackIcon(label: string): ReactNode {
+  const match = ICON_BY_VERB.find(([pattern]) => pattern.test(label));
+  return match ? match[1] : <FiList />;
+}
 
-  // Don't render if no items
-  if (visibleItems.length === 0) {
-    return null;
-  }
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [isOpen]);
-
-  const handleItemClick = (item: ActionMenuItem) => {
-    if (!item.disabled) {
-      item.onClick();
-      setIsOpen(false);
-    }
-  };
-
-  const getVariantStyles = (variant: ActionMenuItem['variant'] = 'default') => {
-    switch (variant) {
-      case 'danger':
-        return 'text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 dark:text-red-400';
-      case 'warning':
-        return 'text-yellow-600 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 dark:text-yellow-400';
-      default:
-        return 'text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700';
-    }
-  };
+/**
+ * Row actions, rendered as the actions themselves.
+ *
+ * This used to be a three-dot button that opened a portalled menu: every row
+ * action cost two clicks and was invisible until the first one. A row carries
+ * two to four actions across the whole product, which fits on one line, so the
+ * buttons are the row's actions — one icon each, named by `title` for a mouse
+ * and by `aria-label` for a screen reader.
+ *
+ * The props are unchanged from the menu it replaces, so the twenty-odd tables
+ * that build `items` keep working: `icon`, `disabled`, `disabledReason`,
+ * `variant` and `className` all still mean what they meant.
+ *
+ * Disabled items stay visible and disabled rather than being filtered out, so
+ * an action never silently disappears from a row.
+ */
+export default function ActionsMenu({ items, className, label = 'Actions' }: ActionsMenuProps) {
+  if (items.length === 0) return null;
 
   return (
-    <div ref={menuRef} className={cn('relative', className)}>
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          setIsOpen(!isOpen);
-        }}
-        className="p-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
-        aria-label="Actions"
-        aria-expanded={isOpen}
-      >
-        <FiMoreVertical className="h-5 w-5" />
-      </button>
-
-      {isOpen && (
-        <div className="absolute right-0 mt-1 w-48 rounded-md shadow-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 z-50 py-1">
-          {visibleItems.map((item, index) => (
-            <button
-              key={index}
-              onClick={(e) => {
-                e.stopPropagation();
-                handleItemClick(item);
-              }}
-              disabled={item.disabled}
-              className={cn(
-                'w-full text-left px-4 py-2 text-sm flex items-center gap-2 transition-colors',
-                getVariantStyles(item.variant),
-                item.disabled && 'opacity-50 cursor-not-allowed',
-                item.className
-              )}
+    <div
+      role="group"
+      aria-label={label}
+      /* `md:-my-1` gives the 32px buttons back the 4px they add to a 2.5-padded
+       * table cell, so a row of three buttons is no taller than a row of text.
+       * Below `md` these sit in the phone card's own actions footer, which has
+       * the room and needs the 36px touch targets. */
+      className={cn('inline-flex items-center gap-0.5 md:-my-1', className)}
+    >
+      {items.map((item) => {
+        const icon = item.icon ?? fallbackIcon(item.label);
+        /* The tooltip is the label when the action is available and the reason
+         * when it is not — the menu showed the same two strings. A disabled
+         * button fires no pointer events, so its own `title` never appears;
+         * the reason an action is unavailable is exactly the tooltip a user
+         * needs most, so it hangs on a wrapper the pointer can still reach. */
+        const button = (
+          <button
+            key={item.label}
+            type="button"
+            disabled={item.disabled}
+            aria-disabled={item.disabled || undefined}
+            title={item.disabled ? undefined : item.label}
+            aria-label={item.label}
+            onClick={(event) => {
+              /* Rows are clickable on most of these tables: without this an
+               * action also navigates to the record it acted on. */
+              event.stopPropagation();
+              if (item.disabled) return;
+              item.onClick();
+            }}
+            className={cn(
+              ROW_ACTION_BASE,
+              ROW_ACTION_VARIANT[item.variant ?? 'default'],
+              item.disabled && 'cursor-not-allowed opacity-40 hover:bg-transparent',
+              item.className
+            )}
+          >
+            <span
+              className="flex h-4 w-4 items-center justify-center [&>svg]:h-4 [&>svg]:w-4"
+              aria-hidden="true"
             >
-              {item.icon && <span className="flex items-center justify-center h-4 w-4">{item.icon}</span>}
-              {item.label}
-            </button>
-          ))}
-        </div>
-      )}
+              {icon}
+            </span>
+          </button>
+        );
+
+        if (!item.disabled) return button;
+        return (
+          <span key={item.label} title={item.disabledReason ?? item.label} className="inline-flex">
+            {button}
+          </span>
+        );
+      })}
     </div>
   );
 }
-

@@ -11,6 +11,9 @@ import { AuthRequest } from '../middleware/authMiddleware';
 import { getPaginationParams, createPaginationResponse } from '../utils/pagination';
 import { stripImmutable, refBelongsToTenant } from '../utils/sanitizeUpdate';
 
+import { sendFailure } from '../utils/userMessages';
+import { regexLiteral } from '../utils/queryGuard';
+
 const tenantScope = (req: AuthRequest) => {
   if (req.tenantId) return req.tenantId;
   if (req.isSuperAdmin && req.query.tenantId) return req.query.tenantId as string;
@@ -39,7 +42,7 @@ export const getAllAssistances = async (req: AuthRequest, res: Response) => {
     if (type) query.type = type;
     if (memberId) query.memberId = memberId;
     if (familyId) query.familyId = familyId;
-    if (search) query.notes = { $regex: search, $options: 'i' };
+    if (search) query.notes = { $regex: regexLiteral(search), $options: 'i' };
 
     const [data, total] = await Promise.all([
       MarriageAssistance.find(query)
@@ -53,7 +56,7 @@ export const getAllAssistances = async (req: AuthRequest, res: Response) => {
 
     res.json(createPaginationResponse(data, total, page, limit));
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the assistances right now. Please try again.');
   }
 };
 
@@ -69,12 +72,12 @@ export const getAssistanceById = async (req: AuthRequest, res: Response) => {
     ) {
       return res
         .status(404)
-        .json({ success: false, message: 'Assistance record not found' });
+        .json({ success: false, message: "We couldn't find that assistance record. It may have been removed." });
     }
 
     res.json({ success: true, data: assistance });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the assistance right now. Please try again.');
   }
 };
 
@@ -84,13 +87,13 @@ export const createAssistance = async (req: AuthRequest, res: Response) => {
     if (!tenantId)
       return res
         .status(400)
-        .json({ success: false, message: 'Tenant ID is required' });
+        .json({ success: false, message: 'Please select a Mahallu before continuing.' });
 
     const { memberId, familyId } = req.body;
     if (!memberId && !familyId) {
       return res.status(400).json({
         success: false,
-        message: 'Either memberId or familyId is required',
+        message: 'Please choose a member or a family.',
       });
     }
 
@@ -100,7 +103,7 @@ export const createAssistance = async (req: AuthRequest, res: Response) => {
       if (!member || member.tenantId.toString() !== tenantId.toString()) {
         return res.status(400).json({
           success: false,
-          message: 'Member belongs to another tenant',
+          message: 'This member belongs to another Mahallu.',
         });
       }
     }
@@ -110,7 +113,7 @@ export const createAssistance = async (req: AuthRequest, res: Response) => {
       if (!family || family.tenantId.toString() !== tenantId.toString()) {
         return res.status(400).json({
           success: false,
-          message: 'Family belongs to another tenant',
+          message: 'This family belongs to another Mahallu.',
         });
       }
     }
@@ -126,7 +129,7 @@ export const createAssistance = async (req: AuthRequest, res: Response) => {
 
     res.status(201).json({ success: true, data: assistance });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t save the assistance. Please try again.');
   }
 };
 
@@ -136,7 +139,7 @@ export const updateAssistance = async (req: AuthRequest, res: Response) => {
     if (!existing || (req.tenantId && existing.tenantId.toString() !== req.tenantId)) {
       return res
         .status(404)
-        .json({ success: false, message: 'Assistance record not found' });
+        .json({ success: false, message: "We couldn't find that assistance record. It may have been removed." });
     }
 
     // Validate referenced records if updating member/family
@@ -145,7 +148,7 @@ export const updateAssistance = async (req: AuthRequest, res: Response) => {
       if (!member || member.tenantId.toString() !== existing.tenantId.toString()) {
         return res.status(400).json({
           success: false,
-          message: 'Member belongs to another tenant',
+          message: 'This member belongs to another Mahallu.',
         });
       }
     }
@@ -155,7 +158,7 @@ export const updateAssistance = async (req: AuthRequest, res: Response) => {
       if (!family || family.tenantId.toString() !== existing.tenantId.toString()) {
         return res.status(400).json({
           success: false,
-          message: 'Family belongs to another tenant',
+          message: 'This family belongs to another Mahallu.',
         });
       }
     }
@@ -170,7 +173,7 @@ export const updateAssistance = async (req: AuthRequest, res: Response) => {
 
     res.json({ success: true, data: assistance });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t update the assistance. Please try again.');
   }
 };
 
@@ -180,14 +183,14 @@ export const updateAssistanceStatus = async (req: AuthRequest, res: Response) =>
     if (!existing || (req.tenantId && existing.tenantId.toString() !== req.tenantId)) {
       return res
         .status(404)
-        .json({ success: false, message: 'Assistance record not found' });
+        .json({ success: false, message: "We couldn't find that assistance record. It may have been removed." });
     }
 
     const newStatus = req.body.status as MarriageAssistanceStatus;
     if (!MARRIAGE_ASSISTANCE_STATUSES.includes(newStatus)) {
       return res.status(400).json({
         success: false,
-        message: `Invalid status: ${newStatus}`,
+        message: 'Please choose a valid status.',
       });
     }
 
@@ -196,7 +199,7 @@ export const updateAssistanceStatus = async (req: AuthRequest, res: Response) =>
     if (!allowedTransitions.includes(newStatus)) {
       return res.status(400).json({
         success: false,
-        message: `Cannot move from ${existing.status} to ${newStatus}`,
+        message: `This can't be moved from ${existing.status} to ${newStatus}.`,
       });
     }
 
@@ -211,7 +214,7 @@ export const updateAssistanceStatus = async (req: AuthRequest, res: Response) =>
 
     res.json({ success: true, data: existing });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t update the assistance status. Please try again.');
   }
 };
 
@@ -221,12 +224,12 @@ export const deleteAssistance = async (req: AuthRequest, res: Response) => {
     if (!existing || (req.tenantId && existing.tenantId.toString() !== req.tenantId)) {
       return res
         .status(404)
-        .json({ success: false, message: 'Assistance record not found' });
+        .json({ success: false, message: "We couldn't find that assistance record. It may have been removed." });
     }
 
     await existing.deleteOne();
     res.json({ success: true, message: 'Assistance record deleted' });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t delete the assistance. Please try again.');
   }
 };

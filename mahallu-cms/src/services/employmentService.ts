@@ -1,15 +1,15 @@
-import api from './api';
+import api, { asList } from './api';
 
 export type EmploymentOutcome = 'none' | 'employed' | 'self_employed';
 
 export interface Employer {
-  _id: string;
+  id: string;
   name: string;
   businessType?: string;
   contactPerson?: string;
   contactNo?: string;
   location?: string;
-  memberId?: { _id: string; name: string } | string;
+  memberId?: { id: string; name: string } | string;
   notes?: string;
   status: 'active' | 'inactive';
   createdAt: string;
@@ -17,8 +17,8 @@ export interface Employer {
 }
 
 export interface JobVacancy {
-  _id: string;
-  employerId?: { _id: string; name: string } | string;
+  id: string;
+  employerId?: { id: string; name: string } | string;
   employerName?: string;
   title: string;
   location?: string;
@@ -32,13 +32,13 @@ export interface JobVacancy {
 }
 
 export interface TrainingParticipant {
-  memberId: { _id: string; name: string; phone?: string } | string;
+  memberId: { id: string; name: string; phone?: string } | string;
   certificateIssued?: boolean;
   employmentOutcome?: EmploymentOutcome;
 }
 
 export interface SkillTraining {
-  _id: string;
+  id: string;
   name: string;
   trainerName?: string;
   startDate: string;
@@ -85,11 +85,10 @@ export const EMPLOYMENT_OUTCOME_OPTIONS = [
 export const employmentService = {
   // Employer endpoints
   getEmployers: async (params?: Record<string, any>) => {
-    const response = await api.get<{ success: boolean; data: Employer[]; pagination?: any }>(
-      '/employers',
-      { params }
-    );
-    return { data: response.data.data, pagination: response.data.pagination || null };
+    const response = await api.get<{ success: boolean; data: Employer[]; pagination?: any }>('/employers', {
+      params,
+    });
+    return { data: asList(response.data.data), pagination: response.data.pagination || null };
   },
 
   getEmployer: async (id: string) => {
@@ -117,7 +116,7 @@ export const employmentService = {
       '/job-vacancies',
       { params }
     );
-    return { data: response.data.data, pagination: response.data.pagination || null };
+    return { data: asList(response.data.data), pagination: response.data.pagination || null };
   },
 
   getVacancy: async (id: string) => {
@@ -131,10 +130,7 @@ export const employmentService = {
   },
 
   updateVacancy: async (id: string, payload: Record<string, any>) => {
-    const response = await api.put<{ success: boolean; data: JobVacancy }>(
-      `/job-vacancies/${id}`,
-      payload
-    );
+    const response = await api.put<{ success: boolean; data: JobVacancy }>(`/job-vacancies/${id}`, payload);
     return response.data.data;
   },
 
@@ -148,7 +144,7 @@ export const employmentService = {
       '/skill-trainings',
       { params }
     );
-    return { data: response.data.data, pagination: response.data.pagination || null };
+    return { data: asList(response.data.data), pagination: response.data.pagination || null };
   },
 
   getTraining: async (id: string) => {
@@ -157,10 +153,7 @@ export const employmentService = {
   },
 
   createTraining: async (payload: Record<string, any>) => {
-    const response = await api.post<{ success: boolean; data: SkillTraining }>(
-      '/skill-trainings',
-      payload
-    );
+    const response = await api.post<{ success: boolean; data: SkillTraining }>('/skill-trainings', payload);
     return response.data.data;
   },
 
@@ -185,11 +178,7 @@ export const employmentService = {
     return response.data.data;
   },
 
-  updateParticipant: async (
-    trainingId: string,
-    memberId: string,
-    payload: Record<string, any>
-  ) => {
+  updateParticipant: async (trainingId: string, memberId: string, payload: Record<string, any>) => {
     const response = await api.put<{ success: boolean; data: SkillTraining }>(
       `/skill-trainings/${trainingId}/participants/${memberId}`,
       payload
@@ -206,9 +195,7 @@ export const employmentService = {
 
   // Summary endpoint
   getSummary: async () => {
-    const response = await api.get<{ success: boolean; data: EmploymentSummary }>(
-      '/employment/summary'
-    );
+    const response = await api.get<{ success: boolean; data: EmploymentSummary }>('/employment/summary');
     return response.data.data;
   },
 };

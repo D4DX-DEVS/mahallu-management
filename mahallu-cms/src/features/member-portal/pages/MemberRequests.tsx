@@ -1,22 +1,27 @@
 import { useEffect, useState } from 'react';
+import Button from '@/components/ui/Button';
 import { Link } from 'react-router-dom';
-import { memberPortalService, NikahRegistration, DeathRegistration, NOCRecord } from '@/services/memberPortalService';
+import {
+  memberPortalService,
+  NikahRegistration,
+  DeathRegistration,
+  NOCRecord,
+} from '@/services/memberPortalService';
 import { ROUTES } from '@/constants/routes';
 import Card from '@/components/ui/Card';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import Pagination from '@/components/ui/Pagination';
 import RequestDetailModal, { RequestType } from '../components/RequestDetailModal';
-import { FiEdit2, FiEye, FiHeart, FiAlertCircle, FiFileText } from 'react-icons/fi';
+import { FiAlertCircle, FiEdit2, FiEye, FiFileText, FiHeart, FiPlus } from 'react-icons/fi';
+import { loadErrorMessage } from '@/utils/errors';
+import { toTitleCase } from '@/utils/format';
+import StatusBadge from '@/components/ui/StatusBadge';
+import PageHeader from '@/components/layout/PageHeader';
+import SortableTh from '@/components/ui/SortableTh';
+import { useSortableRows } from '@/hooks/useSortableRows';
 
 type TabType = 'nikah' | 'death' | 'noc';
 type RequestRecord = NikahRegistration | DeathRegistration | NOCRecord;
-
-const statusColors: Record<string, string> = {
-  pending: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
-  correction_required: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400',
-  approved: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
-  rejected: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
-};
 
 export default function MemberRequests() {
   const [activeTab, setActiveTab] = useState<TabType>('nikah');
@@ -26,13 +31,22 @@ export default function MemberRequests() {
   const [totalItems, setTotalItems] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [modalState, setModalState] = useState<{ type: RequestType; request: any; mode: 'view' | 'edit' } | null>(null);
+  const [modalState, setModalState] = useState<{
+    type: RequestType;
+    request: any;
+    mode: 'view' | 'edit';
+  } | null>(null);
 
   // A nikah-type NOC's real detail lives on its linked NikahRegistration record
   // (bride/groom, wali, witnesses, mahr…) — the NOC record itself only holds purpose/phone.
   const openModal = (req: RequestRecord, mode: 'view' | 'edit') => {
     const record = req as any;
-    if (activeTab === 'noc' && record.type === 'nikah' && record.nikahRegistrationId && typeof record.nikahRegistrationId === 'object') {
+    if (
+      activeTab === 'noc' &&
+      record.type === 'nikah' &&
+      record.nikahRegistrationId &&
+      typeof record.nikahRegistrationId === 'object'
+    ) {
       setModalState({ type: 'nikah', request: record.nikahRegistrationId, mode });
     } else {
       setModalState({ type: activeTab, request: req, mode });
@@ -41,9 +55,13 @@ export default function MemberRequests() {
 
   const isEditable = (req: RequestRecord) => {
     const record = req as any;
-    const status = activeTab === 'noc' && record.type === 'nikah' && record.nikahRegistrationId && typeof record.nikahRegistrationId === 'object'
-      ? record.nikahRegistrationId.status
-      : record.status;
+    const status =
+      activeTab === 'noc' &&
+      record.type === 'nikah' &&
+      record.nikahRegistrationId &&
+      typeof record.nikahRegistrationId === 'object'
+        ? record.nikahRegistrationId.status
+        : record.status;
     return status === 'pending' || status === 'correction_required';
   };
 
@@ -61,7 +79,7 @@ export default function MemberRequests() {
       setTotalItems(total);
       setTotalPages(Math.ceil(total / limit));
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to load requests');
+      setError(loadErrorMessage(err, 'requests'));
     } finally {
       setLoading(false);
     }
@@ -75,6 +93,8 @@ export default function MemberRequests() {
   const handleTabChange = (tab: TabType) => {
     setActiveTab(tab);
     setPage(1);
+    // The columns mean something different per tab, so the sort does not carry.
+    setSort(null);
   };
 
   const getDisplayName = (req: NikahRegistration | DeathRegistration): string => {
@@ -84,31 +104,55 @@ export default function MemberRequests() {
     return 'Death Registration';
   };
 
+  /* The first two columns are built per tab — a nikah row's title is the two
+     names, a death row's is the deceased, an NOC row's is its purpose — so
+     both sort on the same expression the cell renders. */
+  const {
+    rows: sortedRequests,
+    sort,
+    toggleSort,
+    setSort,
+  } = useSortableRows(requests, null, {
+    label: (req) => {
+      const record = req as unknown as Record<string, string | undefined>;
+      const nikahDetail = (req as any).nikahRegistrationId;
+      if (activeTab === 'nikah') return `${record.groomName} & ${record.brideName}`;
+      if (activeTab === 'death') return record.deceasedName || 'Death Registration';
+      return (
+        record.purposeTitle ||
+        record.purpose ||
+        (nikahDetail && typeof nikahDetail === 'object' ? `Nikah with ${nikahDetail.brideName}` : '')
+      );
+    },
+    date: (req) => {
+      const record = req as unknown as Record<string, string | undefined>;
+      if (activeTab === 'nikah') return record.nikahDate;
+      if (activeTab === 'death') return record.deathDate;
+      return record.createdAt;
+    },
+  });
+
   if (loading) {
-    return (
-      <PageSkeleton />
-    );
+    return <PageSkeleton />;
   }
 
   return (
-    <div className="space-y-6 max-w-4xl w-full mx-auto">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">My Requests</h1>
-        <div className="flex gap-2">
+    <div className="space-y-4 max-w-4xl w-full mx-auto">
+      <div className="flex flex-wrap gap-2 items-center justify-between">
+        <PageHeader title="My Requests" />
+        <div className="flex items-center gap-2">
           {activeTab === 'nikah' && (
-            <Link
-              to={ROUTES.MEMBER.NIKAH_REQUEST}
-              className="py-2 px-4 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg text-sm transition-colors"
-            >
-              + New Nikah Registration
+            <Link to={ROUTES.MEMBER.NIKAH_REQUEST} className="flex-shrink-0">
+              <Button icon={<FiPlus />} collapseLabel>
+                New Nikah Registration
+              </Button>
             </Link>
           )}
           {activeTab === 'death' && (
-            <Link
-              to={ROUTES.MEMBER.DEATH_REQUEST}
-              className="py-2 px-4 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg text-sm transition-colors"
-            >
-              + Report Death
+            <Link to={ROUTES.MEMBER.DEATH_REQUEST} className="flex-shrink-0">
+              <Button icon={<FiPlus />} collapseLabel>
+                Report Death
+              </Button>
             </Link>
           )}
         </div>
@@ -127,7 +171,13 @@ export default function MemberRequests() {
             }`}
           >
             <span className="inline-flex items-center gap-1.5">
-              {tab === 'nikah' ? <FiHeart className="h-4 w-4" /> : tab === 'death' ? <FiAlertCircle className="h-4 w-4" /> : <FiFileText className="h-4 w-4" />}
+              {tab === 'nikah' ? (
+                <FiHeart className="h-4 w-4" />
+              ) : tab === 'death' ? (
+                <FiAlertCircle className="h-4 w-4" />
+              ) : (
+                <FiFileText className="h-4 w-4" />
+              )}
               {tab === 'nikah' ? 'Nikah' : tab === 'death' ? 'Death' : 'NOC'}
             </span>
           </button>
@@ -142,7 +192,7 @@ export default function MemberRequests() {
 
       {requests.length === 0 ? (
         <Card>
-          <div className="text-center py-12 space-y-3">
+          <div className="text-center py-10 space-y-3">
             <p className="text-gray-500 dark:text-gray-400">No {activeTab} registrations found.</p>
             {activeTab === 'nikah' && (
               <Link
@@ -169,19 +219,23 @@ export default function MemberRequests() {
               <table className="min-w-full text-sm">
                 <thead>
                   <tr className="text-left border-b border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-400">
-                    <th className="py-2 pr-4">
+                    <SortableTh sortKey="label" sort={sort} onSort={toggleSort} className="py-2 pr-4">
                       {activeTab === 'nikah' ? 'Names' : activeTab === 'death' ? 'Type' : 'Purpose'}
-                    </th>
-                    <th className="py-2 pr-4">
+                    </SortableTh>
+                    <SortableTh sortKey="date" sort={sort} onSort={toggleSort} className="py-2 pr-4">
                       {activeTab === 'nikah' ? 'Date' : activeTab === 'death' ? 'Date' : 'Submitted'}
-                    </th>
-                    <th className="py-2 pr-4">Status</th>
-                    <th className="py-2 pr-4">Remarks</th>
-                    <th className="py-2">Actions</th>
+                    </SortableTh>
+                    <SortableTh sortKey="status" sort={sort} onSort={toggleSort} className="py-2 pr-4">
+                      Status
+                    </SortableTh>
+                    <SortableTh sortKey="remarks" sort={sort} onSort={toggleSort} className="py-2 pr-4">
+                      Remarks
+                    </SortableTh>
+                    <th className="py-2 text-label font-semibold text-muted-foreground">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {requests.map((req, index) => {
+                  {sortedRequests.map((req, index) => {
                     const record = req as unknown as Record<string, string | undefined>;
                     const nikahDetail = (req as any).nikahRegistrationId;
                     const label =
@@ -189,8 +243,11 @@ export default function MemberRequests() {
                         ? `${record.groomName} & ${record.brideName}`
                         : activeTab === 'death'
                           ? record.deceasedName || 'Death Registration'
-                          : record.purposeTitle || record.purpose ||
-                            (nikahDetail && typeof nikahDetail === 'object' ? `Nikah with ${nikahDetail.brideName}` : 'NOC Request');
+                          : record.purposeTitle ||
+                            record.purpose ||
+                            (nikahDetail && typeof nikahDetail === 'object'
+                              ? `Nikah with ${nikahDetail.brideName}`
+                              : 'NOC Request');
                     const dateValue =
                       activeTab === 'nikah'
                         ? record.nikahDate
@@ -202,18 +259,12 @@ export default function MemberRequests() {
                         key={req.id || index}
                         className="border-b border-gray-100 dark:border-gray-900 text-gray-900 dark:text-gray-100"
                       >
-                        <td className="py-3 pr-4">{label}</td>
+                        <td className="py-3 pr-4">{toTitleCase(label)}</td>
                         <td className="py-3 pr-4 text-gray-500 dark:text-gray-400 text-xs">
                           {dateValue ? new Date(dateValue).toLocaleDateString('en-IN') : '—'}
                         </td>
                         <td className="py-3 pr-4">
-                          <span
-                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                              statusColors[req.status] || statusColors.pending
-                            }`}
-                          >
-                            {req.status.replace('_', ' ')}
-                          </span>
+                          <StatusBadge status={req.status} />
                         </td>
                         <td className="py-3 pr-4 text-xs text-gray-500 dark:text-gray-400">
                           {req.remarks || '—'}

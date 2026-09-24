@@ -1,13 +1,29 @@
 import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiBell, FiImage, FiSend, FiX } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import { ROUTES } from '@/constants/routes';
 import { notificationService } from '@/services/notificationService';
+import { errorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
+import { FieldRule, validateForm as checkFields, firstError, LIMITS } from '@/utils/validation';
+
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+
+/** A push notification's text, capped where the API caps it. */
+const NOTIFICATION_RULES: Record<string, FieldRule> = {
+  title: { label: 'title', required: true, minLength: 2, maxLength: LIMITS.title.max },
+  titleMl: { label: 'title', maxLength: LIMITS.title.max },
+  message: { label: 'message', required: true, maxLength: LIMITS.longText.max },
+  messageMl: { label: 'message', maxLength: LIMITS.longText.max },
+};
+
+/** Only applied when the notification goes to one person rather than everyone. */
+const RECIPIENT_RULE: FieldRule = { label: 'recipient', required: true, type: 'id' };
 
 export default function SendNotification() {
   const navigate = useNavigate();
@@ -28,12 +44,30 @@ export default function SendNotification() {
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] ?? null;
-    setImageFile(file);
+
+    // The API caps an image at 5 MB and takes only these four types. Saying so
+    // here beats uploading a 40 MB file and being refused at the end of it.
     if (file) {
-      setImagePreview(URL.createObjectURL(file));
-    } else {
-      setImagePreview(null);
+      if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+        setError('Please choose a JPEG, PNG, WebP or GIF image.');
+        e.target.value = '';
+        return;
+      }
+      if (file.size > MAX_IMAGE_BYTES) {
+        setError('That image is too large. Please choose a file under 5 MB.');
+        e.target.value = '';
+        return;
+      }
+      if (file.size === 0) {
+        setError('That file is empty. Please choose another image.');
+        e.target.value = '';
+        return;
+      }
     }
+
+    setError(null);
+    setImageFile(file);
+    setImagePreview(file ? URL.createObjectURL(file) : null);
   };
 
   const removeImage = () => {
@@ -46,14 +80,15 @@ export default function SendNotification() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim() || !message.trim()) {
-      setError('Title and message are required');
+    const problems = checkFields(
+      { title, titleMl, message, messageMl, recipientId },
+      recipientType === 'all' ? NOTIFICATION_RULES : { ...NOTIFICATION_RULES, recipientId: RECIPIENT_RULE },
+    );
+    if (Object.keys(problems).length > 0) {
+      setError(firstError(problems));
       return;
     }
-    if (recipientType !== 'all' && !recipientId.trim()) {
-      setError('Recipient ID is required for individual notifications');
-      return;
-    }
+    if (isSubmitting) return; // a second click while the first send is open
 
     try {
       setIsSubmitting(true);
@@ -70,7 +105,7 @@ export default function SendNotification() {
         message: message.trim(),
         messageMl: messageMl.trim() || undefined,
         imageUrl,
-        recipientType: recipientType === 'all' ? 'all' : 'individual',
+        recipientType,
         recipientId: recipientType !== 'all' ? recipientId.trim() : undefined,
         type: notificationType,
       } as any);
@@ -80,7 +115,7 @@ export default function SendNotification() {
         navigate(ROUTES.NOTIFICATIONS.INDIVIDUAL);
       }, 1500);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to send notification. Please try again.');
+      setError(errorMessage(err, { action: 'send notification. please try again' }));
     } finally {
       setIsSubmitting(false);
     }
@@ -88,21 +123,11 @@ export default function SendNotification() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Send Notification</h1>
-          <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
-            Send a push notification to users
-          </p>
-        </div>
-        <Breadcrumb
-          items={[
-            { label: 'Dashboard', path: '/dashboard' },
-            { label: 'Notifications', path: ROUTES.NOTIFICATIONS.INDIVIDUAL },
-            { label: 'Send' },
-          ]}
-        />
-      </div>
+      <PageHeader
+        title="Send Notification"
+        description="Send a push notification to users"
+        breadcrumbs={[{ label: 'Notifications', path: ROUTES.NOTIFICATIONS.INDIVIDUAL }]}
+      />
 
       <Card className="max-w-2xl">
         <form onSubmit={handleSubmit} className="space-y-5">
@@ -114,7 +139,7 @@ export default function SendNotification() {
 
           {success && (
             <div className="p-4 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-sm text-green-700 dark:text-green-300">
-              Notification sent successfully! Redirecting…
+              Notification sent! Redirecting…
             </div>
           )}
 
@@ -128,13 +153,13 @@ export default function SendNotification() {
             icon={<FiBell className="h-4 w-4" />}
           />
           <div className="hidden">
-          <Input
-            label="Title (Malayalam)"
-            value={titleMl}
-            onChange={(e) => setTitleMl(e.target.value)}
-            placeholder="തലക്കെട്ട്"
-            className="font-malayalam"
-          />
+            <Input
+              label="Title (Malayalam)"
+              value={titleMl}
+              onChange={(e) => setTitleMl(e.target.value)}
+              placeholder="തലക്കെട്ട്"
+              className="font-malayalam"
+            />
           </div>
 
           {/* Message */}
@@ -143,6 +168,7 @@ export default function SendNotification() {
               Message <span className="text-red-500">*</span>
             </label>
             <textarea
+              aria-label="Message"
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               rows={4}
@@ -158,6 +184,7 @@ export default function SendNotification() {
               Message (Malayalam) <span className="text-gray-400 text-xs font-normal">(optional)</span>
             </label>
             <textarea
+              aria-label="Message (Malayalam) (optional)"
               value={messageMl}
               onChange={(e) => setMessageMl(e.target.value)}
               rows={3}
@@ -194,6 +221,7 @@ export default function SendNotification() {
                 <span className="text-sm text-gray-500 dark:text-gray-400">Click to upload image</span>
                 <span className="text-xs text-gray-400 mt-1">JPEG, PNG, WebP or GIF · max 5 MB</span>
                 <input
+                  aria-label="Choose a file"
                   ref={fileInputRef}
                   type="file"
                   accept="image/jpeg,image/png,image/webp,image/gif"
@@ -231,9 +259,7 @@ export default function SendNotification() {
           <Select
             label="Type"
             value={notificationType}
-            onChange={(e) =>
-              setNotificationType(e.target.value as 'info' | 'warning' | 'success' | 'error')
-            }
+            onChange={(e) => setNotificationType(e.target.value as 'info' | 'warning' | 'success' | 'error')}
             options={[
               { value: 'info', label: 'Info' },
               { value: 'success', label: 'Success' },
@@ -242,7 +268,7 @@ export default function SendNotification() {
             ]}
           />
 
-          <div className="flex justify-end gap-3 pt-2">
+          <div className="flex gap-2 flex-col-reverse sm:flex-row sm:justify-end sm:gap-3 pt-2">
             <Button
               type="button"
               variant="outline"

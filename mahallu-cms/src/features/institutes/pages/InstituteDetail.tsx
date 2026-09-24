@@ -1,14 +1,16 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { FiEdit2, FiArrowLeft } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import { Institute } from '@/types';
 import { ROUTES } from '@/constants/routes';
 import { instituteService } from '@/services/instituteService';
-import { formatDate } from '@/utils/format';
+import { formatDate, toTitleCase } from '@/utils/format';
+import { loadErrorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
+import StatusBadge from '@/components/ui/StatusBadge';
 
 export default function InstituteDetail() {
   const { id } = useParams<{ id: string }>();
@@ -30,7 +32,7 @@ export default function InstituteDetail() {
       const data = await instituteService.getById(id);
       setInstitute(data);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch institute');
+      setError(loadErrorMessage(err, 'institute'));
       console.error('Error fetching institute:', err);
     } finally {
       setLoading(false);
@@ -38,14 +40,12 @@ export default function InstituteDetail() {
   };
 
   if (loading) {
-    return (
-      <PageSkeleton />
-    );
+    return <PageSkeleton />;
   }
 
   if (error || !institute) {
     return (
-      <div className="text-center py-12">
+      <div className="text-center py-10">
         <p className="text-red-600 dark:text-red-400">{error || 'Institute not found'}</p>
         <Link to={ROUTES.INSTITUTES.LIST} className="mt-4 inline-block">
           <Button variant="outline">Back to Institutes</Button>
@@ -55,48 +55,36 @@ export default function InstituteDetail() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{institute.name}</h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Institute Details</p>
-        </div>
+    <div className="space-y-4">
+      <div className="flex gap-2 items-center justify-between">
         <div className="flex items-center gap-4">
-          <Breadcrumb
-            items={[
-              { label: 'Dashboard', path: '/dashboard' },
-              { label: 'Institutes', path: ROUTES.INSTITUTES.LIST },
-              { label: institute.name },
-            ]}
+          <PageHeader
+            description="Institute Details"
+            title={institute.name}
+            breadcrumbs={[{ label: 'Institutes', path: ROUTES.INSTITUTES.LIST }]}
           />
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-center">
             <Link to={ROUTES.INSTITUTES.LIST}>
-              <Button variant="outline">
-                <FiArrowLeft className="h-4 w-4 mr-2" />
-                Back
-              </Button>
+              <Button variant="outline" icon={<FiArrowLeft />} collapseLabel>Back</Button>
             </Link>
             <Link to={`/institutes/${institute.id}/edit`}>
-              <Button>
-                <FiEdit2 className="h-4 w-4 mr-2" />
-                Edit
-              </Button>
+              <Button icon={<FiEdit2 />} collapseLabel>Edit</Button>
             </Link>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card>
-          <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">Basic Information</h2>
+          <h2 className="text-lg font-semibold mb-3 text-foreground">Basic Information</h2>
           <div className="space-y-4">
             <div>
               <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Name</label>
-              <p className="mt-1 text-gray-900 dark:text-gray-100">{institute.name}</p>
+              <p className="mt-1 text-gray-900 dark:text-gray-100">{toTitleCase(institute.name)}</p>
             </div>
             <div>
               <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Place</label>
-              <p className="mt-1 text-gray-900 dark:text-gray-100">{institute.place}</p>
+              <p className="mt-1 text-gray-900 dark:text-gray-100">{toTitleCase(institute.place)}</p>
             </div>
             <div>
               <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Type</label>
@@ -113,22 +101,14 @@ export default function InstituteDetail() {
             <div>
               <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Status</label>
               <p className="mt-1">
-                <span
-                  className={`px-2 py-1 text-xs font-medium rounded-full ${
-                    institute.status === 'active'
-                      ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                      : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
-                  }`}
-                >
-                  {institute.status || 'active'}
-                </span>
+                <StatusBadge status={institute.status || 'active'} />
               </p>
             </div>
           </div>
         </Card>
 
         <Card>
-          <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">Contact Information</h2>
+          <h2 className="text-lg font-semibold mb-3 text-foreground">Contact Information</h2>
           <div className="space-y-4">
             {institute.contactNo && (
               <div>
@@ -150,7 +130,7 @@ export default function InstituteDetail() {
 
         {institute.description && (
           <Card className="md:col-span-2">
-            <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">Description</h2>
+            <h2 className="text-lg font-semibold mb-3 text-foreground">Description</h2>
             <p className="text-gray-700 dark:text-gray-300">{institute.description}</p>
           </Card>
         )}
@@ -158,4 +138,3 @@ export default function InstituteDetail() {
     </div>
   );
 }
-

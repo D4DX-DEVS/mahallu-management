@@ -7,11 +7,28 @@ import Card from '@/components/ui/Card';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import DatePicker from '@/components/ui/DatePicker';
 import AppSelect from '@/components/ui/AppSelect';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
+import { FieldRule, validateForm as checkFields, LIMITS } from '@/utils/validation';
+import { checkUploadedFile } from '@/utils/validation';
+import { toTitleCase } from '@/utils/format';
+
+/** Mirrors the API's death-registration rules (`memberUserValidation.ts`). */
+const DEATH_RULES: Record<string, FieldRule> = {
+  deathDate: { label: 'date of death', required: true, type: 'date', noFuture: true },
+  placeOfDeath: { label: 'place of death', required: true, maxLength: LIMITS.shortText.max },
+  causeOfDeath: { label: 'cause of death', required: true, maxLength: 300 },
+  informantName: { label: 'informant’s name', required: true, minLength: LIMITS.name.min, maxLength: LIMITS.name.max },
+  informantRelation: { label: 'relationship to the informant', required: true, maxLength: 100 },
+  informantPhone: { label: 'phone number for the informant', type: 'phone' },
+};
+
 
 interface DocumentChip {
   id: string;
   fileName: string;
-  documentType: 'id_proof' | 'age_proof' | 'photo' | 'address_proof' | 'divorce_doc' | 'death_proof' | 'other';
+  documentType:
+    'id_proof' | 'age_proof' | 'photo' | 'address_proof' | 'divorce_doc' | 'death_proof' | 'other';
 }
 
 export default function MemberDeathRequest() {
@@ -30,7 +47,9 @@ export default function MemberDeathRequest() {
   const [informantPhone, setInformantPhone] = useState('');
 
   const [documents, setDocuments] = useState<DocumentChip[]>([]);
-  const [selectedDocType, setSelectedDocType] = useState<'id_proof' | 'age_proof' | 'photo' | 'address_proof' | 'divorce_doc' | 'death_proof' | 'other'>('id_proof');
+  const [selectedDocType, setSelectedDocType] = useState<
+    'id_proof' | 'age_proof' | 'photo' | 'address_proof' | 'divorce_doc' | 'death_proof' | 'other'
+  >('id_proof');
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -39,8 +58,8 @@ export default function MemberDeathRequest() {
 
   const requiredDocTypes = ['id_proof', 'death_proof'] as const;
 
-  const uploadedDocTypes = new Set(documents.map(d => d.documentType));
-  const missingDocTypes = requiredDocTypes.filter(t => !uploadedDocTypes.has(t));
+  const uploadedDocTypes = new Set(documents.map((d) => d.documentType));
+  const missingDocTypes = requiredDocTypes.filter((t) => !uploadedDocTypes.has(t));
 
   useEffect(() => {
     const load = async () => {
@@ -49,7 +68,7 @@ export default function MemberDeathRequest() {
         const familyResult = await memberPortalService.getFamilyMembers(1, 100);
         setFamilyMembers(familyResult.data || []);
       } catch (err: any) {
-        setErrorMsg(err.response?.data?.message || 'Failed to load family members');
+        setErrorMsg(loadErrorMessage(err, 'family members'));
       } finally {
         setLoading(false);
       }
@@ -60,15 +79,28 @@ export default function MemberDeathRequest() {
 
   const handleDocumentUpload = async (file: File) => {
     if (!selectedDocType) {
-      setErrorMsg('Please select a document type');
+      setErrorMsg('Please choose a document type first.');
       return;
     }
+
+    // Type and size were checked only by the API, which meant sending the whole
+    // file over a phone connection before being told it was the wrong one.
+    const fileProblem = checkUploadedFile(file, 'document');
+    if (fileProblem) {
+      setErrorMsg(fileProblem);
+      return;
+    }
+    if (uploading) return;
+
     setUploading(true);
     try {
       const doc = await memberPortalService.uploadDocument(file, selectedDocType);
-      setDocuments((prev) => [...prev, { id: doc.id || doc._id, fileName: doc.fileName, documentType: selectedDocType }]);
+      setDocuments((prev) => [
+        ...prev,
+        { id: doc.id || doc._id, fileName: doc.fileName, documentType: selectedDocType },
+      ]);
     } catch (err: any) {
-      setErrorMsg(err.response?.data?.message || 'Failed to upload document');
+      setErrorMsg(errorMessage(err, { action: 'upload document' }));
     } finally {
       setUploading(false);
     }
@@ -79,15 +111,15 @@ export default function MemberDeathRequest() {
   };
 
   const validateForm = () => {
-    const errs: Record<string, string> = {};
+    const errs = checkFields(
+      { deathDate, placeOfDeath, causeOfDeath, informantName, informantRelation, informantPhone },
+      DEATH_RULES
+    );
 
-    if (!deathDate) errs.deathDate = 'Death date is required';
-    if (!placeOfDeath.trim()) errs.placeOfDeath = 'Place of death is required';
-    if (!causeOfDeath.trim()) errs.causeOfDeath = 'Cause of death is required';
-    if (!informantName.trim()) errs.informantName = 'Informant name is required';
-    if (!informantRelation.trim()) errs.informantRelation = 'Informant relation is required';
     if (missingDocTypes.length > 0) {
-      errs.documents = `Required documents missing: ${missingDocTypes.map(t => t.replace(/_/g, ' ')).join(', ')}`;
+      errs.documents = `Please attach these documents: ${missingDocTypes
+        .map((t) => t.replace(/_/g, ' '))
+        .join(', ')}.`;
     }
 
     return errs;
@@ -116,19 +148,17 @@ export default function MemberDeathRequest() {
         documents: documents.map((d) => d.id),
       });
 
-      setSuccessMsg('Death registration submitted successfully!');
+      setSuccessMsg('Death registration submitted!');
       setTimeout(() => navigate(ROUTES.MEMBER.REQUESTS), 2000);
     } catch (err: any) {
-      setErrorMsg(err.response?.data?.message || 'Failed to submit registration');
+      setErrorMsg(errorMessage(err, { action: 'submit registration' }));
     } finally {
       setSubmitting(false);
     }
   };
 
   if (loading) {
-    return (
-      <PageSkeleton />
-    );
+    return <PageSkeleton />;
   }
 
   if (successMsg) {
@@ -146,7 +176,7 @@ export default function MemberDeathRequest() {
   }
 
   return (
-    <div className="space-y-6 max-w-2xl w-full mx-auto">
+    <div className="space-y-4 max-w-2xl w-full mx-auto">
       <div className="flex items-center gap-4">
         <button
           type="button"
@@ -155,11 +185,11 @@ export default function MemberDeathRequest() {
         >
           ← Back
         </button>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Report Death</h1>
+        <PageHeader title="Report Death" />
       </div>
 
       <Card>
-        <div className="space-y-6">
+        <div className="space-y-4">
           {/* Deceased Member Selection */}
           {familyMembers.length > 0 && (
             <AppSelect
@@ -168,7 +198,7 @@ export default function MemberDeathRequest() {
               onChange={setDeceasedMemberId}
               options={[
                 { value: '', label: 'Select a family member or leave blank for self…' },
-                ...familyMembers.map((m) => ({ value: m.id, label: m.name })),
+                ...familyMembers.map((m) => ({ value: m.id, label: toTitleCase(m.name) })),
               ]}
               placeholder="Select a family member or leave blank for self…"
             />
@@ -189,13 +219,14 @@ export default function MemberDeathRequest() {
                 Place of Death <span className="text-red-500">*</span>
               </label>
               <input
+                aria-label="Place of Death"
                 type="text"
                 value={placeOfDeath}
                 onChange={(e) => setPlaceOfDeath(e.target.value)}
                 placeholder="Location where death occurred"
                 className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
-              {errors.placeOfDeath && <p className="text-red-500 text-xs mt-1">{errors.placeOfDeath}</p>}
+              {errors.placeOfDeath && <p className="text-red-500 text-label mt-1">{errors.placeOfDeath}</p>}
             </div>
           </div>
 
@@ -204,31 +235,33 @@ export default function MemberDeathRequest() {
               Cause of Death <span className="text-red-500">*</span>
             </label>
             <textarea
+              aria-label="Cause of Death"
               value={causeOfDeath}
               onChange={(e) => setCauseOfDeath(e.target.value)}
               placeholder="Cause of death (e.g., illness, accident, etc.)"
               rows={3}
               className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
             />
-            {errors.causeOfDeath && <p className="text-red-500 text-xs mt-1">{errors.causeOfDeath}</p>}
+            {errors.causeOfDeath && <p className="text-red-500 text-label mt-1">{errors.causeOfDeath}</p>}
           </div>
 
           {/* Informant Details */}
           <div>
-            <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-4">Informant Details</h3>
+            <h3 className="text-sm font-semibold mb-3 text-foreground">Informant Details</h3>
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Name <span className="text-red-500">*</span>
                 </label>
                 <input
+                  aria-label="Name"
                   type="text"
                   value={informantName}
                   onChange={(e) => setInformantName(e.target.value)}
                   placeholder="Informant's name"
                   className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
-                {errors.informantName && <p className="text-red-500 text-xs mt-1">{errors.informantName}</p>}
+                {errors.informantName && <p className="text-red-500 text-label mt-1">{errors.informantName}</p>}
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -237,19 +270,23 @@ export default function MemberDeathRequest() {
                     Relation to Deceased <span className="text-red-500">*</span>
                   </label>
                   <input
+                    aria-label="Relation to Deceased"
                     type="text"
                     value={informantRelation}
                     onChange={(e) => setInformantRelation(e.target.value)}
                     placeholder="e.g., Son, Daughter, Father"
                     className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
-                  {errors.informantRelation && <p className="text-red-500 text-xs mt-1">{errors.informantRelation}</p>}
+                  {errors.informantRelation && (
+                    <p className="text-red-500 text-label mt-1">{errors.informantRelation}</p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Phone Number
                   </label>
                   <input
+                    aria-label="Phone Number"
                     type="tel"
                     value={informantPhone}
                     onChange={(e) => setInformantPhone(e.target.value)}
@@ -268,9 +305,14 @@ export default function MemberDeathRequest() {
             </label>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {requiredDocTypes.map((docType) => (
-                <div key={docType} className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-800 rounded">
+                <div
+                  key={docType}
+                  className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-800 rounded"
+                >
                   <span className="text-lg">{uploadedDocTypes.has(docType) ? '✓' : '○'}</span>
-                  <span className="text-xs text-gray-700 dark:text-gray-300">{docType.replace(/_/g, ' ')}</span>
+                  <span className="text-xs text-gray-700 dark:text-gray-300">
+                    {docType.replace(/_/g, ' ')}
+                  </span>
                 </div>
               ))}
             </div>
@@ -296,10 +338,14 @@ export default function MemberDeathRequest() {
                   ]}
                 />
               </div>
-              <label htmlFor="doc-upload-death" className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg text-sm cursor-pointer transition-colors">
+              <label
+                htmlFor="doc-upload-death"
+                className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg text-sm cursor-pointer transition-colors"
+              >
                 {uploading ? 'Uploading…' : 'Upload'}
               </label>
               <input
+                aria-label="Choose a file"
                 type="file"
                 onChange={(e) => {
                   if (e.target.files?.[0]) {
@@ -315,8 +361,13 @@ export default function MemberDeathRequest() {
             {documents.length > 0 && (
               <div className="flex flex-wrap gap-2 mt-3">
                 {documents.map((doc) => (
-                  <div key={doc.id} className="inline-flex items-center gap-2 px-3 py-1 bg-gray-100 dark:bg-gray-800 rounded-full">
-                    <span className="text-xs text-gray-700 dark:text-gray-300 truncate max-w-xs">{doc.documentType.replace(/_/g, ' ')}: {doc.fileName}</span>
+                  <div
+                    key={doc.id}
+                    className="inline-flex items-center gap-2 px-3 py-1 bg-gray-100 dark:bg-gray-800 rounded-full"
+                  >
+                    <span className="text-xs text-gray-700 dark:text-gray-300 truncate max-w-xs">
+                      {doc.documentType.replace(/_/g, ' ')}: {doc.fileName}
+                    </span>
                     <button
                       type="button"
                       onClick={() => removeDocument(doc.id)}
@@ -328,11 +379,13 @@ export default function MemberDeathRequest() {
                 ))}
               </div>
             )}
-            {errors.documents && <p className="text-red-500 text-xs mt-1">{errors.documents}</p>}
+            {errors.documents && <p className="text-red-500 text-label mt-1">{errors.documents}</p>}
           </div>
 
           {errorMsg && (
-            <p className="text-red-500 text-sm bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-lg">{errorMsg}</p>
+            <p className="text-red-500 text-sm bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-lg">
+              {errorMsg}
+            </p>
           )}
 
           <div className="flex gap-3 pt-2">

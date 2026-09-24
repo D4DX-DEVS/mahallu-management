@@ -1,13 +1,17 @@
 import { useState, useEffect } from 'react';
+import { FiPlus, FiRefreshCw } from 'react-icons/fi';
 import { useParams, useNavigate } from 'react-router-dom';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
+import StatCard from '@/components/ui/StatCard';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { pettyCashService, PettyCashFund, PettyCashTransaction } from '@/services/pettyCashService';
 import { toast } from '@/store/toastStore';
+import { errorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 
 export default function PettyCashDetail() {
   const { id } = useParams<{ id: string }>();
@@ -16,7 +20,12 @@ export default function PettyCashDetail() {
   const [fund, setFund] = useState<PettyCashFund | null>(null);
   const [transactions, setTransactions] = useState<PettyCashTransaction[]>([]);
   const [showExpense, setShowExpense] = useState(false);
-  const [expenseForm, setExpenseForm] = useState({ amount: '', description: '', receiptNo: '', date: new Date().toISOString().split('T')[0] });
+  const [expenseForm, setExpenseForm] = useState({
+    amount: '',
+    description: '',
+    receiptNo: '',
+    date: new Date().toISOString().split('T')[0],
+  });
   const [saving, setSaving] = useState(false);
   const [replenishing, setReplenishing] = useState(false);
   const [showReplenishDialog, setShowReplenishDialog] = useState(false);
@@ -61,11 +70,16 @@ export default function PettyCashDetail() {
       });
       toast.success('Expense recorded');
       setShowExpense(false);
-      setExpenseForm({ amount: '', description: '', receiptNo: '', date: new Date().toISOString().split('T')[0] });
+      setExpenseForm({
+        amount: '',
+        description: '',
+        receiptNo: '',
+        date: new Date().toISOString().split('T')[0],
+      });
       fetchFund();
       fetchTransactions();
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to record expense');
+      toast.error(errorMessage(err, { action: 'record expense' }));
     } finally {
       setSaving(false);
     }
@@ -84,7 +98,7 @@ export default function PettyCashDetail() {
       fetchFund();
       fetchTransactions();
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to replenish petty cash');
+      toast.error(errorMessage(err, { action: 'replenish petty cash' }));
       setReplenishing(false);
     }
   };
@@ -95,9 +109,11 @@ export default function PettyCashDetail() {
 
   if (!fund) {
     return (
-      <div className="text-center py-12">
+      <div className="text-center py-10">
         <p className="text-gray-500">Petty cash fund not found</p>
-        <Button onClick={() => navigate('/petty-cash')} className="mt-4">Back to List</Button>
+        <Button onClick={() => navigate('/petty-cash')} className="mt-4">
+          Back to List
+        </Button>
       </div>
     );
   }
@@ -112,42 +128,43 @@ export default function PettyCashDetail() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{fund.custodianName}</h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{instituteName} — Petty Cash Fund</p>
-        </div>
-        <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Petty Cash', path: '/petty-cash' }, { label: fund.custodianName }]} />
-      </div>
+    <div className="space-y-4">
+      <PageHeader
+        title={toTitleCase(fund.custodianName)}
+        description={`${toTitleCase(instituteName)} — Petty Cash Fund`}
+        breadcrumbs={[{ label: 'Petty Cash', path: '/petty-cash' }]}
+      />
 
       {/* Fund Summary */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <Card>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Float Amount</p>
-          <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">₹{fund.floatAmount.toLocaleString()}</p>
-        </Card>
-        <Card>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Current Balance</p>
-          <p className={`text-2xl font-bold ${fund.currentBalance < fund.floatAmount * 0.2 ? 'text-red-600' : 'text-green-600'}`}>
-            ₹{fund.currentBalance.toLocaleString()}
-          </p>
-        </Card>
-        <Card>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Spent</p>
-          <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">₹{spent.toLocaleString()}</p>
-        </Card>
-        <Card>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Status</p>
-          <p className={`text-lg font-bold ${fund.status === 'active' ? 'text-green-600' : 'text-gray-600'}`}>{fund.status}</p>
-        </Card>
+      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3">
+        <StatCard title="Float Amount" value={<>₹{fund.floatAmount.toLocaleString()}</>} />
+        <StatCard
+          title="Current Balance"
+          value={<>₹{fund.currentBalance.toLocaleString()}</>}
+          tone={fund.currentBalance < fund.floatAmount * 0.2 ? 'destructive' : 'success'}
+        />
+        <StatCard title="Spent" value={<>₹{spent.toLocaleString()}</>} tone="warning" />
+        <StatCard
+          title="Status"
+          value={<span className="capitalize">{fund.status}</span>}
+          tone={fund.status === 'active' ? 'success' : 'default'}
+        />
       </div>
 
       {/* Actions */}
       {fund.status === 'active' && (
-        <div className="flex gap-3">
-          <Button onClick={() => setShowExpense(true)}>Record Expense</Button>
-          <Button variant="outline" onClick={handleReplenish} disabled={replenishing || spent <= 0}>
+        <div className="flex items-center gap-2">
+          <Button onClick={() => setShowExpense(true)} icon={<FiPlus />} collapseLabel>
+            Record Expense
+          </Button>
+          <Button
+            variant="outline"
+            onClick={handleReplenish}
+            disabled={replenishing || spent <= 0}
+            icon={<FiRefreshCw />}
+            collapseLabel
+            title="Replenish the fund"
+          >
             {replenishing ? 'Replenishing...' : `Replenish (₹${spent.toLocaleString()})`}
           </Button>
         </div>
@@ -158,20 +175,42 @@ export default function PettyCashDetail() {
         <Card>
           <h3 className="text-sm font-semibold mb-3">Record Expense</h3>
           <div className="flex flex-wrap items-end gap-4">
-            <div className="w-32">
-              <Input label="Amount (₹)" type="number" value={expenseForm.amount} onChange={(e) => setExpenseForm(f => ({ ...f, amount: e.target.value }))} />
+            <div className="w-full sm:w-32">
+              <Input
+                label="Amount (₹)"
+                type="number"
+                value={expenseForm.amount}
+                onChange={(e) => setExpenseForm((f) => ({ ...f, amount: e.target.value }))}
+              />
             </div>
-            <div className="w-64">
-              <Input label="Description" value={expenseForm.description} onChange={(e) => setExpenseForm(f => ({ ...f, description: e.target.value }))} />
+            <div className="w-full sm:w-64">
+              <Input
+                label="Description"
+                value={expenseForm.description}
+                onChange={(e) => setExpenseForm((f) => ({ ...f, description: e.target.value }))}
+              />
             </div>
-            <div className="w-36">
-              <Input label="Receipt No" value={expenseForm.receiptNo} onChange={(e) => setExpenseForm(f => ({ ...f, receiptNo: e.target.value }))} />
+            <div className="w-full sm:w-36">
+              <Input
+                label="Receipt No"
+                value={expenseForm.receiptNo}
+                onChange={(e) => setExpenseForm((f) => ({ ...f, receiptNo: e.target.value }))}
+              />
             </div>
-            <div className="w-40">
-              <Input label="Date" type="date" value={expenseForm.date} onChange={(e) => setExpenseForm(f => ({ ...f, date: e.target.value }))} />
+            <div className="w-full sm:w-40">
+              <Input
+                label="Date"
+                type="date"
+                value={expenseForm.date}
+                onChange={(e) => setExpenseForm((f) => ({ ...f, date: e.target.value }))}
+              />
             </div>
-            <Button onClick={handleRecordExpense} disabled={saving}>{saving ? 'Saving...' : 'Save'}</Button>
-            <Button variant="outline" onClick={() => setShowExpense(false)}>Cancel</Button>
+            <Button onClick={handleRecordExpense} disabled={saving}>
+              {saving ? 'Saving...' : 'Save'}
+            </Button>
+            <Button variant="outline" onClick={() => setShowExpense(false)}>
+              Cancel
+            </Button>
           </div>
           {fund.currentBalance > 0 && (
             <p className="mt-2 text-xs text-gray-500">Available: ₹{fund.currentBalance.toLocaleString()}</p>
@@ -181,37 +220,55 @@ export default function PettyCashDetail() {
 
       {/* Transactions */}
       <Card>
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Transactions</h3>
+        <h3 className="text-lg font-semibold mb-3 text-foreground">Transactions</h3>
         {transactions.length === 0 ? (
           <p className="text-center py-8 text-gray-500">No transactions yet</p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-              <thead className="bg-gray-50 dark:bg-gray-800">
+            <table className="min-w-full divide-y divide-border">
+              <thead className="bg-muted">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Date</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Type</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Description</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Receipt</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Amount</th>
+                  <th className="px-4 py-3 text-left text-label font-medium text-gray-500 dark:text-gray-400 uppercase">
+                    Date
+                  </th>
+                  <th className="px-4 py-3 text-left text-label font-medium text-gray-500 dark:text-gray-400 uppercase">
+                    Type
+                  </th>
+                  <th className="px-4 py-3 text-left text-label font-medium text-gray-500 dark:text-gray-400 uppercase">
+                    Description
+                  </th>
+                  <th className="px-4 py-3 text-left text-label font-medium text-gray-500 dark:text-gray-400 uppercase">
+                    Receipt
+                  </th>
+                  <th className="px-4 py-3 text-right text-label font-medium text-gray-500 dark:text-gray-400 uppercase">
+                    Amount
+                  </th>
                 </tr>
               </thead>
-              <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+              <tbody className="bg-white dark:bg-gray-900 divide-y divide-border">
                 {transactions.map((txn) => (
                   <tr key={txn.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
                     <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap">
                       {new Date(txn.date).toLocaleDateString()}
                     </td>
                     <td className="px-4 py-3 text-sm">
-                      <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${typeStyles[txn.type] || ''}`}>
+                      <span
+                        className={`px-2 py-0.5 text-xs font-medium rounded-full ${typeStyles[txn.type] || ''}`}
+                      >
                         {txn.type}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{txn.description}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{txn.receiptNo || '-'}</td>
-                    <td className={`px-4 py-3 text-sm text-right font-medium ${
-                      txn.type === 'expense' ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'
-                    }`}>
+                    <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
+                      {txn.receiptNo || '-'}
+                    </td>
+                    <td
+                      className={`px-4 py-3 text-sm text-right font-medium ${
+                        txn.type === 'expense'
+                          ? 'text-red-600 dark:text-red-400'
+                          : 'text-green-600 dark:text-green-400'
+                      }`}
+                    >
                       {txn.type === 'expense' ? '-' : '+'}₹{txn.amount.toLocaleString()}
                     </td>
                   </tr>

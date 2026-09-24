@@ -6,15 +6,21 @@ import { LedgerItem, InstituteAccount } from '../models/MasterAccount';
 import { AuthRequest } from '../middleware/authMiddleware';
 import mongoose from 'mongoose';
 
+import { sendFailure } from '../utils/userMessages';
+
 export const getDashboardStats = async (req: AuthRequest, res: Response) => {
   try {
     const tenantId = req.tenantId; // Now includes x-tenant-id header for super admin viewing as tenant
     const isSuperAdmin = req.isSuperAdmin;
 
     // Build query based on user role
-    const userQuery: any = {};
+    // Scoped to role 'mahall' - the Total Users card drills into the Mahall
+    // Users list (/users/mahall), which only ever shows that role.
+    const userQuery: any = { role: 'mahall' };
     const familyQuery: any = {};
-    const memberQuery: any = {};
+    // Live members only. isDead is the reliable signal - status isn't
+    // consistently set on older records, so don't filter on it here.
+    const memberQuery: any = { isDead: { $ne: true } };
 
     // Apply tenant filter
     if (tenantId) {
@@ -67,7 +73,7 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
       },
     });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the dashboard statistics right now. Please try again.');
   }
 };
 
@@ -93,7 +99,7 @@ export const getRecentFamilies = async (req: AuthRequest, res: Response) => {
       data: families.map((f: any) => ({ ...f, familyName: f.houseName })),
     });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the recent families right now. Please try again.');
   }
 };
 
@@ -159,7 +165,7 @@ export const getActivityTimeline = async (req: AuthRequest, res: Response) => {
       data: timeline,
     });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the activity timeline right now. Please try again.');
   }
 };
 
@@ -251,6 +257,6 @@ export const getFinancialSummary = async (req: AuthRequest, res: Response) => {
       },
     });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the financial summary right now. Please try again.');
   }
 };

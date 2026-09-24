@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -10,6 +9,9 @@ import { PageSkeleton } from '@/components/ui/Skeleton';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { welfareService, WelfareApplication, WelfareStatus } from '@/services/welfareService';
 import { toast } from '@/store/toastStore';
+import PageHeader from '@/components/layout/PageHeader';
+import { errorMessage } from '@/utils/errors';
+import { toTitleCase } from '@/utils/format';
 
 /** Mirrors WELFARE_TRANSITIONS on the API - the server is still the authority. */
 const NEXT_STATUSES: Record<WelfareStatus, WelfareStatus[]> = {
@@ -68,16 +70,14 @@ export default function ApplicationDetail() {
       setNote('');
       toast.success(`Application moved to ${STATUS_LABELS[target]}`);
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Status change rejected');
+      toast.error(errorMessage(err, { action: 'change the status' }));
     } finally {
       setSaving(false);
     }
   };
 
   if (loading) {
-    return (
-      <PageSkeleton variant="section" />
-    );
+    return <PageSkeleton variant="section" />;
   }
 
   if (!application) {
@@ -96,8 +96,8 @@ export default function ApplicationDetail() {
   const nextOptions = NEXT_STATUSES[application.status] || [];
 
   const infoCards = [
-    { label: 'Scheme', value: nameOf(application.schemeId, 'name') },
-    { label: 'Family', value: nameOf(application.familyId, 'houseName') },
+    { label: 'Scheme', value: toTitleCase(nameOf(application.schemeId, 'name')) },
+    { label: 'Family', value: toTitleCase(nameOf(application.familyId, 'houseName')) },
     { label: 'Requested', value: `Rs ${application.requestedAmount}` },
     { label: 'Approved', value: application.approvedAmount ? `Rs ${application.approvedAmount}` : '-' },
     { label: 'Priority', value: application.priority },
@@ -106,25 +106,15 @@ export default function ApplicationDetail() {
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">Welfare Application</h1>
-          <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-            Raised {formatDate(application.createdAt)}
-          </p>
-        </div>
-        <Breadcrumb
-          items={[
-            { label: 'Dashboard', path: '/dashboard' },
-            { label: 'Welfare', path: '/welfare/applications' },
-            { label: 'Application' },
-          ]}
-        />
-      </div>
+      <PageHeader
+        title="Welfare Application"
+        description={`Raised ${formatDate(application.createdAt)}`}
+        breadcrumbs={[{ label: 'Welfare', path: '/welfare/applications' }]}
+      />
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
         {infoCards.map((card) => (
-          <Card key={card.label} className="p-3 sm:p-4">
+          <Card key={card.label}>
             <p className="text-xs font-medium text-gray-500 dark:text-gray-400 sm:text-sm">{card.label}</p>
             <p className="mt-1 break-words text-sm font-semibold text-gray-900 dark:text-gray-100 sm:text-base">
               {card.value}
@@ -134,15 +124,15 @@ export default function ApplicationDetail() {
       </div>
 
       {application.reason && (
-        <Card className="p-3 sm:p-4">
-          <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Reason</h2>
+        <Card>
+          <h2 className="text-sm font-semibold text-foreground">Reason</h2>
           <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">{application.reason}</p>
         </Card>
       )}
 
       {nextOptions.length > 0 && (
-        <Card className="p-3 sm:p-4">
-          <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Move to</h2>
+        <Card>
+          <h2 className="text-sm font-semibold text-foreground">Move to</h2>
           <div className="mt-2 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
             {nextOptions.map((status) => (
               <Button
@@ -161,8 +151,8 @@ export default function ApplicationDetail() {
         </Card>
       )}
 
-      <Card className="p-3 sm:p-4">
-        <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Timeline</h2>
+      <Card>
+        <h2 className="text-sm font-semibold text-foreground">Timeline</h2>
         <ol className="mt-2 space-y-2">
           {(application.history || []).map((entry, index) => (
             <li key={index} className="flex items-start gap-2">

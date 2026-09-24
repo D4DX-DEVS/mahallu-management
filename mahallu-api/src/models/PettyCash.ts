@@ -22,6 +22,7 @@ export interface IPettyCashTransaction extends Document {
   receiptNo?: string;
   date: Date;
   createdBy?: mongoose.Types.ObjectId;
+  postedToLedger: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -50,6 +51,7 @@ const PettyCashTransactionSchema = new Schema<IPettyCashTransaction>(
     receiptNo: String,
     date: { type: Date, required: true },
     createdBy: { type: Schema.Types.ObjectId, ref: 'User' },
+    postedToLedger: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

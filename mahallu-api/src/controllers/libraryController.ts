@@ -6,6 +6,9 @@ import { AuthRequest } from '../middleware/authMiddleware';
 import { getPaginationParams, createPaginationResponse } from '../utils/pagination';
 import { stripImmutable, refBelongsToTenant } from '../utils/sanitizeUpdate';
 
+import { sendFailure } from '../utils/userMessages';
+import { regexLiteral } from '../utils/queryGuard';
+
 const tenantScope = (req: AuthRequest): Record<string, any> =>
   req.tenantId ? { tenantId: req.tenantId } : {};
 
@@ -16,7 +19,7 @@ const validateRefs = async (req: AuthRequest): Promise<string | null> => {
     return 'Book does not belong to this Mahallu';
   }
   if (memberId && !(await refBelongsToTenant(Member, memberId, req.tenantId))) {
-    return 'Member does not belong to this Mahallu';
+    return 'This member belongs to another Mahallu.';
   }
   return null;
 };
@@ -33,8 +36,8 @@ export const getAllBooks = async (req: AuthRequest, res: Response) => {
     if (req.query.status) query.status = req.query.status;
     if (req.query.search) {
       query.$or = [
-        { title: { $regex: String(req.query.search), $options: 'i' } },
-        { author: { $regex: String(req.query.search), $options: 'i' } },
+        { title: { $regex: regexLiteral(String(req.query.search)), $options: 'i' } },
+        { author: { $regex: regexLiteral(String(req.query.search)), $options: 'i' } },
       ];
     }
 
@@ -48,7 +51,7 @@ export const getAllBooks = async (req: AuthRequest, res: Response) => {
 
     res.json(createPaginationResponse(books, total, page, limit));
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the books right now. Please try again.');
   }
 };
 
@@ -57,12 +60,12 @@ export const getBookById = async (req: AuthRequest, res: Response) => {
     const book = await LibraryBook.findOne({ _id: req.params.id, ...tenantScope(req) });
 
     if (!book) {
-      return res.status(404).json({ success: false, message: 'Book not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that book. It may have been removed." });
     }
 
     res.json({ success: true, data: book });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the book right now. Please try again.');
   }
 };
 
@@ -72,7 +75,7 @@ export const createBook = async (req: AuthRequest, res: Response) => {
 
     // Validate resourceUrl for digital books
     if (resourceType === 'digital' && !resourceUrl) {
-      return res.status(400).json({ success: false, message: 'resourceUrl is required for digital resources' });
+      return res.status(400).json({ success: false, message: 'Please enter the link for this digital resource.' });
     }
 
     const book = new LibraryBook({
@@ -84,7 +87,7 @@ export const createBook = async (req: AuthRequest, res: Response) => {
     await book.save();
     res.status(201).json({ success: true, data: book });
   } catch (error: any) {
-    res.status(400).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t save the book. Please try again.', 400);
   }
 };
 
@@ -93,19 +96,19 @@ export const bulkImportBooks = async (req: AuthRequest, res: Response) => {
   try {
     const { books } = req.body;
     if (!Array.isArray(books) || books.length === 0) {
-      return res.status(400).json({ success: false, message: 'books array is required' });
+      return res.status(400).json({ success: false, message: 'Please add at least one book.' });
     }
     if (books.length > 500) {
-      return res.status(400).json({ success: false, message: 'Maximum 500 books per import' });
+      return res.status(400).json({ success: false, message: 'You can import up to 500 books at a time. Please split the file.' });
     }
 
     const errors: { row: number; message: string }[] = [];
     const docs = books.map((b: any, i: number) => {
       if (!b.title || typeof b.title !== 'string' || !b.title.trim()) {
-        errors.push({ row: i + 1, message: 'title is required' });
+        errors.push({ row: i + 1, message: 'Please enter a title.' });
       }
       if (b.resourceType === 'digital' && !b.resourceUrl) {
-        errors.push({ row: i + 1, message: 'resourceUrl is required for digital resources' });
+        errors.push({ row: i + 1, message: 'Please enter the link for this digital resource.' });
       }
       const copies = Number(b.copies) > 0 ? Math.floor(Number(b.copies)) : 1;
       return {
@@ -123,13 +126,13 @@ export const bulkImportBooks = async (req: AuthRequest, res: Response) => {
     });
 
     if (errors.length) {
-      return res.status(400).json({ success: false, message: 'Validation failed', errors });
+      return res.status(400).json({ success: false, message: 'Some details are missing or incorrect. Please check the form and try again.', errors });
     }
 
     const created = await LibraryBook.insertMany(docs);
     res.status(201).json({ success: true, data: { imported: created.length } });
   } catch (error: any) {
-    res.status(400).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t import the books. Please try again.', 400);
   }
 };
 
@@ -144,12 +147,12 @@ export const updateBook = async (req: AuthRequest, res: Response) => {
     );
 
     if (!book) {
-      return res.status(404).json({ success: false, message: 'Book not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that book. It may have been removed." });
     }
 
     res.json({ success: true, data: book });
   } catch (error: any) {
-    res.status(400).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t update the book. Please try again.', 400);
   }
 };
 
@@ -164,7 +167,7 @@ export const deleteBook = async (req: AuthRequest, res: Response) => {
     if (unreturnedIssue) {
       return res
         .status(400)
-        .json({ success: false, message: 'Cannot delete book with un-returned issues' });
+        .json({ success: false, message: "This book can't be deleted while copies are still issued. Please collect them first." });
     }
 
     const book = await LibraryBook.findOneAndDelete({
@@ -173,12 +176,12 @@ export const deleteBook = async (req: AuthRequest, res: Response) => {
     });
 
     if (!book) {
-      return res.status(404).json({ success: false, message: 'Book not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that book. It may have been removed." });
     }
 
     res.json({ success: true, message: 'Book deleted' });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t delete the book. Please try again.');
   }
 };
 
@@ -216,7 +219,7 @@ export const getAllIssues = async (req: AuthRequest, res: Response) => {
 
     res.json(createPaginationResponse(enriched, total, page, limit));
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the issues right now. Please try again.');
   }
 };
 
@@ -227,12 +230,12 @@ export const getIssueById = async (req: AuthRequest, res: Response) => {
       .populate('memberId', 'name');
 
     if (!issue) {
-      return res.status(404).json({ success: false, message: 'Issue not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that issue. It may have been removed." });
     }
 
     res.json({ success: true, data: issue });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the issue right now. Please try again.');
   }
 };
 
@@ -246,7 +249,7 @@ export const createIssue = async (req: AuthRequest, res: Response) => {
     // Check if book is digital
     const book = await LibraryBook.findById(req.body.bookId);
     if (!book) {
-      return res.status(404).json({ success: false, message: 'Book not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that book. It may have been removed." });
     }
     if (book.resourceType === 'digital') {
       return res
@@ -256,7 +259,7 @@ export const createIssue = async (req: AuthRequest, res: Response) => {
 
     // Check available copies (must be > 0)
     if (!book.availableCopies || book.availableCopies <= 0) {
-      return res.status(400).json({ success: false, message: 'No copies available' });
+      return res.status(400).json({ success: false, message: 'No copies of this book are available right now.' });
     }
 
     // Atomically decrement availableCopies
@@ -267,7 +270,7 @@ export const createIssue = async (req: AuthRequest, res: Response) => {
     );
 
     if (!updated) {
-      return res.status(400).json({ success: false, message: 'No copies available' });
+      return res.status(400).json({ success: false, message: 'No copies of this book are available right now.' });
     }
 
     const issue = new BookIssue({
@@ -284,7 +287,7 @@ export const createIssue = async (req: AuthRequest, res: Response) => {
 
     res.status(201).json({ success: true, data: issue });
   } catch (error: any) {
-    res.status(400).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t save the issue. Please try again.', 400);
   }
 };
 
@@ -293,12 +296,12 @@ export const returnIssue = async (req: AuthRequest, res: Response) => {
     const issue = await BookIssue.findOne({ _id: req.params.id, ...tenantScope(req) });
 
     if (!issue) {
-      return res.status(404).json({ success: false, message: 'Issue not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that issue. It may have been removed." });
     }
 
     // Prevent double return
     if (issue.status === 'returned') {
-      return res.status(400).json({ success: false, message: 'Book already returned' });
+      return res.status(400).json({ success: false, message: 'This book has already been returned.' });
     }
 
     // Set return date and status
@@ -318,7 +321,7 @@ export const returnIssue = async (req: AuthRequest, res: Response) => {
 
     res.json({ success: true, data: issue });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t record the book return. Please try again.');
   }
 };
 
@@ -354,6 +357,6 @@ export const getSummary = async (req: AuthRequest, res: Response) => {
       },
     });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the summary right now. Please try again.');
   }
 };

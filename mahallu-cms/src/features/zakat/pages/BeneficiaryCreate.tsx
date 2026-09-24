@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiPlus } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -15,13 +14,35 @@ import {
   PRIORITY_AREA_OPTIONS,
 } from '@/services/zakatDistributionService';
 import { memberService } from '@/services/memberService';
+import { fetchAllPages } from '@/services/api';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
+import { useFormValidation } from '@/hooks/useFormValidation';
+import { FieldRule, LIMITS } from '@/utils/validation';
+import { toTitleCase } from '@/utils/format';
+
+/**
+ * The same limits the API applies, so a form that passes here is not
+ * refused there. Required matches what each input already declares.
+ */
+const RULES: Record<string, FieldRule> = {
+  memberId: { label: 'member', type: 'id' },
+  name: {
+    label: 'name',
+    maxLength: LIMITS.title.max,
+    custom: (value, values) =>
+      !value && !values.memberId ? 'Please choose a member, or enter a name.' : undefined,
+  },
+  category: { label: 'category', required: true, maxLength: LIMITS.shortText.max },
+  priorityArea: { label: 'priority area', maxLength: LIMITS.shortText.max },
+  notes: { label: 'notes', maxLength: LIMITS.notes.max },
+};
 
 export default function BeneficiaryCreate() {
   const navigate = useNavigate();
   const [members, setMembers] = useState<any[]>([]);
   const [saving, setSaving] = useState(false);
   const [addMemberOpen, setAddMemberOpen] = useState(false);
-  const [errors, setErrors] = useState<Record<string, string>>({});
   const [form, setForm] = useState({
     memberId: '',
     name: '',
@@ -29,28 +50,24 @@ export default function BeneficiaryCreate() {
     priorityArea: '',
     notes: '',
   });
+  const { errors, validate, setErrors } = useFormValidation(RULES);
 
   useEffect(() => {
-    // Candidates first: members already flagged as zakat-eligible in the register
-    memberService
-      .getAll({ page: 1, limit: 200, isZakatEligible: true } as any)
-      .then((result: any) => setMembers(result.data || []))
-      .catch(() => setMembers([]));
+    // Candidates first: members already flagged as zakat-eligible in the register.
+    // /members caps limit at 100 and 400s above it, so the old limit:200
+    // request always failed and left this picker empty.
+    fetchAllPages((p) => memberService.getAll({ isZakatEligible: true, ...p } as any))
+      .then((rows) => setMembers(rows))
+      .catch((err) => {
+        setMembers([]);
+        toast.error(loadErrorMessage(err, 'members'));
+      });
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const newErrors: Record<string, string> = {};
-
-    if (!form.memberId && !form.name.trim()) {
-      newErrors.name = 'Pick a member or enter a name';
-    }
-
-    setErrors(newErrors);
-    if (Object.keys(newErrors).length > 0) {
-      return;
-    }
-
+    // Every field checked at once, each message on its own field.
+    if (!validate(form)) return;
     try {
       setSaving(true);
       await zakatDistributionService.createBeneficiary({
@@ -60,10 +77,10 @@ export default function BeneficiaryCreate() {
         priorityArea: form.priorityArea || undefined,
         notes: form.notes || undefined,
       });
-      toast.success('Beneficiary registered successfully');
+      toast.success('Beneficiary registered');
       navigate('/zakat/beneficiaries');
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to create beneficiary');
+      toast.error(errorMessage(err, { action: 'create beneficiary' }));
     } finally {
       setSaving(false);
     }
@@ -71,24 +88,14 @@ export default function BeneficiaryCreate() {
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">New Zakat Beneficiary</h1>
-          <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-            Registered as pending; verify before recording any distribution
-          </p>
-        </div>
-        <Breadcrumb
-          items={[
-            { label: 'Dashboard', path: '/dashboard' },
-            { label: 'Zakat', path: '/zakat/beneficiaries' },
-            { label: 'New' },
-          ]}
-        />
-      </div>
+      <PageHeader
+        title="New Zakat Beneficiary"
+        description="Registered as pending; verify before recording any distribution"
+        breadcrumbs={[{ label: 'Zakat', path: '/zakat/beneficiaries' }]}
+      />
 
       <form onSubmit={handleSubmit}>
-        <Card className="p-3 sm:p-4">
+        <Card>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div>
               <div className="flex items-end gap-2">
@@ -96,10 +103,11 @@ export default function BeneficiaryCreate() {
                   <SearchableSelect
                     label="Member"
                     value={form.memberId}
+                    error={errors.memberId}
                     onChange={(value) => setForm({ ...form, memberId: value })}
                     options={members.map((member: any) => ({
                       value: member._id || member.id,
-                      label: `${member.name}${member.familyName ? ` - ${member.familyName}` : ''}`,
+                      label: `${toTitleCase(member.name)}${member.familyName ? ` - ${toTitleCase(member.familyName)}` : ''}`,
                     }))}
                     placeholder="Search zakat-eligible members..."
                     helperText="Leave blank for a non-member beneficiary"
@@ -120,17 +128,18 @@ export default function BeneficiaryCreate() {
             <Input
               label="Name (non-member)"
               value={form.name}
+              error={errors.name}
               onChange={(e) => {
                 setForm({ ...form, name: e.target.value });
                 if (errors.name) setErrors({ ...errors, name: '' });
               }}
               placeholder="Required when no member is selected"
-              error={errors.name}
             />
 
             <Select
               label="Category"
               value={form.category}
+              error={errors.category}
               onChange={(e) => setForm({ ...form, category: e.target.value })}
               options={ZAKAT_CATEGORY_OPTIONS}
               required
@@ -139,6 +148,7 @@ export default function BeneficiaryCreate() {
             <Select
               label="Priority Area"
               value={form.priorityArea}
+              error={errors.priorityArea}
               onChange={(e) => setForm({ ...form, priorityArea: e.target.value })}
               options={PRIORITY_AREA_OPTIONS}
             />
@@ -147,6 +157,7 @@ export default function BeneficiaryCreate() {
               <Input
                 label="Notes"
                 value={form.notes}
+                error={errors.notes}
                 onChange={(e) => setForm({ ...form, notes: e.target.value })}
               />
             </div>

@@ -1,14 +1,15 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { FiX, FiList, FiTrendingUp, FiTrendingDown, FiEdit2, FiTrash2, FiEye } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
-import Card from '@/components/ui/Card';
+import { FiEdit2, FiEye, FiList, FiPlus, FiTrash2, FiTrendingDown, FiTrendingUp } from 'react-icons/fi';
+import TableCard from '@/components/ui/TableCard';
+import FilterPanel from '@/components/ui/FilterPanel';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
+import EmptyState from '@/components/ui/EmptyState';
 import Pagination from '@/components/ui/Pagination';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import TableToolbar from '@/components/ui/TableToolbar';
@@ -16,9 +17,12 @@ import { TableColumn, Pagination as PaginationType } from '@/types';
 import { masterAccountService, LedgerItem, Ledger } from '@/services/masterAccountService';
 import { instituteService } from '@/services/instituteService';
 import { useAuthStore } from '@/store/authStore';
-import { formatDate } from '@/utils/format';
+import { formatDate, toTitleCase } from '@/utils/format';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
 import { toast } from '@/store/toastStore';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
+import ActionsMenu from '@/components/ui/ActionsMenu';
 
 export default function LedgerItemsList() {
   const { currentInstituteId: userInstituteId } = useAuthStore();
@@ -38,14 +42,26 @@ export default function LedgerItemsList() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [editForm, setEditForm] = useState({ date: '', amount: 0, type: 'income' as 'income' | 'expense', description: '', paymentMethod: '', referenceNo: '' });
+  const [editForm, setEditForm] = useState({
+    date: '',
+    amount: 0,
+    type: 'income' as 'income' | 'expense',
+    description: '',
+    paymentMethod: '',
+    referenceNo: '',
+  });
   const [institutes, setInstitutes] = useState<{ id: string; name: string }[]>([]);
   const [instituteFilter, setInstituteFilter] = useState(userInstituteId || 'all');
 
   useEffect(() => {
     fetchLedgers();
     if (!userInstituteId) {
-      instituteService.getAll({ limit: 1000 }).then(r => setInstitutes(r.data.map((i: any) => ({ id: i.id, name: i.name })))).catch(() => {});
+      // The API caps `limit` at 100 and answers 400 above it — getAllForExport
+      // pages through all institutes instead of failing the dropdown silently.
+      instituteService
+        .getAllForExport()
+        .then((rows) => setInstitutes(rows.map((i: any) => ({ id: i.id, name: i.name }))))
+        .catch((err) => toast.error(loadErrorMessage(err, 'institutes')));
     }
   }, []);
 
@@ -84,7 +100,7 @@ export default function LedgerItemsList() {
         setPagination(result.pagination);
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch ledger items');
+      setError(loadErrorMessage(err, 'ledger items'));
       console.error('Error fetching items:', err);
       setItems([]);
     } finally {
@@ -98,6 +114,7 @@ export default function LedgerItemsList() {
 
       const params: any = { limit: 10000 };
       if (ledgerFilter !== 'all') params.ledgerId = ledgerFilter;
+      if (instituteFilter !== 'all') params.instituteId = instituteFilter;
 
       const result = await masterAccountService.getLedgerItems(params);
       const dataToExport = Array.isArray(result.data) ? result.data : [];
@@ -123,22 +140,23 @@ export default function LedgerItemsList() {
       }
     } catch (error: any) {
       console.error('Export error:', error);
-      toast.error(error?.message || 'Failed to export ledger items');
+      toast.error(error?.message || "Couldn't export ledger items");
     } finally {
       setIsExporting(false);
     }
   };
 
   const columns: TableColumn<LedgerItem>[] = [
-    { key: 'id', label: 'No.', render: (_, __, index) => index + 1 },
     {
       key: 'date',
       label: 'Date',
+      width: '6.25rem',
       render: (date) => formatDate(date),
     },
     {
       key: 'type',
       label: 'Type',
+      width: '6.25rem',
       render: (type) => (
         <span
           className={`px-2 py-1 text-xs font-medium rounded-full ${
@@ -154,18 +172,23 @@ export default function LedgerItemsList() {
     {
       key: 'amount',
       label: 'Amount',
+      width: '9.25rem',
+      align: 'center',
       render: (amount) => `₹${amount?.toLocaleString() || 0}`,
     },
-    { key: 'description', label: 'Description' },
+    { key: 'description', label: 'Description', width: '9.25rem' },
     {
       key: 'source' as any,
       label: 'Source',
+      width: '7.25rem',
       render: (source: string) => (
-        <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-          source === 'manual' || !source
-            ? 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
-            : 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
-        }`}>
+        <span
+          className={`px-2 py-1 text-xs font-medium rounded-full ${
+            source === 'manual' || !source
+              ? 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
+              : 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+          }`}
+        >
           {source || 'manual'}
         </span>
       ),
@@ -173,34 +196,41 @@ export default function LedgerItemsList() {
     {
       key: 'actions',
       label: 'Actions',
+      width: '8rem',
+      align: 'center',
       render: (_, row) => {
         const isAuto = row.source && row.source !== 'manual';
         return (
-          <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-            <button
-              onClick={() => { setSelectedItem(row); setShowViewModal(true); }}
-              className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400"
-              title="View"
-            >
-              <FiEye className="h-4 w-4" />
-            </button>
-            <button
-              onClick={() => !isAuto && openEditModal(row)}
-              className={`p-1.5 rounded-md ${isAuto ? 'opacity-30 cursor-not-allowed' : 'hover:bg-gray-100 dark:hover:bg-gray-700'} text-gray-600 dark:text-gray-400`}
-              title={isAuto ? 'Auto-posted entries cannot be edited' : 'Edit'}
-              disabled={isAuto}
-            >
-              <FiEdit2 className="h-4 w-4" />
-            </button>
-            <button
-              onClick={() => { if (!isAuto) { setSelectedItem(row); setShowDeleteModal(true); } }}
-              className={`p-1.5 rounded-md ${isAuto ? 'opacity-30 cursor-not-allowed' : 'hover:bg-red-50 dark:hover:bg-red-900/20'} text-red-600 dark:text-red-400`}
-              title={isAuto ? 'Auto-posted entries cannot be deleted' : 'Delete'}
-              disabled={isAuto}
-            >
-              <FiTrash2 className="h-4 w-4" />
-            </button>
-          </div>
+          <ActionsMenu
+            items={[
+              {
+                label: 'View',
+                icon: <FiEye className="h-4 w-4" />,
+                onClick: () => {
+                  setSelectedItem(row);
+                  setShowViewModal(true);
+                },
+              },
+              {
+                label: 'Edit',
+                icon: <FiEdit2 className="h-4 w-4" />,
+                onClick: () => !isAuto && openEditModal(row),
+                disabled: isAuto,
+              },
+              {
+                label: 'Delete',
+                icon: <FiTrash2 className="h-4 w-4" />,
+                onClick: () => {
+                  if (!isAuto) {
+                    setSelectedItem(row);
+                    setShowDeleteModal(true);
+                  }
+                },
+                variant: 'danger',
+                disabled: isAuto,
+              },
+            ]}
+          />
         );
       },
     },
@@ -230,7 +260,9 @@ export default function LedgerItemsList() {
       setShowEditModal(false);
       setSelectedItem(null);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to update ledger item');
+      // A failed edit must not blank the list behind the still-open modal —
+      // that used to happen because this reused the page-level fetch error.
+      toast.error(errorMessage(err, { action: 'update ledger item' }));
     }
   };
 
@@ -243,7 +275,9 @@ export default function LedgerItemsList() {
       setShowDeleteModal(false);
       setSelectedItem(null);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to delete ledger item');
+      // Same here — e.g. the "auto-posted entry" guard used to replace the
+      // whole table with a full-page error instead of a message on the modal.
+      toast.error(errorMessage(err, { action: 'delete ledger item' }));
     } finally {
       setDeleting(false);
     }
@@ -252,31 +286,39 @@ export default function LedgerItemsList() {
   const totalIncome = items.filter((i) => i.type === 'income').reduce((sum, i) => sum + (i.amount || 0), 0);
   const totalExpense = items.filter((i) => i.type === 'expense').reduce((sum, i) => sum + (i.amount || 0), 0);
 
+  // The list endpoint has no `search` query param, so — same as the Mahallu
+  // Finance ledger items screen — the search box filters the page already loaded.
+  const filteredItems = items.filter(
+    (i) => !searchQuery || (i.description || '').toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   const stats = [
     { title: 'Total Items', value: pagination?.total || items.length, icon: <FiList className="h-5 w-5" /> },
-    { title: 'Total Income', value: `₹${totalIncome.toLocaleString()}`, icon: <FiTrendingUp className="h-5 w-5" /> },
-    { title: 'Total Expense', value: `₹${totalExpense.toLocaleString()}`, icon: <FiTrendingDown className="h-5 w-5" /> },
+    {
+      title: 'Total Income',
+      value: `₹${totalIncome.toLocaleString()}`,
+      icon: <FiTrendingUp className="h-5 w-5" />,
+    },
+    {
+      title: 'Total Expense',
+      value: `₹${totalExpense.toLocaleString()}`,
+      icon: <FiTrendingDown className="h-5 w-5" />,
+    },
   ];
 
   return (
     <div className="space-y-4">
       <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Ledger Items</h1>
-            <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">Manage ledger transactions</p>
-          </div>
-          <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Ledger Items' }]} />
-        </div>
+        <PageHeader title="Ledger Items" description="Manage ledger transactions" />
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {stats.map((stat, index) => (
             <StatCard key={index} {...stat} />
           ))}
         </div>
       </div>
 
-      <Card>
+      <TableCard>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -288,62 +330,60 @@ export default function LedgerItemsList() {
           isExporting={isExporting}
           actionButtons={
             <Link to="/master-accounts/ledger-items/create">
-              <Button size="md">
-                + New Item
-              </Button>
+              <Button size="md" icon={<FiPlus />} collapseLabel>New Item</Button>
             </Link>
           }
         />
 
         {isFilterVisible && (
-          <div className="relative flex flex-wrap items-center gap-4 mb-6 p-4 border border-gray-200 rounded-lg bg-white dark:bg-gray-800 dark:border-gray-700">
-            <button
-              onClick={() => setIsFilterVisible(false)}
-              className="absolute right-4 top-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-            >
-              <FiX className="h-4 w-4" />
-            </button>
-            <div className="w-64">
+          <FilterPanel onClose={() => setIsFilterVisible(false)}>
+            <div className="w-full sm:w-64">
               <Select
                 label="Ledger"
                 options={[
                   { value: 'all', label: 'All Ledgers' },
-                  ...ledgers.map((l) => ({ value: l.id, label: l.name })),
+                  ...ledgers.map((l) => ({ value: l.id, label: toTitleCase(l.name) })),
                 ]}
                 value={ledgerFilter}
-                onChange={(e) => setLedgerFilter(e.target.value)}
+                onChange={(e) => {
+                  setLedgerFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
               />
             </div>
             {!userInstituteId && (
-              <div className="w-64">
+              <div className="w-full sm:w-64">
                 <Select
                   label="Institute"
                   options={[
                     { value: 'all', label: 'All Institutes' },
-                    ...institutes.map(i => ({ value: i.id, label: i.name })),
+                    ...institutes.map((i) => ({ value: i.id, label: toTitleCase(i.name) })),
                   ]}
                   value={instituteFilter}
-                  onChange={(e) => setInstituteFilter(e.target.value)}
+                  onChange={(e) => {
+                    setInstituteFilter(e.target.value);
+                    setCurrentPage(1);
+                  }}
                 />
               </div>
             )}
-          </div>
+          </FilterPanel>
         )}
 
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="text-center py-12">
-            <p className="text-red-600 dark:text-red-400">{error}</p>
-            <Button onClick={fetchItems} className="mt-4" variant="outline">
-              Retry
-            </Button>
-          </div>
+          <EmptyState
+            variant="error"
+            entity="ledger items"
+            description={error}
+            action={{ label: 'Retry', onClick: fetchItems }}
+          />
         ) : (
           <>
-            <Table columns={columns} data={items} emptyMessage="No ledger items found" showExport={false} />
+            <Table fixedLayout striped columns={columns} data={filteredItems} emptyMessage="No ledger items found" showExport={false} />
             {pagination && pagination.totalPages > 1 && (
-              <div className="mt-6">
+              <div className="mt-4">
                 <Pagination
                   currentPage={currentPage}
                   totalPages={pagination.totalPages}
@@ -355,14 +395,27 @@ export default function LedgerItemsList() {
             )}
           </>
         )}
-      </Card>
+      </TableCard>
 
       {/* View Modal */}
       <Modal
         isOpen={showViewModal}
-        onClose={() => { setShowViewModal(false); setSelectedItem(null); }}
+        onClose={() => {
+          setShowViewModal(false);
+          setSelectedItem(null);
+        }}
         title="Ledger Item Details"
-        footer={<Button variant="outline" onClick={() => { setShowViewModal(false); setSelectedItem(null); }}>Close</Button>}
+        footer={
+          <Button
+            variant="outline"
+            onClick={() => {
+              setShowViewModal(false);
+              setSelectedItem(null);
+            }}
+          >
+            Close
+          </Button>
+        }
       >
         {selectedItem && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
@@ -376,12 +429,14 @@ export default function LedgerItemsList() {
             </div>
             <div>
               <p className="text-xs text-gray-500 dark:text-gray-400">Amount</p>
-              <p className="text-gray-900 dark:text-gray-100 font-medium">₹{(selectedItem.amount || 0).toLocaleString()}</p>
+              <p className="text-gray-900 dark:text-gray-100 font-medium">
+                ₹{(selectedItem.amount || 0).toLocaleString()}
+              </p>
             </div>
             <div>
               <p className="text-xs text-gray-500 dark:text-gray-400">Ledger</p>
               <p className="text-gray-900 dark:text-gray-100">
-                {ledgers.find((l) => l.id === selectedItem.ledgerId)?.name || '—'}
+                {toTitleCase(ledgers.find((l) => l.id === selectedItem.ledgerId)?.name) || '—'}
               </p>
             </div>
             <div className="sm:col-span-2">
@@ -407,42 +462,98 @@ export default function LedgerItemsList() {
       {/* Edit Modal */}
       <Modal
         isOpen={showEditModal}
-        onClose={() => { setShowEditModal(false); setSelectedItem(null); }}
+        onClose={() => {
+          setShowEditModal(false);
+          setSelectedItem(null);
+        }}
         title="Edit Ledger Item"
         footer={
           <>
-            <Button variant="outline" onClick={() => { setShowEditModal(false); setSelectedItem(null); }}>Cancel</Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowEditModal(false);
+                setSelectedItem(null);
+              }}
+            >
+              Cancel
+            </Button>
             <Button onClick={handleEdit}>Save Changes</Button>
           </>
         }
       >
         <div className="space-y-4">
-          <Input label="Date" type="date" value={editForm.date} onChange={(e) => setEditForm({ ...editForm, date: e.target.value })} />
-          <Select label="Type" value={editForm.type} onChange={(e) => setEditForm({ ...editForm, type: e.target.value as 'income' | 'expense' })} options={[{ value: 'income', label: 'Income' }, { value: 'expense', label: 'Expense' }]} />
-          <Input label="Amount" type="number" step="0.01" value={editForm.amount} onChange={(e) => setEditForm({ ...editForm, amount: parseFloat(e.target.value) || 0 })} />
-          <Input label="Description" value={editForm.description} onChange={(e) => setEditForm({ ...editForm, description: e.target.value })} />
-          <Input label="Payment Method" value={editForm.paymentMethod} onChange={(e) => setEditForm({ ...editForm, paymentMethod: e.target.value })} />
-          <Input label="Reference No" value={editForm.referenceNo} onChange={(e) => setEditForm({ ...editForm, referenceNo: e.target.value })} />
+          <Input
+            label="Date"
+            type="date"
+            value={editForm.date}
+            onChange={(e) => setEditForm({ ...editForm, date: e.target.value })}
+          />
+          <Select
+            label="Type"
+            value={editForm.type}
+            onChange={(e) => setEditForm({ ...editForm, type: e.target.value as 'income' | 'expense' })}
+            options={[
+              { value: 'income', label: 'Income' },
+              { value: 'expense', label: 'Expense' },
+            ]}
+          />
+          <Input
+            label="Amount"
+            type="number"
+            step="0.01"
+            value={editForm.amount}
+            onChange={(e) => setEditForm({ ...editForm, amount: parseFloat(e.target.value) || 0 })}
+          />
+          <Input
+            label="Description"
+            value={editForm.description}
+            onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+          />
+          <Input
+            label="Payment Method"
+            value={editForm.paymentMethod}
+            onChange={(e) => setEditForm({ ...editForm, paymentMethod: e.target.value })}
+          />
+          <Input
+            label="Reference No"
+            value={editForm.referenceNo}
+            onChange={(e) => setEditForm({ ...editForm, referenceNo: e.target.value })}
+          />
         </div>
       </Modal>
 
       {/* Delete Modal */}
       <Modal
         isOpen={showDeleteModal}
-        onClose={() => { setShowDeleteModal(false); setSelectedItem(null); }}
+        onClose={() => {
+          setShowDeleteModal(false);
+          setSelectedItem(null);
+        }}
         title="Delete Ledger Item"
         footer={
           <>
-            <Button variant="outline" onClick={() => { setShowDeleteModal(false); setSelectedItem(null); }}>Cancel</Button>
-            <Button variant="danger" onClick={handleDelete} isLoading={deleting}>Delete</Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowDeleteModal(false);
+                setSelectedItem(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button variant="danger" onClick={handleDelete} isLoading={deleting}>
+              Delete
+            </Button>
           </>
         }
       >
         <p className="text-gray-600 dark:text-gray-400">
-          Are you sure you want to delete this ledger item (<strong>₹{selectedItem?.amount?.toLocaleString()}</strong> - {selectedItem?.description})? This action cannot be undone.
+          Are you sure you want to delete this ledger item (
+          <strong>₹{selectedItem?.amount?.toLocaleString()}</strong> - {selectedItem?.description})? This
+          action cannot be undone.
         </p>
       </Modal>
     </div>
   );
 }
-

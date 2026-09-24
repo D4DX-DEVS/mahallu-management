@@ -2,6 +2,8 @@ import express from 'express';
 import { getRegister, getRegisterSummary } from '../controllers/registerController';
 import { authMiddleware } from '../middleware/authMiddleware';
 import { tenantMiddleware, tenantFilter } from '../middleware/tenantMiddleware';
+import { validationHandler } from '../middleware/validationHandler';
+import { idParam, listQuery } from '../validations/common';
 
 const router = express.Router();
 
@@ -51,7 +53,7 @@ router.use(tenantFilter);
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  */
-router.get('/summary', getRegisterSummary);
+router.get('/summary', listQuery(), validationHandler, getRegisterSummary);
 
 /**
  * @swagger
@@ -125,6 +127,6 @@ router.get('/summary', getRegisterSummary);
  *       404:
  *         description: Unknown register key
  */
-router.get('/:key', getRegister);
+router.get('/:key', listQuery(), validationHandler, getRegister);
 
 export default router;

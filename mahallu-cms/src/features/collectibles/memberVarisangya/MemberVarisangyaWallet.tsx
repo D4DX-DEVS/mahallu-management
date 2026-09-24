@@ -1,24 +1,28 @@
 import { useState, useEffect } from 'react';
-import { useSearchParams, Link } from 'react-router-dom';
+import ActionsMenu from '@/components/ui/ActionsMenu';
+import { FiList } from 'react-icons/fi';
+import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { FiDollarSign, FiCreditCard, FiCheckCircle } from 'react-icons/fi';
-import Card from '@/components/ui/Card';
-import Button from '@/components/ui/Button';
+import TableCard from '@/components/ui/TableCard';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
+import EmptyState from '@/components/ui/EmptyState';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import TableToolbar from '@/components/ui/TableToolbar';
 import { TableColumn } from '@/types';
 import { collectibleService, Wallet } from '@/services/collectibleService';
 import { memberService } from '@/services/memberService';
-import { formatDate } from '@/utils/format';
+import { formatDate, toTitleCase } from '@/utils/format';
 import { ROUTES } from '@/constants/routes';
 import { exportToCSV, exportToJSON } from '@/utils/exportUtils';
 import { exportInvoicesToPdf, InvoiceDetails } from '@/utils/invoiceUtils';
 import { toast } from '@/store/toastStore';
+import { loadErrorMessage } from '@/utils/errors';
 
 const MEMBER_BASE = ROUTES.COLLECTIBLES.MEMBER_VARISANGYA.BASE;
 
 export default function MemberVarisangyaWallet() {
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const memberId = searchParams.get('memberId');
 
@@ -58,7 +62,7 @@ export default function MemberVarisangyaWallet() {
         setWallets(walletsData.sort((a, b) => (b.balance || 0) - (a.balance || 0)));
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch wallets');
+      setError(loadErrorMessage(err, 'wallets'));
       console.error('Error fetching wallets:', err);
     } finally {
       setLoading(false);
@@ -89,7 +93,7 @@ export default function MemberVarisangyaWallet() {
                   title: 'Member Varisangya Wallet',
                   receiptNo: '-',
                   payerLabel: 'Member',
-                  payerName: wallet.member.name || '-',
+                  payerName: toTitleCase(wallet.member.name) || '-',
                   amount: wallet.balance || 0,
                   paymentDate: wallet.lastTransactionDate || new Date().toISOString(),
                   paymentMethod: '-',
@@ -103,30 +107,34 @@ export default function MemberVarisangyaWallet() {
       }
     } catch (error: any) {
       console.error('Export error:', error);
-      toast.error(error?.message || 'Failed to export wallet data');
+      toast.error(error?.message || "Couldn't export wallet data");
     } finally {
       setIsExporting(false);
     }
   };
 
   const columns: TableColumn<Wallet & { member?: any }>[] = [
-    { key: 'id', label: 'No.', render: (_, __, index) => index + 1 },
     {
       key: 'member',
       label: 'Member',
+      width: '8rem',
       render: (member) =>
         member ? (
           <Link
             to={ROUTES.MEMBERS.DETAIL(member.id)}
             className="text-primary-600 hover:text-primary-700 dark:text-primary-400"
           >
-            {member.name}
+            {toTitleCase(member.name)}
           </Link>
-        ) : '-',
+        ) : (
+          '-'
+        ),
     },
     {
       key: 'balance',
       label: 'Balance',
+      width: '9.25rem',
+      align: 'center',
       render: (balance) => (
         <span className="font-semibold text-gray-900 dark:text-gray-100">
           ₹{(balance || 0).toLocaleString()}
@@ -136,19 +144,25 @@ export default function MemberVarisangyaWallet() {
     {
       key: 'lastTransactionDate',
       label: 'Last Transaction',
+      width: '12.25rem',
       render: (date) => (date ? formatDate(date) : '-'),
     },
     {
       key: 'actions',
       label: 'Actions',
+      width: '8rem',
+      align: 'center',
       render: (_, row) => (
-        <Link
-          to={`${MEMBER_BASE}?view=transactions&memberId=${row.member?.id || ''}`}
-          className="text-primary-600 hover:text-primary-700 dark:text-primary-400"
-          title="View Transactions"
-        >
-          View Transactions
-        </Link>
+        <ActionsMenu
+          items={[
+            {
+              label: 'View transactions',
+              icon: <FiList className="h-4 w-4" />,
+              onClick: () =>
+                navigate(`${MEMBER_BASE}?view=transactions&memberId=${row.member?.id || ''}`),
+            },
+          ]}
+        />
       ),
     },
   ];
@@ -158,26 +172,28 @@ export default function MemberVarisangyaWallet() {
   const stats = [
     { title: 'Total Wallets', value: wallets.length, icon: <FiCreditCard className="h-5 w-5" /> },
     { title: 'Active Wallets', value: activeWallets, icon: <FiCheckCircle className="h-5 w-5" /> },
-    { title: 'Total Balance', value: `₹${totalBalance.toLocaleString()}`, icon: <FiDollarSign className="h-5 w-5" /> },
+    {
+      title: 'Total Balance',
+      value: `₹${totalBalance.toLocaleString()}`,
+      icon: <FiDollarSign className="h-5 w-5" />,
+    },
   ];
 
   return (
     <div className="space-y-4">
       <div>
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+        <h2 className="text-lg font-semibold text-foreground">
           Member Varisangya Wallets
-          {wallets[0]?.member && ` - ${wallets[0].member.name}`}
+          {wallets[0]?.member && <span> - {toTitleCase(wallets[0].member.name)}</span>}
         </h2>
-        <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
-          View wallet balances for members
-        </p>
+        <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">View wallet balances for members</p>
       </div>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         {stats.map((stat, index) => (
           <StatCard key={index} {...stat} />
         ))}
       </div>
-      <Card>
+      <TableCard>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -191,16 +207,16 @@ export default function MemberVarisangyaWallet() {
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="text-center py-12">
-            <p className="text-red-600 dark:text-red-400">{error}</p>
-            <Button onClick={fetchWallets} className="mt-4" variant="outline">
-              Retry
-            </Button>
-          </div>
+          <EmptyState
+            variant="error"
+            entity="wallets"
+            description={error}
+            action={{ label: 'Retry', onClick: fetchWallets }}
+          />
         ) : (
-          <Table columns={columns} data={wallets} emptyMessage="No wallets found" showExport={false} />
+          <Table fixedLayout striped columns={columns} data={wallets} emptyMessage="No wallets found" showExport={false} />
         )}
-      </Card>
+      </TableCard>
     </div>
   );
 }

@@ -18,6 +18,7 @@ import {
   getBloodBankReportValidation,
   getOrphansReportValidation,
 } from '../validations/reportValidation';
+import { idParam, listQuery } from '../validations/common';
 
 const router = express.Router();
 
@@ -283,7 +284,7 @@ router.get('/orphans', getOrphansReportValidation, validationHandler, getOrphans
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  */
-router.get('/demographics', getDemographicsReport);
+router.get('/demographics', listQuery(), validationHandler, getDemographicsReport);
 
 /**
  * @swagger
@@ -347,7 +348,7 @@ router.get('/demographics', getDemographicsReport);
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  */
-router.get('/education', getEducationReport);
+router.get('/education', listQuery(), validationHandler, getEducationReport);
 
 /**
  * @swagger
@@ -368,7 +369,7 @@ router.get('/education', getEducationReport);
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  */
-router.get('/welfare', getWelfareReport);
+router.get('/welfare', listQuery(), validationHandler, getWelfareReport);
 
 /**
  * @swagger
@@ -389,7 +390,7 @@ router.get('/welfare', getWelfareReport);
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  */
-router.get('/community', getCommunityReport);
+router.get('/community', listQuery(), validationHandler, getCommunityReport);
 
 /**
  * @swagger
@@ -418,9 +419,9 @@ router.get('/community', getCommunityReport);
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  */
-router.get('/annual', getAnnualReport);
-router.get('/data-quality', getDataQualityReport);
-router.get('/duplicates', getDuplicatesReport);
+router.get('/annual', listQuery(), validationHandler, getAnnualReport);
+router.get('/data-quality', listQuery(), validationHandler, getDataQualityReport);
+router.get('/duplicates', listQuery(), validationHandler, getDuplicatesReport);
 
 export default router;
 

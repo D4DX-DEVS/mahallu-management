@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
-import Breadcrumb from '@/components/layout/Breadcrumb';
-import Card from '@/components/ui/Card';
+import ActionsMenu from '@/components/ui/ActionsMenu';
+import { FiEdit2, FiPlus, FiTrash2 } from 'react-icons/fi';
+import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import Table from '@/components/ui/Table';
 import Modal from '@/components/ui/Modal';
-import SearchInput from '@/components/ui/SearchInput';
+import ExpandableSearch from '@/components/ui/ExpandableSearch';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import EmptyState from '@/components/ui/EmptyState';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
@@ -15,6 +16,9 @@ import { Pagination as PaginationType, TableColumn } from '@/types';
 import { facilityService, LocalityFacility } from '@/services/surveyService';
 import { useDebounce } from '@/hooks/useDebounce';
 import { toast } from '@/store/toastStore';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 
 const TYPE_OPTIONS = [
   { value: 'school', label: 'School' },
@@ -72,7 +76,7 @@ export default function FacilitiesList() {
       setRows(result.data);
       setPagination(result.pagination);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to load facilities');
+      setError(loadErrorMessage(err, 'facilities'));
     } finally {
       setLoading(false);
     }
@@ -119,7 +123,7 @@ export default function FacilitiesList() {
       setFieldErrors({});
       fetchRows();
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to save facility');
+      toast.error(errorMessage(err, { action: 'save facility' }));
     } finally {
       setSaving(false);
     }
@@ -141,62 +145,58 @@ export default function FacilitiesList() {
       setDeletingName('');
       fetchRows();
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to delete facility');
+      toast.error(errorMessage(err, { action: 'delete facility' }));
     }
   };
 
   const columns: TableColumn<LocalityFacility>[] = [
-    { key: 'name', label: 'Name' },
+    { key: 'name', label: 'Name', width: '6.75rem', render: (v) => <span>{toTitleCase(v)}</span> },
     {
       key: 'type',
       label: 'Type',
+      width: '6.25rem',
       render: (v) => TYPE_OPTIONS.find((option) => option.value === v)?.label || v || '-',
     },
-    { key: 'address', label: 'Address', render: (v) => v || '-' },
-    { key: 'contactNo', label: 'Contact', render: (v) => v || '-' },
+    { key: 'address', label: 'Address', width: '7.75rem', render: (v) => (v ? toTitleCase(v) : '-') },
+    { key: 'contactNo', label: 'Contact', width: '7.75rem', render: (v) => v || '-' },
     {
       key: 'actions',
       label: 'Actions',
+      width: '8rem',
+      align: 'center',
       render: (_v, row) => (
-        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-          <button className="text-primary-600 hover:underline" onClick={() => openEdit(row)}>
-            Edit
-          </button>
-          <button className="text-red-600 hover:underline" onClick={() => openDeleteConfirm(row)}>
-            Delete
-          </button>
-        </div>
+        <ActionsMenu
+          items={[
+            { label: 'Edit', icon: <FiEdit2 className="h-4 w-4" />, onClick: () => openEdit(row) },
+            {
+              label: 'Delete',
+              icon: <FiTrash2 className="h-4 w-4" />,
+              onClick: () => openDeleteConfirm(row),
+              variant: 'danger' as const,
+            },
+          ]}
+        />
       ),
     },
   ];
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">Locality Facilities</h1>
-          <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-            Schools, hospitals and institutions serving the Mahallu
-          </p>
-        </div>
-        <Breadcrumb
-          items={[
-            { label: 'Dashboard', path: '/dashboard' },
-            { label: 'Survey', path: '/survey' },
-            { label: 'Facilities' },
-          ]}
-        />
-      </div>
+      <PageHeader
+        title="Locality Facilities"
+        description="Schools, hospitals and institutions serving the Mahallu"
+        breadcrumbs={[{ label: 'Survey', path: '/survey' }]}
+      />
 
-      <Card>
+      <TableCard>
         <div className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto_auto] sm:items-center">
-          <SearchInput
+          <ExpandableSearch
             value={searchQuery}
-            onChange={(e) => {
-              setSearchQuery(e.target.value);
+            onChange={(value) => {
+              setSearchQuery(value);
               setCurrentPage(1);
             }}
-            placeholder="Search facilities..."
+            entity="facilities"
           />
           <Select
             options={[{ value: '', label: 'All types' }, ...TYPE_OPTIONS]}
@@ -206,20 +206,13 @@ export default function FacilitiesList() {
               setCurrentPage(1);
             }}
           />
-          <Button size="md" onClick={openCreate}>
-            + New Facility
-          </Button>
+          <Button size="md" onClick={openCreate} icon={<FiPlus />} collapseLabel>New Facility</Button>
         </div>
 
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="py-12 text-center">
-            <p className="text-red-600 dark:text-red-400">{error}</p>
-            <Button onClick={fetchRows} className="mt-4" variant="outline">
-              Retry
-            </Button>
-          </div>
+          <EmptyState variant="error" entity="facilities" description={error} action={{ label: 'Retry', onClick: fetchRows }} />
         ) : rows.length === 0 ? (
           <EmptyState
             title="No facilities recorded"
@@ -230,9 +223,7 @@ export default function FacilitiesList() {
             }}
           />
         ) : (
-          <div className="overflow-x-auto">
-            <Table columns={columns} data={rows} emptyMessage="No facilities recorded" showExport={false} />
-          </div>
+          <Table fixedLayout striped columns={columns} data={rows} emptyMessage="No facilities recorded" showExport={false} />
         )}
 
         {pagination && (
@@ -246,7 +237,7 @@ export default function FacilitiesList() {
             />
           </div>
         )}
-      </Card>
+      </TableCard>
 
       <Modal
         isOpen={isFormOpen}
@@ -269,7 +260,9 @@ export default function FacilitiesList() {
               }}
               required
             />
-            {fieldErrors.name && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{fieldErrors.name}</p>}
+            {fieldErrors.name && (
+              <p className="mt-1 text-sm text-red-600 dark:text-red-400">{fieldErrors.name}</p>
+            )}
           </div>
           <Input
             label="Name (Malayalam)"
@@ -322,9 +315,10 @@ export default function FacilitiesList() {
       </Modal>
 
       <ConfirmDialog
+        isLoading={saving}
         isOpen={isConfirmDeleteOpen}
         title="Delete Facility"
-        message={`Delete the facility "${deletingName}"?`}
+        message={`Delete the facility "${toTitleCase(deletingName)}"?`}
         variant="danger"
         confirmLabel="Delete"
         onConfirm={confirmDelete}

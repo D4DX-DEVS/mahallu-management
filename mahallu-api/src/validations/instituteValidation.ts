@@ -4,87 +4,87 @@ export const createInstituteValidation = [
   body('name')
     .trim()
     .notEmpty()
-    .withMessage('Institute name is required')
+    .withMessage('Please select the institute name.')
     .isLength({ min: 2, max: 200 })
-    .withMessage('Institute name must be between 2 and 200 characters'),
+    .withMessage('Please keep the institute name between 2 and 200 characters.'),
   body('nameMl').optional().trim(),
   body('place')
     .trim()
     .notEmpty()
-    .withMessage('Place is required')
+    .withMessage('Please enter the place.')
     .isLength({ min: 1, max: 200 })
-    .withMessage('Place must be between 1 and 200 characters'),
+    .withMessage('Please keep the place between 1 and 200 characters.'),
   body('placeMl').optional().trim(),
   body('type')
     .isIn(['institute', 'madrasa', 'orphanage', 'hospital', 'other'])
-    .withMessage('Invalid institute type'),
+    .withMessage('Please choose a valid institute type.'),
   body('joinDate')
     .optional()
     .isISO8601()
-    .withMessage('Join date must be a valid date'),
+    .withMessage('Please choose a valid join date.'),
   body('description').optional().trim(),
   body('contactNo')
     .optional()
     .trim()
     .matches(/^[0-9]{10}$/)
-    .withMessage('Contact number must be exactly 10 digits'),
+    .withMessage('Please enter a 10-digit contact number.'),
   body('email')
     .optional()
     .trim()
     .isEmail()
-    .withMessage('Invalid email address')
+    .withMessage('Please enter a valid email address.')
     .normalizeEmail(),
   body('status')
     .optional()
     .isIn(['active', 'inactive'])
-    .withMessage('Invalid status'),
+    .withMessage('Please choose a valid status.'),
 ];
 
 export const updateInstituteValidation = [
-  param('id').isMongoId().withMessage('Invalid institute ID'),
+  param('id').isMongoId().withMessage('Please select a valid institute.'),
   body('name')
     .optional()
     .trim()
     .isLength({ min: 2, max: 200 })
-    .withMessage('Institute name must be between 2 and 200 characters'),
+    .withMessage('Please keep the institute name between 2 and 200 characters.'),
   body('nameMl').optional().trim(),
   body('place')
     .optional()
     .trim()
     .isLength({ min: 1, max: 200 })
-    .withMessage('Place must be between 1 and 200 characters'),
+    .withMessage('Please keep the place between 1 and 200 characters.'),
   body('placeMl').optional().trim(),
   body('type')
     .optional()
     .isIn(['institute', 'madrasa', 'orphanage', 'hospital', 'other'])
-    .withMessage('Invalid institute type'),
+    .withMessage('Please choose a valid institute type.'),
   body('joinDate')
     .optional()
     .isISO8601()
-    .withMessage('Join date must be a valid date'),
+    .withMessage('Please choose a valid join date.'),
   body('description').optional().trim(),
   body('contactNo')
     .optional()
     .trim()
     .matches(/^[0-9]{10}$/)
-    .withMessage('Contact number must be exactly 10 digits'),
+    .withMessage('Please enter a 10-digit contact number.'),
   body('email')
     .optional()
     .trim()
     .isEmail()
-    .withMessage('Invalid email address')
+    .withMessage('Please enter a valid email address.')
     .normalizeEmail(),
   body('status')
     .optional()
     .isIn(['active', 'inactive'])
-    .withMessage('Invalid status'),
+    .withMessage('Please choose a valid status.'),
 ];
 
 export const getInstituteValidation = [
-  param('id').isMongoId().withMessage('Invalid institute ID'),
+  param('id').isMongoId().withMessage('Please select a valid institute.'),
 ];
 
 export const deleteInstituteValidation = [
-  param('id').isMongoId().withMessage('Invalid institute ID'),
+  param('id').isMongoId().withMessage('Please select a valid institute.'),
 ];
 

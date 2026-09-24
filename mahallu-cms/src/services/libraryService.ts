@@ -1,4 +1,4 @@
-import api from './api';
+import api, { asList } from './api';
 
 export interface LibraryBook {
   id: string;
@@ -46,38 +46,28 @@ export const libraryService = {
       pagination?: any;
     }>('/library-books', { params });
     return {
-      data: response.data.data,
+      data: asList(response.data.data),
       pagination: response.data.pagination,
     };
   },
 
   getBookById: async (id: string) => {
-    const response = await api.get<{ success: boolean; data: LibraryBook }>(
-      `/library-books/${id}`
-    );
+    const response = await api.get<{ success: boolean; data: LibraryBook }>(`/library-books/${id}`);
     return response.data.data;
   },
 
   createBook: async (bookData: Partial<LibraryBook>) => {
-    const response = await api.post<{ success: boolean; data: LibraryBook }>(
-      '/library-books',
-      bookData
-    );
+    const response = await api.post<{ success: boolean; data: LibraryBook }>('/library-books', bookData);
     return response.data.data;
   },
 
   updateBook: async (id: string, bookData: Partial<LibraryBook>) => {
-    const response = await api.put<{ success: boolean; data: LibraryBook }>(
-      `/library-books/${id}`,
-      bookData
-    );
+    const response = await api.put<{ success: boolean; data: LibraryBook }>(`/library-books/${id}`, bookData);
     return response.data.data;
   },
 
   deleteBook: async (id: string) => {
-    const response = await api.delete<{ success: boolean; message: string }>(
-      `/library-books/${id}`
-    );
+    const response = await api.delete<{ success: boolean; message: string }>(`/library-books/${id}`);
     return response.data;
   },
 
@@ -116,35 +106,23 @@ export const libraryService = {
       pagination?: any;
     }>('/book-issues', { params });
     return {
-      data: response.data.data,
+      data: asList(response.data.data),
       pagination: response.data.pagination,
     };
   },
 
   getIssueById: async (id: string) => {
-    const response = await api.get<{ success: boolean; data: BookIssue }>(
-      `/book-issues/${id}`
-    );
+    const response = await api.get<{ success: boolean; data: BookIssue }>(`/book-issues/${id}`);
     return response.data.data;
   },
 
-  createIssue: async (issueData: {
-    bookId: string;
-    memberId: string;
-    dueDate: string;
-  }) => {
-    const response = await api.post<{ success: boolean; data: BookIssue }>(
-      '/book-issues',
-      issueData
-    );
+  createIssue: async (issueData: { bookId: string; memberId: string; dueDate: string }) => {
+    const response = await api.post<{ success: boolean; data: BookIssue }>('/book-issues', issueData);
     return response.data.data;
   },
 
   returnIssue: async (id: string) => {
-    const response = await api.post<{ success: boolean; data: BookIssue }>(
-      `/book-issues/${id}/return`,
-      {}
-    );
+    const response = await api.post<{ success: boolean; data: BookIssue }>(`/book-issues/${id}/return`, {});
     return response.data.data;
   },
 };

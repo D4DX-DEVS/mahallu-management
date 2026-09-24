@@ -4,6 +4,24 @@ import Button from '@/components/ui/Button';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import { toast } from '@/store/toastStore';
 import { developmentService, DevelopmentProject } from '@/services/developmentService';
+import PageHeader from '@/components/layout/PageHeader';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import DatePicker from '@/components/ui/DatePicker';
+import { useFormValidation } from '@/hooks/useFormValidation';
+import { FieldRule, LIMITS, firstError, validateForm } from '@/utils/validation';
+
+/**
+ * The same limits the API applies, so a form that passes here is not
+ * refused there. Required matches what each input already declares.
+ */
+const RULES: Record<string, FieldRule> = {
+  name: { label: 'project name', required: true, maxLength: LIMITS.title.max },
+  nameMl: { label: 'name', maxLength: LIMITS.title.max },
+  area: { label: 'project area', required: true, maxLength: LIMITS.shortText.max },
+  estimatedCost: { label: 'estimated cost', required: true, type: 'number', min: 0, max: LIMITS.amount.max },
+  progressPercent: { label: 'progress', type: 'integer', min: 0, max: 100 },
+  status: { label: 'status', maxLength: LIMITS.shortText.max },
+};
 
 const PROJECT_AREAS = [
   { value: 'roads', label: 'Roads' },
@@ -27,6 +45,7 @@ export default function ProjectForm({ isEdit = false }: ProjectFormProps) {
   const { id } = useParams();
   const [loading, setLoading] = useState(isEdit);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
   const [formData, setFormData] = useState<Partial<DevelopmentProject>>({
     name: '',
     nameMl: '',
@@ -35,6 +54,7 @@ export default function ProjectForm({ isEdit = false }: ProjectFormProps) {
     progressPercent: 0,
     status: 'proposed',
   });
+  const { errors, validate } = useFormValidation(RULES);
 
   useEffect(() => {
     if (isEdit && id) {
@@ -47,7 +67,8 @@ export default function ProjectForm({ isEdit = false }: ProjectFormProps) {
       const project = await developmentService.getProject(id!);
       setFormData(project);
     } catch (error) {
-      console.error('Failed to load project:', error);
+      console.error("Couldn't load project:", error);
+      toast.error(loadErrorMessage(error, 'the project'));
     } finally {
       setLoading(false);
     }
@@ -55,6 +76,12 @@ export default function ProjectForm({ isEdit = false }: ProjectFormProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    // Every field checked at once, each message on its own field.
+    if (!validate(formData)) {
+      setError(firstError(validateForm(formData, RULES)));
+      return;
+    }
+    setError('');
     setSaving(true);
     try {
       if (isEdit && id) {
@@ -66,8 +93,8 @@ export default function ProjectForm({ isEdit = false }: ProjectFormProps) {
       }
       navigate('/development');
     } catch (error) {
-      console.error('Failed to save project:', error);
-      toast.error((error as any).response?.data?.message || 'Failed to save project');
+      console.error("Couldn't save project:", error);
+      toast.error(errorMessage(error, { action: 'save project' }));
     } finally {
       setSaving(false);
     }
@@ -76,24 +103,29 @@ export default function ProjectForm({ isEdit = false }: ProjectFormProps) {
   if (loading) return <PageSkeleton />;
 
   return (
-    <div className="p-4 max-w-2xl mx-auto">
-      <h1 className="text-2xl font-bold mb-6">{isEdit ? 'Edit Project' : 'Create Project'}</h1>
-
+    <div className="max-w-2xl mx-auto">
+      <PageHeader title={isEdit ? 'Edit Project' : 'Create Project'} />
       <form onSubmit={handleSubmit} className="space-y-4">
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">{error}</div>
+        )}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium mb-1">Project Name *</label>
             <input
+              aria-label="Project Name"
               type="text"
               value={formData.name || ''}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               required
               className="w-full px-3 py-2 border rounded"
             />
+            {errors.name && <p className="text-red-600 text-sm mt-1">{errors.name}</p>}
           </div>
           <div>
             <label className="block text-sm font-medium mb-1">Malayalam Name</label>
             <input
+              aria-label="Malayalam Name"
               type="text"
               value={formData.nameMl || ''}
               onChange={(e) => setFormData({ ...formData, nameMl: e.target.value })}
@@ -106,6 +138,7 @@ export default function ProjectForm({ isEdit = false }: ProjectFormProps) {
           <div>
             <label className="block text-sm font-medium mb-1">Area *</label>
             <select
+              aria-label="Area"
               value={formData.area || 'roads'}
               onChange={(e) => setFormData({ ...formData, area: e.target.value as any })}
               className="w-full px-3 py-2 border rounded"
@@ -120,6 +153,7 @@ export default function ProjectForm({ isEdit = false }: ProjectFormProps) {
           <div>
             <label className="block text-sm font-medium mb-1">Estimated Cost (₹) *</label>
             <input
+              aria-label="Estimated Cost (₹)"
               type="number"
               value={formData.estimatedCost || 0}
               onChange={(e) => setFormData({ ...formData, estimatedCost: parseFloat(e.target.value) })}
@@ -127,12 +161,14 @@ export default function ProjectForm({ isEdit = false }: ProjectFormProps) {
               min="0"
               className="w-full px-3 py-2 border rounded"
             />
+            {errors.estimatedCost && <p className="text-red-600 text-sm mt-1">{errors.estimatedCost}</p>}
           </div>
         </div>
 
         <div>
           <label className="block text-sm font-medium mb-1">Proposal</label>
           <textarea
+            aria-label="Proposal"
             value={formData.proposal || ''}
             onChange={(e) => setFormData({ ...formData, proposal: e.target.value })}
             className="w-full px-3 py-2 border rounded"
@@ -144,6 +180,7 @@ export default function ProjectForm({ isEdit = false }: ProjectFormProps) {
           <div>
             <label className="block text-sm font-medium mb-1">Funding Source</label>
             <input
+              aria-label="Funding Source"
               type="text"
               value={formData.fundingSource || ''}
               onChange={(e) => setFormData({ ...formData, fundingSource: e.target.value })}
@@ -153,6 +190,7 @@ export default function ProjectForm({ isEdit = false }: ProjectFormProps) {
           <div>
             <label className="block text-sm font-medium mb-1">Responsible Team</label>
             <input
+              aria-label="Responsible Team"
               type="text"
               value={formData.responsibleTeam || ''}
               onChange={(e) => setFormData({ ...formData, responsibleTeam: e.target.value })}
@@ -163,21 +201,17 @@ export default function ProjectForm({ isEdit = false }: ProjectFormProps) {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium mb-1">Start Date</label>
-            <input
-              type="date"
+            <DatePicker
+              label="Start Date"
               value={formData.startDate ? formData.startDate.split('T')[0] : ''}
-              onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-              className="w-full px-3 py-2 border rounded"
+              onChange={(value) => setFormData({ ...formData, startDate: value })}
             />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1">Target Date</label>
-            <input
-              type="date"
+            <DatePicker
+              label="Target Date"
               value={formData.targetDate ? formData.targetDate.split('T')[0] : ''}
-              onChange={(e) => setFormData({ ...formData, targetDate: e.target.value })}
-              className="w-full px-3 py-2 border rounded"
+              onChange={(value) => setFormData({ ...formData, targetDate: value })}
             />
           </div>
         </div>
@@ -186,10 +220,14 @@ export default function ProjectForm({ isEdit = false }: ProjectFormProps) {
           <div>
             <label className="block text-sm font-medium mb-1">Progress Percent (0-100)</label>
             <input
+              aria-label="Progress Percent (0-100)"
               type="number"
               value={formData.progressPercent || 0}
               onChange={(e) =>
-                setFormData({ ...formData, progressPercent: Math.min(100, Math.max(0, parseFloat(e.target.value))) })
+                setFormData({
+                  ...formData,
+                  progressPercent: Math.min(100, Math.max(0, parseFloat(e.target.value))),
+                })
               }
               min="0"
               max="100"
@@ -199,6 +237,7 @@ export default function ProjectForm({ isEdit = false }: ProjectFormProps) {
           <div>
             <label className="block text-sm font-medium mb-1">Status</label>
             <select
+              aria-label="Status"
               value={formData.status || 'proposed'}
               onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
               className="w-full px-3 py-2 border rounded"
@@ -215,6 +254,7 @@ export default function ProjectForm({ isEdit = false }: ProjectFormProps) {
         <div>
           <label className="block text-sm font-medium mb-1">Completion Report</label>
           <textarea
+            aria-label="Completion Report"
             value={formData.completionReport || ''}
             onChange={(e) => setFormData({ ...formData, completionReport: e.target.value })}
             className="w-full px-3 py-2 border rounded"
@@ -222,7 +262,7 @@ export default function ProjectForm({ isEdit = false }: ProjectFormProps) {
           />
         </div>
 
-        <div className="flex gap-3 pt-4">
+        <div className="flex flex-wrap gap-3 pt-4">
           <Button type="submit" disabled={saving}>
             {saving ? 'Saving...' : isEdit ? 'Update' : 'Create'}
           </Button>

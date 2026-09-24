@@ -25,17 +25,19 @@ export default function RadioCardGroup({
   required,
   columns = 2,
 }: RadioCardGroupProps) {
+  /* One card per row on a phone. Four options across a 320px screen gave each
+   * card ~68px, which truncated every label it was meant to make readable. */
   const gridCols = {
-    2: 'grid-cols-2',
-    3: 'grid-cols-3',
-    4: 'grid-cols-4',
+    2: 'grid-cols-1 sm:grid-cols-2',
+    3: 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3',
+    4: 'grid-cols-1 sm:grid-cols-2 md:grid-cols-4',
   };
 
   return (
     <div className="space-y-1">
-      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+      <label className="block text-label font-medium text-foreground">
         {label}
-        {required && <span className="text-red-500 ml-1">*</span>}
+        {required && <span className="ml-1 text-destructive">*</span>}
       </label>
       <div className={`grid ${gridCols[columns]} gap-2`}>
         {options.map((option) => (
@@ -44,29 +46,27 @@ export default function RadioCardGroup({
             type="button"
             onClick={() => onChange(option.value)}
             className={`
-              relative flex items-center justify-center px-3 py-2 rounded-md border-2 transition-all text-sm
+              relative flex min-h-11 w-full items-center justify-center rounded-md border-2 px-4 py-2 pr-8 text-sm transition-colors
               ${
                 value === option.value
-                  ? 'border-primary-600 bg-primary-50 dark:bg-primary-900/20 dark:border-primary-500'
-                  : 'border-gray-300 bg-white hover:border-gray-400 dark:border-gray-600 dark:bg-gray-800 dark:hover:border-gray-500'
+                  ? 'border-primary bg-accent'
+                  : 'border-input bg-background hover:bg-accent/40'
               }
-              focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2
+              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
               cursor-pointer
             `}
           >
             <span
-              className={`font-medium ${
-                value === option.value
-                  ? 'text-primary-700 dark:text-primary-300'
-                  : 'text-gray-700 dark:text-gray-300'
+              className={`min-w-0 break-words text-center font-medium ${
+                value === option.value ? 'text-primary' : 'text-foreground'
               }`}
             >
               {option.label}
             </span>
             {value === option.value && (
-              <div className="absolute top-1 right-1">
+              <div className="absolute right-2 top-1/2 -translate-y-1/2">
                 <svg
-                  className="w-4 h-4 text-primary-600 dark:text-primary-400"
+                  className="h-4 w-4 text-primary"
                   fill="currentColor"
                   viewBox="0 0 20 20"
                 >
@@ -81,9 +81,7 @@ export default function RadioCardGroup({
           </button>
         ))}
       </div>
-      {error && (
-        <p className="mt-1 text-sm text-red-600 dark:text-red-400">{error}</p>
-      )}
+      {error && <p className="mt-1 text-label text-destructive">{error}</p>}
     </div>
   );
 }

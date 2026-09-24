@@ -54,13 +54,7 @@ const drawBorder = (doc: jsPDF, pageWidth: number, pageHeight: number) => {
 };
 
 /** Draw a label/value row and return the new y position */
-const drawRow = (
-  doc: jsPDF,
-  label: string,
-  value: string,
-  y: number,
-  pageWidth: number
-): number => {
+const drawRow = (doc: jsPDF, label: string, value: string, y: number, pageWidth: number): number => {
   const labelX = 25;
   const valueX = 75;
   const maxValueWidth = pageWidth - valueX - 25;

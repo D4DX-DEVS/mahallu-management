@@ -6,6 +6,9 @@ import { AuthRequest } from '../middleware/authMiddleware';
 import { getPaginationParams, createPaginationResponse } from '../utils/pagination';
 import { stripImmutable } from '../utils/sanitizeUpdate';
 
+import { sendFailure } from '../utils/userMessages';
+import { regexLiteral } from '../utils/queryGuard';
+
 const tenantScope = (req: AuthRequest) => {
   if (req.tenantId) return req.tenantId;
   if (req.isSuperAdmin && req.query.tenantId) return req.query.tenantId as string;
@@ -25,8 +28,8 @@ export const getAllClusters = async (req: AuthRequest, res: Response) => {
     if (status) query.status = status;
     if (search) {
       query.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { code: { $regex: search, $options: 'i' } },
+        { name: { $regex: regexLiteral(search), $options: 'i' } },
+        { code: { $regex: regexLiteral(search), $options: 'i' } },
       ];
     }
 
@@ -53,7 +56,7 @@ export const getAllClusters = async (req: AuthRequest, res: Response) => {
 
     res.json(createPaginationResponse(data, total, page, limit));
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the clusters right now. Please try again.');
   }
 };
 
@@ -63,23 +66,23 @@ export const getClusterById = async (req: AuthRequest, res: Response) => {
       .populate('coordinatorMemberId', 'name phone')
       .populate('teamMemberIds', 'name phone');
     if (!cluster || (req.tenantId && cluster.tenantId.toString() !== req.tenantId)) {
-      return res.status(404).json({ success: false, message: 'Cluster not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that cluster. It may have been removed." });
     }
     const familyCount = await Family.countDocuments({ clusterId: cluster._id });
     res.json({ success: true, data: { ...cluster.toObject(), familyCount } });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the cluster right now. Please try again.');
   }
 };
 
 export const createCluster = async (req: AuthRequest, res: Response) => {
   try {
     const tenantId = tenantScope(req) || req.body.tenantId;
-    if (!tenantId) return res.status(400).json({ success: false, message: 'Tenant ID is required' });
+    if (!tenantId) return res.status(400).json({ success: false, message: 'Please select a Mahallu before continuing.' });
     const cluster = await Cluster.create({ ...req.body, tenantId });
     res.status(201).json({ success: true, data: cluster });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t save the cluster. Please try again.');
   }
 };
 
@@ -87,7 +90,7 @@ export const updateCluster = async (req: AuthRequest, res: Response) => {
   try {
     const existing = await Cluster.findById(req.params.id);
     if (!existing || (req.tenantId && existing.tenantId.toString() !== req.tenantId)) {
-      return res.status(404).json({ success: false, message: 'Cluster not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that cluster. It may have been removed." });
     }
     const cluster = await Cluster.findByIdAndUpdate(req.params.id, stripImmutable(req.body), {
       new: true,
@@ -95,7 +98,7 @@ export const updateCluster = async (req: AuthRequest, res: Response) => {
     });
     res.json({ success: true, data: cluster });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t update the cluster. Please try again.');
   }
 };
 
@@ -103,7 +106,7 @@ export const deleteCluster = async (req: AuthRequest, res: Response) => {
   try {
     const existing = await Cluster.findById(req.params.id);
     if (!existing || (req.tenantId && existing.tenantId.toString() !== req.tenantId)) {
-      return res.status(404).json({ success: false, message: 'Cluster not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that cluster. It may have been removed." });
     }
     // Families outlive their cluster: detach rather than block or cascade
     await Family.updateMany({ clusterId: existing._id }, { $unset: { clusterId: '' } });
@@ -111,7 +114,7 @@ export const deleteCluster = async (req: AuthRequest, res: Response) => {
     await existing.deleteOne();
     res.json({ success: true, message: 'Cluster deleted' });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t delete the cluster. Please try again.');
   }
 };
 
@@ -123,8 +126,8 @@ export const getClusterFamilies = async (req: AuthRequest, res: Response) => {
     const query: any = { ...scopedQuery(req), clusterId: req.params.id };
     if (search) {
       query.$or = [
-        { houseName: { $regex: search, $options: 'i' } },
-        { familyHead: { $regex: search, $options: 'i' } },
+        { houseName: { $regex: regexLiteral(search), $options: 'i' } },
+        { familyHead: { $regex: regexLiteral(search), $options: 'i' } },
       ];
     }
 
@@ -134,7 +137,7 @@ export const getClusterFamilies = async (req: AuthRequest, res: Response) => {
     ]);
     res.json(createPaginationResponse(data, total, page, limit));
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the cluster families right now. Please try again.');
   }
 };
 
@@ -142,12 +145,12 @@ export const assignFamilies = async (req: AuthRequest, res: Response) => {
   try {
     const cluster = await Cluster.findById(req.params.id);
     if (!cluster || (req.tenantId && cluster.tenantId.toString() !== req.tenantId)) {
-      return res.status(404).json({ success: false, message: 'Cluster not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that cluster. It may have been removed." });
     }
 
     const familyIds: string[] = req.body.familyIds || [];
     if (!Array.isArray(familyIds) || familyIds.length === 0) {
-      return res.status(400).json({ success: false, message: 'familyIds is required' });
+      return res.status(400).json({ success: false, message: 'Please select at least one family.' });
     }
 
     // Tenant filter in the update keeps a stray id from another Mahallu out
@@ -158,7 +161,7 @@ export const assignFamilies = async (req: AuthRequest, res: Response) => {
 
     res.json({ success: true, data: { assigned: result.modifiedCount } });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t save the families. Please try again.');
   }
 };
 
@@ -166,13 +169,13 @@ export const unassignFamily = async (req: AuthRequest, res: Response) => {
   try {
     const family = await Family.findOne({ _id: req.params.familyId, ...scopedQuery(req) });
     if (!family) {
-      return res.status(404).json({ success: false, message: 'Family not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that family. It may have been removed." });
     }
     family.clusterId = undefined;
     await family.save();
     res.json({ success: true, message: 'Family removed from cluster' });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t delete the family. Please try again.');
   }
 };
 
@@ -199,24 +202,24 @@ export const getAllVisits = async (req: AuthRequest, res: Response) => {
     ]);
     res.json(createPaginationResponse(data, total, page, limit));
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the visits right now. Please try again.');
   }
 };
 
 export const createVisit = async (req: AuthRequest, res: Response) => {
   try {
     const tenantId = tenantScope(req) || req.body.tenantId;
-    if (!tenantId) return res.status(400).json({ success: false, message: 'Tenant ID is required' });
+    if (!tenantId) return res.status(400).json({ success: false, message: 'Please select a Mahallu before continuing.' });
 
     const cluster = await Cluster.findById(req.body.clusterId);
     if (!cluster || cluster.tenantId.toString() !== tenantId.toString()) {
-      return res.status(400).json({ success: false, message: 'Invalid cluster' });
+      return res.status(400).json({ success: false, message: 'Please select a valid cluster.' });
     }
 
     const visit = await ClusterVisit.create({ ...req.body, tenantId });
     res.status(201).json({ success: true, data: visit });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t save the visit. Please try again.');
   }
 };
 
@@ -224,7 +227,7 @@ export const updateVisit = async (req: AuthRequest, res: Response) => {
   try {
     const existing = await ClusterVisit.findById(req.params.id);
     if (!existing || (req.tenantId && existing.tenantId.toString() !== req.tenantId)) {
-      return res.status(404).json({ success: false, message: 'Visit not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that visit. It may have been removed." });
     }
     const visit = await ClusterVisit.findByIdAndUpdate(req.params.id, stripImmutable(req.body), {
       new: true,
@@ -232,7 +235,7 @@ export const updateVisit = async (req: AuthRequest, res: Response) => {
     });
     res.json({ success: true, data: visit });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t update the visit. Please try again.');
   }
 };
 
@@ -240,11 +243,11 @@ export const deleteVisit = async (req: AuthRequest, res: Response) => {
   try {
     const existing = await ClusterVisit.findById(req.params.id);
     if (!existing || (req.tenantId && existing.tenantId.toString() !== req.tenantId)) {
-      return res.status(404).json({ success: false, message: 'Visit not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that visit. It may have been removed." });
     }
     await existing.deleteOne();
     res.json({ success: true, message: 'Visit deleted' });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t delete the visit. Please try again.');
   }
 };

@@ -1,4 +1,4 @@
-import api from './api';
+import api, { asList } from './api';
 
 export interface DashboardStats {
   users: {
@@ -48,24 +48,28 @@ export const dashboardService = {
     const response = await api.get<{ success: boolean; data: DashboardStats }>('/dashboard/stats');
     return response.data.data;
   },
-  
+
   getRecentFamilies: async (limit: number = 5) => {
     const response = await api.get<{ success: boolean; data: RecentFamily[] }>('/dashboard/recent-families', {
       params: { limit },
     });
-    return response.data.data;
+    return asList(response.data.data);
   },
-  
+
   getActivityTimeline: async (days: number = 7) => {
-    const response = await api.get<{ success: boolean; data: ActivityTimelineData[] }>('/dashboard/activity-timeline', {
-      params: { days },
-    });
-    return response.data.data;
+    const response = await api.get<{ success: boolean; data: ActivityTimelineData[] }>(
+      '/dashboard/activity-timeline',
+      {
+        params: { days },
+      }
+    );
+    return asList(response.data.data);
   },
 
   getFinancialSummary: async () => {
-    const response = await api.get<{ success: boolean; data: FinancialSummary }>('/dashboard/financial-summary');
+    const response = await api.get<{ success: boolean; data: FinancialSummary }>(
+      '/dashboard/financial-summary'
+    );
     return response.data.data;
   },
 };
-

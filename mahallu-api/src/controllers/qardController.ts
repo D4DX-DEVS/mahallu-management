@@ -15,6 +15,9 @@ import { AuthRequest } from '../middleware/authMiddleware';
 import { getPaginationParams, createPaginationResponse } from '../utils/pagination';
 import { stripImmutable, refBelongsToTenant } from '../utils/sanitizeUpdate';
 
+import { sendFailure } from '../utils/userMessages';
+import { regexLiteral } from '../utils/queryGuard';
+
 const round2 = (value: number): number => Math.round(value * 100) / 100;
 
 /** Scope every read/write to the caller's tenant. */
@@ -30,7 +33,7 @@ const toObjectId = (value: unknown): mongoose.Types.ObjectId | undefined =>
 const validateRefs = async (req: AuthRequest): Promise<string | null> => {
   const { applicantMemberId, familyId } = req.body;
   if (applicantMemberId && !(await refBelongsToTenant(Member, applicantMemberId, req.tenantId))) {
-    return 'Member does not belong to this Mahallu';
+    return 'This member belongs to another Mahallu.';
   }
   if (familyId && !(await refBelongsToTenant(Family, familyId, req.tenantId))) {
     return 'Family does not belong to this Mahallu';
@@ -47,7 +50,7 @@ export const getAllLoans = async (req: AuthRequest, res: Response) => {
     if (req.query.purpose) query.purpose = req.query.purpose;
     if (req.query.familyId) query.familyId = req.query.familyId;
     if (req.query.search) {
-      query.applicantName = { $regex: String(req.query.search), $options: 'i' };
+      query.applicantName = { $regex: regexLiteral(String(req.query.search)), $options: 'i' };
     }
 
     const [loans, total] = await Promise.all([
@@ -62,7 +65,7 @@ export const getAllLoans = async (req: AuthRequest, res: Response) => {
 
     res.json(createPaginationResponse(loans, total, page, limit));
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the loans right now. Please try again.');
   }
 };
 
@@ -73,7 +76,7 @@ export const getLoanById = async (req: AuthRequest, res: Response) => {
       .populate('familyId', 'houseName mahallId');
 
     if (!loan) {
-      return res.status(404).json({ success: false, message: 'Loan not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that loan. It may have been removed." });
     }
 
     // Stamp overdue installments on read so the schedule is never stale.
@@ -87,7 +90,7 @@ export const getLoanById = async (req: AuthRequest, res: Response) => {
       data: { ...loan.toObject(), repaymentSchedule: schedule, repayments },
     });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the loan right now. Please try again.');
   }
 };
 
@@ -100,7 +103,7 @@ export const createLoan = async (req: AuthRequest, res: Response) => {
     if (!req.body.applicantMemberId && !req.body.applicantName) {
       return res
         .status(400)
-        .json({ success: false, message: 'Either applicantMemberId or applicantName is required' });
+        .json({ success: false, message: 'Please choose a member, or enter the applicant’s name.' });
     }
 
     // A new application always starts at `applied`; approval is a separate step.
@@ -116,7 +119,7 @@ export const createLoan = async (req: AuthRequest, res: Response) => {
 
     res.status(201).json({ success: true, data: loan });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t save the loan. Please try again.');
   }
 };
 
@@ -124,7 +127,7 @@ export const updateLoan = async (req: AuthRequest, res: Response) => {
   try {
     const existing = await QardLoan.findOne({ _id: req.params.id, ...tenantScope(req) });
     if (!existing) {
-      return res.status(404).json({ success: false, message: 'Loan not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that loan. It may have been removed." });
     }
 
     const refError = await validateRefs(req);
@@ -147,7 +150,7 @@ export const updateLoan = async (req: AuthRequest, res: Response) => {
 
     res.json({ success: true, data: loan });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t update the loan. Please try again.');
   }
 };
 
@@ -157,7 +160,7 @@ export const updateLoanStatus = async (req: AuthRequest, res: Response) => {
 
     const loan = await QardLoan.findOne({ _id: req.params.id, ...tenantScope(req) });
     if (!loan) {
-      return res.status(404).json({ success: false, message: 'Loan not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that loan. It may have been removed." });
     }
 
     const next = status as QardStatus;
@@ -176,12 +179,12 @@ export const updateLoanStatus = async (req: AuthRequest, res: Response) => {
       if (!(amount > 0)) {
         return res
           .status(400)
-          .json({ success: false, message: 'Approved amount must be greater than zero' });
+          .json({ success: false, message: 'Please enter an approved amount greater than zero.' });
       }
       if (amount > loan.amount && !allowOverApproval) {
         return res.status(400).json({
           success: false,
-          message: `Approved amount ${amount} exceeds the requested ${loan.amount}. Set allowOverApproval to override.`,
+          message: `The approved amount ₹${amount} is more than the requested ₹${loan.amount}.`,
         });
       }
       loan.approvedAmount = round2(amount);
@@ -193,7 +196,7 @@ export const updateLoanStatus = async (req: AuthRequest, res: Response) => {
       if (!(principal > 0)) {
         return res
           .status(400)
-          .json({ success: false, message: 'Loan has no approved amount to disburse' });
+          .json({ success: false, message: 'This loan has no approved amount to disburse yet.' });
       }
       const disbursedDate = req.body.disbursedDate ? new Date(req.body.disbursedDate) : new Date();
       const schedule = buildRepaymentSchedule(principal, loan.repaymentMonths, disbursedDate);
@@ -207,7 +210,7 @@ export const updateLoanStatus = async (req: AuthRequest, res: Response) => {
     if (next === 'closed' && loan.outstandingBalance > 0 && loan.status !== 'defaulted') {
       return res.status(400).json({
         success: false,
-        message: `Cannot close a loan with ${loan.outstandingBalance} still outstanding`,
+        message: `This loan still has ₹${loan.outstandingBalance} outstanding, so it can't be closed.`,
       });
     }
 
@@ -217,7 +220,7 @@ export const updateLoanStatus = async (req: AuthRequest, res: Response) => {
 
     res.json({ success: true, data: loan });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t update the loan status. Please try again.');
   }
 };
 
@@ -225,21 +228,21 @@ export const deleteLoan = async (req: AuthRequest, res: Response) => {
   try {
     const loan = await QardLoan.findOne({ _id: req.params.id, ...tenantScope(req) });
     if (!loan) {
-      return res.status(404).json({ success: false, message: 'Loan not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that loan. It may have been removed." });
     }
 
     const repayments = await QardRepayment.countDocuments({ loanId: loan._id });
     if (repayments > 0) {
       return res.status(400).json({
         success: false,
-        message: `Cannot delete a loan with ${repayments} recorded repayment(s)`,
+        message: `This loan has ${repayments} repayment(s) recorded, so it can't be deleted.`,
       });
     }
 
     await loan.deleteOne();
     res.json({ success: true, message: 'Loan deleted' });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t delete the loan. Please try again.');
   }
 };
 
@@ -256,7 +259,7 @@ export const getRepayments = async (req: AuthRequest, res: Response) => {
 
     res.json(createPaginationResponse(repayments, total, page, limit));
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the repayments right now. Please try again.');
   }
 };
 
@@ -268,23 +271,23 @@ export const createRepayment = async (req: AuthRequest, res: Response) => {
     if (!(paid > 0)) {
       return res
         .status(400)
-        .json({ success: false, message: 'Repayment amount must be greater than zero' });
+        .json({ success: false, message: 'Please enter a repayment amount greater than zero.' });
     }
 
     const loan = await QardLoan.findOne({ _id: loanId, ...tenantScope(req) });
     if (!loan) {
-      return res.status(404).json({ success: false, message: 'Loan not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that loan. It may have been removed." });
     }
     if (!['disbursed', 'repaying'].includes(loan.status)) {
       return res.status(400).json({
         success: false,
-        message: `Cannot record a repayment against a loan that is ${loan.status}`,
+        message: `A repayment can't be recorded on a loan that is ${loan.status}.`,
       });
     }
     if (paid > loan.outstandingBalance) {
       return res.status(400).json({
         success: false,
-        message: `Repayment ${paid} exceeds the outstanding balance of ${loan.outstandingBalance}`,
+        message: `The repayment of ₹${paid} is more than the outstanding balance of ₹${loan.outstandingBalance}.`,
       });
     }
 
@@ -310,7 +313,7 @@ export const createRepayment = async (req: AuthRequest, res: Response) => {
       data: { repayment, outstandingBalance: loan.outstandingBalance, status: loan.status },
     });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t save the repayment. Please try again.');
   }
 };
 
@@ -360,6 +363,6 @@ export const getQardSummary = async (req: AuthRequest, res: Response) => {
       },
     });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the qard summary right now. Please try again.');
   }
 };

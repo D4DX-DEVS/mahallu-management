@@ -17,6 +17,10 @@ import {
   getFamilyValidation,
   deleteFamilyValidation,
 } from '../validations/familyValidation';
+import { idParam, listQuery } from '../validations/common';
+import {
+  bulkImportFamiliesValidation,
+} from '../validations/moduleValidation';
 
 const router = express.Router();
 
@@ -54,8 +58,8 @@ router.use(allowRoles(['super_admin', 'mahall', 'survey', 'institute']));
  *       200:
  *         description: List of families
  */
-router.get('/', getAllFamilies);
-router.get('/stats', getFamilyStats);
+router.get('/', listQuery(), validationHandler, getAllFamilies);
+router.get('/stats', listQuery(), validationHandler, getFamilyStats);
 
 /**
  * @swagger
@@ -109,7 +113,7 @@ router.get('/stats', getFamilyStats);
  *       400:
  *         description: Validation errors with row numbers
  */
-router.post('/bulk-import', allowRoles(['mahall', 'super_admin']), bulkImportFamilies);
+router.post('/bulk-import', bulkImportFamiliesValidation, validationHandler, allowRoles(['mahall', 'super_admin']), bulkImportFamilies);
 
 /**
  * @swagger

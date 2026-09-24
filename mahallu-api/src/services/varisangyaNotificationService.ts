@@ -3,6 +3,7 @@ import { Varisangya, IVarisangya, IZakat } from '../models/Collectible';
 import Family from '../models/Family';
 import Member from '../models/Member';
 import Tenant from '../models/Tenant';
+import { MasterCategoryValue as CategoryValue } from '../models/MasterCategory';
 import { sendWhatsAppMessage } from './dxingService';
 
 // Durable "reminder already sent this month" flag, survives restarts
@@ -29,13 +30,27 @@ export interface FamilyDue {
   dueAmount: number;
 }
 
+/**
+ * Grade -> monthly amount, from the global 'varisangya_grade' category. Grades
+ * are shared master data now (Super Admin edits them in Categories), so every
+ * Mahallu bills the same amount for a grade. The tenant's own
+ * settings.varisangyaAmount stays the fallback for families with no grade.
+ */
+const gradeAmountMap = async (): Promise<Map<string, number>> => {
+  const values = await CategoryValue.find(
+    { categoryKey: 'varisangya_grade', status: 'active' },
+    'code amount'
+  ).lean();
+  return new Map(values.map((v: any) => [v.code, v.amount ?? 0]));
+};
+
 const monthlyAmountFor = (
   grade: string | undefined,
-  tenant: { settings?: { varisangyaAmount?: number; varisangyaGrades?: Array<{ name: string; amount: number }> } }
+  grades: Map<string, number>,
+  tenant: { settings?: { varisangyaAmount?: number } }
 ): number => {
-  const grades = tenant.settings?.varisangyaGrades || [];
-  const match = grade ? grades.find((g) => g.name === grade) : undefined;
-  return match?.amount ?? tenant.settings?.varisangyaAmount ?? 0;
+  const match = grade ? grades.get(grade) : undefined;
+  return match ?? tenant.settings?.varisangyaAmount ?? 0;
 };
 
 /**
@@ -51,7 +66,8 @@ export const computeFamilyDues = async (tenantId: string | mongoose.Types.Object
   const monthsElapsed = now.getMonth() + 1;
   const yearStart = new Date(now.getFullYear(), 0, 1);
 
-  const [families, paidRows] = await Promise.all([
+  const [gradeAmounts, families, paidRows] = await Promise.all([
+    gradeAmountMap(),
     Family.find({ tenantId, status: 'approved' })
       .select('houseName familyHead contactNo varisangyaGrade')
       .lean(),
@@ -70,7 +86,7 @@ export const computeFamilyDues = async (tenantId: string | mongoose.Types.Object
   const paidMap = new Map<string, number>(paidRows.map((r: any) => [String(r._id), r.paid]));
 
   return families.map((f: any) => {
-    const monthlyAmount = monthlyAmountFor(f.varisangyaGrade, tenant as any);
+    const monthlyAmount = monthlyAmountFor(f.varisangyaGrade, gradeAmounts, tenant as any);
     const expectedAmount = monthlyAmount * monthsElapsed;
     const paidAmount = paidMap.get(String(f._id)) || 0;
     return {

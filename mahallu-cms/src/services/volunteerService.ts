@@ -1,4 +1,4 @@
-import api from './api';
+import api, { asList } from './api';
 
 export type VolunteerWing = 'youth' | 'women' | 'general';
 export type ServiceType =
@@ -99,21 +99,16 @@ export const volunteerService = {
       data: VolunteerProfile[];
       pagination?: any;
     }>('/volunteers', { params });
-    return { data: response.data.data, pagination: response.data.pagination || null };
+    return { data: asList(response.data.data), pagination: response.data.pagination || null };
   },
 
   getVolunteer: async (id: string) => {
-    const response = await api.get<{ success: boolean; data: VolunteerProfile }>(
-      `/volunteers/${id}`
-    );
+    const response = await api.get<{ success: boolean; data: VolunteerProfile }>(`/volunteers/${id}`);
     return response.data.data;
   },
 
   createVolunteer: async (payload: Record<string, any>) => {
-    const response = await api.post<{ success: boolean; data: VolunteerProfile }>(
-      '/volunteers',
-      payload
-    );
+    const response = await api.post<{ success: boolean; data: VolunteerProfile }>('/volunteers', payload);
     return response.data.data;
   },
 
@@ -135,7 +130,7 @@ export const volunteerService = {
       data: VolunteerAssignment[];
       pagination?: any;
     }>(`/volunteers/${id}/assignments`, { params });
-    return { data: response.data.data, pagination: response.data.pagination || null };
+    return { data: asList(response.data.data), pagination: response.data.pagination || null };
   },
 
   getAssignments: async (params?: Record<string, any>) => {
@@ -144,7 +139,7 @@ export const volunteerService = {
       data: VolunteerAssignment[];
       pagination?: any;
     }>('/volunteer-assignments', { params });
-    return { data: response.data.data, pagination: response.data.pagination || null };
+    return { data: asList(response.data.data), pagination: response.data.pagination || null };
   },
 
   getAssignment: async (id: string) => {
@@ -175,9 +170,7 @@ export const volunteerService = {
   },
 
   getSummary: async () => {
-    const response = await api.get<{ success: boolean; data: VolunteerSummary }>(
-      '/volunteers/summary'
-    );
+    const response = await api.get<{ success: boolean; data: VolunteerSummary }>('/volunteers/summary');
     return response.data.data;
   },
 };

@@ -4,6 +4,8 @@ import { AuthRequest } from '../middleware/authMiddleware';
 import mongoose from 'mongoose';
 import { getPaginationParams, createPaginationResponse } from '../utils/pagination';
 
+import { sendFailure } from '../utils/userMessages';
+
 // Banners
 export const getAllBanners = async (req: AuthRequest, res: Response) => {
   try {
@@ -27,7 +29,7 @@ export const getAllBanners = async (req: AuthRequest, res: Response) => {
 
     res.json(createPaginationResponse(banners, total, page, limit));
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the banners right now. Please try again.');
   }
 };
 
@@ -41,7 +43,7 @@ export const createBanner = async (req: AuthRequest, res: Response) => {
     if (!bannerData.tenantId) {
       return res.status(400).json({
         success: false,
-        message: 'Tenant ID is required. Super admins must pass x-tenant-id header or tenantId in the request body.',
+        message: 'Please select a Mahallu before continuing.',
       });
     }
 
@@ -49,7 +51,7 @@ export const createBanner = async (req: AuthRequest, res: Response) => {
     await banner.save();
     res.status(201).json({ success: true, data: banner });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t save the banner. Please try again.');
   }
 };
 
@@ -63,12 +65,12 @@ export const getBannerById = async (req: AuthRequest, res: Response) => {
 
     const banner = await Banner.findOne(query);
     if (!banner) {
-      return res.status(404).json({ success: false, message: 'Banner not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that banner. It may have been removed." });
     }
 
     res.json({ success: true, data: banner });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the banner right now. Please try again.');
   }
 };
 
@@ -94,12 +96,12 @@ export const updateBanner = async (req: AuthRequest, res: Response) => {
     });
 
     if (!banner) {
-      return res.status(404).json({ success: false, message: 'Banner not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that banner. It may have been removed." });
     }
 
     res.json({ success: true, data: banner });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t update the banner. Please try again.');
   }
 };
 
@@ -114,12 +116,12 @@ export const deleteBanner = async (req: AuthRequest, res: Response) => {
     const banner = await Banner.findOneAndDelete(query);
 
     if (!banner) {
-      return res.status(404).json({ success: false, message: 'Banner not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that banner. It may have been removed." });
     }
 
-    res.json({ success: true, message: 'Banner deleted successfully' });
+    res.json({ success: true, message: 'Banner deleted' });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t delete the banner. Please try again.');
   }
 };
 
@@ -151,7 +153,7 @@ export const getAllFeeds = async (req: AuthRequest, res: Response) => {
 
     res.json(createPaginationResponse(feeds, total, page, limit));
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the feeds right now. Please try again.');
   }
 };
 
@@ -166,7 +168,7 @@ export const createFeed = async (req: AuthRequest, res: Response) => {
     if (!feedData.tenantId && !req.isSuperAdmin) {
       return res.status(400).json({
         success: false,
-        message: 'Tenant ID is required',
+        message: 'Please select a Mahallu before continuing.',
       });
     }
 
@@ -175,7 +177,7 @@ export const createFeed = async (req: AuthRequest, res: Response) => {
     const populated = await Feed.findById(feed._id).populate('authorId', 'name');
     res.status(201).json({ success: true, data: populated });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t save the feed. Please try again.');
   }
 };
 
@@ -192,7 +194,7 @@ export const getActivityLogs = async (req: AuthRequest, res: Response) => {
       } catch (err) {
         return res.status(400).json({ 
           success: false, 
-          message: 'Invalid tenant ID format' 
+          message: 'That Mahallu link looks incorrect. Please go back and try again.' 
         });
       }
     } else if (tenantId && req.isSuperAdmin) {
@@ -201,7 +203,7 @@ export const getActivityLogs = async (req: AuthRequest, res: Response) => {
       } catch (err) {
         return res.status(400).json({ 
           success: false, 
-          message: 'Invalid tenant ID format' 
+          message: 'That Mahallu link looks incorrect. Please go back and try again.' 
         });
       }
     }
@@ -212,7 +214,7 @@ export const getActivityLogs = async (req: AuthRequest, res: Response) => {
       try {
         query.userId = new mongoose.Types.ObjectId(userId as string);
       } catch (err) {
-        return res.status(400).json({ success: false, message: 'Invalid user ID format' });
+        return res.status(400).json({ success: false, message: 'That user link looks incorrect. Please go back and try again.' });
       }
     }
     if (entityId) {
@@ -221,7 +223,7 @@ export const getActivityLogs = async (req: AuthRequest, res: Response) => {
       } catch (err) {
         return res.status(400).json({ 
           success: false, 
-          message: 'Invalid entity ID format' 
+          message: 'That link looks incorrect. Please go back and try again.' 
         });
       }
     }
@@ -241,10 +243,7 @@ export const getActivityLogs = async (req: AuthRequest, res: Response) => {
     res.json(createPaginationResponse(logs, total, page, limit));
   } catch (error: any) {
     console.error('Error fetching activity logs:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: error.message || 'Failed to fetch activity logs' 
-    });
+    sendFailure(res, error, 'We couldn\'t load the activity logs right now. Please try again.');
   }
 };
 
@@ -276,7 +275,7 @@ export const getAllSupport = async (req: AuthRequest, res: Response) => {
 
     res.json(createPaginationResponse(support, total, page, limit));
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the support right now. Please try again.');
   }
 };
 
@@ -291,7 +290,7 @@ export const createSupport = async (req: AuthRequest, res: Response) => {
     if (!supportData.tenantId && !req.isSuperAdmin) {
       return res.status(400).json({
         success: false,
-        message: 'Tenant ID is required',
+        message: 'Please select a Mahallu before continuing.',
       });
     }
 
@@ -300,7 +299,7 @@ export const createSupport = async (req: AuthRequest, res: Response) => {
     const populated = await Support.findById(support._id).populate('userId', 'name');
     res.status(201).json({ success: true, data: populated });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t save the support. Please try again.');
   }
 };
 
@@ -313,12 +312,12 @@ export const updateSupport = async (req: Request, res: Response) => {
     ).populate('userId', 'name');
 
     if (!support) {
-      return res.status(404).json({ success: false, message: 'Support ticket not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that support ticket. It may have been removed." });
     }
 
     res.json({ success: true, data: support });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t update the support. Please try again.');
   }
 };
 

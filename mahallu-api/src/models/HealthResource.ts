@@ -30,7 +30,7 @@ const HealthResourceSchema = new Schema<IHealthResource>(
     tenantId: {
       type: Schema.Types.ObjectId,
       ref: 'Tenant',
-      required: [true, 'Tenant ID is required'],
+      required: [true, 'Please select a Mahallu before continuing.'],
       index: true,
     },
     type: {
@@ -54,8 +54,10 @@ const HealthResourceSchema = new Schema<IHealthResource>(
       trim: true,
     },
     bloodGroup: {
+      // Category key: 'blood_group' — same master data Member.bloodGroup uses.
+      // Enforced by validCategoryValue in healthResourceValidation.ts.
       type: String,
-      enum: ['A +ve', 'A -ve', 'B +ve', 'B -ve', 'AB +ve', 'AB -ve', 'O +ve', 'O -ve'],
+      trim: true,
     },
     contactNo: {
       type: String,

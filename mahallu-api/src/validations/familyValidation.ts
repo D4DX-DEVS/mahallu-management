@@ -1,12 +1,13 @@
 import { body, param, query } from 'express-validator';
+import { validCategoryValue } from './categoryValueValidation';
 
 export const createFamilyValidation = [
   body('houseName')
     .trim()
     .notEmpty()
-    .withMessage('House Name is required')
+    .withMessage('Please enter the house name.')
     .isLength({ min: 1, max: 200 })
-    .withMessage('House Name must be between 1 and 200 characters'),
+    .withMessage('Please keep the house name between 1 and 200 characters.'),
   body('houseNameMl').optional().trim(),
   body('mahallId').optional().trim(),
   body('varisangyaGrade')
@@ -26,16 +27,18 @@ export const createFamilyValidation = [
   body('status')
     .optional()
     .isIn(['approved', 'unapproved', 'pending'])
-    .withMessage('Invalid status'),
+    .withMessage('Please choose a valid status.'),
+  validCategoryValue('economic_status', 'economicStatus'),
+  validCategoryValue('housing_type', 'housingType'),
 ];
 
 export const updateFamilyValidation = [
-  param('id').isMongoId().withMessage('Invalid family ID'),
+  param('id').isMongoId().withMessage('Please select a valid family.'),
   body('houseName')
     .optional()
     .trim()
     .isLength({ min: 1, max: 200 })
-    .withMessage('House Name must be between 1 and 200 characters'),
+    .withMessage('Please keep the house name between 1 and 200 characters.'),
   body('houseNameMl').optional().trim(),
   body('varisangyaGrade')
     .optional()
@@ -43,14 +46,16 @@ export const updateFamilyValidation = [
   body('status')
     .optional()
     .isIn(['approved', 'unapproved', 'pending'])
-    .withMessage('Invalid status'),
+    .withMessage('Please choose a valid status.'),
+  validCategoryValue('economic_status', 'economicStatus'),
+  validCategoryValue('housing_type', 'housingType'),
 ];
 
 export const getFamilyValidation = [
-  param('id').isMongoId().withMessage('Invalid family ID'),
+  param('id').isMongoId().withMessage('Please select a valid family.'),
 ];
 
 export const deleteFamilyValidation = [
-  param('id').isMongoId().withMessage('Invalid family ID'),
+  param('id').isMongoId().withMessage('Please select a valid family.'),
 ];
 

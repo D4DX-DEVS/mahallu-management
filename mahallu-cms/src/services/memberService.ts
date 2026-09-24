@@ -1,4 +1,4 @@
-import api from './api';
+import api, { asList } from './api';
 import { Member } from '@/types';
 
 export const memberService = {
@@ -10,12 +10,14 @@ export const memberService = {
     page?: number;
     limit?: number;
   }) => {
-    const response = await api.get<{ success: boolean; data: Member[]; pagination?: any }>('/members', { params });
+    const response = await api.get<{ success: boolean; data: Member[]; pagination?: any }>('/members', {
+      params,
+    });
     // Handle both paginated and non-paginated responses
     if (response.data.pagination) {
-      return { data: response.data.data, pagination: response.data.pagination };
+      return { data: asList(response.data.data), pagination: response.data.pagination };
     }
-    return { data: response.data.data, pagination: null };
+    return { data: asList(response.data.data), pagination: null };
   },
 
   getById: async (id: string) => {
@@ -24,10 +26,8 @@ export const memberService = {
   },
 
   getByFamily: async (familyId: string) => {
-    const response = await api.get<{ success: boolean; data: Member[] }>(
-      `/members/family/${familyId}`
-    );
-    return response.data.data;
+    const response = await api.get<{ success: boolean; data: Member[] }>(`/members/family/${familyId}`);
+    return asList(response.data.data);
   },
 
   create: async (memberData: Partial<Member>) => {
@@ -53,4 +53,3 @@ export const memberService = {
     return response.data.data;
   },
 };
-

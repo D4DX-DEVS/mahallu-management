@@ -5,6 +5,7 @@ import Button from '@/components/ui/Button';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import { madrasaService, MadrasaClass } from '@/services/madrasaService';
 import ClassForm from '../components/ClassForm';
+import { loadErrorMessage } from '@/utils/errors';
 
 export default function ClassEdit() {
   const { id } = useParams<{ id: string }>();
@@ -18,7 +19,7 @@ export default function ClassEdit() {
     madrasaService
       .getClass(id)
       .then(setCls)
-      .catch((err: any) => setError(err.response?.data?.message || 'Failed to load the class'))
+      .catch((err: any) => setError(loadErrorMessage(err, 'the class')))
       .finally(() => setLoading(false));
   }, [id]);
 

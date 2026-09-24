@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
 import { FiUpload } from 'react-icons/fi';
+import { errorMessage, safeApiMessage } from '@/utils/errors';
 
 export interface ColumnSpec {
   key: string;
@@ -18,6 +19,9 @@ interface BulkImportCsvProps {
   onClose: () => void;
   onImported: () => void;
 }
+
+/** Reading a huge file into memory locks up the tab long before the row cap. */
+const MAX_CSV_BYTES = 5 * 1024 * 1024;
 
 /** Minimal CSV line parser — handles quoted fields with commas. */
 function parseCsvLine(line: string): string[] {
@@ -66,9 +70,7 @@ function parseCsv(text: string, columns: ColumnSpec[]): ParseResult {
   if (missingColumns.length > 0) {
     return {
       rows: [],
-      errors: [
-        `Missing required columns: ${missingColumns.map((c) => c.label).join(', ')}`,
-      ],
+      errors: [`Missing required columns: ${missingColumns.map((c) => c.label).join(', ')}`],
     };
   }
 
@@ -140,14 +142,33 @@ export default function BulkImportCsv({
   const handleFile = (file: File) => {
     setFileName(file.name);
     setResult('');
+    setRows([]);
+
+    /*
+     * The row cap was only checked after the whole file had been parsed, and a
+     * read that failed reported nothing at all — the panel simply sat there
+     * naming a file with no rows and no error. Size is checked before the read,
+     * and both failure paths now say something.
+     */
+    if (file.size > MAX_CSV_BYTES) {
+      setErrors([
+        'That file is too large to import. Please split it into files under 5 MB (about 500 rows each).',
+      ]);
+      return;
+    }
+
     const reader = new FileReader();
     reader.onload = () => {
-      const { rows: parsed, errors: parseErrors } = parseCsv(
-        String(reader.result || ''),
-        columnSpec
-      );
-      setRows(parsed);
-      setErrors(parseErrors);
+      try {
+        const { rows: parsed, errors: parseErrors } = parseCsv(String(reader.result || ''), columnSpec);
+        setRows(parsed);
+        setErrors(parseErrors);
+      } catch {
+        setErrors(["We couldn't read that file. Please check it is a CSV saved from the template."]);
+      }
+    };
+    reader.onerror = () => {
+      setErrors(["We couldn't read that file. Please try choosing it again."]);
     };
     reader.readAsText(file);
   };
@@ -161,9 +182,7 @@ export default function BulkImportCsv({
       setRows([]);
       onImported();
     } catch (err: unknown) {
-      const message =
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-        (err instanceof Error ? err.message : 'Import failed');
+      const message = safeApiMessage(err, '') || errorMessage(err, { action: 'import these rows' });
       setErrors([message]);
     } finally {
       setImporting(false);
@@ -203,18 +222,15 @@ export default function BulkImportCsv({
             </p>
           )}
           <p className="mt-2">
-            Max 500 records per import.{' '}
-            <button
-              type="button"
-              onClick={downloadTemplate}
-              className="text-primary-600 underline"
-            >
+            Max 500 records per import.
+            <button type="button" onClick={downloadTemplate} className="text-primary-600 underline">
               Download template
             </button>
           </p>
         </div>
 
         <input
+          aria-label="Choose a file"
           ref={fileRef}
           type="file"
           accept=".csv,text/csv"
@@ -223,20 +239,20 @@ export default function BulkImportCsv({
         />
 
         {fileName && (
-          <div className="grid grid-cols-2 gap-3 text-sm">
-            <div className="rounded-lg bg-slate-50 p-3 dark:bg-slate-800">
-              <p className="text-xs text-gray-500">File</p>
+          <div className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
+            <div className="rounded-lg bg-gray-50 p-3 dark:bg-gray-800">
+              <p className="text-label text-muted-foreground">File</p>
               <p className="break-words font-medium">{fileName}</p>
             </div>
-            <div className="rounded-lg bg-slate-50 p-3 dark:bg-slate-800">
-              <p className="text-xs text-gray-500">Records detected</p>
+            <div className="rounded-lg bg-gray-50 p-3 dark:bg-gray-800">
+              <p className="text-label text-muted-foreground">Records detected</p>
               <p className="font-medium">{rows.length}</p>
             </div>
           </div>
         )}
 
         {errors.length > 0 && (
-          <ul className="max-h-32 space-y-1 overflow-y-auto rounded-lg bg-red-50 p-3 text-xs text-red-700">
+          <ul className="max-h-32 space-y-1 overflow-y-auto rounded-lg bg-destructive/10 p-3 text-label text-destructive">
             {errors.map((e, i) => (
               <li key={i}>{e}</li>
             ))}
@@ -245,7 +261,7 @@ export default function BulkImportCsv({
 
         {result && <p className="rounded-lg bg-primary-50 p-3 text-sm text-primary-800">{result}</p>}
 
-        <div className="flex justify-end gap-2">
+        <div className="flex gap-2 flex-col-reverse sm:flex-row sm:justify-end sm:gap-2">
           <Button
             variant="secondary"
             onClick={() => {

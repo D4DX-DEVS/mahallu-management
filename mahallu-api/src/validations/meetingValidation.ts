@@ -3,92 +3,92 @@ import { body, param } from 'express-validator';
 export const createMeetingValidation = [
   body('committeeId')
     .notEmpty()
-    .withMessage('Committee ID is required')
+    .withMessage('Please select the committee ID.')
     .isMongoId()
-    .withMessage('Invalid committee ID'),
+    .withMessage('Please select a valid committee.'),
   body('title')
     .trim()
     .notEmpty()
-    .withMessage('Meeting title is required')
+    .withMessage('Please enter the meeting title.')
     .isLength({ min: 2, max: 200 })
-    .withMessage('Meeting title must be between 2 and 200 characters'),
+    .withMessage('Please keep the meeting title between 2 and 200 characters.'),
   body('titleMl').optional().trim(),
   body('meetingDate')
     .notEmpty()
-    .withMessage('Meeting date is required')
+    .withMessage('Please select the meeting date.')
     .isISO8601()
-    .withMessage('Meeting date must be a valid date'),
+    .withMessage('Please choose a valid meeting date.'),
   body('attendance')
     .optional()
     .isArray()
-    .withMessage('Attendance must be an array'),
+    .withMessage('Please add at least one attendance.'),
   body('attendance.*')
     .optional()
     .isMongoId()
-    .withMessage('Invalid member ID in attendance'),
+    .withMessage('Please select a valid member for attendance.'),
   body('totalMembers')
     .optional()
     .isInt({ min: 0 })
-    .withMessage('Total members must be a non-negative integer'),
+    .withMessage('Please enter a whole total members of zero or more.'),
   body('attendancePercent')
     .optional()
     .isFloat({ min: 0, max: 100 })
-    .withMessage('Attendance percent must be between 0 and 100'),
+    .withMessage('Please enter an attendance percent between 0 and 100.'),
   body('agenda').optional().trim(),
   body('agendaMl').optional().trim(),
   body('minutes').optional().trim(),
   body('status')
     .optional()
     .isIn(['scheduled', 'completed', 'cancelled'])
-    .withMessage('Invalid status'),
+    .withMessage('Please choose a valid status.'),
 ];
 
 export const updateMeetingValidation = [
-  param('id').isMongoId().withMessage('Invalid meeting ID'),
+  param('id').isMongoId().withMessage('Please select a valid meeting.'),
   body('committeeId')
     .optional()
     .isMongoId()
-    .withMessage('Invalid committee ID'),
+    .withMessage('Please select a valid committee.'),
   body('title')
     .optional()
     .trim()
     .isLength({ min: 2, max: 200 })
-    .withMessage('Meeting title must be between 2 and 200 characters'),
+    .withMessage('Please keep the meeting title between 2 and 200 characters.'),
   body('titleMl').optional().trim(),
   body('meetingDate')
     .optional()
     .isISO8601()
-    .withMessage('Meeting date must be a valid date'),
+    .withMessage('Please choose a valid meeting date.'),
   body('attendance')
     .optional()
     .isArray()
-    .withMessage('Attendance must be an array'),
+    .withMessage('Please add at least one attendance.'),
   body('attendance.*')
     .optional()
     .isMongoId()
-    .withMessage('Invalid member ID in attendance'),
+    .withMessage('Please select a valid member for attendance.'),
   body('totalMembers')
     .optional()
     .isInt({ min: 0 })
-    .withMessage('Total members must be a non-negative integer'),
+    .withMessage('Please enter a whole total members of zero or more.'),
   body('attendancePercent')
     .optional()
     .isFloat({ min: 0, max: 100 })
-    .withMessage('Attendance percent must be between 0 and 100'),
+    .withMessage('Please enter an attendance percent between 0 and 100.'),
   body('agenda').optional().trim(),
   body('agendaMl').optional().trim(),
   body('minutes').optional().trim(),
   body('status')
     .optional()
     .isIn(['scheduled', 'completed', 'cancelled'])
-    .withMessage('Invalid status'),
+    .withMessage('Please choose a valid status.'),
 ];
 
 export const getMeetingValidation = [
-  param('id').isMongoId().withMessage('Invalid meeting ID'),
+  param('id').isMongoId().withMessage('Please select a valid meeting.'),
 ];
 
 export const deleteMeetingValidation = [
-  param('id').isMongoId().withMessage('Invalid meeting ID'),
+  param('id').isMongoId().withMessage('Please select a valid meeting.'),
 ];
 

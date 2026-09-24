@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
+import { FiPlus } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
-import Breadcrumb from '@/components/layout/Breadcrumb';
-import Card from '@/components/ui/Card';
+import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import Table from '@/components/ui/Table';
 import StatCard from '@/components/ui/StatCard';
-import SearchInput from '@/components/ui/SearchInput';
+import ExpandableSearch from '@/components/ui/ExpandableSearch';
 import Select from '@/components/ui/Select';
 import Pagination from '@/components/ui/Pagination';
 import EmptyState from '@/components/ui/EmptyState';
@@ -20,6 +20,9 @@ import {
   RELIEF_URGENCY_OPTIONS,
 } from '@/services/qardService';
 import { ReliefStatusBadge, UrgencyBadge } from '../components/LoanStatusBadge';
+import { loadErrorMessage } from '@/utils/errors';
+import { toTitleCase } from '@/utils/format';
+import PageHeader from '@/components/layout/PageHeader';
 
 const URGENCY_FILTER = [{ value: '', label: 'Any urgency' }, ...RELIEF_URGENCY_OPTIONS];
 
@@ -60,43 +63,40 @@ export default function ReliefList() {
       setRows(result.data);
       setPagination(result.pagination);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to load relief cases');
+      setError(loadErrorMessage(err, 'relief cases'));
     } finally {
       setLoading(false);
     }
   };
 
   const columns: TableColumn<ReliefCase>[] = [
-    { key: 'title', label: 'Case' },
+    { key: 'title', label: 'Case', width: '6.25rem' },
     {
       key: 'familyId',
       label: 'Family',
-      render: (v) => (v && typeof v === 'object' ? v.houseName : '-'),
+      width: '7.25rem',
+      render: (v) => (v && typeof v === 'object' ? toTitleCase(v.houseName) : '-'),
     },
-    { key: 'urgency', label: 'Urgency', render: (v) => <UrgencyBadge urgency={v} /> },
-    { key: 'amount', label: 'Assistance', render: (v) => (v ? formatCurrency(v) : '-') },
-    { key: 'createdAt', label: 'Reported', render: (v) => formatDate(v) },
-    { key: 'status', label: 'Status', render: (v) => <ReliefStatusBadge status={v} /> },
+    { key: 'urgency', label: 'Urgency', width: '7.75rem', render: (v) => <UrgencyBadge urgency={v} /> },
+    { key: 'amount', label: 'Assistance', width: '9rem', render: (v) => (v ? formatCurrency(v) : '-') },
+    { key: 'createdAt', label: 'Reported', width: '8.25rem', render: (v) => formatDate(v) },
+    { key: 'status', label: 'Status', width: '7.25rem', render: (v) => <ReliefStatusBadge status={v} /> },
   ];
 
   return (
     <div>
-      <Breadcrumb items={[{ label: 'Services' }, { label: 'Emergency Relief' }]} />
+      <PageHeader
+        description="Urgent household needs, from report through assistance."
+        title="Emergency Relief"
+        breadcrumbs={[{ label: 'Services' }]}
+      />
 
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
-            Emergency Relief
-          </h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            Urgent household needs, from report through assistance.
-          </p>
-        </div>
-        <Button onClick={() => navigate('/relief/create')}>Report a case</Button>
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <Button onClick={() => navigate('/relief/create')} icon={<FiPlus />} collapseLabel>Report a case</Button>
       </div>
 
       {summary && (
-        <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
           <StatCard title="Open cases" value={summary.openCases} />
           <StatCard title="Critical" value={summary.criticalCases} />
           <StatCard title="Assisted" value={summary.assistedCases} />
@@ -104,14 +104,15 @@ export default function ReliefList() {
         </div>
       )}
 
-      <Card>
+      <TableCard>
         <div className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto] sm:items-end">
-          <SearchInput
+          <ExpandableSearch
             value={searchQuery}
-            onChange={(e) => {
-              setSearchQuery(e.target.value);
+            onChange={(value) => {
+              setSearchQuery(value);
               setCurrentPage(1);
             }}
+            entity="relief cases"
             placeholder="Search by case title"
           />
           <Select
@@ -157,6 +158,8 @@ export default function ReliefList() {
           />
         ) : (
           <Table
+            fixedLayout
+            striped
             columns={columns}
             data={rows}
             isLoading={loading}
@@ -173,7 +176,7 @@ export default function ReliefList() {
             onPageChange={setCurrentPage}
           />
         )}
-      </Card>
+      </TableCard>
     </div>
   );
 }

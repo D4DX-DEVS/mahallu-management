@@ -8,6 +8,9 @@ import { stripImmutable } from '../utils/sanitizeUpdate';
 import { sendPushNotification } from '../services/oneSignalService';
 import { sendWhatsAppMessage } from '../services/dxingService';
 
+import { sendFailure } from '../utils/userMessages';
+import { regexLiteral } from '../utils/queryGuard';
+
 const tenantScope = (req: AuthRequest) => {
   if (req.tenantId) return req.tenantId;
   if (req.isSuperAdmin && req.query.tenantId) return req.query.tenantId as string;
@@ -28,8 +31,8 @@ export const getAllAnnouncements = async (req: AuthRequest, res: Response) => {
     if (category) query.category = category;
     if (search) {
       query.$or = [
-        { title: { $regex: search, $options: 'i' } },
-        { body: { $regex: search, $options: 'i' } },
+        { title: { $regex: regexLiteral(search), $options: 'i' } },
+        { body: { $regex: regexLiteral(search), $options: 'i' } },
       ];
     }
 
@@ -39,7 +42,7 @@ export const getAllAnnouncements = async (req: AuthRequest, res: Response) => {
     ]);
     res.json(createPaginationResponse(data, total, page, limit));
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the announcements right now. Please try again.');
   }
 };
 
@@ -47,18 +50,18 @@ export const getAnnouncementById = async (req: AuthRequest, res: Response) => {
   try {
     const announcement = await Announcement.findById(req.params.id);
     if (!announcement || (req.tenantId && announcement.tenantId.toString() !== req.tenantId)) {
-      return res.status(404).json({ success: false, message: 'Announcement not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that announcement. It may have been removed." });
     }
     res.json({ success: true, data: announcement });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the announcement right now. Please try again.');
   }
 };
 
 export const createAnnouncement = async (req: AuthRequest, res: Response) => {
   try {
     const tenantId = tenantScope(req) || req.body.tenantId;
-    if (!tenantId) return res.status(400).json({ success: false, message: 'Tenant ID is required' });
+    if (!tenantId) return res.status(400).json({ success: false, message: 'Please select a Mahallu before continuing.' });
 
     const announcement = await Announcement.create({
       ...req.body,
@@ -68,7 +71,7 @@ export const createAnnouncement = async (req: AuthRequest, res: Response) => {
     });
     res.status(201).json({ success: true, data: announcement });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t save the announcement. Please try again.');
   }
 };
 
@@ -76,10 +79,10 @@ export const updateAnnouncement = async (req: AuthRequest, res: Response) => {
   try {
     const existing = await Announcement.findById(req.params.id);
     if (!existing || (req.tenantId && existing.tenantId.toString() !== req.tenantId)) {
-      return res.status(404).json({ success: false, message: 'Announcement not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that announcement. It may have been removed." });
     }
     if (existing.status === 'sent') {
-      return res.status(400).json({ success: false, message: 'A sent announcement cannot be edited' });
+      return res.status(400).json({ success: false, message: 'An announcement that has been sent can no longer be edited.' });
     }
     const { status, sentAt, ...rest } = req.body;
     const announcement = await Announcement.findByIdAndUpdate(req.params.id, stripImmutable(rest), {
@@ -88,7 +91,7 @@ export const updateAnnouncement = async (req: AuthRequest, res: Response) => {
     });
     res.json({ success: true, data: announcement });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t update the announcement. Please try again.');
   }
 };
 
@@ -96,12 +99,12 @@ export const deleteAnnouncement = async (req: AuthRequest, res: Response) => {
   try {
     const existing = await Announcement.findById(req.params.id);
     if (!existing || (req.tenantId && existing.tenantId.toString() !== req.tenantId)) {
-      return res.status(404).json({ success: false, message: 'Announcement not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that announcement. It may have been removed." });
     }
     await existing.deleteOne();
     res.json({ success: true, message: 'Announcement deleted' });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t delete the announcement. Please try again.');
   }
 };
 
@@ -130,10 +133,10 @@ export const sendAnnouncement = async (req: AuthRequest, res: Response) => {
   try {
     const announcement = await Announcement.findById(req.params.id);
     if (!announcement || (req.tenantId && announcement.tenantId.toString() !== req.tenantId)) {
-      return res.status(404).json({ success: false, message: 'Announcement not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that announcement. It may have been removed." });
     }
     if (announcement.status === 'sent') {
-      return res.status(400).json({ success: false, message: 'Announcement already sent' });
+      return res.status(400).json({ success: false, message: 'This announcement has already been sent.' });
     }
 
     const results: Record<string, string> = {};
@@ -179,6 +182,6 @@ export const sendAnnouncement = async (req: AuthRequest, res: Response) => {
 
     res.json({ success: true, data: announcement });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t send the announcement. Please try again.');
   }
 };

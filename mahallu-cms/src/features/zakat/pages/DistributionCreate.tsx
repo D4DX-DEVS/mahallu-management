@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -13,7 +12,27 @@ import {
   ZakatBeneficiary,
   DISTRIBUTION_TYPE_OPTIONS,
 } from '@/services/zakatDistributionService';
+import { fetchAllPages } from '@/services/api';
 import { FiArrowLeft } from 'react-icons/fi';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import PageHeader from '@/components/layout/PageHeader';
+import { useFormValidation } from '@/hooks/useFormValidation';
+import { FieldRule, LIMITS } from '@/utils/validation';
+import { toTitleCase } from '@/utils/format';
+
+/**
+ * The same limits the API applies, so a form that passes here is not
+ * refused there. Required matches what each input already declares.
+ */
+const RULES: Record<string, FieldRule> = {
+  beneficiaryId: { label: 'beneficiary', required: true, type: 'id' },
+  amount: { label: 'amount', required: true, type: 'number', min: 1, max: LIMITS.amount.max },
+  distributionDate: { label: 'distribution date', type: 'date' },
+  type: { label: 'type', maxLength: LIMITS.shortText.max },
+  paymentMethod: { label: 'payment method', maxLength: LIMITS.shortText.max },
+  receiptNo: { label: 'receipt number', maxLength: LIMITS.shortText.max },
+  remarks: { label: 'remarks', maxLength: LIMITS.notes.max },
+};
 
 export default function DistributionCreate() {
   const navigate = useNavigate();
@@ -21,7 +40,6 @@ export default function DistributionCreate() {
   const [verified, setVerified] = useState<ZakatBeneficiary[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [errors, setErrors] = useState<Record<string, string>>({});
   const [form, setForm] = useState({
     beneficiaryId: '',
     amount: '',
@@ -32,13 +50,20 @@ export default function DistributionCreate() {
     remarks: '',
     postToLedger: false,
   });
+  const { errors, validate, setErrors } = useFormValidation(RULES);
 
   useEffect(() => {
-    // Only verified beneficiaries can be paid
-    zakatDistributionService
-      .getBeneficiaries({ verificationStatus: 'verified', status: 'active', limit: 200 })
-      .then((result) => setVerified(result.data))
-      .catch(() => setVerified([]))
+    // Only verified beneficiaries can be paid. /zakat/beneficiaries caps limit at
+    // 100 and 400s above it, so the old limit:200 request always failed and
+    // left this picker empty.
+    fetchAllPages<ZakatBeneficiary>((p) =>
+      zakatDistributionService.getBeneficiaries({ verificationStatus: 'verified', status: 'active', ...p })
+    )
+      .then((rows) => setVerified(rows))
+      .catch((err) => {
+        setVerified([]);
+        toast.error(loadErrorMessage(err, 'beneficiaries'));
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -52,20 +77,8 @@ export default function DistributionCreate() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const newErrors: Record<string, string> = {};
-
-    if (!form.beneficiaryId) {
-      newErrors.beneficiaryId = 'Select a beneficiary';
-    }
-    if (!form.amount) {
-      newErrors.amount = 'Enter the amount';
-    }
-
-    setErrors(newErrors);
-    if (Object.keys(newErrors).length > 0) {
-      return;
-    }
-
+    // Every field checked at once, each message on its own field.
+    if (!validate(form)) return;
     try {
       setSaving(true);
       const amount = Number(form.amount);
@@ -77,7 +90,7 @@ export default function DistributionCreate() {
       toast.success(`Distribution recorded`);
       navigate('/zakat/distributions');
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to record distribution');
+      toast.error(errorMessage(err, { action: 'record distribution' }));
     } finally {
       setSaving(false);
     }
@@ -87,27 +100,17 @@ export default function DistributionCreate() {
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">
-            Record Zakat Distribution
-          </h1>
-          <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-            Register a payment to a verified beneficiary
-          </p>
-        </div>
-        <Breadcrumb
-          items={[
-            { label: 'Dashboard', path: '/dashboard' },
-            { label: 'Zakat', path: '/zakat' },
-            { label: 'Distributions', path: '/zakat/distributions' },
-            { label: 'New' },
-          ]}
-        />
-      </div>
+      <PageHeader
+        title="Record Zakat Distribution"
+        description="Register a payment to a verified beneficiary"
+        breadcrumbs={[
+          { label: 'Zakat', path: '/zakat' },
+          { label: 'Distributions', path: '/zakat/distributions' },
+        ]}
+      />
 
       <form onSubmit={handleSubmit}>
-        <Card className="p-3 sm:p-4">
+        <Card>
           {verified.length === 0 ? (
             <div className="rounded-lg bg-yellow-50 border border-yellow-200 p-4 text-sm text-yellow-800 dark:bg-yellow-900/20 dark:border-yellow-700 dark:text-yellow-200">
               No verified beneficiaries yet. Verify a beneficiary before recording a distribution.
@@ -126,6 +129,7 @@ export default function DistributionCreate() {
               <Select
                 label="Beneficiary"
                 value={form.beneficiaryId}
+                error={errors.beneficiaryId}
                 onChange={(e) => {
                   setForm({ ...form, beneficiaryId: e.target.value });
                   if (errors.beneficiaryId) setErrors({ ...errors, beneficiaryId: '' });
@@ -134,12 +138,11 @@ export default function DistributionCreate() {
                   { value: '', label: 'Select a verified beneficiary' },
                   ...verified.map((b) => ({
                     value: b.id,
-                    label:
-                      (b.memberId && typeof b.memberId === 'object' ? b.memberId.name : b.name) ||
-                      'Unnamed',
+                    label: toTitleCase(
+                      (b.memberId && typeof b.memberId === 'object' ? b.memberId.name : b.name) || ''
+                    ) || 'Unnamed',
                   })),
                 ]}
-                error={errors.beneficiaryId}
                 required
                 className="md:col-span-2"
               />
@@ -148,12 +151,12 @@ export default function DistributionCreate() {
                 label="Amount"
                 type="number"
                 value={form.amount}
+                error={errors.amount}
                 onChange={(e) => {
                   setForm({ ...form, amount: e.target.value });
                   if (errors.amount) setErrors({ ...errors, amount: '' });
                 }}
                 placeholder="0"
-                error={errors.amount}
                 required
               />
 
@@ -161,12 +164,14 @@ export default function DistributionCreate() {
                 label="Distribution Date"
                 type="date"
                 value={form.distributionDate}
+                error={errors.distributionDate}
                 onChange={(e) => setForm({ ...form, distributionDate: e.target.value })}
               />
 
               <Select
                 label="Type"
                 value={form.type}
+                error={errors.type}
                 onChange={(e) => setForm({ ...form, type: e.target.value })}
                 options={DISTRIBUTION_TYPE_OPTIONS}
               />
@@ -174,6 +179,7 @@ export default function DistributionCreate() {
               <Input
                 label="Receipt No."
                 value={form.receiptNo}
+                error={errors.receiptNo}
                 onChange={(e) => setForm({ ...form, receiptNo: e.target.value })}
                 placeholder="Optional"
               />
@@ -182,6 +188,7 @@ export default function DistributionCreate() {
                 <Input
                   label="Remarks"
                   value={form.remarks}
+                  error={errors.remarks}
                   onChange={(e) => setForm({ ...form, remarks: e.target.value })}
                   placeholder="Optional notes"
                 />
@@ -200,11 +207,7 @@ export default function DistributionCreate() {
           )}
 
           <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-end border-t border-gray-200 dark:border-gray-700 pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => navigate('/zakat/distributions')}
-            >
+            <Button type="button" variant="outline" onClick={() => navigate('/zakat/distributions')}>
               <FiArrowLeft className="h-4 w-4 mr-2" />
               Cancel
             </Button>

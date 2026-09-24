@@ -6,6 +6,9 @@ import { AuthRequest } from '../middleware/authMiddleware';
 import { getPaginationParams, createPaginationResponse } from '../utils/pagination';
 import { stripImmutable, refBelongsToTenant } from '../utils/sanitizeUpdate';
 
+import { sendFailure } from '../utils/userMessages';
+import { regexLiteral } from '../utils/queryGuard';
+
 const tenantScope = (req: AuthRequest): Record<string, any> =>
   req.tenantId ? { tenantId: req.tenantId } : {};
 
@@ -25,7 +28,7 @@ const isValidStatusTransition = (currentStatus: AwardStatus, newStatus: AwardSta
 const validateMemberRef = async (req: AuthRequest): Promise<string | null> => {
   const { memberId } = req.body;
   if (memberId && !(await refBelongsToTenant(Member, memberId, req.tenantId))) {
-    return 'Member does not belong to this Mahallu';
+    return 'This member belongs to another Mahallu.';
   }
   return null;
 };
@@ -48,7 +51,7 @@ export const getAllScholarships = async (req: AuthRequest, res: Response) => {
 
     if (req.query.academicYear) query.academicYear = req.query.academicYear;
     if (req.query.status) query.status = req.query.status;
-    if (req.query.search) query.name = { $regex: String(req.query.search), $options: 'i' };
+    if (req.query.search) query.name = { $regex: regexLiteral(String(req.query.search)), $options: 'i' };
 
     const [scholarships, total] = await Promise.all([
       Scholarship.find(query)
@@ -60,7 +63,7 @@ export const getAllScholarships = async (req: AuthRequest, res: Response) => {
 
     res.json(createPaginationResponse(scholarships, total, page, limit));
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the scholarships right now. Please try again.');
   }
 };
 
@@ -69,12 +72,12 @@ export const getScholarshipById = async (req: AuthRequest, res: Response) => {
     const scholarship = await Scholarship.findOne({ _id: req.params.id, ...tenantScope(req) });
 
     if (!scholarship) {
-      return res.status(404).json({ success: false, message: 'Scholarship not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that scholarship. It may have been removed." });
     }
 
     res.json({ success: true, data: scholarship });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the scholarship right now. Please try again.');
   }
 };
 
@@ -86,7 +89,7 @@ export const createScholarship = async (req: AuthRequest, res: Response) => {
     });
     res.status(201).json({ success: true, data: scholarship });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t save the scholarship. Please try again.');
   }
 };
 
@@ -94,7 +97,7 @@ export const updateScholarship = async (req: AuthRequest, res: Response) => {
   try {
     const existing = await Scholarship.findOne({ _id: req.params.id, ...tenantScope(req) });
     if (!existing) {
-      return res.status(404).json({ success: false, message: 'Scholarship not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that scholarship. It may have been removed." });
     }
 
     const scholarship = await Scholarship.findByIdAndUpdate(req.params.id, stripImmutable(req.body), {
@@ -103,7 +106,7 @@ export const updateScholarship = async (req: AuthRequest, res: Response) => {
     });
     res.json({ success: true, data: scholarship });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t update the scholarship. Please try again.');
   }
 };
 
@@ -111,21 +114,21 @@ export const deleteScholarship = async (req: AuthRequest, res: Response) => {
   try {
     const scholarship = await Scholarship.findOne({ _id: req.params.id, ...tenantScope(req) });
     if (!scholarship) {
-      return res.status(404).json({ success: false, message: 'Scholarship not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that scholarship. It may have been removed." });
     }
 
     const awardCount = await ScholarshipAward.countDocuments({ scholarshipId: scholarship._id });
     if (awardCount > 0) {
       return res.status(400).json({
         success: false,
-        message: `Cannot delete a scholarship with ${awardCount} award(s). Mark it closed instead.`,
+        message: `This scholarship has ${awardCount} award(s), so it can't be deleted. Please mark it closed instead.`,
       });
     }
 
     await Scholarship.deleteOne({ _id: req.params.id });
     res.json({ success: true, message: 'Scholarship deleted' });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t delete the scholarship. Please try again.');
   }
 };
 
@@ -152,7 +155,7 @@ export const getAllAwards = async (req: AuthRequest, res: Response) => {
 
     res.json(createPaginationResponse(awards, total, page, limit));
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the awards right now. Please try again.');
   }
 };
 
@@ -167,7 +170,7 @@ export const getAwardsByScholarship = async (req: AuthRequest, res: Response) =>
     });
 
     if (!scholarship) {
-      return res.status(404).json({ success: false, message: 'Scholarship not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that scholarship. It may have been removed." });
     }
 
     const [awards, total] = await Promise.all([
@@ -187,7 +190,7 @@ export const getAwardsByScholarship = async (req: AuthRequest, res: Response) =>
 
     res.json(createPaginationResponse(awards, total, page, limit));
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the awards right now. Please try again.');
   }
 };
 
@@ -214,7 +217,7 @@ export const createAward = async (req: AuthRequest, res: Response) => {
 
     res.status(201).json({ success: true, data: populated });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t save the award. Please try again.');
   }
 };
 
@@ -222,7 +225,7 @@ export const updateAward = async (req: AuthRequest, res: Response) => {
   try {
     const existing = await ScholarshipAward.findOne({ _id: req.params.id, ...tenantScope(req) });
     if (!existing) {
-      return res.status(404).json({ success: false, message: 'Award not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that award. It may have been removed." });
     }
 
     // Validate status transition if status is being updated
@@ -230,7 +233,7 @@ export const updateAward = async (req: AuthRequest, res: Response) => {
       if (!isValidStatusTransition(existing.status, req.body.status)) {
         return res.status(400).json({
           success: false,
-          message: `Cannot transition from ${existing.status} to ${req.body.status}`,
+          message: `This can't be moved from ${existing.status} to ${req.body.status}.`,
         });
       }
     }
@@ -255,7 +258,7 @@ export const updateAward = async (req: AuthRequest, res: Response) => {
 
     res.json({ success: true, data: award });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t update the award. Please try again.');
   }
 };
 
@@ -263,13 +266,13 @@ export const deleteAward = async (req: AuthRequest, res: Response) => {
   try {
     const award = await ScholarshipAward.findOne({ _id: req.params.id, ...tenantScope(req) });
     if (!award) {
-      return res.status(404).json({ success: false, message: 'Award not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that award. It may have been removed." });
     }
 
     await ScholarshipAward.deleteOne({ _id: req.params.id });
     res.json({ success: true, message: 'Award deleted' });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t delete the award. Please try again.');
   }
 };
 
@@ -287,10 +290,10 @@ export const getAllSupportCases = async (req: AuthRequest, res: Response) => {
       const search = String(req.query.search);
       const matchingMembers = await Member.find({
         ...tenantScope(req),
-        name: { $regex: search, $options: 'i' },
+        name: { $regex: regexLiteral(search), $options: 'i' },
       }).select('_id');
       query.$or = [
-        { description: { $regex: search, $options: 'i' } },
+        { description: { $regex: regexLiteral(search), $options: 'i' } },
         { memberId: { $in: matchingMembers.map((m) => m._id) } },
       ];
     }
@@ -306,7 +309,7 @@ export const getAllSupportCases = async (req: AuthRequest, res: Response) => {
 
     res.json(createPaginationResponse(cases, total, page, limit));
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the support cases right now. Please try again.');
   }
 };
 
@@ -318,12 +321,12 @@ export const getSupportCaseById = async (req: AuthRequest, res: Response) => {
     }).populate('memberId', 'name nameMl contactNo');
 
     if (!supportCase) {
-      return res.status(404).json({ success: false, message: 'Support case not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that support case. It may have been removed." });
     }
 
     res.json({ success: true, data: supportCase });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t load the support case right now. Please try again.');
   }
 };
 
@@ -346,7 +349,7 @@ export const createSupportCase = async (req: AuthRequest, res: Response) => {
 
     res.status(201).json({ success: true, data: populated });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t save the support case. Please try again.');
   }
 };
 
@@ -354,7 +357,7 @@ export const updateSupportCase = async (req: AuthRequest, res: Response) => {
   try {
     const existing = await AcademicSupportCase.findOne({ _id: req.params.id, ...tenantScope(req) });
     if (!existing) {
-      return res.status(404).json({ success: false, message: 'Support case not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that support case. It may have been removed." });
     }
 
     const memberError = await validateMemberRef(req);
@@ -370,7 +373,7 @@ export const updateSupportCase = async (req: AuthRequest, res: Response) => {
 
     res.json({ success: true, data: supportCase });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t update the support case. Please try again.');
   }
 };
 
@@ -378,12 +381,12 @@ export const deleteSupportCase = async (req: AuthRequest, res: Response) => {
   try {
     const supportCase = await AcademicSupportCase.findOne({ _id: req.params.id, ...tenantScope(req) });
     if (!supportCase) {
-      return res.status(404).json({ success: false, message: 'Support case not found' });
+      return res.status(404).json({ success: false, message: "We couldn't find that support case. It may have been removed." });
     }
 
     await AcademicSupportCase.deleteOne({ _id: req.params.id });
     res.json({ success: true, message: 'Support case deleted' });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendFailure(res, error, 'We couldn\'t delete the support case. Please try again.');
   }
 };

@@ -224,7 +224,12 @@ const SearchableSelect = forwardRef<HTMLInputElement, SearchableSelectProps>(
               isOpen && 'ring-2 ring-primary-500/20 border-primary-500'
             )}
           >
-            <span className={cn('truncate text-left flex-1', !selectedOption && 'text-gray-400 dark:text-gray-500')}>
+            <span
+              className={cn(
+                'truncate text-left flex-1',
+                !selectedOption && 'text-gray-400 dark:text-gray-500'
+              )}
+            >
               {selectedOption ? selectedOption.label : placeholder}
             </span>
             <div className="flex items-center gap-1 ml-2">
@@ -257,6 +262,7 @@ const SearchableSelect = forwardRef<HTMLInputElement, SearchableSelectProps>(
                   <input
                     ref={searchInputRef}
                     type="text"
+                    aria-label="Search options"
                     value={searchQuery}
                     onChange={(e) => handleSearchChange(e.target.value)}
                     placeholder="Type to search members..."
@@ -270,6 +276,7 @@ const SearchableSelect = forwardRef<HTMLInputElement, SearchableSelectProps>(
                         searchInputRef.current?.focus();
                       }}
                       className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                      aria-label="Close"
                     >
                       <FiX className="h-4 w-4" />
                     </button>
@@ -306,7 +313,9 @@ const SearchableSelect = forwardRef<HTMLInputElement, SearchableSelectProps>(
                     >
                       <div className="font-medium">{option.label}</div>
                       {option.sublabel && (
-                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{option.sublabel}</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                          {option.sublabel}
+                        </div>
                       )}
                     </button>
                   ))
@@ -317,9 +326,7 @@ const SearchableSelect = forwardRef<HTMLInputElement, SearchableSelectProps>(
         </div>
 
         {error && (
-          <p className="mt-1.5 ml-1 text-sm text-red-600 dark:text-red-400 animate-in slide-in-from-top-1 fade-in duration-200">
-            {error}
-          </p>
+          <p className="mt-1.5 ml-1 text-sm text-red-600 dark:text-red-400    duration-200">{error}</p>
         )}
         {helperText && !error && (
           <p className="mt-1.5 ml-1 text-sm text-gray-500 dark:text-gray-400">{helperText}</p>

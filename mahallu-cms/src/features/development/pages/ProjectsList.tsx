@@ -1,11 +1,17 @@
 import { useEffect, useState } from 'react';
+import { FiTrash2 } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import Button from '@/components/ui/Button';
+import ExpandableSearch from '@/components/ui/ExpandableSearch';
 import Card from '@/components/ui/Card';
 import Pagination from '@/components/ui/Pagination';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { toast } from '@/store/toastStore';
 import { developmentService, DevelopmentProject } from '@/services/developmentService';
+import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import StatusBadge from '@/components/ui/StatusBadge';
 
 const PROJECT_AREAS = [
   { value: 'roads', label: 'Roads' },
@@ -35,6 +41,7 @@ export default function ProjectsList() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
   const [search, setSearch] = useState('');
   const [selectedArea, setSelectedArea] = useState<string>('');
   const [selectedStatus, setSelectedStatus] = useState<string>('');
@@ -58,9 +65,11 @@ export default function ProjectsList() {
       setProjects(data);
       if (pagination) {
         setTotalPages(pagination.totalPages);
+        setTotalItems(pagination.total);
       }
     } catch (error) {
-      console.error('Failed to load projects:', error);
+      console.error("Couldn't load projects:", error);
+      toast.error(loadErrorMessage(error, 'projects'));
     } finally {
       setLoading(false);
     }
@@ -75,7 +84,7 @@ export default function ProjectsList() {
       setDeleteId(null);
       loadProjects();
     } catch (error) {
-      toast.error('Failed to delete project');
+      toast.error(errorMessage(error, { action: 'delete project' }));
       setConfirmDelete(false);
       setDeleteId(null);
     }
@@ -97,37 +106,25 @@ export default function ProjectsList() {
     return colors[area] || 'bg-gray-100 text-gray-800';
   };
 
-  const getStatusBadgeColor = (status: string) => {
-    const colors: Record<string, string> = {
-      proposed: 'bg-gray-100 text-gray-800',
-      approved: 'bg-blue-100 text-blue-800',
-      in_progress: 'bg-yellow-100 text-yellow-800',
-      completed: 'bg-green-100 text-green-800',
-      dropped: 'bg-red-100 text-red-800',
-    };
-    return colors[status] || 'bg-gray-100 text-gray-800';
-  };
-
   return (
-    <div className="p-4">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Community Development Projects</h1>
+    <div>
+      <div className="flex justify-between items-center mb-4">
+        <PageHeader title="Community Development Projects" />
         <Button onClick={() => navigate('/development/create')}>Create Project</Button>
       </div>
 
       {/* Filters */}
-      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-6">
-        <input
-          type="text"
-          placeholder="Search projects..."
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-4">
+        <ExpandableSearch
           value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
+          onChange={(value) => {
+            setSearch(value);
             setCurrentPage(1);
           }}
-          className="px-3 py-2 border rounded text-sm"
+          entity="projects"
         />
         <select
+          aria-label="Filter"
           value={selectedArea}
           onChange={(e) => {
             setSelectedArea(e.target.value);
@@ -143,6 +140,7 @@ export default function ProjectsList() {
           ))}
         </select>
         <select
+          aria-label="Filter"
           value={selectedStatus}
           onChange={(e) => {
             setSelectedStatus(e.target.value);
@@ -166,23 +164,24 @@ export default function ProjectsList() {
         <div className="text-center py-8 text-gray-500">No projects found</div>
       ) : (
         <>
-          <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
             {projects.map((project) => (
               <Card
                 key={project.id}
                 onClick={() => navigate(`/development/${project.id}`)}
                 className="cursor-pointer hover:shadow-lg transition"
               >
-                <div className="p-4">
-                  <h3 className="font-semibold text-sm sm:text-base truncate">{project.name}</h3>
+                <div>
+                  <h3 className="font-semibold text-sm sm:text-base truncate">{toTitleCase(project.name)}</h3>
 
                   <div className="flex gap-2 mt-2 flex-wrap">
                     <span className={`text-xs px-2 py-1 rounded ${getAreaBadgeColor(project.area)}`}>
                       {PROJECT_AREAS.find((a) => a.value === project.area)?.label}
                     </span>
-                    <span className={`text-xs px-2 py-1 rounded ${getStatusBadgeColor(project.status)}`}>
-                      {PROJECT_STATUSES.find((s) => s.value === project.status)?.label}
-                    </span>
+                    <StatusBadge
+                      status={project.status}
+                      label={PROJECT_STATUSES.find((s) => s.value === project.status)?.label}
+                    />
                   </div>
 
                   <div className="mt-3">
@@ -202,7 +201,7 @@ export default function ProjectsList() {
                     <div>Est. Cost: ₹{(project.estimatedCost || 0).toLocaleString()}</div>
                   </div>
 
-                  <div className="mt-3 flex gap-2">
+                  <div className="mt-3 flex gap-2 items-center">
                     <Button
                       size="sm"
                       onClick={(e) => {
@@ -220,21 +219,18 @@ export default function ProjectsList() {
                         e.stopPropagation();
                         setDeleteId(project.id);
                         setConfirmDelete(true);
-                      }}
-                    >
-                      Delete
-                    </Button>
+                      }} icon={<FiTrash2 />} collapseLabel>Delete</Button>
                   </div>
                 </div>
               </Card>
             ))}
           </div>
 
-          <div className="mt-6">
+          <div className="mt-4">
             <Pagination
               currentPage={currentPage}
               totalPages={totalPages}
-              totalItems={projects.length * totalPages}
+              totalItems={totalItems}
               itemsPerPage={itemsPerPage}
               onPageChange={setCurrentPage}
             />
@@ -243,6 +239,7 @@ export default function ProjectsList() {
       )}
 
       <ConfirmDialog
+        isLoading={loading}
         isOpen={confirmDelete}
         title="Delete Project"
         message="Delete this project? This action cannot be undone."

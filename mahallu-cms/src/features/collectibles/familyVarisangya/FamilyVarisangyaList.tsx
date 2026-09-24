@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { FiEye, FiDollarSign, FiHome, FiCreditCard, FiDownload } from 'react-icons/fi';
-import Card from '@/components/ui/Card';
-import Button from '@/components/ui/Button';
+import TableCard from '@/components/ui/TableCard';
+import { rowActionClass } from '@/components/ui/rowAction';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
+import EmptyState from '@/components/ui/EmptyState';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import Pagination from '@/components/ui/Pagination';
@@ -12,13 +13,15 @@ import TableToolbar from '@/components/ui/TableToolbar';
 import Dropdown, { DropdownItem } from '@/components/ui/Dropdown';
 import { TableColumn, Pagination as PaginationType, Family } from '@/types';
 import { familyService } from '@/services/familyService';
-import { collectibleService } from '@/services/collectibleService';
+import { collectibleService, Varisangya } from '@/services/collectibleService';
+import { fetchAllPages } from '@/services/api';
 import { useDebounce } from '@/hooks/useDebounce';
-import { formatDate } from '@/utils/format';
+import { formatDate, toTitleCase } from '@/utils/format';
 import { ROUTES } from '@/constants/routes';
 import { exportToCSV, exportToJSON } from '@/utils/exportUtils';
 import { exportInvoicesToPdf, InvoiceDetails } from '@/utils/invoiceUtils';
 import { toast } from '@/store/toastStore';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
 
 interface FamilyVarisangyaData extends Family {
   totalVarisangya?: number;
@@ -28,7 +31,8 @@ interface FamilyVarisangyaData extends Family {
 
 const FAMILY_BASE = ROUTES.COLLECTIBLES.FAMILY_VARISANGYA.BASE;
 
-const getFamilyId = (v: any) => (typeof v.familyId === 'object' && v.familyId != null ? (v.familyId as any).id : v.familyId);
+const getFamilyId = (v: any) =>
+  typeof v.familyId === 'object' && v.familyId != null ? (v.familyId as any).id : v.familyId;
 
 export default function FamilyVarisangyaList() {
   const navigate = useNavigate();
@@ -44,6 +48,12 @@ export default function FamilyVarisangyaList() {
   const [pagination, setPagination] = useState<PaginationType | null>(null);
 
   const debouncedSearch = useDebounce(searchQuery, 500);
+
+  // A page number that only made sense for the previous search must not
+  // survive into the new one - reset it once the debounce settles.
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearch]);
 
   useEffect(() => {
     fetchFamilies();
@@ -64,18 +74,14 @@ export default function FamilyVarisangyaList() {
 
       const familiesResult = await familyService.getAll(params);
       const familiesData = familiesResult.data;
-      const varisangyasResult = await collectibleService.getAllVarisangyas();
-      const allVarisangyas = varisangyasResult.data;
+      // /collectibles/varisangya defaults to 10 rows with no limit passed - fetch every
+      // page so per-family totals aren't computed off an arbitrary slice.
+      const allVarisangyas = await fetchAllPages<Varisangya>((p) => collectibleService.getAllVarisangyas(p));
 
       const familiesWithVarisangya = familiesData.map((family) => {
         const fid = (family as any).id ?? (family as any)._id;
-        const familyVarisangyas = allVarisangyas.filter(
-          (v) => getFamilyId(v) === fid
-        );
-        const totalVarisangya = familyVarisangyas.reduce(
-          (sum, v) => sum + (v.amount || 0),
-          0
-        );
+        const familyVarisangyas = allVarisangyas.filter((v) => getFamilyId(v) === fid);
+        const totalVarisangya = familyVarisangyas.reduce((sum, v) => sum + (v.amount || 0), 0);
         const lastPayment = familyVarisangyas.sort(
           (a, b) => new Date(b.paymentDate).getTime() - new Date(a.paymentDate).getTime()
         )[0];
@@ -92,7 +98,7 @@ export default function FamilyVarisangyaList() {
         setPagination(familiesResult.pagination);
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch families');
+      setError(loadErrorMessage(err, 'families'));
       console.error('Error fetching families:', err);
     } finally {
       setLoading(false);
@@ -102,20 +108,15 @@ export default function FamilyVarisangyaList() {
   const handleExport = async (type: 'csv' | 'json' | 'pdf') => {
     try {
       setIsExporting(true);
-      const params: any = { limit: 10000 };
-      if (debouncedSearch) params.search = debouncedSearch;
-      const familiesResult = await familyService.getAll(params);
-      const familiesData = familiesResult.data;
-      const varisangyasResult = await collectibleService.getAllVarisangyas();
-      const allVarisangyas = varisangyasResult.data;
+      const filters: any = {};
+      if (debouncedSearch) filters.search = debouncedSearch;
+      // /families and /collectibles/varisangya cap limit at 100 and 400 above it, so a
+      // single limit:10000 request always failed - page through both instead.
+      const familiesData = await fetchAllPages<Family>((p) => familyService.getAll({ ...filters, ...p }));
+      const allVarisangyas = await fetchAllPages<Varisangya>((p) => collectibleService.getAllVarisangyas(p));
       const dataToExport = familiesData.map((family) => {
-        const familyVarisangyas = allVarisangyas.filter(
-          (v) => getFamilyId(v) === family.id
-        );
-        const totalVarisangya = familyVarisangyas.reduce(
-          (sum, v) => sum + (v.amount || 0),
-          0
-        );
+        const familyVarisangyas = allVarisangyas.filter((v) => getFamilyId(v) === family.id);
+        const totalVarisangya = familyVarisangyas.reduce((sum, v) => sum + (v.amount || 0), 0);
         const lastPayment = familyVarisangyas.sort(
           (a, b) => new Date(b.paymentDate).getTime() - new Date(a.paymentDate).getTime()
         )[0];
@@ -141,15 +142,13 @@ export default function FamilyVarisangyaList() {
           {
             const invoices: InvoiceDetails[] = [];
             for (const family of familiesData) {
-              const familyVarisangyas = allVarisangyas.filter(
-                (v) => getFamilyId(v) === family.id
-              );
+              const familyVarisangyas = allVarisangyas.filter((v) => getFamilyId(v) === family.id);
               for (const entry of familyVarisangyas) {
                 invoices.push({
                   title: 'Family Varisangya Payment',
                   receiptNo: entry.receiptNo,
                   payerLabel: 'Family',
-                  payerName: family.houseName || '-',
+                  payerName: toTitleCase(family.houseName) || '-',
                   amount: entry.amount,
                   paymentDate: entry.paymentDate,
                   paymentMethod: entry.paymentMethod,
@@ -157,13 +156,15 @@ export default function FamilyVarisangyaList() {
                 });
               }
             }
-            await exportInvoicesToPdf(invoices, `family-varisangya-invoices-${new Date().toISOString().split('T')[0]}`);
+            await exportInvoicesToPdf(
+              invoices,
+              `family-varisangya-invoices-${new Date().toISOString().split('T')[0]}`
+            );
           }
           break;
       }
     } catch (error: any) {
-      console.error('Export error:', error);
-      toast.error(error?.message || 'Failed to export family varisangya data');
+      toast.error(errorMessage(error, { action: 'export family varisangya data' }));
     } finally {
       setIsExporting(false);
     }
@@ -184,8 +185,9 @@ export default function FamilyVarisangyaList() {
           break;
         case 'pdf':
           {
-            const varisangyasResult = await collectibleService.getAllVarisangyas({ familyId: row.id });
-            const familyVarisangyas = varisangyasResult.data || [];
+            const familyVarisangyas = await fetchAllPages<Varisangya>((p) =>
+              collectibleService.getAllVarisangyas({ familyId: row.id, ...p })
+            );
             if (familyVarisangyas.length === 0) {
               toast.info('No payment records to export for this family');
               return;
@@ -194,7 +196,7 @@ export default function FamilyVarisangyaList() {
               title: 'Family Varisangya Payment',
               receiptNo: entry.receiptNo || '-',
               payerLabel: 'Family',
-              payerName: row.houseName || '-',
+              payerName: toTitleCase(row.houseName) || '-',
               amount: entry.amount,
               paymentDate: entry.paymentDate,
               paymentMethod: entry.paymentMethod || '-',
@@ -205,46 +207,52 @@ export default function FamilyVarisangyaList() {
           break;
       }
     } catch (error: any) {
-      console.error('Row export error:', error);
-      toast.error(error?.message || 'Failed to export family varisangya records');
+      toast.error(errorMessage(error, { action: 'export family varisangya records' }));
     } finally {
       setExportingRowId(null);
     }
   };
 
   const columns: TableColumn<FamilyVarisangyaData>[] = [
-    { key: 'id', label: 'No.', render: (_, __, index) => index + 1 },
     {
       key: 'houseName',
       label: 'House Name',
+      width: '9.75rem',
       render: (name, row) => (
         <Link
           to={ROUTES.FAMILIES.DETAIL(row.id)}
           className="text-primary-600 hover:text-primary-700 dark:text-primary-400"
         >
-          {name}
+          {toTitleCase(name)}
         </Link>
       ),
     },
-    { key: 'mahallId', label: 'Mahall ID' },
+    { key: 'mahallId', label: 'Mahall ID', width: '8.75rem' },
     {
       key: 'varisangyaCount',
       label: 'Payments',
+      width: '10.25rem',
+      align: 'center',
       render: (count) => count || 0,
     },
     {
       key: 'totalVarisangya',
       label: 'Total Amount',
+      width: '12rem',
+      align: 'center',
       render: (amount) => `₹${(amount || 0).toLocaleString()}`,
     },
     {
       key: 'lastPaymentDate',
       label: 'Last Payment',
+      width: '10.75rem',
       render: (date) => (date ? formatDate(date) : '-'),
     },
     {
       key: 'actions',
       label: 'Actions',
+      width: '8rem',
+      align: 'center',
       render: (_, row) => (
         <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
           <button
@@ -252,8 +260,9 @@ export default function FamilyVarisangyaList() {
               e.stopPropagation();
               navigate(`${FAMILY_BASE}?view=transactions&familyId=${row.id}`);
             }}
-            className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
+            className={rowActionClass()}
             title="View Transactions"
+            aria-label="View Transactions"
           >
             <FiEye className="h-4 w-4" />
           </button>
@@ -262,8 +271,9 @@ export default function FamilyVarisangyaList() {
               e.stopPropagation();
               navigate(`${FAMILY_BASE}?view=wallet&familyId=${row.id}`);
             }}
-            className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
+            className={rowActionClass()}
             title="View Wallet"
+            aria-label="View Wallet"
           >
             <FiDollarSign className="h-4 w-4" />
           </button>
@@ -273,8 +283,9 @@ export default function FamilyVarisangyaList() {
               <button
                 onClick={(e) => e.stopPropagation()}
                 disabled={exportingRowId === row.id}
-                className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors disabled:opacity-50"
+                className={rowActionClass('default', 'disabled:opacity-50')}
                 title="Export"
+                aria-label="Export"
               >
                 {exportingRowId === row.id ? (
                   <LoadingSpinner size="sm" />
@@ -297,9 +308,17 @@ export default function FamilyVarisangyaList() {
   const totalAmount = families.reduce((sum, f) => sum + (f.totalVarisangya || 0), 0);
   const totalPayments = families.reduce((sum, f) => sum + (f.varisangyaCount || 0), 0);
   const stats = [
-    { title: 'Total Families', value: pagination?.total || families.length, icon: <FiHome className="h-5 w-5" /> },
+    {
+      title: 'Total Families',
+      value: pagination?.total || families.length,
+      icon: <FiHome className="h-5 w-5" />,
+    },
     { title: 'Total Payments', value: totalPayments, icon: <FiCreditCard className="h-5 w-5" /> },
-    { title: 'Total Amount', value: `₹${totalAmount.toLocaleString()}`, icon: <FiDollarSign className="h-5 w-5" /> },
+    {
+      title: 'Total Amount',
+      value: `₹${totalAmount.toLocaleString()}`,
+      icon: <FiDollarSign className="h-5 w-5" />,
+    },
   ];
 
   return (
@@ -309,7 +328,7 @@ export default function FamilyVarisangyaList() {
           <StatCard key={index} {...stat} />
         ))}
       </div>
-      <Card>
+      <TableCard>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -323,14 +342,14 @@ export default function FamilyVarisangyaList() {
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="text-center py-12">
-            <p className="text-red-600 dark:text-red-400">{error}</p>
-            <Button onClick={fetchFamilies} className="mt-4" variant="outline">
-              Retry
-            </Button>
-          </div>
+          <EmptyState
+            variant="error"
+            entity="families"
+            description={error}
+            action={{ label: 'Retry', onClick: fetchFamilies }}
+          />
         ) : (
-          <Table columns={columns} data={families} emptyMessage="No families found" showExport={false} />
+          <Table fixedLayout striped columns={columns} data={families} emptyMessage="No families found" showExport={false} />
         )}
         {pagination && (
           <div className="mt-4">
@@ -343,7 +362,7 @@ export default function FamilyVarisangyaList() {
             />
           </div>
         )}
-      </Card>
+      </TableCard>
     </div>
   );
 }

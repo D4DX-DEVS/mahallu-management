@@ -41,6 +41,10 @@ import {
   updateLedgerItemValidation,
   idParamValidation,
 } from '../validations/masterAccountValidation';
+import { idParam, listQuery } from '../validations/common';
+import {
+  createMahalluAccountValidation,
+} from '../validations/moduleValidation';
 
 const router = express.Router();
 
@@ -155,7 +159,7 @@ router.use(instituteFilter);
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  */
-router.get('/institute', getAllInstituteAccounts);
+router.get('/institute', listQuery(), validationHandler, getAllInstituteAccounts);
 
 /**
  * @swagger
@@ -348,7 +352,7 @@ router.post('/institute', createInstituteAccountValidation, validationHandler, c
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  */
-router.get('/categories', getAllCategories);
+router.get('/categories', listQuery(), validationHandler, getAllCategories);
 
 /**
  * @swagger
@@ -515,7 +519,7 @@ router.post('/categories', createCategoryValidation, validationHandler, createCa
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  */
-router.get('/wallets', getAllWallets);
+router.get('/wallets', listQuery(), validationHandler, getAllWallets);
 
 /**
  * @swagger
@@ -690,7 +694,7 @@ router.post('/wallets', createWalletValidation, validationHandler, createWallet)
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  */
-router.get('/ledgers', getAllLedgers);
+router.get('/ledgers', listQuery(), validationHandler, getAllLedgers);
 
 /**
  * @swagger
@@ -891,7 +895,7 @@ router.post('/ledgers', createLedgerValidation, validationHandler, createLedger)
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  */
-router.get('/ledger-items', getLedgerItems);
+router.get('/ledger-items', listQuery(), validationHandler, getLedgerItems);
 
 /**
  * @swagger
@@ -1018,8 +1022,8 @@ router.delete('/ledgers/:id', idParamValidation, validationHandler, deleteLedger
 router.delete('/ledger-items/:id', idParamValidation, validationHandler, deleteLedgerItem);
 
 // Mahallu Accounts (tenant-level, no instituteId)
-router.get('/mahallu-accounts', getAllMahalluAccounts);
-router.post('/mahallu-accounts', createMahalluAccount);
+router.get('/mahallu-accounts', listQuery(), validationHandler, getAllMahalluAccounts);
+router.post('/mahallu-accounts', createMahalluAccountValidation, validationHandler, createMahalluAccount);
 router.put('/mahallu-accounts/:id', idParamValidation, validationHandler, updateMahalluAccount);
 router.delete('/mahallu-accounts/:id', idParamValidation, validationHandler, deleteMahalluAccount);
 

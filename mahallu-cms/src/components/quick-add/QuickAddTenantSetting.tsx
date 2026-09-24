@@ -2,6 +2,7 @@ import { useState } from 'react';
 import QuickAddModal from '@/components/ui/QuickAddModal';
 import Input from '@/components/ui/Input';
 import { tenantService } from '@/services/tenantService';
+import { errorMessage } from '@/utils/errors';
 
 interface Props {
   open: boolean;
@@ -50,7 +51,7 @@ export default function QuickAddTenantSetting({
       setValue('');
       onClose();
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to add. Please try again.');
+      setError(errorMessage(err, { action: 'add. please try again' }));
     } finally {
       setIsLoading(false);
     }

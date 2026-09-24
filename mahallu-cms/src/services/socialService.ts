@@ -1,4 +1,4 @@
-import api from './api';
+import api, { asList, fetchAllPages } from './api';
 
 export interface Banner {
   id: string;
@@ -61,12 +61,15 @@ export interface Support {
 export const socialService = {
   // Banners
   getAllBanners: async (params?: { status?: string; page?: number; limit?: number }) => {
-    const response = await api.get<{ success: boolean; data: Banner[]; pagination?: any }>('/social/banners', { params });
+    const response = await api.get<{ success: boolean; data: Banner[]; pagination?: any }>(
+      '/social/banners',
+      { params }
+    );
     // Handle both paginated and non-paginated responses
     if (response.data.pagination) {
-      return { data: response.data.data, pagination: response.data.pagination };
+      return { data: asList(response.data.data), pagination: response.data.pagination };
     }
-    return { data: response.data.data, pagination: null };
+    return { data: asList(response.data.data), pagination: null };
   },
 
   createBanner: async (data: Partial<Banner>) => {
@@ -101,9 +104,13 @@ export const socialService = {
     } catch (error: any) {
       // Backward compatibility for API instances that only expose notification image upload.
       if (error?.response?.status === 404) {
-        const fallbackResponse = await api.post<{ success: boolean; url: string }>('/upload/notification-image', formData, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-        });
+        const fallbackResponse = await api.post<{ success: boolean; url: string }>(
+          '/upload/notification-image',
+          formData,
+          {
+            headers: { 'Content-Type': 'multipart/form-data' },
+          }
+        );
         return fallbackResponse.data.url;
       }
       throw error;
@@ -112,12 +119,14 @@ export const socialService = {
 
   // Feeds
   getAllFeeds: async (params?: { status?: string; isSuperFeed?: boolean; page?: number; limit?: number }) => {
-    const response = await api.get<{ success: boolean; data: Feed[]; pagination?: any }>('/social/feeds', { params });
+    const response = await api.get<{ success: boolean; data: Feed[]; pagination?: any }>('/social/feeds', {
+      params,
+    });
     // Handle both paginated and non-paginated responses
     if (response.data.pagination) {
-      return { data: response.data.data, pagination: response.data.pagination };
+      return { data: asList(response.data.data), pagination: response.data.pagination };
     }
-    return { data: response.data.data, pagination: null };
+    return { data: asList(response.data.data), pagination: null };
   },
 
   createFeed: async (data: Partial<Feed>) => {
@@ -133,22 +142,28 @@ export const socialService = {
     page?: number;
     limit?: number;
   }) => {
-    const response = await api.get<{ success: boolean; data: ActivityLog[]; pagination?: any }>('/social/activity-logs', { params });
+    const response = await api.get<{ success: boolean; data: ActivityLog[]; pagination?: any }>(
+      '/social/activity-logs',
+      { params }
+    );
     // Handle both paginated and non-paginated responses
     if (response.data.pagination) {
-      return { data: response.data.data, pagination: response.data.pagination };
+      return { data: asList(response.data.data), pagination: response.data.pagination };
     }
-    return { data: response.data.data, pagination: null };
+    return { data: asList(response.data.data), pagination: null };
   },
 
   // Support
   getAllSupport: async (params?: { status?: string; priority?: string; page?: number; limit?: number }) => {
-    const response = await api.get<{ success: boolean; data: Support[]; pagination?: any }>('/social/support', { params });
+    const response = await api.get<{ success: boolean; data: Support[]; pagination?: any }>(
+      '/social/support',
+      { params }
+    );
     // Handle both paginated and non-paginated responses
     if (response.data.pagination) {
-      return { data: response.data.data, pagination: response.data.pagination };
+      return { data: asList(response.data.data), pagination: response.data.pagination };
     }
-    return { data: response.data.data, pagination: null };
+    return { data: asList(response.data.data), pagination: null };
   },
 
   createSupport: async (data: Partial<Support>) => {
@@ -157,12 +172,17 @@ export const socialService = {
   },
 
   // No dedicated GET /social/support/:id endpoint exists on the backend,
-  // so fetch the list and find the matching ticket.
+  // so fetch every page and find the matching ticket. `limit` is capped at
+  // 100 server-side — a bare `limit: 1000` used to 400 on every open.
   getSupportById: async (id: string) => {
-    const response = await api.get<{ success: boolean; data: Support[]; pagination?: any }>('/social/support', {
-      params: { limit: 1000 },
-    });
-    const ticket = response.data.data.find((s) => s.id === id);
+    const all = await fetchAllPages<Support>(({ page, limit }) =>
+      api
+        .get<{ success: boolean; data: Support[]; pagination?: any }>('/social/support', {
+          params: { page, limit },
+        })
+        .then((res) => ({ data: asList(res.data.data), pagination: res.data.pagination }))
+    );
+    const ticket = all.find((s) => s.id === id);
     if (!ticket) {
       throw new Error('Support ticket not found');
     }
@@ -174,4 +194,3 @@ export const socialService = {
     return response.data.data;
   },
 };
-

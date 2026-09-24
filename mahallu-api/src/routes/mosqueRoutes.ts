@@ -8,6 +8,12 @@ import {
 } from '../controllers/mosqueController';
 import { authMiddleware, allowRoles } from '../middleware/authMiddleware';
 import { tenantMiddleware, tenantFilter } from '../middleware/tenantMiddleware';
+import { validationHandler } from '../middleware/validationHandler';
+import { idParam, listQuery } from '../validations/common';
+import {
+  createMosqueValidation,
+  updateMosqueValidation,
+} from '../validations/moduleValidation';
 
 const router = express.Router();
 
@@ -47,7 +53,7 @@ router.use(tenantFilter);
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  */
-router.get('/', getAllMosques);
+router.get('/', listQuery(), validationHandler, getAllMosques);
 
 /**
  * @swagger
@@ -69,7 +75,7 @@ router.get('/', getAllMosques);
  *       404:
  *         $ref: '#/components/responses/NotFound'
  */
-router.get('/:id', getMosqueById);
+router.get('/:id', idParam('id', 'mosque'), validationHandler, getMosqueById);
 
 /**
  * @swagger
@@ -118,7 +124,7 @@ router.get('/:id', getMosqueById);
  *       403:
  *         description: Role not allowed
  */
-router.post('/', allowRoles(['mahall']), createMosque);
+router.post('/', createMosqueValidation, validationHandler, allowRoles(['mahall']), createMosque);
 
 /**
  * @swagger
@@ -140,7 +146,7 @@ router.post('/', allowRoles(['mahall']), createMosque);
  *       404:
  *         $ref: '#/components/responses/NotFound'
  */
-router.put('/:id', allowRoles(['mahall']), updateMosque);
+router.put('/:id', updateMosqueValidation, validationHandler, allowRoles(['mahall']), updateMosque);
 
 /**
  * @swagger
@@ -162,6 +168,6 @@ router.put('/:id', allowRoles(['mahall']), updateMosque);
  *       403:
  *         description: Role not allowed
  */
-router.delete('/:id', allowRoles(['mahall']), deleteMosque);
+router.delete('/:id', idParam('id', 'mosque'), validationHandler, allowRoles(['mahall']), deleteMosque);
 
 export default router;
