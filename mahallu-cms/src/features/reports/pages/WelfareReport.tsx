@@ -4,7 +4,7 @@ import StatCard from '@/components/ui/StatCard';
 import Alert from '@/components/ui/Alert';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import { reportService } from '@/services/reportService';
-import { loadErrorMessage } from '@/utils/errors';
+import { loadErrorInfo, LoadErrorInfo } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 
 interface WelfareReportData {
@@ -38,7 +38,7 @@ interface WelfareReportData {
 export default function WelfareReport() {
   const [data, setData] = useState<WelfareReportData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<LoadErrorInfo | null>(null);
 
   useEffect(() => {
     loadReport();
@@ -51,7 +51,7 @@ export default function WelfareReport() {
       const response = await reportService.getWelfareReport();
       setData(response);
     } catch (err) {
-      setError(loadErrorMessage(err, 'report'));
+      setError(loadErrorInfo(err, 'report'));
     } finally {
       setLoading(false);
     }
@@ -63,8 +63,12 @@ export default function WelfareReport() {
     return (
       <div className="space-y-4">
         <PageHeader title="Welfare Report" />
-        <Alert variant="error" title="Couldn't load report" action={{ label: 'Try again', onClick: loadReport }}>
-          {error || 'No report data'}
+        <Alert
+          variant={error?.variant ?? 'error'}
+          title={error?.title ?? "Couldn't load report"}
+          action={error?.variant === 'info' ? undefined : { label: 'Try again', onClick: loadReport }}
+        >
+          {error?.message ?? 'No report data'}
         </Alert>
       </div>
     );

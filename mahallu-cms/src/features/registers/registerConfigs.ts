@@ -9,22 +9,32 @@ export interface RegisterConfig {
   filters?: Array<{ name: string; label: string; options: Array<{ value: string; label: string }> }>;
 }
 
+/*
+ * Name/House Name leads: Table uses a mobile card's first data column as its
+ * title, so with "No." first every card on a phone read as "1", "2", "3…"
+ * instead of the person it was actually about. Family/contact stay at
+ * `primary` priority (Table's default) so they still appear on the mobile
+ * card as compact secondary fields; age/gender and the row number are the
+ * least useful for picking someone out at a glance, so they drop to
+ * `secondary`/`tertiary` and only reappear at tablet/desktop widths — the
+ * data itself, and the desktop table's columns, are unchanged either way.
+ */
 const memberColumns: TableColumn<any>[] = [
-  { key: 'index', label: 'No.', render: (_v, _r, index) => (index ?? 0) + 1 },
   { key: 'name', label: 'Name' },
   { key: 'familyName', label: 'Family' },
-  { key: 'age', label: 'Age', render: (v) => v ?? '—' },
-  { key: 'gender', label: 'Gender', render: (v) => v || '—' },
   { key: 'phone', label: 'Phone', render: (v) => v || '—' },
+  { key: 'age', label: 'Age', priority: 'secondary', render: (v) => v ?? '—' },
+  { key: 'gender', label: 'Gender', priority: 'secondary', render: (v) => v || '—' },
+  { key: 'index', label: 'No.', priority: 'tertiary', render: (_v, _r, index) => (index ?? 0) + 1 },
 ];
 
 const familyColumns: TableColumn<any>[] = [
-  { key: 'index', label: 'No.', render: (_v, _r, index) => (index ?? 0) + 1 },
   { key: 'houseName', label: 'House Name' },
   { key: 'familyHead', label: 'Family Head', render: (v) => v || '—' },
-  { key: 'area', label: 'Area', render: (v) => v || '—' },
   { key: 'contactNo', label: 'Contact', render: (v) => v || '—' },
-  { key: 'welfareStatus', label: 'Welfare', render: (v) => v || '—' },
+  { key: 'area', label: 'Area', priority: 'secondary', render: (v) => v || '—' },
+  { key: 'welfareStatus', label: 'Welfare', priority: 'secondary', render: (v) => v || '—' },
+  { key: 'index', label: 'No.', priority: 'tertiary', render: (_v, _r, index) => (index ?? 0) + 1 },
 ];
 
 export const columnsFor = (source: 'member' | 'family'): TableColumn<any>[] =>

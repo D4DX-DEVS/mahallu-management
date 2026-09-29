@@ -14,10 +14,11 @@ import { ROUTES } from '@/constants/routes';
 import { registrationService } from '@/services/registrationService';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { optionalPhoneSchema, sanitizeDigits } from '@/utils/validation';
 
 const nocSchema = z.object({
   applicantName: z.string().max(200, 'Please keep the applicant name to 200 characters or less.').min(1, 'Applicant name is required'),
-  applicantPhone: z.string().max(200, 'Please keep the applicant phone to 200 characters or less.').optional(),
+  applicantPhone: optionalPhoneSchema,
   purposeTitle: z.string().max(2000, 'Please keep the purpose title to 2000 characters or less.').min(1, 'Purpose title is required'),
   purposeDescription: z.string().max(3000, 'Please keep the purpose description to 3000 characters or less.').min(1, 'Purpose description is required'),
   type: z.enum(['common', 'nikah']),
@@ -119,8 +120,12 @@ export default function EditNOC() {
             <Input
               label="Applicant Phone"
               type="tel"
+              inputMode="numeric"
+              maxLength={10}
               {...register('applicantPhone')}
+              onChange={(e) => setValue('applicantPhone', sanitizeDigits(e.target.value, 10), { shouldValidate: true, shouldDirty: true })}
               placeholder="Phone Number"
+              error={errors.applicantPhone?.message}
             />
             <Select
               label="NOC Type"

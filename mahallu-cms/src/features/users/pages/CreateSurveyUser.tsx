@@ -15,6 +15,7 @@ import { Tenant } from '@/types/tenant';
 import { errorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
+import { sanitizeDigits } from '@/utils/validation';
 
 const userSchema = z.object({
   name: z
@@ -44,6 +45,7 @@ export default function CreateSurveyUser() {
     register,
     handleSubmit,
     watch,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<UserFormData>({
     resolver: zodResolver(userSchema),
@@ -164,7 +166,9 @@ export default function CreateSurveyUser() {
               <Input
                 label="Phone Number"
                 type="tel"
+                inputMode="numeric"
                 {...register('phone')}
+                onChange={(e) => setValue('phone', sanitizeDigits(e.target.value, 10), { shouldValidate: true, shouldDirty: true })}
                 error={errors.phone?.message}
                 required
                 placeholder="9876543210"

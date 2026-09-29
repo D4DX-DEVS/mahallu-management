@@ -3,11 +3,12 @@ import { FiDownload, FiFileText, FiFile } from 'react-icons/fi';
 import Card from '@/components/ui/Card';
 import StatCard from '@/components/ui/StatCard';
 import Button from '@/components/ui/Button';
+import Alert from '@/components/ui/Alert';
 import Dropdown, { DropdownItem } from '@/components/ui/Dropdown';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import { reportService, AreaReport } from '@/services/reportService';
 import { exportToPDF } from '@/utils/exportUtils';
-import { loadErrorMessage } from '@/utils/errors';
+import { loadErrorInfo, LoadErrorInfo } from '@/utils/errors';
 import { toTitleCase } from '@/utils/format';
 import PageHeader from '@/components/layout/PageHeader';
 import SortableTh from '@/components/ui/SortableTh';
@@ -16,7 +17,7 @@ import { useSortableRows } from '@/hooks/useSortableRows';
 export default function AreaReportPage() {
   const [report, setReport] = useState<AreaReport | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<LoadErrorInfo | null>(null);
 
   useEffect(() => {
     fetchReport();
@@ -29,7 +30,7 @@ export default function AreaReportPage() {
       const data = await reportService.getAreaReport();
       setReport(data);
     } catch (err: any) {
-      setError(loadErrorMessage(err, 'area report'));
+      setError(loadErrorInfo(err, 'area report'));
       console.error('Error fetching report:', err);
     } finally {
       setLoading(false);
@@ -103,11 +104,14 @@ export default function AreaReportPage() {
 
   if (error || !report) {
     return (
-      <div className="text-center py-10">
-        <p className="text-red-600 dark:text-red-400">{error || 'Report not available'}</p>
-        <Button onClick={fetchReport} className="mt-4" variant="outline">
-          Retry
-        </Button>
+      <div className="space-y-4">
+        <Alert
+          variant={error?.variant ?? 'error'}
+          title={error?.title ?? "Couldn't load report"}
+          action={error?.variant === 'info' ? undefined : { label: 'Try again', onClick: fetchReport }}
+        >
+          {error?.message ?? 'Report not available'}
+        </Alert>
       </div>
     );
   }

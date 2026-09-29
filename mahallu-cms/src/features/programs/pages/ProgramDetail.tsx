@@ -75,49 +75,44 @@ export default function ProgramDetail() {
         </div>
       </div>
 
+      {/* One field list rather than two headed halves — identity and contact
+          fields are all the same program record, not distinct categories. */}
+      <Card>
+        <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
+          <div>
+            <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Name</label>
+            <p className="mt-1 text-gray-900 dark:text-gray-100">{toTitleCase(program.name)}</p>
+          </div>
+          <div>
+            <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Place</label>
+            <p className="mt-1 text-gray-900 dark:text-gray-100">{toTitleCase(program.place)}</p>
+          </div>
+          <div>
+            <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Join Date</label>
+            <p className="mt-1 text-gray-900 dark:text-gray-100">{formatDate(program.joinDate)}</p>
+          </div>
+          <div>
+            <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Status</label>
+            <p className="mt-1">
+              <StatusBadge status={program.status || 'active'} />
+            </p>
+          </div>
+          {program.contactNo && (
+            <div>
+              <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Contact No.</label>
+              <p className="mt-1 text-gray-900 dark:text-gray-100">{program.contactNo}</p>
+            </div>
+          )}
+          {program.email && (
+            <div>
+              <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Email</label>
+              <p className="mt-1 text-gray-900 dark:text-gray-100">{program.email}</p>
+            </div>
+          )}
+        </div>
+      </Card>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card>
-          <h2 className="text-lg font-semibold mb-3 text-foreground">Basic Information</h2>
-          <div className="space-y-4">
-            <div>
-              <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Name</label>
-              <p className="mt-1 text-gray-900 dark:text-gray-100">{toTitleCase(program.name)}</p>
-            </div>
-            <div>
-              <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Place</label>
-              <p className="mt-1 text-gray-900 dark:text-gray-100">{toTitleCase(program.place)}</p>
-            </div>
-            <div>
-              <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Join Date</label>
-              <p className="mt-1 text-gray-900 dark:text-gray-100">{formatDate(program.joinDate)}</p>
-            </div>
-            <div>
-              <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Status</label>
-              <p className="mt-1">
-                <StatusBadge status={program.status || 'active'} />
-              </p>
-            </div>
-          </div>
-        </Card>
-
-        <Card>
-          <h2 className="text-lg font-semibold mb-3 text-foreground">Contact Information</h2>
-          <div className="space-y-4">
-            {program.contactNo && (
-              <div>
-                <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Contact No.</label>
-                <p className="mt-1 text-gray-900 dark:text-gray-100">{program.contactNo}</p>
-              </div>
-            )}
-            {program.email && (
-              <div>
-                <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Email</label>
-                <p className="mt-1 text-gray-900 dark:text-gray-100">{program.email}</p>
-              </div>
-            )}
-          </div>
-        </Card>
-
         {program.description && (
           <Card className="md:col-span-2">
             <h2 className="text-lg font-semibold mb-3 text-foreground">Description</h2>

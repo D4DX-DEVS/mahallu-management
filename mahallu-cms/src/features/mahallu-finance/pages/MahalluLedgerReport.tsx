@@ -4,16 +4,17 @@ import StatCard from '@/components/ui/StatCard';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
+import Alert from '@/components/ui/Alert';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import { accountingReportService } from '@/services/accountingReportService';
 import { masterAccountService, Ledger } from '@/services/masterAccountService';
-import { loadErrorMessage } from '@/utils/errors';
+import { loadErrorInfo, LoadErrorInfo } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
 
 export default function MahalluLedgerReport() {
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<LoadErrorInfo | null>(null);
   const [reportData, setReportData] = useState<any>(null);
   const [ledgers, setLedgers] = useState<Ledger[]>([]);
   const [ledgerId, setLedgerId] = useState('');
@@ -44,7 +45,7 @@ export default function MahalluLedgerReport() {
       });
       setReportData(result);
     } catch (err: any) {
-      setError(loadErrorMessage(err, 'ledger report'));
+      setError(loadErrorInfo(err, 'ledger report'));
     } finally {
       setLoading(false);
     }
@@ -95,7 +96,13 @@ export default function MahalluLedgerReport() {
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <p className="text-center py-8 text-red-600">{error}</p>
+          <Alert
+            variant={error.variant}
+            title={error.title}
+            action={error.variant === 'info' ? undefined : { label: 'Try again', onClick: fetchData }}
+          >
+            {error.message}
+          </Alert>
         ) : !reportData ? (
           <p className="text-center py-10 text-gray-500">
             Select a ledger and date range, then click "Generate"

@@ -6,7 +6,7 @@ import Card from '@/components/ui/Card';
 import { errorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { useFormValidation } from '@/hooks/useFormValidation';
-import { FieldRule, LIMITS, firstError, validateForm } from '@/utils/validation';
+import { FieldRule, LIMITS, firstError, sanitizeDigits, validateForm } from '@/utils/validation';
 
 /**
  * The same limits the API applies, so a form that passes here is not
@@ -138,9 +138,11 @@ export default function EmployerCreate() {
               <input
                 aria-label="Contact Number"
                 type="tel"
+                inputMode="numeric"
+                maxLength={10}
                 name="contactNo"
                 value={formData.contactNo}
-                onChange={handleChange}
+                onChange={(e) => setFormData((prev) => ({ ...prev, contactNo: sanitizeDigits(e.target.value, 10) }))}
                 className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Phone number"
               />

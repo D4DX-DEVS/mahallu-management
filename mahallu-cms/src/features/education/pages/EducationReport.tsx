@@ -5,7 +5,7 @@ import StatCard from '@/components/ui/StatCard';
 import Alert from '@/components/ui/Alert';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import { reportService } from '@/services/reportService';
-import { loadErrorMessage } from '@/utils/errors';
+import { loadErrorInfo, LoadErrorInfo } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 
 interface EducationData {
@@ -29,16 +29,16 @@ interface EducationData {
 export default function EducationReport() {
   const [data, setData] = useState<EducationData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setError] = useState<LoadErrorInfo | null>(null);
 
   const fetchReport = async () => {
     try {
       setLoading(true);
-      setError('');
+      setError(null);
       const response = await reportService.getEducationReport();
       setData(response);
     } catch (err: any) {
-      setError(loadErrorMessage(err, 'report'));
+      setError(loadErrorInfo(err, 'report'));
     } finally {
       setLoading(false);
     }
@@ -56,8 +56,12 @@ export default function EducationReport() {
     return (
       <div className="space-y-4">
         <PageHeader title="Education Report" />
-        <Alert variant="error" title="Couldn't load report" action={{ label: 'Try again', onClick: fetchReport }}>
-          {error || 'No report data'}
+        <Alert
+          variant={error?.variant ?? 'error'}
+          title={error?.title ?? "Couldn't load report"}
+          action={error?.variant === 'info' ? undefined : { label: 'Try again', onClick: fetchReport }}
+        >
+          {error?.message ?? 'No report data'}
         </Alert>
       </div>
     );

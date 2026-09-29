@@ -22,13 +22,14 @@ import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
 import StatusBadge from '@/components/ui/StatusBadge';
+import { optionalPhoneSchema, sanitizeDigits } from '@/utils/validation';
 
 const khateebSchema = z.object({
   name: z.string().max(200, 'Please keep the name to 200 characters or less.').min(1, 'Name is required'),
   nameMl: z.string().max(200, 'Please keep the name to 200 characters or less.').optional(),
   memberId: z.string().max(200, 'Please keep the member to 200 characters or less.').optional(),
   qualifications: z.string().max(200, 'Please keep the qualifications to 200 characters or less.').optional(),
-  contactNo: z.string().max(200, 'Please keep the contact no to 200 characters or less.').optional(),
+  contactNo: optionalPhoneSchema,
   status: z.enum(['active', 'inactive']).optional(),
 });
 
@@ -55,6 +56,7 @@ export default function KhateebsList() {
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors, isSubmitting },
     reset,
     watch,
@@ -287,7 +289,16 @@ export default function KhateebsList() {
             />
           </div>
 
-          <Input label="Contact No" {...register('contactNo')} placeholder="Enter contact number" />
+          <Input
+            label="Contact No"
+            type="tel"
+            inputMode="numeric"
+            maxLength={10}
+            {...register('contactNo')}
+            onChange={(e) => setValue('contactNo', sanitizeDigits(e.target.value, 10), { shouldValidate: true, shouldDirty: true })}
+            placeholder="Enter contact number"
+            error={errors.contactNo?.message}
+          />
 
           <Select label="Status" {...register('status')} options={KHATEEB_STATUS_OPTIONS} />
 

@@ -17,12 +17,13 @@ import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
 import { toast } from '@/store/toastStore';
+import { optionalPhoneSchema, sanitizeDigits } from '@/utils/validation';
 
 const employeeSchema = z.object({
   instituteId: z.string().max(200, 'Please keep the institute to 200 characters or less.').min(1, 'Institute is required'),
   name: z.string().max(200, 'Please keep the name to 200 characters or less.').min(1, 'Name is required'),
   nameMl: z.string().max(200, 'Please keep the name to 200 characters or less.').optional(),
-  phone: z.string().max(200, 'Please keep the phone to 200 characters or less.').optional(),
+  phone: optionalPhoneSchema,
   email: z.string().max(254, 'Please keep the email to 254 characters or less.').email('Invalid email').optional().or(z.literal('')),
   designation: z.string().max(200, 'Please keep the designation to 200 characters or less.').min(1, 'Designation is required'),
   designationMl: z.string().max(200, 'Please keep the designation to 200 characters or less.').optional(),
@@ -203,7 +204,15 @@ export default function EditEmployee() {
               />
             </div>
             <Input label="Department" {...register('department')} />
-            <Input label="Phone" type="tel" {...register('phone')} />
+            <Input
+              label="Phone"
+              type="tel"
+              inputMode="numeric"
+              maxLength={10}
+              {...register('phone')}
+              onChange={(e) => setValue('phone', sanitizeDigits(e.target.value, 10), { shouldValidate: true, shouldDirty: true })}
+              error={errors.phone?.message}
+            />
             <Input label="Email" type="email" {...register('email')} error={errors.email?.message} />
             <Input
               label="Join Date"

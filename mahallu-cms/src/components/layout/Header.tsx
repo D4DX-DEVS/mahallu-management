@@ -7,7 +7,6 @@ import {
   FiLogOut,
   FiSearch,
   FiSettings,
-  FiShield,
 } from 'react-icons/fi';
 import { useThemeStore } from '@/store/themeStore';
 import { useAuthStore } from '@/store/authStore';
@@ -24,7 +23,7 @@ import { cn } from '@/utils/cn';
 export default function Header() {
   const navigate = useNavigate();
   const { theme, toggleTheme } = useThemeStore();
-  const { user, logout, isSuperAdmin, currentTenantId } = useAuthStore();
+  const { user, logout, isSuperAdmin } = useAuthStore();
   const { toggleDesktopSidebarCollapsed, setMobileSidebarOpen } = useLayoutStore();
   const isCommandPaletteOpen = useLayoutStore((s) => s.isCommandPaletteOpen);
   const openCommandPalette = useLayoutStore((s) => s.openCommandPalette);
@@ -34,7 +33,6 @@ export default function Header() {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const { unreadCount, fetchUnreadCount } = useNotificationStore();
   const userMenuRef = useRef<HTMLDivElement>(null);
-  const isViewingAsTenant = isSuperAdmin && currentTenantId;
   useEffect(() => {
     setMounted(true);
     applyTheme();
@@ -92,36 +90,35 @@ export default function Header() {
   return (
     <>
       <CommandPalette isOpen={isCommandPaletteOpen} onClose={closeCommandPalette} />
-      {/* The banner sits above the header in the stacking order as well as on screen — it used to be z-40 against a z-30 sticky header, so it overlapped the header instead of stacking with it. */}
-      {isViewingAsTenant && (
-        <div className="sticky top-0 z-20 flex items-center justify-center gap-2 bg-primary px-4 py-1.5 text-label text-primary-foreground">
-          <FiShield className="h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
-          <span className="font-medium">Viewing as tenant</span> <span aria-hidden="true">·</span>
-          <span className="hidden sm:inline">All data is filtered to the selected tenant</span>
-        </div>
-      )}
       <header className="sticky top-0 z-30 flex h-14 flex-shrink-0 items-center gap-2 border-b border-border bg-card px-3 md:gap-3 md:px-6">
         <button
           onClick={toggleDesktopSidebarCollapsed}
-          className={cn(iconButton, 'hidden md:inline-flex')}
+          className={cn(iconButton, 'hidden flex-shrink-0 md:inline-flex')}
           aria-label="Toggle sidebar"
         >
           <FiMenu className="h-5 w-5" />
         </button>
         <button
           onClick={() => setMobileSidebarOpen(true)}
-          className={cn(iconButton, 'md:hidden')}
+          className={cn(iconButton, 'flex-shrink-0 md:hidden')}
           aria-label="Open navigation"
         >
           <FiMenu className="h-5 w-5" />
         </button>
         {!isMember && (
+          /* min-w-0 lets this shrink below its own text's natural width instead of
+           * forcing the row wider than the viewport; without it, squeezing this
+           * against the tenant switcher and the icon cluster at tablet widths (an
+           * iPad Mini in particular) wrapped the placeholder onto three lines
+           * rather than letting it truncate. flex-1 + max-w-* keeps the desktop
+           * width unchanged while allowing it to give way first at narrower widths. */
           <button
             onClick={openCommandPalette}
-            className="hidden h-10 w-64 items-center gap-2 rounded-full border border-border bg-muted/40 px-3.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:flex lg:w-72"
+            className="hidden h-10 min-w-0 flex-1 items-center gap-2 rounded-full border border-border bg-muted/40 px-3.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:flex md:max-w-64 lg:max-w-72"
           >
-            <FiSearch className="h-4 w-4 flex-shrink-0" aria-hidden="true" /> <span className="flex-1 text-left">Search members, families…</span>
-            <kbd className="rounded-full border border-border bg-card px-2 py-0.5 text-xs">⌘K</kbd>
+            <FiSearch className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
+            <span className="min-w-0 flex-1 truncate whitespace-nowrap text-left">Search members, families…</span>
+            <kbd className="flex-shrink-0 rounded-full border border-border bg-card px-2 py-0.5 text-xs">⌘K</kbd>
           </button>
         )}
         {/* Tenant switcher shares the flex row instead of being absolutely centred, which collided with the search and action clusters at narrow desktop widths. Below lg it was hidden outright, leaving a super admin on a phone with no way to switch tenants — the switcher itself already collapses to an icon-only button there, so it fits. */}
@@ -130,7 +127,7 @@ export default function Header() {
             <TenantSwitcher />
           </div>
         )}
-        <div className="ml-auto flex items-center gap-1 border-l border-border/60 pl-2 sm:gap-1.5 sm:pl-3">
+        <div className="ml-auto flex flex-shrink-0 items-center gap-1 border-l border-border/60 pl-2 sm:gap-1.5 sm:pl-3">
           <button
             onClick={() => navigate(ROUTES.NOTIFICATIONS.INDIVIDUAL)}
             aria-label={unreadCount > 0 ? 'Notifications, ' + unreadCount + ' unread' : 'Notifications'}

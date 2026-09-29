@@ -4,12 +4,13 @@ import StatCard from '@/components/ui/StatCard';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
+import Alert from '@/components/ui/Alert';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import { accountingReportService } from '@/services/accountingReportService';
 import { masterAccountService } from '@/services/masterAccountService';
 import { instituteService } from '@/services/instituteService';
 import { useAuthStore } from '@/store/authStore';
-import { loadErrorMessage } from '@/utils/errors';
+import { loadErrorInfo, LoadErrorInfo } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
 
@@ -30,7 +31,7 @@ interface LedgerReportEntry {
 export default function LedgerReport() {
   const { currentInstituteId: userInstituteId } = useAuthStore();
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<LoadErrorInfo | null>(null);
   const [ledgers, setLedgers] = useState<{ id: string; name: string; type: string }[]>([]);
   const [institutes, setInstitutes] = useState<{ id: string; name: string }[]>([]);
   const [selectedLedger, setSelectedLedger] = useState('');
@@ -76,7 +77,7 @@ export default function LedgerReport() {
       const data = await accountingReportService.getLedgerReport(params);
       setReportData(data);
     } catch (err: any) {
-      setError(loadErrorMessage(err, 'ledger report'));
+      setError(loadErrorInfo(err, 'ledger report'));
     } finally {
       setLoading(false);
     }
@@ -141,9 +142,13 @@ export default function LedgerReport() {
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="text-center py-10">
-            <p className="text-red-600 dark:text-red-400">{error}</p>
-          </div>
+          <Alert
+            variant={error.variant}
+            title={error.title}
+            action={error.variant === 'info' ? undefined : { label: 'Try again', onClick: fetchReport }}
+          >
+            {error.message}
+          </Alert>
         ) : !reportData ? (
           <div className="text-center py-10 text-gray-500 dark:text-gray-400">
             Select a ledger and click "Generate" to view the report

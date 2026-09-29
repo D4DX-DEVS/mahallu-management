@@ -12,6 +12,7 @@ import { CLASSIFICATION_OPTIONS, TenantClassification } from '@/constants/module
 import ModuleFeatureToggles from '../components/ModuleFeatureToggles';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import { toTitleCase } from '@/utils/format';
+import { sanitizeDigits } from '@/utils/validation';
 
 export default function EditTenant() {
   const { id } = useParams<{ id: string }>();
@@ -288,8 +289,11 @@ export default function EditTenant() {
 
                 <Input
                   label="Pin Code"
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={6}
                   value={formData.address.pinCode}
-                  onChange={(e) => handleChange('address.pinCode', e.target.value)}
+                  onChange={(e) => handleChange('address.pinCode', sanitizeDigits(e.target.value, 6))}
                   placeholder="Enter pin code"
                 />
 

@@ -74,67 +74,63 @@ export default function InstituteDetail() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card>
-          <h2 className="text-lg font-semibold mb-3 text-foreground">Basic Information</h2>
-          <div className="space-y-4">
-            <div>
-              <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Name</label>
-              <p className="mt-1 text-gray-900 dark:text-gray-100">{toTitleCase(institute.name)}</p>
-            </div>
-            <div>
-              <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Place</label>
-              <p className="mt-1 text-gray-900 dark:text-gray-100">{toTitleCase(institute.place)}</p>
-            </div>
-            <div>
-              <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Type</label>
-              <p className="mt-1">
-                <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 capitalize">
-                  {institute.type}
-                </span>
-              </p>
-            </div>
-            <div>
-              <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Join Date</label>
-              <p className="mt-1 text-gray-900 dark:text-gray-100">{formatDate(institute.joinDate)}</p>
-            </div>
-            <div>
-              <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Status</label>
-              <p className="mt-1">
-                <StatusBadge status={institute.status || 'active'} />
-              </p>
-            </div>
+      {/* One field list rather than two headed halves — identity and contact
+          fields are all the same institute record, not distinct categories. */}
+      <Card>
+        <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
+          <div>
+            <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Name</label>
+            <p className="mt-1 text-gray-900 dark:text-gray-100">{toTitleCase(institute.name)}</p>
           </div>
-        </Card>
-
-        <Card>
-          <h2 className="text-lg font-semibold mb-3 text-foreground">Contact Information</h2>
-          <div className="space-y-4">
-            {institute.contactNo && (
-              <div>
-                <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Contact No.</label>
-                <p className="mt-1 text-gray-900 dark:text-gray-100">{institute.contactNo}</p>
-              </div>
-            )}
-            {institute.email && (
-              <div>
-                <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Email</label>
-                <p className="mt-1 text-gray-900 dark:text-gray-100">{institute.email}</p>
-              </div>
-            )}
-            {!institute.contactNo && !institute.email && (
-              <p className="text-sm text-gray-500 dark:text-gray-400">No contact information available</p>
-            )}
+          <div>
+            <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Place</label>
+            <p className="mt-1 text-gray-900 dark:text-gray-100">{toTitleCase(institute.place)}</p>
           </div>
-        </Card>
+          <div>
+            <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Type</label>
+            <p className="mt-1">
+              <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 capitalize">
+                {institute.type}
+              </span>
+            </p>
+          </div>
+          <div>
+            <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Join Date</label>
+            <p className="mt-1 text-gray-900 dark:text-gray-100">{formatDate(institute.joinDate)}</p>
+          </div>
+          <div>
+            <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Status</label>
+            <p className="mt-1">
+              <StatusBadge status={institute.status || 'active'} />
+            </p>
+          </div>
+          {institute.contactNo && (
+            <div>
+              <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Contact No.</label>
+              <p className="mt-1 text-gray-900 dark:text-gray-100">{institute.contactNo}</p>
+            </div>
+          )}
+          {institute.email && (
+            <div>
+              <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Email</label>
+              <p className="mt-1 text-gray-900 dark:text-gray-100">{institute.email}</p>
+            </div>
+          )}
+          {!institute.contactNo && !institute.email && (
+            <div>
+              <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Contact</label>
+              <p className="mt-1 text-gray-500 dark:text-gray-400">No contact information available</p>
+            </div>
+          )}
+        </div>
+      </Card>
 
-        {institute.description && (
-          <Card className="md:col-span-2">
-            <h2 className="text-lg font-semibold mb-3 text-foreground">Description</h2>
-            <p className="text-gray-700 dark:text-gray-300">{institute.description}</p>
-          </Card>
-        )}
-      </div>
+      {institute.description && (
+        <Card>
+          <h2 className="text-lg font-semibold mb-3 text-foreground">Description</h2>
+          <p className="text-gray-700 dark:text-gray-300">{institute.description}</p>
+        </Card>
+      )}
     </div>
   );
 }

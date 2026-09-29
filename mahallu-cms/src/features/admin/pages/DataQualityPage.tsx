@@ -7,7 +7,7 @@ import Alert from '@/components/ui/Alert';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import { reportService } from '@/services/reportService';
 import api from '@/services/api';
-import { loadErrorMessage } from '@/utils/errors';
+import { loadErrorInfo, LoadErrorInfo } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { errorMessage } from '@/utils/errors';
 import { toTitleCase } from '@/utils/format';
@@ -33,7 +33,7 @@ interface DuplicateNameAge {
 
 export default function DataQualityPage() {
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<LoadErrorInfo | null>(null);
   const [stats, setStats] = useState<any>(null);
   const [duplicates, setDuplicates] = useState<any>(null);
   const [exporting, setExporting] = useState<Record<string, boolean>>({});
@@ -52,7 +52,7 @@ export default function DataQualityPage() {
       setStats(statsRes.data.data);
       setDuplicates(duplicatesRes.data.data);
     } catch (err: any) {
-      setError(loadErrorMessage(err, 'data quality report'));
+      setError(loadErrorInfo(err, 'data quality report'));
       console.error('Error fetching data quality:', err);
     } finally {
       setLoading(false);
@@ -77,7 +77,11 @@ export default function DataQualityPage() {
       link.click();
       document.body.removeChild(link);
     } catch (err: any) {
-      setError(errorMessage(err, { action: `export ${entity}` }));
+      setError({
+        title: "Couldn't export data",
+        message: errorMessage(err, { action: `export ${entity}` }),
+        variant: 'error',
+      });
     } finally {
       setExporting((prev) => ({ ...prev, [entity]: false }));
     }
@@ -94,8 +98,12 @@ export default function DataQualityPage() {
           title="Data Quality Report"
           description="Monitor data quality metrics and identify duplicates"
         />
-        <Alert variant="error" title="Couldn't load report" action={{ label: 'Try again', onClick: fetchData }}>
-          {error}
+        <Alert
+          variant={error.variant}
+          title={error.title}
+          action={error.variant === 'info' ? undefined : { label: 'Try again', onClick: fetchData }}
+        >
+          {error.message}
         </Alert>
       </div>
     );

@@ -118,7 +118,7 @@ export default function RegisterList() {
         </div>
 
         {pagination && (
-          <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">{pagination.total} records</p>
+          <p className="mb-2 text-label text-muted-foreground">{pagination.total} records</p>
         )}
 
         {loading ? (

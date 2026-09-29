@@ -42,6 +42,7 @@ import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
 import { toast } from '@/store/toastStore';
+import { sanitizeDigits } from '@/utils/validation';
 
 const memberSchemaShape = z.object({
   name: z.string().max(200, 'Please keep the name to 200 characters or less.').min(1, 'Name is required'),
@@ -417,7 +418,9 @@ export default function EditMember() {
             <Input
               label="Phone"
               type="tel"
+              inputMode="numeric"
               {...register('phone')}
+              onChange={(e) => setValue('phone', sanitizeDigits(e.target.value, 10), { shouldValidate: true, shouldDirty: true })}
               error={errors.phone?.message}
               placeholder="Phone Number (10 digits)"
               maxLength={10}

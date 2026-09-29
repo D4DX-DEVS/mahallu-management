@@ -18,6 +18,7 @@ import { toast } from '@/store/toastStore';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
+import { optionalPhoneSchema, sanitizeDigits } from '@/utils/validation';
 
 const DEFAULT_NOC_DESCRIPTION = `
 <p>To Whom It May Concern,</p>
@@ -60,7 +61,7 @@ const nocSchema = z.object({
   applicantId: z.string().max(200, 'Please keep the applicant to 200 characters or less.').optional(),
   applicantName: z.string().max(200, 'Please keep the applicant name to 200 characters or less.').min(1, 'Applicant name is required'),
   applicantNameMl: z.string().max(200, 'Please keep the applicant name to 200 characters or less.').optional(),
-  applicantPhone: z.string().max(200, 'Please keep the applicant phone to 200 characters or less.').optional(),
+  applicantPhone: optionalPhoneSchema,
   purposeTitle: z.string().max(2000, 'Please keep the purpose title to 2000 characters or less.').min(1, 'Purpose title is required'),
   purposeTitleMl: z.string().max(2000, 'Please keep the purpose title to 2000 characters or less.').optional(),
   purposeDescription: z.string().max(3000, 'Please keep the purpose description to 3000 characters or less.').min(1, 'Purpose description is required'),
@@ -182,8 +183,12 @@ export default function CreateNOC() {
             <Input
               label="Applicant Phone"
               type="tel"
+              inputMode="numeric"
+              maxLength={10}
               {...register('applicantPhone')}
+              onChange={(e) => setValue('applicantPhone', sanitizeDigits(e.target.value, 10), { shouldValidate: true, shouldDirty: true })}
               placeholder="Phone Number"
+              error={errors.applicantPhone?.message}
             />
             <Input
               label="Purpose Title"

@@ -5,7 +5,7 @@ import Alert from '@/components/ui/Alert';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import { reportService, type AnnualReport as AnnualReportData } from '@/services/reportService';
 import { exportToPDF } from '@/utils/exportUtils';
-import { loadErrorMessage } from '@/utils/errors';
+import { loadErrorInfo, LoadErrorInfo } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 
 const currentYear = new Date().getFullYear();
@@ -36,7 +36,7 @@ export default function AnnualReport() {
   const [reloadKey, setReloadKey] = useState(0);
   const [data, setData] = useState<AnnualReportData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<LoadErrorInfo | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -49,7 +49,7 @@ export default function AnnualReport() {
       })
       .catch((err) => {
         if (!cancelled) {
-          setError(loadErrorMessage(err, 'report'));
+          setError(loadErrorInfo(err, 'report'));
           setData(null);
         }
       })
@@ -124,11 +124,11 @@ export default function AnnualReport() {
       {loading && <PageSkeleton variant="section" />}
       {!loading && (error || !data) && (
         <Alert
-          variant="error"
-          title="Couldn't load report"
-          action={{ label: 'Try again', onClick: () => setReloadKey((k) => k + 1) }}
+          variant={error?.variant ?? 'error'}
+          title={error?.title ?? "Couldn't load report"}
+          action={error?.variant === 'info' ? undefined : { label: 'Try again', onClick: () => setReloadKey((k) => k + 1) }}
         >
-          {error || 'No report data'}
+          {error?.message ?? 'No report data'}
         </Alert>
       )}
 

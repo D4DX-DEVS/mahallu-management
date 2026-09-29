@@ -10,7 +10,7 @@ import { ROUTES } from '@/constants/routes';
 import { salaryService } from '@/services/salaryService';
 import { instituteService } from '@/services/instituteService';
 import { useAuthStore } from '@/store/authStore';
-import { loadErrorMessage } from '@/utils/errors';
+import { loadErrorInfo, LoadErrorInfo } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import SortableTh from '@/components/ui/SortableTh';
 import { useSortableRows } from '@/hooks/useSortableRows';
@@ -49,7 +49,7 @@ interface SummaryItem {
 export default function SalarySummary() {
   const { currentInstituteId: userInstituteId } = useAuthStore();
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<LoadErrorInfo | null>(null);
   const [summary, setSummary] = useState<SummaryItem[]>([]);
   const [institutes, setInstitutes] = useState<{ id: string; name: string }[]>([]);
   const [instituteFilter, setInstituteFilter] = useState(userInstituteId || 'all');
@@ -88,7 +88,7 @@ export default function SalarySummary() {
       const data = await salaryService.getSummary(params);
       setSummary(data || []);
     } catch (err: any) {
-      setError(loadErrorMessage(err, 'salary summary'));
+      setError(loadErrorInfo(err, 'salary summary'));
     } finally {
       setLoading(false);
     }
@@ -151,10 +151,11 @@ export default function SalarySummary() {
           <PageSkeleton variant="section" />
         ) : error ? (
           <EmptyState
-            variant="error"
+            variant={error.variant}
             entity="salary summary"
-            description={error}
-            action={{ label: 'Retry', onClick: fetchSummary }}
+            title={error.variant === 'info' ? error.title : undefined}
+            description={error.message}
+            action={error.variant === 'info' ? undefined : { label: 'Retry', onClick: fetchSummary }}
           />
         ) : summary.length === 0 ? (
           <div className="text-center py-10 text-gray-500 dark:text-gray-400">

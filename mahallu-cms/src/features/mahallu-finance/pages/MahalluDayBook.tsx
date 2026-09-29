@@ -3,15 +3,16 @@ import Card from '@/components/ui/Card';
 import StatCard from '@/components/ui/StatCard';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
+import Alert from '@/components/ui/Alert';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import { accountingReportService, DayBookEntry } from '@/services/accountingReportService';
-import { loadErrorMessage } from '@/utils/errors';
+import { loadErrorInfo, LoadErrorInfo } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
 
 export default function MahalluDayBook() {
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<LoadErrorInfo | null>(null);
   const [entries, setEntries] = useState<DayBookEntry[]>([]);
   const [startDate, setStartDate] = useState(() => {
     const d = new Date();
@@ -27,7 +28,7 @@ export default function MahalluDayBook() {
       const data = await accountingReportService.getDayBook({ startDate, endDate, scope: 'mahallu' });
       setEntries(data || []);
     } catch (err: any) {
-      setError(loadErrorMessage(err, 'day book'));
+      setError(loadErrorInfo(err, 'day book'));
     } finally {
       setLoading(false);
     }
@@ -72,7 +73,13 @@ export default function MahalluDayBook() {
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <p className="text-center py-8 text-red-600">{error}</p>
+          <Alert
+            variant={error.variant}
+            title={error.title}
+            action={error.variant === 'info' ? undefined : { label: 'Try again', onClick: fetchData }}
+          >
+            {error.message}
+          </Alert>
         ) : entries.length === 0 ? (
           <p className="text-center py-10 text-gray-500">Select a date range and click "Generate"</p>
         ) : (

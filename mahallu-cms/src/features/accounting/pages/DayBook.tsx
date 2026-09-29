@@ -4,18 +4,19 @@ import StatCard from '@/components/ui/StatCard';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
+import Alert from '@/components/ui/Alert';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import { accountingReportService, DayBookEntry } from '@/services/accountingReportService';
 import { instituteService } from '@/services/instituteService';
 import { useAuthStore } from '@/store/authStore';
-import { loadErrorMessage } from '@/utils/errors';
+import { loadErrorInfo, LoadErrorInfo } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
 
 export default function DayBook() {
   const { currentInstituteId: userInstituteId } = useAuthStore();
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<LoadErrorInfo | null>(null);
   const [entries, setEntries] = useState<DayBookEntry[]>([]);
   const [institutes, setInstitutes] = useState<{ id: string; name: string }[]>([]);
   const [instituteFilter, setInstituteFilter] = useState(userInstituteId || 'all');
@@ -48,7 +49,7 @@ export default function DayBook() {
       const data = await accountingReportService.getDayBook(params);
       setEntries(data || []);
     } catch (err: any) {
-      setError(loadErrorMessage(err, 'day book'));
+      setError(loadErrorInfo(err, 'day book'));
     } finally {
       setLoading(false);
     }
@@ -102,9 +103,13 @@ export default function DayBook() {
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="text-center py-10">
-            <p className="text-red-600 dark:text-red-400">{error}</p>
-          </div>
+          <Alert
+            variant={error.variant}
+            title={error.title}
+            action={error.variant === 'info' ? undefined : { label: 'Try again', onClick: fetchDayBook }}
+          >
+            {error.message}
+          </Alert>
         ) : entries.length === 0 ? (
           <div className="text-center py-10 text-gray-500 dark:text-gray-400">
             {startDate

@@ -1,18 +1,18 @@
 import { useEffect, useState, useCallback } from 'react';
-import { FiPlus } from 'react-icons/fi';
+import { FiEdit2, FiPlus, FiTrash2 } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import { employmentService, type JobVacancy, type EmploymentSummary } from '@/services/employmentService';
 import Button from '@/components/ui/Button';
 import ExpandableSearch from '@/components/ui/ExpandableSearch';
-import Card from '@/components/ui/Card';
 import StatCard from '@/components/ui/StatCard';
+import Table from '@/components/ui/Table';
+import ActionsMenu from '@/components/ui/ActionsMenu';
 import Pagination from '@/components/ui/Pagination';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { toast } from '@/store/toastStore';
 import StatusBadge from '@/components/ui/StatusBadge';
 import PageHeader from '@/components/layout/PageHeader';
-import SortableTh from '@/components/ui/SortableTh';
-import { useSortableRows } from '@/hooks/useSortableRows';
+import { TableColumn } from '@/types';
 import { toTitleCase } from '@/utils/format';
 
 export default function VacanciesList() {
@@ -92,14 +92,57 @@ export default function VacanciesList() {
     return vacancy.employerName || 'One-off post';
   };
 
-  /* Employer shows a resolved name, so the column sorts on that name. */
-  const {
-    rows: sortedVacancies,
-    sort,
-    toggleSort,
-  } = useSortableRows(vacancies, null, {
-    employer: (row) => employerName(row),
-  });
+  const columns: TableColumn<JobVacancy>[] = [
+    {
+      key: 'title',
+      label: 'Job Title',
+      render: (_v, vacancy) => (
+        <div>
+          <div className="font-medium text-foreground">{toTitleCase(vacancy.title)}</div>
+          <div className="text-xs text-muted-foreground">
+            {vacancy.location ? toTitleCase(vacancy.location) : '—'}
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'employer',
+      label: 'Employer',
+      priority: 'secondary',
+      render: (_v, vacancy) => toTitleCase(employerName(vacancy)),
+    },
+    {
+      key: 'status',
+      label: 'Status',
+      priority: 'secondary',
+      sortable: true,
+      render: (_v, vacancy) => <StatusBadge status={vacancy.status} />,
+    },
+    {
+      key: 'actions',
+      label: 'Actions',
+      align: 'right',
+      sortable: false,
+      render: (_v, vacancy) => (
+        <ActionsMenu
+          label={'Actions for ' + vacancy.title}
+          items={[
+            {
+              label: 'Edit',
+              icon: <FiEdit2 className="h-4 w-4" />,
+              onClick: () => navigate(`/employment/vacancies/${vacancy.id}`),
+            },
+            {
+              label: 'Delete',
+              icon: <FiTrash2 className="h-4 w-4" />,
+              onClick: () => handleDeleteClick(vacancy.id),
+              variant: 'danger' as const,
+            },
+          ]}
+        />
+      ),
+    },
+  ];
 
   return (
     <div className="space-y-4">
@@ -153,93 +196,22 @@ export default function VacanciesList() {
         </div>
       </div>
 
-      {loading ? (
-        <Card>
-          <div className="py-8 text-center">Loading vacancies...</div>
-        </Card>
-      ) : vacancies.length === 0 ? (
-        <Card>
-          <div className="py-8 text-center text-gray-500">
-            <p>No job vacancies found</p>
-          </div>
-        </Card>
-      ) : (
-        <>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-gray-50">
-                  <SortableTh sortKey="title" sort={sort} onSort={toggleSort}>
-                    Job Title
-                  </SortableTh>
-                  <SortableTh
-                    sortKey="employer"
-                    sort={sort}
-                    onSort={toggleSort}
-                    responsiveClassName="hidden sm:table-cell"
-                  >
-                    Employer
-                  </SortableTh>
-                  <SortableTh
-                    sortKey="status"
-                    sort={sort}
-                    onSort={toggleSort}
-                    responsiveClassName="hidden md:table-cell"
-                  >
-                    Status
-                  </SortableTh>
-                  <th className="px-4 py-3 text-right text-label font-semibold text-muted-foreground">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {sortedVacancies.map((vacancy) => (
-                  <tr key={vacancy.id} className="border-b hover:bg-gray-50">
-                    <td className="px-4 py-3 text-sm">
-                      <div className="font-medium text-gray-900">{toTitleCase(vacancy.title)}</div>
-                      <div className="text-xs text-gray-500 hidden sm:block">
-                        {vacancy.location ? toTitleCase(vacancy.location) : '—'}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-sm hidden sm:table-cell text-gray-700">
-                      {toTitleCase(employerName(vacancy))}
-                    </td>
-                    <td className="px-4 py-3 hidden md:table-cell">
-                      <StatusBadge status={vacancy.status} />
-                    </td>
-                    <td className="px-4 py-3 text-right space-x-2">
-                      <button
-                        onClick={() => navigate(`/employment/vacancies/${vacancy.id}`)}
-                        className="text-blue-600 hover:text-blue-900 px-2 py-1 text-xs hover:bg-blue-50 rounded"
-                        title="View"
-                        aria-label="View"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDeleteClick(vacancy.id)}
-                        className="text-red-600 hover:text-red-900 px-2 py-1 text-xs hover:bg-red-50 rounded"
-                        title="Delete"
-                        aria-label="Delete"
-                      >
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+      <Table
+        columns={columns}
+        data={vacancies}
+        isLoading={loading}
+        entity="job vacancies"
+        rowKey={(vacancy) => vacancy.id}
+      />
 
-          <Pagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            totalItems={vacancies.length * totalPages}
-            itemsPerPage={itemsPerPage}
-            onPageChange={setCurrentPage}
-          />
-        </>
+      {!loading && vacancies.length > 0 && (
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={vacancies.length * totalPages}
+          itemsPerPage={itemsPerPage}
+          onPageChange={setCurrentPage}
+        />
       )}
 
       <ConfirmDialog

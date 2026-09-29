@@ -78,7 +78,7 @@ export default function TenantSwitcher() {
     } catch (error: any) {
       console.error('Error loading tenants:', error);
       setTenants([]);
-      setLoadError(loadErrorMessage(error, 'tenants'));
+      setLoadError(loadErrorMessage(error, 'Mahallus'));
     } finally {
       setIsLoading(false);
     }
@@ -117,33 +117,43 @@ export default function TenantSwitcher() {
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        aria-label={currentTenant ? `Switch tenant (currently ${currentTenant.name})` : 'Select tenant'}
+        title={currentTenant ? `Mahallu: ${currentTenant.name}` : 'Select Mahallu'}
+        aria-label={currentTenant ? `Switch Mahallu (currently ${currentTenant.name})` : 'Select Mahallu'}
         aria-haspopup="true"
         aria-expanded={isOpen}
         className={cn(
+          /* A visible border at rest — not just on hover/active — is what makes
+           * this read as a real dropdown control rather than a ghost icon
+           * button a user could easily miss in a busy header. */
           'flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-medium transition-colors',
           isViewingAsTenant
             ? 'border-primary/25 bg-primary/10 text-primary'
             : isOpen
               ? 'border-border bg-accent text-accent-foreground'
-              : 'border-transparent text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+              : 'border-border/60 text-foreground hover:border-border hover:bg-accent hover:text-accent-foreground'
         )}
       >
-        <FiLayers className="h-4 w-4" />
-        <span className="hidden md:inline max-w-[150px] truncate">
-          {currentTenant ? currentTenant.name : 'Select Tenant'}
+        <FiLayers className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
+        <span className="hidden md:inline max-w-[190px] truncate">
+          {currentTenant ? (
+            <>
+              <span className="text-muted-foreground">Mahallu:</span> {currentTenant.name}
+            </>
+          ) : (
+            'Select Mahallu'
+          )}
         </span>
         {isViewingAsTenant && (
           <span className="rounded-sm bg-primary/15 px-1.5 py-0.5 text-xs text-primary">Viewing</span>
         )}
-        <FiChevronDown className={cn('h-4 w-4 transition-transform', isOpen && 'rotate-180')} />
+        <FiChevronDown className={cn('h-4 w-4 flex-shrink-0 transition-transform', isOpen && 'rotate-180')} />
       </button>
 
       {isOpen && (
         /* Anchored by its left edge, not right: on mobile this button sits near the
          * screen's left edge (right after the hamburger), and a right-anchored panel
          * this wide pushed almost entirely off-screen to the left. */
-        <div className="absolute left-0 z-50 mt-2 flex max-h-[500px] w-80 max-w-[calc(100vw-2rem)] flex-col rounded-lg border border-border bg-popover py-2 shadow-md">
+        <div className="absolute left-0 z-50 mt-2 flex max-h-[500px] w-96 max-w-[calc(100vw-2rem)] flex-col rounded-lg border border-border bg-popover py-2 shadow-md">
           {/* Switch back to Super Admin option */}
           {isViewingAsTenant && (
             <div className="mb-2 border-b border-border px-3 pb-2">
@@ -153,7 +163,7 @@ export default function TenantSwitcher() {
               >
                 <div className="flex items-center gap-2">
                   <FiX className="h-4 w-4" />
-                  <span>Exit Tenant View</span>
+                  <span>Exit Mahallu View</span>
                 </div>
                 <span className="text-xs opacity-75">Back to Super Admin</span>
               </button>
@@ -164,9 +174,9 @@ export default function TenantSwitcher() {
             <div className="relative">
               <FiSearch className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <input
-                aria-label="Search tenants"
+                aria-label="Search Mahallus"
                 type="text"
-                placeholder="Search tenants..."
+                placeholder="Search Mahallus..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full rounded-md border border-input bg-background py-2 pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -186,8 +196,8 @@ export default function TenantSwitcher() {
             ) : filteredTenants.length === 0 ? (
               <div className="px-4 py-8 text-center text-sm text-muted-foreground">
                 {searchQuery
-                  ? 'No tenants found matching your search'
-                  : 'No tenants available. Create a tenant first.'}
+                  ? 'No Mahallus found matching your search'
+                  : 'No Mahallus available. Create a Mahallu first.'}
               </div>
             ) : (
               <div className="space-y-1 py-1">

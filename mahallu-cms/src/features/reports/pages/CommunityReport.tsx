@@ -4,7 +4,7 @@ import StatCard from '@/components/ui/StatCard';
 import Alert from '@/components/ui/Alert';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import { reportService } from '@/services/reportService';
-import { loadErrorMessage } from '@/utils/errors';
+import { loadErrorInfo, LoadErrorInfo } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 
 interface CommunityReportData {
@@ -29,7 +29,7 @@ interface CommunityReportData {
 export default function CommunityReport() {
   const [data, setData] = useState<CommunityReportData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<LoadErrorInfo | null>(null);
 
   useEffect(() => {
     loadReport();
@@ -42,7 +42,7 @@ export default function CommunityReport() {
       const response = await reportService.getCommunityReport();
       setData(response);
     } catch (err) {
-      setError(loadErrorMessage(err, 'report'));
+      setError(loadErrorInfo(err, 'report'));
     } finally {
       setLoading(false);
     }
@@ -54,8 +54,12 @@ export default function CommunityReport() {
     return (
       <div className="space-y-4">
         <PageHeader title="Community Report" />
-        <Alert variant="error" title="Couldn't load report" action={{ label: 'Try again', onClick: loadReport }}>
-          {error || 'No report data'}
+        <Alert
+          variant={error?.variant ?? 'error'}
+          title={error?.title ?? "Couldn't load report"}
+          action={error?.variant === 'info' ? undefined : { label: 'Try again', onClick: loadReport }}
+        >
+          {error?.message ?? 'No report data'}
         </Alert>
       </div>
     );

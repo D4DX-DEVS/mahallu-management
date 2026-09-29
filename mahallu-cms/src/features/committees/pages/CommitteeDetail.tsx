@@ -101,7 +101,9 @@ export default function CommitteeDetail() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card>
-          <h2 className="text-lg font-semibold mb-3 text-foreground">Basic Information</h2>
+          {/* No heading here — these are just the committee's own record fields,
+              distinct enough from the Statistics card beside them (which holds
+              aggregate counts, not record fields) to not need one of its own. */}
           <div className="space-y-3">
             <div>
               <p className="text-sm text-gray-500 dark:text-gray-400">Name</p>

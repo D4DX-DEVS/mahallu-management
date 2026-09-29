@@ -5,6 +5,7 @@ import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
+import Alert from '@/components/ui/Alert';
 import { ROUTES } from '@/constants/routes';
 import { masterAccountService } from '@/services/masterAccountService';
 import { useAuthStore } from '@/store/authStore';
@@ -30,8 +31,9 @@ const emptyForm = {
 
 export default function CreateMahalluLedger() {
   const navigate = useNavigate();
-  const { currentTenantId, user } = useAuthStore();
+  const { currentTenantId, user, isSuperAdmin } = useAuthStore();
   const tenantId = getTenantId(user, currentTenantId);
+  const needsTenantSelection = isSuperAdmin && !tenantId;
   const [form, setForm] = useState(emptyForm);
   const { errors, validate } = useFormValidation(RULES);
   const [error, setError] = useState<string | null>(null);
@@ -66,6 +68,13 @@ export default function CreateMahalluLedger() {
         ]}
       />
 
+      {needsTenantSelection ? (
+        <Card className="space-y-4">
+          <Alert variant="info" title="Select a Mahallu first">
+            Please select a Mahallu from the top menu before adding a new ledger.
+          </Alert>
+        </Card>
+      ) : (
       <form onSubmit={handleSubmit}>
         <Card className="space-y-4">
           {error && (
@@ -127,6 +136,7 @@ export default function CreateMahalluLedger() {
           </div>
         </Card>
       </form>
+      )}
     </div>
   );
 }
