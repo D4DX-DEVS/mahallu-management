@@ -32,7 +32,7 @@ import {
 } from '@/services/dashboardService';
 import { ROUTES } from '@/constants/routes';
 import { formatDate, toTitleCase } from '@/utils/format';
-import { loadErrorMessage } from '@/utils/errors';
+import { loadErrorInfo, LoadErrorInfo } from '@/utils/errors';
 import { useChartTheme, tooltipStyle } from '@/utils/chartTheme';
 import { useAuthStore } from '@/store/authStore';
 export default function Dashboard() {
@@ -45,7 +45,7 @@ export default function Dashboard() {
   const [activityTimeline, setActivityTimeline] = useState<ActivityTimelineData[]>([]);
   const [financialSummary, setFinancialSummary] = useState<FinancialSummary | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<LoadErrorInfo | null>(null);
   useEffect(() => {
     fetchDashboardData();
   }, []);
@@ -64,7 +64,7 @@ export default function Dashboard() {
       setActivityTimeline(timelineData);
       setFinancialSummary(financialData);
     } catch (err: any) {
-      setError(loadErrorMessage(err, 'the dashboard'));
+      setError(loadErrorInfo(err, 'the dashboard'));
     } finally {
       setLoading(false);
     }
@@ -156,11 +156,11 @@ export default function Dashboard() {
       <>
         <PageHeader title="Dashboard" />
         <Alert
-          variant="error"
-          title="Couldn't load the dashboard"
-          action={{ label: 'Try again', onClick: fetchDashboardData }}
+          variant={error.variant}
+          title={error.title}
+          action={error.variant === 'info' ? undefined : { label: 'Try again', onClick: fetchDashboardData }}
         >
-          {error}
+          {error.message}
         </Alert>
       </>
     );

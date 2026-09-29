@@ -3,15 +3,16 @@ import Card from '@/components/ui/Card';
 import StatCard from '@/components/ui/StatCard';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
+import Alert from '@/components/ui/Alert';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import { accountingReportService, TrialBalanceEntry } from '@/services/accountingReportService';
-import { loadErrorMessage } from '@/utils/errors';
+import { loadErrorInfo, LoadErrorInfo } from '@/utils/errors';
 import { toTitleCase } from '@/utils/format';
 import PageHeader from '@/components/layout/PageHeader';
 
 export default function MahalluTrialBalance() {
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<LoadErrorInfo | null>(null);
   const [entries, setEntries] = useState<TrialBalanceEntry[]>([]);
   const [startDate, setStartDate] = useState(() => {
     const d = new Date();
@@ -27,7 +28,7 @@ export default function MahalluTrialBalance() {
       const data = await accountingReportService.getTrialBalance({ startDate, endDate, scope: 'mahallu' });
       setEntries(data || []);
     } catch (err: any) {
-      setError(loadErrorMessage(err, 'trial balance'));
+      setError(loadErrorInfo(err, 'trial balance'));
     } finally {
       setLoading(false);
     }
@@ -70,7 +71,13 @@ export default function MahalluTrialBalance() {
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <p className="text-center py-8 text-red-600">{error}</p>
+          <Alert
+            variant={error.variant}
+            title={error.title}
+            action={error.variant === 'info' ? undefined : { label: 'Try again', onClick: fetchData }}
+          >
+            {error.message}
+          </Alert>
         ) : entries.length === 0 ? (
           <p className="text-center py-10 text-gray-500">Select a date range and click "Generate"</p>
         ) : (

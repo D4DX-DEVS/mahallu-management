@@ -11,7 +11,7 @@ import { masterAccountService, MahalluAccount } from '@/services/masterAccountSe
 import { errorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { useFormValidation } from '@/hooks/useFormValidation';
-import { FieldRule, LIMITS } from '@/utils/validation';
+import { FieldRule, LIMITS, sanitizeAmountInput } from '@/utils/validation';
 
 /**
  * The same limits the API applies, so a form that passes here is not
@@ -35,7 +35,7 @@ export default function EditMahalluAccount() {
     accountNumber: '',
     bankName: '',
     ifscCode: '',
-    balance: 0,
+    balance: '',
     status: 'active' as 'active' | 'inactive',
   });
   const { errors, validate } = useFormValidation(RULES);
@@ -52,7 +52,7 @@ export default function EditMahalluAccount() {
         accountNumber: stateAccount.accountNumber || '',
         bankName: stateAccount.bankName || '',
         ifscCode: stateAccount.ifscCode || '',
-        balance: stateAccount.balance || 0,
+        balance: stateAccount.balance != null ? String(stateAccount.balance) : '',
         status: stateAccount.status || 'active',
       });
       setLoading(false);
@@ -67,7 +67,7 @@ export default function EditMahalluAccount() {
               accountNumber: found.accountNumber || '',
               bankName: found.bankName || '',
               ifscCode: found.ifscCode || '',
-              balance: found.balance || 0,
+              balance: found.balance != null ? String(found.balance) : '',
               status: found.status || 'active',
             });
           } else {
@@ -89,7 +89,7 @@ export default function EditMahalluAccount() {
     try {
       setSaving(true);
       setError(null);
-      await masterAccountService.updateMahalluAccount(id, form);
+      await masterAccountService.updateMahalluAccount(id, { ...form, balance: Number(form.balance) || 0 });
       navigate(ROUTES.MAHALLU_FINANCE.ACCOUNTS);
     } catch (err: any) {
       setError(errorMessage(err, { action: 'update account. please try again' }));
@@ -162,9 +162,11 @@ export default function EditMahalluAccount() {
             <Input
               label="Balance"
               type="number"
+              inputMode="decimal"
               value={form.balance}
               error={errors.balance}
-              onChange={(e) => setForm((f) => ({ ...f, balance: Number(e.target.value) }))}
+              onChange={(e) => setForm((f) => ({ ...f, balance: sanitizeAmountInput(e.target.value) }))}
+              placeholder="0.00"
             />
             <Select
               label="Status"

@@ -258,77 +258,69 @@ export default function AssetDetail() {
         </div>
       </div>
 
-      {/* Asset Info */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card>
-          <h2 className="text-lg font-semibold mb-3 text-foreground">Basic Information</h2>
-          <div className="space-y-4">
-            <div>
-              <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Name</label>
-              <p className="mt-1 text-gray-900 dark:text-gray-100">{toTitleCase(asset.name)}</p>
-            </div>
-            <div>
-              <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Category</label>
-              <p className="mt-1 text-gray-900 dark:text-gray-100">
-                {categoryLabels[asset.category] || asset.category}
-              </p>
-            </div>
-            <div>
-              <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Mosque</label>
-              <p className="mt-1 text-gray-900 dark:text-gray-100">
-                {typeof asset.mosqueId === 'object' && asset.mosqueId
-                  ? toTitleCase(asset.mosqueId.name)
-                  : 'Unassigned'}
-              </p>
-            </div>
-            <div>
-              <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Status</label>
-              <p className="mt-1">
-                <StatusBadge status={asset.status} />
-              </p>
-            </div>
-            <div>
-              <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Purchase Date</label>
-              <p className="mt-1 text-gray-900 dark:text-gray-100">{formatDate(asset.purchaseDate)}</p>
-            </div>
+      {/* Asset Info: one field list rather than two headed halves — every field
+          here is the same asset record, not two distinct kinds of information. */}
+      <Card>
+        <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
+          <div>
+            <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Name</label>
+            <p className="mt-1 text-gray-900 dark:text-gray-100">{toTitleCase(asset.name)}</p>
           </div>
-        </Card>
-
-        <Card>
-          <h2 className="text-lg font-semibold mb-3 text-foreground">Value & Location</h2>
-          <div className="space-y-4">
-            <div>
-              <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Estimated Value</label>
-              <p className="mt-1 text-gray-900 dark:text-gray-100 text-lg font-semibold">
-                ₹{asset.estimatedValue?.toLocaleString('en-IN') || '0'}
-              </p>
-            </div>
-            {asset.location && (
-              <div>
-                <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Location</label>
-                <p className="mt-1 text-gray-900 dark:text-gray-100">{toTitleCase(asset.location)}</p>
-              </div>
-            )}
-            <div>
-              <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Created At</label>
-              <p className="mt-1 text-gray-900 dark:text-gray-100">{formatDate(asset.createdAt)}</p>
-            </div>
-            {asset.updatedAt && (
-              <div>
-                <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Last Updated</label>
-                <p className="mt-1 text-gray-900 dark:text-gray-100">{formatDate(asset.updatedAt)}</p>
-              </div>
-            )}
+          <div>
+            <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Category</label>
+            <p className="mt-1 text-gray-900 dark:text-gray-100">
+              {categoryLabels[asset.category] || asset.category}
+            </p>
           </div>
-        </Card>
+          <div>
+            <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Mosque</label>
+            <p className="mt-1 text-gray-900 dark:text-gray-100">
+              {typeof asset.mosqueId === 'object' && asset.mosqueId
+                ? toTitleCase(asset.mosqueId.name)
+                : 'Unassigned'}
+            </p>
+          </div>
+          <div>
+            <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Status</label>
+            <p className="mt-1">
+              <StatusBadge status={asset.status} />
+            </p>
+          </div>
+          <div>
+            <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Purchase Date</label>
+            <p className="mt-1 text-gray-900 dark:text-gray-100">{formatDate(asset.purchaseDate)}</p>
+          </div>
+          <div>
+            <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Estimated Value</label>
+            <p className="mt-1 text-gray-900 dark:text-gray-100 text-lg font-semibold">
+              ₹{asset.estimatedValue?.toLocaleString('en-IN') || '0'}
+            </p>
+          </div>
+          {asset.location && (
+            <div>
+              <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Location</label>
+              <p className="mt-1 text-gray-900 dark:text-gray-100">{toTitleCase(asset.location)}</p>
+            </div>
+          )}
+          <div>
+            <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Created At</label>
+            <p className="mt-1 text-gray-900 dark:text-gray-100">{formatDate(asset.createdAt)}</p>
+          </div>
+          {asset.updatedAt && (
+            <div>
+              <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Last Updated</label>
+              <p className="mt-1 text-gray-900 dark:text-gray-100">{formatDate(asset.updatedAt)}</p>
+            </div>
+          )}
+        </div>
+      </Card>
 
-        {asset.description && (
-          <Card className="md:col-span-2">
-            <h2 className="text-lg font-semibold mb-3 text-foreground">Description</h2>
-            <p className="text-gray-700 dark:text-gray-300">{asset.description}</p>
-          </Card>
-        )}
-      </div>
+      {asset.description && (
+        <Card>
+          <h2 className="text-lg font-semibold mb-3 text-foreground">Description</h2>
+          <p className="text-gray-700 dark:text-gray-300">{asset.description}</p>
+        </Card>
+      )}
 
       {/* Maintenance Records Section */}
       <TableCard>

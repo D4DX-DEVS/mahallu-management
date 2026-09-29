@@ -99,83 +99,74 @@ export default function UserDetail() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* One field list rather than two headed halves — every field here is
+          the same user record, not two distinct kinds of information. */}
+      <Card>
+        <div className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
+          <div>
+            <span className="text-sm text-gray-500 dark:text-gray-400">Name</span>
+            <p className="text-gray-900 dark:text-gray-100">{toTitleCase(user.name)}</p>
+          </div>
+          <div>
+            <span className="text-sm text-gray-500 dark:text-gray-400">Phone</span>
+            <p className="text-gray-900 dark:text-gray-100">{user.phone}</p>
+          </div>
+          {user.email && (
+            <div>
+              <span className="text-sm text-gray-500 dark:text-gray-400">Email</span>
+              <p className="text-gray-900 dark:text-gray-100">{user.email}</p>
+            </div>
+          )}
+          <div>
+            <span className="text-sm text-gray-500 dark:text-gray-400">Role</span>
+            <p className="text-gray-900 dark:text-gray-100 capitalize">{user.role}</p>
+          </div>
+          <div>
+            <span className="text-sm text-gray-500 dark:text-gray-400">Status</span>
+            <StatusBadge status={user.status} />
+          </div>
+          <div>
+            <span className="text-sm text-gray-500 dark:text-gray-400">Joining Date</span>
+            <p className="text-gray-900 dark:text-gray-100">{formatDate(user.joiningDate)}</p>
+          </div>
+          {user.lastLogin && (
+            <div>
+              <span className="text-sm text-gray-500 dark:text-gray-400">Last Login</span>
+              <p className="text-gray-900 dark:text-gray-100">{formatDateTime(user.lastLogin)}</p>
+            </div>
+          )}
+          {user.tenant && (
+            <div>
+              <span className="text-sm text-gray-500 dark:text-gray-400">Tenant</span>
+              <p className="text-gray-900 dark:text-gray-100">{toTitleCase(user.tenant.name)}</p>
+            </div>
+          )}
+        </div>
+      </Card>
+
+      {user.permissions && (
         <Card>
-          <h2 className="text-lg font-semibold mb-3 text-foreground">Basic Information</h2>
-          <div className="space-y-3">
+          <h2 className="text-lg font-semibold mb-3 text-foreground">Permissions</h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div>
-              <span className="text-sm text-gray-500 dark:text-gray-400">Name</span>
-              <p className="text-gray-900 dark:text-gray-100">{toTitleCase(user.name)}</p>
+              <span className="text-sm text-gray-500 dark:text-gray-400">View</span>
+              <p className="text-gray-900 dark:text-gray-100">{user.permissions.view ? 'Yes' : 'No'}</p>
             </div>
             <div>
-              <span className="text-sm text-gray-500 dark:text-gray-400">Phone</span>
-              <p className="text-gray-900 dark:text-gray-100">{user.phone}</p>
-            </div>
-            {user.email && (
-              <div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">Email</span>
-                <p className="text-gray-900 dark:text-gray-100">{user.email}</p>
-              </div>
-            )}
-            <div>
-              <span className="text-sm text-gray-500 dark:text-gray-400">Role</span>
-              <p className="text-gray-900 dark:text-gray-100 capitalize">{user.role}</p>
+              <span className="text-sm text-gray-500 dark:text-gray-400">Add</span>
+              <p className="text-gray-900 dark:text-gray-100">{user.permissions.add ? 'Yes' : 'No'}</p>
             </div>
             <div>
-              <span className="text-sm text-gray-500 dark:text-gray-400">Status</span>
-              <StatusBadge status={user.status} />
+              <span className="text-sm text-gray-500 dark:text-gray-400">Edit</span>
+              <p className="text-gray-900 dark:text-gray-100">{user.permissions.edit ? 'Yes' : 'No'}</p>
+            </div>
+            <div>
+              <span className="text-sm text-gray-500 dark:text-gray-400">Delete</span>
+              <p className="text-gray-900 dark:text-gray-100">{user.permissions.delete ? 'Yes' : 'No'}</p>
             </div>
           </div>
         </Card>
-
-        <Card>
-          <h2 className="text-lg font-semibold mb-3 text-foreground">
-            Additional Information
-          </h2>
-          <div className="space-y-3">
-            <div>
-              <span className="text-sm text-gray-500 dark:text-gray-400">Joining Date</span>
-              <p className="text-gray-900 dark:text-gray-100">{formatDate(user.joiningDate)}</p>
-            </div>
-            {user.lastLogin && (
-              <div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">Last Login</span>
-                <p className="text-gray-900 dark:text-gray-100">{formatDateTime(user.lastLogin)}</p>
-              </div>
-            )}
-            {user.tenant && (
-              <div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">Tenant</span>
-                <p className="text-gray-900 dark:text-gray-100">{toTitleCase(user.tenant.name)}</p>
-              </div>
-            )}
-          </div>
-        </Card>
-
-        {user.permissions && (
-          <Card className="md:col-span-2">
-            <h2 className="text-lg font-semibold mb-3 text-foreground">Permissions</h2>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">View</span>
-                <p className="text-gray-900 dark:text-gray-100">{user.permissions.view ? 'Yes' : 'No'}</p>
-              </div>
-              <div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">Add</span>
-                <p className="text-gray-900 dark:text-gray-100">{user.permissions.add ? 'Yes' : 'No'}</p>
-              </div>
-              <div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">Edit</span>
-                <p className="text-gray-900 dark:text-gray-100">{user.permissions.edit ? 'Yes' : 'No'}</p>
-              </div>
-              <div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">Delete</span>
-                <p className="text-gray-900 dark:text-gray-100">{user.permissions.delete ? 'Yes' : 'No'}</p>
-              </div>
-            </div>
-          </Card>
-        )}
-      </div>
+      )}
 
       <Modal
         isOpen={showDeleteModal}

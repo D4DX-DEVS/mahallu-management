@@ -13,6 +13,7 @@ import { ROUTES } from '@/constants/routes';
 import { instituteService } from '@/services/instituteService';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { optionalPhoneSchema, sanitizeDigits } from '@/utils/validation';
 
 const instituteSchema = z.object({
   name: z.string().max(200, 'Please keep the name to 200 characters or less.').min(1, 'Name is required'),
@@ -22,7 +23,7 @@ const instituteSchema = z.object({
   type: z.enum(['institute', 'madrasa', 'orphanage', 'hospital', 'other']),
   joinDate: z.string().max(200, 'Please keep the join date to 200 characters or less.').min(1, 'Join Date is required'),
   description: z.string().max(3000, 'Please keep the description to 3000 characters or less.').optional(),
-  contactNo: z.string().max(200, 'Please keep the contact no to 200 characters or less.').optional(),
+  contactNo: optionalPhoneSchema,
   email: z.string().max(254, 'Please keep the email to 254 characters or less.').email('Invalid email').optional().or(z.literal('')),
   status: z.enum(['active', 'inactive']).optional(),
 });
@@ -152,7 +153,15 @@ export default function EditInstitute() {
               ]}
             />
             <Input label="Join Date" type="date" {...register('joinDate')} error={errors.joinDate?.message} />
-            <Input label="Contact No" {...register('contactNo')} error={errors.contactNo?.message} />
+            <Input
+              label="Contact No"
+              type="tel"
+              inputMode="numeric"
+              maxLength={10}
+              {...register('contactNo')}
+              onChange={(e) => setValue('contactNo', sanitizeDigits(e.target.value, 10), { shouldValidate: true, shouldDirty: true })}
+              error={errors.contactNo?.message}
+            />
             <Input label="Email" type="email" {...register('email')} error={errors.email?.message} />
             <Select
               label="Status"

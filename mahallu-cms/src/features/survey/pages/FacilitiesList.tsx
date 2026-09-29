@@ -19,6 +19,7 @@ import { toast } from '@/store/toastStore';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
+import { PHONE_PATTERN, sanitizeDigits } from '@/utils/validation';
 
 const TYPE_OPTIONS = [
   { value: 'school', label: 'School' },
@@ -105,6 +106,9 @@ export default function FacilitiesList() {
     const newErrors: Record<string, string> = {};
     if (!form.name.trim()) {
       newErrors.name = 'Name is required';
+    }
+    if (form.contactNo && !PHONE_PATTERN.test(form.contactNo)) {
+      newErrors.contactNo = 'Please enter a 10-digit phone number.';
     }
     if (Object.keys(newErrors).length > 0) {
       setFieldErrors(newErrors);
@@ -276,11 +280,24 @@ export default function FacilitiesList() {
             value={form.type}
             onChange={(e) => setForm({ ...form, type: e.target.value })}
           />
-          <Input
-            label="Contact No."
-            value={form.contactNo}
-            onChange={(e) => setForm({ ...form, contactNo: e.target.value })}
-          />
+          <div>
+            <Input
+              label="Contact No."
+              type="tel"
+              inputMode="numeric"
+              maxLength={10}
+              value={form.contactNo}
+              onChange={(e) => {
+                setForm({ ...form, contactNo: sanitizeDigits(e.target.value, 10) });
+                if (fieldErrors.contactNo) {
+                  setFieldErrors({ ...fieldErrors, contactNo: '' });
+                }
+              }}
+            />
+            {fieldErrors.contactNo && (
+              <p className="mt-1 text-sm text-red-600 dark:text-red-400">{fieldErrors.contactNo}</p>
+            )}
+          </div>
           <div className="md:col-span-2">
             <Input
               label="Address"

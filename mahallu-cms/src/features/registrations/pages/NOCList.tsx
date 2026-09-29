@@ -28,6 +28,7 @@ import { ROUTES } from '@/constants/routes';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
 import { downloadNocPdf } from '@/utils/nocPdf';
 import { DEFAULT_NOC_DESCRIPTION, createNocSchema, CreateNocFormData } from '../nocFormConfig';
+import { sanitizeDigits } from '@/utils/validation';
 import { buildNocColumns } from '../nocColumns';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
@@ -309,8 +310,12 @@ export default function NOCList() {
                 <Input
                   label="Applicant Phone"
                   type="tel"
+                  inputMode="numeric"
+                  maxLength={10}
                   {...register('applicantPhone')}
+                  onChange={(e) => setValue('applicantPhone', sanitizeDigits(e.target.value, 10), { shouldValidate: true, shouldDirty: true })}
                   placeholder="Phone Number"
+                  error={createErrors.applicantPhone?.message}
                 />
                 <Input
                   label="Purpose Title"

@@ -9,11 +9,12 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import { errorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { phoneSchema, sanitizeDigits } from '@/utils/validation';
 
 const donorSchema = z.object({
   name: z.string().max(200, 'Please keep the name to 200 characters or less.').min(1, 'Name is required'),
   bloodGroup: z.string().max(200, 'Please keep the blood group to 200 characters or less.').min(1, 'Blood group is required'),
-  contactNo: z.string().max(200, 'Please keep the contact no to 200 characters or less.').min(1, 'Contact number is required'),
+  contactNo: phoneSchema,
   availability: z.string().max(200, 'Please keep the availability to 200 characters or less.').optional(),
   notes: z.string().max(2000, 'Please keep the notes to 2000 characters or less.').optional(),
 });
@@ -28,6 +29,7 @@ export default function DonorCreate() {
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors },
   } = useForm<DonorFormData>({
     resolver: zodResolver(donorSchema),
@@ -102,8 +104,11 @@ export default function DonorCreate() {
               <label className="block text-sm font-medium text-gray-700 mb-2">Contact Number *</label>
               <Input
                 {...register('contactNo')}
+                onChange={(e) => setValue('contactNo', sanitizeDigits(e.target.value, 10), { shouldValidate: true, shouldDirty: true })}
                 placeholder="Phone number"
                 type="tel"
+                inputMode="numeric"
+                maxLength={10}
                 className={errors.contactNo ? 'border-red-500' : ''}
               />
               {errors.contactNo && <span className="text-red-500 text-sm">{errors.contactNo.message}</span>}

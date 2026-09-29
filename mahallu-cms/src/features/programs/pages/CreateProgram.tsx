@@ -12,6 +12,7 @@ import { ROUTES } from '@/constants/routes';
 import { programService } from '@/services/programService';
 import { errorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { optionalPinCodeSchema, sanitizeDigits } from '@/utils/validation';
 
 const programSchema = z.object({
   name: z.string().max(200, 'Please keep the name to 200 characters or less.').min(1, 'Name is required'),
@@ -30,7 +31,7 @@ const programSchema = z.object({
     .object({
       state: z.string().max(200, 'Please keep the state to 200 characters or less.').optional(),
       district: z.string().max(200, 'Please keep the district to 200 characters or less.').optional(),
-      pinCode: z.string().max(200, 'Please keep the pin code to 200 characters or less.').optional(),
+      pinCode: optionalPinCodeSchema,
       postOffice: z.string().max(200, 'Please keep the post office to 200 characters or less.').optional(),
     })
     .optional(),
@@ -47,6 +48,7 @@ export default function CreateProgram() {
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<ProgramFormData>({
     resolver: zodResolver(programSchema),
@@ -141,7 +143,15 @@ export default function CreateProgram() {
               error={errors.joinDate?.message}
               required
             />
-            <Input label="Contact No." type="tel" {...register('contactNo')} placeholder="Contact Number" />
+            <Input
+              label="Contact No."
+              type="tel"
+              inputMode="numeric"
+              maxLength={11}
+              {...register('contactNo')}
+              onChange={(e) => setValue('contactNo', sanitizeDigits(e.target.value, 11), { shouldValidate: true, shouldDirty: true })}
+              placeholder="Contact Number"
+            />
             <Input
               label="Email"
               type="email"
@@ -157,7 +167,16 @@ export default function CreateProgram() {
             />
             <Input label="State" {...register('address.state')} placeholder="State" />
             <Input label="District" {...register('address.district')} placeholder="District" />
-            <Input label="Pin Code" {...register('address.pinCode')} placeholder="Pin Code" />
+            <Input
+              label="Pin Code"
+              type="text"
+              inputMode="numeric"
+              maxLength={6}
+              {...register('address.pinCode')}
+              onChange={(e) => setValue('address.pinCode', sanitizeDigits(e.target.value, 6), { shouldValidate: true, shouldDirty: true })}
+              placeholder="Pin Code"
+              error={errors.address?.pinCode?.message}
+            />
             <Input label="Post Office" {...register('address.postOffice')} placeholder="Post Office" />
             <Select
               label="Status"

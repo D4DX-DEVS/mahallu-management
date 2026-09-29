@@ -23,6 +23,7 @@ import { toast } from '@/store/toastStore';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import ActionsMenu from '@/components/ui/ActionsMenu';
+import { sanitizeAmountInput } from '@/utils/validation';
 
 export default function LedgerItemsList() {
   const { currentInstituteId: userInstituteId } = useAuthStore();
@@ -44,7 +45,7 @@ export default function LedgerItemsList() {
   const [deleting, setDeleting] = useState(false);
   const [editForm, setEditForm] = useState({
     date: '',
-    amount: 0,
+    amount: '',
     type: 'income' as 'income' | 'expense',
     description: '',
     paymentMethod: '',
@@ -240,7 +241,7 @@ export default function LedgerItemsList() {
     setSelectedItem(item);
     setEditForm({
       date: item.date ? new Date(item.date).toISOString().split('T')[0] : '',
-      amount: item.amount || 0,
+      amount: item.amount != null ? String(item.amount) : '',
       type: item.type || 'income',
       description: item.description || '',
       paymentMethod: (item as any).paymentMethod || '',
@@ -254,7 +255,7 @@ export default function LedgerItemsList() {
     try {
       await masterAccountService.updateLedgerItem(selectedItem.id, {
         ...editForm,
-        amount: Number(editForm.amount),
+        amount: Number(editForm.amount) || 0,
       });
       await fetchItems();
       setShowEditModal(false);
@@ -502,8 +503,10 @@ export default function LedgerItemsList() {
             label="Amount"
             type="number"
             step="0.01"
+            inputMode="decimal"
             value={editForm.amount}
-            onChange={(e) => setEditForm({ ...editForm, amount: parseFloat(e.target.value) || 0 })}
+            onChange={(e) => setEditForm({ ...editForm, amount: sanitizeAmountInput(e.target.value) })}
+            placeholder="0.00"
           />
           <Input
             label="Description"

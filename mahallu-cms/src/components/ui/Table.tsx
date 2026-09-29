@@ -241,11 +241,11 @@ function Table<T extends Record<string, any>>({
      * it loaded. */
     return (
       <div className={cn('space-y-3', className)} aria-busy="true">
-        <ul className="space-y-3 sm:space-y-4 md:hidden">
+        <ul className="space-y-2 sm:space-y-3 md:hidden">
           {Array.from({ length: 6 }).map((_, row) => (
-            <li key={row} className="rounded-lg border border-border bg-card p-3 sm:p-4">
+            <li key={row} className="rounded-lg border border-border bg-card p-2.5 sm:p-3">
               <Skeleton className="h-4 w-2/5 max-w-full" />
-              <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1.5">
+              <div className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-1">
                 {Array.from({ length: Math.min(4, Math.max(2, cardColumns.length)) }).map((_, cell) => (
                   <div key={cell} className="min-w-0 space-y-1">
                     <Skeleton className="h-3 w-1/2 max-w-full" />
@@ -344,7 +344,7 @@ function Table<T extends Record<string, any>>({
       )}
 
       {/* ---- Phone: one card per record ---------------------------------- */}
-      <ul className="space-y-3 sm:space-y-4 md:hidden">
+      <ul className="space-y-2 sm:space-y-3 md:hidden">
         {rows.map((row, rowIndex) => {
           const key = keyOf(row, rowIndex);
           const selected = selectedKeys.includes(key);
@@ -365,7 +365,7 @@ function Table<T extends Record<string, any>>({
                     : undefined
                 }
                 className={cn(
-                  'min-w-0 rounded-lg border border-border bg-card p-3 transition-colors sm:p-4',
+                  'min-w-0 rounded-lg border border-border bg-card p-2.5 transition-colors sm:p-3',
                   selected && 'border-primary bg-accent/50',
                   onRowClick &&
                     'cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
@@ -384,18 +384,45 @@ function Table<T extends Record<string, any>>({
                   )}
 
                   <div className="min-w-0 flex-1">
-                    {titleColumn && (
-                      /* A column's `render` returns arbitrary JSX — several return a
-                       * <div> or a <p>. Inside a <p> the browser silently closes the
-                       * paragraph early, so the content escaped this truncation box
-                       * and the card layout broke on phones. A <div> nests anything. */
-                      <div style={HEAD_FONT} className="truncate font-medium text-foreground">
-                        {cellValue(titleColumn, row, rowIndex)}
-                      </div>
-                    )}
+                    <div className="flex items-start justify-between gap-2">
+                      {titleColumn && (
+                        /* A column's `render` returns arbitrary JSX — several return a
+                         * <div> or a <p>. Inside a <p> the browser silently closes the
+                         * paragraph early, so the content escaped this truncation box
+                         * and the card layout broke on phones. A <div> nests anything. */
+                        <div style={HEAD_FONT} className="min-w-0 flex-1 truncate font-medium text-foreground">
+                          {cellValue(titleColumn, row, rowIndex)}
+                        </div>
+                      )}
+
+                      {actionsColumn && (
+                        /* Actions sit beside the title, not in a footer row below it —
+                         * a separate bordered row per card was most of the extra
+                         * height a phone list carried, and it pushed a row's actions
+                         * onto their own line instead of staying level with the record
+                         * they act on. */
+                        <div
+                          className="flex-shrink-0"
+                          onClick={(e) => e.stopPropagation()}
+                          /* Only the click was stopped, so Enter on a row action ran the
+                           * action and then the row's own click handler — deleting a
+                           * record and navigating to it in one keystroke. */
+                          onKeyDown={(e) => e.stopPropagation()}
+                        >
+                          {cellValue(actionsColumn, row, rowIndex)}
+                        </div>
+                      )}
+
+                      {onRowClick && !actionsColumn && (
+                        <FiChevronRight
+                          className="mt-0.5 h-4 w-4 flex-shrink-0 text-muted-foreground"
+                          aria-hidden="true"
+                        />
+                      )}
+                    </div>
 
                     {cardColumns.length > 0 && (
-                      <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1.5">
+                      <dl className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-1">
                         {cardColumns.map((column) => (
                           <div key={column.key} className="min-w-0">
                             <dt style={CELL_FONT} className="text-muted-foreground">
@@ -409,27 +436,7 @@ function Table<T extends Record<string, any>>({
                       </dl>
                     )}
                   </div>
-
-                  {onRowClick && !actionsColumn && (
-                    <FiChevronRight
-                      className="mt-0.5 h-4 w-4 flex-shrink-0 text-muted-foreground"
-                      aria-hidden="true"
-                    />
-                  )}
                 </div>
-
-                {actionsColumn && (
-                  <div
-                    className="mt-2 flex flex-wrap items-center justify-end gap-1 border-t border-border pt-2"
-                    onClick={(e) => e.stopPropagation()}
-                    /* Only the click was stopped, so Enter on a row action ran the
-                     * action and then the row's own click handler — deleting a
-                     * record and navigating to it in one keystroke. */
-                    onKeyDown={(e) => e.stopPropagation()}
-                  >
-                    {cellValue(actionsColumn, row, rowIndex)}
-                  </div>
-                )}
               </div>
             </li>
           );

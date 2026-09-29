@@ -18,6 +18,7 @@ import { Family } from '@/types';
 import { getTenantId } from '@/utils/tenantHelper';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { sanitizeDigits } from '@/utils/validation';
 import { toTitleCase } from '@/utils/format';
 import { toast } from '@/store/toastStore';
 
@@ -209,7 +210,16 @@ export default function EditFamily() {
           <section className="space-y-4 border-t border-border pt-6">
             <h2 className="text-sm font-semibold text-foreground">Contact</h2>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <Input label="Contact No." type="tel" {...register('contactNo')} error={errors.contactNo?.message} placeholder="10-digit mobile" maxLength={10} />
+              <Input
+                label="Contact No."
+                type="tel"
+                inputMode="numeric"
+                {...register('contactNo')}
+                onChange={(e) => setValue('contactNo', sanitizeDigits(e.target.value, 10), { shouldValidate: true, shouldDirty: true })}
+                error={errors.contactNo?.message}
+                placeholder="10-digit mobile"
+                maxLength={10}
+              />
               <Input label="Ward Number" {...register('wardNumber')} error={errors.wardNumber?.message} placeholder="e.g. 12" type="number" min={1} />
             </div>
           </section>

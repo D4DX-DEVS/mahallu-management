@@ -2,10 +2,13 @@ import { ReactNode, useEffect } from 'react';
 import Sidebar from './Sidebar';
 import { useTenant } from '@/hooks/useTenant';
 import Header from './Header';
+import TenantBanner from './TenantBanner';
 import MobileFooterNav from './MobileFooterNav';
 import { useLayoutStore } from '@/store/layoutStore';
+import { useAuthStore } from '@/store/authStore';
 import { useLocation } from 'react-router-dom';
 import { RouteErrorBoundary } from '@/components/ui/ErrorBoundary';
+import { cn } from '@/utils/cn';
 interface MainLayoutProps {
   children: ReactNode;
 }
@@ -15,6 +18,10 @@ export default function MainLayout({ children }: MainLayoutProps) {
   const isMobileSidebarOpen = useLayoutStore((s) => s.isMobileSidebarOpen);
   const isDesktopSidebarCollapsed = useLayoutStore((s) => s.isDesktopSidebarCollapsed);
   const setMobileSidebarOpen = useLayoutStore((s) => s.setMobileSidebarOpen);
+  const { isSuperAdmin, currentTenantId } = useAuthStore();
+  // Single source of truth for the top-shell offset: the sidebar and the
+  // content column both read this so their top rows stay aligned on every route.
+  const isViewingAsTenant = Boolean(isSuperAdmin && currentTenantId);
   const location = useLocation();
   useEffect(() => {
     setMobileSidebarOpen(false);
@@ -31,7 +38,13 @@ export default function MainLayout({ children }: MainLayoutProps) {
    * operational tool. It also mixed the `slate` ramp into a product built on
    * `gray`, which is now the one neutral ramp. */
   return (
-    <div className="flex h-screen h-[100dvh] overflow-hidden bg-background text-foreground">
+    <div
+      className={cn(
+        'flex h-screen h-[100dvh] overflow-hidden bg-background text-foreground',
+        isViewingAsTenant && 'pt-9'
+      )}
+    >
+      {isViewingAsTenant && <TenantBanner />}
       {isMobileSidebarOpen && (
         <div
           className="fixed inset-0 z-40 bg-foreground/25 md:hidden"
@@ -64,9 +77,21 @@ export default function MainLayout({ children }: MainLayoutProps) {
             <RouteErrorBoundary>{children}</RouteErrorBoundary>
           </div>
         </main>
-
-        <MobileFooterNav />
       </div>
+      {/* Rendered as a root sibling, not nested inside #app-content-area: that
+       * div is `relative z-30`, which opens its own stacking context, so a
+       * z-index set on something nested inside it (this nav used to live
+       * there) is only ever compared against other things in that same
+       * context — it can never outrank a root-level sibling like the backdrop
+       * above, whatever number it carries. The backdrop (root-level, z-40)
+       * was silently painting over the entire nested context, footer nav
+       * included, so Home/Families/Members/Search stopped receiving taps
+       * whenever the mobile menu was open, even in the strip below the sheet
+       * that the sheet never visually covers. At the root level the footer
+       * nav's z-50 sits above the backdrop (40) but below the menu sheet
+       * (60), so it now stays visible and tappable while the menu is open,
+       * without the sheet itself losing the top slot. */}
+      <MobileFooterNav />
     </div>
   );
 }

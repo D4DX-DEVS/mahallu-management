@@ -41,6 +41,7 @@ import { errorMessage } from '@/utils/errors';
 import { toast } from '@/store/toastStore';
 import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
+import { sanitizeDigits } from '@/utils/validation';
 
 const memberSchemaShape = z.object({
   name: z.string().max(200, 'Please keep the name to 200 characters or less.').min(1, 'Enter the member’s name'),
@@ -89,6 +90,7 @@ type MemberFormData = z.infer<typeof memberSchemaShape>;
 
 export default function CreateMember() {
   const navigate = useNavigate();
+  const { isSuperAdmin } = useAuthStore();
   const [error, setError] = useState<string | null>(null);
   const [families, setFamilies] = useState<Family[]>([]);
   const [loadingFamilies, setLoadingFamilies] = useState(true);
@@ -263,6 +265,17 @@ export default function CreateMember() {
     })),
   ];
 
+  /* A super admin with no Mahallu picked in the tenant switcher has no
+   * `tenantId` — `getTenantId` already tells us this for free, before the
+   * user ever fills in the form. Letting them submit anyway meant the
+   * backend correctly rejected it (it has no tenant to create the member
+   * under) and the generic 403 copy — "You don't have permission... contact
+   * your Mahallu admin" — misrepresented a routine prerequisite as a
+   * permissions problem. A Mahall/Survey/Institute admin's own tenantId
+   * always resolves regardless of the switcher, so this never fires for
+   * them. */
+  const needsTenantSelection = isSuperAdmin && !tenantId;
+
   return (
     <>
       <PageHeader
@@ -270,6 +283,14 @@ export default function CreateMember() {
         description="Only the family and the member’s name are required. Everything else can be added later."
         breadcrumbs={[{ label: 'Members', path: ROUTES.MEMBERS.LIST }]}
       />
+
+      {!loadingFamilies && needsTenantSelection ? (
+        <Card padding="lg">
+          <Alert variant="info" title="Select a Mahallu first">
+            Please select a Mahallu from the top menu before adding a new member.
+          </Alert>
+        </Card>
+      ) : (
 
       <form onSubmit={handleSubmit(onSubmit)} className="pb-24">
         <Card padding="lg">
@@ -371,7 +392,9 @@ export default function CreateMember() {
               <Input
                 label="Phone"
                 type="tel"
+                inputMode="numeric"
                 {...register('phone')}
+                onChange={(e) => setValue('phone', sanitizeDigits(e.target.value, 10), { shouldValidate: true, shouldDirty: true })}
                 error={errors.phone?.message}
                 placeholder="9876543210"
                 maxLength={10}
@@ -557,6 +580,7 @@ export default function CreateMember() {
           </div>
         </div>
       </form>
+      )}
 
       <QuickAddFamily
         open={addFamilyOpen}

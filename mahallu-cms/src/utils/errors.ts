@@ -126,6 +126,51 @@ export function loadErrorMessage(error: unknown, entity: string): string {
   return "We couldn't load " + entity + '. Please try again in a moment.';
 }
 
+export interface LoadErrorInfo {
+  title: string;
+  message: string;
+  /** `info` for a state the user can resolve themselves; `error` for a real failure. */
+  variant: 'error' | 'info';
+}
+
+/**
+ * Same job as `loadErrorMessage`, but also says whether this is a genuine
+ * failure or an expected prerequisite the user can resolve themselves —
+ * most often a super admin viewing tenant-scoped data (a report, a
+ * dashboard) before picking a Mahallu from the tenant switcher in the
+ * header. The backend answers that with a 400 and a message naming the
+ * Mahallu/tenant, which is not a bug and not the user's fault; it read as
+ * one anyway because every page showed it inside a red "Couldn't load X"
+ * box. `loadErrorMessage` already returns that message verbatim instead of
+ * a generic line — this only adds the presentation hint so a page can swap
+ * to a calm `info` Alert instead of `error` for that one case, without
+ * touching the ~50 existing call sites that only want the string.
+ */
+export function loadErrorInfo(error: unknown, entity: string): LoadErrorInfo {
+  const err = error as { response?: { status?: number; data?: { message?: unknown; error?: unknown } } };
+  const status = err?.response?.status;
+  if (status === 400) {
+    const raw = err.response?.data?.message ?? err.response?.data?.error;
+    if (
+      typeof raw === 'string' &&
+      /mahallu|tenant/i.test(raw) &&
+      /select|choose|pick/i.test(raw)
+    ) {
+      // Callers pass entity either bare ("report") or pre-articled ("the
+      // dashboard") depending on how it reads in loadErrorMessage's own
+      // "We couldn't load X" sentence — strip a leading "the" so it still
+      // reads naturally after "view this".
+      const bareEntity = entity.replace(/^the\s+/i, '');
+      return {
+        title: 'Select a Mahallu to continue',
+        message: 'Please select a Mahallu from the top menu to view this ' + bareEntity + '.',
+        variant: 'info',
+      };
+    }
+  }
+  return { title: "Couldn't load " + entity, message: loadErrorMessage(error, entity), variant: 'error' };
+}
+
 /** "Family saved." — the standard success line. No "successfully". */
 export function savedMessage(entity: string): string {
   return capitalise(singular(entity)) + ' saved';

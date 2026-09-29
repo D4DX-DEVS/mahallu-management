@@ -243,40 +243,27 @@ export default function FamiliesList() {
       width: '6.5rem',
       sortable: false,
       render: (_, row) => (
-        <div className="flex items-center justify-end gap-1">
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(ROUTES.FAMILIES.EDIT(row.id));
-            }}
-            aria-label={`Edit ${toTitleCase(row.houseName)}`}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <FiEdit2 className="h-4 w-4" aria-hidden="true" />
-          </button>
-          <ActionsMenu
-            label={`Actions for ${toTitleCase(row.houseName)}`}
-            items={[
-              {
-                label: 'View',
-                icon: <FiEye className="h-4 w-4" />,
-                onClick: () => navigate(ROUTES.FAMILIES.DETAIL(row.id)),
-              },
-              {
-                label: 'Edit',
-                icon: <FiEdit2 className="h-4 w-4" />,
-                onClick: () => navigate(ROUTES.FAMILIES.EDIT(row.id)),
-              },
-              {
-                label: 'Delete',
-                icon: <FiTrash2 className="h-4 w-4" />,
-                variant: 'danger',
-                onClick: () => setDeleting(row),
-              },
-            ]}
-          />
-        </div>
+        <ActionsMenu
+          label={`Actions for ${toTitleCase(row.houseName)}`}
+          items={[
+            {
+              label: 'View',
+              icon: <FiEye className="h-4 w-4" />,
+              onClick: () => navigate(ROUTES.FAMILIES.DETAIL(row.id)),
+            },
+            {
+              label: 'Edit',
+              icon: <FiEdit2 className="h-4 w-4" />,
+              onClick: () => navigate(ROUTES.FAMILIES.EDIT(row.id)),
+            },
+            {
+              label: 'Delete',
+              icon: <FiTrash2 className="h-4 w-4" />,
+              variant: 'danger',
+              onClick: () => setDeleting(row),
+            },
+          ]}
+        />
       ),
     },
   ];

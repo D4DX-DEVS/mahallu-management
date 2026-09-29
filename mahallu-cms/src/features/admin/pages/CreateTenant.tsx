@@ -14,6 +14,7 @@ import { STATES, getDistrictsByState } from '@/constants/locations';
 import PageHeader from '@/components/layout/PageHeader';
 import { toast } from '@/store/toastStore';
 import { errorMessage } from '@/utils/errors';
+import { optionalPinCodeSchema, sanitizeDigits } from '@/utils/validation';
 
 const tenantSchema = z.object({
   name: z.string().max(200, 'Please keep the name to 200 characters or less.').min(1, 'Name is required'),
@@ -24,7 +25,7 @@ const tenantSchema = z.object({
   address: z.object({
     state: z.string().max(200, 'Please keep the state to 200 characters or less.').min(1, 'State is required'),
     district: z.string().max(200, 'Please keep the district to 200 characters or less.').min(1, 'District is required'),
-    pinCode: z.string().max(200, 'Please keep the pin code to 200 characters or less.').optional(),
+    pinCode: optionalPinCodeSchema,
     postOffice: z.string().max(200, 'Please keep the post office to 200 characters or less.').optional(),
     lsgName: z.string().max(200, 'Please keep the lsg name to 200 characters or less.').min(1, 'LSG Name is required'),
     village: z.string().max(200, 'Please keep the village to 200 characters or less.').min(1, 'Village is required'),
@@ -178,7 +179,11 @@ export default function CreateTenant() {
               />
               <Input
                 label="Pin Code"
+                type="text"
+                inputMode="numeric"
+                maxLength={6}
                 {...register('address.pinCode')}
+                onChange={(e) => setValue('address.pinCode', sanitizeDigits(e.target.value, 6), { shouldValidate: true, shouldDirty: true })}
                 error={errors.address?.pinCode?.message}
                 placeholder="678601"
               />

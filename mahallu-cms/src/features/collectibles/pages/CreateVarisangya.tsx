@@ -8,6 +8,7 @@ import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
+import Alert from '@/components/ui/Alert';
 import MultiSelect from '@/components/ui/MultiSelect';
 import { collectibleService } from '@/services/collectibleService';
 import { familyService } from '@/services/familyService';
@@ -38,6 +39,11 @@ type VarisangyaFormData = z.infer<typeof varisangyaSchema>;
 
 export default function CreateVarisangya() {
   const navigate = useNavigate();
+  const { currentTenantId, user, isSuperAdmin } = useAuthStore();
+  const tenantId = extractTenantId(user, currentTenantId);
+  /* A super admin with no Mahallu picked in the tenant switcher has no
+   * tenantId, known locally before they ever fill in the form. */
+  const needsTenantSelection = isSuperAdmin && !tenantId;
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [families, setFamilies] = useState<Family[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
@@ -179,7 +185,7 @@ export default function CreateVarisangya() {
     const { currentTenantId, user } = useAuthStore.getState();
     const tenantId = extractTenantId(user, currentTenantId);
     if (!tenantId) {
-      setSubmitError('Tenant context is required. Please log in again or select a tenant.');
+      setSubmitError('Please select a Mahallu from the top menu before recording a payment.');
       return;
     }
 
@@ -263,6 +269,13 @@ export default function CreateVarisangya() {
         breadcrumbs={[{ label: 'Varisangyas', path: '/collectibles/varisangya' }]}
       />
 
+      {needsTenantSelection ? (
+        <Card className="space-y-4">
+          <Alert variant="info" title="Select a Mahallu first">
+            Please select a Mahallu from the top menu before recording a payment.
+          </Alert>
+        </Card>
+      ) : (
       <form onSubmit={handleSubmit(onSubmit)}>
         <Card className="space-y-4">
           {submitError && (
@@ -380,6 +393,7 @@ export default function CreateVarisangya() {
           </div>
         </Card>
       </form>
+      )}
 
       {createdInvoices.length > 0 && (
         <Card className="space-y-3">

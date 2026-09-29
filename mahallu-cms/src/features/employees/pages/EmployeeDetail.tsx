@@ -72,7 +72,9 @@ export default function EmployeeDetail() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card>
-          <h2 className="text-lg font-semibold mb-3 text-foreground">Basic Information</h2>
+          {/* No heading here — plain employment-record fields, distinct enough
+              from the Contact & Financial card beside them (salary, bank
+              details) without needing one of their own. */}
           <div className="space-y-4">
             <div>
               <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Name</label>

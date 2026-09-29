@@ -300,7 +300,10 @@ export default function Sidebar() {
   const setMobileSidebarOpen = useLayoutStore((s) => s.setMobileSidebarOpen);
   const isDesktopSidebarCollapsedRaw = useLayoutStore((s) => s.isDesktopSidebarCollapsed);
   const isOnline = useOnlineStatus();
-  const { isSuperAdmin, user } = useAuthStore();
+  const { isSuperAdmin, user, currentTenantId } = useAuthStore();
+  // Matches MainLayout's TenantBanner offset so the brand row stays level with
+  // the content-side header regardless of which route is showing the banner.
+  const isViewingAsTenant = Boolean(isSuperAdmin && currentTenantId);
   const userRole = (user?.role || (isSuperAdmin ? 'super_admin' : null)) as UserRole | null;
   const { isModuleEnabled } = useModuleAccess();
   const sensitiveModules = user?.permissions?.sensitiveModules ?? [];
@@ -379,15 +382,37 @@ export default function Sidebar() {
       role={isMobile && isMobileSidebarOpen ? 'dialog' : undefined}
       aria-modal={isMobile && isMobileSidebarOpen ? true : undefined}
       className={cn(
-        'fixed left-0 top-0 z-[60] h-screen h-[100dvh] border-r border-border bg-card text-card-foreground',
-        'transition-[width,transform] duration-200 ease-out md:translate-x-0',
-        /* The drawer never exceeds the viewport: at 320px a fixed 16rem panel
-         * left 64px of page, which is not enough to read what is behind it. */
-        isDesktopSidebarCollapsed ? 'w-rail' : 'w-64 max-w-[85vw]',
-        isMobileSidebarOpen ? 'translate-x-0 shadow-md' : '-translate-x-full'
+        'z-[60] bg-card text-card-foreground',
+        isMobile
+          ? /* On a phone this is a bottom sheet, not a left-edge drawer: it opens
+             * from the bottom navigation, leaves the top of the page visible
+             * behind a dimmed backdrop, and sits above the footer nav rather than
+             * over it. `top-[14vh]` is what leaves that top strip in view and
+             * doubles as the sheet's max-height; `bottom-[...]` clears the footer
+             * nav's own height plus the iOS home-indicator inset. */
+            cn(
+              'fixed inset-x-0 top-[14vh] flex flex-col overflow-hidden rounded-t-2xl border-t border-border shadow-md',
+              'bottom-[calc(4rem+env(safe-area-inset-bottom))]',
+              'transition-transform duration-200 ease-out',
+              isMobileSidebarOpen ? 'translate-y-0' : 'translate-y-full'
+            )
+          : cn(
+              'fixed left-0 border-r border-border',
+              isViewingAsTenant ? 'top-9 h-[calc(100dvh-2.25rem)]' : 'top-0 h-screen h-[100dvh]',
+              'transition-[width,transform] duration-200 ease-out md:translate-x-0',
+              /* The drawer never exceeds the viewport: at 320px a fixed 16rem panel
+               * left 64px of page, which is not enough to read what is behind it. */
+              isDesktopSidebarCollapsed ? 'w-rail' : 'w-64 max-w-[85vw]',
+              isMobileSidebarOpen ? 'translate-x-0 shadow-md' : '-translate-x-full'
+            )
       )}
     >
-      <div className="flex h-full flex-col">
+      <div className="flex h-full min-h-0 flex-col">
+        {isMobile && (
+          <div className="flex flex-shrink-0 justify-center pt-2" aria-hidden="true">
+            <span className="h-1 w-10 rounded-full bg-border" />
+          </div>
+        )}
         <div
           className={cn(
             'flex h-14 flex-shrink-0 items-center border-b border-border',

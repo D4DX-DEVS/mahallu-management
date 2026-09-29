@@ -11,6 +11,7 @@ import { fetchAllPages } from '@/services/api';
 import { errorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
+import { sanitizeDigits } from '@/utils/validation';
 
 interface FormData {
   deceasedName?: string;
@@ -25,6 +26,7 @@ export default function InheritanceCreate() {
     register,
     control,
     handleSubmit,
+    setValue,
     formState: { errors },
   } = useForm<FormData>({
     defaultValues: {
@@ -208,10 +210,23 @@ export default function InheritanceCreate() {
                                 message: 'Please enter a 10-digit phone number.',
                               },
                             })}
-                            type="text"
+                            onChange={(e) =>
+                              setValue(`heirs.${idx}.contactNo`, sanitizeDigits(e.target.value, 10), {
+                                shouldValidate: true,
+                                shouldDirty: true,
+                              })
+                            }
+                            type="tel"
+                            inputMode="numeric"
+                            maxLength={10}
                             placeholder="Optional"
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
                           />
+                          {errors.heirs?.[idx]?.contactNo && (
+                            <p className="text-red-600 text-label mt-1">
+                              {errors.heirs[idx]?.contactNo?.message}
+                            </p>
+                          )}
                         </div>
                       </div>
 

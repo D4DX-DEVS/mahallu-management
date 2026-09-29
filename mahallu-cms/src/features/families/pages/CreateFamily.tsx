@@ -21,6 +21,7 @@ import { errorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
 import { toast } from '@/store/toastStore';
+import { sanitizeDigits } from '@/utils/validation';
 
 const familySchema = z.object({
   varisangyaGrade: z.string().max(200, 'Please keep the varisangya grade to 200 characters or less.').optional(),
@@ -51,7 +52,7 @@ type FamilyFormData = z.infer<typeof familySchema>;
 
 export default function CreateFamily() {
   const navigate = useNavigate();
-  const { currentTenantId, user } = useAuthStore();
+  const { currentTenantId, user, isSuperAdmin } = useAuthStore();
   const [error, setError] = useState<string | null>(null);
   const [grades, setGrades] = useState<Array<{ name: string; amount: number }>>([]);
   const [areaOptions, setAreaOptions] = useState<string[]>([]);
@@ -116,6 +117,13 @@ export default function CreateFamily() {
     ...areaOptions.map((area) => ({ value: area, label: toTitleCase(area) })),
   ];
 
+  /* A super admin with no Mahallu picked in the tenant switcher has no
+   * tenantId — known locally, before they ever fill in the form. Submitting
+   * anyway just let the backend reject it and a generic permission message
+   * stand in for a routine prerequisite. A Mahall/Survey/Institute admin's
+   * own tenantId always resolves regardless of the switcher. */
+  const needsTenantSelection = isSuperAdmin && !tenantId;
+
   return (
     <div className="space-y-5">
       <PageHeader
@@ -124,6 +132,13 @@ export default function CreateFamily() {
         breadcrumbs={[{ label: 'Families', path: ROUTES.FAMILIES.LIST }]}
       />
 
+      {needsTenantSelection ? (
+        <Card padding="lg">
+          <Alert variant="info" title="Select a Mahallu first">
+            Please select a Mahallu from the top menu before adding a new family.
+          </Alert>
+        </Card>
+      ) : (
       <Card padding="lg">
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           {error && <Alert variant="error">{error}</Alert>}
@@ -175,7 +190,9 @@ export default function CreateFamily() {
               <Input
                 label="Contact No."
                 type="tel"
+                inputMode="numeric"
                 {...register('contactNo')}
+                onChange={(e) => setValue('contactNo', sanitizeDigits(e.target.value, 10), { shouldValidate: true, shouldDirty: true })}
                 error={errors.contactNo?.message}
                 placeholder="10-digit mobile"
                 maxLength={10}
@@ -238,6 +255,7 @@ export default function CreateFamily() {
           </div>
         </form>
       </Card>
+      )}
 
       {tenantId && (
         <>
