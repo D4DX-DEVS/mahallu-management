@@ -125,7 +125,7 @@ export default function TenantSwitcher() {
           /* A visible border at rest — not just on hover/active — is what makes
            * this read as a real dropdown control rather than a ghost icon
            * button a user could easily miss in a busy header. */
-          'flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-medium transition-colors',
+          'flex min-w-0 items-center gap-1.5 rounded-md border px-2 py-2 text-sm font-medium transition-colors sm:gap-2 sm:px-3',
           isViewingAsTenant
             ? 'border-primary/25 bg-primary/10 text-primary'
             : isOpen
@@ -134,7 +134,12 @@ export default function TenantSwitcher() {
         )}
       >
         <FiLayers className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
-        <span className="hidden md:inline max-w-[190px] truncate">
+        {/* Visible at every width, not just md+: a super admin on a phone saw only
+         * this icon before, with nothing telling them it's a Mahallu switcher or
+         * which Mahallu (if any) they're viewing. The max-w steps up with the
+         * viewport so it never crowds the notification/profile cluster on the
+         * narrowest phones. */}
+        <span className="min-w-0 max-w-[76px] truncate sm:max-w-[150px] md:max-w-[190px]">
           {currentTenant ? (
             <>
               <span className="text-muted-foreground">Mahallu:</span> {currentTenant.name}
@@ -144,16 +149,19 @@ export default function TenantSwitcher() {
           )}
         </span>
         {isViewingAsTenant && (
-          <span className="rounded-sm bg-primary/15 px-1.5 py-0.5 text-xs text-primary">Viewing</span>
+          <span className="hidden flex-shrink-0 rounded-sm bg-primary/15 px-1.5 py-0.5 text-xs text-primary sm:inline-block">
+            Viewing
+          </span>
         )}
         <FiChevronDown className={cn('h-4 w-4 flex-shrink-0 transition-transform', isOpen && 'rotate-180')} />
       </button>
 
       {isOpen && (
-        /* Anchored by its left edge, not right: on mobile this button sits near the
-         * screen's left edge (right after the hamburger), and a right-anchored panel
-         * this wide pushed almost entirely off-screen to the left. */
-        <div className="absolute left-0 z-50 mt-2 flex max-h-[500px] w-96 max-w-[calc(100vw-2rem)] flex-col rounded-lg border border-border bg-popover py-2 shadow-md">
+        /* Below sm: fixed + inset-x-4 anchors to the viewport itself (not the
+         * trigger button), so the panel can't run off-screen regardless of how
+         * close the button sits to the left edge. From sm up, it reverts to the
+         * original left-anchored dropdown under the trigger. */
+        <div className="fixed inset-x-4 top-16 z-50 flex max-h-[70vh] flex-col rounded-lg border border-border bg-popover py-2 shadow-md sm:absolute sm:inset-x-auto sm:left-0 sm:top-auto sm:mt-2 sm:max-h-[500px] sm:w-96 sm:max-w-[calc(100vw-2rem)]">
           {/* Switch back to Super Admin option */}
           {isViewingAsTenant && (
             <div className="mb-2 border-b border-border px-3 pb-2">

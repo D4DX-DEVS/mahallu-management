@@ -202,7 +202,7 @@ export default function Login() {
     }
   };
 
-  const getRoleLabel = (role: string, instituteName?: string | null) => {
+  const getRoleLabel = (role: string) => {
     switch (role) {
       case 'member':
         return 'Member';
@@ -211,7 +211,7 @@ export default function Login() {
       case 'survey':
         return 'Survey admin';
       case 'institute':
-        return instituteName ? `Institute admin — ${toTitleCase(instituteName)}` : 'Institute admin';
+        return 'Institute admin';
       case 'super_admin':
         return 'Super admin';
       default:
@@ -301,7 +301,7 @@ export default function Login() {
         </div>
 
         {/* Form panel */}
-        <div className="flex flex-col justify-center p-8 sm:p-10">
+        <div className="flex flex-col justify-center p-5 sm:p-8 lg:p-10">
           <div className="mx-auto w-full max-w-sm">
             <div className="text-center">
               <img src={LOGO_PATH} alt="" aria-hidden="true" className="mx-auto h-14 w-14 object-contain" />
@@ -384,8 +384,13 @@ export default function Login() {
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-sm font-medium text-foreground">
-                          {getRoleLabel(account.role, account.instituteName)}
+                          {getRoleLabel(account.role)}
                         </span>
+                        {account.role === 'institute' && account.instituteName && (
+                          <span className="block truncate text-xs text-muted-foreground">
+                            {toTitleCase(account.instituteName)}
+                          </span>
+                        )}
                         {account.tenantName && (
                           <span className="block truncate text-xs text-muted-foreground">
                             {toTitleCase(account.tenantName)}

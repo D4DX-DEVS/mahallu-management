@@ -56,23 +56,21 @@ export default function InstituteDetail() {
 
   return (
     <div className="space-y-4">
-      <div className="flex gap-2 items-center justify-between">
-        <div className="flex items-center gap-4">
-          <PageHeader
-            description="Institute Details"
-            title={institute.name}
-            breadcrumbs={[{ label: 'Institutes', path: ROUTES.INSTITUTES.LIST }]}
-          />
-          <div className="flex gap-2 items-center">
+      <PageHeader
+        description="Institute Details"
+        title={institute.name}
+        breadcrumbs={[{ label: 'Institutes', path: ROUTES.INSTITUTES.LIST }]}
+        actions={
+          <>
             <Link to={ROUTES.INSTITUTES.LIST}>
               <Button variant="outline" icon={<FiArrowLeft />} collapseLabel>Back</Button>
             </Link>
             <Link to={`/institutes/${institute.id}/edit`}>
               <Button icon={<FiEdit2 />} collapseLabel>Edit</Button>
             </Link>
-          </div>
-        </div>
-      </div>
+          </>
+        }
+      />
 
       {/* One field list rather than two headed halves — identity and contact
           fields are all the same institute record, not distinct categories. */}

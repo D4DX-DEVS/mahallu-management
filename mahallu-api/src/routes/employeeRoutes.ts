@@ -7,7 +7,7 @@ import {
   deleteEmployee,
 } from '../controllers/employeeController';
 import { authMiddleware } from '../middleware/authMiddleware';
-import { tenantMiddleware, tenantFilter } from '../middleware/tenantMiddleware';
+import { tenantMiddleware, tenantFilter, instituteFilter } from '../middleware/tenantMiddleware';
 import { validationHandler } from '../middleware/validationHandler';
 import {
   createEmployeeValidation,
@@ -22,6 +22,7 @@ const router = express.Router();
 router.use(authMiddleware);
 router.use(tenantMiddleware);
 router.use(tenantFilter);
+router.use(instituteFilter);
 
 /**
  * @swagger

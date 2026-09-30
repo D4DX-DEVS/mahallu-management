@@ -74,14 +74,12 @@ export default function UserDetail() {
 
   return (
     <div className="space-y-4">
-      <div className="flex gap-2 items-center justify-between">
-        <div className="flex items-center gap-4">
-          <PageHeader
-            description="User Details"
-            title={toTitleCase(user.name)}
-            breadcrumbs={[{ label: 'Mahall Users', path: ROUTES.USERS.MAHALL }]}
-          />
-          <div className="flex gap-2 items-center">
+      <PageHeader
+        description="User Details"
+        title={toTitleCase(user.name)}
+        breadcrumbs={[{ label: 'Mahall Users', path: ROUTES.USERS.MAHALL }]}
+        actions={
+          <>
             <Link to={ROUTES.USERS.EDIT_MAHALL(user.id)}>
               <Button variant="outline" icon={<FiEdit2 />} collapseLabel>Edit</Button>
             </Link>
@@ -95,9 +93,9 @@ export default function UserDetail() {
             >
               Delete
             </Button>
-          </div>
-        </div>
-      </div>
+          </>
+        }
+      />
 
       {/* One field list rather than two headed halves — every field here is
           the same user record, not two distinct kinds of information. */}
