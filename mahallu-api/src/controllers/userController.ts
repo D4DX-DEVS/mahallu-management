@@ -1,4 +1,4 @@
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import User from '../models/User';
 import Member from '../models/Member';
 import bcrypt from 'bcryptjs';
@@ -7,6 +7,7 @@ import { getPaginationParams, createPaginationResponse } from '../utils/paginati
 
 import { sendFailure } from '../utils/userMessages';
 import { regexLiteral } from '../utils/queryGuard';
+import { verifyTenantOwnership } from '../utils/tenantCheck';
 
 export const getAllUsers = async (req: AuthRequest, res: Response) => {
   try {
@@ -59,12 +60,17 @@ export const getAllUsers = async (req: AuthRequest, res: Response) => {
   }
 };
 
-export const getUserById = async (req: Request, res: Response) => {
+export const getUserById = async (req: AuthRequest, res: Response) => {
   try {
     const user = await User.findById(req.params.id).select('-password');
     if (!user) {
       return res.status(404).json({ success: false, message: "We couldn't find that user. It may have been removed." });
     }
+
+    if (!verifyTenantOwnership(req, res, user.tenantId, 'User')) {
+      return;
+    }
+
     res.json({ success: true, data: user });
   } catch (error: any) {
     sendFailure(res, error, 'We couldn\'t load the user right now. Please try again.');
@@ -240,8 +246,17 @@ export const createUser = async (req: AuthRequest, res: Response) => {
   }
 };
 
-export const updateUser = async (req: Request, res: Response) => {
+export const updateUser = async (req: AuthRequest, res: Response) => {
   try {
+    const existingUser = await User.findById(req.params.id);
+    if (!existingUser) {
+      return res.status(404).json({ success: false, message: "We couldn't find that user. It may have been removed." });
+    }
+
+    if (!verifyTenantOwnership(req, res, existingUser.tenantId, 'User')) {
+      return;
+    }
+
     const { name, phone, email, status, permissions } = req.body;
     const user = await User.findByIdAndUpdate(
       req.params.id,
@@ -259,10 +274,10 @@ export const updateUser = async (req: Request, res: Response) => {
   }
 };
 
-export const updateUserStatus = async (req: Request, res: Response) => {
+export const updateUserStatus = async (req: AuthRequest, res: Response) => {
   try {
     const { status } = req.body;
-    
+
     if (!status || !['active', 'inactive'].includes(status)) {
       return res.status(400).json({
         success: false,
@@ -273,6 +288,10 @@ export const updateUserStatus = async (req: Request, res: Response) => {
     const user = await User.findById(req.params.id);
     if (!user) {
       return res.status(404).json({ success: false, message: "We couldn't find that user. It may have been removed." });
+    }
+
+    if (!verifyTenantOwnership(req, res, user.tenantId, 'User')) {
+      return;
     }
 
     // Update user status
@@ -308,11 +327,15 @@ export const updateUserStatus = async (req: Request, res: Response) => {
   }
 };
 
-export const deleteUser = async (req: Request, res: Response) => {
+export const deleteUser = async (req: AuthRequest, res: Response) => {
   try {
     const user = await User.findById(req.params.id);
     if (!user) {
       return res.status(404).json({ success: false, message: "We couldn't find that user. It may have been removed." });
+    }
+
+    if (!verifyTenantOwnership(req, res, user.tenantId, 'User')) {
+      return;
     }
 
     // Update status to inactive instead of deleting

@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import Institute from '../models/Institute';
 import { AuthRequest } from '../middleware/authMiddleware';
 import { getPaginationParams, createPaginationResponse } from '../utils/pagination';
-import { verifyTenantOwnership } from '../utils/tenantCheck';
+import { verifyTenantOwnership, verifyInstituteOwnership } from '../utils/tenantCheck';
 
 import { sendFailure } from '../utils/userMessages';
 import { regexLiteral } from '../utils/queryGuard';
@@ -51,7 +51,11 @@ export const getInstituteById = async (req: AuthRequest, res: Response) => {
     if (!verifyTenantOwnership(req, res, institute.tenantId, 'Institute')) {
       return;
     }
-    
+    // An institute admin may only see their own institute, not siblings in the same tenant
+    if (!verifyInstituteOwnership(req, res, institute._id, 'Institute')) {
+      return;
+    }
+
     res.json({ success: true, data: institute });
   } catch (error: any) {
     sendFailure(res, error, 'We couldn\'t load the institute right now. Please try again.');
@@ -92,6 +96,10 @@ export const updateInstitute = async (req: AuthRequest, res: Response) => {
     if (!verifyTenantOwnership(req, res, existingInstitute.tenantId, 'Institute')) {
       return;
     }
+    // An institute admin may only update their own institute, not siblings in the same tenant
+    if (!verifyInstituteOwnership(req, res, existingInstitute._id, 'Institute')) {
+      return;
+    }
 
     const institute = await Institute.findByIdAndUpdate(
       req.params.id,
@@ -117,6 +125,10 @@ export const deleteInstitute = async (req: AuthRequest, res: Response) => {
     
     // Verify tenant ownership
     if (!verifyTenantOwnership(req, res, institute.tenantId, 'Institute')) {
+      return;
+    }
+    // An institute admin may only delete their own institute, not siblings in the same tenant
+    if (!verifyInstituteOwnership(req, res, institute._id, 'Institute')) {
       return;
     }
 

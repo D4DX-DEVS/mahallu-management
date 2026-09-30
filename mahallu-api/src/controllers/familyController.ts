@@ -1,4 +1,4 @@
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import Family from '../models/Family';
 import Member from '../models/Member';
 import { AuthRequest } from '../middleware/authMiddleware';
@@ -7,6 +7,7 @@ import mongoose from 'mongoose';
 
 import { sendFailure } from '../utils/userMessages';
 import { regexLiteral } from '../utils/queryGuard';
+import { verifyTenantOwnership } from '../utils/tenantCheck';
 
 export const getAllFamilies = async (req: AuthRequest, res: Response) => {
   try {
@@ -114,11 +115,29 @@ export const createFamily = async (req: AuthRequest, res: Response) => {
   }
 };
 
-export const updateFamily = async (req: Request, res: Response) => {
+export const updateFamily = async (req: AuthRequest, res: Response) => {
   try {
+    const existingFamily = await Family.findById(req.params.id);
+    if (!existingFamily) {
+      return res.status(404).json({ success: false, message: "We couldn't find that family. It may have been removed." });
+    }
+
+    if (!verifyTenantOwnership(req, res, existingFamily.tenantId, 'Family')) {
+      return;
+    }
+
+    // A tenant admin's update must stay inside their own tenant regardless of
+    // what the request body sends — updateFamily previously trusted req.body
+    // wholesale, which is how a cross-tenant update could also re-parent the
+    // record into the attacker's tenant.
+    const { tenantId: _ignoredTenantId, ...updateData } = req.body;
+    if (req.isSuperAdmin && req.body.tenantId) {
+      updateData.tenantId = req.body.tenantId;
+    }
+
     const family = await Family.findByIdAndUpdate(
       req.params.id,
-      req.body,
+      updateData,
       { new: true, runValidators: true }
     );
     if (!family) {
@@ -131,12 +150,18 @@ export const updateFamily = async (req: Request, res: Response) => {
   }
 };
 
-export const deleteFamily = async (req: Request, res: Response) => {
+export const deleteFamily = async (req: AuthRequest, res: Response) => {
   try {
-    const family = await Family.findByIdAndDelete(req.params.id);
-    if (!family) {
+    const existingFamily = await Family.findById(req.params.id);
+    if (!existingFamily) {
       return res.status(404).json({ success: false, message: "We couldn't find that family. It may have been removed." });
     }
+
+    if (!verifyTenantOwnership(req, res, existingFamily.tenantId, 'Family')) {
+      return;
+    }
+
+    await Family.findByIdAndDelete(req.params.id);
     res.json({ success: true, message: 'Family deleted' });
   } catch (error: any) {
     sendFailure(res, error, 'We couldn\'t delete the family. Please try again.');

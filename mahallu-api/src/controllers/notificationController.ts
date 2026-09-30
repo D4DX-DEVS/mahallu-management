@@ -1,4 +1,4 @@
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import Notification from '../models/Notification';
 import User from '../models/User';
 import { AuthRequest } from '../middleware/authMiddleware';
@@ -6,6 +6,7 @@ import { getPaginationParams, createPaginationResponse } from '../utils/paginati
 import { sendPushSilent } from '../services/oneSignalService';
 
 import { sendFailure } from '../utils/userMessages';
+import { verifyTenantOwnership } from '../utils/tenantCheck';
 
 export const getAllNotifications = async (req: AuthRequest, res: Response) => {
   try {
@@ -89,8 +90,17 @@ export const createNotification = async (req: AuthRequest, res: Response) => {
   }
 };
 
-export const markAsRead = async (req: Request, res: Response) => {
+export const markAsRead = async (req: AuthRequest, res: Response) => {
   try {
+    const existingNotification = await Notification.findById(req.params.id);
+    if (!existingNotification) {
+      return res.status(404).json({ success: false, message: "We couldn't find that notification. It may have been removed." });
+    }
+
+    if (!verifyTenantOwnership(req, res, existingNotification.tenantId, 'Notification')) {
+      return;
+    }
+
     const notification = await Notification.findByIdAndUpdate(
       req.params.id,
       { isRead: true },

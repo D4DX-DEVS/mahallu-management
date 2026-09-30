@@ -7,6 +7,7 @@ import { termWarningCutoff } from '../services/committeeTermService';
 
 import { sendFailure } from '../utils/userMessages';
 import { regexLiteral } from '../utils/queryGuard';
+import { verifyTenantOwnership } from '../utils/tenantCheck';
 
 export const getAllCommittees = async (req: AuthRequest, res: Response) => {
   try {
@@ -45,13 +46,18 @@ export const getAllCommittees = async (req: AuthRequest, res: Response) => {
   }
 };
 
-export const getCommitteeById = async (req: Request, res: Response) => {
+export const getCommitteeById = async (req: AuthRequest, res: Response) => {
   try {
     const committee = await Committee.findById(req.params.id)
       .populate('members', 'name familyName');
     if (!committee) {
       return res.status(404).json({ success: false, message: "We couldn't find that committee. It may have been removed." });
     }
+
+    if (!verifyTenantOwnership(req, res, committee.tenantId, 'Committee')) {
+      return;
+    }
+
     res.json({ success: true, data: committee });
   } catch (error: any) {
     sendFailure(res, error, 'We couldn\'t load the committee right now. Please try again.');
@@ -81,8 +87,17 @@ export const createCommittee = async (req: AuthRequest, res: Response) => {
   }
 };
 
-export const updateCommittee = async (req: Request, res: Response) => {
+export const updateCommittee = async (req: AuthRequest, res: Response) => {
   try {
+    const existingCommittee = await Committee.findById(req.params.id);
+    if (!existingCommittee) {
+      return res.status(404).json({ success: false, message: "We couldn't find that committee. It may have been removed." });
+    }
+
+    if (!verifyTenantOwnership(req, res, existingCommittee.tenantId, 'Committee')) {
+      return;
+    }
+
     const committee = await Committee.findByIdAndUpdate(
       req.params.id,
       req.body,
@@ -97,8 +112,17 @@ export const updateCommittee = async (req: Request, res: Response) => {
   }
 };
 
-export const deleteCommittee = async (req: Request, res: Response) => {
+export const deleteCommittee = async (req: AuthRequest, res: Response) => {
   try {
+    const existingCommittee = await Committee.findById(req.params.id);
+    if (!existingCommittee) {
+      return res.status(404).json({ success: false, message: "We couldn't find that committee. It may have been removed." });
+    }
+
+    if (!verifyTenantOwnership(req, res, existingCommittee.tenantId, 'Committee')) {
+      return;
+    }
+
     const committee = await Committee.findByIdAndDelete(req.params.id);
     if (!committee) {
       return res.status(404).json({ success: false, message: "We couldn't find that committee. It may have been removed." });

@@ -2,7 +2,7 @@ import { Response } from 'express';
 import Employee from '../models/Employee';
 import { AuthRequest } from '../middleware/authMiddleware';
 import { getPaginationParams, createPaginationResponse } from '../utils/pagination';
-import { verifyTenantOwnership } from '../utils/tenantCheck';
+import { verifyTenantOwnership, verifyInstituteOwnership } from '../utils/tenantCheck';
 
 import { sendFailure } from '../utils/userMessages';
 import { regexLiteral } from '../utils/queryGuard';
@@ -56,6 +56,9 @@ export const getEmployeeById = async (req: AuthRequest, res: Response) => {
     if (!verifyTenantOwnership(req, res, employee.tenantId, 'Employee')) {
       return;
     }
+    if (!verifyInstituteOwnership(req, res, employee.instituteId, 'Employee')) {
+      return;
+    }
 
     res.json({ success: true, data: employee });
   } catch (error: any) {
@@ -104,6 +107,9 @@ export const updateEmployee = async (req: AuthRequest, res: Response) => {
     if (!verifyTenantOwnership(req, res, existingEmployee.tenantId, 'Employee')) {
       return;
     }
+    if (!verifyInstituteOwnership(req, res, existingEmployee.instituteId, 'Employee')) {
+      return;
+    }
 
     const employee = await Employee.findByIdAndUpdate(
       req.params.id,
@@ -128,6 +134,9 @@ export const deleteEmployee = async (req: AuthRequest, res: Response) => {
     }
 
     if (!verifyTenantOwnership(req, res, employee.tenantId, 'Employee')) {
+      return;
+    }
+    if (!verifyInstituteOwnership(req, res, employee.instituteId, 'Employee')) {
       return;
     }
 

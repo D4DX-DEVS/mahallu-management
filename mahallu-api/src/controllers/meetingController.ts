@@ -1,4 +1,4 @@
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import Meeting from '../models/Meeting';
 import Committee from '../models/Committee';
 import { sendWhatsAppMessage } from '../services/dxingService';
@@ -6,6 +6,7 @@ import { AuthRequest } from '../middleware/authMiddleware';
 import { getPaginationParams, createPaginationResponse } from '../utils/pagination';
 
 import { sendFailure } from '../utils/userMessages';
+import { verifyTenantOwnership } from '../utils/tenantCheck';
 
 export const getAllMeetings = async (req: AuthRequest, res: Response) => {
   try {
@@ -39,7 +40,7 @@ export const getAllMeetings = async (req: AuthRequest, res: Response) => {
   }
 };
 
-export const getMeetingById = async (req: Request, res: Response) => {
+export const getMeetingById = async (req: AuthRequest, res: Response) => {
   try {
     const meeting = await Meeting.findById(req.params.id)
       .populate('committeeId', 'name')
@@ -47,6 +48,11 @@ export const getMeetingById = async (req: Request, res: Response) => {
     if (!meeting) {
       return res.status(404).json({ success: false, message: "We couldn't find that meeting. It may have been removed." });
     }
+
+    if (!verifyTenantOwnership(req, res, meeting.tenantId, 'Meeting')) {
+      return;
+    }
+
     res.json({ success: true, data: meeting });
   } catch (error: any) {
     sendFailure(res, error, 'We couldn\'t load the meeting right now. Please try again.');
@@ -117,13 +123,17 @@ export const createMeeting = async (req: AuthRequest, res: Response) => {
   }
 };
 
-export const updateMeeting = async (req: Request, res: Response) => {
+export const updateMeeting = async (req: AuthRequest, res: Response) => {
   try {
     const { attendance, ...updateData } = req.body;
     const meeting = await Meeting.findById(req.params.id);
 
     if (!meeting) {
       return res.status(404).json({ success: false, message: "We couldn't find that meeting. It may have been removed." });
+    }
+
+    if (!verifyTenantOwnership(req, res, meeting.tenantId, 'Meeting')) {
+      return;
     }
 
     // Recalculate attendance if updated
@@ -151,8 +161,17 @@ export const updateMeeting = async (req: Request, res: Response) => {
   }
 };
 
-export const deleteMeeting = async (req: Request, res: Response) => {
+export const deleteMeeting = async (req: AuthRequest, res: Response) => {
   try {
+    const existingMeeting = await Meeting.findById(req.params.id);
+    if (!existingMeeting) {
+      return res.status(404).json({ success: false, message: "We couldn't find that meeting. It may have been removed." });
+    }
+
+    if (!verifyTenantOwnership(req, res, existingMeeting.tenantId, 'Meeting')) {
+      return;
+    }
+
     const meeting = await Meeting.findByIdAndDelete(req.params.id);
     if (!meeting) {
       return res.status(404).json({ success: false, message: "We couldn't find that meeting. It may have been removed." });

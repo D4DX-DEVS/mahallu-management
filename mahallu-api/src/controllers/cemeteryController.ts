@@ -1,4 +1,4 @@
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import { Cemetery, GraveRecord } from '../models/Cemetery';
 import { DeathRegistration } from '../models/Registration';
 import { AuthRequest } from '../middleware/authMiddleware';
@@ -6,6 +6,7 @@ import { getPaginationParams, createPaginationResponse } from '../utils/paginati
 
 import { sendFailure } from '../utils/userMessages';
 import { regexLiteral } from '../utils/queryGuard';
+import { verifyTenantOwnership } from '../utils/tenantCheck';
 
 // ==================== CEMETERY CRUD ====================
 
@@ -52,11 +53,15 @@ export const getAllCemeteries = async (req: AuthRequest, res: Response) => {
   }
 };
 
-export const getCemeteryById = async (req: Request, res: Response) => {
+export const getCemeteryById = async (req: AuthRequest, res: Response) => {
   try {
     const cemetery = await Cemetery.findById(req.params.id);
     if (!cemetery) {
       return res.status(404).json({ success: false, message: "We couldn't find that cemetery. It may have been removed." });
+    }
+
+    if (!verifyTenantOwnership(req, res, cemetery.tenantId, 'Cemetery')) {
+      return;
     }
 
     // Count graves in this cemetery
@@ -105,8 +110,17 @@ export const createCemetery = async (req: AuthRequest, res: Response) => {
   }
 };
 
-export const updateCemetery = async (req: Request, res: Response) => {
+export const updateCemetery = async (req: AuthRequest, res: Response) => {
   try {
+    const existingCemetery = await Cemetery.findById(req.params.id);
+    if (!existingCemetery) {
+      return res.status(404).json({ success: false, message: "We couldn't find that cemetery. It may have been removed." });
+    }
+
+    if (!verifyTenantOwnership(req, res, existingCemetery.tenantId, 'Cemetery')) {
+      return;
+    }
+
     const cemetery = await Cemetery.findByIdAndUpdate(req.params.id, req.body, {
       new: true,
       runValidators: true,
@@ -132,11 +146,15 @@ export const updateCemetery = async (req: Request, res: Response) => {
   }
 };
 
-export const deleteCemetery = async (req: Request, res: Response) => {
+export const deleteCemetery = async (req: AuthRequest, res: Response) => {
   try {
     const cemetery = await Cemetery.findById(req.params.id);
     if (!cemetery) {
       return res.status(404).json({ success: false, message: "We couldn't find that cemetery. It may have been removed." });
+    }
+
+    if (!verifyTenantOwnership(req, res, cemetery.tenantId, 'Cemetery')) {
+      return;
     }
 
     // Check if cemetery has graves
@@ -199,7 +217,7 @@ export const getAllGraveRecords = async (req: AuthRequest, res: Response) => {
   }
 };
 
-export const getGraveRecordById = async (req: Request, res: Response) => {
+export const getGraveRecordById = async (req: AuthRequest, res: Response) => {
   try {
     const record = await GraveRecord.findById(req.params.id)
       .populate('cemeteryId', 'name capacity')
@@ -208,6 +226,11 @@ export const getGraveRecordById = async (req: Request, res: Response) => {
     if (!record) {
       return res.status(404).json({ success: false, message: "We couldn't find that grave record. It may have been removed." });
     }
+
+    if (!verifyTenantOwnership(req, res, record.tenantId, 'Grave record')) {
+      return;
+    }
+
     res.json({ success: true, data: record });
   } catch (error: any) {
     sendFailure(res, error, 'We couldn\'t load the grave record right now. Please try again.');
@@ -308,8 +331,17 @@ export const createGraveRecord = async (req: AuthRequest, res: Response) => {
   }
 };
 
-export const updateGraveRecord = async (req: Request, res: Response) => {
+export const updateGraveRecord = async (req: AuthRequest, res: Response) => {
   try {
+    const existingRecord = await GraveRecord.findById(req.params.id);
+    if (!existingRecord) {
+      return res.status(404).json({ success: false, message: "We couldn't find that grave record. It may have been removed." });
+    }
+
+    if (!verifyTenantOwnership(req, res, existingRecord.tenantId, 'Grave record')) {
+      return;
+    }
+
     // Prevent changing cemeteryId or graveNo (would break uniqueness)
     const { cemeteryId, graveNo, ...safeData } = req.body;
 
@@ -330,8 +362,17 @@ export const updateGraveRecord = async (req: Request, res: Response) => {
   }
 };
 
-export const deleteGraveRecord = async (req: Request, res: Response) => {
+export const deleteGraveRecord = async (req: AuthRequest, res: Response) => {
   try {
+    const existingRecord = await GraveRecord.findById(req.params.id);
+    if (!existingRecord) {
+      return res.status(404).json({ success: false, message: "We couldn't find that grave record. It may have been removed." });
+    }
+
+    if (!verifyTenantOwnership(req, res, existingRecord.tenantId, 'Grave record')) {
+      return;
+    }
+
     const record = await GraveRecord.findByIdAndDelete(req.params.id);
     if (!record) {
       return res.status(404).json({ success: false, message: "We couldn't find that grave record. It may have been removed." });
