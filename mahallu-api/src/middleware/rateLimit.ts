@@ -61,7 +61,7 @@ const phoneKey = (req: Request): string => {
 };
 
 export const verifyOtpRateLimiter = limiter(
-  5 * 60 * 1000,
+  2 * 60 * 1000,
   8,
   phoneKey,
   'Too many attempts. Please wait a few minutes and try again.'
