@@ -154,8 +154,8 @@ export const createUser = async (req: AuthRequest, res: Response) => {
         });
       }
 
-      // Check if phone is already used by another user
-      const existingUser = await User.findOne({ phone: finalPhone, tenantId: finalTenantId });
+      // Check if phone is already used by another user with this same role
+      const existingUser = await User.findOne({ phone: finalPhone, tenantId: finalTenantId, role: 'member' });
       if (existingUser) {
         return res.status(400).json({
           success: false,
@@ -200,8 +200,8 @@ export const createUser = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    // Check if user already exists (phone + tenantId combination)
-    const existingUser = await User.findOne({ phone, tenantId: finalTenantId });
+    // Check if user already exists (phone + tenantId + role combination)
+    const existingUser = await User.findOne({ phone, tenantId: finalTenantId, role: finalRole });
     if (existingUser) {
       return res.status(400).json({
         success: false,

@@ -68,21 +68,19 @@ export default function MemberDetail() {
 
   return (
     <div className="space-y-4">
-      <div className="flex gap-2 items-center justify-between">
-        <div className="flex items-center gap-4">
-          <PageHeader
-            description="Member Details"
-            title={toTitleCase(member.name)}
-            breadcrumbs={[{ label: 'Members', path: ROUTES.MEMBERS.LIST }]}
-          />
-          <div className="flex gap-2 items-center">
+      <PageHeader
+        description="Member Details"
+        title={toTitleCase(member.name)}
+        breadcrumbs={[{ label: 'Members', path: ROUTES.MEMBERS.LIST }]}
+        actions={
+          <>
             <Link to={ROUTES.MEMBERS.EDIT(member.id)}>
               <Button variant="outline" icon={<FiEdit2 />} collapseLabel>Edit</Button>
             </Link>
             <Button variant="danger" onClick={() => setShowDeleteModal(true)} icon={<FiTrash2 />} collapseLabel>Delete</Button>
-          </div>
-        </div>
-      </div>
+          </>
+        }
+      />
 
       <Card>
         {/* One continuous field list, not two headed halves: every field here is

@@ -123,7 +123,7 @@ export default function Header() {
         )}
         {/* Tenant switcher shares the flex row instead of being absolutely centred, which collided with the search and action clusters at narrow desktop widths. Below lg it was hidden outright, leaving a super admin on a phone with no way to switch tenants — the switcher itself already collapses to an icon-only button there, so it fits. */}
         {isSuperAdmin && (
-          <div className="ml-2 min-w-0 flex-shrink-0 sm:max-w-xs lg:flex-1">
+          <div className="ml-2 min-w-0 flex-shrink sm:max-w-xs sm:flex-shrink-0 lg:flex-1">
             <TenantSwitcher />
           </div>
         )}

@@ -182,14 +182,14 @@ export default function Dashboard() {
       <div className="space-y-4 py-3 sm:py-4">
         {/* OVERVIEW — four equal-sized cards, not a hero + siblings */}
         {statCards.length > 0 && (
-          <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <section className="grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-4">
             {pendingStat && (
-              <div className="flex min-h-[136px] flex-col justify-between rounded-xl bg-amber-500/10 p-3.5 ring-1 ring-amber-500/20">
+              <div className="flex min-h-[104px] flex-col justify-between rounded-xl bg-amber-500/10 p-3 ring-1 ring-amber-500/20 sm:min-h-[136px] sm:p-3.5">
                 <div>
                   <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-400">
-                    <FiClock className="h-3.5 w-3.5" aria-hidden="true" /> Needs attention
+                    <FiClock className="h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" /> <span className="truncate">Needs attention</span>
                   </p>
-                  <p className="mt-1.5 text-2xl font-bold tracking-tight text-foreground tabular-nums">{pendingStat.value}</p>
+                  <p className="mt-1.5 text-xl font-bold tracking-tight text-foreground tabular-nums sm:text-2xl">{pendingStat.value}</p>
                   <p className="mt-0.5 truncate text-xs text-muted-foreground">{pendingStat.label} — {pendingStat.hint}</p>
                 </div>
                 <button
@@ -204,16 +204,16 @@ export default function Dashboard() {
             {otherStats.map((stat) => (
               <div
                 key={stat.label}
-                className="flex min-h-[136px] flex-col justify-between rounded-xl border border-border bg-card p-3.5"
+                className="flex min-h-[104px] flex-col justify-between rounded-xl border border-border bg-card p-3 sm:min-h-[136px] sm:p-3.5"
               >
-                <div>
+                <div className="min-w-0">
                   <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                    <span className="flex h-5 w-5 items-center justify-center rounded-md bg-muted text-muted-foreground">{stat.icon}</span>
-                    {stat.label}
+                    <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">{stat.icon}</span>
+                    <span className="truncate">{stat.label}</span>
                   </p>
-                  <p className="mt-1.5 text-2xl font-semibold tabular-nums tracking-tight text-foreground">{stat.value}</p>
+                  <p className="mt-1.5 text-xl font-semibold tabular-nums tracking-tight text-foreground sm:text-2xl">{stat.value}</p>
                 </div>
-                <div>
+                <div className="min-w-0">
                   {stat.hint && <p className="truncate text-xs tabular-nums text-muted-foreground">{stat.hint}</p>}
                   {stat.trend && (
                     <p className={`mt-0.5 inline-flex items-center gap-1 text-xs font-medium tabular-nums ${stat.trend.isPositive ? 'text-success' : 'text-destructive'}`}>

@@ -206,7 +206,7 @@ function MenuNode({
             isFlyoutOpen && 'bg-accent',
             isBranchActive
               ? 'text-primary'
-              : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+              : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground dark:text-foreground/75'
           )}
           title={isCollapsed ? item.label : undefined}
           aria-label={isCollapsed ? item.label : undefined}
@@ -214,7 +214,7 @@ function MenuNode({
           <span
             className={cn(
               'flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md transition-colors',
-              isBranchActive ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'
+              isBranchActive ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground dark:text-foreground/75'
             )}
             aria-hidden="true"
           >
@@ -269,14 +269,14 @@ function MenuNode({
         isCollapsed && depth === 0 ? 'justify-center px-2' : indent,
         isActive
           ? 'bg-primary/10 font-medium text-primary'
-          : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+          : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground dark:text-foreground/75'
       )}
       title={isCollapsed ? item.label : undefined}
     >
       <span
         className={cn(
           'flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md transition-colors',
-          isActive ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+          isActive ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground dark:text-foreground/75'
         )}
         aria-hidden="true"
       >

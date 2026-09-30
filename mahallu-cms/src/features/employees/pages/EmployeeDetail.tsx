@@ -52,13 +52,11 @@ export default function EmployeeDetail() {
 
   return (
     <div className="space-y-4">
-      <div className="flex gap-2 items-center justify-between">
-        <div className="flex items-center gap-4">
-          <PageHeader
-            title={toTitleCase(employee.name)}
-            breadcrumbs={[{ label: 'Employees', path: ROUTES.EMPLOYEES.LIST }]}
-          />
-          <div className="flex gap-2 items-center">
+      <PageHeader
+        title={toTitleCase(employee.name)}
+        breadcrumbs={[{ label: 'Employees', path: ROUTES.EMPLOYEES.LIST }]}
+        actions={
+          <>
             <Link to={ROUTES.EMPLOYEES.LIST}>
               <Button variant="outline" icon={<FiArrowLeft />} collapseLabel>Back</Button>
             </Link>
@@ -66,9 +64,9 @@ export default function EmployeeDetail() {
             <Link to={ROUTES.EMPLOYEES.EDIT(employee.id)}>
               <Button icon={<FiEdit2 />} collapseLabel>Edit</Button>
             </Link>
-          </div>
-        </div>
-      </div>
+          </>
+        }
+      />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card>
