@@ -4,7 +4,7 @@ import { memberPortalService } from '@/services/memberPortalService';
 import { downloadNocPdf } from '@/utils/nocPdf';
 import { ROUTES } from '@/constants/routes';
 import Card from '@/components/ui/Card';
-import { rowActionClass } from '@/components/ui/rowAction';
+import ActionsMenu from '@/components/ui/ActionsMenu';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import RequestDetailModal, { RequestType } from '../components/RequestDetailModal';
@@ -246,38 +246,39 @@ export default function MemberNOCList() {
                                 : 'Awaiting approval'}
                           </span>
                         )}
-                        <div className="flex items-center gap-1 ml-auto">
-                          {isEditable(noc) && (
-                            <button
-                              onClick={() => openModal(noc, 'edit')}
-                              title="Edit & resubmit"
-                              aria-label="Edit and resubmit"
-                              className={rowActionClass()}
-                            >
-                              <FiEdit2 size={14} />
-                            </button>
-                          )}
-                          <button
-                            onClick={() => openModal(noc, 'view')}
-                            title="View"
-                            aria-label="View details"
-                            className={rowActionClass()}
-                          >
-                            <FiEye size={14} />
-                          </button>
-                          {isDeletable(noc) && (
-                            <button
-                              onClick={() => {
-                                setDeleteError(null);
-                                setDeleteTarget(noc);
-                              }}
-                              title="Delete"
-                              aria-label="Delete NOC request"
-                              className={rowActionClass('danger')}
-                            >
-                              <FiTrash2 size={14} />
-                            </button>
-                          )}
+                        <div className="ml-auto">
+                          <ActionsMenu
+                            label="Actions for NOC request"
+                            items={[
+                              ...(isEditable(noc)
+                                ? [
+                                    {
+                                      label: 'Edit & resubmit',
+                                      icon: <FiEdit2 className="h-4 w-4" />,
+                                      onClick: () => openModal(noc, 'edit'),
+                                    },
+                                  ]
+                                : []),
+                              {
+                                label: 'View',
+                                icon: <FiEye className="h-4 w-4" />,
+                                onClick: () => openModal(noc, 'view'),
+                              },
+                              ...(isDeletable(noc)
+                                ? [
+                                    {
+                                      label: 'Delete',
+                                      icon: <FiTrash2 className="h-4 w-4" />,
+                                      variant: 'danger' as const,
+                                      onClick: () => {
+                                        setDeleteError(null);
+                                        setDeleteTarget(noc);
+                                      },
+                                    },
+                                  ]
+                                : []),
+                            ]}
+                          />
                         </div>
                       </div>
                     </td>

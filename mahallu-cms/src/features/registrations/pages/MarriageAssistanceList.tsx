@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { FiCheckCircle, FiClock, FiFileText, FiList, FiPlus, FiTrash2 } from 'react-icons/fi';
 import TableCard from '@/components/ui/TableCard';
-import { rowActionClass } from '@/components/ui/rowAction';
+import ActionsMenu from '@/components/ui/ActionsMenu';
 import FilterPanel from '@/components/ui/FilterPanel';
 import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
@@ -154,25 +154,27 @@ export default function MarriageAssistanceList() {
               : 'Record'
         );
         return (
-          <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-            {row.type === 'premarital_counselling' && (
-              <button
-                onClick={() => navigate('/counselling/create')}
-                className={rowActionClass()}
-                title="Create Counselling Case"
-                aria-label="Create Counselling Case"
-              >
-                <FiPlus className="h-4 w-4" />
-              </button>
-            )}
-            <button
-              onClick={() => handleDeleteClick(row.id, label)}
-              className={rowActionClass('danger')}
-              title="Delete"
-              aria-label="Delete"
-            >
-              <FiTrash2 className="h-4 w-4" />
-            </button>
+          <div onClick={(e) => e.stopPropagation()}>
+            <ActionsMenu
+              label={`Actions for ${label}`}
+              items={[
+                ...(row.type === 'premarital_counselling'
+                  ? [
+                      {
+                        label: 'Create Counselling Case',
+                        icon: <FiPlus className="h-4 w-4" />,
+                        onClick: () => navigate('/counselling/create'),
+                      },
+                    ]
+                  : []),
+                {
+                  label: 'Delete',
+                  icon: <FiTrash2 className="h-4 w-4" />,
+                  variant: 'danger' as const,
+                  onClick: () => handleDeleteClick(row.id, label),
+                },
+              ]}
+            />
           </div>
         );
       },

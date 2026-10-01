@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { FiCheckCircle, FiEdit2, FiImage, FiPlus, FiTrash2 } from 'react-icons/fi';
 import TableCard from '@/components/ui/TableCard';
-import { rowActionClass } from '@/components/ui/rowAction';
+import ActionsMenu from '@/components/ui/ActionsMenu';
 import Button from '@/components/ui/Button';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
@@ -21,6 +21,7 @@ import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 
 export default function BannersList() {
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchQuery, setSearchQuery] = useState('');
   const [isFilterVisible, setIsFilterVisible] = useState(false);
@@ -151,27 +152,26 @@ export default function BannersList() {
       width: '8rem',
       align: 'center',
       render: (_, row) => (
-        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-          <Link
-            to={`/social/banners/${row.id}/edit`}
-            className={rowActionClass()}
-            title="Edit"
-          >
-            <FiEdit2 className="h-4 w-4" />
-          </Link>
-
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setSelectedBanner(row);
-              setShowDeleteModal(true);
-            }}
-            className={rowActionClass('danger')}
-            title="Delete"
-            aria-label="Delete"
-          >
-            <FiTrash2 className="h-4 w-4" />
-          </button>
+        <div onClick={(e) => e.stopPropagation()}>
+          <ActionsMenu
+            label={`Actions for ${row.title}`}
+            items={[
+              {
+                label: 'Edit',
+                icon: <FiEdit2 className="h-4 w-4" />,
+                onClick: () => navigate(`/social/banners/${row.id}/edit`),
+              },
+              {
+                label: 'Delete',
+                icon: <FiTrash2 className="h-4 w-4" />,
+                variant: 'danger',
+                onClick: () => {
+                  setSelectedBanner(row);
+                  setShowDeleteModal(true);
+                },
+              },
+            ]}
+          />
         </div>
       ),
     },

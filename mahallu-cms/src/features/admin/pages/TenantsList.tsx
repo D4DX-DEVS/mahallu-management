@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { FiAlertCircle, FiCheckCircle, FiEye, FiGlobe, FiPlus, FiTrash2, FiXCircle } from 'react-icons/fi';
 import TableCard from '@/components/ui/TableCard';
-import { rowActionClass } from '@/components/ui/rowAction';
+import ActionsMenu from '@/components/ui/ActionsMenu';
 import FilterPanel from '@/components/ui/FilterPanel';
 import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
@@ -198,57 +198,40 @@ export default function TenantsList() {
       width: '8rem',
       align: 'center',
       render: (_, row) => (
-        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(`/admin/tenants/${row.id}`);
-            }}
-            className={rowActionClass()}
-            title="View Details"
-            aria-label="View Details"
-          >
-            <FiEye className="h-4 w-4" />
-          </button>
-          {row.status === 'active' ? (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
+        <ActionsMenu
+          label={`Actions for ${row.name}`}
+          items={[
+            {
+              label: 'View Details',
+              icon: <FiEye className="h-4 w-4" />,
+              onClick: () => navigate(`/admin/tenants/${row.id}`),
+            },
+            row.status === 'active'
+              ? {
+                  label: 'Suspend',
+                  icon: <FiXCircle className="h-4 w-4" />,
+                  variant: 'warning',
+                  onClick: () => {
+                    setSelectedTenant(row);
+                    setShowSuspendModal(true);
+                  },
+                }
+              : {
+                  label: 'Activate',
+                  icon: <FiCheckCircle className="h-4 w-4" />,
+                  onClick: () => handleActivate(row),
+                },
+            {
+              label: 'Delete',
+              icon: <FiTrash2 className="h-4 w-4" />,
+              variant: 'danger',
+              onClick: () => {
                 setSelectedTenant(row);
-                setShowSuspendModal(true);
-              }}
-              className={rowActionClass('warning')}
-              title="Suspend"
-              aria-label="Suspend"
-            >
-              <FiXCircle className="h-4 w-4" />
-            </button>
-          ) : (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                handleActivate(row);
-              }}
-              className={rowActionClass()}
-              title="Activate"
-              aria-label="Activate"
-            >
-              <FiCheckCircle className="h-4 w-4" />
-            </button>
-          )}
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setSelectedTenant(row);
-              setShowDeleteModal(true);
-            }}
-            className={rowActionClass('danger')}
-            title="Delete"
-            aria-label="Delete"
-          >
-            <FiTrash2 className="h-4 w-4" />
-          </button>
-        </div>
+                setShowDeleteModal(true);
+              },
+            },
+          ]}
+        />
       ),
     },
   ];

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { memberPortalService, MemberOverviewResponse, ChangeRequest } from '@/services/memberPortalService';
 import { authService } from '@/services/authService';
 import Card from '@/components/ui/Card';
-import { rowActionClass } from '@/components/ui/rowAction';
+import ActionsMenu from '@/components/ui/ActionsMenu';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import Pagination from '@/components/ui/Pagination';
 import Modal from '@/components/ui/Modal';
@@ -493,39 +493,38 @@ export default function MemberProfile() {
                   </div>
                   <div className="flex flex-col items-end gap-2">
                     <StatusBadge status={req.status} />
-                    <div className="flex items-center gap-1">
-                      {req.status === 'pending' && (
-                        <button
-                          onClick={() => openEditRequest(req)}
-                          title="Edit"
-                          aria-label="Edit change request"
-                          className={rowActionClass()}
-                        >
-                          <FiEdit2 size={14} />
-                        </button>
-                      )}
-                      <button
-                        onClick={() => setViewRequest(req)}
-                        title="View"
-                        aria-label="View change request"
-                        className={rowActionClass()}
-                      >
-                        <FiEye size={14} />
-                      </button>
-                      {req.status === 'pending' && (
-                        <button
-                          onClick={() => {
-                            setDeleteRequestError(null);
-                            setDeleteRequest(req);
-                          }}
-                          title="Delete"
-                          aria-label="Delete change request"
-                          className={rowActionClass('danger')}
-                        >
-                          <FiTrash2 size={14} />
-                        </button>
-                      )}
-                    </div>
+                    <ActionsMenu
+                      label="Actions for change request"
+                      items={[
+                        ...(req.status === 'pending'
+                          ? [
+                              {
+                                label: 'Edit',
+                                icon: <FiEdit2 className="h-4 w-4" />,
+                                onClick: () => openEditRequest(req),
+                              },
+                            ]
+                          : []),
+                        {
+                          label: 'View',
+                          icon: <FiEye className="h-4 w-4" />,
+                          onClick: () => setViewRequest(req),
+                        },
+                        ...(req.status === 'pending'
+                          ? [
+                              {
+                                label: 'Delete',
+                                icon: <FiTrash2 className="h-4 w-4" />,
+                                variant: 'danger' as const,
+                                onClick: () => {
+                                  setDeleteRequestError(null);
+                                  setDeleteRequest(req);
+                                },
+                              },
+                            ]
+                          : []),
+                      ]}
+                    />
                   </div>
                 </div>
               </div>

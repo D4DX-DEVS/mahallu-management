@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { FiEye, FiDollarSign, FiHome, FiCreditCard, FiDownload } from 'react-icons/fi';
 import TableCard from '@/components/ui/TableCard';
-import { rowActionClass } from '@/components/ui/rowAction';
+import ActionsMenu from '@/components/ui/ActionsMenu';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
 import EmptyState from '@/components/ui/EmptyState';
@@ -10,7 +10,6 @@ import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
-import Dropdown, { DropdownItem } from '@/components/ui/Dropdown';
 import { TableColumn, Pagination as PaginationType, Family } from '@/types';
 import { familyService } from '@/services/familyService';
 import { collectibleService, Varisangya } from '@/services/collectibleService';
@@ -254,50 +253,41 @@ export default function FamilyVarisangyaList() {
       width: '8rem',
       align: 'center',
       render: (_, row) => (
-        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(`${FAMILY_BASE}?view=transactions&familyId=${row.id}`);
-            }}
-            className={rowActionClass()}
-            title="View Transactions"
-            aria-label="View Transactions"
-          >
-            <FiEye className="h-4 w-4" />
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(`${FAMILY_BASE}?view=wallet&familyId=${row.id}`);
-            }}
-            className={rowActionClass()}
-            title="View Wallet"
-            aria-label="View Wallet"
-          >
-            <FiDollarSign className="h-4 w-4" />
-          </button>
-          <Dropdown
-            align="right"
-            trigger={
-              <button
-                onClick={(e) => e.stopPropagation()}
-                disabled={exportingRowId === row.id}
-                className={rowActionClass('default', 'disabled:opacity-50')}
-                title="Export"
-                aria-label="Export"
-              >
-                {exportingRowId === row.id ? (
-                  <LoadingSpinner size="sm" />
-                ) : (
-                  <FiDownload className="h-4 w-4" />
-                )}
-              </button>
-            }
+        <div onClick={(e) => e.stopPropagation()}>
+          <ActionsMenu
+            label={`Actions for ${toTitleCase(row.houseName)}`}
             items={[
-              { label: 'Export as CSV', onClick: () => handleExportRow(row, 'csv') },
-              { label: 'Export as JSON', onClick: () => handleExportRow(row, 'json') },
-              { label: 'Export as PDF', onClick: () => handleExportRow(row, 'pdf') },
+              {
+                label: 'View Transactions',
+                icon: <FiEye className="h-4 w-4" />,
+                onClick: () => navigate(`${FAMILY_BASE}?view=transactions&familyId=${row.id}`),
+              },
+              {
+                label: 'View Wallet',
+                icon: <FiDollarSign className="h-4 w-4" />,
+                onClick: () => navigate(`${FAMILY_BASE}?view=wallet&familyId=${row.id}`),
+              },
+              {
+                label: 'Export as CSV',
+                icon: exportingRowId === row.id ? <LoadingSpinner size="sm" /> : <FiDownload className="h-4 w-4" />,
+                disabled: exportingRowId === row.id,
+                disabledReason: 'Exporting…',
+                onClick: () => handleExportRow(row, 'csv'),
+              },
+              {
+                label: 'Export as JSON',
+                icon: exportingRowId === row.id ? <LoadingSpinner size="sm" /> : <FiDownload className="h-4 w-4" />,
+                disabled: exportingRowId === row.id,
+                disabledReason: 'Exporting…',
+                onClick: () => handleExportRow(row, 'json'),
+              },
+              {
+                label: 'Export as PDF',
+                icon: exportingRowId === row.id ? <LoadingSpinner size="sm" /> : <FiDownload className="h-4 w-4" />,
+                disabled: exportingRowId === row.id,
+                disabledReason: 'Exporting…',
+                onClick: () => handleExportRow(row, 'pdf'),
+              },
             ]}
           />
         </div>

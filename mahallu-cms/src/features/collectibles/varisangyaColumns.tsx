@@ -1,6 +1,6 @@
 import { FiEdit2, FiDownload, FiCheckCircle } from 'react-icons/fi';
 
-import { rowActionClass } from '@/components/ui/rowAction';
+import ActionsMenu from '@/components/ui/ActionsMenu';
 import StatusBadge from '@/components/ui/StatusBadge';
 import { TableColumn } from '@/types';
 import { Varisangya } from '@/services/collectibleService';
@@ -71,42 +71,31 @@ export const buildVarisangyaColumns = ({
     width: '8rem',
     align: 'center',
     render: (_, row) => (
-      <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            openEdit(row);
-          }}
-          className={rowActionClass()}
-          title="Edit payment"
-          aria-label="Edit payment"
-        >
-          <FiEdit2 className="h-4 w-4" />
-        </button>
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            handleViewPdf(row);
-          }}
-          className={rowActionClass()}
-          title="View/Download PDF"
-          aria-label="View/Download PDF"
-        >
-          <FiDownload className="h-4 w-4" />
-        </button>
-        {row.status === 'pending' && onVerify && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onVerify(row);
-            }}
-            className={rowActionClass()}
-            title="Verify payment"
-            aria-label="Verify payment"
-          >
-            <FiCheckCircle className="h-4 w-4" />
-          </button>
-        )}
+      <div onClick={(e) => e.stopPropagation()}>
+        <ActionsMenu
+          label={`Actions for ${toTitleCase(getPayerName(row))}`}
+          items={[
+            {
+              label: 'Edit payment',
+              icon: <FiEdit2 className="h-4 w-4" />,
+              onClick: () => openEdit(row),
+            },
+            {
+              label: 'View/Download PDF',
+              icon: <FiDownload className="h-4 w-4" />,
+              onClick: () => handleViewPdf(row),
+            },
+            ...(row.status === 'pending' && onVerify
+              ? [
+                  {
+                    label: 'Verify payment',
+                    icon: <FiCheckCircle className="h-4 w-4" />,
+                    onClick: () => onVerify(row),
+                  },
+                ]
+              : []),
+          ]}
+        />
       </div>
     ),
   },

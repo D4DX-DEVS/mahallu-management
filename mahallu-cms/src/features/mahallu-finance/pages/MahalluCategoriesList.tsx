@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiEdit2, FiTrash2, FiList } from 'react-icons/fi';
 import TableCard from '@/components/ui/TableCard';
-import { rowActionClass } from '@/components/ui/rowAction';
+import ActionsMenu from '@/components/ui/ActionsMenu';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import Table from '@/components/ui/Table';
@@ -116,27 +116,26 @@ export default function MahalluCategoriesList() {
       width: '8rem',
       align: 'center',
       render: (_, row) => (
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() =>
-              navigate(ROUTES.MAHALLU_FINANCE.CATEGORIES_EDIT(row.id), { state: { category: row } })
-            }
-            className={rowActionClass()}
-            aria-label="Edit"
-          >
-            <FiEdit2 className="h-4 w-4" />
-          </button>
-          <button
-            onClick={() => {
-              setSelected(row);
-              setShowDeleteModal(true);
-            }}
-            className={rowActionClass('danger')}
-            aria-label="Delete"
-          >
-            <FiTrash2 className="h-4 w-4" />
-          </button>
-        </div>
+        <ActionsMenu
+          label={`Actions for ${toTitleCase(row.name)}`}
+          items={[
+            {
+              label: 'Edit',
+              icon: <FiEdit2 className="h-4 w-4" />,
+              onClick: () =>
+                navigate(ROUTES.MAHALLU_FINANCE.CATEGORIES_EDIT(row.id), { state: { category: row } }),
+            },
+            {
+              label: 'Delete',
+              icon: <FiTrash2 className="h-4 w-4" />,
+              variant: 'danger',
+              onClick: () => {
+                setSelected(row);
+                setShowDeleteModal(true);
+              },
+            },
+          ]}
+        />
       ),
     },
   ];
