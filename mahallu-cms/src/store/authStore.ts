@@ -2,6 +2,18 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { User } from '@/types';
 
+/**
+ * Display-only context for the persistent impersonation banner. Never used
+ * for authorization anywhere — the backend re-derives everything it actually
+ * enforces from the session's own JWT on every request, not from this.
+ */
+export interface ImpersonationContext {
+  role: string;
+  tenantName: string;
+  instituteName?: string | null;
+  memberName?: string | null;
+}
+
 interface AuthState {
   user: User | null;
   token: string | null;
@@ -10,11 +22,14 @@ interface AuthState {
   isSuperAdmin: boolean;
   /** tenant.settings.features — null until the tenant is loaded (treated as "all enabled") */
   tenantFeatures: Record<string, boolean> | null;
+  isImpersonating: boolean;
+  impersonationContext: ImpersonationContext | null;
   setTenantFeatures: (features: Record<string, boolean> | null) => void;
   setUser: (user: User | null) => void;
   setToken: (token: string | null) => void;
   setCurrentTenant: (tenantId: string | null) => void;
   setCurrentInstitute: (instituteId: string | null) => void;
+  setImpersonation: (context: ImpersonationContext | null) => void;
   logout: () => void;
 }
 
@@ -27,6 +42,8 @@ export const useAuthStore = create<AuthState>()(
       currentInstituteId: null,
       isSuperAdmin: false,
       tenantFeatures: null,
+      isImpersonating: false,
+      impersonationContext: null,
       setTenantFeatures: (tenantFeatures) => set({ tenantFeatures }),
       setUser: (user) =>
         set({
@@ -45,6 +62,7 @@ export const useAuthStore = create<AuthState>()(
       },
       setCurrentTenant: (tenantId) => set({ currentTenantId: tenantId }),
       setCurrentInstitute: (instituteId) => set({ currentInstituteId: instituteId }),
+      setImpersonation: (context) => set({ isImpersonating: !!context, impersonationContext: context }),
       logout: () => {
         localStorage.removeItem('token');
         set({
@@ -54,6 +72,8 @@ export const useAuthStore = create<AuthState>()(
           currentInstituteId: null,
           isSuperAdmin: false,
           tenantFeatures: null,
+          isImpersonating: false,
+          impersonationContext: null,
         });
       },
     }),

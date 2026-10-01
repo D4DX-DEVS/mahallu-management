@@ -47,6 +47,18 @@ function toNumber(value: unknown): number | null {
 }
 
 /**
+ * What kind of values a column holds, judged by its first non-blank one — so a
+ * "Sort by" menu can word its options the way the data reads ("A to Z",
+ * "Low to high", "Newest first").
+ */
+export function valueKind(values: unknown[]): 'date' | 'number' | 'text' {
+  const sample = values.find((value) => !isBlank(value));
+  if (toDate(sample) !== null) return 'date';
+  if (toNumber(sample) !== null) return 'number';
+  return 'text';
+}
+
+/**
  * Collator rather than a raw `<`: `numeric` makes "MH-2" sort before "MH-10"
  * and "Item 9" before "Item 10", which is what an ID column needs, and the
  * base sensitivity keeps case and accents from splitting otherwise equal

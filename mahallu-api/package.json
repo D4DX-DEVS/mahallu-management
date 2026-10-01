@@ -9,6 +9,7 @@
     "start": "node dist/index.js",
     "dev": "ts-node src/index.ts",
     "create-test-user": "ts-node src/scripts/createTestUser.ts",
+    "restore-test-accounts": "ts-node src/scripts/restoreTestAccounts.ts",
     "migrate-multi-mosque": "ts-node src/scripts/migrateMultiMosque.ts",
     "seed-categories": "ts-node src/scripts/seedCategories.ts",
     "cleanup-health-status": "ts-node src/scripts/cleanupHealthStatus.ts"

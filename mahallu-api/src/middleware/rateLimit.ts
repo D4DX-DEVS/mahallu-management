@@ -61,7 +61,7 @@ const phoneKey = (req: Request): string => {
 };
 
 export const verifyOtpRateLimiter = limiter(
-  5 * 60 * 1000,
+  2 * 60 * 1000,
   8,
   phoneKey,
   'Too many attempts. Please wait a few minutes and try again.'
@@ -91,4 +91,20 @@ export const sendOtpRateLimiter = limiter(
   5,
   phoneKey,
   'Too many requests. Please wait a few minutes before asking for another code.'
+);
+
+/** The authenticated caller's own user id — this route runs after authMiddleware. */
+const authUserKey = (req: Request): string => (req as any).user?._id?.toString() || 'unknown';
+
+/**
+ * Switch-account is behind a valid session already, so it's a much lower-risk
+ * target than the unauthenticated OTP/login endpoints above — but it still
+ * takes a client-supplied id and checks it against a DB record, so it gets
+ * the same brake against a script walking ids looking for a phone match.
+ */
+export const switchAccountRateLimiter = limiter(
+  5 * 60 * 1000,
+  10,
+  authUserKey,
+  'Too many account-switch attempts. Please wait a few minutes and try again.'
 );

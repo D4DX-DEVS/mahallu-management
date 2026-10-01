@@ -15,6 +15,7 @@ import { applyTheme } from '@/utils/theme';
 import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import TenantSwitcher from './TenantSwitcher';
+import RoleSwitcher from './RoleSwitcher';
 import CommandPalette from '@/components/ui/CommandPalette';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { useNotificationStore } from '@/store/notificationStore';
@@ -127,7 +128,15 @@ export default function Header() {
             <TenantSwitcher />
           </div>
         )}
-        <div className="ml-auto flex flex-shrink-0 items-center gap-1 border-l border-border/60 pl-2 sm:gap-1.5 sm:pl-3">
+        <div className="ml-auto flex flex-shrink-0 items-center gap-1.5 border-l border-border/60 pl-2.5 sm:gap-2 sm:pl-4">
+          {/* Desktop/tablet only — the mobile equivalent lives inside the user
+           * menu popover below rather than adding a second control to an
+           * already-tight mobile header row. RoleSwitcher renders nothing of
+           * its own when the signed-in person has no second role to switch
+           * to, so this never leaves an empty placeholder in the row. */}
+          <div className="hidden md:block">
+            <RoleSwitcher />
+          </div>
           <button
             onClick={() => navigate(ROUTES.NOTIFICATIONS.INDIVIDUAL)}
             aria-label={unreadCount > 0 ? 'Notifications, ' + unreadCount + ' unread' : 'Notifications'}
@@ -194,6 +203,14 @@ export default function Header() {
                     <FiSettings className="h-4 w-4" aria-hidden="true" /> Security and access
                   </Link>
                 )}
+                {/* Mobile only — desktop/tablet gets the standalone RoleSwitcher
+                 * in the header row instead. The same component is reused as-is:
+                 * its own dropdown is fixed/viewport-anchored, so it isn't
+                 * clipped by this popover's bounds. The divider lives on
+                 * RoleSwitcher's own root (via `className`) rather than an
+                 * always-present wrapper here, so a single-role person who
+                 * gets no control also gets no empty bordered gap. */}
+                <RoleSwitcher className="border-t border-border pt-1 md:hidden" />
                 <div className="my-1 h-px bg-border" />
                 <button
                   role="menuitem"
