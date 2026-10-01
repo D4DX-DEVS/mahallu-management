@@ -24,12 +24,23 @@ export interface AccountOption {
   tenantName: string | null;
   instituteId?: string;
   instituteName?: string | null;
+  isCurrent?: boolean;
 }
 
 export interface RoleSelectionResponse {
   requiresRoleSelection: true;
   preAuthToken: string;
   accounts: AccountOption[];
+}
+
+/** The 4 roles a Super Admin may temporarily view/act as. Never 'super_admin' itself. */
+export type ImpersonatableRole = 'mahall' | 'survey' | 'institute' | 'member';
+
+export interface StartImpersonationPayload {
+  targetRole: ImpersonatableRole;
+  tenantId: string;
+  instituteId?: string;
+  memberId?: string;
 }
 
 export const authService = {
@@ -58,6 +69,42 @@ export const authService = {
       preAuthToken,
       userId,
     });
+    return response.data.data;
+  },
+
+  /** Every active account sharing the current session's own phone number. */
+  getAvailableAccounts: async (): Promise<AccountOption[]> => {
+    const response = await api.get<{ success: boolean; data: { accounts: AccountOption[] } }>(
+      '/auth/available-accounts'
+    );
+    return response.data.data.accounts;
+  },
+
+  /**
+   * Switches the current session to another of the signed-in person's own
+   * accounts. Not a role picker — `targetUserId` is the only input; the
+   * backend alone decides whether it's authorized.
+   */
+  switchAccount: async (targetUserId: string): Promise<AuthResponse> => {
+    const response = await api.post<{ success: boolean; data: AuthResponse }>('/auth/switch-account', {
+      targetUserId,
+    });
+    return response.data.data;
+  },
+
+  /**
+   * Super Admin only — temporarily view/act as another role's context.
+   * The backend alone validates the tenant/institute/member combination;
+   * this never sends anything the backend treats as a permission grant.
+   */
+  startImpersonation: async (payload: StartImpersonationPayload): Promise<AuthResponse> => {
+    const response = await api.post<{ success: boolean; data: AuthResponse }>('/auth/impersonate', payload);
+    return response.data.data;
+  },
+
+  /** Restores the real Super Admin session from an active impersonation session. */
+  exitImpersonation: async (): Promise<AuthResponse> => {
+    const response = await api.post<{ success: boolean; data: AuthResponse }>('/auth/exit-impersonation');
     return response.data.data;
   },
 

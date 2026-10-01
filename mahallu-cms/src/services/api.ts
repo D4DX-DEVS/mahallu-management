@@ -27,16 +27,24 @@ api.interceptors.request.use(
     // Add tenant ID header for tenant-based data filtering
     const { currentTenantId, isSuperAdmin, user, currentInstituteId } = useAuthStore.getState();
 
-    // For super admin: use selected tenant or no tenant (to see all)
-    if (isSuperAdmin) {
-      if (currentTenantId) {
-        config.headers['x-tenant-id'] = currentTenantId;
-      }
-    } else {
-      // For regular users: always use their assigned tenant
-      const tenantId = currentTenantId || user?.tenantId;
-      if (tenantId) {
-        config.headers['x-tenant-id'] = tenantId;
+    // A caller (e.g. RoleSwitcher's tenant-scoped picker) may already have set
+    // an explicit x-tenant-id on this request to query a tenant other than the
+    // one currently selected in TenantSwitcher. That explicit choice must win —
+    // never let the ambient tenant silently override it.
+    const hasExplicitTenantHeader = config.headers['x-tenant-id'] !== undefined;
+
+    if (!hasExplicitTenantHeader) {
+      // For super admin: use selected tenant or no tenant (to see all)
+      if (isSuperAdmin) {
+        if (currentTenantId) {
+          config.headers['x-tenant-id'] = currentTenantId;
+        }
+      } else {
+        // For regular users: always use their assigned tenant
+        const tenantId = currentTenantId || user?.tenantId;
+        if (tenantId) {
+          config.headers['x-tenant-id'] = tenantId;
+        }
       }
     }
 

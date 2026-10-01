@@ -116,3 +116,23 @@ export const selectAccountValidation = [
     .withMessage("We couldn't find that user account. It may have been removed."),
 ];
 
+export const switchAccountValidation = [
+  body('targetUserId')
+    .isMongoId()
+    .withMessage("We couldn't find that account. It may have been removed."),
+];
+
+/**
+ * institute/member ids are conditionally required (only for their matching
+ * targetRole) — the controller itself re-checks this and validates ownership
+ * against the tenant, so this layer only rejects structurally wrong input.
+ */
+export const startImpersonationValidation = [
+  body('targetRole')
+    .isIn(['mahall', 'survey', 'institute', 'member'])
+    .withMessage('Please choose a valid role to switch to.'),
+  body('tenantId').isMongoId().withMessage('Please choose a Mahallu.'),
+  body('instituteId').optional().isMongoId().withMessage('Please choose an institute.'),
+  body('memberId').optional().isMongoId().withMessage('Please choose a member.'),
+];
+

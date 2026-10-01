@@ -3,6 +3,7 @@ import Sidebar from './Sidebar';
 import { useTenant } from '@/hooks/useTenant';
 import Header from './Header';
 import TenantBanner from './TenantBanner';
+import ImpersonationBanner from './ImpersonationBanner';
 import MobileFooterNav from './MobileFooterNav';
 import { useLayoutStore } from '@/store/layoutStore';
 import { useAuthStore } from '@/store/authStore';
@@ -18,10 +19,14 @@ export default function MainLayout({ children }: MainLayoutProps) {
   const isMobileSidebarOpen = useLayoutStore((s) => s.isMobileSidebarOpen);
   const isDesktopSidebarCollapsed = useLayoutStore((s) => s.isDesktopSidebarCollapsed);
   const setMobileSidebarOpen = useLayoutStore((s) => s.setMobileSidebarOpen);
-  const { isSuperAdmin, currentTenantId } = useAuthStore();
+  const { isSuperAdmin, currentTenantId, isImpersonating } = useAuthStore();
   // Single source of truth for the top-shell offset: the sidebar and the
   // content column both read this so their top rows stay aligned on every route.
+  // The two banners are mutually exclusive — isSuperAdmin is false for the
+  // whole duration of an impersonation session, so isViewingAsTenant can
+  // never also be true then — but the offset itself still needs to apply.
   const isViewingAsTenant = Boolean(isSuperAdmin && currentTenantId);
+  const showTopBanner = isViewingAsTenant || isImpersonating;
   const location = useLocation();
   useEffect(() => {
     setMobileSidebarOpen(false);
@@ -41,10 +46,11 @@ export default function MainLayout({ children }: MainLayoutProps) {
     <div
       className={cn(
         'flex h-screen h-[100dvh] overflow-hidden bg-background text-foreground',
-        isViewingAsTenant && 'pt-9'
+        showTopBanner && 'pt-9'
       )}
     >
       {isViewingAsTenant && <TenantBanner />}
+      {isImpersonating && <ImpersonationBanner />}
       {isMobileSidebarOpen && (
         <div
           className="fixed inset-0 z-40 bg-foreground/25 md:hidden"

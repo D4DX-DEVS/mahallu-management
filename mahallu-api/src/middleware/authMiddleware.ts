@@ -7,7 +7,34 @@ export interface AuthRequest extends Request {
   tenantId?: string;
   instituteId?: string;
   isSuperAdmin?: boolean;
+  /**
+   * Present only on a Super Admin "View As" session. `req.user`/`req.isSuperAdmin`/
+   * `req.tenantId`/`req.instituteId` are deliberately reshaped to look exactly like a
+   * real account of `impersonation.role` for that request — every existing RBAC/
+   * tenant/institute check keeps working unmodified. This field is the one place
+   * the ORIGINAL Super Admin identity survives, for exit and audit only; ordinary
+   * authorization code should never read it.
+   */
+  impersonation?: {
+    isImpersonating: true;
+    originalUserId: string;
+    role: 'mahall' | 'survey' | 'institute' | 'member';
+    tenantId: string;
+    instituteId?: string | null;
+    memberId?: string | null;
+  };
 }
+
+/** Full access within the impersonated role's own scope — there is no real
+ * target account to copy a custom permission grant from, so impersonation
+ * shows the role's complete capability, not a narrowed one. */
+const IMPERSONATION_PERMISSIONS = {
+  view: true,
+  add: true,
+  edit: true,
+  delete: true,
+  sensitiveModules: ['counselling', 'maslahat', 'inheritance', 'health', 'welfare'] as const,
+};
 
 /*
  * What a member account is allowed to reach.
@@ -61,6 +88,10 @@ export const authMiddleware = async (
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET) as any;
+    // The impersonation JWT's userId is ALWAYS the real Super Admin's own id —
+    // there may be no User document at all for the role being impersonated, so
+    // every request re-resolves the REAL account first, exactly like a normal
+    // session, before optionally overlaying an impersonated context on top.
     const user = await User.findById(decoded.userId).select('-password');
 
     if (!user) {
@@ -69,6 +100,72 @@ export const authMiddleware = async (
 
     if (user.status !== 'active') {
       return res.status(403).json({ success: false, message: 'This account is inactive. Please contact your Mahallu admin.' });
+    }
+
+    if (decoded.imp) {
+      // Defense in depth: even though the token's signature already proves it
+      // was minted by this server for this user, only ever honor an
+      // impersonation claim while the underlying real account is STILL a
+      // super admin right now — a downgraded/deactivated account loses every
+      // impersonation session it ever started, not just new ones.
+      if (!user.isSuperAdmin) {
+        return res.status(403).json({
+          success: false,
+          message: 'This role switch is no longer valid. Please sign in again.',
+        });
+      }
+
+      const imp = decoded.imp as {
+        role: 'mahall' | 'survey' | 'institute' | 'member';
+        tenantId: string;
+        instituteId?: string | null;
+        memberId?: string | null;
+      };
+
+      if (!['mahall', 'survey', 'institute', 'member'].includes(imp.role) || !isObjectId(imp.tenantId)) {
+        return res.status(401).json({ success: false, message: 'Your session has ended. Please sign in again to continue.' });
+      }
+
+      req.impersonation = {
+        isImpersonating: true,
+        originalUserId: (user._id as any).toString(),
+        role: imp.role,
+        tenantId: imp.tenantId,
+        instituteId: imp.instituteId ?? null,
+        memberId: imp.memberId ?? null,
+      };
+
+      // Reshaped to look exactly like a real account of the impersonated role.
+      // Every existing RBAC/tenant/institute check downstream reads only these
+      // fields, so nothing else in the codebase needs to know impersonation
+      // exists — the member-only path restriction below applies too, exactly
+      // as it would for a genuine member account.
+      req.user = {
+        _id: user._id,
+        name: user.name,
+        phone: user.phone,
+        role: imp.role,
+        tenantId: imp.tenantId,
+        instituteId: imp.instituteId ?? null,
+        memberId: imp.memberId ?? null,
+        status: 'active',
+        isSuperAdmin: false,
+        permissions: IMPERSONATION_PERMISSIONS,
+      };
+      req.isSuperAdmin = false;
+      req.tenantId = imp.tenantId;
+      if (imp.role === 'institute' && imp.instituteId) {
+        req.instituteId = imp.instituteId;
+      }
+
+      if (imp.role === 'member' && !isMemberAllowedPath(req.originalUrl)) {
+        return res.status(403).json({
+          success: false,
+          message: "Your role doesn't have access to this. Please contact your Mahallu admin.",
+        });
+      }
+
+      return next();
     }
 
     if (user.role === 'member' && !user.isSuperAdmin && !isMemberAllowedPath(req.originalUrl)) {

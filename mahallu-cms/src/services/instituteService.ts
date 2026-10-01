@@ -7,11 +7,19 @@ export interface InstituteListParams {
   search?: string;
   page?: number;
   limit?: number;
+  /** Super admin only — scopes the list to a tenant other than the currently
+   * selected one (see backend getAllInstitutes' explicit query-param fallback). */
+  tenantId?: string;
 }
 
 const getAll = async (params?: InstituteListParams) => {
   const response = await api.get<{ success: boolean; data: Institute[]; pagination?: any }>('/institutes', {
     params,
+    // An explicit tenantId (e.g. RoleSwitcher's picker) must scope this
+    // request even when the ambient TenantSwitcher selection differs — see
+    // api.ts's request interceptor, which never overwrites a header already
+    // set here.
+    ...(params?.tenantId ? { headers: { 'x-tenant-id': params.tenantId } } : {}),
   });
   // Handle both paginated and non-paginated responses
   if (response.data.pagination) {

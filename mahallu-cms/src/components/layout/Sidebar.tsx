@@ -300,10 +300,14 @@ export default function Sidebar() {
   const setMobileSidebarOpen = useLayoutStore((s) => s.setMobileSidebarOpen);
   const isDesktopSidebarCollapsedRaw = useLayoutStore((s) => s.isDesktopSidebarCollapsed);
   const isOnline = useOnlineStatus();
-  const { isSuperAdmin, user, currentTenantId } = useAuthStore();
-  // Matches MainLayout's TenantBanner offset so the brand row stays level with
-  // the content-side header regardless of which route is showing the banner.
+  const { isSuperAdmin, user, currentTenantId, isImpersonating } = useAuthStore();
+  // Matches MainLayout's TenantBanner/ImpersonationBanner offset so the brand
+  // row stays level with the content-side header regardless of which banner
+  // (if either) is showing for the current route. TenantBanner and
+  // ImpersonationBanner are mutually exclusive (see MainLayout), but both
+  // reserve the same 36px, so either one being up needs this offset.
   const isViewingAsTenant = Boolean(isSuperAdmin && currentTenantId);
+  const hasTopBanner = isViewingAsTenant || isImpersonating;
   const userRole = (user?.role || (isSuperAdmin ? 'super_admin' : null)) as UserRole | null;
   const { isModuleEnabled } = useModuleAccess();
   const sensitiveModules = user?.permissions?.sensitiveModules ?? [];
@@ -398,7 +402,7 @@ export default function Sidebar() {
             )
           : cn(
               'fixed left-0 border-r border-border',
-              isViewingAsTenant ? 'top-9 h-[calc(100dvh-2.25rem)]' : 'top-0 h-screen h-[100dvh]',
+              hasTopBanner ? 'top-9 h-[calc(100dvh-2.25rem)]' : 'top-0 h-screen h-[100dvh]',
               'transition-[width,transform] duration-200 ease-out md:translate-x-0',
               /* The drawer never exceeds the viewport: at 320px a fixed 16rem panel
                * left 64px of page, which is not enough to read what is behind it. */
