@@ -137,6 +137,16 @@ export default function RoleSwitcher({ className }: { className?: string } = {})
   };
 
   const handlePickRole = async (role: ImpersonatableRole) => {
+    // The person already holds this role on their own account — go straight
+    // to the Mahallu/institute that account is assigned to instead of asking
+    // them to pick one. The picker below is only for viewing as a role they
+    // have no account for.
+    const ownAccount = accounts.find((a) => a.role === role && !a.isCurrent);
+    if (ownAccount) {
+      handleSwitch(ownAccount);
+      return;
+    }
+
     setSelectedRole(role);
     setStep('context');
     setError(null);

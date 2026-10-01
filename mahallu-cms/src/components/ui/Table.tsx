@@ -2,7 +2,7 @@ import { ReactNode, useId, useMemo, useState } from 'react';
 import { FiChevronUp, FiChevronDown, FiChevronRight } from 'react-icons/fi';
 import { TableColumn, SortState } from '@/types';
 import { cn } from '@/utils/cn';
-import { nextSortState, sortRows } from '@/utils/sort';
+import { nextSortState, sortRows, valueKind } from '@/utils/sort';
 import Skeleton, { TableSkeleton } from './Skeleton';
 import EmptyState, { EmptyStateVariant } from './EmptyState';
 
@@ -224,10 +224,69 @@ function Table<T extends Record<string, any>>({
     (column): column is TableColumn<T> => Boolean(column) && canSort(column!)
   );
 
-  const requestSort = (key: string) => {
-    const next = nextSortState(activeSort, key);
+  const desktopSortColumns = columns.filter(canSort);
+
+  const applySort = (next: SortState | null) => {
     if (!isControlled) setOwnSort(next);
     onSortChange?.(next);
+  };
+
+  const requestSort = (key: string) => applySort(nextSortState(activeSort, key));
+
+  /* The standard "Sort by" options: newest / oldest by when the record was
+   * created (when rows carry `createdAt` and no column already sorts on it),
+   * then both directions of every sortable column, worded for its data. */
+  const hasCreatedAt =
+    sortable && !columns.some((c) => c.key === 'createdAt') && source.some((row) => row.createdAt);
+  const sortOptions = (sortColumns: TableColumn<T>[]) => {
+    const options: { value: string; label: string }[] = hasCreatedAt
+      ? [
+          { value: 'createdAt:desc', label: 'Newest first' },
+          { value: 'createdAt:asc', label: 'Oldest first' },
+        ]
+      : [];
+    for (const column of sortColumns) {
+      const kind = valueKind(source.map((row) => row[column.key]));
+      const [asc, desc] =
+        kind === 'date'
+          ? ['Oldest first', 'Newest first']
+          : kind === 'number'
+            ? ['Low to high', 'High to low']
+            : ['A to Z', 'Z to A'];
+      options.push(
+        { value: column.key + ':asc', label: `${column.label} (${asc})` },
+        { value: column.key + ':desc', label: `${column.label} (${desc})` }
+      );
+    }
+    return options;
+  };
+
+  const renderSortMenu = (sortColumns: TableColumn<T>[], id: string, className: string) => {
+    const options = sortOptions(sortColumns);
+    if (options.length === 0) return null;
+    return (
+      <div className={cn('items-center gap-2', className)}>
+        <label htmlFor={id} style={CELL_FONT} className="flex-shrink-0 text-muted-foreground">
+          Sort by
+        </label>
+        <select
+          id={id}
+          value={activeSort ? activeSort.key + ':' + activeSort.direction : ''}
+          onChange={(event) => {
+            const [key, direction] = event.target.value.split(':');
+            applySort(key ? { key, direction: direction as SortState['direction'] } : null);
+          }}
+          className="min-w-0 flex-1 text-sm md:w-56 md:flex-none"
+        >
+          <option value="">Default order</option>
+          {options.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </div>
+    );
   };
 
   const cellValue = (column: TableColumn<T>, row: T, index: number) =>
@@ -293,54 +352,16 @@ function Table<T extends Record<string, any>>({
         </div>
       )}
 
-      {/* ---- Phone: sort control ------------------------------------------
-          Below `md` the header row is replaced by cards, and with it the only
-          way to sort. The same three states live here as a field plus a
-          direction toggle, so a phone is not a read-only view of the list. */}
-      {mobileSortColumns.length > 0 && (
-        <div className="flex items-center gap-2 md:hidden">
-          <label htmlFor={sortFieldId} style={CELL_FONT} className="flex-shrink-0 text-muted-foreground">
-            Sort by
-          </label>
-          <select
-            id={sortFieldId}
-            value={activeSort?.key ?? ''}
-            onChange={(event) => {
-              const key = event.target.value;
-              if (!key) {
-                if (!isControlled) setOwnSort(null);
-                onSortChange?.(null);
-                return;
-              }
-              const next = { key, direction: activeSort?.direction ?? ('asc' as const) };
-              if (!isControlled) setOwnSort(next);
-              onSortChange?.(next);
-            }}
-            className="min-w-0 flex-1 text-sm"
-          >
-            <option value="">Default order</option>
-            {mobileSortColumns.map((column) => (
-              <option key={column.key} value={column.key}>
-                {column.label}
-              </option>
-            ))}
-          </select>
-          <button
-            type="button"
-            disabled={!activeSort}
-            onClick={() => activeSort && requestSort(activeSort.key)}
-            aria-label={
-              activeSort?.direction === 'asc'
-                ? 'Sorted ascending. Sort descending'
-                : activeSort?.direction === 'desc'
-                  ? 'Sorted descending. Clear sorting'
-                  : 'Choose a column to sort by first'
-            }
-            className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-md border border-input bg-background text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <SortIndicator direction={activeSort?.direction ?? null} />
-          </button>
-        </div>
+      {/* ---- Sort control ------------------------------------------------
+          One "Sort by" menu with the standard options, at every width. Below
+          `md` the header row is replaced by cards, so it is the only way to
+          sort there and offers just the columns the cards show; from `md` up
+          it sits beside the clickable headers and offers every sortable one. */}
+      {(!serverSorted || onSortChange) && (
+        <>
+          {renderSortMenu(mobileSortColumns, sortFieldId, 'flex md:hidden')}
+          {renderSortMenu(desktopSortColumns, sortFieldId + '-md', 'hidden md:flex md:justify-end')}
+        </>
       )}
 
       {/* ---- Phone: one card per record ---------------------------------- */}
