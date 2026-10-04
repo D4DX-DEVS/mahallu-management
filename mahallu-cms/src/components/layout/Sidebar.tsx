@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, useId } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useId } from 'react';
 import { Link, matchPath, useLocation } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { menuItems, MenuItem } from '@/constants/menuItems';
@@ -277,6 +277,7 @@ function CollapsedFlyout({
   onClose,
   trigger,
   leftOffset,
+  isCompact,
 }: {
   item: MenuItem;
   anchor: DOMRect;
@@ -285,19 +286,26 @@ function CollapsedFlyout({
   onClose: () => void;
   trigger: HTMLElement | null;
   leftOffset: number;
+  isCompact: boolean;
 }) {
   const flyoutRef = useRef<HTMLDivElement>(null);
   const firstItemRef = useRef<HTMLAnchorElement>(null);
   const itemRefs = useRef<Array<HTMLAnchorElement | null>>([]);
   const groups = groupChildren(item.id, item.children);
   const headerOffset = document.querySelector('header')?.getBoundingClientRect().bottom ?? 0;
+  const restoreFocus = useCallback(() => {
+    const target = trigger?.isConnected
+      ? trigger
+      : document.querySelector<HTMLButtonElement>('[aria-label="Expand navigation"]');
+    target?.focus({ preventScroll: true });
+  }, [trigger]);
   useEffect(() => {
     firstItemRef.current?.focus();
   }, []);
   useEffect(() => {
     const closeFlyout = () => {
       onClose();
-      trigger?.focus({ preventScroll: true });
+      restoreFocus();
     };
     const closeOnOutsidePress = (event: MouseEvent) => {
       const target = event.target as Node;
@@ -315,7 +323,7 @@ function CollapsedFlyout({
       document.removeEventListener('mousedown', closeOnOutsidePress);
       document.removeEventListener('keydown', closeOnEscape);
     };
-  }, [onClose, trigger]);
+  }, [onClose, restoreFocus]);
   return createPortal(
     <div
       ref={flyoutRef}
@@ -324,7 +332,7 @@ function CollapsedFlyout({
       style={{
         position: 'fixed',
         top: `${headerOffset}px`,
-        left: anchor.right + leftOffset,
+        left: isCompact ? 'calc(5px + 5.625rem)' : anchor.right + leftOffset,
         height: `calc(100dvh - ${headerOffset}px)`,
       }}
       className="z-[70] w-56 min-h-0 overflow-y-auto border-r border-border bg-card p-3 text-card-foreground shadow-md"
@@ -359,14 +367,13 @@ function CollapsedFlyout({
                   role="menuitem"
                   onClick={() => {
                     onNavigate(true);
-                    onClose();
                   }}
                   aria-current={active ? 'page' : undefined}
                   onKeyDown={(event) => {
                     if (event.key === 'Escape') {
                       event.preventDefault();
                       onClose();
-                      trigger?.focus({ preventScroll: true });
+                      restoreFocus();
                       return;
                     }
                     if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
@@ -531,7 +538,8 @@ function MenuNode({
             onNavigate={onNavigate}
             onClose={onFlyoutClose}
             trigger={flyout.trigger}
-            leftOffset={compactRoot ? 10 : 12}
+            leftOffset={compactRoot ? 10 : 0}
+            isCompact={compactRoot}
           />
         )}
         {!isCollapsed && (
@@ -613,6 +621,7 @@ function MenuNode({
 export default function Sidebar() {
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
   const [activeFlyout, setActiveFlyout] = useState<SideFlyoutState | null>(null);
+  const keepFlyoutOnNextRouteRef = useRef(false);
   const location = useLocation();
   const asideRef = useRef<HTMLElement>(null);
   const setSubmenuOpen = useLayoutStore((s) => s.setSubmenuOpen);
@@ -648,8 +657,8 @@ export default function Sidebar() {
     return isMobile ? pruneFooterItems(ordered, footerPaths) : ordered; // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userRole, isSuperAdmin, isMobile, JSON.stringify(sensitiveModules)]);
   useEffect(() => {
-    setSubmenuOpen(false);
-  }, [setSubmenuOpen]);
+    setSubmenuOpen(Boolean(activeFlyout));
+  }, [activeFlyout, setSubmenuOpen]);
   useEffect(() => {
     const activeTrail = collectAncestorIds(filteredMenuItems, location.pathname);
     if (activeTrail.length === 0) return;
@@ -695,15 +704,22 @@ export default function Sidebar() {
   const handleFlyoutClose = () => setActiveFlyout(null);
   const handleNavigate = (fromFlyout = false) => {
     setMobileSidebarOpen(false);
-    setActiveFlyout(null);
     if (!isMobile && fromFlyout) {
+      keepFlyoutOnNextRouteRef.current = true;
       setDesktopSidebarCollapsed(true);
       window.requestAnimationFrame(() => {
         document.querySelector<HTMLButtonElement>('[aria-label="Expand navigation"]')?.focus({ preventScroll: true });
       });
+      return;
     }
+    keepFlyoutOnNextRouteRef.current = false;
+    setActiveFlyout(null);
   };
   useEffect(() => {
+    if (keepFlyoutOnNextRouteRef.current) {
+      keepFlyoutOnNextRouteRef.current = false;
+      return;
+    }
     setActiveFlyout(null);
   }, [location.pathname]);
   return (

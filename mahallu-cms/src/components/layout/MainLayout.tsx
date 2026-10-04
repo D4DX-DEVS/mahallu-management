@@ -14,6 +14,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
   useTenant();
   const isMobileSidebarOpen = useLayoutStore((s) => s.isMobileSidebarOpen);
   const isDesktopSidebarCollapsed = useLayoutStore((s) => s.isDesktopSidebarCollapsed);
+  const isSubmenuOpen = useLayoutStore((s) => s.isSubmenuOpen);
   const setMobileSidebarOpen = useLayoutStore((s) => s.setMobileSidebarOpen);
   const location = useLocation();
   useEffect(() => {
@@ -44,7 +45,13 @@ export default function MainLayout({ children }: MainLayoutProps) {
         id="app-content-area"
         className={
           'relative z-30 flex min-w-0 flex-1 flex-col overflow-hidden transition-[margin-left] duration-200 ease-out ' +
-          (isDesktopSidebarCollapsed ? 'md:ml-rail-content' : 'md:ml-60')
+          isDesktopSidebarCollapsed
+            ? isSubmenuOpen
+              ? 'md:ml-rail-flyout-content'
+              : 'md:ml-rail-content'
+            : isSubmenuOpen
+              ? 'md:ml-expanded-flyout-content'
+              : 'md:ml-60'
         }
       >
         <a

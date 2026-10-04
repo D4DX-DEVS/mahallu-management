@@ -100,6 +100,9 @@ export default {
         rail: '5.625rem',
         /* Five-pixel visual inset keeps the 90px rail aligned with the page. */
         'rail-content': '5.9375rem',
+        /* Content offsets while a 14rem submenu flyout remains visible. */
+        'rail-flyout-content': '19.9375rem',
+        'expanded-flyout-content': '29rem',
       },
       padding: {
         /* The iOS home-indicator inset, under the mobile tab bar. */
