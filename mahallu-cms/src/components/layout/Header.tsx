@@ -1,20 +1,18 @@
 import {
   FiMenu,
   FiBell,
-  FiSun,
-  FiMoon,
   FiUser,
   FiLogOut,
   FiSearch,
-  FiSettings,
   FiShield,
+  FiActivity,
+  FiHelpCircle,
 } from 'react-icons/fi';
-import { useThemeStore } from '@/store/themeStore';
 import { useAuthStore } from '@/store/authStore';
 import { useLayoutStore } from '@/store/layoutStore';
-import { applyTheme } from '@/utils/theme';
 import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import TenantSwitcher from './TenantSwitcher';
 import CommandPalette from '@/components/ui/CommandPalette';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
@@ -23,30 +21,23 @@ import { ROUTES } from '@/constants/routes';
 import { cn } from '@/utils/cn';
 export default function Header() {
   const navigate = useNavigate();
-  const { theme, toggleTheme } = useThemeStore();
-  const { user, logout, isSuperAdmin, currentTenantId } = useAuthStore();
-  const { toggleDesktopSidebarCollapsed, setMobileSidebarOpen } = useLayoutStore();
+  const location = useLocation();
+  const { user, logout, isSuperAdmin } = useAuthStore();
+  const { setMobileSidebarOpen } = useLayoutStore();
   const isCommandPaletteOpen = useLayoutStore((s) => s.isCommandPaletteOpen);
   const openCommandPalette = useLayoutStore((s) => s.openCommandPalette);
   const closeCommandPalette = useLayoutStore((s) => s.closeCommandPalette);
-  const [mounted, setMounted] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const { unreadCount, fetchUnreadCount } = useNotificationStore();
   const userMenuRef = useRef<HTMLDivElement>(null);
-  const isViewingAsTenant = isSuperAdmin && currentTenantId;
-  useEffect(() => {
-    setMounted(true);
-    applyTheme();
-  }, []);
+  const isDashboard = location.pathname === ROUTES.DASHBOARD;
+  const firstName = user?.name?.split(' ')[0];
   useEffect(() => {
     fetchUnreadCount();
     const interval = setInterval(fetchUnreadCount, 60000);
     return () => clearInterval(interval);
   }, [fetchUnreadCount]);
-  useEffect(() => {
-    if (mounted) applyTheme();
-  }, [theme, mounted]);
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
@@ -85,29 +76,14 @@ export default function Header() {
     return 'User';
   };
   const iconButton =
-    'inline-flex h-10 w-10 items-center justify-center rounded-md text-muted-foreground transition-colors ' +
+    'inline-flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground transition-colors ' +
     'hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 ' +
     'focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background';
   const isMember = user?.role === 'member';
   return (
     <>
       <CommandPalette isOpen={isCommandPaletteOpen} onClose={closeCommandPalette} />
-      {/* The banner sits above the header in the stacking order as well as on screen — it used to be z-40 against a z-30 sticky header, so it overlapped the header instead of stacking with it. */}
-      {isViewingAsTenant && (
-        <div className="sticky top-0 z-20 flex items-center justify-center gap-2 bg-primary px-4 py-1.5 text-label text-primary-foreground">
-          <FiShield className="h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
-          <span className="font-medium">Viewing as tenant</span> <span aria-hidden="true">·</span>
-          <span className="hidden sm:inline">All data is filtered to the selected tenant</span>
-        </div>
-      )}
-      <header className="sticky top-0 z-30 flex h-16 flex-shrink-0 items-center gap-3 border-b border-border bg-card px-4 md:px-6">
-        <button
-          onClick={toggleDesktopSidebarCollapsed}
-          className={cn(iconButton, 'hidden md:inline-flex')}
-          aria-label="Toggle sidebar"
-        >
-          <FiMenu className="h-5 w-5" />
-        </button>
+      <header className="sticky top-0 z-30 flex h-16 flex-shrink-0 items-center gap-3 border-b border-border/80 bg-card/95 px-4 shadow-[0_1px_0_hsl(var(--border)/0.55)] backdrop-blur md:px-8">
         <button
           onClick={() => setMobileSidebarOpen(true)}
           className={cn(iconButton, 'md:hidden')}
@@ -115,14 +91,15 @@ export default function Header() {
         >
           <FiMenu className="h-5 w-5" />
         </button>
-        {!isMember && (
-          <button
-            onClick={openCommandPalette}
-            className="hidden h-10 items-center gap-2 rounded-md border border-input bg-background px-3 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:flex"
-          >
-            <FiSearch className="h-4 w-4" aria-hidden="true" /> <span>Search</span>
-            <kbd className="ml-2 rounded-sm border border-border px-1.5 py-0.5 text-xs">Ctrl K</kbd>
-          </button>
+        {isDashboard && (
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-base font-semibold leading-tight text-foreground">
+              Welcome back{firstName ? `, ${firstName}` : ''}
+            </p>
+            <p className="hidden truncate text-xs text-muted-foreground sm:block">
+              What needs your attention across the mahallu today.
+            </p>
+          </div>
         )}
         {/* Tenant switcher shares the flex row instead of being absolutely centred, which collided with the search and action clusters at narrow desktop widths. Below lg it was hidden outright, leaving a super admin on a phone with no way to switch tenants — the switcher itself already collapses to an icon-only button there, so it fits. */}
         {isSuperAdmin && (
@@ -131,6 +108,15 @@ export default function Header() {
           </div>
         )}
         <div className="ml-auto flex items-center gap-1">
+          {!isMember && (
+            <button
+              onClick={openCommandPalette}
+              className="hidden h-10 min-w-44 items-center gap-2 rounded-lg border border-border bg-muted/60 px-3 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:flex"
+            >
+              <FiSearch className="h-4 w-4" aria-hidden="true" /> <span>Search</span>
+              <kbd className="ml-2 rounded-sm border border-border px-1.5 py-0.5 text-xs">Ctrl K</kbd>
+            </button>
+          )}
           <button
             onClick={() => navigate(ROUTES.NOTIFICATIONS.INDIVIDUAL)}
             aria-label={unreadCount > 0 ? 'Notifications, ' + unreadCount + ' unread' : 'Notifications'}
@@ -146,20 +132,13 @@ export default function Header() {
               </span>
             )}
           </button>
-          <button
-            onClick={toggleTheme}
-            aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
-            className={iconButton}
-          >
-            {mounted && theme === 'dark' ? <FiSun className="h-5 w-5" /> : <FiMoon className="h-5 w-5" />}
-          </button>
           <div className="relative ml-1" ref={userMenuRef}>
             <button
               onClick={() => setShowUserMenu((open) => !open)}
               aria-label="Account menu"
               aria-haspopup="menu"
               aria-expanded={showUserMenu}
-              className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary transition-colors hover:bg-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             >
               {(user?.name || 'U').charAt(0).toUpperCase()}
             </button>
@@ -167,47 +146,77 @@ export default function Header() {
               <div
                 role="menu"
                 aria-label="Account"
-                className="absolute right-0 top-full z-50 mt-2 w-64 max-w-[calc(100vw-2rem)] overflow-hidden rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-md"
+                className="absolute right-0 top-full z-50 mt-2 w-72 max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl border border-border bg-popover p-1.5 text-popover-foreground shadow-md"
               >
-                <div className="px-3 py-2.5">
+                <div role="presentation" className="px-3 py-2.5">
                   <p className="truncate text-sm font-semibold text-foreground">{user?.name || 'User'}</p>
                   <p className="truncate text-label text-muted-foreground">{accountTypeLabel()}</p>
                   {user?.phone && (
                     <p className="truncate text-label text-muted-foreground">{user.phone}</p>
                   )}
                 </div>
-                <div className="my-1 h-px bg-border" />
-                {/* Profile and settings reach the account menu. They used to be four levels deep in the sidebar, while this menu held only Sign out beneath a block of read-only detail. */}
-                <Link
-                  to={isMember ? ROUTES.MEMBER.PROFILE : ROUTES.MAHALL_MAIN}
-                  role="menuitem"
-                  onClick={() => setShowUserMenu(false)}
-                  className="flex w-full items-center gap-2.5 rounded-sm px-3 py-2 text-sm text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-                >
-                  <FiUser className="h-4 w-4" aria-hidden="true" />
-                  {isMember ? 'My profile' : 'Mahall settings'}
-                </Link>
-                {!isMember && (
+                <div role="separator" className="my-1 h-px bg-border" />
+                <div role="group" aria-labelledby="account-menu-account">
+                  <p id="account-menu-account" className="px-3 pb-1 pt-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                    Account
+                  </p>
                   <Link
-                    to="/settings/security"
+                    to={isMember ? ROUTES.MEMBER.PROFILE : ROUTES.MAHALL_MAIN}
                     role="menuitem"
                     onClick={() => setShowUserMenu(false)}
                     className="flex w-full items-center gap-2.5 rounded-sm px-3 py-2 text-sm text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
                   >
-                    <FiSettings className="h-4 w-4" aria-hidden="true" /> Security and access
+                    <FiUser className="h-4 w-4" aria-hidden="true" />
+                    {isMember ? 'My profile' : 'Mahall settings'}
                   </Link>
+                </div>
+                {!isMember && (
+                  <div role="group" aria-labelledby="account-menu-workspace">
+                    <p id="account-menu-workspace" className="px-3 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                      Workspace
+                    </p>
+                    <Link
+                      to="/settings/security"
+                      role="menuitem"
+                      onClick={() => setShowUserMenu(false)}
+                      className="flex w-full items-center gap-2.5 rounded-sm px-3 py-2 text-sm text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                    >
+                      <FiShield className="h-4 w-4" aria-hidden="true" /> Security and access
+                    </Link>
+                    <Link
+                      to="/social/activity-logs"
+                      role="menuitem"
+                      onClick={() => setShowUserMenu(false)}
+                      className="flex w-full items-center gap-2.5 rounded-sm px-3 py-2 text-sm text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                    >
+                      <FiActivity className="h-4 w-4" aria-hidden="true" /> Activity history
+                    </Link>
+                    <Link
+                      to={ROUTES.SOCIAL.SUPPORT}
+                      role="menuitem"
+                      onClick={() => setShowUserMenu(false)}
+                      className="flex w-full items-center gap-2.5 rounded-sm px-3 py-2 text-sm text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                    >
+                      <FiHelpCircle className="h-4 w-4" aria-hidden="true" /> Support
+                    </Link>
+                  </div>
                 )}
-                <div className="my-1 h-px bg-border" />
-                <button
-                  role="menuitem"
-                  onClick={() => {
-                    setShowUserMenu(false);
-                    setShowLogoutConfirm(true);
-                  }}
-                  className="flex w-full items-center gap-2.5 rounded-sm px-3 py-2 text-sm text-destructive transition-colors hover:bg-destructive/10"
-                >
-                  <FiLogOut className="h-4 w-4" aria-hidden="true" /> Sign out
-                </button>
+                <div role="separator" className="my-1 h-px bg-border" />
+                <div role="group" aria-labelledby="account-menu-session">
+                  <p id="account-menu-session" className="px-3 pb-1 pt-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                    Session
+                  </p>
+                  <button
+                    role="menuitem"
+                    onClick={() => {
+                      setShowUserMenu(false);
+                      setShowLogoutConfirm(true);
+                    }}
+                    className="flex w-full items-center gap-2.5 rounded-sm px-3 py-2 text-sm text-destructive transition-colors hover:bg-destructive/10"
+                  >
+                    <FiLogOut className="h-4 w-4" aria-hidden="true" /> Sign out
+                  </button>
+                </div>
               </div>
             )}
           </div>

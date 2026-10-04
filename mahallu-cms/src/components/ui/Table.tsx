@@ -14,9 +14,9 @@ import EmptyState, { EmptyStateVariant } from './EmptyState';
  */
 function SortIndicator({ direction }: { direction: 'asc' | 'desc' | null }) {
   return (
-    <span className="inline-flex flex-col items-center leading-none" aria-hidden="true">
-      <FiChevronUp className={cn('-mb-1 h-3 w-3', direction === 'asc' ? 'opacity-100' : 'opacity-30')} />
-      <FiChevronDown className={cn('-mt-1 h-3 w-3', direction === 'desc' ? 'opacity-100' : 'opacity-30')} />
+    <span className="inline-flex flex-shrink-0 flex-col items-center gap-px leading-none" aria-hidden="true">
+      <FiChevronUp className={cn('h-3 w-3', direction === 'asc' ? 'opacity-100' : 'opacity-60')} />
+      <FiChevronDown className={cn('h-3 w-3', direction === 'desc' ? 'opacity-100' : 'opacity-60')} />
     </span>
   );
 }
@@ -157,11 +157,6 @@ function Table<T extends Record<string, any>>({
   minWidth = '48rem',
   fixedLayout = false,
   striped = false,
-  // Deprecated export props are intentionally destructured and unused.
-  exportFilename: _exportFilename,
-  exportTitle: _exportTitle,
-  showExport: _showExport,
-  onExportAll: _onExportAll,
 }: TableProps<T>) {
   /* A list endpoint that answers with something other than an array — a 200
    * missing its `data`, an error envelope, a shape change — used to reach
@@ -372,7 +367,7 @@ function Table<T extends Record<string, any>>({
                     : undefined
                 }
                 className={cn(
-                  'min-w-0 rounded-lg border border-border bg-card p-3 transition-colors sm:p-4',
+                  'min-w-0 rounded-xl border border-border/80 bg-card p-3 transition-colors sm:p-4',
                   selected && 'border-primary bg-accent/50',
                   onRowClick &&
                     'cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
@@ -444,15 +439,15 @@ function Table<T extends Record<string, any>>({
       </ul>
 
       {/* ---- Tablet and up: the table ------------------------------------ */}
-      <div className="hidden overflow-x-auto rounded-lg border border-border md:block">
+      <div className="hidden overflow-x-auto rounded-xl border border-border/80 md:block">
         <table
           className="w-full border-collapse"
           style={{ minWidth, ...(fixedLayout ? { tableLayout: 'fixed' as const } : {}) }}
         >
-          <thead className="sticky top-0 z-10 bg-muted">
+          <thead className="sticky top-0 z-10 bg-muted/60">
             <tr className="border-b border-border">
               {selectable && (
-                <th scope="col" className="w-10 px-3 py-3">
+                <th scope="col" className="w-10 px-3 py-2.5">
                   <input
                     type="checkbox"
                     checked={allSelected}
@@ -496,7 +491,7 @@ function Table<T extends Record<string, any>>({
                     className={cn(
                       /* Size comes from HEAD_FONT. `whitespace-nowrap` stops
                        * a two-word heading folding into its neighbour. */
-                      'whitespace-nowrap px-3 py-3 font-semibold text-muted-foreground',
+                      'whitespace-nowrap bg-muted/60 px-4 py-2.5 font-semibold text-muted-foreground',
                       ALIGN_CLASS[column.headerAlign ?? column.align ?? 'left'],
                       PRIORITY_CLASS[column.priority ?? 'primary']
                     )}
@@ -600,7 +595,7 @@ function Table<T extends Record<string, any>>({
                           : undefined
                       }
                       className={cn(
-                        'px-3 py-3 text-foreground',
+                        'px-4 py-3.5 text-foreground',
                         ALIGN_CLASS[column.align ?? 'left'],
                         PRIORITY_CLASS[column.priority ?? 'primary']
                       )}

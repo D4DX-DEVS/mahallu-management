@@ -118,7 +118,7 @@ export default function LoansList() {
         </div>
       )}
 
-      <TableCard>
+      <TableCard borderless>
         <div className="mb-3">
           <ExpandableSearch
             value={searchQuery}

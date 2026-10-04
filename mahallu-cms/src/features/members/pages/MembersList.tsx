@@ -1,19 +1,21 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FiPlus, FiUser, FiUserCheck, FiUsers } from 'react-icons/fi';
+import { FiDownload, FiFile, FiFileText, FiMoreHorizontal, FiPlus } from 'react-icons/fi';
 import TableCard from '@/components/ui/TableCard';
 import FilterPanel from '@/components/ui/FilterPanel';
 import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
-import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
+import Dropdown, { DropdownItem } from '@/components/ui/Dropdown';
+import Avatar from '@/components/ui/Avatar';
+import Tabs from '@/components/ui/Tabs';
+import StatusBadge from '@/components/ui/StatusBadge';
 import { TableColumn, Pagination as PaginationType } from '@/types';
 import { Member } from '@/types';
 import { memberService } from '@/services/memberService';
-import { familyService } from '@/services/familyService';
 import { fetchAllPages } from '@/services/api';
 import { useDebounce } from '@/hooks/useDebounce';
 import { ROUTES } from '@/constants/routes';
@@ -28,6 +30,8 @@ export default function MembersList() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isFilterVisible, setIsFilterVisible] = useState(false);
   const [sortBy, setSortBy] = useState('date');
+  const [activeTab, setActiveTab] = useState('all');
+  const [genderFilter, setGenderFilter] = useState('');
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -35,20 +39,17 @@ export default function MembersList() {
   const [itemsPerPage] = useState(10);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
   const [isExporting, setIsExporting] = useState(false);
-  const [memberStats, setMemberStats] = useState({ totalMembers: 0, maleCount: 0, femaleCount: 0 });
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   const debouncedSearch = useDebounce(searchQuery, 500);
 
   useEffect(() => {
     fetchMembers();
-  }, [debouncedSearch, sortBy, currentPage]);
+  }, [debouncedSearch, sortBy, activeTab, genderFilter, currentPage]);
 
   useEffect(() => {
-    familyService
-      .getStats()
-      .then((stats) => stats && setMemberStats(stats))
-      .catch(() => undefined);
-  }, []);
+    setSelectedIds([]);
+  }, [debouncedSearch, sortBy, activeTab, genderFilter, currentPage]);
 
   const fetchMembers = async () => {
     try {
@@ -64,6 +65,8 @@ export default function MembersList() {
       if (sortBy && sortBy !== 'date') {
         params.sortBy = sortBy;
       }
+      if (activeTab !== 'all') params.status = activeTab;
+      if (genderFilter) params.gender = genderFilter;
       const result = await memberService.getAll(params);
       setMembers(result.data);
       if (result.pagination) {
@@ -83,6 +86,8 @@ export default function MembersList() {
       const params: any = {};
       if (debouncedSearch) params.search = debouncedSearch;
       if (sortBy && sortBy !== 'date') params.sortBy = sortBy;
+      if (activeTab !== 'all') params.status = activeTab;
+      if (genderFilter) params.gender = genderFilter;
       const dataToExport = await fetchAllPages((pageParams) =>
         memberService.getAll({ ...params, ...pageParams })
       );
@@ -112,8 +117,22 @@ export default function MembersList() {
   };
 
   const columns: TableColumn<Member>[] = [
-    { key: 'mahallId', label: 'Mahall ID', width: '8.75rem', render: (id) => id || '-' },
-    { key: 'name', label: 'Name', width: '6.75rem', sortable: true, render: (name) => toTitleCase(name) },
+    { key: 'mahallId', label: 'Mahall ID', width: '8.75rem', priority: 'tertiary', render: (id) => id || '-' },
+    {
+      key: 'name',
+      label: 'Member name',
+      width: '14rem',
+      sortable: true,
+      render: (name, row) => (
+        <div className="flex min-w-0 items-center gap-3">
+          <Avatar name={name} size="md" />
+          <div className="min-w-0">
+            <div className="truncate font-semibold">{toTitleCase(name)}</div>
+            <div className="truncate text-xs text-muted-foreground">{row.phone || 'No phone added'}</div>
+          </div>
+        </div>
+      ),
+    },
     { key: 'familyName', label: 'Family Name', width: '10rem', render: (name) => toTitleCase(name) },
     {
       key: 'age',
@@ -126,69 +145,91 @@ export default function MembersList() {
         return `${age} / ${gender}`;
       },
     },
-    { key: 'bloodGroup', label: 'Blood Group', width: '9.75rem', render: (bg) => bg || '-' },
+    { key: 'phone', label: 'Phone', width: '6.75rem', priority: 'secondary', render: (phone) => phone || '-' },
     {
-      key: 'healthStatus',
-      label: 'Health Status',
-      width: '10.75rem',
-      render: (status) => status || '-',
-    },
-    { key: 'phone', label: 'Phone', width: '6.75rem', render: (phone) => phone || '-' },
-    {
-      key: 'education',
-      label: 'Educations',
-      width: '9rem',
-      render: (edu) => edu || '-',
-    },
-  ];
-
-  const stats = [
-    {
-      title: 'Total Family Members',
-      value: memberStats.totalMembers || pagination?.total || members.length,
-      icon: <FiUsers className="h-5 w-5" />,
+      key: 'status',
+      label: 'Status',
+      width: '8rem',
+      sortable: false,
+      render: (status) => <StatusBadge status={status || 'active'} />,
     },
     {
-      title: 'Total Males',
-      value: memberStats.maleCount,
-      icon: <FiUser className="h-5 w-5" />,
-    },
-    {
-      title: 'Total Females',
-      value: memberStats.femaleCount,
-      icon: <FiUserCheck className="h-5 w-5" />,
+      key: 'actions',
+      label: '',
+      width: '3.5rem',
+      sortable: false,
+      render: (_, row) => {
+        const items: DropdownItem[] = [
+          { label: 'View member', onClick: () => navigate(ROUTES.MEMBERS.DETAIL(row.id)) },
+          { label: 'Edit member', onClick: () => navigate(`/members/${row.id}/edit`) },
+        ];
+        return (
+          <Dropdown
+            label={`Actions for ${row.name}`}
+            items={items}
+            trigger={
+              <Button variant="ghost" size="icon-sm" aria-label={`Actions for ${row.name}`}>
+                <FiMoreHorizontal className="h-4 w-4" />
+              </Button>
+            }
+          />
+        );
+      },
     },
   ];
 
   return (
     <div className="space-y-4">
-      <div className="space-y-3">
-        <PageHeader title="All Family Members" description="Manage family members and their information" />
-
-        {/* Statistics Cards */}
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          {stats.map((stat, index) => (
-            <StatCard key={index} {...stat} />
-          ))}
-        </div>
-      </div>
+      <PageHeader
+        title="Members"
+        description="Manage the people registered in this mahallu."
+        actions={
+          <>
+            <Dropdown
+              label="Export members"
+              trigger={<Button variant="outline" isLoading={isExporting} loadingText="Exporting" icon={<FiDownload />} collapseLabel>Export</Button>}
+              items={[
+                { label: 'Export as CSV', icon: <FiFileText />, onClick: () => handleExport('csv') },
+                { label: 'Export as PDF', icon: <FiFile />, onClick: () => handleExport('pdf') },
+              ]}
+            />
+            <Link to={ROUTES.MEMBERS.CREATE}>
+              <Button icon={<FiPlus />} collapseLabel>Invite member</Button>
+            </Link>
+          </>
+        }
+      />
 
       {/* Actions and Filters */}
-      <TableCard>
+      <TableCard borderless>
         <div className="flex flex-col gap-4 mb-4">
           <TableToolbar
             searchQuery={searchQuery}
             onSearchChange={setSearchQuery}
+            searchEntity="members"
             onFilterClick={() => setIsFilterVisible(!isFilterVisible)}
             isFilterVisible={isFilterVisible}
             hasFilters={true}
+            activeFilterCount={genderFilter ? 1 : 0}
             onRefresh={fetchMembers}
-            onExport={handleExport}
-            isExporting={isExporting}
-            actionButtons={
-              <Link to={ROUTES.MEMBERS.CREATE}>
-                <Button size="md" icon={<FiPlus />} collapseLabel>New Member</Button>
-              </Link>
+            sortOptions={[
+              { value: 'date', label: 'Newest first' },
+              { value: 'name', label: 'Name' },
+              { value: 'mahallId', label: 'Mahall ID' },
+            ]}
+            sortValue={sortBy}
+            onSortChange={(value) => { setSortBy(value); setCurrentPage(1); }}
+            tabs={
+              <Tabs
+                ariaLabel="Member status"
+                value={activeTab}
+                onChange={(value) => { setActiveTab(value); setCurrentPage(1); }}
+                items={[
+                  { value: 'all', label: 'All', count: pagination?.total },
+                  { value: 'active', label: 'Active' },
+                  { value: 'inactive', label: 'Inactive' },
+                ]}
+              />
             }
           />
 
@@ -196,14 +237,15 @@ export default function MembersList() {
             <FilterPanel onClose={() => setIsFilterVisible(false)}>
               <div className="w-full sm:w-40">
                 <Select
+                  label="Gender"
                   options={[
-                    { value: 'date', label: 'Date' },
-                    { value: 'mahallId', label: 'Mahall ID' },
-                    { value: 'name', label: 'Name' },
+                    { value: '', label: 'All genders' },
+                    { value: 'male', label: 'Male' },
+                    { value: 'female', label: 'Female' },
                   ]}
-                  value={sortBy}
+                  value={genderFilter}
                   onChange={(e) => {
-                    setSortBy(e.target.value);
+                    setGenderFilter(e.target.value);
                     setCurrentPage(1);
                   }}
                 />
@@ -227,6 +269,27 @@ export default function MembersList() {
             striped
             columns={columns}
             data={members}
+            selectable
+            selectedKeys={selectedIds}
+            onSelectionChange={setSelectedIds}
+            bulkActions={
+              <Dropdown
+                label="Bulk member actions"
+                trigger={<Button variant="outline" size="sm">Export selected</Button>}
+                items={[
+                  {
+                    label: 'Export as CSV',
+                    icon: <FiFileText />,
+                    onClick: () => exportToCSV(columns, members.filter((member) => selectedIds.includes(member.id)), 'members'),
+                  },
+                  {
+                    label: 'Export as PDF',
+                    icon: <FiFile />,
+                    onClick: () => exportToPDF(columns, members.filter((member) => selectedIds.includes(member.id)), 'members', 'Members'),
+                  },
+                ]}
+              />
+            }
             emptyMessage="No Members Yet"
             exportFilename="members"
             exportTitle="All Family Members"
@@ -240,6 +303,8 @@ export default function MembersList() {
               if (sortBy && sortBy !== 'date') {
                 params.sortBy = sortBy;
               }
+              if (activeTab !== 'all') params.status = activeTab;
+              if (genderFilter) params.gender = genderFilter;
               return fetchAllPages((pageParams) => memberService.getAll({ ...params, ...pageParams }));
             }}
           />

@@ -149,7 +149,7 @@ export default function LiveDues() {
         </div>
       )}
 
-      <TableCard>
+      <TableCard borderless>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}

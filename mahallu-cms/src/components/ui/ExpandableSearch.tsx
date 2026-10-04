@@ -15,23 +15,22 @@ export interface ExpandableSearchProps {
   /** Overrides the placeholder derived from `entity`. */
   placeholder?: string;
   /**
-   * Width of the expanded field. The collapsed state is always one control
-   * wide. The default takes the row it is in on a phone and settles at 18rem
-   * from `sm`; `min-w-0` is what stops a flex row from being pushed past the
-   * viewport when the field opens beside a Filter and a Refresh button.
+   * Width of the expanded field. The compact state is one control wide on a
+   * phone; desktop lists keep the field visible at 18rem by default.
    */
   expandedClassName?: string;
   className?: string;
   id?: string;
   autoFocusOnExpand?: boolean;
+  /** Keep the full field visible at sm+ while retaining the compact mobile trigger. */
+  desktopAlwaysVisible?: boolean;
 }
 
 /**
  * The list-level search control.
  *
- * It rests as a single icon button and opens into a field, which keeps the
- * toolbar of a dense list page from being half search box — the control is
- * used on a minority of visits but was taking a third of the row on every one.
+ * It stays as a full search field on desktop, matching the list pattern used
+ * by the Teams reference, and collapses to a single icon button on phones.
  *
  * The collapsed state is a real <button>, in the tab order, with an accessible
  * name: an earlier version collapsed to a decorative icon with tabIndex={-1},
@@ -49,6 +48,7 @@ export default function ExpandableSearch({
   className,
   id,
   autoFocusOnExpand = true,
+  desktopAlwaysVisible = true,
 }: ExpandableSearchProps) {
   const generatedId = useId();
   const inputId = id ?? generatedId;
@@ -79,9 +79,12 @@ export default function ExpandableSearch({
     onChange('');
     setIsExpanded(false);
     if (returnFocus) {
-      // The button replaces the input in the same spot; focus has to be moved
-      // deliberately or it falls back to <body> and the tab order restarts.
-      window.requestAnimationFrame(() => buttonRef.current?.focus());
+      // Focus the control that remains visible at this breakpoint, or focus
+      // falls back to <body> and the tab order restarts.
+      window.requestAnimationFrame(() => {
+        const desktop = desktopAlwaysVisible && window.matchMedia('(min-width: 640px)').matches;
+        (desktop ? inputRef.current : buttonRef.current)?.focus();
+      });
     }
   };
 
@@ -89,17 +92,20 @@ export default function ExpandableSearch({
     <div
       className={cn(
         'relative flex items-center transition-[width] duration-200 ease-out motion-reduce:transition-none',
-        isExpanded ? expandedClassName : 'w-10 flex-none',
+        desktopAlwaysVisible ? 'w-10 flex-none sm:w-72' : isExpanded ? expandedClassName : 'w-10 flex-none',
         className
       )}
     >
-      {isExpanded ? (
+      {isExpanded || desktopAlwaysVisible ? (
         <>
           <label htmlFor={inputId} className="sr-only">
             {label}
           </label>
           <FiSearch
-            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+            className={cn(
+              'pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground',
+              desktopAlwaysVisible && !isExpanded && 'hidden sm:block'
+            )}
             aria-hidden="true"
           />
           <input
@@ -121,9 +127,10 @@ export default function ExpandableSearch({
             }}
             placeholder={placeholder ?? label}
             className={cn(
-              'h-10 w-full rounded-md border border-input bg-background pl-9 pr-9 text-sm text-foreground',
+              'h-10 w-full rounded-lg border border-input bg-background pl-9 pr-9 text-sm text-foreground',
               'placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2',
-              'focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background'
+              'focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+              desktopAlwaysVisible && !isExpanded && 'hidden sm:block'
             )}
           />
           <button
@@ -131,12 +138,16 @@ export default function ExpandableSearch({
             onMouseDown={(event) => event.preventDefault()} // Beat the input's blur.
             onClick={() => collapse(true)}
             aria-label={value ? 'Clear search' : 'Close search'}
-            className="absolute right-1 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className={cn(
+              'absolute right-1 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+              desktopAlwaysVisible && !isExpanded && 'hidden sm:flex'
+            )}
           >
             <FiX className="h-4 w-4" aria-hidden="true" />
           </button>
         </>
-      ) : (
+      ) : null}
+      {!isExpanded && (
         <button
           ref={buttonRef}
           type="button"
@@ -146,7 +157,10 @@ export default function ExpandableSearch({
           }}
           aria-label={label}
           aria-expanded={false}
-          className="flex h-10 w-10 items-center justify-center rounded-md border border-input bg-background text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          className={cn(
+            'flex h-10 w-10 items-center justify-center rounded-lg border border-input bg-background text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+            desktopAlwaysVisible && 'sm:hidden'
+          )}
         >
           <FiSearch className="h-4 w-4" aria-hidden="true" />
         </button>

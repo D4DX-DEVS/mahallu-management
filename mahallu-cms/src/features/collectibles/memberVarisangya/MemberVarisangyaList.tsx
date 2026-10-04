@@ -293,7 +293,7 @@ export default function MemberVarisangyaList() {
           <StatCard key={index} {...stat} />
         ))}
       </div>
-      <TableCard>
+      <TableCard borderless>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}

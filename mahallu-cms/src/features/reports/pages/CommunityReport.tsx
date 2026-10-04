@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import Card from '@/components/ui/Card';
 import StatCard from '@/components/ui/StatCard';
+import { PageSkeleton } from '@/components/ui/Skeleton';
 import { reportService } from '@/services/reportService';
 import PageHeader from '@/components/layout/PageHeader';
 
@@ -42,7 +43,7 @@ export default function CommunityReport() {
     }
   };
 
-  if (loading) return <div className="p-4">Loading...</div>;
+  if (loading) return <PageSkeleton />;
   if (!data) return <div className="p-4">Couldn't load report</div>;
 
   return (

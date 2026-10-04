@@ -10,6 +10,7 @@ import { getInheritanceCases, IInheritanceCase } from '@/services/counsellingSer
 import PageHeader from '@/components/layout/PageHeader';
 import { loadErrorMessage } from '@/utils/errors';
 import { toTitleCase } from '@/utils/format';
+import { PageSkeleton } from '@/components/ui/Skeleton';
 
 const STATUSES = ['reported', 'documentation', 'referred', 'distributed', 'closed'];
 
@@ -60,7 +61,7 @@ export default function InheritanceList() {
   };
 
   if (loading) {
-    return <div className="p-4 text-center">Loading...</div>;
+    return <PageSkeleton variant="section" />;
   }
 
   if (accessDenied) {

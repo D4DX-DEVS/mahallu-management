@@ -205,7 +205,7 @@ export default function CategoriesList() {
           />
         </div>
       </div>
-      <TableCard>
+      <TableCard borderless>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}

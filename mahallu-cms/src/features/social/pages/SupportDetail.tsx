@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { FiSave } from 'react-icons/fi';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import Select from '@/components/ui/Select';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import { ROUTES } from '@/constants/routes';
@@ -24,6 +25,7 @@ export default function SupportDetail() {
   const [priority, setPriority] = useState<string>('medium');
   const [response, setResponse] = useState('');
   const [saving, setSaving] = useState(false);
+  const [showSaveConfirm, setShowSaveConfirm] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -56,6 +58,7 @@ export default function SupportDetail() {
         response,
       });
       toast.success('Support ticket updated');
+      setShowSaveConfirm(false);
       await fetchTicket(id);
     } catch (err: any) {
       toast.error(errorMessage(err, { action: 'update support ticket' }));
@@ -139,12 +142,22 @@ export default function SupportDetail() {
           <Button type="button" variant="outline" onClick={() => navigate(ROUTES.SOCIAL.SUPPORT)}>
             Back
           </Button>
-          <Button onClick={handleSave} isLoading={saving}>
+          <Button onClick={() => setShowSaveConfirm(true)} isLoading={saving}>
             <FiSave className="h-4 w-4 mr-2" />
             Save
           </Button>
         </div>
       </Card>
+      <ConfirmDialog
+        isOpen={showSaveConfirm}
+        title="Save this support ticket?"
+        message={`This will save the ticket as “${status.replace(/_/g, ' ')}” with the selected priority and response.`}
+        confirmLabel="Save ticket"
+        variant="primary"
+        isLoading={saving}
+        onConfirm={handleSave}
+        onCancel={() => setShowSaveConfirm(false)}
+      />
     </div>
   );
 }

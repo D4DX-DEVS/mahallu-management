@@ -113,7 +113,7 @@ export default function StatCard({
         type="button"
         onClick={onClick}
         className={cn(
-          'w-full rounded-lg border border-border bg-card p-3 text-left shadow-none transition-colors sm:shadow-sm',
+          'w-full rounded-xl border border-border/80 bg-card p-3 text-left shadow-sm transition-colors',
           'hover:bg-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
           className
         )}

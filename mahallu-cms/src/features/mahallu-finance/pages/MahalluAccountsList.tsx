@@ -134,7 +134,7 @@ export default function MahalluAccountsList() {
         <StatCard title="Total Balance" value={<>₹{totalBalance.toLocaleString()}</>} tone="success" />
       </div>
 
-      <TableCard>
+      <TableCard borderless>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}

@@ -15,6 +15,7 @@ import { toast } from '@/store/toastStore';
 import { errorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
+import { PageSkeleton } from '@/components/ui/Skeleton';
 
 export default function VolunteerDetail() {
   const navigate = useNavigate();
@@ -103,11 +104,7 @@ export default function VolunteerDetail() {
   };
 
   if (loading) {
-    return (
-      <Card>
-        <div className="py-8 text-center">Loading...</div>
-      </Card>
-    );
+    return <PageSkeleton />;
   }
 
   if (!volunteer) {

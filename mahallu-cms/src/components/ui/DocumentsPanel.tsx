@@ -3,6 +3,7 @@ import { FiDownload, FiCheckCircle, FiXCircle, FiEye } from 'react-icons/fi';
 import Button from './Button';
 import LoadingSpinner from './LoadingSpinner';
 import Modal from './Modal';
+import ConfirmDialog from './ConfirmDialog';
 import { toast } from '@/store/toastStore';
 import { registrationService, DocumentFile } from '@/services/registrationService';
 import { formatDate } from '@/utils/format';
@@ -20,6 +21,8 @@ export default function DocumentsPanel({ ownerType, ownerId, isAdmin = false }: 
   const [rejectModal, setRejectModal] = useState<{ open: boolean; docId?: string }>({ open: false });
   const [rejectionReason, setRejectionReason] = useState('');
   const [rejecting, setRejecting] = useState(false);
+  const [verifyDocId, setVerifyDocId] = useState<string | null>(null);
+  const [verifying, setVerifying] = useState(false);
 
   useEffect(() => {
     fetchDocuments();
@@ -71,13 +74,18 @@ export default function DocumentsPanel({ ownerType, ownerId, isAdmin = false }: 
     }
   };
 
-  const handleVerify = async (id: string) => {
+  const handleVerify = async () => {
+    if (!verifyDocId) return;
     try {
-      await registrationService.updateDocumentStatus(id, 'verified');
+      setVerifying(true);
+      await registrationService.updateDocumentStatus(verifyDocId, 'verified');
       toast.success('Document verified');
+      setVerifyDocId(null);
       await fetchDocuments();
     } catch (err: any) {
       toast.error("Couldn't verify document. Please try again.");
+    } finally {
+      setVerifying(false);
     }
   };
 
@@ -179,7 +187,7 @@ export default function DocumentsPanel({ ownerType, ownerId, isAdmin = false }: 
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => handleVerify(doc._id || doc.id || '')}
+                  onClick={() => setVerifyDocId(doc._id || doc.id || '')}
                   className="text-green-600 dark:text-green-400"
                   title="Verify"
                 >
@@ -230,6 +238,16 @@ export default function DocumentsPanel({ ownerType, ownerId, isAdmin = false }: 
           </div>
         </div>
       </Modal>
+      <ConfirmDialog
+        isOpen={!!verifyDocId}
+        title="Verify this document?"
+        message="This document will be marked as verified and the registration workflow can continue."
+        confirmLabel="Verify document"
+        variant="primary"
+        isLoading={verifying}
+        onConfirm={handleVerify}
+        onCancel={() => setVerifyDocId(null)}
+      />
     </div>
   );
 }

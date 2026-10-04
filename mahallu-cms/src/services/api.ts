@@ -1,6 +1,8 @@
 import axios from 'axios';
 import { useAuthStore } from '@/store/authStore';
 
+const API_MAX_LIST_LIMIT = 100;
+
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
 
 export const api = axios.create({
@@ -22,6 +24,16 @@ api.interceptors.request.use(
     if (config.data instanceof FormData) {
       config.headers.delete?.('Content-Type');
       delete (config.headers as Record<string, unknown>)['Content-Type'];
+    }
+
+    // Keep older callers from sending limits the API intentionally rejects.
+    // Services that need every row page through the endpoint; this guard keeps
+    // a stale dropdown/export call from turning into a 400 for the whole page.
+    if (config.params && typeof config.params === 'object' && !(config.params instanceof URLSearchParams)) {
+      const requestedLimit = Number((config.params as Record<string, unknown>).limit);
+      if (Number.isFinite(requestedLimit) && requestedLimit > API_MAX_LIST_LIMIT) {
+        config.params = { ...(config.params as Record<string, unknown>), limit: API_MAX_LIST_LIMIT };
+      }
     }
 
     // Add tenant ID header for tenant-based data filtering

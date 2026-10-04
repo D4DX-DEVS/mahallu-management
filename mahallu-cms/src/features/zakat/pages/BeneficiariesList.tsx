@@ -49,6 +49,8 @@ export default function BeneficiariesList() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [rejectConfirm, setRejectConfirm] = useState<ZakatBeneficiary | null>(null);
   const [rejectLoading, setRejectLoading] = useState(false);
+  const [verifyConfirm, setVerifyConfirm] = useState<ZakatBeneficiary | null>(null);
+  const [verifyLoading, setVerifyLoading] = useState(false);
   const [viewing, setViewing] = useState<ZakatBeneficiary | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<ZakatBeneficiary | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
@@ -110,6 +112,17 @@ export default function BeneficiariesList() {
     }
   };
 
+  const handleVerifyConfirm = async () => {
+    if (!verifyConfirm) return;
+    try {
+      setVerifyLoading(true);
+      await setVerification(verifyConfirm, 'verified');
+      setVerifyConfirm(null);
+    } finally {
+      setVerifyLoading(false);
+    }
+  };
+
   const handleDeleteConfirm = async () => {
     if (!deleteConfirm) return;
     try {
@@ -157,7 +170,7 @@ export default function BeneficiariesList() {
                   {
                     label: 'Verify',
                     icon: <FiCheck className="h-4 w-4" />,
-                    onClick: () => setVerification(row, 'verified'),
+                    onClick: () => setVerifyConfirm(row),
                     disabled: busyId === row.id,
                   },
                 ]),
@@ -186,7 +199,7 @@ export default function BeneficiariesList() {
         breadcrumbs={[{ label: 'Zakat' }]}
       />
 
-      <TableCard>
+      <TableCard borderless>
         <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div className="grid grid-cols-4 gap-1.5 sm:flex">
             {STATUS_TABS.map((tab) => (
@@ -274,6 +287,17 @@ export default function BeneficiariesList() {
         isLoading={rejectLoading}
         onConfirm={handleRejectConfirm}
         onCancel={() => setRejectConfirm(null)}
+      />
+
+      <ConfirmDialog
+        isOpen={!!verifyConfirm}
+        title="Verify this beneficiary?"
+        message={`Verify ${verifyConfirm ? beneficiaryName(verifyConfirm) : 'this beneficiary'}? They will become eligible for distributions.`}
+        confirmLabel="Verify beneficiary"
+        variant="primary"
+        isLoading={verifyLoading}
+        onConfirm={handleVerifyConfirm}
+        onCancel={() => setVerifyConfirm(null)}
       />
 
       <Modal

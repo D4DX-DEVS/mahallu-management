@@ -223,7 +223,7 @@ export default function FamiliesList() {
         <StatCard title="Female" value={memberStats.femaleCount} />
       </div>
 
-      <TableCard padding="lg">
+      <TableCard borderless padding="lg">
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}

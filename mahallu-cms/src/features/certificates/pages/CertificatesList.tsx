@@ -148,7 +148,7 @@ export default function CertificatesList() {
 
       <div className="flex items-center justify-between"></div>
 
-      <TableCard>
+      <TableCard borderless>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}

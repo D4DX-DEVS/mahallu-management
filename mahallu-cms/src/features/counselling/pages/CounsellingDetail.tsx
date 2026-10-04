@@ -5,6 +5,7 @@ import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import Modal from '@/components/ui/Modal';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { toast } from '@/store/toastStore';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import {
@@ -28,6 +29,8 @@ export default function CounsellingDetail() {
   const [editStatus, setEditStatus] = useState('');
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [showSaveConfirm, setShowSaveConfirm] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (id) fetchCase(id);
@@ -66,13 +69,17 @@ export default function CounsellingDetail() {
   const handleSaveStatus = async () => {
     if (!id) return;
     try {
+      setSaving(true);
       const response = await updateCounsellingCase(id, { status: editStatus as any });
       setCaseRecord(response.data);
       setIsEditing(false);
+      setShowSaveConfirm(false);
       toast.success('Case status updated');
     } catch (error) {
       console.error("Couldn't update status:", error);
       toast.error(errorMessage(error, { action: 'update case status' }));
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -177,7 +184,7 @@ export default function CounsellingDetail() {
                   <option value="closed">Closed</option>
                 </select>
                 <div className="flex flex-wrap gap-2">
-                  <Button variant="primary" size="sm" onClick={handleSaveStatus}>
+                  <Button variant="primary" size="sm" onClick={() => setShowSaveConfirm(true)} disabled={saving}>
                     <FiSave size={16} />
                     Save
                   </Button>
@@ -241,6 +248,17 @@ export default function CounsellingDetail() {
           </Card>
         )}
       </div>
+
+      <ConfirmDialog
+        isOpen={showSaveConfirm}
+        title="Save this case status?"
+        message={`This will change the counselling case status to “${editStatus.replace(/_/g, ' ')}”.`}
+        confirmLabel="Save status"
+        variant="primary"
+        isLoading={saving}
+        onConfirm={handleSaveStatus}
+        onCancel={() => setShowSaveConfirm(false)}
+      />
 
       <Modal
         isOpen={showDeleteModal}

@@ -168,7 +168,7 @@ export default function ChangeRequestsList() {
 
       <div className="flex items-center justify-between"></div>
 
-      <TableCard>
+      <TableCard borderless>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}

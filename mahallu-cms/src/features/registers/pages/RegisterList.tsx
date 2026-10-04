@@ -88,7 +88,7 @@ export default function RegisterList() {
         breadcrumbs={[{ label: 'Registers', path: '/registers' }]}
       />
 
-      <TableCard>
+      <TableCard borderless>
         <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div className="w-full sm:max-w-xs">
             <ExpandableSearch

@@ -198,7 +198,7 @@ export default function KhutbahSchedule() {
       </div>
 
       {/* Khutbahs Table */}
-      <TableCard>
+      <TableCard borderless>
         <Table
           fixedLayout
           striped

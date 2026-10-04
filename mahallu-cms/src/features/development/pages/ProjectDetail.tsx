@@ -4,12 +4,14 @@ import { useParams, useNavigate } from 'react-router-dom';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import Modal from '@/components/ui/Modal';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import Pagination from '@/components/ui/Pagination';
 import { toast } from '@/store/toastStore';
 import { developmentService, DevelopmentProject, ProjectExpenditure } from '@/services/developmentService';
 import PageHeader from '@/components/layout/PageHeader';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import { toTitleCase } from '@/utils/format';
+import { PageSkeleton } from '@/components/ui/Skeleton';
 
 const PROJECT_AREAS: Record<string, string> = {
   roads: 'Roads',
@@ -36,6 +38,7 @@ export default function ProjectDetail() {
   const [status, setStatus] = useState('proposed');
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [showUpdateConfirm, setShowUpdateConfirm] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -62,8 +65,7 @@ export default function ProjectDetail() {
     }
   };
 
-  const handleUpdate = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleUpdate = async () => {
     if (!id) return;
     setUpdating(true);
     try {
@@ -73,6 +75,7 @@ export default function ProjectDetail() {
       });
       setProject((prev) => (prev ? { ...prev, progressPercent, status: status as any } : null));
       toast.success('Project progress updated');
+      setShowUpdateConfirm(false);
     } catch (error) {
       console.error("Couldn't update project:", error);
       toast.error(errorMessage(error, { action: 'update project progress' }));
@@ -94,7 +97,7 @@ export default function ProjectDetail() {
     }
   };
 
-  if (loading) return <div className="p-4">Loading...</div>;
+  if (loading) return <PageSkeleton />;
   if (!project) return <div className="p-4">Project not found</div>;
 
   const areaLabel = PROJECT_AREAS[project.area] || project.area;
@@ -177,7 +180,7 @@ export default function ProjectDetail() {
       <Card className="mb-4">
         <div>
           <h2 className="font-semibold mb-3">Update Progress</h2>
-          <form onSubmit={handleUpdate} className="space-y-4">
+          <form onSubmit={(e) => { e.preventDefault(); setShowUpdateConfirm(true); }} className="space-y-4">
             <div>
               <label className="block text-sm font-medium mb-2">Progress Percent</label>
               <div className="flex items-center gap-4">
@@ -222,6 +225,17 @@ export default function ProjectDetail() {
           </form>
         </div>
       </Card>
+
+      <ConfirmDialog
+        isOpen={showUpdateConfirm}
+        title="Save project progress?"
+        message={`This will save the project at ${progressPercent}% progress with status “${status.replace(/_/g, ' ')}”.`}
+        confirmLabel="Save progress"
+        variant="primary"
+        isLoading={updating}
+        onConfirm={handleUpdate}
+        onCancel={() => setShowUpdateConfirm(false)}
+      />
 
       {/* Expenditure Section */}
       <Card>

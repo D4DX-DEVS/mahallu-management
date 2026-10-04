@@ -126,7 +126,7 @@ export default function ExamsList() {
           <EmptyState title="No exams yet" description="Create an exam to start recording results." />
         </Card>
       ) : (
-        <TableCard>
+        <TableCard borderless>
           <Table
             fixedLayout
             striped

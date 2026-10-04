@@ -31,7 +31,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
    * operational tool. It also mixed the `slate` ramp into a product built on
    * `gray`, which is now the one neutral ramp. */
   return (
-    <div className="flex h-screen h-[100dvh] overflow-hidden bg-background text-foreground">
+    <div className="workspace-canvas flex h-screen h-[100dvh] overflow-hidden text-foreground">
       {isMobileSidebarOpen && (
         <div
           className="fixed inset-0 z-40 bg-foreground/25 md:hidden"
@@ -44,7 +44,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
         id="app-content-area"
         className={
           'relative z-30 flex min-w-0 flex-1 flex-col overflow-hidden transition-[margin-left] duration-200 ease-out ' +
-          (isDesktopSidebarCollapsed ? 'md:ml-rail' : 'md:ml-64')
+          (isDesktopSidebarCollapsed ? 'md:ml-rail-content' : 'md:ml-60')
         }
       >
         <a
@@ -59,11 +59,15 @@ export default function MainLayout({ children }: MainLayoutProps) {
         {/* 12px gutters on a phone, 24px from `md`. The page used to keep its
             desktop 16px inset on a 360px screen and then nest a bordered card
             inside it, so a table had 320px to render nine columns in. */}
-        <main id="main-content" className="flex-1 overflow-y-auto px-3 pb-24 pt-4 md:px-6 md:pb-8">
+        <main id="main-content" className="flex-1 overflow-y-auto px-3 pb-24 pt-5 md:px-8 md:pb-10 md:pt-7">
           {/* A page that throws costs the user that page, not the whole app:
               the chrome stays up and the boundary clears on the next route. */}
           <div className="mx-auto w-full max-w-content">
-            <RouteErrorBoundary>{children}</RouteErrorBoundary>
+            <RouteErrorBoundary>
+              <div key={location.pathname} className="page-enter">
+                {children}
+              </div>
+            </RouteErrorBoundary>
           </div>
         </main>
 

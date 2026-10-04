@@ -1,13 +1,23 @@
-import { ReactNode } from 'react';
+import { isValidElement, ReactNode } from 'react';
 import { Route } from 'react-router-dom';
 import MainLayout from '@/components/layout/MainLayout';
 import ProtectedRoute from '@/components/ui/ProtectedRoute';
+import FormModalRoute from '@/components/ui/FormModalRoute';
 
 export type AppRole = 'super_admin' | 'mahall' | 'survey' | 'institute' | 'member';
 
 interface GuardOptions {
   superAdminOnly?: boolean;
   allowedRoles?: AppRole[];
+}
+
+function isFormRoute(path: string, element: ReactNode) {
+  if (/(^|\/)(create|edit)(?=\/|$)/i.test(path)) return true;
+
+  // A few legacy edit screens use only `/:id` in their URL. Use the component
+  // name as a fallback so those forms receive the same modal treatment too.
+  if (!isValidElement(element) || typeof element.type !== 'function') return false;
+  return /(?:Create|Edit|Form)$/.test(element.type.name);
 }
 
 /**
@@ -21,7 +31,13 @@ export const route = (path: string, element: ReactNode, guard: GuardOptions = {}
     path={path}
     element={
       <ProtectedRoute superAdminOnly={guard.superAdminOnly} allowedRoles={guard.allowedRoles}>
-        <MainLayout>{element}</MainLayout>
+        <MainLayout>
+          {isFormRoute(path, element) ? (
+            <FormModalRoute>{element}</FormModalRoute>
+          ) : (
+            element
+          )}
+        </MainLayout>
       </ProtectedRoute>
     }
   />

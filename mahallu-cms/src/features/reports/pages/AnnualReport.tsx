@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
+import { PageSkeleton } from '@/components/ui/Skeleton';
 import { reportService, type AnnualReport as AnnualReportData } from '@/services/reportService';
 import { exportToPDF } from '@/utils/exportUtils';
 import PageHeader from '@/components/layout/PageHeader';
@@ -113,7 +114,7 @@ export default function AnnualReport() {
         </div>
       </div>
 
-      {loading && <div>Loading...</div>}
+      {loading && <PageSkeleton variant="section" />}
       {!loading && !data && <div>Couldn't load report</div>}
 
       {!loading && data && (

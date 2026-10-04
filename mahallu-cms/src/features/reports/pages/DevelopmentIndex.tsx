@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from 'recharts';
 import Card from '@/components/ui/Card';
+import { PageSkeleton } from '@/components/ui/Skeleton';
 import { reportService, type DevelopmentIndex as IndexData } from '@/services/reportService';
 import PageHeader from '@/components/layout/PageHeader';
 import { useChartTheme } from '@/utils/chartTheme';
@@ -42,7 +43,7 @@ export default function DevelopmentIndex() {
     };
   }, []);
 
-  if (loading) return <div className="p-4">Loading...</div>;
+  if (loading) return <PageSkeleton />;
   if (!data) return <div className="p-4">Couldn't load development index</div>;
 
   const chartData = data.dimensions.map((d) => ({ label: d.label, score: d.score }));

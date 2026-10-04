@@ -169,7 +169,7 @@ export default function FacilitiesList() {
         breadcrumbs={[{ label: 'Survey', path: '/survey' }]}
       />
 
-      <TableCard>
+      <TableCard borderless>
         <div className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto_auto] sm:items-center">
           <ExpandableSearch
             value={searchQuery}

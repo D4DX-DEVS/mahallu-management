@@ -10,6 +10,7 @@ import { PageSkeleton } from '@/components/ui/Skeleton';
 import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
 import Modal from '@/components/ui/Modal';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { TableColumn, Pagination as PaginationType } from '@/types';
 import { collectibleService, Zakat } from '@/services/collectibleService';
 import { fetchAllPages } from '@/services/api';
@@ -35,6 +36,8 @@ export default function ZakatList() {
   const [showViewModal, setShowViewModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [verifyConfirm, setVerifyConfirm] = useState<Zakat | null>(null);
+  const [verifying, setVerifying] = useState(false);
 
   const debouncedSearch = useDebounce(searchQuery, 500);
 
@@ -121,13 +124,18 @@ export default function ZakatList() {
     }
   };
 
-  const handleVerify = async (row: Zakat) => {
+  const handleVerify = async () => {
+    if (!verifyConfirm) return;
     try {
-      await collectibleService.verifyZakat(row.id);
+      setVerifying(true);
+      await collectibleService.verifyZakat(verifyConfirm.id);
       toast.success('Zakat verified');
+      setVerifyConfirm(null);
       await fetchZakats();
     } catch (err: any) {
       toast.error(errorMessage(err, { action: 'verify zakat' }));
+    } finally {
+      setVerifying(false);
     }
   };
 
@@ -195,7 +203,7 @@ export default function ZakatList() {
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                handleVerify(row);
+                setVerifyConfirm(row);
               }}
               className={rowActionClass()}
               title="Verify payment"
@@ -236,7 +244,7 @@ export default function ZakatList() {
         </div>
       </div>
 
-      <TableCard>
+      <TableCard borderless>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -400,6 +408,16 @@ export default function ZakatList() {
           <strong>{toTitleCase(selectedZakat?.payerName)}</strong>? This action cannot be undone.
         </p>
       </Modal>
+      <ConfirmDialog
+        isOpen={!!verifyConfirm}
+        title="Verify this payment?"
+        message={`This will mark the zakat payment from ${toTitleCase(verifyConfirm?.payerName || 'this payer')} as verified.`}
+        confirmLabel="Verify payment"
+        variant="primary"
+        isLoading={verifying}
+        onConfirm={handleVerify}
+        onCancel={() => setVerifyConfirm(null)}
+      />
     </div>
   );
 }

@@ -294,7 +294,7 @@ export default function TenantsList() {
       </div>
 
       {/* Actions and Table */}
-      <TableCard>
+      <TableCard borderless>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}

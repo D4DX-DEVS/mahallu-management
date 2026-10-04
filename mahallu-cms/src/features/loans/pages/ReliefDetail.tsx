@@ -6,6 +6,7 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import Modal from '@/components/ui/Modal';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import { toast } from '@/store/toastStore';
 import { formatCurrency, formatDate } from '@/utils/format';
@@ -36,6 +37,7 @@ export default function ReliefDetail() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [showStatusConfirm, setShowStatusConfirm] = useState(false);
 
   useEffect(() => {
     if (id) fetchCase(id);
@@ -66,6 +68,7 @@ export default function ReliefDetail() {
       if (assistanceGiven) payload.assistanceGiven = assistanceGiven;
       if (amount) payload.amount = Number(amount);
       await reliefService.updateCaseStatus(reliefCase.id, payload);
+      setShowStatusConfirm(false);
       if (id) fetchCase(id);
     } catch (err: any) {
       setActionError(errorMessage(err, { action: 'update the case' }));
@@ -188,8 +191,8 @@ export default function ReliefDetail() {
               placeholder="Optional"
             />
 
-            <Button onClick={moveStatus} disabled={!nextStatus || saving}>
-              {saving ? 'Saving...' : 'Update'}
+            <Button onClick={() => setShowStatusConfirm(true)} disabled={!nextStatus || saving}>
+              Update
             </Button>
           </div>
         )}
@@ -200,6 +203,17 @@ export default function ReliefDetail() {
           </div>
         )}
       </Card>
+
+      <ConfirmDialog
+        isOpen={showStatusConfirm}
+        title="Update this relief case?"
+        message={`This will move the case to “${nextStatus || 'the selected status'}” and save the assistance details.`}
+        confirmLabel="Update case"
+        variant="primary"
+        isLoading={saving}
+        onConfirm={moveStatus}
+        onCancel={() => setShowStatusConfirm(false)}
+      />
 
       <Modal
         isOpen={showDeleteModal}

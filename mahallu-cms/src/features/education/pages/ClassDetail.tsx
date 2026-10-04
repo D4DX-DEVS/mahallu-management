@@ -58,6 +58,11 @@ export default function ClassDetail() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [removeConfirm, setRemoveConfirm] = useState<{ id: string; name: string } | null>(null);
   const [removing, setRemoving] = useState(false);
+  const [statusConfirm, setStatusConfirm] = useState<{
+    row: StudentEnrollment;
+    status: EnrollmentStatus;
+  } | null>(null);
+  const [statusUpdating, setStatusUpdating] = useState(false);
 
   useEffect(() => {
     if (id) fetchClass(id);
@@ -145,6 +150,17 @@ export default function ClassDetail() {
     }
   };
 
+  const handleStatusConfirm = async () => {
+    if (!statusConfirm) return;
+    try {
+      setStatusUpdating(true);
+      await changeStatus(statusConfirm.row, statusConfirm.status);
+      setStatusConfirm(null);
+    } finally {
+      setStatusUpdating(false);
+    }
+  };
+
   const columns: TableColumn<StudentEnrollment>[] = [
     { key: 'rollNo', label: 'Roll', width: '6rem', render: (v) => v || '-' },
     {
@@ -169,13 +185,13 @@ export default function ClassDetail() {
                   {
                     label: 'Mark completed',
                     icon: <FiCheckCircle className="h-4 w-4" />,
-                    onClick: () => changeStatus(row, 'completed'),
+                    onClick: () => setStatusConfirm({ row, status: 'completed' }),
                     disabled: busyId === row.id,
                   },
                   {
                     label: 'Mark dropped',
                     icon: <FiSlash className="h-4 w-4" />,
-                    onClick: () => changeStatus(row, 'dropped'),
+                    onClick: () => setStatusConfirm({ row, status: 'dropped' }),
                     disabled: busyId === row.id,
                     variant: 'warning' as const,
                   },
@@ -363,6 +379,21 @@ export default function ClassDetail() {
         onClose={() => setEnrollOpen(false)}
         classId={cls.id}
         onEnrolled={refresh}
+      />
+
+      <ConfirmDialog
+        isOpen={statusConfirm !== null}
+        title={statusConfirm?.status === 'dropped' ? 'Mark student as dropped?' : 'Mark student as completed?'}
+        message={
+          statusConfirm
+            ? `${toTitleCase(studentName(statusConfirm.row))} will be marked ${statusConfirm.status}.`
+            : ''
+        }
+        confirmLabel={statusConfirm?.status === 'dropped' ? 'Mark dropped' : 'Mark completed'}
+        variant={statusConfirm?.status === 'dropped' ? 'danger' : 'primary'}
+        isLoading={statusUpdating}
+        onConfirm={handleStatusConfirm}
+        onCancel={() => setStatusConfirm(null)}
       />
 
       <ConfirmDialog

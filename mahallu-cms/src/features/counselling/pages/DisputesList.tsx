@@ -10,6 +10,7 @@ import { getDisputeCases, IDisputeCase } from '@/services/counsellingService';
 import PageHeader from '@/components/layout/PageHeader';
 import { loadErrorMessage } from '@/utils/errors';
 import { toTitleCase } from '@/utils/format';
+import { PageSkeleton } from '@/components/ui/Skeleton';
 
 const TYPES = ['family', 'marriage', 'divorce', 'community', 'inheritance', 'other'];
 const STATUSES = ['registered', 'mediation', 'resolved', 'referred', 'closed'];
@@ -62,7 +63,7 @@ export default function DisputesList() {
   };
 
   if (loading) {
-    return <div className="p-4 text-center">Loading...</div>;
+    return <PageSkeleton variant="section" />;
   }
 
   if (accessDenied) {

@@ -108,9 +108,13 @@ export function errorMessage(error: unknown, options: ErrorCopyOptions = {}): st
 
 /** "Couldn't load families." — the standard load-failure line. */
 export function loadErrorMessage(error: unknown, entity: string): string {
-  const err = error as { response?: { status?: number } };
+  const err = error as { response?: { status?: number; data?: { message?: unknown; error?: unknown } } };
   if (err?.response?.status === 403) {
     return "You don't have permission to view " + entity + '. Please contact your Mahallu admin.';
+  }
+  if (err?.response?.status === 400 || err?.response?.status === 422) {
+    const raw = err.response.data?.message ?? err.response.data?.error;
+    if (looksHumanReadable(raw)) return raw;
   }
   if (!err?.response) {
     return "We couldn't load " + entity + '. Please check your connection and try again.';

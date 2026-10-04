@@ -6,6 +6,7 @@ export const memberService = {
     familyId?: string;
     search?: string;
     gender?: string;
+    status?: 'active' | 'inactive' | 'deleted';
     sortBy?: string;
     page?: number;
     limit?: number;

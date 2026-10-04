@@ -49,6 +49,8 @@ import type { ModuleKey, SensitiveModuleKey } from './modules';
 export interface MenuItem {
   id: string;
   label: string;
+  /** Stable workspace section used by the shell to group top-level entries. */
+  section?: 'Overview' | 'Community' | 'Services' | 'Finance & reports' | 'Administration';
   icon: React.ComponentType;
   path?: string;
   children?: MenuItem[];
@@ -104,6 +106,7 @@ export const menuItems: MenuItem[] = [
   {
     id: 'dashboard',
     label: 'Dashboard',
+    section: 'Overview',
     icon: FiGrid,
     path: '/dashboard',
     allowedRoles: ['super_admin', 'mahall', 'survey', 'institute'],
@@ -113,6 +116,7 @@ export const menuItems: MenuItem[] = [
   {
     id: 'member-space',
     label: 'My space',
+    section: 'Overview',
     icon: FiUserCheck,
     allowedRoles: ['member'],
     children: [
@@ -172,6 +176,7 @@ export const menuItems: MenuItem[] = [
   {
     id: 'member-apply',
     label: 'Apply',
+    section: 'Overview',
     icon: FiFilePlus,
     allowedRoles: ['member'],
     children: [
@@ -204,6 +209,7 @@ export const menuItems: MenuItem[] = [
   {
     id: 'community',
     label: 'Community',
+    section: 'Community',
     icon: FiUsers,
     children: [
       {
@@ -309,6 +315,7 @@ export const menuItems: MenuItem[] = [
   {
     id: 'services',
     label: 'Services',
+    section: 'Services',
     icon: FiHeart,
     children: [
       {
@@ -437,6 +444,7 @@ export const menuItems: MenuItem[] = [
   {
     id: 'registrations',
     label: 'Registrations',
+    section: 'Services',
     icon: FiFileText,
     allowedRoles: ADMIN_ROLES,
     moduleKey: 'registrations',
@@ -493,6 +501,7 @@ export const menuItems: MenuItem[] = [
   {
     id: 'collections',
     label: 'Collections',
+    section: 'Finance & reports',
     icon: FiDollarSign,
     allowedRoles: ADMIN_ROLES,
     children: [
@@ -548,6 +557,7 @@ export const menuItems: MenuItem[] = [
   {
     id: 'finance',
     label: 'Finance',
+    section: 'Finance & reports',
     icon: FiDollarSign,
     moduleKey: 'finance',
     children: [
@@ -715,6 +725,7 @@ export const menuItems: MenuItem[] = [
   {
     id: 'institute',
     label: 'Institutes',
+    section: 'Administration',
     icon: FiBook,
     allowedRoles: INSTITUTE_ROLES,
     children: [
@@ -760,6 +771,7 @@ export const menuItems: MenuItem[] = [
   {
     id: 'reports',
     label: 'Reports',
+    section: 'Finance & reports',
     icon: FiBarChart2,
     moduleKey: 'reports',
     children: [
@@ -834,6 +846,7 @@ export const menuItems: MenuItem[] = [
   {
     id: 'communication',
     label: 'Communication',
+    section: 'Administration',
     icon: FiSend,
     allowedRoles: ADMIN_ROLES,
     children: [
@@ -883,6 +896,7 @@ export const menuItems: MenuItem[] = [
   {
     id: 'administration',
     label: 'Administration',
+    section: 'Administration',
     icon: FiSettings,
     children: [
       {
@@ -936,6 +950,13 @@ export const menuItems: MenuItem[] = [
         path: '/social/support',
         allowedRoles: ADMIN_ROLES,
       },
+      {
+        id: 'assistant',
+        label: 'Assistant',
+        icon: FiMessageCircle,
+        path: '/assistant',
+        allowedRoles: ADMIN_ROLES,
+      },
       { id: 'tenants', label: 'Tenants', icon: FiGrid, path: '/admin/tenants', superAdminOnly: true },
       { id: 'all-users', label: 'All users', icon: FiUsers, path: '/admin/users', superAdminOnly: true },
       {
@@ -948,11 +969,4 @@ export const menuItems: MenuItem[] = [
     ],
   },
 
-  {
-    id: 'ai-assistant',
-    label: 'Assistant',
-    icon: FiMessageCircle,
-    path: '/assistant',
-    allowedRoles: ADMIN_ROLES,
-  },
 ];

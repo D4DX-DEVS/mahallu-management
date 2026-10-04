@@ -4,6 +4,7 @@ import { FiArrowLeft, FiEdit2, FiSave, FiTrash2 } from 'react-icons/fi';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import Modal from '@/components/ui/Modal';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { toast } from '@/store/toastStore';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import {
@@ -14,6 +15,7 @@ import {
 } from '@/services/counsellingService';
 import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
+import { PageSkeleton } from '@/components/ui/Skeleton';
 
 const STATUSES = ['reported', 'documentation', 'referred', 'distributed', 'closed'];
 
@@ -29,6 +31,7 @@ export default function InheritanceDetail() {
   const [saving, setSaving] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [showSaveConfirm, setShowSaveConfirm] = useState(false);
 
   useEffect(() => {
     if (id) fetchCase(id);
@@ -61,6 +64,7 @@ export default function InheritanceDetail() {
       });
       setCaseRecord(response.data);
       setIsEditing(false);
+      setShowSaveConfirm(false);
       toast.success('Inheritance case updated');
     } catch (error) {
       console.error("Couldn't update case:", error);
@@ -83,7 +87,7 @@ export default function InheritanceDetail() {
     }
   };
 
-  if (loading) return <div className="p-4">Loading...</div>;
+  if (loading) return <PageSkeleton />;
   if (!caseRecord) return <div className="p-4">Case not found</div>;
 
   return (
@@ -175,7 +179,7 @@ export default function InheritanceDetail() {
                   />
                 </div>
                 <div className="flex flex-wrap gap-2 pt-3">
-                  <Button variant="primary" size="sm" onClick={handleSave} disabled={saving}>
+                  <Button variant="primary" size="sm" onClick={() => setShowSaveConfirm(true)} disabled={saving}>
                     <FiSave size={16} />
                     Save
                   </Button>
@@ -251,6 +255,17 @@ export default function InheritanceDetail() {
           )
         )}
       </div>
+
+      <ConfirmDialog
+        isOpen={showSaveConfirm}
+        title="Save this inheritance case?"
+        message={`This will save the case with status “${editStatus.replace(/_/g, ' ')}” and the entered notes.`}
+        confirmLabel="Save case"
+        variant="primary"
+        isLoading={saving}
+        onConfirm={handleSave}
+        onCancel={() => setShowSaveConfirm(false)}
+      />
 
       <Modal
         isOpen={showDeleteModal}

@@ -179,7 +179,7 @@ export default function MahalluLedgerItemsList() {
         />
       </div>
 
-      <TableCard>
+      <TableCard borderless>
         <div className="flex flex-wrap items-center gap-3 mb-4">
           <div className="w-full sm:w-48">
             <Select

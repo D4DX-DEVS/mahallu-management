@@ -150,7 +150,7 @@ export default function SchemesList() {
         breadcrumbs={[{ label: 'Welfare', path: '/welfare/applications' }]}
       />
 
-      <TableCard>
+      <TableCard borderless>
         <div className="mb-3 flex items-center justify-between gap-2">
           <p className="text-xs text-gray-500 dark:text-gray-400">{pagination?.total ?? 0} scheme(s)</p>
           <Button

@@ -221,7 +221,7 @@ export default function MemberVarisangyaTransactions() {
         </Card>
       )}
 
-      <TableCard>
+      <TableCard borderless>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}

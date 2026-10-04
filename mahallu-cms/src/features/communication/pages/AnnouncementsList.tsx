@@ -70,7 +70,7 @@ export default function AnnouncementsList() {
     <div className="space-y-3">
       <PageHeader title="Announcements" description="Broadcast messages to the community" />
 
-      <TableCard>
+      <TableCard borderless>
         <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div className="grid grid-cols-3 gap-1.5 sm:flex">
             {STATUS_TABS.map((tab) => (
