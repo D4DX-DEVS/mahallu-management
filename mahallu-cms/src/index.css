@@ -266,6 +266,72 @@
     background: hsl(var(--card));
     box-shadow: var(--shadow-sm);
   }
+
+  /* Route-level alignment contract. Every protected route gets the same
+     shrink behaviour, so a long page or a nested flyout cannot widen the
+     content column and push controls out of view. */
+  .page-route-shell {
+    min-width: 0;
+    width: 100%;
+  }
+
+  /* Hand-written tables use this class while older feature screens migrate to
+     the shared Table component. It keeps their header height, cell rhythm and
+     row separators identical to the shared list surface. */
+  .data-table {
+    min-width: 42rem;
+    border-collapse: collapse;
+    color: hsl(var(--foreground));
+  }
+
+  .data-table thead {
+    /* The legacy `bg-muted` utility is intentionally forced to white by the
+       product-wide surface rule. Keep the table header's one controlled tint
+       explicit so the header still reads as a separate row. */
+    background: hsl(210 20% 98%) !important;
+  }
+
+  .data-table th {
+    height: 2.625rem;
+    padding: 0.625rem 0.75rem;
+    border-bottom: 1px solid hsl(var(--border));
+    color: hsl(var(--muted-foreground));
+    font-size: 0.8125rem;
+    font-weight: 600;
+    line-height: 1.125rem;
+    text-align: left;
+    vertical-align: middle;
+    white-space: nowrap;
+  }
+
+  .data-table td {
+    min-height: 2.75rem;
+    padding: 0.6875rem 0.75rem;
+    border-bottom: 1px solid hsl(var(--border));
+    font-size: 0.875rem;
+    line-height: 1.375rem;
+    vertical-align: middle;
+  }
+
+  .data-table tbody tr:last-child td {
+    border-bottom: 0;
+  }
+
+  .data-table tbody tr {
+    transition: background-color 150ms ease;
+  }
+
+  .data-table tbody tr:hover {
+    background: hsl(var(--accent) / 0.3);
+  }
+
+  @media (max-width: 767px) {
+    .data-table-surface {
+      border-radius: 0;
+      border-left: 0;
+      border-right: 0;
+    }
+  }
 }
 
 /* Scrollbar follows the neutral ramp rather than fixed greys. */

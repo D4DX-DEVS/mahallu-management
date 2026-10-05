@@ -66,19 +66,14 @@ export default function TableToolbar({
   return (
     /* One row at every width.
      *
-     * This used to stack into a column below `sm` and let both halves wrap, so
-     * a phone got search / filter / refresh on one line and export / "+ New
-     * Committee" on the next — two rows of chrome above a list, and the count
-     * of rows changed with the page. Nothing wraps now: the controls that have
-     * a label collapse to their glyph below `sm` (see `Button.collapseLabel`),
-     * while search keeps its full field on desktop,
-     * which is what makes six controls fit across 320px — 6 x 40px plus five
-     * 8px gaps is 280px, inside the 296px a 320px phone leaves after the
-     * page's own gutters. */
+     * This keeps the search/filter cluster together and lets the sort/export
+     * cluster move to the next line when a phone cannot fit both. Controls
+     * with a label collapse to their glyph below `sm` (see
+     * `Button.collapseLabel`), while search remains a real field on desktop. */
     <div className={cn('mb-5 space-y-3', className)}>
       {tabs}
-      <div className="flex items-center gap-2">
-      <div className="flex min-w-0 flex-1 items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex min-w-0 flex-1 basis-full items-center gap-2 sm:basis-auto">
         {/* Search stays visible on desktop and collapses to a real icon button
             on phones. A query holds the field open so no filter is ever hidden. */}
         <ExpandableSearch
@@ -132,7 +127,7 @@ export default function TableToolbar({
           }
         />
       )}
-      <div className="flex flex-shrink-0 items-center gap-2">
+      <div className="ml-auto flex flex-shrink-0 items-center gap-2">
         {onExport && (
           <Dropdown
             trigger={

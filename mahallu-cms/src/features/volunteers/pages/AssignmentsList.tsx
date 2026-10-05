@@ -142,7 +142,7 @@ export default function AssignmentsList() {
       ) : (
         <>
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="data-table w-full text-sm">
               <thead>
                 <tr className="bg-gray-50">
                   <SortableTh sortKey="date" sort={sort} onSort={toggleSort}>

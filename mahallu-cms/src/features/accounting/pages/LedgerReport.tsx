@@ -180,7 +180,7 @@ export default function LedgerReport() {
               <div className="text-center py-8 text-gray-500">No transactions found for this period</div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-border">
+                <table className="data-table min-w-full divide-y divide-border">
                   <thead className="bg-muted">
                     <tr>
                       <th className="px-4 py-3 text-left text-label font-medium text-gray-500 dark:text-gray-400 uppercase">

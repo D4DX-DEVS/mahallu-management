@@ -210,7 +210,7 @@ export default function InheritanceDetail() {
           <h2 className="text-lg font-semibold mb-3">Heirs</h2>
           {caseRecord.heirs && caseRecord.heirs.length > 0 ? (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="data-table w-full text-sm">
                 <thead>
                   <tr className="border-b">
                     <th className="text-left py-2 px-3 font-semibold">Name</th>

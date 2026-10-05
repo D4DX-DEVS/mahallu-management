@@ -241,7 +241,7 @@ function DayBookView({ entries }: { entries: DayBookEntry[] }) {
         />
       </div>
       <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-border">
+        <table className="data-table min-w-full divide-y divide-border">
           <thead className="bg-muted">
             <tr>
               {['Date', 'Description', 'Type', 'Ledger', 'Category', 'Amount'].map((h) => (
@@ -292,7 +292,7 @@ function TrialBalanceView({ entries }: { entries: TrialBalanceEntry[] }) {
         <StatCard title="Difference" value={<>₹{Math.abs(totalCredit - totalDebit).toLocaleString()}</>} />
       </div>
       <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-border">
+        <table className="data-table min-w-full divide-y divide-border">
           <thead className="bg-muted">
             <tr>
               {['Ledger', 'Type', 'Debit', 'Credit'].map((h) => (

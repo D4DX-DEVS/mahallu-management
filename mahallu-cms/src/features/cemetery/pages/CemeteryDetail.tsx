@@ -210,7 +210,7 @@ export function CemeteryDetail() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="data-table w-full">
               <thead>
                 <tr className="border-b">
                   <SortableTh sortKey="graveNo" sort={sort} onSort={toggleSort} className="p-3">

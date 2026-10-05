@@ -255,7 +255,7 @@ export default function ProjectDetail() {
               ) : (
                 <>
                   <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
+                    <table className="data-table w-full text-sm">
                       <thead className="bg-gray-50">
                         <tr>
                           <th className="px-3 py-2 text-left">Date</th>

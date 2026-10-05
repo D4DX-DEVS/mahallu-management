@@ -125,7 +125,7 @@ export default function MahalluLedgerReport() {
             </div>
 
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-border">
+              <table className="data-table min-w-full divide-y divide-border">
                 <thead className="bg-muted">
                   <tr>
                     {['Date', 'Description', 'Category', 'Debit', 'Credit', 'Balance'].map((h) => (

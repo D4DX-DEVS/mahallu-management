@@ -136,7 +136,7 @@ export default function EmployersList() {
       ) : (
         <>
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="data-table w-full text-sm">
               <thead>
                 <tr className="bg-gray-50">
                   <SortableTh sortKey="name" sort={sort} onSort={toggleSort}>

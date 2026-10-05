@@ -146,7 +146,7 @@ export default function AwardsList() {
           ) : (
             <>
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+                <table className="data-table w-full text-sm">
                   <thead>
                     <tr className="border-b">
                       <SortableTh sortKey="student" sort={sort} onSort={toggleSort}>

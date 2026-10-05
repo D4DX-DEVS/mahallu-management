@@ -57,7 +57,7 @@ export default function PageHeader({ title, eyebrow, description, icon, actions,
   const Icon = icon === undefined ? resolveNavIcon(pathname) : icon;
 
   return (
-    <div className={cn('mb-6', className)}>
+    <div className={cn('mb-5', className)}>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
         <div className="flex min-w-0 items-start gap-3">
           {Icon && (
@@ -82,7 +82,11 @@ export default function PageHeader({ title, eyebrow, description, icon, actions,
             controls; wrapping them turned a phone header into three lines of
             chrome. Pass them as `Button`s with `icon` + `collapseLabel` so
             they collapse to their glyphs instead of folding onto a new row. */}
-        {actions && <div className="flex flex-shrink-0 items-center gap-2">{actions}</div>}
+        {actions && (
+          <div className="flex min-w-0 flex-shrink-0 flex-wrap items-center justify-start gap-2 sm:justify-end">
+            {actions}
+          </div>
+        )}
       </div>
     </div>
   );

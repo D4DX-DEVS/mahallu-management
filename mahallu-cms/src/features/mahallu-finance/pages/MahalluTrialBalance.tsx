@@ -102,7 +102,7 @@ export default function MahalluTrialBalance() {
               </div>
             </div>
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-border">
+              <table className="data-table min-w-full divide-y divide-border">
                 <thead className="bg-muted">
                   <tr>
                     {['Ledger', 'Type', 'Debit', 'Credit'].map((h) => (

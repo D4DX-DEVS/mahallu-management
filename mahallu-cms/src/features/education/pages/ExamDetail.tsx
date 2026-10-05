@@ -229,7 +229,7 @@ export default function ExamDetail() {
           return (
             <div>
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+                <table className="data-table w-full text-sm">
                   <thead>
                     <tr className="border-b border-gray-200 dark:border-gray-700">
                       <th className="px-4 py-2 text-left font-medium text-gray-700 dark:text-gray-300">

@@ -118,7 +118,7 @@ export default function Security() {
           <div className="py-6 text-center text-gray-500">No activity recorded yet</div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
+            <table className="data-table min-w-full text-sm">
               <thead>
                 <tr className="text-left text-xs uppercase text-gray-500">
                   <SortableTh sortKey="createdAt" sort={sort} onSort={toggleSort} className="py-2 pr-3">

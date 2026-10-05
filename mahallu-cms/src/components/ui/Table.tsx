@@ -439,9 +439,9 @@ function Table<T extends Record<string, any>>({
       </ul>
 
       {/* ---- Tablet and up: the table ------------------------------------ */}
-      <div className="hidden overflow-x-auto rounded-xl border border-border/80 md:block">
+      <div className="data-table-surface hidden overflow-x-auto rounded-xl border border-border/80 md:block">
         <table
-          className="w-full border-collapse"
+          className="data-table w-full border-collapse"
           style={{ minWidth, ...(fixedLayout ? { tableLayout: 'fixed' as const } : {}) }}
         >
           <thead className="sticky top-0 z-10 bg-muted/60">

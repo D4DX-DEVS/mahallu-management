@@ -35,7 +35,7 @@ export const route = (path: string, element: ReactNode, guard: GuardOptions = {}
           {isFormRoute(path, element) ? (
             <FormModalRoute>{element}</FormModalRoute>
           ) : (
-            element
+            <div className="page-route-shell">{element}</div>
           )}
         </MainLayout>
       </ProtectedRoute>

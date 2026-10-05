@@ -280,7 +280,7 @@ export default function ClassDetail() {
         <Card className="mb-4">
           <h2 className="mb-3 text-sm font-semibold text-foreground">Progress</h2>
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="data-table w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-200 dark:border-gray-700">
                   <SortableTh sortKey="studentName" sort={sort} onSort={toggleSort} className="px-4 py-2">
