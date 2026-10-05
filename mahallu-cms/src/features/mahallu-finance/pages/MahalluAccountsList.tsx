@@ -12,7 +12,7 @@ import { PageSkeleton } from '@/components/ui/Skeleton';
 import TableToolbar from '@/components/ui/TableToolbar';
 import { TableColumn, Pagination as PaginationType } from '@/types';
 import { masterAccountService, MahalluAccount } from '@/services/masterAccountService';
-import { formatDate, toTitleCase } from '@/utils/format';
+import { formatDate, formatRupees, toTitleCase } from '@/utils/format';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
 import { ROUTES } from '@/constants/routes';
 import { toast } from '@/store/toastStore';
@@ -82,7 +82,7 @@ export default function MahalluAccountsList() {
       const filename = 'mahallu-accounts';
       if (type === 'csv') exportToCSV(columns, data, filename);
       else if (type === 'json') exportToJSON(columns, data, filename);
-      else exportToPDF(columns, data, filename, 'Mahallu Accounts');
+      else await exportToPDF(columns, data, filename, 'Mahallu Accounts');
     } catch (err: any) {
       toast.error(err?.message || "Couldn't export accounts");
     } finally {
@@ -105,7 +105,7 @@ export default function MahalluAccountsList() {
     { key: 'accountNumber', label: 'Account Number', width: '11.75rem' },
     { key: 'bankName', label: 'Bank Name', width: '9.25rem', render: (v) => toTitleCase(v) },
     { key: 'ifscCode', label: 'IFSC Code', width: '9.25rem' },
-    { key: 'balance', label: 'Balance', width: '7.5rem', render: (b) => `₹${(b || 0).toLocaleString()}` },
+    { key: 'balance', label: 'Balance', width: '7.5rem', render: (b) => formatRupees(b) },
     {
       key: 'status',
       label: 'Status',
@@ -159,7 +159,7 @@ export default function MahalluAccountsList() {
 
       <div className="grid grid-cols-2 sm:grid-cols-2 gap-3">
         <StatCard title="Total Accounts" value={accounts.length} tone="info" />
-        <StatCard title="Total Balance" value={<>₹{totalBalance.toLocaleString()}</>} tone="success" />
+        <StatCard title="Total Balance" value={formatRupees(totalBalance)} tone="success" />
       </div>
 
       <TableCard>

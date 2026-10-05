@@ -44,6 +44,7 @@ import {
 import { idParam, listQuery } from '../validations/common';
 import {
   createMahalluAccountValidation,
+  updateMahalluAccountValidation,
 } from '../validations/moduleValidation';
 
 const router = express.Router();
@@ -1024,7 +1025,7 @@ router.delete('/ledger-items/:id', idParamValidation, validationHandler, deleteL
 // Mahallu Accounts (tenant-level, no instituteId)
 router.get('/mahallu-accounts', listQuery(), validationHandler, getAllMahalluAccounts);
 router.post('/mahallu-accounts', createMahalluAccountValidation, validationHandler, createMahalluAccount);
-router.put('/mahallu-accounts/:id', idParamValidation, validationHandler, updateMahalluAccount);
+router.put('/mahallu-accounts/:id', updateMahalluAccountValidation, validationHandler, updateMahalluAccount);
 router.delete('/mahallu-accounts/:id', idParamValidation, validationHandler, deleteMahalluAccount);
 
 export default router;

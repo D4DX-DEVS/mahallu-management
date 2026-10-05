@@ -111,7 +111,7 @@ export default function PettyCashDetail() {
     return (
       <div className="text-center py-10">
         <p className="text-gray-500">Petty cash fund not found</p>
-        <Button onClick={() => navigate('/petty-cash')} className="mt-4">
+        <Button onClick={() => navigate('/accounting/petty-cash')} className="mt-4">
           Back to List
         </Button>
       </div>

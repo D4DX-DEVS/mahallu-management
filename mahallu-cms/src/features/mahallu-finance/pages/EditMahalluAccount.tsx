@@ -11,7 +11,13 @@ import { masterAccountService, MahalluAccount } from '@/services/masterAccountSe
 import { errorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { useFormValidation } from '@/hooks/useFormValidation';
-import { FieldRule, LIMITS, sanitizeAmountInput } from '@/utils/validation';
+import {
+  FieldRule,
+  LIMITS,
+  accountNumberMessage,
+  digitsOnlyInputProps,
+  sanitizeAmountInput,
+} from '@/utils/validation';
 
 /**
  * The same limits the API applies, so a form that passes here is not
@@ -19,7 +25,7 @@ import { FieldRule, LIMITS, sanitizeAmountInput } from '@/utils/validation';
  */
 const RULES: Record<string, FieldRule> = {
   accountName: { label: 'account name', required: true, maxLength: LIMITS.title.max },
-  accountNumber: { label: 'account number', maxLength: 34 },
+  accountNumber: { label: 'account number', type: 'digits', maxLength: 34 },
   bankName: { label: 'bank name', maxLength: LIMITS.title.max },
   ifscCode: { label: 'IFSC code', maxLength: 11 },
   balance: { label: 'balance', type: 'number', min: 0, max: LIMITS.amount.max },
@@ -38,7 +44,7 @@ export default function EditMahalluAccount() {
     balance: '',
     status: 'active' as 'active' | 'inactive',
   });
-  const { errors, validate } = useFormValidation(RULES);
+  const { errors, validate, validateField, setErrors } = useFormValidation(RULES);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -132,9 +138,14 @@ export default function EditMahalluAccount() {
               label="Account Number"
               value={form.accountNumber}
               error={errors.accountNumber}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, accountNumber: e.target.value.replace(/[^0-9]/g, '') }))
-              }
+              {...digitsOnlyInputProps(() =>
+                setErrors((current) => ({ ...current, accountNumber: accountNumberMessage() }))
+              )}
+              onChange={(e) => {
+                const accountNumber = e.target.value;
+                setForm((f) => ({ ...f, accountNumber }));
+                validateField('accountNumber', { ...form, accountNumber });
+              }}
               placeholder="e.g. 1234567890"
             />
             <Input

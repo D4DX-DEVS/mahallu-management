@@ -1,5 +1,6 @@
 import { body, ValidationChain } from 'express-validator';
 import {
+  accountNumberField,
   amountField,
   boolField,
   dateField,
@@ -772,8 +773,9 @@ export const issueCertificateValidation = [
 
 const mahalluAccountFields = (mode: Mode): ValidationChain[] => [
   text(mode, 'accountName', 'account name', { max: 150 }),
-  // An account number keeps its leading zeros, so it is text, not a number.
-  optionalText('accountNumber', 'account number', 34),
+  // An account number keeps its leading zeros, so it is text, not a number -
+  // but only digits are a valid account number.
+  accountNumberField('accountNumber', 'account number', 34),
   optionalText('bankName', 'bank name', 150),
   optionalText('ifscCode', 'IFSC code', 11),
   amountField('balance', 'balance'),

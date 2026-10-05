@@ -1,4 +1,5 @@
 import { body, param, query } from 'express-validator';
+import { EMAIL_KEEP_AS_TYPED } from './common';
 
 /**
  * Rules for `/api/member-user/*` — the twenty endpoints the member portal and
@@ -130,7 +131,7 @@ export const updateOwnProfileValidation = [
     .bail()
     .isEmail()
     .withMessage('Please enter a valid email address.')
-    .normalizeEmail({ gmail_remove_dots: false }),
+    .normalizeEmail(EMAIL_KEEP_AS_TYPED),
 ];
 
 const paymentBase = [

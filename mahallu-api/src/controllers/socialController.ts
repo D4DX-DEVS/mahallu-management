@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { Banner, Feed, ActivityLog, Support } from '../models/Social';
 import { AuthRequest } from '../middleware/authMiddleware';
+import { verifyTenantOwnership } from '../utils/tenantCheck';
 import mongoose from 'mongoose';
 import { getPaginationParams, createPaginationResponse } from '../utils/pagination';
 
@@ -303,11 +304,18 @@ export const createSupport = async (req: AuthRequest, res: Response) => {
   }
 };
 
-export const updateSupport = async (req: Request, res: Response) => {
+export const updateSupport = async (req: AuthRequest, res: Response) => {
   try {
+    const existing = await Support.findById(req.params.id);
+    if (!existing) {
+      return res.status(404).json({ success: false, message: "We couldn't find that support ticket. It may have been removed." });
+    }
+    if (!verifyTenantOwnership(req, res, existing.tenantId, 'Support ticket')) return;
+    const { tenantId: _tenantId, ...changes } = req.body || {};
+
     const support = await Support.findByIdAndUpdate(
       req.params.id,
-      req.body,
+      changes,
       { new: true, runValidators: true }
     ).populate('userId', 'name');
 

@@ -1,4 +1,5 @@
 import { body, param, query } from 'express-validator';
+import { EMAIL_KEEP_AS_TYPED } from './common';
 
 export const createUserValidation = [
   body('name')
@@ -19,7 +20,7 @@ export const createUserValidation = [
     .trim()
     .isEmail()
     .withMessage('Please enter a valid email address.')
-    .normalizeEmail(),
+    .normalizeEmail(EMAIL_KEEP_AS_TYPED),
   body('role')
     .optional()
     .isIn(['super_admin', 'mahall', 'survey', 'institute', 'member'])
@@ -62,7 +63,7 @@ export const updateUserValidation = [
     .trim()
     .isEmail()
     .withMessage('Please enter a valid email address.')
-    .normalizeEmail(),
+    .normalizeEmail(EMAIL_KEEP_AS_TYPED),
   body('status')
     .optional()
     .isIn(['active', 'inactive'])

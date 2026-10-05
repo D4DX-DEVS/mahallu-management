@@ -88,7 +88,8 @@ const InstituteAccountSchema = new Schema<IInstituteAccount>(
       required: true,
     },
     accountName: { type: String, required: true, trim: true },
-    accountNumber: String,
+    // Digits only, kept as text so leading zeros survive. An empty value is skipped.
+    accountNumber: { type: String, trim: true, match: [/^[0-9]+$/, 'Please enter the account number using digits only.'] },
     bankName: String,
     ifscCode: String,
     balance: { type: Number, default: 0 },
@@ -219,7 +220,8 @@ const MahalluAccountSchema = new Schema<IMahalluAccount>(
       index: true,
     },
     accountName: { type: String, required: true, trim: true },
-    accountNumber: String,
+    // Digits only, kept as text so leading zeros survive. An empty value is skipped.
+    accountNumber: { type: String, trim: true, match: [/^[0-9]+$/, 'Please enter the account number using digits only.'] },
     bankName: String,
     ifscCode: String,
     balance: { type: Number, default: 0 },

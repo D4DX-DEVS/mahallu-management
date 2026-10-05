@@ -1,10 +1,18 @@
 import axios from 'axios';
+import User from '../models/User';
 
 interface SendPushOptions {
   title: string;
   message: string;
   imageUrl?: string;
   playerIds?: string[];
+}
+
+/** Registered device ids for one Mahallu's users - the only audience a push may target. */
+export async function getTenantPlayerIds(tenantId: unknown): Promise<string[]> {
+  if (!tenantId) return [];
+  const users = await User.find({ tenantId, oneSignalPlayerId: { $exists: true, $ne: null } }).select('oneSignalPlayerId');
+  return users.map((u: any) => u.oneSignalPlayerId).filter((id: any): id is string => Boolean(id));
 }
 
 export async function sendPushNotification({
@@ -27,11 +35,12 @@ export async function sendPushNotification({
     contents: { en: message },
   };
 
-  if (playerIds && playerIds.length > 0) {
-    payload.include_player_ids = playerIds;
-  } else {
-    payload.included_segments = ['Subscribed Users'];
+  // Never fall back to OneSignal's "Subscribed Users" segment: that is every device of every
+  // Mahallu on the platform. An empty audience means there is nobody to notify, not everybody.
+  if (!playerIds || playerIds.length === 0) {
+    return;
   }
+  payload.include_player_ids = playerIds;
 
   if (imageUrl) {
     payload.chrome_web_image = imageUrl;

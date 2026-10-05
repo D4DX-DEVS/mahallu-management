@@ -17,11 +17,12 @@ import { Institute } from '@/types';
 import { errorMessage } from '@/utils/errors';
 import { toTitleCase } from '@/utils/format';
 import PageHeader from '@/components/layout/PageHeader';
+import { accountNumberMessage, digitsOnlyInputProps, optionalAccountNumberSchema } from '@/utils/validation';
 
 const instituteAccountSchema = z.object({
   instituteId: z.string().max(200, 'Please keep the institute to 200 characters or less.').min(1, 'Institute is required'),
   accountName: z.string().max(200, 'Please keep the account name to 200 characters or less.').min(1, 'Account Name is required'),
-  accountNumber: z.string().max(200, 'Please keep the account number to 200 characters or less.').optional(),
+  accountNumber: optionalAccountNumberSchema(),
   bankName: z.string().max(200, 'Please keep the bank name to 200 characters or less.').optional(),
   ifscCode: z.string().max(200, 'Please keep the ifsc code to 200 characters or less.').optional(),
   balance: z.number().min(0, 'Balance must be 0 or greater').default(0),
@@ -46,6 +47,7 @@ export default function CreateInstituteAccount() {
     handleSubmit,
     watch,
     setValue,
+    setError: setFieldError,
     formState: { errors, isSubmitting },
   } = useForm<InstituteAccountFormData>({
     resolver: zodResolver(instituteAccountSchema),
@@ -149,6 +151,9 @@ export default function CreateInstituteAccount() {
             <Input
               label="Account Number"
               {...register('accountNumber')}
+              {...digitsOnlyInputProps(() =>
+                setFieldError('accountNumber', { type: 'pattern', message: accountNumberMessage() })
+              )}
               error={errors.accountNumber?.message}
               placeholder="Enter account number"
             />

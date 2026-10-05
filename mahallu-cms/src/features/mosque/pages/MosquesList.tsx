@@ -7,6 +7,7 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Modal from '@/components/ui/Modal';
 import ExpandableSearch from '@/components/ui/ExpandableSearch';
+import ActionBar from '@/components/ui/ActionBar';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import EmptyState from '@/components/ui/EmptyState';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
@@ -135,7 +136,7 @@ export default function MosquesList() {
        * below is already its own bordered card, and a second frame
        * around the whole list drew a box around boxes on a phone. */}
       <TableCard>
-        <div className="mb-3 flex min-w-0 items-center gap-2">
+        <ActionBar>
           <ExpandableSearch
             value={searchQuery}
             onChange={(value) => {
@@ -147,7 +148,7 @@ export default function MosquesList() {
           <Button size="md" onClick={() => setFormOpen(true)} icon={<FiPlus />} collapseLabel>
             New Mosque
           </Button>
-        </div>
+        </ActionBar>
 
         {loading ? (
           <PageSkeleton variant="section" />

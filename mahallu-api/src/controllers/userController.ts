@@ -258,6 +258,20 @@ export const updateUser = async (req: AuthRequest, res: Response) => {
     }
 
     const { name, phone, email, status, permissions } = req.body;
+
+    // The phone number is what links one person's accounts together: switch-account
+    // trusts "same phone" as proof the target account is also yours. If an admin could
+    // rewrite their OWN number here, they could set it to anyone's (a Super Admin's,
+    // another Mahallu's admin) and switch straight into that account with no OTP.
+    // Changing the number you sign in with has to go through the OTP-verified flow.
+    const isOwnRecord = String(existingUser._id) === String(req.user?._id);
+    if (!req.isSuperAdmin && isOwnRecord && phone !== undefined && phone !== existingUser.phone) {
+      return res.status(403).json({
+        success: false,
+        message: "You can't change your own phone number here. Please ask your Mahallu admin or request a change from your profile.",
+      });
+    }
+
     const user = await User.findByIdAndUpdate(
       req.params.id,
       { name, phone, email, status, permissions },

@@ -12,7 +12,7 @@ import {
   createSupport,
   updateSupport,
 } from '../controllers/socialController';
-import { authMiddleware } from '../middleware/authMiddleware';
+import { authMiddleware, allowRoles } from '../middleware/authMiddleware';
 import { tenantMiddleware, tenantFilter } from '../middleware/tenantMiddleware';
 import { validationHandler } from '../middleware/validationHandler';
 import {
@@ -354,7 +354,8 @@ router.post('/feeds', createFeedValidation, validationHandler, createFeed);
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  */
-router.get('/activity-logs', listQuery(), validationHandler, getActivityLogs);
+// The log holds request bodies from every user in the tenant; it is an admin tool.
+router.get('/activity-logs', allowRoles(['super_admin', 'mahall']), listQuery(), validationHandler, getActivityLogs);
 
 /**
  * @swagger

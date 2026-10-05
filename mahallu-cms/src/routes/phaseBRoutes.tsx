@@ -162,6 +162,7 @@ export const phaseBRoutes = [
   route('/health/donors/:id/edit', <DonorEdit />, mahallOnly),
   route('/health/camps', <CampsList />, mahallOnly),
   route('/health/camps/create', <CampsCreate />, mahallOnly),
+  route('/health/camps/:id/edit', <CampsCreate />, mahallOnly),
   route('/health/palliative', <PalliativeCases />, mahallOnly),
   route('/health/patient-support', <PatientSupport />, mahallOnly),
 

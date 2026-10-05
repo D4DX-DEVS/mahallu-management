@@ -68,6 +68,9 @@ export const createMeeting = async (req: AuthRequest, res: Response) => {
     if (!committee) {
       return res.status(404).json({ success: false, message: "We couldn't find that committee. It may have been removed." });
     }
+    // The meeting invite goes out to the committee's members by WhatsApp - it must be this
+    // Mahallu's own committee, not any committee id the caller knows.
+    if (!verifyTenantOwnership(req, res, committee.tenantId, 'Committee')) return;
 
     const totalMembers = committee.members.length;
     const attendanceCount = attendance?.length || 0;

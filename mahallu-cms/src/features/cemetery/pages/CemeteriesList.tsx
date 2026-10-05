@@ -6,6 +6,7 @@ import Card from '../../../components/ui/Card';
 import Pagination from '../../../components/ui/Pagination';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import ExpandableSearch from '@/components/ui/ExpandableSearch';
+import ActionBar from '@/components/ui/ActionBar';
 import ConfirmDialog from '../../../components/ui/ConfirmDialog';
 import { toast } from '@/store/toastStore';
 import { FiPlus, FiEdit2, FiTrash2 } from 'react-icons/fi';
@@ -87,13 +88,13 @@ export function CemeteriesList() {
         </Button>
       </div>
 
-      <div className="w-full">
+      <ActionBar className="mb-0">
         <ExpandableSearch
           value={search}
           onChange={(value) => setSearch(value)}
           entity="cemeteries"
         />
-      </div>
+      </ActionBar>
 
       {error && (
         <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">{error}</div>

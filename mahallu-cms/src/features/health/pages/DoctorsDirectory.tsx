@@ -3,6 +3,7 @@ import { FiPlus, FiEdit2, FiTrash2, FiPhone } from 'react-icons/fi';
 import { getHealthResources, deleteHealthResource, IHealthResource } from '@/services/healthService';
 import Pagination from '@/components/ui/Pagination';
 import ExpandableSearch from '@/components/ui/ExpandableSearch';
+import ActionBar from '@/components/ui/ActionBar';
 import Button from '@/components/ui/Button';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
@@ -81,14 +82,14 @@ export default function DoctorsDirectory() {
           </Button>
         </div>
 
-        <div className="mb-4">
+        <ActionBar className="mb-4">
           <ExpandableSearch
             value={search}
             onChange={(value) => setSearch(value)}
             entity="doctors"
             placeholder="Search by name or specialty"
           />
-        </div>
+        </ActionBar>
 
         {doctors.length === 0 ? (
           <div className="text-center py-8">

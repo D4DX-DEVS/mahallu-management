@@ -5,7 +5,7 @@ import Family from '../models/Family';
 import { AuthRequest } from '../middleware/authMiddleware';
 import { getPaginationParams, createPaginationResponse } from '../utils/pagination';
 import { stripImmutable } from '../utils/sanitizeUpdate';
-import { sendPushNotification } from '../services/oneSignalService';
+import { sendPushNotification, getTenantPlayerIds } from '../services/oneSignalService';
 import { sendWhatsAppMessage } from '../services/dxingService';
 
 import { sendFailure } from '../utils/userMessages';
@@ -144,7 +144,9 @@ export const sendAnnouncement = async (req: AuthRequest, res: Response) => {
     for (const channel of announcement.channels) {
       if (channel === 'push') {
         try {
-          await sendPushNotification({ title: announcement.title, message: announcement.body });
+          // Only this Mahallu's devices - an empty list sends nothing rather than everything.
+          const playerIds = await getTenantPlayerIds(announcement.tenantId);
+          await sendPushNotification({ title: announcement.title, message: announcement.body, playerIds });
           await Notification.create({
             tenantId: announcement.tenantId,
             recipientType: 'all',
@@ -156,7 +158,9 @@ export const sendAnnouncement = async (req: AuthRequest, res: Response) => {
           });
           results.push = 'sent';
         } catch (err: any) {
-          results.push = `failed: ${err?.message || 'unknown error'}`;
+          // The provider's error text stays in the server log; the client only learns it failed.
+          console.error('[announcement] push failed:', err?.message);
+          results.push = 'failed';
         }
       } else if (channel === 'whatsapp') {
         const recipients = await resolveRecipients(announcement);

@@ -1,3 +1,4 @@
+import type { FormEvent } from 'react';
 import { z } from 'zod';
 
 /**
@@ -36,6 +37,16 @@ export const PHONE_PATTERN = /^[0-9]{10}$/;
 
 /** A 6-digit Indian PIN/postal code. */
 export const PIN_CODE_PATTERN = /^[0-9]{6}$/;
+
+/**
+ * A bank account number: digits only, any length. It is an identifier, not a
+ * quantity, so it stays a string end to end - `0012345678` is a real account
+ * number and must never pass through `Number(...)`.
+ */
+export const ACCOUNT_NUMBER_PATTERN = /^[0-9]+$/;
+
+export const accountNumberMessage = (label = 'account number'): string =>
+  `Please enter the ${label} using digits only.`;
 
 /** A Mongo id as it reaches the client. */
 export const ID_PATTERN = /^[a-fA-F0-9]{24}$/;
@@ -80,6 +91,28 @@ export const sanitizeAmountInput = (value: string): string => {
   return cleaned;
 };
 
+/**
+ * Input props for a digits-only identifier field (an account number).
+ *
+ * Typing or pasting a character that is not a digit is refused outright - it is
+ * never quietly stripped into some other number - and `onReject` is called so
+ * the form can say why. `inputMode` brings up the numeric keypad on a phone
+ * without `type="number"`, which would drop leading zeros and allow `e`/`.`.
+ * Anything that still gets in (autofill, drag and drop) is caught by the
+ * field's `digits` rule on change and on submit.
+ */
+export const digitsOnlyInputProps = (onReject: () => void) => ({
+  inputMode: 'numeric' as const,
+  autoComplete: 'off',
+  onBeforeInput: (event: FormEvent<HTMLInputElement>) => {
+    const data = (event as unknown as { data?: string | null }).data;
+    if (data && /[^0-9]/.test(data)) {
+      event.preventDefault();
+      onReject();
+    }
+  },
+});
+
 const EARLIEST_DATE = new Date('1900-01-01');
 
 /* ── zod pieces, for the react-hook-form pages ─────────────────────────── */
@@ -94,6 +127,18 @@ export const optionalPhoneSchema = z
   .refine((value) => !value || PHONE_PATTERN.test(value), {
     message: 'Please enter a 10-digit phone number.',
   });
+
+/** Optional, but when present it must be digits only. Kept as a string. */
+export const optionalAccountNumberSchema = (max = LIMITS.shortText.max) =>
+  z
+    .string()
+    .optional()
+    .refine((value) => !value || ACCOUNT_NUMBER_PATTERN.test(value.trim()), {
+      message: accountNumberMessage(),
+    })
+    .refine((value) => !value || value.trim().length <= max, {
+      message: `Please keep the account number to ${max} characters or less.`,
+    });
 
 export const pinCodeSchema = z
   .string()
@@ -179,7 +224,7 @@ export interface FieldRule {
   /** Text length bounds, for string fields. */
   minLength?: number;
   maxLength?: number;
-  type?: 'text' | 'number' | 'integer' | 'phone' | 'pinCode' | 'email' | 'date' | 'id' | 'academicYear';
+  type?: 'text' | 'number' | 'integer' | 'digits' | 'phone' | 'pinCode' | 'email' | 'date' | 'id' | 'academicYear';
   /** Values a select is allowed to hold. */
   oneOf?: readonly string[];
   /** Refuse a date later than today — a date of birth, a payment date. */
@@ -215,6 +260,13 @@ export function checkField(
   switch (rule.type) {
     case 'phone':
       if (!PHONE_PATTERN.test(String(text))) return `Please enter a 10-digit ${label}.`;
+      break;
+
+    case 'digits':
+      if (!ACCOUNT_NUMBER_PATTERN.test(String(text))) return accountNumberMessage(label);
+      if (rule.maxLength !== undefined && String(text).length > rule.maxLength) {
+        return `Please keep the ${label} to ${rule.maxLength} characters or less.`;
+      }
       break;
 
     case 'pinCode':

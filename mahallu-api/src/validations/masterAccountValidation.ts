@@ -1,4 +1,5 @@
 import { body, param } from 'express-validator';
+import { accountNumberField } from './common';
 
 // Common param validation for :id routes
 export const idParamValidation = [
@@ -18,7 +19,7 @@ export const createInstituteAccountValidation = [
     .withMessage('Please enter the account name.')
     .isLength({ min: 2, max: 200 })
     .withMessage('Please keep the account name between 2 and 200 characters.'),
-  body('accountNumber').optional().trim(),
+  accountNumberField('accountNumber', 'account number'),
   body('bankName').optional().trim(),
   body('ifscCode').optional().trim(),
   body('balance')
@@ -118,7 +119,7 @@ export const createLedgerItemValidation = [
 export const updateInstituteAccountValidation = [
   ...idParamValidation,
   body('accountName').optional().trim().isLength({ min: 2, max: 200 }).withMessage('Please keep the account name between 2 and 200 characters.'),
-  body('accountNumber').optional().trim(),
+  accountNumberField('accountNumber', 'account number'),
   body('bankName').optional().trim(),
   body('ifscCode').optional().trim(),
   body('balance').optional().isFloat({ min: 0 }).withMessage('Please enter a balance of zero or more.'),

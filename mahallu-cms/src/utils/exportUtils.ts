@@ -1,6 +1,7 @@
 import { jsPDF } from 'jspdf';
 import { autoTable } from 'jspdf-autotable';
 import { TableColumn } from '@/types';
+import { PDF_FONT_FAMILY, registerPdfFont } from '@/utils/pdfFonts';
 
 /**
  * Recursively extract text from React elements
@@ -96,6 +97,32 @@ function extractCellValue<T>(value: any, row: T, column: TableColumn<T>): string
 }
 
 /**
+ * One CSV field, safe to open in a spreadsheet.
+ *
+ * - Quoting: commas, quotes and newlines wrap the field in quotes.
+ * - Long digit strings (account numbers, Aadhaar, ...) and anything with a leading
+ *   zero are written as ="digits". A bare 16-digit account number opens in Excel
+ *   as 1.23457E+15 and "00123456" loses its zeros; the formula form keeps the text.
+ * - Formula injection: a field that starts with = + - @ (or a control character)
+ *   would run as a formula when opened, and these columns hold user-typed text.
+ *   Such fields get a leading apostrophe. Plain numbers ("-500") and phone numbers
+ *   ("+91 98765 43210") are left alone, and so is the "-" empty-cell placeholder.
+ */
+export function toCsvField(text: string): string {
+  if (/^\d+$/.test(text) && (text.length >= 12 || (text.length > 1 && text.startsWith('0')))) {
+    return `="${text}"`;
+  }
+  let value = text;
+  const startsLikeFormula =
+    /^[=@\t\r]/.test(value) || (/^[+-]/.test(value) && !/^[+-]?[\d\s().,-]*$/.test(value));
+  if (startsLikeFormula) value = `'${value}`;
+  if (value.includes(',') || value.includes('"') || value.includes('\n') || value.includes('\r')) {
+    return `"${value.replace(/"/g, '""')}"`;
+  }
+  return value;
+}
+
+/**
  * Export table data to CSV
  */
 export function exportToCSV<T extends Record<string, any>>(
@@ -104,26 +131,23 @@ export function exportToCSV<T extends Record<string, any>>(
   filename: string = 'export'
 ): void {
   // Extract headers
-  const headers = columns.map((col) => col.label);
+  const headers = columns.map((col) => toCsvField(col.label));
 
   // Extract rows
   const rows = data.map((row) =>
     columns.map((column) => {
       const value = row[column.key];
-      const textValue = extractCellValue(value, row, column);
-      // Escape commas and quotes for CSV
-      if (textValue.includes(',') || textValue.includes('"') || textValue.includes('\n')) {
-        return `"${textValue.replace(/"/g, '""')}"`;
-      }
-      return textValue;
+      return toCsvField(extractCellValue(value, row, column));
     })
   );
 
   // Combine headers and rows
   const csvContent = [headers.join(','), ...rows.map((row) => row.join(','))].join('\n');
 
-  // Create blob and download
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  // Excel opens a CSV with no byte-order mark as ANSI (Windows-1252), so the
+  // UTF-8 bytes of "₹" (E2 82 B9) read as "â‚¹". The BOM tells it the file is
+  // UTF-8; every other app that reads UTF-8 skips it.
+  const blob = new Blob(['﻿', csvContent], { type: 'text/csv;charset=utf-8;' });
   const link = document.createElement('a');
   const url = URL.createObjectURL(blob);
 
@@ -169,27 +193,37 @@ export function exportToJSON<T extends Record<string, any>>(
 
 /**
  * Export table data to PDF
+ *
+ * Async because the Unicode font is fetched on first use. Callers that don't
+ * await it are fine - the file is saved when the promise settles - and the
+ * promise never rejects over the font: it falls back to the built-in one.
  */
-export function exportToPDF<T extends Record<string, any>>(
+export async function exportToPDF<T extends Record<string, any>>(
   columns: TableColumn<T>[],
   data: T[],
   filename: string = 'export',
   title?: string
-): void {
+): Promise<void> {
   const doc = new jsPDF();
+
+  // The built-in fonts have no ₹ glyph; Noto Sans does.
+  const unicodeFont = await registerPdfFont(doc);
+  const fontFamily = unicodeFont ? PDF_FONT_FAMILY : 'helvetica';
+  // Only if the font could not be loaded: "Rs." is readable, "¹" is not.
+  const printable = (text: string) => (unicodeFont ? text : text.replace(/₹/g, 'Rs. '));
 
   // Add title if provided
   if (title) {
     doc.setFontSize(16);
-    doc.text(title, 14, 15);
+    doc.text(printable(title), 14, 15);
   }
 
   // Extract headers and rows
-  const headers = columns.map((col) => col.label);
+  const headers = columns.map((col) => printable(col.label));
   const rows = data.map((row) =>
     columns.map((column) => {
       const value = row[column.key];
-      return extractCellValue(value, row, column);
+      return printable(extractCellValue(value, row, column));
     })
   );
 
@@ -202,6 +236,7 @@ export function exportToPDF<T extends Record<string, any>>(
     body: rows,
     startY: startY,
     styles: {
+      font: fontFamily,
       fontSize: 8,
       cellPadding: 3,
     },

@@ -1,4 +1,5 @@
 import { body, param } from 'express-validator';
+import { EMAIL_KEEP_AS_TYPED } from './common';
 
 export const createEmployeeValidation = [
   body('name')
@@ -35,7 +36,7 @@ export const createEmployeeValidation = [
     .trim()
     .isEmail()
     .withMessage('Please enter a valid email address.')
-    .normalizeEmail(),
+    .normalizeEmail(EMAIL_KEEP_AS_TYPED),
   body('department').optional().trim(),
   body('joinDate')
     .optional()
@@ -80,7 +81,7 @@ export const updateEmployeeValidation = [
     .trim()
     .isEmail()
     .withMessage('Please enter a valid email address.')
-    .normalizeEmail(),
+    .normalizeEmail(EMAIL_KEEP_AS_TYPED),
   body('department').optional().trim(),
   body('joinDate')
     .optional()

@@ -101,6 +101,32 @@ export const optionalText = (
     .isLength({ max })
     .withMessage(`Please keep the ${label} to ${max} characters or less.`);
 
+/**
+ * A bank account number: digits only, any length up to `max`.
+ *
+ * It is an identifier, not a quantity, so it is checked as text and never
+ * coerced to a number - `0012345678` is a real account number and has to come
+ * back out as `0012345678`. A JSON number is refused for the same reason: by
+ * the time one arrives its leading zeros are already gone. Nothing is stripped
+ * or rewritten; a value with a letter, space, dash or dot is rejected.
+ */
+export const accountNumberField = (
+  field = 'accountNumber',
+  label = 'account number',
+  max = 200
+): ValidationChain =>
+  body(field)
+    .optional({ values: 'falsy' })
+    .isString()
+    .withMessage(`Please enter the ${label} using digits only.`)
+    .bail()
+    .trim()
+    .matches(/^[0-9]+$/)
+    .withMessage(`Please enter the ${label} using digits only.`)
+    .bail()
+    .isLength({ max })
+    .withMessage(`Please keep the ${label} to ${max} characters or less.`);
+
 /** A longer free-text field — notes, a description, minutes. */
 export const optionalLongText = (field: string, label: string, max = 5000): ValidationChain =>
   optionalText(field, label, max);
@@ -271,3 +297,17 @@ export const idArrayField = (
       }
       return true;
     });
+
+/**
+ * express-validator's normalizeEmail() with its defaults rewrites what the user typed:
+ * it deletes the dots and the +tag of a Gmail address (a.b+x@gmail.com is saved as ab@gmail.com).
+ * Only the case is normalised, so the address that is stored is the address that was entered.
+ */
+export const EMAIL_KEEP_AS_TYPED = {
+  gmail_remove_dots: false,
+  gmail_remove_subaddress: false,
+  gmail_convert_googlemaildotcom: false,
+  outlookdotcom_remove_subaddress: false,
+  yahoo_remove_subaddress: false,
+  icloud_remove_subaddress: false,
+};

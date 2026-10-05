@@ -9,6 +9,7 @@ import Pagination from '@/components/ui/Pagination';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import { notificationService, Notification } from '@/services/notificationService';
 import { useNotificationStore } from '@/store/notificationStore';
+import { useAuthStore } from '@/store/authStore';
 import { formatDate } from '@/utils/format';
 import { loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
@@ -22,6 +23,7 @@ export default function NotificationsList() {
   const [currentPage, setCurrentPage] = useState(1);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
   const { fetchUnreadCount } = useNotificationStore();
+  const currentUserId = useAuthStore((s) => s.user?.id);
 
   useEffect(() => {
     fetchNotifications();
@@ -39,8 +41,26 @@ export default function NotificationsList() {
         params.recipientType = typeFilter;
       }
       const result = await notificationService.getAll(params);
-      setNotifications(result.data || []);
+      const fetched = result.data || [];
+      setNotifications(fetched);
       setPagination(result.pagination);
+
+      // This list IS the notification detail view — there's no separate
+      // per-item screen to open. Waiting for someone to notice the small
+      // "Mark Read" button on each row left the header badge stuck long
+      // after they had genuinely seen everything on the page.
+      //
+      // Only auto-mark what's actually addressed to this viewer (their own
+      // recipientId, or a tenant-wide broadcast) — the "All" filter's query
+      // isn't recipient-scoped, so it can include other people's individual
+      // notifications, and this must never mark those read on their behalf.
+      const unreadIds = fetched
+        .filter((n) => !n.isRead && (n.recipientType === 'all' || n.recipientId === currentUserId))
+        .map((n) => n.id);
+      if (unreadIds.length > 0) {
+        await Promise.allSettled(unreadIds.map((id) => notificationService.markAsRead(id)));
+        fetchUnreadCount();
+      }
     } catch (err: any) {
       setError(loadErrorMessage(err, 'notifications'));
       console.error('Error fetching notifications:', err);

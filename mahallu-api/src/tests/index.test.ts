@@ -7,6 +7,7 @@
  * POSIX shell would. Importing every suite here sidesteps both problems:
  * one explicit, cross-platform entry file.
  */
+import './accountNumber.test';
 import './annualReport.test';
 import './assistant.test';
 import './attendance.test';
@@ -21,16 +22,22 @@ import './employment.test';
 import './health.test';
 import './impersonation.test';
 import './inputValidation.test';
+import './instituteAccess.test';
 import './khutbah.test';
 import './library.test';
 import './loginRoleSelection.test';
 import './madrasa.test';
 import './marriageAssistance.test';
+import './memberNikahGroomName.test';
 import './multiRoleEndToEnd.test';
 import './phaseA.test';
 import './programEvents.test';
 import './qard.test';
 import './scholarship.test';
+import './registrationStatusValidation.test';
 import './security.test';
+import './tenantIsolation.test';
+import './tenantUpdate.test';
+import './userPhoneChange.test';
 import './volunteers.test';
 import './zakat.test';

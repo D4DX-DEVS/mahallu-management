@@ -299,9 +299,10 @@ export const updateVarisangya = async (req: AuthRequest, res: Response) => {
     }
 
     const oldAmount = existing.amount;
-    const newAmount = updates.amount !== undefined ? updates.amount : oldAmount;
+    // Number(): a numeric string would otherwise concatenate into the wallet balance below.
+    const newAmount = updates.amount !== undefined ? Number(updates.amount) : oldAmount;
 
-    if (updates.amount !== undefined) existing.amount = updates.amount;
+    if (updates.amount !== undefined) existing.amount = newAmount;
     if (updates.paymentDate !== undefined) existing.paymentDate = new Date(updates.paymentDate);
     if (updates.paymentMethod !== undefined) existing.paymentMethod = updates.paymentMethod;
     if (updates.remarks !== undefined) existing.remarks = updates.remarks;

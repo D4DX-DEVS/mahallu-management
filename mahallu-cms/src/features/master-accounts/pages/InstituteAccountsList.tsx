@@ -17,7 +17,8 @@ import { TableColumn, Pagination as PaginationType } from '@/types';
 import { masterAccountService, InstituteAccount } from '@/services/masterAccountService';
 import { instituteService } from '@/services/instituteService';
 import { useAuthStore } from '@/store/authStore';
-import { formatDate, toTitleCase } from '@/utils/format';
+import { formatDate, formatRupees, toTitleCase } from '@/utils/format';
+import { ACCOUNT_NUMBER_PATTERN, accountNumberMessage, digitsOnlyInputProps } from '@/utils/validation';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
 import { toast } from '@/store/toastStore';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
@@ -42,6 +43,7 @@ export default function InstituteAccountsList() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [accountNumberError, setAccountNumberError] = useState<string | undefined>();
   const [editForm, setEditForm] = useState({
     accountName: '',
     accountNumber: '',
@@ -109,7 +111,7 @@ export default function InstituteAccountsList() {
           exportToJSON(columns, dataToExport, filename);
           break;
         case 'pdf':
-          exportToPDF(columns, dataToExport, filename, title);
+          await exportToPDF(columns, dataToExport, filename, title);
           break;
       }
     } catch (error: any) {
@@ -129,7 +131,7 @@ export default function InstituteAccountsList() {
       label: 'Balance',
       width: '9.25rem',
       align: 'center',
-      render: (balance) => `₹${balance?.toLocaleString() || 0}`,
+      render: (balance) => formatRupees(balance),
     },
     {
       key: 'createdAt',
@@ -179,13 +181,21 @@ export default function InstituteAccountsList() {
       balance: account.balance || 0,
       status: account.status || 'active',
     });
+    setAccountNumberError(undefined);
     setShowEditModal(true);
   };
 
   const handleEdit = async () => {
     if (!selectedAccount) return;
+    // The account number is an identifier kept as text (leading zeros matter),
+    // and it must be digits only - the API refuses anything else too.
+    const accountNumber = editForm.accountNumber.trim();
+    if (accountNumber && !ACCOUNT_NUMBER_PATTERN.test(accountNumber)) {
+      setAccountNumberError(accountNumberMessage());
+      return;
+    }
     try {
-      await masterAccountService.updateInstituteAccount(selectedAccount.id, editForm);
+      await masterAccountService.updateInstituteAccount(selectedAccount.id, { ...editForm, accountNumber });
       await fetchAccounts();
       setShowEditModal(false);
       setSelectedAccount(null);
@@ -229,7 +239,7 @@ export default function InstituteAccountsList() {
     },
     {
       title: 'Total Balance',
-      value: `₹${accounts.reduce((sum, a) => sum + (a.balance || 0), 0).toLocaleString()}`,
+      value: formatRupees(accounts.reduce((sum, a) => sum + (a.balance || 0), 0)),
       icon: <FiDollarSign className="h-5 w-5" />,
     },
   ];
@@ -373,7 +383,7 @@ export default function InstituteAccountsList() {
             <div>
               <p className="text-xs text-gray-500 dark:text-gray-400">Balance</p>
               <p className="text-gray-900 dark:text-gray-100">
-                ₹{(selectedAccount.balance || 0).toLocaleString()}
+                {formatRupees(selectedAccount.balance)}
               </p>
             </div>
             <div className="sm:col-span-2">
@@ -416,7 +426,17 @@ export default function InstituteAccountsList() {
           <Input
             label="Account Number"
             value={editForm.accountNumber}
-            onChange={(e) => setEditForm({ ...editForm, accountNumber: e.target.value })}
+            error={accountNumberError}
+            {...digitsOnlyInputProps(() => setAccountNumberError(accountNumberMessage()))}
+            onChange={(e) => {
+              const accountNumber = e.target.value;
+              setEditForm({ ...editForm, accountNumber });
+              setAccountNumberError(
+                accountNumber.trim() && !ACCOUNT_NUMBER_PATTERN.test(accountNumber.trim())
+                  ? accountNumberMessage()
+                  : undefined
+              );
+            }}
           />
           <Input
             label="Bank Name"

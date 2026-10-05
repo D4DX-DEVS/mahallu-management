@@ -77,7 +77,8 @@ export const createSalaryPayment = async (req: AuthRequest, res: Response) => {
 
     // Calculate net amount if not provided
     if (!paymentData.netAmount) {
-      paymentData.netAmount = (paymentData.baseSalary || 0) + (paymentData.allowances || 0) - (paymentData.deductions || 0);
+      // Number(): the validators accept numeric strings, and "5000" + "500" is "5000500".
+      paymentData.netAmount = Number(paymentData.baseSalary || 0) + Number(paymentData.allowances || 0) - Number(paymentData.deductions || 0);
     }
 
     const payment = new SalaryPayment(paymentData);
@@ -135,7 +136,7 @@ export const updateSalaryPayment = async (req: AuthRequest, res: Response) => {
       const base = req.body.baseSalary ?? existing.baseSalary;
       const allowances = req.body.allowances ?? existing.allowances;
       const deductions = req.body.deductions ?? existing.deductions;
-      req.body.netAmount = base + allowances - deductions;
+      req.body.netAmount = Number(base) + Number(allowances) - Number(deductions);
     }
 
     const payment = await SalaryPayment.findByIdAndUpdate(

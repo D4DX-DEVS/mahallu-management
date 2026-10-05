@@ -79,18 +79,23 @@ const getActionFromMethod = (method: string, entityType: string): string => {
 };
 
 // Helper function to sanitize sensitive data from request body
-const sanitizeRequestBody = (body: any): any => {
-  if (!body || typeof body !== 'object') return body;
+// Matches by substring, case-insensitively, at any depth: `currentPassword`, `newPassword`,
+// `preAuthToken`, `phoneOtp` and `bankAccount.accountNumber`-style nesting all have to be
+// caught, not only a top-level key spelled exactly `password`. The log is readable by admins.
+const SENSITIVE_KEY = /pass(word|wd)?|token|secret|api[-_]?key|authorization|otp|pin$/i;
 
-  const sensitiveFields = ['password', 'token', 'secret', 'apiKey', 'authorization'];
-  const sanitized = { ...body };
+export const sanitizeRequestBody = (body: any, depth = 0): any => {
+  if (!body || typeof body !== 'object' || depth > 6) return body;
+  if (Array.isArray(body)) return body.map((item) => sanitizeRequestBody(item, depth + 1));
 
-  for (const field of sensitiveFields) {
-    if (sanitized[field]) {
-      sanitized[field] = '***REDACTED***';
+  const sanitized: Record<string, any> = {};
+  for (const [key, value] of Object.entries(body)) {
+    if (SENSITIVE_KEY.test(key) && value) {
+      sanitized[key] = '***REDACTED***';
+    } else {
+      sanitized[key] = sanitizeRequestBody(value, depth + 1);
     }
   }
-
   return sanitized;
 };
 

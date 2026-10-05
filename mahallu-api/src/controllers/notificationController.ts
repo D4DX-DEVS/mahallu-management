@@ -21,8 +21,9 @@ export const getAllNotifications = async (req: AuthRequest, res: Response) => {
       query.tenantId = tenantId;
     }
 
-    // For individual notifications, filter by user
-    if (recipientType === 'individual') {
+    // For individual notifications, filter by user. A member only ever sees their own
+    // (and broadcast) notifications, whatever the query string says.
+    if (recipientType === 'individual' || req.user?.role === 'member') {
       query.$or = [
         { recipientId: req.user?._id },
         { recipientType: 'all' },
@@ -56,6 +57,14 @@ export const createNotification = async (req: AuthRequest, res: Response) => {
       });
     }
 
+    // A targeted notification must target someone in the same Mahallu.
+    if (notificationData.recipientId && !req.isSuperAdmin) {
+      const recipient = await User.findOne({ _id: notificationData.recipientId, tenantId: notificationData.tenantId }).select('_id');
+      if (!recipient) {
+        return res.status(404).json({ success: false, message: "We couldn't find that recipient." });
+      }
+    }
+
     const notification = new Notification(notificationData);
     await notification.save();
 
@@ -77,7 +86,7 @@ export const createNotification = async (req: AuthRequest, res: Response) => {
           title: notification.title,
           message: notification.message,
           imageUrl: notification.imageUrl,
-          playerIds: playerIds.length > 0 ? playerIds : undefined,
+          playerIds,
         });
       } catch (err: any) {
         console.error('[OneSignal] Player ID lookup failed:', err.message);

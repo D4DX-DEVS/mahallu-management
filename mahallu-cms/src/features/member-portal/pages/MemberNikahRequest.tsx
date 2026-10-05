@@ -46,7 +46,7 @@ export default function MemberNikahRequest() {
 
   const [side, setSide] = useState<'groom' | 'bride'>('groom');
   const [subjectMemberId, setSubjectMemberId] = useState<string>('');
-  const [groomName, setGroomName] = useState(user?.name || '');
+  const [groomName, setGroomName] = useState('');
   const [groomAge, setGroomAge] = useState('');
   const [brideName, setBrideName] = useState('');
   const [brideAge, setBrideAge] = useState('');

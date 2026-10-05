@@ -8,6 +8,7 @@ import Select from '@/components/ui/Select';
 import Table from '@/components/ui/Table';
 import Modal from '@/components/ui/Modal';
 import ExpandableSearch from '@/components/ui/ExpandableSearch';
+import ActionBar from '@/components/ui/ActionBar';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import EmptyState from '@/components/ui/EmptyState';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
@@ -193,7 +194,7 @@ export default function FacilitiesList() {
       />
 
       <TableCard>
-        <div className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto_auto] sm:items-center">
+        <ActionBar>
           <ExpandableSearch
             value={searchQuery}
             onChange={(value) => {
@@ -202,16 +203,18 @@ export default function FacilitiesList() {
             }}
             entity="facilities"
           />
-          <Select
-            options={[{ value: '', label: 'All types' }, ...TYPE_OPTIONS]}
-            value={typeFilter}
-            onChange={(e) => {
-              setTypeFilter(e.target.value);
-              setCurrentPage(1);
-            }}
-          />
-          <Button size="md" onClick={openCreate} icon={<FiPlus />} collapseLabel>New Facility</Button>
-        </div>
+          <div className="min-w-0 flex-1 sm:w-48 sm:flex-none">
+            <Select
+              options={[{ value: '', label: 'All types' }, ...TYPE_OPTIONS]}
+              value={typeFilter}
+              onChange={(e) => {
+                setTypeFilter(e.target.value);
+                setCurrentPage(1);
+              }}
+            />
+          </div>
+          <Button size="md" onClick={openCreate} icon={<FiPlus />} collapseLabel className="flex-shrink-0">New Facility</Button>
+        </ActionBar>
 
         {loading ? (
           <PageSkeleton variant="section" />

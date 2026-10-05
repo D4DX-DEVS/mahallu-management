@@ -7,6 +7,7 @@ import Card from '../../../components/ui/Card';
 import Pagination from '../../../components/ui/Pagination';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import ExpandableSearch from '@/components/ui/ExpandableSearch';
+import ActionBar from '@/components/ui/ActionBar';
 import ConfirmDialog from '../../../components/ui/ConfirmDialog';
 import { toast } from '@/store/toastStore';
 import { FiPlus, FiEdit2, FiTrash2, FiArrowLeft } from 'react-icons/fi';
@@ -156,12 +157,14 @@ export function CemeteryDetail() {
           </Button>
         </div>
 
-        <ExpandableSearch
-          value={search}
-          onChange={(value) => setSearch(value)}
-          entity="graves"
-          placeholder="Search by grave number or deceased name"
-        />
+        <ActionBar className="mb-0">
+          <ExpandableSearch
+            value={search}
+            onChange={(value) => setSearch(value)}
+            entity="graves"
+            placeholder="Search by grave number or deceased name"
+          />
+        </ActionBar>
 
         {graves.length === 0 ? (
           <div className="text-center py-8 text-gray-500">

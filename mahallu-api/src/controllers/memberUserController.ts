@@ -762,14 +762,23 @@ export const requestNikahRegistration = async (req: AuthRequest, res: Response) 
       });
     }
 
+    // The groom's name is whatever was entered on the form. The member record
+    // supplies the *link* (groomId), not the name - copying subject.name over the
+    // submitted value saved the signed-in member's own name no matter what was
+    // typed. It is only a fallback for a client that sent no groom name at all.
+    // The same holds on the bride side: the form has an editable bride name, so
+    // the member record only supplies brideId and a fallback.
+    const enteredGroomName = typeof req.body.groomName === 'string' ? req.body.groomName.trim() : '';
+    const enteredBrideName = typeof req.body.brideName === 'string' ? req.body.brideName.trim() : '';
+
     const nikahData = {
       ...req.body,
       tenantId: member.tenantId,
       mahallMemberType: side,
       submittedByMemberId: member._id,
       ...(side === 'groom'
-        ? { groomId: subject._id, groomName: subject.name, groomAge: req.body.groomAge ?? subject.age }
-        : { brideId: subject._id, brideName: subject.name, brideAge: req.body.brideAge ?? subject.age }),
+        ? { groomId: subject._id, groomName: enteredGroomName || subject.name, groomAge: req.body.groomAge ?? subject.age }
+        : { brideId: subject._id, brideName: enteredBrideName || subject.name, brideAge: req.body.brideAge ?? subject.age }),
       status: 'pending',
     };
 
@@ -943,13 +952,17 @@ export const requestNOC = async (req: AuthRequest, res: Response) => {
         });
       }
 
+      // As on the standalone nikah request: the member record supplies the id
+      // link, the names are whatever was typed on the form.
+      const typedGroom = typeof groomName === 'string' ? groomName.trim() : '';
+      const typedBride = typeof brideName === 'string' ? brideName.trim() : '';
       const nikahReg = new NikahRegistration({
         tenantId: member.tenantId,
         mahallMemberType: side,
         submittedByMemberId: member._id,
         ...(side === 'groom'
-          ? { groomId: subject._id, groomName: subject.name, groomAge: groomAge ?? subject.age, brideName, brideAge }
-          : { brideId: subject._id, brideName: subject.name, brideAge: brideAge ?? subject.age, groomName, groomAge }),
+          ? { groomId: subject._id, groomName: typedGroom || subject.name, groomAge: groomAge ?? subject.age, brideName, brideAge }
+          : { brideId: subject._id, brideName: typedBride || subject.name, brideAge: brideAge ?? subject.age, groomName, groomAge }),
         nikahDate,
         venue,
         waliName,

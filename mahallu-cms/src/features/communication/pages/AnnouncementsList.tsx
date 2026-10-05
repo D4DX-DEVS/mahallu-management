@@ -6,6 +6,7 @@ import Button from '@/components/ui/Button';
 import Table from '@/components/ui/Table';
 import EmptyState from '@/components/ui/EmptyState';
 import ExpandableSearch from '@/components/ui/ExpandableSearch';
+import ActionBar from '@/components/ui/ActionBar';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import Pagination from '@/components/ui/Pagination';
 import { Pagination as PaginationType, TableColumn } from '@/types';
@@ -72,44 +73,43 @@ export default function AnnouncementsList() {
       <PageHeader title="Announcements" description="Broadcast messages to the community" />
 
       <TableCard>
-        <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div className="grid grid-cols-3 gap-1.5 sm:flex">
-            {STATUS_TABS.map((tab) => (
-              <button
-                key={tab.value || 'all'}
-                onClick={() => {
-                  setStatusFilter(tab.value);
-                  setCurrentPage(1);
-                }}
-                className={[
-                  'rounded-lg border px-2 py-1.5 text-xs font-medium',
-                  statusFilter === tab.value
-                    ? 'border-primary-300 bg-primary-50 text-primary-900'
-                    : 'border-gray-200 bg-white text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300',
-                ].join(' ')}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-          <div className="flex min-w-0 items-center gap-2">
-            <div className="min-w-0 flex-1 sm:w-56 sm:flex-none">
-              <ExpandableSearch
-                value={searchQuery}
-                onChange={(value) => {
-                  setSearchQuery(value);
-                  setCurrentPage(1);
-                }}
-                entity="announcements"
-              />
+        <ActionBar
+          leading={
+            <div className="grid grid-cols-3 gap-1.5 sm:flex">
+              {STATUS_TABS.map((tab) => (
+                <button
+                  key={tab.value || 'all'}
+                  onClick={() => {
+                    setStatusFilter(tab.value);
+                    setCurrentPage(1);
+                  }}
+                  className={[
+                    'rounded-lg border px-2 py-1.5 text-xs font-medium',
+                    statusFilter === tab.value
+                      ? 'border-primary/30 bg-primary/10 text-primary'
+                      : 'border-border bg-background text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+                  ].join(' ')}
+                >
+                  {tab.label}
+                </button>
+              ))}
             </div>
-            <Link to="/announcements/create" className="flex-shrink-0">
-              <Button size="md" icon={<FiPlus />} collapseLabel>
-                New Announcement
-              </Button>
-            </Link>
-          </div>
-        </div>
+          }
+        >
+          <ExpandableSearch
+            value={searchQuery}
+            onChange={(value) => {
+              setSearchQuery(value);
+              setCurrentPage(1);
+            }}
+            entity="announcements"
+          />
+          <Link to="/announcements/create" className="flex-shrink-0">
+            <Button size="md" icon={<FiPlus />} collapseLabel>
+              New Announcement
+            </Button>
+          </Link>
+        </ActionBar>
 
         {loading ? (
           <PageSkeleton variant="section" />

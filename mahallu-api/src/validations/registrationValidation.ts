@@ -52,7 +52,7 @@ export const createNikahRegistrationValidation = [
   body('mahrDescription').optional().trim(),
   body('status')
     .optional()
-    .isIn(['pending', 'approved', 'rejected'])
+    .isIn(['pending', 'correction_required', 'approved', 'rejected'])
     .withMessage('Please choose a valid status.'),
   body('remarks').optional().trim(),
 ];
@@ -110,7 +110,7 @@ export const updateNikahRegistrationValidation = [
   body('mahrDescription').optional().trim(),
   body('status')
     .optional()
-    .isIn(['pending', 'approved', 'rejected'])
+    .isIn(['pending', 'correction_required', 'approved', 'rejected'])
     .withMessage('Please choose a valid status.'),
   body('remarks').optional().trim(),
 ];
@@ -149,7 +149,7 @@ export const createDeathRegistrationValidation = [
     .withMessage('Please enter a 10-digit informant phone.'),
   body('status')
     .optional()
-    .isIn(['pending', 'approved', 'rejected'])
+    .isIn(['pending', 'correction_required', 'approved', 'rejected'])
     .withMessage('Please choose a valid status.'),
   body('remarks').optional().trim(),
 ];
@@ -189,7 +189,7 @@ export const updateDeathRegistrationValidation = [
     .withMessage('Please enter a 10-digit informant phone.'),
   body('status')
     .optional()
-    .isIn(['pending', 'approved', 'rejected'])
+    .isIn(['pending', 'correction_required', 'approved', 'rejected'])
     .withMessage('Please choose a valid status.'),
   body('remarks').optional().trim(),
 ];
@@ -236,7 +236,7 @@ export const createNOCValidation = [
     .withMessage('Please select a valid nikah registration.'),
   body('status')
     .optional()
-    .isIn(['pending', 'approved', 'rejected'])
+    .isIn(['pending', 'correction_required', 'approved', 'rejected'])
     .withMessage('Please choose a valid status.'),
   body('issuedDate')
     .optional()
@@ -253,7 +253,7 @@ export const updateNOCValidation = [
   param('id').isMongoId().withMessage('Please select a valid NOC.'),
   body('status')
     .optional()
-    .isIn(['pending', 'approved', 'rejected'])
+    .isIn(['pending', 'correction_required', 'approved', 'rejected'])
     .withMessage('Please choose a valid status.'),
   body('issuedDate')
     .optional()

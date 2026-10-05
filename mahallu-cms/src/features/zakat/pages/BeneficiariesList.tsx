@@ -188,16 +188,14 @@ export default function BeneficiariesList() {
               </button>
             ))}
           </div>
-          <div className="flex min-w-0 items-center gap-2">
-            <div className="min-w-0 flex-1 sm:w-56 sm:flex-none">
-              <ExpandableSearch
-                value={searchQuery}
-                onChange={setSearchQuery}
-                entity="beneficiaries"
-                placeholder="Search by name"
-              />
-            </div>
-            <Link to="/zakat/beneficiaries/create">
+          <div className="flex min-w-0 items-center justify-end gap-2">
+            <ExpandableSearch
+              value={searchQuery}
+              onChange={setSearchQuery}
+              entity="beneficiaries"
+              placeholder="Search by name"
+            />
+            <Link to="/zakat/beneficiaries/create" className="flex-shrink-0">
               <Button size="md" icon={<FiPlus />} collapseLabel>
                 New Beneficiary
               </Button>

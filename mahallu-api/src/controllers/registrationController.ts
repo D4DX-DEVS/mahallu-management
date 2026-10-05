@@ -6,6 +6,7 @@ import { getPaginationParams, createPaginationResponse } from '../utils/paginati
 
 import { sendFailure } from '../utils/userMessages';
 import { regexLiteral } from '../utils/queryGuard';
+import { verifyTenantOwnership } from '../utils/tenantCheck';
 
 // Nikah Registration
 export const getAllNikahRegistrations = async (req: AuthRequest, res: Response) => {
@@ -354,6 +355,14 @@ export const updateNOC = async (req: AuthRequest, res: Response) => {
       updateData.approvedBy = req.user?.name || undefined;
       if (!issuedDate) updateData.issuedDate = new Date();
     }
+
+    // Only the Mahallu that owns the NOC may change it; by id alone, any admin could approve
+    // another Mahallu's NOC under their own name.
+    const existing = await NOC.findById(id);
+    if (!existing) {
+      return res.status(404).json({ success: false, message: "We couldn't find that NOC. It may have been removed." });
+    }
+    if (!verifyTenantOwnership(req, res, existing.tenantId, 'NOC')) return;
 
     const noc = await NOC.findByIdAndUpdate(
       id,

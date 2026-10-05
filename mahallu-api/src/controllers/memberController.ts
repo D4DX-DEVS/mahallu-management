@@ -398,12 +398,17 @@ export const deleteMember = async (req: AuthRequest, res: Response) => {
   }
 };
 
-export const getMembersByFamily = async (req: Request, res: Response) => {
+export const getMembersByFamily = async (req: AuthRequest, res: Response) => {
   try {
     const { familyId } = req.params;
     const { status } = req.query;
 
     const query: any = { familyId };
+    // A family id from another Mahallu must not list that family's members (names, phones, ages).
+    if (!req.isSuperAdmin) {
+      if (!req.tenantId) return res.json({ success: true, data: [] });
+      query.tenantId = req.tenantId;
+    }
 
     // Filter by status - default to active only, unless explicitly requested
     if (status) {

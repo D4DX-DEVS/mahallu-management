@@ -6,6 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import TableCard from '@/components/ui/TableCard';
 import ExpandableSearch from '@/components/ui/ExpandableSearch';
+import ActionBar from '@/components/ui/ActionBar';
 import Button from '@/components/ui/Button';
 import Table from '@/components/ui/Table';
 import Modal from '@/components/ui/Modal';
@@ -224,7 +225,7 @@ export default function KhateebsList() {
 
       {error && <div className="p-4 bg-red-100 text-red-800 rounded">{error}</div>}
 
-      <div className="flex gap-4 justify-between items-center">
+      <ActionBar className="mb-0">
         <ExpandableSearch
           value={searchQuery}
           onChange={(value) => {
@@ -235,7 +236,7 @@ export default function KhateebsList() {
           placeholder="Search khateebs by name"
         />
         <Button onClick={() => handleOpenModal()} icon={<FiPlus />} collapseLabel>New Khateeb</Button>
-      </div>
+      </ActionBar>
 
       <TableCard>
         <Table fixedLayout striped columns={columns} data={khateebs} />

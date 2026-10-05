@@ -6,6 +6,7 @@ import Button from '@/components/ui/Button';
 import Table from '@/components/ui/Table';
 import StatCard from '@/components/ui/StatCard';
 import ExpandableSearch from '@/components/ui/ExpandableSearch';
+import ActionBar from '@/components/ui/ActionBar';
 import Pagination from '@/components/ui/Pagination';
 import EmptyState from '@/components/ui/EmptyState';
 import { Pagination as PaginationType, TableColumn } from '@/types';
@@ -119,7 +120,7 @@ export default function LoansList() {
       )}
 
       <TableCard>
-        <div className="mb-3">
+        <ActionBar>
           <ExpandableSearch
             value={searchQuery}
             onChange={(value) => {
@@ -129,7 +130,7 @@ export default function LoansList() {
             entity="loan applications"
             placeholder="Search by applicant name"
           />
-        </div>
+        </ActionBar>
 
         <div className="mb-3 grid grid-cols-4 gap-1.5 sm:flex sm:flex-wrap">
           {LOAN_STATUS_TABS.map((tab) => (

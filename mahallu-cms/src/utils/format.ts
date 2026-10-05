@@ -26,6 +26,22 @@ export const formatCurrency = (amount: number, currency: string = 'INR'): string
   }).format(amount);
 };
 
+/**
+ * Whole-rupee amounts the way the app shows them: "₹1,500", "₹1,50,000",
+ * "₹1,500.5". Indian digit grouping regardless of the browser's locale, and the
+ * same text in the table, the stat cards and the CSV/PDF exports (which reuse
+ * the column's `render`). Use `formatCurrency` when fixed decimals are wanted.
+ */
+export const formatRupees = (amount: number | string | null | undefined): string => {
+  const value = Number(amount);
+  return new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(Number.isFinite(value) ? value : 0);
+};
+
 export const formatPhoneNumber = (phone: string): string => {
   // Format: +91 12345 67890
   if (phone.length === 10) {

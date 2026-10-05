@@ -5,7 +5,7 @@ import {
   markAsRead,
   markAllAsRead,
 } from '../controllers/notificationController';
-import { authMiddleware } from '../middleware/authMiddleware';
+import { authMiddleware, allowRoles } from '../middleware/authMiddleware';
 import { tenantMiddleware, tenantFilter } from '../middleware/tenantMiddleware';
 import { validationHandler } from '../middleware/validationHandler';
 import {
@@ -143,7 +143,7 @@ router.get('/', listQuery(), validationHandler, getAllNotifications);
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  */
-router.post('/', createNotificationValidation, validationHandler, createNotification);
+router.post('/', allowRoles(['super_admin', 'mahall']), createNotificationValidation, validationHandler, createNotification);
 
 /**
  * @swagger

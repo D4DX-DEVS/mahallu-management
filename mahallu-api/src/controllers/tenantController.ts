@@ -95,6 +95,8 @@ export const createTenant = async (req: AuthRequest, res: Response) => {
   }
 };
 
+const PLATFORM_ONLY_TENANT_FIELDS = ['status', 'subscription', 'type', 'classification', 'code'];
+
 export const updateTenant = async (req: AuthRequest, res: Response) => {
   try {
     if (!req.isSuperAdmin && req.tenantId?.toString() !== req.params.id) {
@@ -102,6 +104,20 @@ export const updateTenant = async (req: AuthRequest, res: Response) => {
     }
     // Handle nested settings update properly
     const updateData = { ...req.body };
+
+    // A Mahallu may maintain its own profile and settings; plan, status, type/classification,
+    // its code and the module switches (settings.features) belong to the platform. Without
+    // this a survey worker could suspend their own Mahallu or switch on paid modules.
+    if (!req.isSuperAdmin) {
+      if (req.user?.role !== 'mahall') {
+        return res.status(403).json({ success: false, message: "You don't have permission to do this. Please contact your Mahallu admin." });
+      }
+      for (const field of PLATFORM_ONLY_TENANT_FIELDS) delete updateData[field];
+      if (updateData.settings && typeof updateData.settings === 'object') {
+        const { features: _features, ...ownSettings } = updateData.settings;
+        updateData.settings = ownSettings;
+      }
+    }
 
     // Changing classification re-seeds the default feature set, unless the caller
     // sent an explicit features map in the same request.

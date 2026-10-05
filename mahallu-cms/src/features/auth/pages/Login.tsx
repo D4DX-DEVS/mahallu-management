@@ -235,7 +235,7 @@ export default function Login() {
   };
 
   return (
-    <div className="flex min-h-[100dvh] items-center justify-center bg-gradient-to-br from-slate-50 via-white to-primary-50 p-4 py-10 lg:p-10">
+    <div className="flex min-h-[100dvh] items-center justify-center bg-gradient-to-br from-slate-50 via-white to-primary-50 p-4 dark:from-background dark:via-background dark:to-primary-900/20 py-10 lg:p-10">
       <div className="grid w-full max-w-6xl overflow-hidden rounded-3xl bg-card shadow-[0_30px_70px_-25px_rgba(21,128,61,0.35)] lg:grid-cols-2">
         {/* Promo panel — mirrors the live marketing side, hidden below lg */}
         <div className="relative hidden flex-col justify-between overflow-hidden bg-gradient-to-br from-emerald-950 via-primary-900 to-emerald-900 p-10 text-white lg:flex">
