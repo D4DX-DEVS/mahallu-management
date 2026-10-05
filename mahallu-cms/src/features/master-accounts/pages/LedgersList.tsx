@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { FiBook, FiEdit2, FiEye, FiPlus, FiTrash2 } from 'react-icons/fi';
+import { FiBook, FiPlus } from 'react-icons/fi';
 import TableCard from '@/components/ui/TableCard';
 import FilterPanel from '@/components/ui/FilterPanel';
 import Button from '@/components/ui/Button';
@@ -22,7 +22,6 @@ import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
 import { toast } from '@/store/toastStore';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
-import ActionsMenu from '@/components/ui/ActionsMenu';
 
 export default function LedgersList() {
   const { currentInstituteId: userInstituteId } = useAuthStore();
@@ -140,36 +139,6 @@ export default function LedgersList() {
       width: '7.75rem',
       render: (date) => formatDate(date),
     },
-    {
-      key: 'actions',
-      label: 'Actions',
-      width: '8rem',
-      align: 'center',
-      render: (_, row) => (
-        <ActionsMenu
-          items={[
-            {
-              label: 'View',
-              icon: <FiEye className="h-4 w-4" />,
-              onClick: () => {
-                setSelectedLedger(row);
-                setShowViewModal(true);
-              },
-            },
-            { label: 'Edit', icon: <FiEdit2 className="h-4 w-4" />, onClick: () => openEditModal(row) },
-            {
-              label: 'Delete',
-              icon: <FiTrash2 className="h-4 w-4" />,
-              onClick: () => {
-                setSelectedLedger(row);
-                setShowDeleteModal(true);
-              },
-              variant: 'danger',
-            },
-          ]}
-        />
-      ),
-    },
   ];
 
   const openEditModal = (ledger: Ledger) => {
@@ -229,7 +198,7 @@ export default function LedgersList() {
         </div>
       </div>
 
-      <TableCard>
+      <TableCard borderless>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -276,7 +245,18 @@ export default function LedgersList() {
           />
         ) : (
           <>
-            <Table fixedLayout striped columns={columns} data={filteredLedgers} emptyMessage="No ledgers found" showExport={false} />
+            <Table
+              fixedLayout
+              striped
+              columns={columns}
+              data={filteredLedgers}
+              emptyMessage="No ledgers found"
+              showExport={false}
+              onRowClick={(row) => {
+                setSelectedLedger(row);
+                setShowViewModal(true);
+              }}
+            />
             {pagination && pagination.totalPages > 1 && (
               <div className="mt-4">
                 <Pagination
@@ -301,15 +281,35 @@ export default function LedgersList() {
         }}
         title="Ledger Details"
         footer={
-          <Button
-            variant="outline"
-            onClick={() => {
-              setShowViewModal(false);
-              setSelectedLedger(null);
-            }}
-          >
-            Close
-          </Button>
+          <>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowViewModal(false);
+                setSelectedLedger(null);
+              }}
+            >
+              Close
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (selectedLedger) openEditModal(selectedLedger);
+                setShowViewModal(false);
+              }}
+            >
+              Edit
+            </Button>
+            <Button
+              variant="danger"
+              onClick={() => {
+                setShowViewModal(false);
+                setShowDeleteModal(true);
+              }}
+            >
+              Delete
+            </Button>
+          </>
         }
       >
         {selectedLedger && (

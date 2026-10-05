@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "tsc -p tsconfig.json --noEmit && vite build",
     "build:check": "tsc && vite build",
+    "audit:ui": "node scripts/ui-audit.mjs",
     "lint": "eslint . --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview"
   },

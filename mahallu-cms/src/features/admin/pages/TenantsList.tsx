@@ -277,7 +277,7 @@ export default function TenantsList() {
       </div>
 
       {/* Actions and Table */}
-      <TableCard>
+      <TableCard borderless>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -319,6 +319,7 @@ export default function TenantsList() {
           isLoading={isLoading}
           emptyMessage="No tenants found"
           showExport={false}
+          onRowClick={(row) => navigate(`/admin/tenants/${row.id}`)}
         />
         {pagination && pagination.totalPages > 1 && (
           <div className="mt-4">

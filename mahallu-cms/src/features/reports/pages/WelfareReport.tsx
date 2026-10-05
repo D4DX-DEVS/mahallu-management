@@ -57,7 +57,7 @@ export default function WelfareReport() {
     }
   };
 
-  if (loading) return <PageSkeleton variant="section" />;
+  if (loading) return <PageSkeleton />;
 
   if (error || !data) {
     return (

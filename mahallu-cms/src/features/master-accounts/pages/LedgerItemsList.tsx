@@ -14,7 +14,7 @@ import Pagination from '@/components/ui/Pagination';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import TableToolbar from '@/components/ui/TableToolbar';
 import { TableColumn, Pagination as PaginationType } from '@/types';
-import { masterAccountService, LedgerItem, Ledger } from '@/services/masterAccountService';
+import { masterAccountService, LedgerItem, Ledger, Category } from '@/services/masterAccountService';
 import { instituteService } from '@/services/instituteService';
 import { useAuthStore } from '@/store/authStore';
 import { formatDate, toTitleCase } from '@/utils/format';
@@ -32,6 +32,7 @@ export default function LedgerItemsList() {
   const [ledgerFilter, setLedgerFilter] = useState('all');
   const [items, setItems] = useState<LedgerItem[]>([]);
   const [ledgers, setLedgers] = useState<Ledger[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -56,6 +57,7 @@ export default function LedgerItemsList() {
 
   useEffect(() => {
     fetchLedgers();
+    fetchCategories();
     if (!userInstituteId) {
       // The API caps `limit` at 100 and answers 400 above it — getAllForExport
       // pages through all institutes instead of failing the dropdown silently.
@@ -78,6 +80,16 @@ export default function LedgerItemsList() {
     } catch (err) {
       console.error('Error fetching ledgers:', err);
       setLedgers([]);
+    }
+  };
+
+  const fetchCategories = async () => {
+    try {
+      const result = await masterAccountService.getAllCategories({ limit: 1000 });
+      setCategories(Array.isArray(result.data) ? result.data : []);
+    } catch (err) {
+      console.error('Error fetching categories:', err);
+      setCategories([]);
     }
   };
 
@@ -319,7 +331,7 @@ export default function LedgerItemsList() {
         </div>
       </div>
 
-      <TableCard>
+      <TableCard borderless>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -382,7 +394,18 @@ export default function LedgerItemsList() {
           />
         ) : (
           <>
-            <Table fixedLayout striped columns={columns} data={filteredItems} emptyMessage="No ledger items found" showExport={false} />
+            <Table
+              fixedLayout
+              striped
+              columns={columns}
+              data={filteredItems}
+              emptyMessage="No ledger items found"
+              showExport={false}
+              onRowClick={(row) => {
+                setSelectedItem(row);
+                setShowViewModal(true);
+              }}
+            />
             {pagination && pagination.totalPages > 1 && (
               <div className="mt-4">
                 <Pagination
@@ -407,15 +430,39 @@ export default function LedgerItemsList() {
         }}
         title="Ledger Item Details"
         footer={
-          <Button
-            variant="outline"
-            onClick={() => {
-              setShowViewModal(false);
-              setSelectedItem(null);
-            }}
-          >
-            Close
-          </Button>
+          <>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowViewModal(false);
+                setSelectedItem(null);
+              }}
+            >
+              Close
+            </Button>
+            {!(selectedItem?.source && selectedItem.source !== 'manual') && (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    if (selectedItem) openEditModal(selectedItem);
+                    setShowViewModal(false);
+                  }}
+                >
+                  Edit
+                </Button>
+                <Button
+                  variant="danger"
+                  onClick={() => {
+                    setShowViewModal(false);
+                    setShowDeleteModal(true);
+                  }}
+                >
+                  Delete
+                </Button>
+              </>
+            )}
+          </>
         }
       >
         {selectedItem && (
@@ -438,6 +485,12 @@ export default function LedgerItemsList() {
               <p className="text-xs text-gray-500 dark:text-gray-400">Ledger</p>
               <p className="text-gray-900 dark:text-gray-100">
                 {toTitleCase(ledgers.find((l) => l.id === selectedItem.ledgerId)?.name) || '—'}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Category</p>
+              <p className="text-gray-900 dark:text-gray-100">
+                {toTitleCase(categories.find((c) => c.id === selectedItem.categoryId)?.name) || '—'}
               </p>
             </div>
             <div className="sm:col-span-2">

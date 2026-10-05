@@ -72,7 +72,7 @@ export default function AnnouncementsList() {
     <div className="space-y-3">
       <PageHeader title="Announcements" description="Broadcast messages to the community" />
 
-      <TableCard>
+      <TableCard borderless>
         <ActionBar
           leading={
             <div className="grid grid-cols-3 gap-1.5 sm:flex">

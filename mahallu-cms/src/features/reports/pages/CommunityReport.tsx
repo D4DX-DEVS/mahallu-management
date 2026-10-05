@@ -48,7 +48,7 @@ export default function CommunityReport() {
     }
   };
 
-  if (loading) return <PageSkeleton variant="section" />;
+  if (loading) return <PageSkeleton />;
 
   if (error || !data) {
     return (

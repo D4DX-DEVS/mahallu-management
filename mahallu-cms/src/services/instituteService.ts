@@ -12,7 +12,10 @@ export interface InstituteListParams {
   tenantId?: string;
 }
 
-const getAll = async (params?: InstituteListParams) => {
+const API_MAX_LIMIT = 100;
+const MAX_PAGES = 200;
+
+const getPage = async (params?: InstituteListParams) => {
   const response = await api.get<{ success: boolean; data: Institute[]; pagination?: any }>('/institutes', {
     params,
     // An explicit tenantId (e.g. RoleSwitcher's picker) must scope this
@@ -26,6 +29,31 @@ const getAll = async (params?: InstituteListParams) => {
     return { data: asList(response.data.data), pagination: response.data.pagination };
   }
   return { data: asList(response.data.data), pagination: null };
+};
+
+const getAll = async (params?: InstituteListParams) => {
+  const requestedLimit = Number(params?.limit);
+  const wantsEverything =
+    Number.isFinite(requestedLimit) && requestedLimit > API_MAX_LIMIT && params?.page === undefined;
+
+  if (!wantsEverything) return getPage(params);
+
+  const all: Institute[] = [];
+  let page = 1;
+  let pagination: any = null;
+
+  while (page <= MAX_PAGES) {
+    const result = await getPage({ ...params, page, limit: API_MAX_LIMIT });
+    all.push(...result.data);
+    pagination = result.pagination ?? pagination;
+
+    if (result.data.length < API_MAX_LIMIT) break;
+    if (pagination?.totalPages && page >= pagination.totalPages) break;
+    if (all.length >= requestedLimit) break;
+    page += 1;
+  }
+
+  return { data: all.slice(0, requestedLimit), pagination };
 };
 
 /** The largest page the list route will serve — see validations/common.ts `listQuery`. */
@@ -44,18 +72,8 @@ export const instituteService = {
    * validation error instead of producing a file.
    */
   getAllForExport: async (params?: Omit<InstituteListParams, 'page' | 'limit'>) => {
-    const all: Institute[] = [];
-    let page = 1;
-    let totalPages = 1;
-
-    do {
-      const result = await getAll({ ...params, page, limit: MAX_PAGE_SIZE });
-      all.push(...result.data);
-      totalPages = result.pagination?.totalPages ?? 1;
-      page += 1;
-    } while (page <= totalPages && page <= MAX_EXPORT_PAGES);
-
-    return all;
+    const result = await getAll({ ...params, limit: MAX_PAGE_SIZE * MAX_EXPORT_PAGES });
+    return result.data;
   },
 
   getById: async (id: string) => {

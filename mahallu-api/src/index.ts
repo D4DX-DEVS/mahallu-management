@@ -281,15 +281,19 @@ connectDatabase()
   .then(() => {
     // Inert shared reference data every dropdown in the app depends on —
     // safe to re-run on every boot (upsert-only, never overwrites an edit).
-    seedCategories().catch((err) => console.error('Category seeding failed:', err.message));
+    if (process.env.SEED_ON_STARTUP !== 'false') {
+      seedCategories().catch((err) => console.error('Category seeding failed:', err.message));
+    }
   })
   .catch((err) => console.error('Database startup failed:', err));
 
 // Monthly varisangya WhatsApp reminders
-startVarisangyaReminderScheduler();
+if (process.env.BACKGROUND_JOBS_ENABLED !== 'false') {
+  startVarisangyaReminderScheduler();
 
-// Daily committee term-expiry notifications
-startCommitteeTermScheduler();
+  // Daily committee term-expiry notifications
+  startCommitteeTermScheduler();
+}
 
 // Start server
 server = app.listen(PORT, () => {
@@ -305,4 +309,3 @@ server.on('error', (error: NodeJS.ErrnoException) => {
   }
   process.exit(1);
 });
-

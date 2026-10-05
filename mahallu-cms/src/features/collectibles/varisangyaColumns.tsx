@@ -1,4 +1,4 @@
-import { FiEdit2, FiDownload, FiCheckCircle } from 'react-icons/fi';
+import { FiEdit2, FiDownload, FiCheckCircle, FiTrash2 } from 'react-icons/fi';
 
 import ActionsMenu from '@/components/ui/ActionsMenu';
 import StatusBadge from '@/components/ui/StatusBadge';
@@ -10,6 +10,7 @@ interface VarisangyaColumnDeps {
   openEdit: (row: Varisangya) => void;
   handleViewPdf: (row: Varisangya) => void;
   onVerify?: (row: Varisangya) => void;
+  onDelete?: (row: Varisangya) => void;
 }
 
 /** Table config split out of VarisangyaList to keep the page under 500 lines. */
@@ -36,6 +37,7 @@ export const buildVarisangyaColumns = ({
   openEdit,
   handleViewPdf,
   onVerify,
+  onDelete,
 }: VarisangyaColumnDeps): TableColumn<Varisangya>[] => [
   { key: 'name', label: 'Name', width: '6.75rem', render: (_, row) => toTitleCase(getPayerName(row)) },
   { key: 'familyName', label: 'Family name', width: '10rem', render: (_, row) => toTitleCase(getFamilyName(row)) },
@@ -91,6 +93,16 @@ export const buildVarisangyaColumns = ({
                     label: 'Verify payment',
                     icon: <FiCheckCircle className="h-4 w-4" />,
                     onClick: () => onVerify(row),
+                  },
+                ]
+              : []),
+            ...(onDelete
+              ? [
+                  {
+                    label: 'Delete payment',
+                    icon: <FiTrash2 className="h-4 w-4" />,
+                    variant: 'danger' as const,
+                    onClick: () => onDelete(row),
                   },
                 ]
               : []),

@@ -15,6 +15,7 @@ export interface IMosqueProfile extends Document {
   tenantId: mongoose.Types.ObjectId;
   name: string;
   nameMl?: string;
+  address?: string;
   capacity?: number;
   facilities: string[];
   prayerFacilityNotes?: string;
@@ -38,6 +39,7 @@ const MosqueProfileSchema = new Schema<IMosqueProfile>(
     },
     name: { type: String, required: [true, 'Mosque name is required'], trim: true },
     nameMl: { type: String, trim: true },
+    address: { type: String, trim: true },
     capacity: { type: Number, min: 0 },
     facilities: {
       type: [{ type: String, enum: MOSQUE_FACILITIES }],

@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import SurveySnapshot from '../models/SurveySnapshot';
-import LocalityFacility from '../models/LocalityFacility';
+import LocalityFacility, { ILocalityFacility } from '../models/LocalityFacility';
+import Institute from '../models/Institute';
 import Member from '../models/Member';
 import Family from '../models/Family';
 import { AuthRequest } from '../middleware/authMiddleware';
@@ -235,6 +236,39 @@ export const getFacilityById = async (req: AuthRequest, res: Response) => {
   }
 };
 
+/** Schools and colleges also show up in Institutes; other facility types don't. */
+const SYNCED_FACILITY_TYPES = ['school', 'college'];
+
+/** Keeps the mirrored Institute record in step with its source facility. */
+const syncInstituteFromFacility = async (facility: ILocalityFacility) => {
+  const shouldSync = SYNCED_FACILITY_TYPES.includes(facility.type);
+  const existingInstitute = await Institute.findOne({ syncedFacilityId: facility._id });
+
+  if (!shouldSync) {
+    if (existingInstitute) await existingInstitute.deleteOne();
+    return;
+  }
+
+  const instituteData = {
+    tenantId: facility.tenantId,
+    name: facility.name,
+    nameMl: facility.nameMl,
+    place: facility.address || facility.name,
+    type: 'institute' as const,
+    contactNo: facility.contactNo,
+    description: facility.notes,
+    status: facility.status === 'inactive' ? 'inactive' : 'active',
+    syncedFacilityId: facility._id,
+  };
+
+  if (existingInstitute) {
+    existingInstitute.set(instituteData);
+    await existingInstitute.save();
+  } else {
+    await Institute.create(instituteData);
+  }
+};
+
 export const createFacility = async (req: AuthRequest, res: Response) => {
   try {
     const tenantId = tenantScope(req) || req.body.tenantId;
@@ -242,6 +276,7 @@ export const createFacility = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ success: false, message: 'Please select a Mahallu before continuing.' });
     }
     const facility = await LocalityFacility.create({ ...req.body, tenantId });
+    await syncInstituteFromFacility(facility);
     res.status(201).json({ success: true, data: facility });
   } catch (error: any) {
     sendFailure(res, error, 'We couldn\'t save the facility. Please try again.');
@@ -258,6 +293,7 @@ export const updateFacility = async (req: AuthRequest, res: Response) => {
       new: true,
       runValidators: true,
     });
+    if (facility) await syncInstituteFromFacility(facility);
     res.json({ success: true, data: facility });
   } catch (error: any) {
     sendFailure(res, error, 'We couldn\'t update the facility. Please try again.');
@@ -270,6 +306,7 @@ export const deleteFacility = async (req: AuthRequest, res: Response) => {
     if (!existing || (req.tenantId && existing.tenantId.toString() !== req.tenantId)) {
       return res.status(404).json({ success: false, message: "We couldn't find that facility. It may have been removed." });
     }
+    await Institute.deleteOne({ syncedFacilityId: existing._id });
     await existing.deleteOne();
     res.json({ success: true, message: 'Facility deleted' });
   } catch (error: any) {

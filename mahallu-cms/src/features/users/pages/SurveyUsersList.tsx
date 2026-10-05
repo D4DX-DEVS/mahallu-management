@@ -175,7 +175,7 @@ export default function SurveyUsersList() {
         </div>
       </div>
 
-      <TableCard>
+      <TableCard borderless>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}

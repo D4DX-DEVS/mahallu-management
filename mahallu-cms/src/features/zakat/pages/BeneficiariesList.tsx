@@ -3,6 +3,7 @@ import ActionsMenu from '@/components/ui/ActionsMenu';
 import { FiCheck, FiPlus, FiX } from 'react-icons/fi';
 import { Link, useNavigate } from 'react-router-dom';
 import { FiSend } from 'react-icons/fi';
+import Modal from '@/components/ui/Modal';
 import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import Table from '@/components/ui/Table';
@@ -48,6 +49,11 @@ export default function BeneficiariesList() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [rejectConfirm, setRejectConfirm] = useState<ZakatBeneficiary | null>(null);
   const [rejectLoading, setRejectLoading] = useState(false);
+  const [verifyConfirm, setVerifyConfirm] = useState<ZakatBeneficiary | null>(null);
+  const [verifyLoading, setVerifyLoading] = useState(false);
+  const [viewing, setViewing] = useState<ZakatBeneficiary | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<ZakatBeneficiary | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   const debouncedSearch = useDebounce(searchQuery, 500);
 
@@ -106,6 +112,32 @@ export default function BeneficiariesList() {
     }
   };
 
+  const handleVerifyConfirm = async () => {
+    if (!verifyConfirm) return;
+    try {
+      setVerifyLoading(true);
+      await setVerification(verifyConfirm, 'verified');
+      setVerifyConfirm(null);
+    } finally {
+      setVerifyLoading(false);
+    }
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteConfirm) return;
+    try {
+      setDeleteLoading(true);
+      await zakatDistributionService.removeBeneficiary(deleteConfirm.id);
+      toast.success('Beneficiary deleted');
+      setDeleteConfirm(null);
+      fetchRows();
+    } catch (err: any) {
+      toast.error(errorMessage(err, { action: 'delete beneficiary' }));
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
   const columns: TableColumn<ZakatBeneficiary>[] = [
     { key: 'name', label: 'Beneficiary', width: '9.25rem', render: (_v, row) => beneficiaryName(row) },
     {
@@ -138,7 +170,7 @@ export default function BeneficiariesList() {
                   {
                     label: 'Verify',
                     icon: <FiCheck className="h-4 w-4" />,
-                    onClick: () => setVerification(row, 'verified'),
+                    onClick: () => setVerifyConfirm(row),
                     disabled: busyId === row.id,
                   },
                 ]),
@@ -167,7 +199,7 @@ export default function BeneficiariesList() {
         breadcrumbs={[{ label: 'Zakat' }]}
       />
 
-      <TableCard>
+      <TableCard borderless>
         <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div className="grid grid-cols-4 gap-1.5 sm:flex">
             {STATUS_TABS.map((tab) => (
@@ -219,7 +251,13 @@ export default function BeneficiariesList() {
             action={{ label: '+ New Beneficiary', onClick: () => navigate('/zakat/beneficiaries/create') }}
           />
         ) : (
-          <Table fixedLayout striped columns={columns} data={rows} />
+          <Table
+            fixedLayout
+            striped
+            columns={columns}
+            data={rows}
+            onRowClick={(row) => setViewing(row)}
+          />
         )}
 
         {pagination && (
@@ -246,6 +284,89 @@ export default function BeneficiariesList() {
         isLoading={rejectLoading}
         onConfirm={handleRejectConfirm}
         onCancel={() => setRejectConfirm(null)}
+      />
+
+      <ConfirmDialog
+        isOpen={!!verifyConfirm}
+        title="Verify this beneficiary?"
+        message={`Verify ${verifyConfirm ? beneficiaryName(verifyConfirm) : 'this beneficiary'}? They will become eligible for distributions.`}
+        confirmLabel="Verify beneficiary"
+        variant="primary"
+        isLoading={verifyLoading}
+        onConfirm={handleVerifyConfirm}
+        onCancel={() => setVerifyConfirm(null)}
+      />
+
+      <Modal
+        isOpen={Boolean(viewing)}
+        onClose={() => setViewing(null)}
+        title="Beneficiary Details"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setViewing(null)}>
+              Close
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (viewing) navigate(`/zakat/beneficiaries/${viewing.id}`);
+                setViewing(null);
+              }}
+            >
+              Edit
+            </Button>
+            <Button
+              variant="danger"
+              onClick={() => {
+                if (viewing) setDeleteConfirm(viewing);
+                setViewing(null);
+              }}
+            >
+              Delete
+            </Button>
+          </>
+        }
+      >
+        {viewing && (
+          <div className="space-y-3">
+            <div>
+              <span className="text-sm text-gray-500 dark:text-gray-400">Name</span>
+              <p className="text-gray-900 dark:text-gray-100">{beneficiaryName(viewing)}</p>
+            </div>
+            <div>
+              <span className="text-sm text-gray-500 dark:text-gray-400">Category</span>
+              <p className="text-gray-900 dark:text-gray-100">
+                {ZAKAT_CATEGORY_OPTIONS.find((o) => o.value === viewing.category)?.label || viewing.category}
+              </p>
+            </div>
+            <div>
+              <span className="text-sm text-gray-500 dark:text-gray-400">Priority Area</span>
+              <p className="text-gray-900 dark:text-gray-100">{viewing.priorityArea || '-'}</p>
+            </div>
+            <div>
+              <span className="text-sm text-gray-500 dark:text-gray-400">Verification</span>
+              <p className="text-gray-900 dark:text-gray-100">{viewing.verificationStatus}</p>
+            </div>
+            {viewing.notes && (
+              <div>
+                <span className="text-sm text-gray-500 dark:text-gray-400">Notes</span>
+                <p className="text-gray-900 dark:text-gray-100">{viewing.notes}</p>
+              </div>
+            )}
+          </div>
+        )}
+      </Modal>
+
+      <ConfirmDialog
+        isOpen={!!deleteConfirm}
+        title="Delete beneficiary?"
+        message={`Delete ${deleteConfirm ? beneficiaryName(deleteConfirm) : 'this beneficiary'}? This permanently removes their record.`}
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        variant="danger"
+        isLoading={deleteLoading}
+        onConfirm={handleDeleteConfirm}
+        onCancel={() => setDeleteConfirm(null)}
       />
     </div>
   );

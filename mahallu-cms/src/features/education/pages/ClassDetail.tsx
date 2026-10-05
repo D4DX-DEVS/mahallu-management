@@ -30,6 +30,7 @@ import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
 import SortableTh from '@/components/ui/SortableTh';
 import { useSortableRows } from '@/hooks/useSortableRows';
+import { ROUTES } from '@/constants/routes';
 
 const STATUS_FILTER = [{ value: '', label: 'All students' }, ...ENROLLMENT_STATUS_OPTIONS];
 
@@ -57,6 +58,11 @@ export default function ClassDetail() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [removeConfirm, setRemoveConfirm] = useState<{ id: string; name: string } | null>(null);
   const [removing, setRemoving] = useState(false);
+  const [statusConfirm, setStatusConfirm] = useState<{
+    row: StudentEnrollment;
+    status: EnrollmentStatus;
+  } | null>(null);
+  const [statusUpdating, setStatusUpdating] = useState(false);
 
   useEffect(() => {
     if (id) fetchClass(id);
@@ -144,6 +150,17 @@ export default function ClassDetail() {
     }
   };
 
+  const handleStatusConfirm = async () => {
+    if (!statusConfirm) return;
+    try {
+      setStatusUpdating(true);
+      await changeStatus(statusConfirm.row, statusConfirm.status);
+      setStatusConfirm(null);
+    } finally {
+      setStatusUpdating(false);
+    }
+  };
+
   const columns: TableColumn<StudentEnrollment>[] = [
     { key: 'rollNo', label: 'Roll', width: '6rem', render: (v) => v || '-' },
     {
@@ -168,13 +185,13 @@ export default function ClassDetail() {
                   {
                     label: 'Mark completed',
                     icon: <FiCheckCircle className="h-4 w-4" />,
-                    onClick: () => changeStatus(row, 'completed'),
+                    onClick: () => setStatusConfirm({ row, status: 'completed' }),
                     disabled: busyId === row.id,
                   },
                   {
                     label: 'Mark dropped',
                     icon: <FiSlash className="h-4 w-4" />,
-                    onClick: () => changeStatus(row, 'dropped'),
+                    onClick: () => setStatusConfirm({ row, status: 'dropped' }),
                     disabled: busyId === row.id,
                     variant: 'warning' as const,
                   },
@@ -235,6 +252,8 @@ export default function ClassDetail() {
         <h2 className="mb-3 text-sm font-semibold text-foreground">Class</h2>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
           <Field label="Name (Malayalam)" value={cls.nameMl || '-'} />
+          <Field label="Academic Year" value={cls.academicYear || '-'} />
+          <Field label="Class Type" value={classTypeLabel(cls.classType)} />
           <Field label="Teacher" value={<span>{toTitleCase(teacherName(cls))}</span>} />
           <Field
             label="Institute"
@@ -261,7 +280,7 @@ export default function ClassDetail() {
         <Card className="mb-4">
           <h2 className="mb-3 text-sm font-semibold text-foreground">Progress</h2>
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="data-table w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-200 dark:border-gray-700">
                   <SortableTh sortKey="studentName" sort={sort} onSort={toggleSort} className="px-4 py-2">
@@ -338,6 +357,10 @@ export default function ClassDetail() {
           data={students}
           isLoading={studentsLoading}
           emptyMessage="No students enrolled yet"
+          onRowClick={(row) => {
+            const memberId = typeof row.memberId === 'object' ? row.memberId?.id : row.memberId;
+            if (memberId) navigate(ROUTES.MEMBERS.DETAIL(memberId));
+          }}
         />
 
         {pagination && pagination.totalPages > 1 && (
@@ -356,6 +379,21 @@ export default function ClassDetail() {
         onClose={() => setEnrollOpen(false)}
         classId={cls.id}
         onEnrolled={refresh}
+      />
+
+      <ConfirmDialog
+        isOpen={statusConfirm !== null}
+        title={statusConfirm?.status === 'dropped' ? 'Mark student as dropped?' : 'Mark student as completed?'}
+        message={
+          statusConfirm
+            ? `${toTitleCase(studentName(statusConfirm.row))} will be marked ${statusConfirm.status}.`
+            : ''
+        }
+        confirmLabel={statusConfirm?.status === 'dropped' ? 'Mark dropped' : 'Mark completed'}
+        variant={statusConfirm?.status === 'dropped' ? 'danger' : 'primary'}
+        isLoading={statusUpdating}
+        onConfirm={handleStatusConfirm}
+        onCancel={() => setStatusConfirm(null)}
       />
 
       <ConfirmDialog

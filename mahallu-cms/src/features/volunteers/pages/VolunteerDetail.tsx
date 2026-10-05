@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { FiTrash2 } from 'react-icons/fi';
 import {
   volunteerService,
   SERVICE_TYPE_OPTIONS,
@@ -8,10 +9,13 @@ import {
 } from '@/services/volunteerService';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
+import Modal from '@/components/ui/Modal';
 import Pagination from '@/components/ui/Pagination';
+import { toast } from '@/store/toastStore';
 import { errorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
+import { PageSkeleton } from '@/components/ui/Skeleton';
 
 export default function VolunteerDetail() {
   const navigate = useNavigate();
@@ -25,6 +29,8 @@ export default function VolunteerDetail() {
   const [formData, setFormData] = useState<any>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -84,12 +90,21 @@ export default function VolunteerDetail() {
     }
   };
 
+  const handleDelete = async () => {
+    if (!id) return;
+    try {
+      setDeleting(true);
+      await volunteerService.deleteVolunteer(id);
+      toast.success('Volunteer deleted');
+      navigate('/volunteers');
+    } catch (err: any) {
+      toast.error(errorMessage(err, { action: 'delete volunteer' }));
+      setDeleting(false);
+    }
+  };
+
   if (loading) {
-    return (
-      <Card>
-        <div className="py-8 text-center">Loading...</div>
-      </Card>
-    );
+    return <PageSkeleton />;
   }
 
   if (!volunteer) {
@@ -105,7 +120,16 @@ export default function VolunteerDetail() {
 
   return (
     <div className="space-y-4">
-      <PageHeader title="Volunteer" breadcrumbs={[{ label: 'Volunteers', path: '/volunteers' }]} />
+      <div className="flex gap-2 items-center justify-between">
+        <div className="flex items-center gap-4">
+          <PageHeader title="Volunteer" breadcrumbs={[{ label: 'Volunteers', path: '/volunteers' }]} />
+          <div className="flex gap-2 items-center">
+            <Button variant="danger" onClick={() => setShowDeleteModal(true)} icon={<FiTrash2 />} collapseLabel>
+              Delete
+            </Button>
+          </div>
+        </div>
+      </div>
       {/* Profile Card */}
       <Card>
         <div>
@@ -335,6 +359,26 @@ export default function VolunteerDetail() {
           Back to Volunteers
         </Button>
       </div>
+
+      <Modal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        title="Delete Volunteer"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setShowDeleteModal(false)}>
+              Cancel
+            </Button>
+            <Button variant="danger" onClick={handleDelete} isLoading={deleting}>
+              Delete
+            </Button>
+          </>
+        }
+      >
+        <p className="text-gray-600 dark:text-gray-400">
+          Are you sure you want to delete <strong>{volunteerName}</strong>? This action cannot be undone.
+        </p>
+      </Modal>
     </div>
   );
 }

@@ -185,6 +185,7 @@ export default function EmployersList() {
         isLoading={loading}
         entity="employers"
         rowKey={(employer) => employer.id}
+        onRowClick={(employer) => navigate(`/employment/employers/${employer.id}`)}
       />
 
       {!loading && employers.length > 0 && (

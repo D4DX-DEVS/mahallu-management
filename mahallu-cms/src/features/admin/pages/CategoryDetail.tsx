@@ -30,6 +30,8 @@ export default function CategoryDetail() {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [statusConfirm, setStatusConfirm] = useState<CategoryValue | null>(null);
+  const [togglingStatus, setTogglingStatus] = useState(false);
   const [addForm, setAddForm] = useState({ code: '', label: '', amount: '' });
   const [editForm, setEditForm] = useState({
     label: '',
@@ -114,13 +116,17 @@ export default function CategoryDetail() {
   const handleToggleStatus = async (value: CategoryValue) => {
     if (!id) return;
     try {
+      setTogglingStatus(true);
       await categoryService.updateValue(id, value.id, {
         status: value.status === 'active' ? 'inactive' : 'active',
       });
       toast.success(value.status === 'active' ? 'Value deactivated' : 'Value activated');
+      setStatusConfirm(null);
       fetchData();
     } catch (err: any) {
       toast.error(errorMessage(err, { action: 'update value' }));
+    } finally {
+      setTogglingStatus(false);
     }
   };
   const handleDelete = async () => {
@@ -181,7 +187,7 @@ export default function CategoryDetail() {
                 ) : (
                   <FiToggleLeft className="h-4 w-4" />
                 ),
-              onClick: () => handleToggleStatus(row),
+              onClick: () => setStatusConfirm(row),
             },
             {
               label: 'Delete',
@@ -348,6 +354,16 @@ export default function CategoryDetail() {
           />
         </div>
       </Modal>
+      <ConfirmDialog
+        isOpen={!!statusConfirm}
+        title={statusConfirm?.status === 'active' ? 'Deactivate this value?' : 'Activate this value?'}
+        message={`This will ${statusConfirm?.status === 'active' ? 'hide' : 'enable'} "${statusConfirm?.label || 'this value'}" for future selections.`}
+        confirmLabel={statusConfirm?.status === 'active' ? 'Deactivate value' : 'Activate value'}
+        variant="primary"
+        isLoading={togglingStatus}
+        onConfirm={() => statusConfirm && handleToggleStatus(statusConfirm)}
+        onCancel={() => setStatusConfirm(null)}
+      />
       <ConfirmDialog
         isOpen={showDeleteDialog}
         title="Delete Value"

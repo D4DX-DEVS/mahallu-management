@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FiEye, FiEdit2, FiCheck, FiHome, FiUsers } from 'react-icons/fi';
+import { FiCheck, FiHome, FiUsers } from 'react-icons/fi';
+import Button from '@/components/ui/Button';
 import TableCard from '@/components/ui/TableCard';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
@@ -17,7 +18,7 @@ import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
 import { toast } from '@/store/toastStore';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
-import ActionsMenu from '@/components/ui/ActionsMenu';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 
 export default function UnapprovedFamiliesList() {
   const navigate = useNavigate();
@@ -30,6 +31,8 @@ export default function UnapprovedFamiliesList() {
   const [pagination, setPagination] = useState<PaginationType | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [approveId, setApproveId] = useState<string | null>(null);
+  const [approving, setApproving] = useState(false);
 
   const debouncedSearch = useDebounce(searchQuery, 500);
 
@@ -95,12 +98,16 @@ export default function UnapprovedFamiliesList() {
 
   const handleApprove = async (id: string) => {
     try {
+      setApproving(true);
       await familyService.update(id, { status: 'approved' });
       await fetchFamilies();
     } catch (err: any) {
       // A failed approval is not a failed page load: setting `error` here
       // replaced the whole table with the retry screen and lost the list.
       toast.error(errorMessage(err, { action: 'approve this family' }));
+    } finally {
+      setApproving(false);
+      setApproveId(null);
     }
   };
 
@@ -133,31 +140,17 @@ export default function UnapprovedFamiliesList() {
       width: '8rem',
       align: 'center',
       render: (_, row) => (
-        <ActionsMenu
-          items={[
-            {
-              label: 'View',
-              icon: <FiEye className="h-4 w-4" />,
-              onClick: () => {
-                navigate(ROUTES.FAMILIES.DETAIL(row.id));
-              },
-            },
-            {
-              label: 'Edit',
-              icon: <FiEdit2 className="h-4 w-4" />,
-              onClick: () => {
-                navigate(ROUTES.FAMILIES.EDIT(row.id));
-              },
-            },
-            {
-              label: 'Approve',
-              icon: <FiCheck className="h-4 w-4" />,
-              onClick: () => {
-                handleApprove(row.id);
-              },
-            },
-          ]}
-        />
+        <Button
+          size="sm"
+          variant="outline"
+          icon={<FiCheck className="h-4 w-4" />}
+          onClick={(e) => {
+            e.stopPropagation();
+            setApproveId(row.id);
+          }}
+        >
+          Approve
+        </Button>
       ),
     },
   ];
@@ -191,7 +184,7 @@ export default function UnapprovedFamiliesList() {
         </div>
       </div>
 
-      <TableCard>
+      <TableCard borderless>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -240,6 +233,16 @@ export default function UnapprovedFamiliesList() {
           </>
         )}
       </TableCard>
+      <ConfirmDialog
+        isOpen={Boolean(approveId)}
+        title="Approve this family?"
+        message="This family will move into the approved family register."
+        confirmLabel="Approve family"
+        variant="primary"
+        isLoading={approving}
+        onConfirm={() => approveId && handleApprove(approveId)}
+        onCancel={() => setApproveId(null)}
+      />
     </div>
   );
 }

@@ -35,7 +35,7 @@ const FAMILY_COLUMNS: ColumnSpec[] = [
   { key: 'contactNo', label: 'Contact Number' },
   { key: 'area', label: 'Area' },
   { key: 'areaMl', label: 'Area (Malayalam)' },
-  { key: 'place', label: 'Place' },
+  { key: 'place', label: 'Address' },
   { key: 'placeMl', label: 'Place (Malayalam)' },
   { key: 'varisangyaGrade', label: 'Varisangya Grade' },
 ];
@@ -313,7 +313,7 @@ export default function FamiliesList() {
         <StatCard title="Female" value={memberStats.femaleCount} />
       </div>
 
-      <TableCard padding="lg">
+      <TableCard borderless padding="lg">
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}

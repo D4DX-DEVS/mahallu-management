@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { FiArrowLeft, FiCheck, FiFilePlus, FiRotateCcw, FiXCircle } from 'react-icons/fi';
+import { FiArrowLeft, FiCheck, FiEdit2, FiFilePlus, FiRotateCcw, FiXCircle } from 'react-icons/fi';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
@@ -13,6 +13,7 @@ import { toast } from '@/store/toastStore';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import StatusBadge from '@/components/ui/StatusBadge';
 import PageHeader from '@/components/layout/PageHeader';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 
 export default function NikahRegistrationDetail() {
   const { id } = useParams<{ id: string }>();
@@ -25,6 +26,7 @@ export default function NikahRegistrationDetail() {
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [statusRemark, setStatusRemark] = useState('');
   const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [showApproveConfirm, setShowApproveConfirm] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -74,6 +76,7 @@ export default function NikahRegistrationDetail() {
         remarks: statusRemark || undefined,
       });
       toast.success('Status updated');
+      setShowApproveConfirm(false);
       setShowStatusModal(false);
       setStatusRemark('');
       await fetchRegistration();
@@ -116,6 +119,9 @@ export default function NikahRegistrationDetail() {
           {registration.status === 'approved' && (
             <Button onClick={() => setShowCertModal(true)} className="bg-green-600 hover:bg-green-700" icon={<FiFilePlus />} collapseLabel>Issue Certificate</Button>
           )}
+          <Link to={`/registrations/nikah/${registration.id}/edit`}>
+            <Button variant="outline" icon={<FiEdit2 />} collapseLabel>Edit</Button>
+          </Link>
           <Link to={ROUTES.REGISTRATIONS.NIKAH}>
             <Button variant="outline" icon={<FiArrowLeft />} collapseLabel>Back to List</Button>
           </Link>
@@ -259,7 +265,7 @@ export default function NikahRegistrationDetail() {
           <h2 className="text-lg font-semibold mb-3 text-foreground">Review Status</h2>
           <div className="flex gap-2 items-center">
             <Button
-              onClick={() => handleUpdateStatus('approved')}
+              onClick={() => setShowApproveConfirm(true)}
               className="bg-green-600 hover:bg-green-700" icon={<FiCheck />} collapseLabel>Approve</Button>
             <Button
               onClick={() => {
@@ -333,6 +339,16 @@ export default function NikahRegistrationDetail() {
           </div>
         </div>
       </Modal>
+      <ConfirmDialog
+        isOpen={showApproveConfirm}
+        title="Approve this nikah registration?"
+        message="Approving this registration will allow the certificate workflow to continue."
+        confirmLabel="Approve registration"
+        variant="primary"
+        isLoading={updatingStatus}
+        onConfirm={() => handleUpdateStatus('approved')}
+        onCancel={() => setShowApproveConfirm(false)}
+      />
     </div>
   );
 }

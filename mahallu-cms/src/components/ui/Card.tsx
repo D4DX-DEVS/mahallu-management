@@ -22,8 +22,11 @@ export interface CardProps extends HTMLAttributes<HTMLDivElement> {
    * container — no border, no ground, no padding, no shadow — and the cards are
    * the only frame on screen. From `md` up, where the table is a real table, it
    * is an ordinary Card again. Use `TableCard`, which sets this.
+   *
+   * `none` keeps the card's spacing and text color but leaves the table or
+   * inner panel responsible for the visible boundary.
    */
-  frame?: 'always' | 'md-up';
+  frame?: 'always' | 'md-up' | 'none';
 }
 
 /* Four steps, 8 / 12 / 16 / 20 at desktop, each one step tighter on a phone.
@@ -37,6 +40,7 @@ export interface CardProps extends HTMLAttributes<HTMLDivElement> {
 const PADDING = {
   always: { none: '', sm: 'p-2 sm:p-3', md: 'p-3 sm:p-4', lg: 'p-4 sm:p-5' },
   'md-up': { none: '', sm: 'md:p-3', md: 'md:p-4', lg: 'md:p-5' },
+  none: { none: '', sm: 'md:p-3', md: 'md:p-4', lg: 'md:p-5' },
 } as const;
 
 const Card = forwardRef<HTMLDivElement, CardProps>(
@@ -64,8 +68,10 @@ const Card = forwardRef<HTMLDivElement, CardProps>(
            * so a list looks the same whichever component built it. The shadow
            * still waits for `sm`, where a card sits beside something. */
           frame === 'always'
-            ? 'rounded-lg border border-border bg-card text-card-foreground shadow-none sm:shadow-sm'
-            : 'text-card-foreground md:rounded-lg md:border md:border-border md:bg-card md:shadow-sm',
+            ? 'rounded-xl border border-border/80 bg-card text-card-foreground shadow-sm'
+            : frame === 'md-up'
+              ? 'text-card-foreground md:rounded-xl md:border md:border-border/80 md:bg-card md:shadow-sm'
+              : 'text-card-foreground',
           interactive && 'cursor-pointer transition-colors hover:bg-accent/40',
           hoverEffect && interactive && 'transition-shadow hover:shadow-md',
           PADDING[frame][padding],

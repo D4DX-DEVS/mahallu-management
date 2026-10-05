@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import Modal from '@/components/ui/Modal';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
@@ -29,6 +30,7 @@ export default function LoanStatusModal({ isOpen, onClose, loan, onUpdated }: Lo
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   const approving = status === 'approved';
   const disbursing = status === 'disbursed';
@@ -49,6 +51,7 @@ export default function LoanStatusModal({ isOpen, onClose, loan, onUpdated }: Lo
 
       await qardService.updateLoanStatus(loan.id, payload);
       toast.success(`Loan status updated to ${label(status)}`);
+      setShowConfirm(false);
       onUpdated();
       onClose();
     } catch (err: any) {
@@ -61,6 +64,7 @@ export default function LoanStatusModal({ isOpen, onClose, loan, onUpdated }: Lo
   };
 
   return (
+    <>
     <Modal
       isOpen={isOpen}
       onClose={onClose}
@@ -70,8 +74,8 @@ export default function LoanStatusModal({ isOpen, onClose, loan, onUpdated }: Lo
           <Button variant="secondary" onClick={onClose} disabled={saving}>
             Cancel
           </Button>
-          <Button onClick={submit} disabled={!status || saving || (overApproving && !allowOverApproval)}>
-            {saving ? 'Saving...' : 'Update'}
+          <Button onClick={() => setShowConfirm(true)} disabled={!status || saving || (overApproving && !allowOverApproval)}>
+            Update
           </Button>
         </div>
       }
@@ -142,5 +146,16 @@ export default function LoanStatusModal({ isOpen, onClose, loan, onUpdated }: Lo
         )}
       </div>
     </Modal>
+    <ConfirmDialog
+      isOpen={showConfirm}
+      title="Update this loan?"
+      message={`This will move the loan to “${status ? label(status) : 'the selected status'}”${disbursing ? ' and generate its repayment schedule' : ''}.`}
+      confirmLabel="Update loan"
+      variant="primary"
+      isLoading={saving}
+      onConfirm={submit}
+      onCancel={() => setShowConfirm(false)}
+    />
+    </>
   );
 }

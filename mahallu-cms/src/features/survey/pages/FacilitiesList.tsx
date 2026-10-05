@@ -60,6 +60,7 @@ export default function FacilitiesList() {
   const [isConfirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deletingName, setDeletingName] = useState<string>('');
+  const [viewing, setViewing] = useState<LocalityFacility | null>(null);
 
   const debouncedSearch = useDebounce(searchQuery, 500);
 
@@ -193,7 +194,7 @@ export default function FacilitiesList() {
         breadcrumbs={[{ label: 'Survey', path: '/survey' }]}
       />
 
-      <TableCard>
+      <TableCard borderless>
         <ActionBar>
           <ExpandableSearch
             value={searchQuery}
@@ -230,7 +231,15 @@ export default function FacilitiesList() {
             }}
           />
         ) : (
-          <Table fixedLayout striped columns={columns} data={rows} emptyMessage="No facilities recorded" showExport={false} />
+          <Table
+            fixedLayout
+            striped
+            columns={columns}
+            data={rows}
+            emptyMessage="No facilities recorded"
+            showExport={false}
+            onRowClick={(row) => setViewing(row)}
+          />
         )}
 
         {pagination && (
@@ -332,6 +341,76 @@ export default function FacilitiesList() {
             {saving ? 'Saving...' : 'Save'}
           </Button>
         </div>
+      </Modal>
+
+      <Modal
+        isOpen={Boolean(viewing)}
+        onClose={() => setViewing(null)}
+        title="Facility Details"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setViewing(null)}>
+              Close
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (viewing) openEdit(viewing);
+                setViewing(null);
+              }}
+            >
+              Edit
+            </Button>
+            <Button
+              variant="danger"
+              onClick={() => {
+                if (viewing) openDeleteConfirm(viewing);
+                setViewing(null);
+              }}
+            >
+              Delete
+            </Button>
+          </>
+        }
+      >
+        {viewing && (
+          <div className="space-y-3">
+            <div>
+              <span className="text-sm text-gray-500 dark:text-gray-400">Name</span>
+              <p className="text-gray-900 dark:text-gray-100">{toTitleCase(viewing.name)}</p>
+            </div>
+            {viewing.nameMl && (
+              <div>
+                <span className="text-sm text-gray-500 dark:text-gray-400">Name (Malayalam)</span>
+                <p className="font-malayalam text-gray-900 dark:text-gray-100">{viewing.nameMl}</p>
+              </div>
+            )}
+            <div>
+              <span className="text-sm text-gray-500 dark:text-gray-400">Type</span>
+              <p className="text-gray-900 dark:text-gray-100">
+                {TYPE_OPTIONS.find((option) => option.value === viewing.type)?.label || viewing.type || '-'}
+              </p>
+            </div>
+            {viewing.address && (
+              <div>
+                <span className="text-sm text-gray-500 dark:text-gray-400">Address</span>
+                <p className="text-gray-900 dark:text-gray-100">{toTitleCase(viewing.address)}</p>
+              </div>
+            )}
+            {viewing.contactNo && (
+              <div>
+                <span className="text-sm text-gray-500 dark:text-gray-400">Contact No.</span>
+                <p className="text-gray-900 dark:text-gray-100">{viewing.contactNo}</p>
+              </div>
+            )}
+            {viewing.notes && (
+              <div>
+                <span className="text-sm text-gray-500 dark:text-gray-400">Notes</span>
+                <p className="text-gray-900 dark:text-gray-100">{viewing.notes}</p>
+              </div>
+            )}
+          </div>
+        )}
       </Modal>
 
       <ConfirmDialog

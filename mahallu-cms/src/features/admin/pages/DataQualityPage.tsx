@@ -172,7 +172,7 @@ export default function DataQualityPage() {
               Duplicate Phone Numbers ({duplicates.byPhone.length})
             </h3>
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="data-table w-full text-sm">
                 <thead>
                   <tr className="border-b border-gray-200 dark:border-gray-700">
                     <th className="text-left py-2 px-3 font-medium text-gray-700 dark:text-gray-300">
@@ -218,7 +218,7 @@ export default function DataQualityPage() {
               Duplicate Names & Age ({duplicates.byNameAge.length})
             </h3>
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="data-table w-full text-sm">
                 <thead>
                   <tr className="border-b border-gray-200 dark:border-gray-700">
                     <th className="text-left py-2 px-3 font-medium text-gray-700 dark:text-gray-300">

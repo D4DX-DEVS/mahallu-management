@@ -12,6 +12,7 @@ import Table from '@/components/ui/Table';
 import ActionsMenu from '@/components/ui/ActionsMenu';
 import Pagination from '@/components/ui/Pagination';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import Modal from '@/components/ui/Modal';
 import { toast } from '@/store/toastStore';
 import { errorMessage } from '@/utils/errors';
 import StatusBadge from '@/components/ui/StatusBadge';
@@ -29,6 +30,8 @@ export default function AssignmentsList() {
   const [totalPages, setTotalPages] = useState(1);
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; date: string } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [selectedAssignment, setSelectedAssignment] = useState<VolunteerAssignment | null>(null);
+  const [showViewModal, setShowViewModal] = useState(false);
 
   useEffect(() => {
     const fetchAssignments = async () => {
@@ -181,6 +184,10 @@ export default function AssignmentsList() {
         isLoading={loading}
         entity="assignments"
         rowKey={(assignment) => assignment.id}
+        onRowClick={(assignment) => {
+          setSelectedAssignment(assignment);
+          setShowViewModal(true);
+        }}
       />
 
       {!loading && assignments.length > 0 && (
@@ -192,6 +199,80 @@ export default function AssignmentsList() {
           onPageChange={setCurrentPage}
         />
       )}
+
+      {/* View Modal */}
+      <Modal
+        isOpen={showViewModal}
+        onClose={() => {
+          setShowViewModal(false);
+          setSelectedAssignment(null);
+        }}
+        title="Assignment Details"
+        footer={
+          <>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowViewModal(false);
+                setSelectedAssignment(null);
+              }}
+            >
+              Close
+            </Button>
+            {selectedAssignment && (
+              <Button
+                variant="outline"
+                onClick={() => navigate(`/volunteers/assignments/${selectedAssignment.id}/edit`)}
+              >
+                Edit
+              </Button>
+            )}
+            {selectedAssignment && (
+              <Button
+                variant="danger"
+                onClick={() => {
+                  setShowViewModal(false);
+                  handleDeleteClick(selectedAssignment.id, new Date(selectedAssignment.date).toLocaleDateString());
+                }}
+              >
+                Delete
+              </Button>
+            )}
+          </>
+        }
+      >
+        {selectedAssignment && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Date</p>
+              <p className="text-gray-900 dark:text-gray-100 font-medium">
+                {new Date(selectedAssignment.date).toLocaleDateString()}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Service Type</p>
+              <p className="text-gray-900 dark:text-gray-100">
+                {SERVICE_TYPE_OPTIONS.find((x) => x.value === selectedAssignment.serviceType)?.label ||
+                  selectedAssignment.serviceType}
+              </p>
+            </div>
+            <div className="sm:col-span-2">
+              <p className="text-xs text-gray-500 dark:text-gray-400">Volunteers</p>
+              <p className="text-gray-900 dark:text-gray-100">{volunteerNames(selectedAssignment)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Status</p>
+              <p className="text-gray-900 dark:text-gray-100">
+                <StatusBadge status={selectedAssignment.status} />
+              </p>
+            </div>
+            <div className="sm:col-span-2">
+              <p className="text-xs text-gray-500 dark:text-gray-400">Description</p>
+              <p className="text-gray-900 dark:text-gray-100">{selectedAssignment.description || '—'}</p>
+            </div>
+          </div>
+        )}
+      </Modal>
 
       <ConfirmDialog
         isOpen={deleteConfirm !== null}

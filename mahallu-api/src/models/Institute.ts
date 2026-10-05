@@ -25,6 +25,8 @@ export interface IInstitute extends Document {
   registrations?: { memberId: mongoose.Types.ObjectId; attended: boolean }[];
   competitions?: { name: string; winners: string[] }[];
   awards?: string;
+  /** Set when this institute was auto-created/synced from a Locality facility (school/college). */
+  syncedFacilityId?: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -117,6 +119,11 @@ const InstituteSchema = new Schema<IInstitute>(
     awards: {
       type: String,
       trim: true,
+    },
+    syncedFacilityId: {
+      type: Schema.Types.ObjectId,
+      ref: 'LocalityFacility',
+      index: true,
     },
   },
   {

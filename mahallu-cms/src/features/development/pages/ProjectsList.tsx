@@ -12,6 +12,7 @@ import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import StatusBadge from '@/components/ui/StatusBadge';
+import { PageSkeleton } from '@/components/ui/Skeleton';
 
 const PROJECT_AREAS = [
   { value: 'roads', label: 'Roads' },
@@ -159,7 +160,7 @@ export default function ProjectsList() {
 
       {/* Projects Grid */}
       {loading ? (
-        <div className="text-center py-8">Loading...</div>
+        <PageSkeleton variant="section" />
       ) : projects.length === 0 ? (
         <div className="text-center py-8 text-gray-500">No projects found</div>
       ) : (

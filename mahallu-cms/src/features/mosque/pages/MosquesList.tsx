@@ -10,7 +10,6 @@ import ExpandableSearch from '@/components/ui/ExpandableSearch';
 import ActionBar from '@/components/ui/ActionBar';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import EmptyState from '@/components/ui/EmptyState';
-import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import Pagination from '@/components/ui/Pagination';
 import { Pagination as PaginationType } from '@/types';
 import { mosqueService, MOSQUE_FACILITY_OPTIONS, MosqueProfile } from '@/services/mosqueService';
@@ -23,6 +22,7 @@ import { toTitleCase } from '@/utils/format';
 const emptyForm = {
   name: '',
   nameMl: '',
+  address: '',
   capacity: '',
   facilities: [] as string[],
   prayerFacilityNotes: '',
@@ -43,9 +43,6 @@ export default function MosquesList() {
   const [form, setForm] = useState(emptyForm);
   const [nameError, setNameError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [isConfirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [deletingName, setDeletingName] = useState('');
 
   const debouncedSearch = useDebounce(searchQuery, 500);
 
@@ -88,6 +85,7 @@ export default function MosquesList() {
       await mosqueService.create({
         name: form.name,
         nameMl: form.nameMl || undefined,
+        address: form.address || undefined,
         capacity: form.capacity ? Number(form.capacity) : undefined,
         facilities: form.facilities,
         prayerFacilityNotes: form.prayerFacilityNotes || undefined,
@@ -108,26 +106,6 @@ export default function MosquesList() {
     }
   };
 
-  const openDeleteConfirm = (mosque: MosqueProfile) => {
-    setDeletingId(mosque.id);
-    setDeletingName(mosque.name);
-    setConfirmDeleteOpen(true);
-  };
-
-  const confirmDelete = async () => {
-    if (!deletingId) return;
-    try {
-      await mosqueService.remove(deletingId);
-      toast.success('Mosque deleted');
-      setConfirmDeleteOpen(false);
-      setDeletingId(null);
-      setDeletingName('');
-      fetchRows();
-    } catch (err: any) {
-      toast.error(errorMessage(err, { action: 'delete mosque' }));
-    }
-  };
-
   return (
     <div className="space-y-3">
       <PageHeader title="Mosques" description="Capacity, facilities and religious staff for each mosque" />
@@ -135,7 +113,7 @@ export default function MosquesList() {
       {/* No border/padding below `md` here — each mosque/cluster
        * below is already its own bordered card, and a second frame
        * around the whole list drew a box around boxes on a phone. */}
-      <TableCard>
+      <TableCard borderless>
         <ActionBar>
           <ExpandableSearch
             value={searchQuery}
@@ -163,26 +141,24 @@ export default function MosquesList() {
         ) : (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {rows.map((mosque) => (
-              <Card key={mosque.id} className="h-full transition-shadow hover:shadow-md">
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <Link to={`/mosque/${mosque.id}`} className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold leading-tight text-gray-900 dark:text-gray-100 sm:text-base">
-                      {toTitleCase(mosque.name)}
-                    </p>
-                  </Link>
-                  <button
-                    className="shrink-0 text-xs text-red-600 hover:underline"
-                    onClick={() => openDeleteConfirm(mosque)}
-                  >
-                    Delete
-                  </button>
-                </div>
-                <Link to={`/mosque/${mosque.id}`}>
+              <Link key={mosque.id} to={`/mosque/${mosque.id}`}>
+                <Card className="h-full transition-shadow hover:shadow-md">
+                  <p className="truncate text-sm font-semibold leading-tight text-gray-900 dark:text-gray-100 sm:text-base">
+                    {toTitleCase(mosque.name)}
+                  </p>
                   {/* Capacity carries the same weight Clusters gives its
                    * headline stat (Families) - large and semibold, not a line
                    * of small print the same size as its own label. That one
                    * field was what made this card read as smaller. */}
                   <dl className="mt-2 space-y-1">
+                    {mosque.address && (
+                      <div className="flex items-baseline justify-between gap-2">
+                        <dt className="text-xs text-gray-500 dark:text-gray-400">Address</dt>
+                        <dd className="truncate text-xs font-medium text-gray-700 dark:text-gray-200">
+                          {toTitleCase(mosque.address)}
+                        </dd>
+                      </div>
+                    )}
                     <div className="flex items-baseline justify-between gap-2">
                       <dt className="text-xs text-gray-500 dark:text-gray-400">Capacity</dt>
                       <dd className="text-base font-semibold text-gray-900 dark:text-gray-100 sm:text-xl">
@@ -196,8 +172,8 @@ export default function MosquesList() {
                       </dd>
                     </div>
                   </dl>
-                </Link>
-              </Card>
+                </Card>
+              </Link>
             ))}
           </div>
         )}
@@ -244,6 +220,13 @@ export default function MosquesList() {
             onChange={(e) => setForm({ ...form, nameMl: e.target.value })}
             className="font-malayalam"
           />
+          <div className="md:col-span-2">
+            <Input
+              label="Address"
+              value={form.address}
+              onChange={(e) => setForm({ ...form, address: e.target.value })}
+            />
+          </div>
           <Input
             label="Capacity"
             type="number"
@@ -322,21 +305,6 @@ export default function MosquesList() {
           </Button>
         </div>
       </Modal>
-
-      <ConfirmDialog
-        isLoading={saving}
-        isOpen={isConfirmDeleteOpen}
-        title="Delete Mosque"
-        message={`Delete the mosque "${toTitleCase(deletingName)}"? Its assets will remain but become unassigned.`}
-        variant="danger"
-        confirmLabel="Delete"
-        onConfirm={confirmDelete}
-        onCancel={() => {
-          setConfirmDeleteOpen(false);
-          setDeletingId(null);
-          setDeletingName('');
-        }}
-      />
     </div>
   );
 }

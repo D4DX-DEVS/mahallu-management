@@ -100,6 +100,11 @@ export const zakatDistributionService = {
     return response.data.data;
   },
 
+  removeBeneficiary: async (id: string) => {
+    const response = await api.delete<{ success: boolean; message: string }>(`/zakat/beneficiaries/${id}`);
+    return response.data;
+  },
+
   verifyBeneficiary: async (
     id: string,
     payload: { verificationStatus: VerificationStatus; notes?: string }
@@ -125,6 +130,19 @@ export const zakatDistributionService = {
       payload
     );
     return response.data.data;
+  },
+
+  updateDistribution: async (id: string, payload: Record<string, any>) => {
+    const response = await api.put<{ success: boolean; data: ZakatDistribution }>(
+      `/zakat/distributions/${id}`,
+      payload
+    );
+    return response.data.data;
+  },
+
+  removeDistribution: async (id: string) => {
+    const response = await api.delete<{ success: boolean; message: string }>(`/zakat/distributions/${id}`);
+    return response.data;
   },
 
   getSummary: async (year?: number) => {

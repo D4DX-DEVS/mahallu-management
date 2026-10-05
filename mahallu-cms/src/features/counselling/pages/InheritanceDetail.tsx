@@ -1,17 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { FiArrowLeft, FiEdit2, FiSave } from 'react-icons/fi';
+import { FiArrowLeft, FiEdit2, FiSave, FiTrash2 } from 'react-icons/fi';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
+import Modal from '@/components/ui/Modal';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { toast } from '@/store/toastStore';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import {
   getInheritanceCaseById,
   updateInheritanceCase,
+  deleteInheritanceCase,
   IInheritanceCase,
 } from '@/services/counsellingService';
 import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
+import { PageSkeleton } from '@/components/ui/Skeleton';
 
 const STATUSES = ['reported', 'documentation', 'referred', 'distributed', 'closed'];
 
@@ -25,6 +29,9 @@ export default function InheritanceDetail() {
   const [referredScholar, setReferredScholar] = useState('');
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [showSaveConfirm, setShowSaveConfirm] = useState(false);
 
   useEffect(() => {
     if (id) fetchCase(id);
@@ -57,6 +64,7 @@ export default function InheritanceDetail() {
       });
       setCaseRecord(response.data);
       setIsEditing(false);
+      setShowSaveConfirm(false);
       toast.success('Inheritance case updated');
     } catch (error) {
       console.error("Couldn't update case:", error);
@@ -66,12 +74,34 @@ export default function InheritanceDetail() {
     }
   };
 
-  if (loading) return <div className="p-4">Loading...</div>;
+  const handleDelete = async () => {
+    if (!id) return;
+    try {
+      setDeleting(true);
+      await deleteInheritanceCase(id);
+      toast.success('Inheritance case deleted');
+      navigate('/inheritance');
+    } catch (error) {
+      toast.error(errorMessage(error, { action: 'delete inheritance case' }));
+      setDeleting(false);
+    }
+  };
+
+  if (loading) return <PageSkeleton />;
   if (!caseRecord) return <div className="p-4">Case not found</div>;
 
   return (
     <div>
-      <PageHeader title="Inheritance case" breadcrumbs={[{ label: 'Inheritance', path: '/inheritance' }]} />
+      <div className="flex gap-2 items-center justify-between">
+        <div className="flex items-center gap-4">
+          <PageHeader title="Inheritance case" breadcrumbs={[{ label: 'Inheritance', path: '/inheritance' }]} />
+          <div className="flex gap-2 items-center">
+            <Button variant="danger" onClick={() => setShowDeleteModal(true)} icon={<FiTrash2 />} collapseLabel>
+              Delete
+            </Button>
+          </div>
+        </div>
+      </div>
       <div>
         <Button
           variant="ghost"
@@ -149,7 +179,7 @@ export default function InheritanceDetail() {
                   />
                 </div>
                 <div className="flex flex-wrap gap-2 pt-3">
-                  <Button variant="primary" size="sm" onClick={handleSave} disabled={saving}>
+                  <Button variant="primary" size="sm" onClick={() => setShowSaveConfirm(true)} disabled={saving}>
                     <FiSave size={16} />
                     Save
                   </Button>
@@ -180,7 +210,7 @@ export default function InheritanceDetail() {
           <h2 className="text-lg font-semibold mb-3">Heirs</h2>
           {caseRecord.heirs && caseRecord.heirs.length > 0 ? (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="data-table w-full text-sm">
                 <thead>
                   <tr className="border-b">
                     <th className="text-left py-2 px-3 font-semibold">Name</th>
@@ -225,6 +255,37 @@ export default function InheritanceDetail() {
           )
         )}
       </div>
+
+      <ConfirmDialog
+        isOpen={showSaveConfirm}
+        title="Save this inheritance case?"
+        message={`This will save the case with status “${editStatus.replace(/_/g, ' ')}” and the entered notes.`}
+        confirmLabel="Save case"
+        variant="primary"
+        isLoading={saving}
+        onConfirm={handleSave}
+        onCancel={() => setShowSaveConfirm(false)}
+      />
+
+      <Modal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        title="Delete Inheritance Case"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setShowDeleteModal(false)}>
+              Cancel
+            </Button>
+            <Button variant="danger" onClick={handleDelete} isLoading={deleting}>
+              Delete
+            </Button>
+          </>
+        }
+      >
+        <p className="text-gray-600 dark:text-gray-400">
+          Are you sure you want to delete <strong>{caseRecord.caseNo}</strong>? This action cannot be undone.
+        </p>
+      </Modal>
     </div>
   );
 }

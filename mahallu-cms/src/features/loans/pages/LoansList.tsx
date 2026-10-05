@@ -119,7 +119,7 @@ export default function LoansList() {
         </div>
       )}
 
-      <TableCard>
+      <TableCard borderless>
         <ActionBar>
           <ExpandableSearch
             value={searchQuery}

@@ -1,16 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiPlus, FiEye, FiEdit2, FiTrash2, FiLock, FiAlertCircle } from 'react-icons/fi';
+import { FiPlus, FiLock, FiAlertCircle } from 'react-icons/fi';
 import Button from '@/components/ui/Button';
 import ExpandableSearch from '@/components/ui/ExpandableSearch';
 import Card from '@/components/ui/Card';
 import Pagination from '@/components/ui/Pagination';
 import { PageSkeleton } from '@/components/ui/Skeleton';
-import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { toast } from '@/store/toastStore';
-import { getCounsellingCases, deleteCounsellingCase, ICounsellingCase } from '@/services/counsellingService';
+import { getCounsellingCases, ICounsellingCase } from '@/services/counsellingService';
 import PageHeader from '@/components/layout/PageHeader';
-import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import { loadErrorMessage } from '@/utils/errors';
 import { toTitleCase } from '@/utils/format';
 
 const CATEGORIES = ['marriage', 'family', 'adolescent', 'education', 'parenting', 'behaviour', 'career'];
@@ -27,10 +26,6 @@ export default function CounsellingList() {
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
-  const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [deleteCaseName, setDeleteCaseName] = useState<string>('');
-  const [confirmDelete, setConfirmDelete] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
 
   const itemsPerPage = 10;
 
@@ -68,24 +63,6 @@ export default function CounsellingList() {
   useEffect(() => {
     fetchCases(1);
   }, [selectedCategory, selectedStatus, search, fetchCases]);
-
-  const handleDelete = async () => {
-    if (!deleteId) return;
-    setIsDeleting(true);
-    try {
-      await deleteCounsellingCase(deleteId);
-      setConfirmDelete(false);
-      setDeleteId(null);
-      setDeleteCaseName('');
-      toast.success('Counselling case deleted');
-      fetchCases(currentPage);
-    } catch (error) {
-      console.error("Couldn't delete case:", error);
-      toast.error(errorMessage(error, { action: 'delete counselling case' }));
-    } finally {
-      setIsDeleting(false);
-    }
-  };
 
   const handlePageChange = (page: number) => {
     fetchCases(page);
@@ -179,69 +156,41 @@ export default function CounsellingList() {
           <>
             <div className="space-y-4 mb-4">
               {cases.map((caseRecord) => (
-                <Card key={caseRecord.id}>
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <h3 className="text-base sm:text-lg font-semibold">{caseRecord.caseNo}</h3>
-                        <span className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded">
-                          {caseRecord.category}
-                        </span>
-                        <span
-                          className={`text-xs px-2 py-1 rounded ${
-                            caseRecord.status === 'closed'
-                              ? 'bg-gray-100 text-gray-800'
-                              : 'bg-green-100 text-green-800'
-                          }`}
-                        >
-                          {caseRecord.status.replace(/_/g, ' ')}
-                        </span>
-                      </div>
-                      <p className="text-sm text-gray-600">
-                        Counsellor: <span className="font-medium">{toTitleCase(caseRecord.counsellorName)}</span>
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        Client:{' '}
-                        {caseRecord.clientName
-                          ? toTitleCase(caseRecord.clientName)
-                          : caseRecord.clientMemberId
-                            ? 'Member ID'
-                            : 'Anonymous'}
-                      </p>
-                      <p className="text-xs text-gray-500 mt-2">
-                        {new Date(caseRecord.appointmentDate).toLocaleDateString()}
-                      </p>
+                <Card
+                  key={caseRecord.id}
+                  className="cursor-pointer transition-shadow hover:shadow-md"
+                  onClick={() => navigate(`/counselling/${caseRecord.id}`)}
+                >
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      <h3 className="text-base sm:text-lg font-semibold">{caseRecord.caseNo}</h3>
+                      <span className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded">
+                        {caseRecord.category}
+                      </span>
+                      <span
+                        className={`text-xs px-2 py-1 rounded ${
+                          caseRecord.status === 'closed'
+                            ? 'bg-gray-100 text-gray-800'
+                            : 'bg-green-100 text-green-800'
+                        }`}
+                      >
+                        {caseRecord.status.replace(/_/g, ' ')}
+                      </span>
                     </div>
-                    <div className="flex gap-2 items-center">
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => navigate(`/counselling/${caseRecord.id}`)}
-                        className="flex flex-wrap items-center gap-2"
-                      >
-                        <FiEye size={16} />
-                      </Button>
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => navigate(`/counselling/${caseRecord.id}/edit`)}
-                        className="flex items-center gap-2"
-                      >
-                        <FiEdit2 size={16} />
-                      </Button>
-                      <Button
-                        variant="danger"
-                        size="sm"
-                        onClick={() => {
-                          setDeleteId(caseRecord.id);
-                          setDeleteCaseName(caseRecord.caseNo);
-                          setConfirmDelete(true);
-                        }}
-                        className="flex items-center gap-2"
-                      >
-                        <FiTrash2 size={16} />
-                      </Button>
-                    </div>
+                    <p className="text-sm text-gray-600">
+                      Counsellor: <span className="font-medium">{toTitleCase(caseRecord.counsellorName)}</span>
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      Client:{' '}
+                      {caseRecord.clientName
+                        ? toTitleCase(caseRecord.clientName)
+                        : caseRecord.clientMemberId
+                          ? 'Member ID'
+                          : 'Anonymous'}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-2">
+                      {new Date(caseRecord.appointmentDate).toLocaleDateString()}
+                    </p>
                   </div>
                 </Card>
               ))}
@@ -259,23 +208,6 @@ export default function CounsellingList() {
           </>
         )}
       </div>
-
-      <ConfirmDialog
-        isOpen={confirmDelete}
-        title="Delete Counselling Case"
-        message={`Delete counselling case ${deleteCaseName}?`}
-        consequence="This action is irreversible. All session notes and case history will be permanently deleted."
-        confirmLabel="Delete"
-        cancelLabel="Cancel"
-        variant="danger"
-        isLoading={isDeleting}
-        onConfirm={handleDelete}
-        onCancel={() => {
-          setConfirmDelete(false);
-          setDeleteId(null);
-          setDeleteCaseName('');
-        }}
-      />
     </div>
   );
 }

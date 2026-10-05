@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import ActionsMenu from '@/components/ui/ActionsMenu';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import Button from '@/components/ui/Button';
 import Table from '@/components/ui/Table';
@@ -7,9 +6,10 @@ import Pagination from '@/components/ui/Pagination';
 import Badge from '@/components/ui/Badge';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import Modal from '@/components/ui/Modal';
 import { libraryService, BookIssue } from '@/services/libraryService';
 import { toast } from '@/store/toastStore';
-import { FiPlus, FiCheckCircle } from 'react-icons/fi';
+import { FiPlus } from 'react-icons/fi';
 import { errorMessage } from '@/utils/errors';
 import { toTitleCase } from '@/utils/format';
 import PageHeader from '@/components/layout/PageHeader';
@@ -25,6 +25,8 @@ export default function IssuesList() {
   const [pagination, setPagination] = useState<any>(null);
   const [confirmReturn, setConfirmReturn] = useState(false);
   const [returnId, setReturnId] = useState<string | null>(null);
+  const [selectedIssue, setSelectedIssue] = useState<BookIssue | null>(null);
+  const [showViewModal, setShowViewModal] = useState(false);
 
   // Fetch issues
   useEffect(() => {
@@ -122,29 +124,6 @@ export default function IssuesList() {
       label: 'Status',
       render: (_: any, issue: BookIssue) => getStatusBadge(issue),
     },
-    {
-      key: 'actions',
-      label: 'Actions',
-      align: 'center' as const,
-      render: (_: any, issue: BookIssue) => (
-        <ActionsMenu
-          items={
-            issue.status === 'returned'
-              ? []
-              : [
-                  {
-                    label: 'Mark returned',
-                    icon: <FiCheckCircle className="h-4 w-4" />,
-                    onClick: () => {
-                      setReturnId(issue.id);
-                      setConfirmReturn(true);
-                    },
-                  },
-                ]
-          }
-        />
-      ),
-    },
   ];
 
   return (
@@ -182,7 +161,16 @@ export default function IssuesList() {
         <PageSkeleton variant="section" />
       ) : (
         <>
-          <Table fixedLayout striped columns={columns} data={issues} />
+          <Table
+            fixedLayout
+            striped
+            columns={columns}
+            data={issues}
+            onRowClick={(issue) => {
+              setSelectedIssue(issue);
+              setShowViewModal(true);
+            }}
+          />
           {pagination && (
             <Pagination
               currentPage={pagination.page}
@@ -194,6 +182,83 @@ export default function IssuesList() {
           )}
         </>
       )}
+
+      {/* View Modal */}
+      <Modal
+        isOpen={showViewModal}
+        onClose={() => {
+          setShowViewModal(false);
+          setSelectedIssue(null);
+        }}
+        title="Book Issue Details"
+        footer={
+          <>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowViewModal(false);
+                setSelectedIssue(null);
+              }}
+            >
+              Close
+            </Button>
+            {selectedIssue && selectedIssue.status !== 'returned' && (
+              <Button
+                onClick={() => {
+                  setReturnId(selectedIssue.id);
+                  setShowViewModal(false);
+                  setConfirmReturn(true);
+                }}
+              >
+                Mark returned
+              </Button>
+            )}
+          </>
+        }
+      >
+        {selectedIssue && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Book</p>
+              <p className="text-gray-900 dark:text-gray-100 font-medium">
+                {typeof selectedIssue.bookId === 'object' && selectedIssue.bookId ? selectedIssue.bookId.title : 'N/A'}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Member</p>
+              <p className="text-gray-900 dark:text-gray-100">
+                {typeof selectedIssue.memberId === 'object' && selectedIssue.memberId && 'name' in selectedIssue.memberId
+                  ? toTitleCase((selectedIssue.memberId as any).name)
+                  : 'N/A'}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Issued</p>
+              <p className="text-gray-900 dark:text-gray-100">
+                {new Date(selectedIssue.issueDate).toLocaleDateString()}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Due</p>
+              <p className="text-gray-900 dark:text-gray-100">
+                {new Date(selectedIssue.dueDate).toLocaleDateString()}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Status</p>
+              <p className="text-gray-900 dark:text-gray-100 capitalize">{selectedIssue.status}</p>
+            </div>
+            {selectedIssue.returnDate && (
+              <div>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Returned</p>
+                <p className="text-gray-900 dark:text-gray-100">
+                  {new Date(selectedIssue.returnDate).toLocaleDateString()}
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+      </Modal>
 
       <ConfirmDialog
         isLoading={loading}

@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import Modal from '@/components/ui/Modal';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import Button from '@/components/ui/Button';
 import { libraryService, LibraryBook } from '@/services/libraryService';
 import { FiUpload } from 'react-icons/fi';
@@ -75,9 +76,11 @@ export default function BulkImportBooks({ isOpen, onClose, onImported }: BulkImp
   const [errors, setErrors] = useState<string[]>([]);
   const [fileName, setFileName] = useState('');
   const [importing, setImporting] = useState(false);
+  const [confirmImport, setConfirmImport] = useState(false);
   const [result, setResult] = useState<string>('');
 
   const reset = () => {
+    setConfirmImport(false);
     setRows([]);
     setErrors([]);
     setFileName('');
@@ -98,6 +101,7 @@ export default function BulkImportBooks({ isOpen, onClose, onImported }: BulkImp
   };
 
   const handleImport = async () => {
+    setConfirmImport(false);
     setImporting(true);
     setResult('');
     try {
@@ -124,15 +128,16 @@ export default function BulkImportBooks({ isOpen, onClose, onImported }: BulkImp
   };
 
   return (
-    <Modal
-      isOpen={isOpen}
-      onClose={() => {
-        reset();
-        onClose();
-      }}
-      title="Import Books from CSV"
-    >
-      <div className="space-y-4">
+    <>
+      <Modal
+        isOpen={isOpen}
+        onClose={() => {
+          reset();
+          onClose();
+        }}
+        title="Import Books from CSV"
+      >
+        <div className="space-y-4">
         <p className="text-sm text-gray-500">
           Upload a CSV with columns: <code className="text-xs">title, author, category, copies, isbn</code>.
           Only <b>title</b> is required. Unknown categories become "general".
@@ -183,12 +188,27 @@ export default function BulkImportBooks({ isOpen, onClose, onImported }: BulkImp
           >
             Close
           </Button>
-          <Button onClick={handleImport} disabled={rows.length === 0 || errors.length > 0 || importing}>
+          <Button
+            onClick={() => setConfirmImport(true)}
+            disabled={rows.length === 0 || errors.length > 0 || importing}
+          >
             <FiUpload className="mr-2 h-4 w-4" />
             {importing ? 'Importing…' : `Import ${rows.length || ''}`}
           </Button>
         </div>
-      </div>
-    </Modal>
+        </div>
+      </Modal>
+      <ConfirmDialog
+        isOpen={confirmImport}
+        title="Import these books?"
+        message={`This will add ${rows.length} books from ${fileName || 'the selected CSV'} to the library.`}
+        consequence="Please review the detected rows before confirming."
+        confirmLabel="Import books"
+        variant="primary"
+        isLoading={importing}
+        onConfirm={handleImport}
+        onCancel={() => setConfirmImport(false)}
+      />
+    </>
   );
 }

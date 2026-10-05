@@ -1,22 +1,27 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { FiEdit2, FiArrowLeft } from 'react-icons/fi';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import { FiEdit2, FiArrowLeft, FiTrash2 } from 'react-icons/fi';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import { PageSkeleton } from '@/components/ui/Skeleton';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { Institute } from '@/types';
 import { ROUTES } from '@/constants/routes';
 import { instituteService } from '@/services/instituteService';
 import { formatDate, toTitleCase } from '@/utils/format';
-import { loadErrorMessage } from '@/utils/errors';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import { toast } from '@/store/toastStore';
 import PageHeader from '@/components/layout/PageHeader';
 import StatusBadge from '@/components/ui/StatusBadge';
 
 export default function InstituteDetail() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [institute, setInstitute] = useState<Institute | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -36,6 +41,21 @@ export default function InstituteDetail() {
       console.error('Error fetching institute:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!id) return;
+    try {
+      setDeleting(true);
+      await instituteService.delete(id);
+      toast.success('Institute deleted');
+      navigate(ROUTES.INSTITUTES.LIST);
+    } catch (err: any) {
+      toast.error(errorMessage(err, { action: 'delete this institute' }));
+      setShowDeleteModal(false);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -68,6 +88,7 @@ export default function InstituteDetail() {
             <Link to={`/institutes/${institute.id}/edit`}>
               <Button icon={<FiEdit2 />} collapseLabel>Edit</Button>
             </Link>
+            <Button variant="danger" onClick={() => setShowDeleteModal(true)} icon={<FiTrash2 />} collapseLabel>Delete</Button>
           </>
         }
       />
@@ -80,10 +101,22 @@ export default function InstituteDetail() {
             <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Name</label>
             <p className="mt-1 text-gray-900 dark:text-gray-100">{toTitleCase(institute.name)}</p>
           </div>
+          {institute.nameMl && (
+            <div>
+              <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Name (Malayalam)</label>
+              <p className="mt-1 text-gray-900 dark:text-gray-100 font-malayalam">{institute.nameMl}</p>
+            </div>
+          )}
           <div>
             <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Place</label>
             <p className="mt-1 text-gray-900 dark:text-gray-100">{toTitleCase(institute.place)}</p>
           </div>
+          {institute.placeMl && (
+            <div>
+              <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Place (Malayalam)</label>
+              <p className="mt-1 text-gray-900 dark:text-gray-100 font-malayalam">{institute.placeMl}</p>
+            </div>
+          )}
           <div>
             <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Type</label>
             <p className="mt-1">
@@ -129,6 +162,17 @@ export default function InstituteDetail() {
           <p className="text-gray-700 dark:text-gray-300">{institute.description}</p>
         </Card>
       )}
+
+      <ConfirmDialog
+        isOpen={showDeleteModal}
+        title="Delete institute"
+        message={`Are you sure you want to delete ${toTitleCase(institute.name) || 'this institute'}? This action cannot be undone.`}
+        confirmLabel="Delete"
+        variant="danger"
+        isLoading={deleting}
+        onConfirm={handleDelete}
+        onCancel={() => setShowDeleteModal(false)}
+      />
     </div>
   );
 }

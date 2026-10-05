@@ -1,6 +1,7 @@
 import ZakatSummary from '@/features/zakat/pages/ZakatSummary';
 import BeneficiariesList from '@/features/zakat/pages/BeneficiariesList';
 import BeneficiaryCreate from '@/features/zakat/pages/BeneficiaryCreate';
+import BeneficiaryEdit from '@/features/zakat/pages/BeneficiaryEdit';
 import DistributionsList from '@/features/zakat/pages/DistributionsList';
 import DistributionCreate from '@/features/zakat/pages/DistributionCreate';
 import LoansList from '@/features/loans/pages/LoansList';
@@ -99,6 +100,7 @@ export const phaseBRoutes = [
   route('/zakat', <ZakatSummary />, mahallOnly),
   route('/zakat/beneficiaries', <BeneficiariesList />, mahallOnly),
   route('/zakat/beneficiaries/create', <BeneficiaryCreate />, mahallOnly),
+  route('/zakat/beneficiaries/:id', <BeneficiaryEdit />, mahallOnly),
   route('/zakat/distributions', <DistributionsList />, mahallOnly),
   route('/zakat/distributions/create', <DistributionCreate />, mahallOnly),
 

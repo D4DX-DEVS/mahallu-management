@@ -24,16 +24,16 @@
     --popover-foreground: 200 18% 12%;
 
     /* Brand — green. The one primary. */
-    --primary: 142 76% 36%;
+    --primary: 150 54% 35%;
     --primary-foreground: 0 0% 100%;
 
     /* Neutral supporting surfaces */
-    --secondary: 180 14% 96%;
+    --secondary: 0 0% 100%;
     --secondary-foreground: 200 18% 12%;
-    --muted: 180 14% 96%;
+    --muted: 0 0% 100%;
     --muted-foreground: 200 9% 42%;
-    --accent: 142 40% 95%;
-    --accent-foreground: 142 84% 22%;
+    --accent: 0 0% 100%;
+    --accent-foreground: 150 64% 23%;
 
     /* Semantic state — four roles, one ramp each */
     --destructive: 0 72% 46%;
@@ -46,19 +46,22 @@
     --info-foreground: 0 0% 100%;
 
     /* Lines and focus */
-    --border: 180 12% 88%;
-    --input: 180 12% 85%;
-    --ring: 142 76% 36%;
+    --border: 220 16% 89%;
+    --input: 220 16% 84%;
+    --ring: 150 54% 35%;
 
     /* Geometry — three radii derived from one value */
     --radius: 0.5rem;
 
     /* Elevation — two levels only */
-    --shadow-sm: 0 1px 2px 0 hsl(200 18% 12% / 0.05);
-    --shadow-md: 0 4px 12px -2px hsl(200 18% 12% / 0.10), 0 2px 4px -2px hsl(200 18% 12% / 0.06);
+    --shadow-sm: 0 1px 2px 0 hsl(220 24% 12% / 0.04), 0 1px 3px 0 hsl(220 24% 12% / 0.03);
+    --shadow-md: 0 12px 30px -18px hsl(220 24% 12% / 0.20), 0 2px 8px -4px hsl(220 24% 12% / 0.08);
   }
 
   .dark {
+    /* Dark surfaces and text. origin/main's refresh had set this whole block to the light values
+     * (a white-only system), which left a working theme toggle with nothing to toggle to; the
+     * dark tokens are restored here. Main's brand green, border hue and ring are kept. */
     --background: 200 24% 8%;
     --foreground: 180 12% 95%;
     --card: 200 20% 12%;
@@ -66,15 +69,15 @@
     --popover: 200 20% 12%;
     --popover-foreground: 180 12% 95%;
 
-    --primary: 142 71% 45%;
-    --primary-foreground: 200 24% 8%;
+    --primary: 150 58% 48%;
+    --primary-foreground: 220 24% 8%;
 
     --secondary: 200 16% 17%;
     --secondary-foreground: 180 12% 95%;
     --muted: 200 16% 17%;
     --muted-foreground: 195 8% 64%;
-    --accent: 142 30% 18%;
-    --accent-foreground: 142 66% 72%;
+    --accent: 150 30% 18%;
+    --accent-foreground: 150 66% 72%;
 
     --destructive: 0 72% 64%;
     --destructive-foreground: 200 24% 8%;
@@ -85,9 +88,9 @@
     --info: 213 74% 62%;
     --info-foreground: 200 24% 8%;
 
-    --border: 200 14% 22%;
-    --input: 200 12% 32%;
-    --ring: 142 71% 45%;
+    --border: 220 14% 22%;
+    --input: 220 12% 32%;
+    --ring: 150 58% 48%;
 
     /* Native controls — unstyled inputs and textareas, select popups, date
      * pickers, scrollbars — draw their own chrome from this. Without it a
@@ -100,6 +103,14 @@
 }
 
 @layer base {
+  :root {
+    font-family: 'Manrope', 'Noto Sans Malayalam', system-ui, sans-serif;
+    font-size: 16px;
+    line-height: 1.5;
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+  }
+
   html,
   body,
   #root {
@@ -113,8 +124,63 @@
   body {
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
+    font-family: 'Manrope', 'Noto Sans Malayalam', system-ui, sans-serif;
+    font-size: 0.875rem;
+    line-height: 1.375rem;
     font-feature-settings: "rlig" 1, "calt" 1;
     @apply font-sans antialiased;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6,
+  button,
+  input,
+  select,
+  textarea {
+    font-family: inherit;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    letter-spacing: -0.01em;
+  }
+
+  h1 {
+    font-size: 1.5rem;
+    line-height: 1.875rem;
+  }
+
+  h2 {
+    font-size: 1.125rem;
+    line-height: 1.625rem;
+  }
+
+  h3 {
+    font-size: 1rem;
+    line-height: 1.5rem;
+  }
+
+  h4,
+  h5,
+  h6 {
+    font-size: 0.875rem;
+    line-height: 1.375rem;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+    line-height: 1.375rem;
   }
 
   ::selection {
@@ -134,6 +200,163 @@
 :where(.dark) ::placeholder {
   color: hsl(var(--muted-foreground));
   opacity: 1;
+}
+
+@layer components {
+  .workspace-canvas {
+    background: hsl(var(--background));
+  }
+
+  .page-enter {
+    animation: page-enter 180ms ease-out both;
+  }
+
+  @keyframes page-enter {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Create/edit pages are hosted in one consistent, white modal workspace. */
+  .form-modal-single form .grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .form-modal-single form .grid > [class*='col-span-'] {
+    grid-column: span 1 / span 1 !important;
+  }
+
+  .form-modal-double form .grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  @media (min-width: 640px) {
+    .form-modal-double form .grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
+  }
+
+  .form-modal-double form .grid > [class*='col-span-'] {
+    grid-column: span 2 / span 2 !important;
+  }
+
+  /* Neutral utility backgrounds are presentation surfaces, not state. Keep
+     the product canvas and its components consistently white.
+     LIGHT MODE ONLY: forced to #fff with !important these would also turn every
+     card, table and input white on the dark theme (white text on white), and no
+     `dark:` class could undo it. Dark keeps the token surfaces. */
+  :root:not(.dark) [class*='bg-gray-'],
+  :root:not(.dark) [class*='bg-slate-'],
+  :root:not(.dark) [class*='bg-zinc-'],
+  :root:not(.dark) [class*='bg-neutral-'] {
+    background-color: #fff !important;
+  }
+
+  :root:not(.dark) [class~='bg-muted'],
+  :root:not(.dark) [class*='bg-muted/'],
+  :root:not(.dark) [class~='bg-secondary'],
+  :root:not(.dark) [class*='bg-secondary/'] {
+    background-color: #fff !important;
+  }
+
+  .surface {
+    border: 1px solid hsl(var(--border));
+    border-radius: calc(var(--radius) + 4px);
+    background: hsl(var(--card));
+    box-shadow: var(--shadow-sm);
+  }
+
+  .nav-section-label {
+    color: hsl(var(--muted-foreground));
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    line-height: 1rem;
+    text-transform: uppercase;
+  }
+
+  .table-surface {
+    overflow: hidden;
+    border: 1px solid hsl(var(--border));
+    border-radius: calc(var(--radius) + 4px);
+    background: hsl(var(--card));
+    box-shadow: var(--shadow-sm);
+  }
+
+  /* Route-level alignment contract. Every protected route gets the same
+     shrink behaviour, so a long page or a nested flyout cannot widen the
+     content column and push controls out of view. */
+  .page-route-shell {
+    min-width: 0;
+    width: 100%;
+  }
+
+  /* Hand-written tables use this class while older feature screens migrate to
+     the shared Table component. It keeps their header height, cell rhythm and
+     row separators identical to the shared list surface. */
+  .data-table {
+    min-width: 42rem;
+    border-collapse: collapse;
+    color: hsl(var(--foreground));
+  }
+
+  .data-table thead {
+    /* The legacy `bg-muted` utility is intentionally forced to white by the
+       product-wide surface rule. Keep the table header's one controlled tint
+       explicit so the header still reads as a separate row. */
+    background: hsl(210 20% 98%) !important;
+  }
+
+  .dark .data-table thead {
+    background: hsl(var(--muted)) !important;
+  }
+
+  .data-table th {
+    height: 2.625rem;
+    padding: 0.625rem 0.75rem;
+    border-bottom: 1px solid hsl(var(--border));
+    color: hsl(var(--muted-foreground));
+    font-size: 0.8125rem;
+    font-weight: 600;
+    line-height: 1.125rem;
+    text-align: left;
+    vertical-align: middle;
+    white-space: nowrap;
+  }
+
+  .data-table td {
+    min-height: 2.75rem;
+    padding: 0.6875rem 0.75rem;
+    border-bottom: 1px solid hsl(var(--border));
+    font-size: 0.875rem;
+    line-height: 1.375rem;
+    vertical-align: middle;
+  }
+
+  .data-table tbody tr:last-child td {
+    border-bottom: 0;
+  }
+
+  .data-table tbody tr {
+    transition: background-color 150ms ease;
+  }
+
+  .data-table tbody tr:hover {
+    background: hsl(var(--accent) / 0.3);
+  }
+
+  @media (max-width: 767px) {
+    .data-table-surface {
+      border-radius: 0;
+      border-left: 0;
+      border-right: 0;
+    }
+  }
 }
 
 /* Scrollbar follows the neutral ramp rather than fixed greys. */

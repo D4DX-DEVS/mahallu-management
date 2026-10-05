@@ -8,6 +8,7 @@ import { memberService } from '@/services/memberService';
 import { toast } from '@/store/toastStore';
 import { errorMessage } from '@/utils/errors';
 import { toTitleCase } from '@/utils/format';
+import { TableSkeleton } from '@/components/ui/Skeleton';
 
 interface ProgramRegistrationsProps {
   programId: string;
@@ -132,7 +133,7 @@ export default function ProgramRegistrations({ programId }: ProgramRegistrations
       {error && <div className="mb-3 text-sm text-red-600">{error}</div>}
 
       {loading ? (
-        <div className="py-6 text-center text-gray-500">Loading...</div>
+        <TableSkeleton columns={4} rows={4} />
       ) : registrations.length === 0 ? (
         <div className="py-6 text-center text-gray-500">No registrations yet</div>
       ) : (

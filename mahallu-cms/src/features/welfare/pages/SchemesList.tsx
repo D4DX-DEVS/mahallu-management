@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
-import ActionsMenu from '@/components/ui/ActionsMenu';
-import { FiEdit2, FiPlus } from 'react-icons/fi';
+import { FiPlus } from 'react-icons/fi';
 import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -9,6 +8,7 @@ import Table from '@/components/ui/Table';
 import Modal from '@/components/ui/Modal';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import EmptyState from '@/components/ui/EmptyState';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import Pagination from '@/components/ui/Pagination';
 import { Pagination as PaginationType, TableColumn } from '@/types';
 import { welfareService, WelfareScheme } from '@/services/welfareService';
@@ -41,6 +41,11 @@ export default function SchemesList() {
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [viewing, setViewing] = useState<WelfareScheme | null>(null);
+  const [isConfirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deletingName, setDeletingName] = useState('');
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     fetchRows();
@@ -102,6 +107,29 @@ export default function SchemesList() {
     }
   };
 
+  const openDeleteConfirm = (scheme: WelfareScheme) => {
+    setDeletingId(scheme.id);
+    setDeletingName(scheme.name);
+    setConfirmDeleteOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!deletingId) return;
+    try {
+      setDeleting(true);
+      await welfareService.removeScheme(deletingId);
+      toast.success('Scheme deleted');
+      setConfirmDeleteOpen(false);
+      setDeletingId(null);
+      setDeletingName('');
+      fetchRows();
+    } catch (err: any) {
+      toast.error(errorMessage(err, { action: 'delete scheme' }));
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const columns: TableColumn<WelfareScheme>[] = [
     { key: 'name', label: 'Scheme', width: '7.75rem', render: (v) => <span>{toTitleCase(v)}</span> },
     {
@@ -112,17 +140,6 @@ export default function SchemesList() {
     },
     { key: 'budgetAmount', label: 'Budget', width: '7.25rem', render: (v) => (v ? `Rs ${v}` : '-') },
     { key: 'status', label: 'Status', width: '7.25rem' },
-    {
-      key: 'actions',
-      label: 'Actions',
-      width: '8rem',
-      align: 'center',
-      render: (_v, row) => (
-        <ActionsMenu
-          items={[{ label: 'Edit', icon: <FiEdit2 className="h-4 w-4" />, onClick: () => openEdit(row) }]}
-        />
-      ),
-    },
   ];
 
   return (
@@ -133,7 +150,7 @@ export default function SchemesList() {
         breadcrumbs={[{ label: 'Welfare', path: '/welfare/applications' }]}
       />
 
-      <TableCard>
+      <TableCard borderless>
         <div className="mb-3 flex items-center justify-between gap-2">
           <p className="text-xs text-gray-500 dark:text-gray-400">{pagination?.total ?? 0} scheme(s)</p>
           <Button
@@ -163,7 +180,15 @@ export default function SchemesList() {
             }}
           />
         ) : (
-          <Table fixedLayout striped columns={columns} data={rows} emptyMessage="No schemes yet" showExport={false} />
+          <Table
+            fixedLayout
+            striped
+            columns={columns}
+            data={rows}
+            emptyMessage="No schemes yet"
+            showExport={false}
+            onRowClick={openEdit}
+          />
         )}
 
         {pagination && (
@@ -232,11 +257,78 @@ export default function SchemesList() {
           <Button variant="outline" onClick={() => setFormOpen(false)} disabled={saving}>
             Cancel
           </Button>
+          {editingId && (
+            <Button
+              variant="danger"
+              onClick={() => {
+                const scheme = rows.find((r) => r.id === editingId);
+                if (scheme) openDeleteConfirm(scheme);
+                setFormOpen(false);
+              }}
+              disabled={saving}
+            >
+              Delete
+            </Button>
+          )}
           <Button onClick={handleSave} disabled={saving}>
             {saving ? 'Saving...' : 'Save'}
           </Button>
         </div>
       </Modal>
+
+      <Modal isOpen={Boolean(viewing)} onClose={() => setViewing(null)} title="Scheme Details">
+        {viewing && (
+          <div className="space-y-3">
+            <div>
+              <span className="text-sm text-gray-500 dark:text-gray-400">Name</span>
+              <p className="text-gray-900 dark:text-gray-100">{toTitleCase(viewing.name)}</p>
+            </div>
+            {viewing.nameMl && (
+              <div>
+                <span className="text-sm text-gray-500 dark:text-gray-400">Name (Malayalam)</span>
+                <p className="font-malayalam text-gray-900 dark:text-gray-100">{viewing.nameMl}</p>
+              </div>
+            )}
+            <div>
+              <span className="text-sm text-gray-500 dark:text-gray-400">Category</span>
+              <p className="text-gray-900 dark:text-gray-100">
+                {WELFARE_CATEGORY_OPTIONS.find((o) => o.value === viewing.category)?.label || viewing.category}
+              </p>
+            </div>
+            <div>
+              <span className="text-sm text-gray-500 dark:text-gray-400">Budget</span>
+              <p className="text-gray-900 dark:text-gray-100">
+                {viewing.budgetAmount ? `Rs ${viewing.budgetAmount}` : '-'}
+              </p>
+            </div>
+            <div>
+              <span className="text-sm text-gray-500 dark:text-gray-400">Status</span>
+              <p className="text-gray-900 dark:text-gray-100">{viewing.status}</p>
+            </div>
+            {viewing.description && (
+              <div>
+                <span className="text-sm text-gray-500 dark:text-gray-400">Description</span>
+                <p className="text-gray-900 dark:text-gray-100">{viewing.description}</p>
+              </div>
+            )}
+          </div>
+        )}
+      </Modal>
+
+      <ConfirmDialog
+        isLoading={deleting}
+        isOpen={isConfirmDeleteOpen}
+        title="Delete Scheme"
+        message={`Delete the scheme "${toTitleCase(deletingName)}"?`}
+        variant="danger"
+        confirmLabel="Delete"
+        onConfirm={confirmDelete}
+        onCancel={() => {
+          setConfirmDeleteOpen(false);
+          setDeletingId(null);
+          setDeletingName('');
+        }}
+      />
     </div>
   );
 }

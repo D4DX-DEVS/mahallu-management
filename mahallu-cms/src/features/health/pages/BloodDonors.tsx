@@ -10,6 +10,7 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from '@/store/toastStore';
 import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
+import { PageSkeleton } from '@/components/ui/Skeleton';
 
 export default function BloodDonors() {
   const navigate = useNavigate();
@@ -75,7 +76,7 @@ export default function BloodDonors() {
   };
 
   if (loading) {
-    return <div className="p-4">Loading...</div>;
+    return <PageSkeleton variant="section" />;
   }
 
   return (

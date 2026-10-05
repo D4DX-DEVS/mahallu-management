@@ -31,6 +31,7 @@ export default function MahalluAccountsList() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState<MahalluAccount | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [showViewModal, setShowViewModal] = useState(false);
   const itemsPerPage = 10;
 
   useEffect(() => {
@@ -162,7 +163,7 @@ export default function MahalluAccountsList() {
         <StatCard title="Total Balance" value={formatRupees(totalBalance)} tone="success" />
       </div>
 
-      <TableCard>
+      <TableCard borderless>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -185,7 +186,17 @@ export default function MahalluAccountsList() {
           <p className="text-center py-8 text-red-600">{error}</p>
         ) : (
           <>
-            <Table fixedLayout striped columns={columns} data={filteredAccounts} emptyMessage="No accounts found" />
+            <Table
+              fixedLayout
+              striped
+              columns={columns}
+              data={filteredAccounts}
+              emptyMessage="No accounts found"
+              onRowClick={(row) => {
+                setSelectedAccount(row);
+                setShowViewModal(true);
+              }}
+            />
             {pagination && (
               <Pagination
                 currentPage={currentPage}
@@ -198,6 +209,83 @@ export default function MahalluAccountsList() {
           </>
         )}
       </TableCard>
+
+      {/* View Modal */}
+      <Modal
+        isOpen={showViewModal}
+        onClose={() => {
+          setShowViewModal(false);
+          setSelectedAccount(null);
+        }}
+        title="Account Details"
+        footer={
+          <>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowViewModal(false);
+                setSelectedAccount(null);
+              }}
+            >
+              Close
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (selectedAccount) {
+                  navigate(ROUTES.MAHALLU_FINANCE.ACCOUNTS_EDIT(selectedAccount.id), {
+                    state: { account: selectedAccount },
+                  });
+                }
+              }}
+            >
+              Edit
+            </Button>
+            <Button
+              variant="danger"
+              onClick={() => {
+                setShowViewModal(false);
+                setShowDeleteModal(true);
+              }}
+            >
+              Delete
+            </Button>
+          </>
+        }
+      >
+        {selectedAccount && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Account Name</p>
+              <p className="text-gray-900 dark:text-gray-100 font-medium">{toTitleCase(selectedAccount.accountName)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Account Number</p>
+              <p className="text-gray-900 dark:text-gray-100">{selectedAccount.accountNumber}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Bank Name</p>
+              <p className="text-gray-900 dark:text-gray-100">{toTitleCase(selectedAccount.bankName)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">IFSC Code</p>
+              <p className="text-gray-900 dark:text-gray-100">{selectedAccount.ifscCode}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Balance</p>
+              <p className="text-gray-900 dark:text-gray-100">{formatRupees(selectedAccount.balance)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Status</p>
+              <p className="text-gray-900 dark:text-gray-100 capitalize">{selectedAccount.status}</p>
+            </div>
+            <div className="sm:col-span-2">
+              <p className="text-xs text-gray-500 dark:text-gray-400">Created</p>
+              <p className="text-gray-900 dark:text-gray-100">{formatDate(selectedAccount.createdAt)}</p>
+            </div>
+          </div>
+        )}
+      </Modal>
 
       <Modal isOpen={showDeleteModal} onClose={() => setShowDeleteModal(false)} title="Delete Account">
         <p className="text-gray-600 dark:text-gray-400 mb-4">

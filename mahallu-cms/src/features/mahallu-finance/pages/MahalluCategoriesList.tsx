@@ -140,6 +140,9 @@ export default function MahalluCategoriesList() {
     },
   ];
 
+  const openEditPage = (row: Category) =>
+    navigate(ROUTES.MAHALLU_FINANCE.CATEGORIES_EDIT(row.id), { state: { category: row } });
+
   return (
     <div className="space-y-4">
       <PageHeader
@@ -148,7 +151,7 @@ export default function MahalluCategoriesList() {
         breadcrumbs={[{ label: 'Mahallu Finance', path: '/mahallu-finance/accounts' }]}
       />
 
-      <TableCard>
+      <TableCard borderless>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -171,7 +174,14 @@ export default function MahalluCategoriesList() {
           <p className="text-center py-8 text-red-600">{error}</p>
         ) : (
           <>
-            <Table fixedLayout striped columns={columns} data={filtered} emptyMessage="No categories found" />
+            <Table
+              fixedLayout
+              striped
+              columns={columns}
+              data={filtered}
+              emptyMessage="No categories found"
+              onRowClick={openEditPage}
+            />
             {pagination && (
               <Pagination
                 currentPage={currentPage}

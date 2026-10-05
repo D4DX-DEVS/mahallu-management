@@ -228,7 +228,7 @@ export default function EditFamily() {
             <h2 className="text-sm font-semibold text-foreground">Location</h2>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <Select label="Area" options={areaSelectOptions} {...register('area')} />
-              <Input label="Place" {...register('place')} placeholder="e.g. Calicut" />
+              <Input label="Address" {...register('place')} placeholder="Address" />
               <div className="hidden">
                 <Input label="Area (Malayalam)" {...register('areaMl')} placeholder="പ്രദേശം" className="font-malayalam" />
               </div>

@@ -1,5 +1,5 @@
 import { ReactNode } from 'react';
-import { FiFilter, FiRefreshCw, FiDownload, FiFileText, FiFile } from 'react-icons/fi';
+import { FiFilter, FiRefreshCw, FiDownload, FiFileText, FiFile, FiSliders } from 'react-icons/fi';
 import Button from './Button';
 import ExpandableSearch from './ExpandableSearch';
 import ActionBar from './ActionBar';
@@ -30,6 +30,10 @@ interface TableToolbarProps {
    * that pushes the row past the viewport.
    */
   actionButtons?: ReactNode;
+  tabs?: ReactNode;
+  sortOptions?: Array<{ value: string; label: string }>;
+  sortValue?: string;
+  onSortChange?: (value: string) => void;
   className?: string;
 }
 export default function TableToolbar({
@@ -44,12 +48,22 @@ export default function TableToolbar({
   onExport,
   isExporting,
   actionButtons,
+  tabs,
+  sortOptions,
+  sortValue,
+  onSortChange,
   className,
 }: TableToolbarProps) {
   const exportItems: DropdownItem[] = [
     { label: 'Export as CSV', icon: <FiFileText />, onClick: () => onExport?.('csv'), disabled: isExporting },
     { label: 'Export as PDF', icon: <FiFile />, onClick: () => onExport?.('pdf'), disabled: isExporting },
   ];
+  const selectedSort = sortOptions?.find((option) => option.value === sortValue);
+  const sortItems: DropdownItem[] = (sortOptions ?? []).map((option) => ({
+    label: option.label,
+    onClick: () => onSortChange?.(option.value),
+    className: option.value === sortValue ? 'bg-accent text-accent-foreground' : undefined,
+  }));
   return (
     /* One row at every width, one right-aligned cluster.
      *
@@ -57,14 +71,15 @@ export default function TableToolbar({
      * the page's "+ New" button pinned to the far right, so on a wide screen
      * the search icon was a full table-width away from the button it belongs
      * with. Everything is now one cluster (see ActionBar): search, filter,
-     * refresh, export, then the page's actions.
+     * refresh, sort, export, then the page's actions. `tabs` (status filters) sit at
+     * the start of the bar and the cluster stays at the end.
      *
      * Nothing wraps — the labelled controls collapse to their glyph below `sm`
      * (see `Button.collapseLabel`), which is what makes six controls fit across
      * 320px: 6 x 40px plus five 8px gaps is 280px, inside the 296px a 320px
      * phone leaves after the page's own gutters. Search is the one control that
      * gives up width when it opens. */
-    <ActionBar className={cn('mb-4', className)}>
+    <ActionBar className={cn('mb-4', className)} leading={tabs}>
       {/* Search rests as an icon and opens into a field. The collapsed state
           is a real button with an accessible name, so it stays in the tab
           order; a query holds the field open so no filter is ever hidden. */}
@@ -96,6 +111,22 @@ export default function TableToolbar({
         >
           <FiRefreshCw className="h-4 w-4" />
         </Button>
+      )}
+      {sortOptions && sortOptions.length > 0 && (
+        <Dropdown
+          label="Sort records"
+          items={sortItems}
+          trigger={
+            <Button
+              variant="outline"
+              icon={<FiSliders />}
+              collapseLabel
+              trailing={selectedSort ? <span className="hidden text-xs text-muted-foreground sm:inline">{selectedSort.label}</span> : undefined}
+            >
+              Sort by
+            </Button>
+          }
+        />
       )}
       {onExport && (
         <Dropdown

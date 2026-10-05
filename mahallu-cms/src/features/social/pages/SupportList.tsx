@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FiAlertCircle, FiCheckCircle, FiEye, FiHelpCircle, FiPlus } from 'react-icons/fi';
+import { FiAlertCircle, FiCheckCircle, FiHelpCircle, FiPlus } from 'react-icons/fi';
 import TableCard from '@/components/ui/TableCard';
-import { rowActionClass } from '@/components/ui/rowAction';
 import FilterPanel from '@/components/ui/FilterPanel';
 import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
@@ -143,27 +142,6 @@ export default function SupportList() {
       width: '7.75rem',
       render: (date) => formatDate(date),
     },
-    {
-      key: 'actions',
-      label: 'Actions',
-      width: '8rem',
-      align: 'center',
-      render: (_, row) => (
-        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(ROUTES.SOCIAL.SUPPORT_DETAIL(row.id));
-            }}
-            className={rowActionClass()}
-            title="View"
-            aria-label="View"
-          >
-            <FiEye className="h-4 w-4" />
-          </button>
-        </div>
-      ),
-    },
   ];
 
   const stats = [
@@ -192,7 +170,7 @@ export default function SupportList() {
         </div>
       </div>
 
-      <TableCard>
+      <TableCard borderless>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -263,6 +241,7 @@ export default function SupportList() {
               data={support}
               emptyMessage="No support tickets found"
               showExport={false}
+              onRowClick={(row) => navigate(ROUTES.SOCIAL.SUPPORT_DETAIL(row.id))}
             />
             {pagination && pagination.totalPages > 1 && (
               <div className="mt-4">

@@ -58,16 +58,16 @@ export default {
         primary: {
           DEFAULT: 'hsl(var(--primary) / <alpha-value>)',
           foreground: 'hsl(var(--primary-foreground) / <alpha-value>)',
-          50: '#f0fdf4',
-          100: '#dcfce7',
-          200: '#bbf7d0',
-          300: '#86efac',
-          400: '#4ade80',
-          500: '#22c55e',
-          600: '#16a34a',
-          700: '#15803d',
-          800: '#166534',
-          900: '#14532d',
+          50: '#effcf6',
+          100: '#dff7ea',
+          200: '#bcebd3',
+          300: '#8edcb3',
+          400: '#5ecb8e',
+          500: '#36b976',
+          600: '#279d61',
+          700: '#207d50',
+          800: '#1d6442',
+          900: '#174f36',
         },
       },
 
@@ -94,10 +94,15 @@ export default {
 
       width: {
         /* The collapsed navigation rail. Paired with `ml-rail` on the content. */
-        rail: '4.5rem',
+        rail: '5.625rem',
       },
       margin: {
-        rail: '4.5rem',
+        rail: '5.625rem',
+        /* Five-pixel visual inset keeps the 90px rail aligned with the page. */
+        'rail-content': '5.9375rem',
+        /* Content offsets while a 14rem submenu flyout remains visible. */
+        'rail-flyout-content': '19.9375rem',
+        'expanded-flyout-content': '29rem',
       },
       padding: {
         /* The iOS home-indicator inset, under the mobile tab bar. */
@@ -142,11 +147,11 @@ export default {
       },
 
       fontFamily: {
-        /* One family. Noto Sans Malayalam carries the Malayalam glyphs the
-         * Latin face lacks, so mixed strings resolve per glyph. */
-        sans: ['Plus Jakarta Sans', 'Noto Sans Malayalam', 'system-ui', 'sans-serif'],
-        body: ['Plus Jakarta Sans', 'Noto Sans Malayalam', 'system-ui', 'sans-serif'],
-        title: ['Plus Jakarta Sans', 'Noto Sans Malayalam', 'system-ui', 'sans-serif'],
+        /* Manrope is the shared Latin face. Noto Sans Malayalam carries the
+         * Malayalam glyphs the Latin face lacks, so mixed strings resolve per glyph. */
+        sans: ['Manrope', 'Noto Sans Malayalam', 'system-ui', 'sans-serif'],
+        body: ['Manrope', 'Noto Sans Malayalam', 'system-ui', 'sans-serif'],
+        title: ['Manrope', 'Noto Sans Malayalam', 'system-ui', 'sans-serif'],
         malayalam: ['Noto Sans Malayalam', 'sans-serif'],
       },
 

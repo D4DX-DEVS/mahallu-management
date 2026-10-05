@@ -10,6 +10,7 @@ import Pagination from '@/components/ui/Pagination';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import { PageSkeleton } from '@/components/ui/Skeleton';
 import { toast } from '@/store/toastStore';
 import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
@@ -116,7 +117,7 @@ export default function RestrictedHealthPage({ title, type, subtitle }: Restrict
   };
 
   if (loading) {
-    return <div className="p-4">Loading...</div>;
+    return <PageSkeleton variant="section" />;
   }
 
   if (accessDenied) {

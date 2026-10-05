@@ -318,7 +318,7 @@ export default function FamilyVarisangyaList() {
           <StatCard key={index} {...stat} />
         ))}
       </div>
-      <TableCard>
+      <TableCard borderless>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -339,7 +339,15 @@ export default function FamilyVarisangyaList() {
             action={{ label: 'Retry', onClick: fetchFamilies }}
           />
         ) : (
-          <Table fixedLayout striped columns={columns} data={families} emptyMessage="No families found" showExport={false} />
+          <Table
+            fixedLayout
+            striped
+            columns={columns}
+            data={families}
+            emptyMessage="No families found"
+            showExport={false}
+            onRowClick={(row) => navigate(`${FAMILY_BASE}?view=transactions&familyId=${row.id}`)}
+          />
         )}
         {pagination && (
           <div className="mt-4">

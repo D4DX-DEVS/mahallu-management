@@ -294,7 +294,7 @@ export default function MemberVarisangyaList() {
           <StatCard key={index} {...stat} />
         ))}
       </div>
-      <TableCard>
+      <TableCard borderless>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -315,7 +315,15 @@ export default function MemberVarisangyaList() {
             action={{ label: 'Retry', onClick: fetchMembers }}
           />
         ) : (
-          <Table fixedLayout striped columns={columns} data={members} emptyMessage="No members found" showExport={false} />
+          <Table
+            fixedLayout
+            striped
+            columns={columns}
+            data={members}
+            emptyMessage="No members found"
+            showExport={false}
+            onRowClick={(row) => navigate(`${MEMBER_BASE}?view=transactions&memberId=${row.id}`)}
+          />
         )}
         {pagination && (
           <div className="mt-4">

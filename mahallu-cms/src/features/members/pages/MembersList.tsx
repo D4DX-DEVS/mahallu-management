@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { FiEdit2, FiEye, FiPlus, FiUser, FiUserCheck, FiUsers } from 'react-icons/fi';
+import { FiEdit2, FiEye, FiFile, FiFileText, FiPlus, FiUser, FiUserCheck, FiUsers } from 'react-icons/fi';
 import TableCard from '@/components/ui/TableCard';
 import FilterPanel from '@/components/ui/FilterPanel';
 import Button from '@/components/ui/Button';
@@ -11,6 +11,11 @@ import EmptyState from '@/components/ui/EmptyState';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
+import Dropdown from '@/components/ui/Dropdown';
+import ActionsMenu from '@/components/ui/ActionsMenu';
+import Avatar from '@/components/ui/Avatar';
+import Tabs from '@/components/ui/Tabs';
+import StatusBadge from '@/components/ui/StatusBadge';
 import { TableColumn, Pagination as PaginationType } from '@/types';
 import { Member } from '@/types';
 import { memberService } from '@/services/memberService';
@@ -23,14 +28,15 @@ import { toast } from '@/store/toastStore';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import { toTitleCase } from '@/utils/format';
 import PageHeader from '@/components/layout/PageHeader';
-import ActionsMenu from '@/components/ui/ActionsMenu';
 
 export default function MembersList() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
-  const [isFilterVisible, setIsFilterVisible] = useState(!!searchParams.get('sort'));
+  const [isFilterVisible, setIsFilterVisible] = useState(false);
   const [sortBy, setSortBy] = useState(searchParams.get('sort') || 'date');
+  const [activeTab, setActiveTab] = useState('all');
+  const [genderFilter, setGenderFilter] = useState('');
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -41,6 +47,7 @@ export default function MembersList() {
   const [itemsPerPage] = useState(10);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [memberStats, setMemberStats] = useState({ totalMembers: 0, maleCount: 0, femaleCount: 0 });
 
   const debouncedSearch = useDebounce(searchQuery, 500);
@@ -69,7 +76,11 @@ export default function MembersList() {
 
   useEffect(() => {
     fetchMembers();
-  }, [debouncedSearch, sortBy, currentPage]);
+  }, [debouncedSearch, sortBy, activeTab, genderFilter, currentPage]);
+
+  useEffect(() => {
+    setSelectedIds([]);
+  }, [debouncedSearch, sortBy, activeTab, genderFilter, currentPage]);
 
   useEffect(() => {
     familyService
@@ -92,6 +103,8 @@ export default function MembersList() {
       if (sortBy && sortBy !== 'date') {
         params.sortBy = sortBy;
       }
+      if (activeTab !== 'all') params.status = activeTab;
+      if (genderFilter) params.gender = genderFilter;
       const result = await memberService.getAll(params);
       setMembers(result.data);
       if (result.pagination) {
@@ -111,6 +124,8 @@ export default function MembersList() {
       const params: any = {};
       if (debouncedSearch) params.search = debouncedSearch;
       if (sortBy && sortBy !== 'date') params.sortBy = sortBy;
+      if (activeTab !== 'all') params.status = activeTab;
+      if (genderFilter) params.gender = genderFilter;
       const dataToExport = await fetchAllPages((pageParams) =>
         memberService.getAll({ ...params, ...pageParams })
       );
@@ -122,10 +137,10 @@ export default function MembersList() {
       const title = 'All Members';
       switch (type) {
         case 'csv':
-          exportToCSV(columns, dataToExport, filename);
+          exportToCSV(exportColumns, dataToExport, filename);
           break;
         case 'pdf':
-          exportToPDF(columns, dataToExport, filename, title);
+          exportToPDF(exportColumns, dataToExport, filename, title);
           break;
       }
     } catch (error: any) {
@@ -137,8 +152,22 @@ export default function MembersList() {
   };
 
   const columns: TableColumn<Member>[] = [
-    { key: 'mahallId', label: 'Mahall ID', width: '7rem', priority: 'secondary', render: (id) => <span className="tabular-nums">{id || '-'}</span> },
-    { key: 'name', label: 'Name', width: '9.5rem', sortable: true, render: (name) => <span className="font-medium">{toTitleCase(name)}</span> },
+    { key: 'mahallId', label: 'Mahall ID', width: '7rem', priority: 'tertiary', render: (id) => <span className="tabular-nums">{id || '-'}</span> },
+    {
+      key: 'name',
+      label: 'Member name',
+      width: '14rem',
+      sortable: true,
+      render: (name, row) => (
+        <div className="flex min-w-0 items-center gap-3">
+          <Avatar name={name} size="md" />
+          <div className="min-w-0">
+            <div className="truncate font-semibold">{toTitleCase(name)}</div>
+            <div className="truncate text-xs text-muted-foreground">{row.phone || 'No phone added'}</div>
+          </div>
+        </div>
+      ),
+    },
     { key: 'familyName', label: 'Family', width: '9rem', priority: 'secondary', render: (name) => toTitleCase(name) },
     {
       key: 'age',
@@ -149,6 +178,13 @@ export default function MembersList() {
     },
     { key: 'phone', label: 'Phone', width: '7.5rem', priority: 'secondary', render: (phone) => <span className="tabular-nums">{phone || '-'}</span> },
     { key: 'education', label: 'Education', width: '8rem', priority: 'tertiary', render: (edu) => edu || '-' },
+    {
+      key: 'status',
+      label: 'Status',
+      width: '8rem',
+      sortable: false,
+      render: (status) => <StatusBadge status={status || 'active'} />,
+    },
     {
       key: 'actions',
       label: '',
@@ -166,6 +202,13 @@ export default function MembersList() {
       ),
     },
   ];
+
+  // What goes into CSV/PDF: the name column renders an avatar + name + phone block, which the
+  // exporter would flatten into "Asha K 9876543210" next to a separate Phone column, and the
+  // row-actions column has no data at all. Export plain values and skip the actions column.
+  const exportColumns: TableColumn<Member>[] = columns
+    .filter((column) => column.key !== 'actions')
+    .map((column) => (column.key === 'name' ? { ...column, render: (name: string) => toTitleCase(name) } : column));
 
   const stats = [
     {
@@ -186,7 +229,7 @@ export default function MembersList() {
   ];
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <PageHeader
         title="Members"
         description="People registered across all families"
@@ -203,7 +246,7 @@ export default function MembersList() {
         ))}
       </div>
 
-      <TableCard padding="lg">
+      <TableCard borderless padding="lg">
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -211,9 +254,29 @@ export default function MembersList() {
           onFilterClick={() => setIsFilterVisible(!isFilterVisible)}
           isFilterVisible={isFilterVisible}
           hasFilters
+          activeFilterCount={genderFilter ? 1 : 0}
           onRefresh={fetchMembers}
           onExport={handleExport}
           isExporting={isExporting}
+          sortOptions={[
+            { value: 'date', label: 'Newest first' },
+            { value: 'name', label: 'Name' },
+            { value: 'mahallId', label: 'Mahall ID' },
+          ]}
+          sortValue={sortBy}
+          onSortChange={(value) => { setSortBy(value); setCurrentPage(1); }}
+          tabs={
+            <Tabs
+              ariaLabel="Member status"
+              value={activeTab}
+              onChange={(value) => { setActiveTab(value); setCurrentPage(1); }}
+              items={[
+                { value: 'all', label: 'All', count: pagination?.total },
+                { value: 'active', label: 'Active' },
+                { value: 'inactive', label: 'Inactive' },
+              ]}
+            />
+          }
         />
 
           {isFilterVisible && (
@@ -221,14 +284,15 @@ export default function MembersList() {
               <FilterPanel onClose={() => setIsFilterVisible(false)}>
                 <div className="w-full sm:w-40">
                   <Select
+                    label="Gender"
                     options={[
-                      { value: 'date', label: 'Date' },
-                      { value: 'mahallId', label: 'Mahall ID' },
-                      { value: 'name', label: 'Name' },
+                      { value: '', label: 'All genders' },
+                      { value: 'male', label: 'Male' },
+                      { value: 'female', label: 'Female' },
                     ]}
-                    value={sortBy}
+                    value={genderFilter}
                     onChange={(e) => {
-                      setSortBy(e.target.value);
+                      setGenderFilter(e.target.value);
                       setCurrentPage(1);
                     }}
                   />
@@ -253,6 +317,27 @@ export default function MembersList() {
             columns={columns}
             data={members}
             entity="members"
+            selectable
+            selectedKeys={selectedIds}
+            onSelectionChange={setSelectedIds}
+            bulkActions={
+              <Dropdown
+                label="Bulk member actions"
+                trigger={<Button variant="outline" size="sm">Export selected</Button>}
+                items={[
+                  {
+                    label: 'Export as CSV',
+                    icon: <FiFileText />,
+                    onClick: () => exportToCSV(exportColumns, members.filter((member) => selectedIds.includes(member.id)), 'members'),
+                  },
+                  {
+                    label: 'Export as PDF',
+                    icon: <FiFile />,
+                    onClick: () => exportToPDF(exportColumns, members.filter((member) => selectedIds.includes(member.id)), 'members', 'Members'),
+                  },
+                ]}
+              />
+            }
             emptyMessage="No Members Yet"
             emptyAction={{ label: 'Add member', onClick: () => navigate(ROUTES.MEMBERS.CREATE) }}
             onRowClick={(row) => navigate(ROUTES.MEMBERS.DETAIL(row.id))}

@@ -13,6 +13,7 @@ import { PageSkeleton } from '@/components/ui/Skeleton';
 import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import Modal from '@/components/ui/Modal';
 import { TableColumn, Pagination as PaginationType } from '@/types';
 import { marriageAssistanceService, MarriageAssistance } from '@/services/marriageAssistanceService';
 import { useDebounce } from '@/hooks/useDebounce';
@@ -36,6 +37,8 @@ export default function MarriageAssistanceList() {
   const [pagination, setPagination] = useState<PaginationType | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; label: string } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [selectedRecord, setSelectedRecord] = useState<MarriageAssistance | null>(null);
+  const [showViewModal, setShowViewModal] = useState(false);
 
   const debouncedSearch = useDebounce(searchQuery, 500);
 
@@ -211,7 +214,7 @@ export default function MarriageAssistanceList() {
         </div>
       </div>
 
-      <TableCard>
+      <TableCard borderless>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -283,6 +286,10 @@ export default function MarriageAssistanceList() {
             data={records}
             emptyMessage="No marriage assistance records found"
             showExport={false}
+            onRowClick={(row) => {
+              setSelectedRecord(row);
+              setShowViewModal(true);
+            }}
           />
         )}
 
@@ -298,6 +305,82 @@ export default function MarriageAssistanceList() {
           </div>
         )}
       </TableCard>
+
+      {/* View Modal */}
+      <Modal
+        isOpen={showViewModal}
+        onClose={() => {
+          setShowViewModal(false);
+          setSelectedRecord(null);
+        }}
+        title="Marriage Assistance Details"
+        footer={
+          <>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowViewModal(false);
+                setSelectedRecord(null);
+              }}
+            >
+              Close
+            </Button>
+            {selectedRecord && (
+              <Button
+                variant="danger"
+                onClick={() => {
+                  const label = toTitleCase(
+                    typeof selectedRecord.memberId === 'object'
+                      ? selectedRecord.memberId?.name
+                      : typeof selectedRecord.familyId === 'object'
+                        ? selectedRecord.familyId?.houseName
+                        : 'Record'
+                  );
+                  setShowViewModal(false);
+                  handleDeleteClick(selectedRecord.id, label);
+                }}
+              >
+                Delete
+              </Button>
+            )}
+          </>
+        }
+      >
+        {selectedRecord && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Member/Family</p>
+              <p className="text-gray-900 dark:text-gray-100 font-medium">
+                {toTitleCase(
+                  typeof selectedRecord.memberId === 'object'
+                    ? selectedRecord.memberId?.name
+                    : typeof selectedRecord.familyId === 'object'
+                      ? selectedRecord.familyId?.houseName
+                      : '—'
+                ) || '—'}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Type</p>
+              <p className="text-gray-900 dark:text-gray-100">{getTypeLabel(selectedRecord.type)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Amount</p>
+              <p className="text-gray-900 dark:text-gray-100">
+                {selectedRecord.amount ? `₹${selectedRecord.amount.toLocaleString()}` : '—'}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Status</p>
+              <p className="text-gray-900 dark:text-gray-100 capitalize">{selectedRecord.status}</p>
+            </div>
+            <div className="sm:col-span-2">
+              <p className="text-xs text-gray-500 dark:text-gray-400">Notes</p>
+              <p className="text-gray-900 dark:text-gray-100">{selectedRecord.notes || '—'}</p>
+            </div>
+          </div>
+        )}
+      </Modal>
 
       <ConfirmDialog
         isOpen={deleteConfirm !== null}

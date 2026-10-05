@@ -18,6 +18,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
   useTenant();
   const isMobileSidebarOpen = useLayoutStore((s) => s.isMobileSidebarOpen);
   const isDesktopSidebarCollapsed = useLayoutStore((s) => s.isDesktopSidebarCollapsed);
+  const isSubmenuOpen = useLayoutStore((s) => s.isSubmenuOpen);
   const setMobileSidebarOpen = useLayoutStore((s) => s.setMobileSidebarOpen);
   const { isSuperAdmin, currentTenantId, isImpersonating } = useAuthStore();
   // Single source of truth for the top-shell offset: the sidebar and the
@@ -45,7 +46,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
   return (
     <div
       className={cn(
-        'flex h-screen h-[100dvh] overflow-hidden bg-background text-foreground',
+        'workspace-canvas flex h-screen h-[100dvh] overflow-hidden text-foreground',
         showTopBanner && 'pt-9'
       )}
     >
@@ -61,10 +62,19 @@ export default function MainLayout({ children }: MainLayoutProps) {
       <Sidebar />
       <div
         id="app-content-area"
-        className={
-          'relative z-30 flex min-w-0 flex-1 flex-col overflow-hidden transition-[margin-left] duration-200 ease-out ' +
-          (isDesktopSidebarCollapsed ? 'md:ml-rail' : 'md:ml-64')
-        }
+        className={cn(
+          'relative z-30 flex min-w-0 flex-1 flex-col overflow-hidden transition-[margin-left] duration-200 ease-out',
+          // Parenthesised through cn(): `'base ' + collapsed ? a : b` binds as `('base ' + collapsed) ? a : b`
+          // and threw the base classes (flex-1, flex-col, overflow-hidden) away, so the content column
+          // shrank to its content and slid under the sidebar.
+          isDesktopSidebarCollapsed
+            ? isSubmenuOpen
+              ? 'md:ml-rail-flyout-content'
+              : 'md:ml-rail-content'
+            : isSubmenuOpen
+              ? 'md:ml-expanded-flyout-content'
+              : 'md:ml-60'
+        )}
       >
         <a
           href="#main-content"
@@ -75,12 +85,18 @@ export default function MainLayout({ children }: MainLayoutProps) {
 
         <Header />
 
-        {/* 12px gutters phone / 24px md. Compact but readable; cards breathe without stealing content width. */}
-        <main id="main-content" className="flex-1 overflow-y-auto px-3 pb-24 pt-3 sm:pt-4 md:px-6 md:pb-8">
+        {/* 12px gutters on a phone, 24px from `md`. The page used to keep its
+            desktop 16px inset on a 360px screen and then nest a bordered card
+            inside it, so a table had 320px to render nine columns in. */}
+        <main id="main-content" className="flex-1 overflow-y-auto px-3 pb-24 pt-5 md:px-8 md:pb-10 md:pt-7">
           {/* A page that throws costs the user that page, not the whole app:
               the chrome stays up and the boundary clears on the next route. */}
           <div className="mx-auto w-full max-w-content">
-            <RouteErrorBoundary>{children}</RouteErrorBoundary>
+            <RouteErrorBoundary>
+              <div key={location.pathname} className="page-enter">
+                {children}
+              </div>
+            </RouteErrorBoundary>
           </div>
         </main>
       </div>
