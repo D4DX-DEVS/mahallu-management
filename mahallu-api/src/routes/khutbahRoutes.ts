@@ -12,7 +12,7 @@ import {
   deleteKhutbah,
   getMosqueInstituteHandler,
 } from '../controllers/khutbahController';
-import { authMiddleware, allowRoles } from '../middleware/authMiddleware';
+import { authMiddleware, allowRoles, requireAdmin } from '../middleware/authMiddleware';
 import { tenantMiddleware, tenantFilter } from '../middleware/tenantMiddleware';
 import { validationHandler } from '../middleware/validationHandler';
 import { param } from 'express-validator';
@@ -64,7 +64,7 @@ router.use(tenantFilter);
  *       200:
  *         description: List of khateebs
  */
-router.get('/khateebs', listQuery(), validationHandler, getAllKhateebs);
+router.get('/khateebs', requireAdmin, listQuery(), validationHandler, getAllKhateebs);
 
 /**
  * @swagger
@@ -84,7 +84,7 @@ router.get('/khateebs', listQuery(), validationHandler, getAllKhateebs);
  *       200:
  *         description: Khateeb details
  */
-router.get('/khateebs/:id', param('id').isMongoId(), validationHandler, getKhateebById);
+router.get('/khateebs/:id', requireAdmin, param('id').isMongoId(), validationHandler, getKhateebById);
 
 /**
  * @swagger
@@ -222,7 +222,7 @@ router.delete('/khateebs/:id', allowRoles(['mahall']), param('id').isMongoId(), 
  *       200:
  *         description: List of khutbahs
  */
-router.get('/khutbahs', listQuery(), validationHandler, getAllKhutbahs);
+router.get('/khutbahs', requireAdmin, listQuery(), validationHandler, getAllKhutbahs);
 
 /**
  * @swagger
@@ -242,7 +242,7 @@ router.get('/khutbahs', listQuery(), validationHandler, getAllKhutbahs);
  *       200:
  *         description: Khutbah details
  */
-router.get('/khutbahs/:id', param('id').isMongoId(), validationHandler, getKhutbahById);
+router.get('/khutbahs/:id', requireAdmin, param('id').isMongoId(), validationHandler, getKhutbahById);
 
 /**
  * @swagger
@@ -359,6 +359,6 @@ router.delete('/khutbahs/:id', allowRoles(['mahall']), param('id').isMongoId(), 
  *       200:
  *         description: Mosque institute
  */
-router.get('/religious/mosque-institute', listQuery(), validationHandler, getMosqueInstituteHandler);
+router.get('/religious/mosque-institute', requireAdmin, listQuery(), validationHandler, getMosqueInstituteHandler);
 
 export default router;

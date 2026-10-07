@@ -13,6 +13,8 @@ import {
   currentAcademicYear,
 } from '@/services/madrasaService';
 import { employeeService } from '@/services/employeeService';
+import { instituteService } from '@/services/instituteService';
+import { useAuthStore } from '@/store/authStore';
 import { fetchAllPages } from '@/services/api';
 import { errorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
@@ -30,6 +32,7 @@ const RULES: Record<string, FieldRule> = {
   academicYear: { label: 'academic year', required: true, type: 'academicYear' },
   classType: { label: 'class type', required: true, maxLength: LIMITS.shortText.max },
   teacherEmployeeId: { label: 'teacher employee', type: 'id' },
+  instituteId: { label: 'institute', type: 'id' },
   schedule: { label: 'schedule', maxLength: LIMITS.shortText.max },
   status: { label: 'status', maxLength: LIMITS.shortText.max },
 };
@@ -55,9 +58,14 @@ export default function ClassForm({ existing }: ClassFormProps) {
   const navigate = useNavigate();
   const editing = Boolean(existing);
   const [teachers, setTeachers] = useState<any[]>([]);
+  const [institutes, setInstitutes] = useState<{ id: string; name: string }[]>([]);
+  // An institute account's classes always belong to its own institute (the server forces it), so
+  // the picker is for the Mahallu admin / super admin only and nothing is sent for the institute role.
+  const isInstituteRole = useAuthStore((state) => state.user?.role) === 'institute';
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState({
+    instituteId: refId(existing?.instituteId),
     name: existing?.name || '',
     nameMl: existing?.nameMl || '',
     academicYear: existing?.academicYear || currentAcademicYear(),
@@ -74,6 +82,14 @@ export default function ClassForm({ existing }: ClassFormProps) {
       .then((rows) => setTeachers(rows))
       .catch(() => setTeachers([]));
   }, []);
+
+  useEffect(() => {
+    if (isInstituteRole) return;
+    instituteService
+      .getAllForExport({})
+      .then((rows) => setInstitutes(rows.map((row: any) => ({ id: row.id || row._id, name: row.name }))))
+      .catch(() => setInstitutes([]));
+  }, [isInstituteRole]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -99,6 +115,9 @@ export default function ClassForm({ existing }: ClassFormProps) {
       subjects: splitSubjects(form.subjects),
       schedule: form.schedule || undefined,
       status: form.status,
+      // Mahallu-wide roles may pick an institute, or leave the class at Mahallu level ('' clears it
+      // on edit). Never sent for the institute role.
+      ...(isInstituteRole ? {} : { instituteId: form.instituteId || (existing ? '' : undefined) }),
     };
 
     try {
@@ -162,6 +181,21 @@ export default function ClassForm({ existing }: ClassFormProps) {
               options={CLASS_TYPE_OPTIONS}
               required
             />
+
+            {!isInstituteRole && (
+              <SearchableSelect
+                label="Institute"
+                value={form.instituteId}
+                error={errors.instituteId}
+                onChange={(value) => setForm({ ...form, instituteId: value })}
+                options={institutes.map((institute) => ({
+                  value: institute.id,
+                  label: toTitleCase(institute.name),
+                }))}
+                placeholder="Search institutes..."
+                helperText="Optional. Leave empty for a Mahallu-level class; institute accounts only see classes assigned to their institute."
+              />
+            )}
 
             <SearchableSelect
               label="Teacher"

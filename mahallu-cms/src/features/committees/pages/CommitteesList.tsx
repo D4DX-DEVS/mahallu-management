@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FiCalendar, FiCheckCircle, FiPlus, FiUsers, FiXCircle } from 'react-icons/fi';
+import { FiCalendar, FiCheckCircle, FiEdit2, FiEye, FiPlus, FiTrash2, FiUsers, FiXCircle } from 'react-icons/fi';
 import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
+import EmptyState from '@/components/ui/EmptyState';
 import { PageSkeleton } from '@/components/ui/Skeleton';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
 import { toast } from '@/store/toastStore';
@@ -17,8 +19,12 @@ import { fetchAllPages } from '@/services/api';
 import { useDebounce } from '@/hooks/useDebounce';
 import { formatDate, toTitleCase } from '@/utils/format';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
-import { loadErrorMessage } from '@/utils/errors';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { useServerCounts } from '@/hooks/useServerCounts';
+import ActionsMenu from '@/components/ui/ActionsMenu';
+import StatusBadge from '@/components/ui/StatusBadge';
+import { logError } from '@/utils/safeLog';
 
 export default function CommitteesList() {
   const navigate = useNavigate();
@@ -27,6 +33,9 @@ export default function CommitteesList() {
   const [committees, setCommittees] = useState<Committee[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedCommittee, setSelectedCommittee] = useState<Committee | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
@@ -56,7 +65,7 @@ export default function CommitteesList() {
       }
     } catch (err: any) {
       setError(loadErrorMessage(err, 'committees'));
-      console.error('Error fetching committees:', err);
+      logError('Error fetching committees', err);
     } finally {
       setLoading(false);
     }
@@ -89,14 +98,30 @@ export default function CommitteesList() {
           exportToJSON(columns, dataToExport, filename);
           break;
         case 'pdf':
-          exportToPDF(columns, dataToExport, filename, title);
+          await exportToPDF(columns, dataToExport, filename, title);
           break;
       }
     } catch (error: any) {
-      console.error('Export error:', error);
+      logError('Export error', error);
       toast.error(error?.message || "Couldn't export committees");
     } finally {
       setIsExporting(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!selectedCommittee) return;
+    try {
+      setDeleting(true);
+      await committeeService.delete(selectedCommittee.id);
+      await fetchCommittees();
+      toast.success('Committee deleted');
+      setShowDeleteModal(false);
+      setSelectedCommittee(null);
+    } catch (err: any) {
+      toast.error(errorMessage(err, { action: 'delete committee' }));
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -141,17 +166,7 @@ export default function CommitteesList() {
       key: 'status',
       label: 'Status',
       width: '7.25rem',
-      render: (status) => (
-        <span
-          className={`px-2 py-1 text-xs font-medium rounded-full ${
-            status === 'active'
-              ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-              : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
-          }`}
-        >
-          {status || 'active'}
-        </span>
-      ),
+      render: (status) => <StatusBadge status={status || 'active'} />,
     },
     {
       key: 'createdAt',
@@ -159,7 +174,59 @@ export default function CommitteesList() {
       width: '7.75rem',
       render: (date) => formatDate(date),
     },
+    {
+      key: 'actions',
+      label: 'Actions',
+      width: '8rem',
+      align: 'center',
+      render: (_, row) => (
+        <ActionsMenu
+          items={[
+            {
+              label: 'View',
+              icon: <FiEye className="h-4 w-4" />,
+              onClick: () => {
+                navigate(ROUTES.COMMITTEES.DETAIL(row.id));
+              },
+            },
+            {
+              label: 'Meetings',
+              icon: <FiCalendar className="h-4 w-4" />,
+              onClick: () => {
+                navigate(`/committees/${row.id}/meetings`);
+              },
+            },
+            {
+              label: 'Edit',
+              icon: <FiEdit2 className="h-4 w-4" />,
+              onClick: () => {
+                navigate(`/committees/${row.id}/edit`);
+              },
+            },
+            {
+              label: 'Delete',
+              icon: <FiTrash2 className="h-4 w-4" />,
+              onClick: () => {
+                setSelectedCommittee(row);
+                setShowDeleteModal(true);
+              },
+              variant: 'danger',
+            },
+          ]}
+        />
+      ),
+    },
   ];
+
+  // Whole-list counts from the server: these cards used to count only the rows on this page.
+  const countBase = debouncedSearch ? { search: debouncedSearch } : {};
+  const statusCounts = useServerCounts(
+    {
+      active: () => committeeService.getAll({ ...countBase, status: 'active', page: 1, limit: 1 }),
+      inactive: () => committeeService.getAll({ ...countBase, status: 'inactive', page: 1, limit: 1 }),
+    },
+    [committees]
+  );
 
   const stats = [
     {
@@ -169,12 +236,12 @@ export default function CommitteesList() {
     },
     {
       title: 'Active',
-      value: committees.filter((c) => c.status === 'active' || !c.status).length,
+      value: statusCounts.active ?? committees.filter((c) => c.status === 'active' || !c.status).length,
       icon: <FiCheckCircle className="h-5 w-5" />,
     },
     {
       title: 'Inactive',
-      value: committees.filter((c) => c.status === 'inactive').length,
+      value: statusCounts.inactive ?? committees.filter((c) => c.status === 'inactive').length,
       icon: <FiXCircle className="h-5 w-5" />,
     },
   ];
@@ -216,18 +283,14 @@ export default function CommitteesList() {
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="text-center py-10">
-            <p className="text-red-600 dark:text-red-400">{error}</p>
-            <Button onClick={fetchCommittees} className="mt-4" variant="outline">
-              Retry
-            </Button>
-          </div>
+          <EmptyState variant="error" entity="committees" description={error} action={{ label: 'Retry', onClick: fetchCommittees }} />
         ) : (
           <Table
             fixedLayout
             striped
             columns={columns}
             data={committees}
+            entity="committees"
             emptyMessage="No committees found"
             showExport={false}
             onRowClick={(row) => navigate(ROUTES.COMMITTEES.DETAIL(row.id))}
@@ -249,6 +312,21 @@ export default function CommitteesList() {
           </div>
         )}
       </TableCard>
+
+      <ConfirmDialog
+        isOpen={showDeleteModal}
+        title="Delete committee"
+        message={`Are you sure you want to delete ${toTitleCase(selectedCommittee?.name) || 'this committee'}? This action cannot be undone.`}
+        consequence="This will also delete all associated meetings."
+        confirmLabel="Delete"
+        variant="danger"
+        isLoading={deleting}
+        onConfirm={handleDelete}
+        onCancel={() => {
+          setShowDeleteModal(false);
+          setSelectedCommittee(null);
+        }}
+      />
     </div>
   );
 }

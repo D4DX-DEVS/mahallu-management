@@ -10,7 +10,7 @@ import {
 } from '../controllers/reportController';
 import { getDataQualityReport, getDuplicatesReport } from '../controllers/reportController';
 import { getAnnualReport } from '../controllers/annualReportController';
-import { authMiddleware } from '../middleware/authMiddleware';
+import { authMiddleware, requireAdmin, requireFieldStaff, requireInstituteStaff } from '../middleware/authMiddleware';
 import { tenantMiddleware, tenantFilter } from '../middleware/tenantMiddleware';
 import { validationHandler } from '../middleware/validationHandler';
 import {
@@ -25,6 +25,14 @@ const router = express.Router();
 router.use(authMiddleware);
 router.use(tenantMiddleware);
 router.use(tenantFilter);
+
+/*
+ * Each report names its own audience (taken from the CMS Reports menu):
+ *  - area, blood bank, orphans, demographics: Super Admin, Mahallu admin, survey worker (field data, aggregates)
+ *  - education: Super Admin, Mahallu admin, institute admin
+ *  - welfare, community, annual, data quality, duplicates: Super Admin and Mahallu admin only
+ * Every report is tenant-wide, so none of them is opened to an audience the menu does not list.
+ */
 
 /**
  * @swagger
@@ -108,7 +116,7 @@ router.use(tenantFilter);
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  */
-router.get('/area', getAreaReportValidation, validationHandler, getAreaReport);
+router.get('/area', requireFieldStaff,getAreaReportValidation, validationHandler, getAreaReport);
 
 /**
  * @swagger
@@ -183,7 +191,7 @@ router.get('/area', getAreaReportValidation, validationHandler, getAreaReport);
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  */
-router.get('/blood-bank', getBloodBankReportValidation, validationHandler, getBloodBankReport);
+router.get('/blood-bank', requireFieldStaff,getBloodBankReportValidation, validationHandler, getBloodBankReport);
 
 /**
  * @swagger
@@ -265,7 +273,7 @@ router.get('/blood-bank', getBloodBankReportValidation, validationHandler, getBl
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  */
-router.get('/orphans', getOrphansReportValidation, validationHandler, getOrphansReport);
+router.get('/orphans', requireFieldStaff,getOrphansReportValidation, validationHandler, getOrphansReport);
 
 /**
  * @swagger
@@ -284,7 +292,7 @@ router.get('/orphans', getOrphansReportValidation, validationHandler, getOrphans
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  */
-router.get('/demographics', listQuery(), validationHandler, getDemographicsReport);
+router.get('/demographics', requireFieldStaff,listQuery(), validationHandler, getDemographicsReport);
 
 /**
  * @swagger
@@ -295,7 +303,9 @@ router.get('/demographics', listQuery(), validationHandler, getDemographicsRepor
  *     description: |
  *       Comprehensive education statistics: students count, active classes, attendance %,
  *       exams count, scholarship totals and status breakdown, academic support cases by type and status.
- *       **Access:** Super Admin, Mahall Admin
+ *       **Access:** Super Admin, Mahall Admin (whole Mahallu), Institute admin (own institute only:
+ *       students, classes, attendance and exams of that institute's classes; `scholarships` and
+ *       `supportCases` are Mahallu-level programmes and are returned as null with a `scopeNote`).
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -348,7 +358,7 @@ router.get('/demographics', listQuery(), validationHandler, getDemographicsRepor
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  */
-router.get('/education', listQuery(), validationHandler, getEducationReport);
+router.get('/education', requireInstituteStaff,listQuery(), validationHandler, getEducationReport);
 
 /**
  * @swagger
@@ -369,7 +379,7 @@ router.get('/education', listQuery(), validationHandler, getEducationReport);
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  */
-router.get('/welfare', listQuery(), validationHandler, getWelfareReport);
+router.get('/welfare', requireAdmin,listQuery(), validationHandler, getWelfareReport);
 
 /**
  * @swagger
@@ -390,7 +400,7 @@ router.get('/welfare', listQuery(), validationHandler, getWelfareReport);
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  */
-router.get('/community', listQuery(), validationHandler, getCommunityReport);
+router.get('/community', requireAdmin,listQuery(), validationHandler, getCommunityReport);
 
 /**
  * @swagger
@@ -419,9 +429,9 @@ router.get('/community', listQuery(), validationHandler, getCommunityReport);
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  */
-router.get('/annual', listQuery(), validationHandler, getAnnualReport);
-router.get('/data-quality', listQuery(), validationHandler, getDataQualityReport);
-router.get('/duplicates', listQuery(), validationHandler, getDuplicatesReport);
+router.get('/annual', requireAdmin,listQuery(), validationHandler, getAnnualReport);
+router.get('/data-quality', requireAdmin,listQuery(), validationHandler, getDataQualityReport);
+router.get('/duplicates', requireAdmin,listQuery(), validationHandler, getDuplicatesReport);
 
 export default router;
 

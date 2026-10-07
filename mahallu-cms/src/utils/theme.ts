@@ -1,9 +1,14 @@
+import { useThemeStore } from '@/store/themeStore';
+
 export const applyTheme = () => {
+  const { theme } = useThemeStore.getState();
   const root = window.document.documentElement;
 
-  // The product uses a white-only surface system. Keep the legacy dark class
-  // removed so dark utility text cannot become invisible on white surfaces.
-  root.classList.remove('dark');
+  if (theme === 'dark') {
+    root.classList.add('dark');
+  } else {
+    root.classList.remove('dark');
+  }
 };
 
 // Initialize theme on load

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { FiEdit2, FiTrash2, FiPlus, FiUpload } from 'react-icons/fi';
+import { FiEdit2, FiTrash2, FiPlus, FiEye, FiUpload } from 'react-icons/fi';
 import Card from '@/components/ui/Card';
 import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
@@ -19,6 +19,8 @@ import { toast } from '@/store/toastStore';
 import { errorMessage, loadErrorMessage, pluralise } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
+import ActionsMenu from '@/components/ui/ActionsMenu';
+import StatusBadge from '@/components/ui/StatusBadge';
 
 const MEMBER_COLUMNS: ColumnSpec[] = [
   { key: 'name', label: 'Name', required: true },
@@ -143,184 +145,231 @@ export default function FamilyDetail() {
     },
     { key: 'bloodGroup', label: 'Blood Group', width: '9.75rem', render: (bg) => bg || '-' },
     { key: 'phone', label: 'Phone', width: '6.75rem', render: (phone) => phone || '-' },
+    {
+      key: 'actions',
+      label: 'Actions',
+      width: '8rem',
+      align: 'center',
+      render: (_, row) => (
+        <ActionsMenu
+          items={[
+            {
+              label: 'View',
+              icon: <FiEye className="h-4 w-4" />,
+              onClick: () => {
+                navigate(ROUTES.MEMBERS.DETAIL(row.id));
+              },
+            },
+            {
+              label: 'Edit',
+              icon: <FiEdit2 className="h-4 w-4" />,
+              onClick: () => {
+                navigate(ROUTES.MEMBERS.EDIT(row.id));
+              },
+            },
+            {
+              label: 'Delete',
+              icon: <FiTrash2 className="h-4 w-4" />,
+              onClick: () => {
+                handleDeleteMember(row.id, toTitleCase(row.name));
+              },
+              variant: 'danger',
+            },
+          ]}
+        />
+      ),
+    },
   ];
 
   return (
-    <div className="space-y-4">
-      <div className="flex gap-2 items-center justify-between">
-        <div className="flex items-center gap-4">
-          <PageHeader
-            description="Family Details"
-            title={toTitleCase(family.houseName)}
-            breadcrumbs={[{ label: 'Families', path: ROUTES.FAMILIES.LIST }]}
-          />
-          <div className="flex gap-2 items-center">
+    <div className="space-y-5">
+      <PageHeader
+        title={toTitleCase(family.houseName)}
+        description={`Family • ${family.mahallId || '—'} • ${toTitleCase(family.area || family.place || '')}`}
+        actions={
+          <>
             <Link to={ROUTES.FAMILIES.EDIT(family.id)}>
               <Button variant="outline" icon={<FiEdit2 />} collapseLabel>Edit</Button>
             </Link>
-            <Button variant="danger" onClick={() => setShowDeleteModal(true)} icon={<FiTrash2 />} collapseLabel>Delete</Button>
-          </div>
-        </div>
-      </div>
+            <Button variant="ghost" onClick={() => setShowDeleteModal(true)} icon={<FiTrash2 />} collapseLabel>
+              Delete
+            </Button>
+          </>
+        }
+      />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card>
-          <h2 className="text-lg font-semibold mb-3 text-foreground">Basic Information</h2>
-          <div className="space-y-3">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <Card padding="lg">
+          <h2 className="mb-4 text-sm font-semibold text-foreground">Household</h2>
+          <dl className="space-y-3">
             {family.mahallId && (
-              <div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">Mahall ID</span>
-                <p className="text-gray-900 dark:text-gray-100">{family.mahallId}</p>
+              <div className="flex justify-between gap-4 py-1 text-sm">
+                <dt className="text-muted-foreground">Mahall ID</dt>
+                <dd className="font-medium tabular-nums text-foreground">{family.mahallId}</dd>
               </div>
             )}
-            <div>
-              <span className="text-sm text-gray-500 dark:text-gray-400">House Name</span>
-              <p className="text-gray-900 dark:text-gray-100">{toTitleCase(family.houseName)}</p>
+            <div className="flex justify-between gap-4 py-1 text-sm">
+              <dt className="text-muted-foreground">House name</dt>
+              <dd className="font-medium text-foreground">{toTitleCase(family.houseName)}</dd>
             </div>
             {family.houseNameMl && (
-              <div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">House Name (Malayalam)</span>
-                <p className="text-gray-900 dark:text-gray-100 font-malayalam">{family.houseNameMl}</p>
+              <div className="flex justify-between gap-4 py-1 text-sm">
+                <dt className="text-muted-foreground">House name (Malayalam)</dt>
+                <dd className="font-medium font-malayalam text-foreground">{family.houseNameMl}</dd>
               </div>
             )}
             {family.familyHead && (
-              <div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">Family Head</span>
-                <p className="text-gray-900 dark:text-gray-100">{toTitleCase(family.familyHead)}</p>
+              <div className="flex justify-between gap-4 py-1 text-sm">
+                <dt className="text-muted-foreground">Family head</dt>
+                <dd className="font-medium text-foreground">{toTitleCase(family.familyHead)}</dd>
               </div>
             )}
             {family.familyHeadMl && (
-              <div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">Family Head (Malayalam)</span>
-                <p className="text-gray-900 dark:text-gray-100 font-malayalam">{family.familyHeadMl}</p>
+              <div className="flex justify-between gap-4 py-1 text-sm">
+                <dt className="text-muted-foreground">Family head (Malayalam)</dt>
+                <dd className="font-medium font-malayalam text-foreground">{family.familyHeadMl}</dd>
               </div>
             )}
             {family.contactNo && (
-              <div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">Contact No.</span>
-                <p className="text-gray-900 dark:text-gray-100">{family.contactNo}</p>
+              <div className="flex justify-between gap-4 py-1 text-sm">
+                <dt className="text-muted-foreground">Contact</dt>
+                <dd className="font-medium tabular-nums text-foreground">{family.contactNo}</dd>
               </div>
             )}
             {family.varisangyaGrade && (
-              <div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">Varisangya Grade</span>
-                <p className="text-gray-900 dark:text-gray-100">{toTitleCase(family.varisangyaGrade)}</p>
+              <div className="flex justify-between gap-4 py-1 text-sm">
+                <dt className="text-muted-foreground">Varisangya</dt>
+                <dd className="font-medium text-foreground">{toTitleCase(family.varisangyaGrade)}</dd>
               </div>
             )}
             {family.status && (
-              <div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">Status</span>
-                <span
-                  className={`inline-block px-2 py-1 text-xs font-medium rounded-full ${
-                    family.status === 'approved'
-                      ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                      : family.status === 'unapproved'
-                        ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                        : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-                  }`}
-                >
-                  {family.status}
-                </span>
+              <div className="flex justify-between gap-4 py-1 text-sm">
+                <dt className="text-muted-foreground">Status</dt>
+                <dd>
+                  <StatusBadge status={family.status} />
+                </dd>
               </div>
             )}
-          </div>
+          </dl>
         </Card>
 
-        <Card>
-          <h2 className="text-lg font-semibold mb-3 text-foreground">Address Information</h2>
-          <div className="space-y-3">
-            <div>
-              <span className="text-sm text-gray-500 dark:text-gray-400">House Name</span>
-              <p className="text-gray-900 dark:text-gray-100">{toTitleCase(family.houseName)}</p>
+        <Card padding="lg">
+          <h2 className="mb-4 text-sm font-semibold text-foreground">Location</h2>
+          <dl className="space-y-3">
+            <div className="flex justify-between gap-4 py-1 text-sm">
+              <dt className="text-muted-foreground">State</dt>
+              <dd className="font-medium text-foreground">{toTitleCase(family.state)}</dd>
             </div>
+            <div className="flex justify-between gap-4 py-1 text-sm">
+              <dt className="text-muted-foreground">District</dt>
+              <dd className="font-medium text-foreground">{toTitleCase(family.district)}</dd>
+            </div>
+            <div className="flex justify-between gap-4 py-1 text-sm">
+              <dt className="text-muted-foreground">LSG</dt>
+              <dd className="font-medium text-foreground">{toTitleCase(family.lsgName)}</dd>
+            </div>
+            <div className="flex justify-between gap-4 py-1 text-sm">
+              <dt className="text-muted-foreground">Village</dt>
+              <dd className="font-medium text-foreground">{toTitleCase(family.village)}</dd>
+            </div>
+            {family.pinCode && (
+              <div className="flex justify-between gap-4 py-1 text-sm">
+                <dt className="text-muted-foreground">Pin code</dt>
+                <dd className="font-medium tabular-nums text-foreground">{family.pinCode}</dd>
+              </div>
+            )}
+            {family.postOffice && (
+              <div className="flex justify-between gap-4 py-1 text-sm">
+                <dt className="text-muted-foreground">Post office</dt>
+                <dd className="font-medium text-foreground">{toTitleCase(family.postOffice)}</dd>
+              </div>
+            )}
             {family.houseNo && (
-              <div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">House No.</span>
-                <p className="text-gray-900 dark:text-gray-100">{family.houseNo}</p>
+              <div className="flex justify-between gap-4 py-1 text-sm">
+                <dt className="text-muted-foreground">House no.</dt>
+                <dd className="font-medium text-foreground">{family.houseNo}</dd>
               </div>
             )}
             {family.wardNumber && (
-              <div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">Ward Number</span>
-                <p className="text-gray-900 dark:text-gray-100">{family.wardNumber}</p>
+              <div className="flex justify-between gap-4 py-1 text-sm">
+                <dt className="text-muted-foreground">Ward number</dt>
+                <dd className="font-medium tabular-nums text-foreground">{family.wardNumber}</dd>
               </div>
             )}
             {family.area && (
-              <div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">Area</span>
-                <p className="text-gray-900 dark:text-gray-100">{toTitleCase(family.area)}</p>
+              <div className="flex justify-between gap-4 py-1 text-sm">
+                <dt className="text-muted-foreground">Area</dt>
+                <dd className="font-medium text-foreground">{toTitleCase(family.area)}</dd>
               </div>
             )}
             {family.areaMl && (
-              <div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">Area (Malayalam)</span>
-                <p className="text-gray-900 dark:text-gray-100 font-malayalam">{family.areaMl}</p>
+              <div className="flex justify-between gap-4 py-1 text-sm">
+                <dt className="text-muted-foreground">Area (Malayalam)</dt>
+                <dd className="font-medium font-malayalam text-foreground">{family.areaMl}</dd>
               </div>
             )}
             {family.place && (
-              <div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">Address</span>
-                <p className="text-gray-900 dark:text-gray-100">{toTitleCase(family.place)}</p>
+              <div className="flex justify-between gap-4 py-1 text-sm">
+                <dt className="text-muted-foreground">Address</dt>
+                <dd className="font-medium text-foreground">{toTitleCase(family.place)}</dd>
               </div>
             )}
             {family.placeMl && (
-              <div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">Address (Malayalam)</span>
-                <p className="text-gray-900 dark:text-gray-100 font-malayalam">{family.placeMl}</p>
+              <div className="flex justify-between gap-4 py-1 text-sm">
+                <dt className="text-muted-foreground">Address (Malayalam)</dt>
+                <dd className="font-medium font-malayalam text-foreground">{family.placeMl}</dd>
               </div>
             )}
-          </div>
+          </dl>
         </Card>
 
-        <Card>
-          <h2 className="text-lg font-semibold mb-3 text-foreground">Socio-economic Details</h2>
-          <div className="space-y-3">
+        <Card padding="lg">
+          <h2 className="mb-4 text-sm font-semibold text-foreground">Socio-economic details</h2>
+          <dl className="space-y-3">
             {(family as any).economicStatus && (
-              <div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">Economic Status</span>
-                <p className="text-gray-900 dark:text-gray-100 capitalize">
-                  {String((family as any).economicStatus).replace(/_/g, ' ')}
-                </p>
+              <div className="flex justify-between gap-4 py-1 text-sm">
+                <dt className="text-muted-foreground">Economic status</dt>
+                <dd className="font-medium capitalize text-foreground">{String((family as any).economicStatus).replace(/_/g, ' ')}</dd>
               </div>
             )}
             {(family as any).welfareStatus && (
-              <div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">Welfare Status</span>
-                <p className="text-gray-900 dark:text-gray-100 capitalize">
-                  {String((family as any).welfareStatus).replace(/_/g, ' ')}
-                </p>
+              <div className="flex justify-between gap-4 py-1 text-sm">
+                <dt className="text-muted-foreground">Welfare status</dt>
+                <dd className="font-medium capitalize text-foreground">{String((family as any).welfareStatus).replace(/_/g, ' ')}</dd>
               </div>
             )}
             {(family as any).housingType && (
-              <div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">Housing Type</span>
-                <p className="text-gray-900 dark:text-gray-100 capitalize">{(family as any).housingType}</p>
+              <div className="flex justify-between gap-4 py-1 text-sm">
+                <dt className="text-muted-foreground">Housing type</dt>
+                <dd className="font-medium capitalize text-foreground">{(family as any).housingType}</dd>
               </div>
             )}
             {(family as any).specialRequirements && (
-              <div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">Special Requirements</span>
-                <p className="text-gray-900 dark:text-gray-100">{(family as any).specialRequirements}</p>
+              <div className="flex justify-between gap-4 py-1 text-sm">
+                <dt className="text-muted-foreground">Special requirements</dt>
+                <dd className="font-medium text-foreground">{(family as any).specialRequirements}</dd>
               </div>
             )}
             {!(family as any).economicStatus &&
               !(family as any).welfareStatus &&
               !(family as any).housingType &&
               !(family as any).specialRequirements && (
-                <p className="text-gray-500 dark:text-gray-400">No socio-economic details recorded.</p>
+                <p className="text-sm text-muted-foreground">No socio-economic details recorded.</p>
               )}
-          </div>
+          </dl>
         </Card>
 
-        <TableCard className="md:col-span-2">
-          <div className="flex gap-2 items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-foreground">
-              Family Members ({members.length})
+        <TableCard className="lg:col-span-2">
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <h2 className="text-sm font-semibold text-foreground">
+              Members <span className="font-normal tabular-nums text-muted-foreground">· {members.length}</span>
             </h2>
-            <div className="flex gap-2 items-center">
-              <Button size="sm" variant="outline" onClick={() => setIsImportOpen(true)} icon={<FiUpload />} collapseLabel>Import Members</Button>
+            <div className="flex items-center gap-2">
+              <Button size="sm" variant="outline" onClick={() => setIsImportOpen(true)} icon={<FiUpload />} collapseLabel>
+                Import
+              </Button>
               <Link to={ROUTES.MEMBERS.CREATE}>
-                <Button size="sm" icon={<FiPlus />} collapseLabel>Add Member</Button>
+                <Button size="sm" icon={<FiPlus />} collapseLabel>Add member</Button>
               </Link>
             </div>
           </div>

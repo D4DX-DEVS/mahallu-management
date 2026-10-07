@@ -4,10 +4,11 @@ import { memberPortalService } from '@/services/memberPortalService';
 import { downloadNocPdf } from '@/utils/nocPdf';
 import { ROUTES } from '@/constants/routes';
 import Card from '@/components/ui/Card';
+import ActionsMenu from '@/components/ui/ActionsMenu';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import RequestDetailModal, { RequestType } from '../components/RequestDetailModal';
-import { FiHeart, FiFileText } from 'react-icons/fi';
+import { FiHeart, FiFileText, FiEdit2, FiEye, FiTrash2 } from 'react-icons/fi';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import { toTitleCase } from '@/utils/format';
 import StatusBadge from '@/components/ui/StatusBadge';
@@ -247,6 +248,40 @@ export default function MemberNOCList() {
                                 : 'Awaiting approval'}
                           </span>
                         )}
+                        <div className="ml-auto">
+                          <ActionsMenu
+                            label="Actions for NOC request"
+                            items={[
+                              ...(isEditable(noc)
+                                ? [
+                                    {
+                                      label: 'Edit & resubmit',
+                                      icon: <FiEdit2 className="h-4 w-4" />,
+                                      onClick: () => openModal(noc, 'edit'),
+                                    },
+                                  ]
+                                : []),
+                              {
+                                label: 'View',
+                                icon: <FiEye className="h-4 w-4" />,
+                                onClick: () => openModal(noc, 'view'),
+                              },
+                              ...(isDeletable(noc)
+                                ? [
+                                    {
+                                      label: 'Delete',
+                                      icon: <FiTrash2 className="h-4 w-4" />,
+                                      variant: 'danger' as const,
+                                      onClick: () => {
+                                        setDeleteError(null);
+                                        setDeleteTarget(noc);
+                                      },
+                                    },
+                                  ]
+                                : []),
+                            ]}
+                          />
+                        </div>
                       </div>
                     </td>
                   </tr>

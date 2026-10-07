@@ -1,17 +1,18 @@
 import { useEffect, useState, useCallback } from 'react';
-import { FiPlus } from 'react-icons/fi';
+import { FiEdit2, FiPlus, FiTrash2 } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import { employmentService, type Employer } from '@/services/employmentService';
 import Button from '@/components/ui/Button';
 import ExpandableSearch from '@/components/ui/ExpandableSearch';
-import Card from '@/components/ui/Card';
+import ActionBar from '@/components/ui/ActionBar';
+import Table from '@/components/ui/Table';
+import ActionsMenu from '@/components/ui/ActionsMenu';
 import Pagination from '@/components/ui/Pagination';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { toast } from '@/store/toastStore';
 import StatusBadge from '@/components/ui/StatusBadge';
 import PageHeader from '@/components/layout/PageHeader';
-import SortableTh from '@/components/ui/SortableTh';
-import { useSortableRows } from '@/hooks/useSortableRows';
+import { TableColumn } from '@/types';
 import { toTitleCase } from '@/utils/format';
 
 export default function EmployersList() {
@@ -79,7 +80,62 @@ export default function EmployersList() {
     }
   }, [deleteId]);
 
-  const { rows: sortedEmployers, sort, toggleSort } = useSortableRows(employers);
+  const columns: TableColumn<Employer>[] = [
+    {
+      key: 'name',
+      label: 'Name',
+      render: (_v, employer) => (
+        <div>
+          <div className="font-medium text-foreground">{toTitleCase(employer.name)}</div>
+          <div className="text-xs text-muted-foreground">
+            {employer.businessType ? toTitleCase(employer.businessType) : '—'}
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'contactPerson',
+      label: 'Contact',
+      priority: 'secondary',
+      render: (v) => (v ? toTitleCase(v) : '—'),
+    },
+    {
+      key: 'location',
+      label: 'Location',
+      priority: 'secondary',
+      render: (v) => (v ? toTitleCase(v) : '—'),
+    },
+    {
+      key: 'status',
+      label: 'Status',
+      sortable: true,
+      render: (_v, employer) => <StatusBadge status={employer.status} />,
+    },
+    {
+      key: 'actions',
+      label: 'Actions',
+      align: 'right',
+      sortable: false,
+      render: (_v, employer) => (
+        <ActionsMenu
+          label={'Actions for ' + employer.name}
+          items={[
+            {
+              label: 'Edit',
+              icon: <FiEdit2 className="h-4 w-4" />,
+              onClick: () => navigate(`/employment/employers/${employer.id}`),
+            },
+            {
+              label: 'Delete',
+              icon: <FiTrash2 className="h-4 w-4" />,
+              onClick: () => handleDeleteClick(employer.id),
+              variant: 'danger' as const,
+            },
+          ]}
+        />
+      ),
+    },
+  ];
 
   return (
     <div className="space-y-4">
@@ -89,7 +145,7 @@ export default function EmployersList() {
         breadcrumbs={[{ label: 'Employment' }]}
       />
       <div className="space-y-2">
-        <div className="flex items-center gap-2">
+        <ActionBar className="mb-0">
           <ExpandableSearch
             value={search}
             onChange={(value) => {
@@ -102,7 +158,7 @@ export default function EmployersList() {
           <Button onClick={() => navigate('/employment/employers/create')} icon={<FiPlus />} collapseLabel>
             New Employer
           </Button>
-        </div>
+        </ActionBar>
         <div className="flex gap-2 flex-wrap">
           {['', 'active', 'inactive'].map((status) => (
             <button
@@ -123,101 +179,23 @@ export default function EmployersList() {
         </div>
       </div>
 
-      {loading ? (
-        <Card>
-          <div className="py-8 text-center">Loading employers...</div>
-        </Card>
-      ) : employers.length === 0 ? (
-        <Card>
-          <div className="py-8 text-center text-gray-500">
-            <p>No employers found</p>
-          </div>
-        </Card>
-      ) : (
-        <>
-          <div className="overflow-x-auto">
-            <table className="data-table w-full text-sm">
-              <thead>
-                <tr className="bg-gray-50">
-                  <SortableTh sortKey="name" sort={sort} onSort={toggleSort}>
-                    Name
-                  </SortableTh>
-                  <SortableTh
-                    sortKey="contactPerson"
-                    sort={sort}
-                    onSort={toggleSort}
-                    responsiveClassName="hidden sm:table-cell"
-                  >
-                    Contact
-                  </SortableTh>
-                  <SortableTh
-                    sortKey="location"
-                    sort={sort}
-                    onSort={toggleSort}
-                    responsiveClassName="hidden md:table-cell"
-                  >
-                    Location
-                  </SortableTh>
-                  <SortableTh sortKey="status" sort={sort} onSort={toggleSort}>
-                    Status
-                  </SortableTh>
-                  <th className="px-4 py-3 text-right text-label font-semibold text-muted-foreground">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {sortedEmployers.map((employer) => (
-                  <tr
-                    key={employer.id}
-                    className="border-b hover:bg-gray-50 cursor-pointer"
-                    onClick={() => navigate(`/employment/employers/${employer.id}`)}
-                  >
-                    <td className="px-4 py-3 text-sm">
-                      <div className="font-medium text-gray-900">{toTitleCase(employer.name)}</div>
-                      <div className="text-xs text-gray-500">{employer.businessType ? toTitleCase(employer.businessType) : '—'}</div>
-                    </td>
-                    <td className="px-4 py-3 text-sm hidden sm:table-cell text-gray-700">
-                      {employer.contactPerson ? toTitleCase(employer.contactPerson) : '—'}
-                    </td>
-                    <td className="px-4 py-3 text-sm hidden md:table-cell text-gray-700">
-                      {employer.location ? toTitleCase(employer.location) : '—'}
-                    </td>
-                    <td className="px-4 py-3">
-                      <StatusBadge status={employer.status} />
-                    </td>
-                    <td className="px-4 py-3 text-right space-x-2" onClick={(e) => e.stopPropagation()}>
-                      <button
-                        onClick={() => navigate(`/employment/employers/${employer.id}`)}
-                        className="text-blue-600 hover:text-blue-900 px-2 py-1 text-xs hover:bg-blue-50 rounded"
-                        title="Edit"
-                        aria-label="Edit"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDeleteClick(employer.id)}
-                        className="text-red-600 hover:text-red-900 px-2 py-1 text-xs hover:bg-red-50 rounded"
-                        title="Delete"
-                        aria-label="Delete"
-                      >
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+      <Table
+        columns={columns}
+        data={employers}
+        isLoading={loading}
+        entity="employers"
+        rowKey={(employer) => employer.id}
+        onRowClick={(employer) => navigate(`/employment/employers/${employer.id}`)}
+      />
 
-          <Pagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            totalItems={employers.length * totalPages}
-            itemsPerPage={itemsPerPage}
-            onPageChange={setCurrentPage}
-          />
-        </>
+      {!loading && employers.length > 0 && (
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={employers.length * totalPages}
+          itemsPerPage={itemsPerPage}
+          onPageChange={setCurrentPage}
+        />
       )}
 
       <ConfirmDialog

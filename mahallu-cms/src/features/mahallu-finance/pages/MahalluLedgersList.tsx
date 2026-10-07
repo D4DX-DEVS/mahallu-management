@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiBookOpen } from 'react-icons/fi';
+import { FiEdit2, FiTrash2, FiBookOpen } from 'react-icons/fi';
 import TableCard from '@/components/ui/TableCard';
+import ActionsMenu from '@/components/ui/ActionsMenu';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import Table from '@/components/ui/Table';
@@ -16,6 +17,7 @@ import { ROUTES } from '@/constants/routes';
 import { toast } from '@/store/toastStore';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { fetchAllPages } from '@/services/api';
 
 export default function MahalluLedgersList() {
   const navigate = useNavigate();
@@ -74,15 +76,15 @@ export default function MahalluLedgersList() {
   const handleExport = async (type: 'csv' | 'json' | 'pdf') => {
     try {
       setIsExporting(true);
-      const result = await masterAccountService.getAllLedgers({ limit: 10000, scope: 'mahallu' });
-      const data = Array.isArray(result.data) ? result.data : [];
+      const allRows = await fetchAllPages((page) => masterAccountService.getAllLedgers({ ...page, scope: 'mahallu' }));
+      const data = Array.isArray(allRows) ? allRows : [];
       if (!data.length) {
         toast.info('No ledgers to export');
         return;
       }
       if (type === 'csv') exportToCSV(columns, data, 'mahallu-ledgers');
       else if (type === 'json') exportToJSON(columns, data, 'mahallu-ledgers');
-      else exportToPDF(columns, data, 'mahallu-ledgers', 'Mahallu Ledgers');
+      else await exportToPDF(columns, data, 'mahallu-ledgers', 'Mahallu Ledgers');
     } catch (err: any) {
       toast.error(err?.message || "Couldn't export ledgers");
     } finally {
@@ -111,6 +113,33 @@ export default function MahalluLedgersList() {
     },
     { key: 'description', label: 'Description', width: '9.25rem' },
     { key: 'createdAt', label: 'Created', width: '7.75rem', render: (d) => formatDate(d) },
+    {
+      key: 'actions',
+      label: 'Actions',
+      width: '8rem',
+      align: 'center',
+      render: (_, row) => (
+        <ActionsMenu
+          label={`Actions for ${toTitleCase(row.name)}`}
+          items={[
+            {
+              label: 'Edit',
+              icon: <FiEdit2 className="h-4 w-4" />,
+              onClick: () => navigate(ROUTES.MAHALLU_FINANCE.LEDGERS_EDIT(row.id), { state: { ledger: row } }),
+            },
+            {
+              label: 'Delete',
+              icon: <FiTrash2 className="h-4 w-4" />,
+              variant: 'danger',
+              onClick: () => {
+                setSelected(row);
+                setShowDeleteModal(true);
+              },
+            },
+          ]}
+        />
+      ),
+    },
   ];
 
   return (

@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { FiCheck, FiHome, FiUsers } from 'react-icons/fi';
-import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
+import TableCard from '@/components/ui/TableCard';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
+import EmptyState from '@/components/ui/EmptyState';
 import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
 import { TableColumn, Pagination as PaginationType } from '@/types';
@@ -18,6 +19,7 @@ import { toast } from '@/store/toastStore';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import { logError } from '@/utils/safeLog';
 
 export default function UnapprovedFamiliesList() {
   const navigate = useNavigate();
@@ -57,7 +59,7 @@ export default function UnapprovedFamiliesList() {
       setPagination(result.pagination);
     } catch (err: any) {
       setError(loadErrorMessage(err, 'unapproved families'));
-      console.error('Error fetching families:', err);
+      logError('Error fetching families', err);
     } finally {
       setLoading(false);
     }
@@ -84,11 +86,11 @@ export default function UnapprovedFamiliesList() {
           exportToJSON(columns, dataToExport, filename);
           break;
         case 'pdf':
-          exportToPDF(columns, dataToExport, filename, title);
+          await exportToPDF(columns, dataToExport, filename, title);
           break;
       }
     } catch (error: any) {
-      console.error('Export error:', error);
+      logError('Export error', error);
       toast.error(errorMessage(error, { action: 'export data' }));
     } finally {
       setIsExporting(false);
@@ -196,12 +198,12 @@ export default function UnapprovedFamiliesList() {
         />
 
         {error ? (
-          <div className="text-center py-10">
-            <p className="text-red-600 dark:text-red-400">{error}</p>
-            <Button onClick={fetchFamilies} className="mt-4" variant="outline">
-              Retry
-            </Button>
-          </div>
+          <EmptyState
+            variant="error"
+            entity="unapproved families"
+            description={error}
+            action={{ label: 'Retry', onClick: fetchFamilies }}
+          />
         ) : (
           <>
             <Table

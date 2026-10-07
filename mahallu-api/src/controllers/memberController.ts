@@ -3,6 +3,7 @@ import Member from '../models/Member';
 import Family from '../models/Family';
 import User from '../models/User';
 import bcrypt from 'bcryptjs';
+import { randomUnusablePasswordHash } from '../utils/credentials';
 import { AuthRequest } from '../middleware/authMiddleware';
 import { getPaginationParams, createPaginationResponse } from '../utils/pagination';
 import { verifyTenantOwnership } from '../utils/tenantCheck';
@@ -10,6 +11,35 @@ import { refBelongsToTenant } from '../utils/sanitizeUpdate';
 import { calculateAge } from '../utils/age';
 import { sendFailure } from '../utils/userMessages';
 import { regexLiteral } from '../utils/queryGuard';
+import { isValidId, MSG, tenantFilterFor } from '../utils/scope';
+import { createWithSequence, maxNumericSuffix, reserveBlock } from '../utils/idCounter';
+
+/** Counter key for member ids: one sequence per family (ids read FID12-1, FID12-2 ...), per Mahallu. */
+const memberKey = (tenantId: string, familyId: unknown) => `member:${tenantId}:${String(familyId)}`;
+
+/**
+ * First use of a family's counter starts after the highest number already used in it, and never
+ * below the number of members the family has (the old "count + 1" rule), so nothing is reissued.
+ */
+const memberSeed = (tenantId: string, family: { _id: unknown; mahallId?: string }) => async () => {
+  const [count, max] = await Promise.all([
+    Member.countDocuments({ familyId: family._id }),
+    maxNumericSuffix(
+      Member,
+      { tenantId, familyId: family._id },
+      'mahallId',
+      new RegExp(`^${regexLiteral(family.mahallId)}-(\\d+)$`)
+    ),
+  ]);
+  return Math.max(count, max);
+};
+
+/** The Mahallu a new member is written into: the caller's own; only a super admin may name one in the body. */
+const writeTenantOf = (req: AuthRequest): string | undefined => {
+  const raw = req.isSuperAdmin ? req.tenantId || req.body?.tenantId : req.tenantId;
+  const text = typeof raw === 'string' ? raw : raw ? String(raw) : '';
+  return isValidId(text) ? text : undefined;
+};
 
 /**
  * Keeps the conditional companion fields honest: a relationship that is no
@@ -38,14 +68,11 @@ export const getAllMembers = async (req: AuthRequest, res: Response) => {
     const { page, limit, skip } = getPaginationParams(req);
     const query: any = {};
 
-    // Apply tenant filter
-    // req.tenantId is set by authMiddleware and includes x-tenant-id header for super admin viewing as tenant
-    if (req.tenantId) {
-      query.tenantId = req.tenantId;
-    } else if (tenantId && req.isSuperAdmin) {
-      query.tenantId = tenantId;
-    }
-    // If neither, super admin sees all members
+    // Tenant filter from the server-derived identity (a super admin with no Mahallu picked sees all);
+    // a non-super user with no Mahallu is refused instead of being given an unscoped query.
+    const scopeFilter = tenantFilterFor(req, res);
+    if (!scopeFilter) return;
+    Object.assign(query, scopeFilter);
 
     // Filter by status - default to active only, unless explicitly requested
     if (status) {
@@ -119,10 +146,10 @@ export const createMember = async (req: AuthRequest, res: Response) => {
     const { familyId, familyName, ...rest } = req.body;
     const memberData = normalizeMemberFields(rest);
 
-    // Ensure tenantId is set
-    const finalTenantId = req.tenantId || req.body.tenantId;
+    // The Mahallu comes from the server-derived identity; a non-super user with none is refused.
+    const finalTenantId = writeTenantOf(req);
 
-    if (!finalTenantId && !req.isSuperAdmin) {
+    if (!finalTenantId) {
       return res.status(400).json({
         success: false,
         message: 'Please select a Mahallu before continuing.',
@@ -132,6 +159,9 @@ export const createMember = async (req: AuthRequest, res: Response) => {
     // Verify family exists and belongs to the same tenant
     let family;
     if (familyId) {
+      if (!isValidId(familyId)) {
+        return res.status(400).json({ success: false, message: MSG.badId });
+      }
       family = await Family.findById(familyId);
       if (!family) {
         return res.status(404).json({
@@ -176,14 +206,6 @@ export const createMember = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    // Auto-generate mahallId (Member ID) based on Family ID
-    // Format: FID123-1, FID123-2, etc.
-    if (family && family.mahallId) {
-      // Count existing members in this family to get next number
-      const memberCount = await Member.countDocuments({ familyId: family._id });
-      memberData.mahallId = `${family.mahallId}-${memberCount + 1}`;
-    }
-
     if (memberData.phone) {
       const existingMemberUser = await User.findOne({
         phone: memberData.phone,
@@ -199,14 +221,34 @@ export const createMember = async (req: AuthRequest, res: Response) => {
       }
     }
 
-    const member = new Member({
-      ...memberData,
-      familyId: familyId || memberData.familyId,
-      familyName,
-      tenantId: finalTenantId,
-    });
+    const buildMember = () =>
+      new Member({
+        ...memberData,
+        familyId: familyId || memberData.familyId,
+        familyName,
+        tenantId: finalTenantId,
+      });
 
-    await member.save();
+    let member;
+    if (family && family.mahallId) {
+      // Auto-generate mahallId (Member ID) based on Family ID. Format: FID123-1, FID123-2, etc.
+      // The number comes from the atomic per-family counter, so concurrent adds (and deletes) can
+      // never be handed the same id; if the database reports the id as taken, the next one is used.
+      const familyMahallId = family.mahallId;
+      member = await createWithSequence(
+        memberKey(finalTenantId, family._id),
+        { seed: memberSeed(finalTenantId, family), field: 'mahallId' },
+        async (n) => {
+          const doc = buildMember();
+          doc.mahallId = `${familyMahallId}-${n}`;
+          await doc.save();
+          return doc;
+        }
+      );
+    } else {
+      member = buildMember();
+      await member.save();
+    }
 
     // If this member is the family head, update the family's familyHead field
     if (memberData.isFamilyHead && family) {
@@ -217,8 +259,8 @@ export const createMember = async (req: AuthRequest, res: Response) => {
     let memberUserMessage = 'Member user not created because phone number is missing.';
 
     if (member.phone) {
-      const defaultMemberPassword = process.env.DEFAULT_MEMBER_PASSWORD || '123456';
-      const hashedPassword = await bcrypt.hash(defaultMemberPassword, 10);
+      // No shared default password: the member signs in with an OTP to their own phone.
+      const hashedPassword = await randomUnusablePasswordHash();
 
       const memberUser = new User({
         name: member.name,
@@ -272,6 +314,9 @@ export const updateMember = async (req: AuthRequest, res: Response) => {
 
     // If familyId is being updated, verify the family exists and belongs to same tenant
     if (familyId) {
+      if (!isValidId(familyId)) {
+        return res.status(400).json({ success: false, message: MSG.badId });
+      }
       const family = await Family.findById(familyId);
       if (!family) {
         return res.status(404).json({
@@ -283,6 +328,10 @@ export const updateMember = async (req: AuthRequest, res: Response) => {
       // Ensure family belongs to the same tenant
       if (!verifyTenantOwnership(req, res, family.tenantId, 'Family')) {
         return;
+      }
+      // ...and to the member's own Mahallu (a super admin passes the check above for any family).
+      if (String(family.tenantId) !== String(existingMember.tenantId)) {
+        return res.status(403).json({ success: false, message: 'This family belongs to another Mahallu.' });
       }
 
       // Update familyName if not provided
@@ -398,12 +447,17 @@ export const deleteMember = async (req: AuthRequest, res: Response) => {
   }
 };
 
-export const getMembersByFamily = async (req: Request, res: Response) => {
+export const getMembersByFamily = async (req: AuthRequest, res: Response) => {
   try {
     const { familyId } = req.params;
     const { status } = req.query;
 
     const query: any = { familyId };
+    // A family id from another Mahallu must not list that family's members (names, phones, ages).
+    if (!req.isSuperAdmin) {
+      if (!req.tenantId) return res.json({ success: true, data: [] });
+      query.tenantId = req.tenantId;
+    }
 
     // Filter by status - default to active only, unless explicitly requested
     if (status) {
@@ -442,6 +496,10 @@ export const bulkImportMembers = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ success: false, message: 'You can import up to 500 members at a time. Please split the file.' });
     }
 
+    if (!isValidId(familyId)) {
+      return res.status(400).json({ success: false, message: MSG.badId });
+    }
+
     // Verify family exists and belongs to tenant
     const familyBelongs = await refBelongsToTenant(Family, familyId, req.tenantId);
     if (!familyBelongs) {
@@ -455,9 +513,6 @@ export const bulkImportMembers = async (req: AuthRequest, res: Response) => {
 
     const errors: { row: number; message: string }[] = [];
     const docs: any[] = [];
-
-    // Get existing member count for this family to generate mahallId
-    const memberCount = await Member.countDocuments({ familyId });
 
     members.forEach((m: any, i: number) => {
       if (!m.name || typeof m.name !== 'string' || !m.name.trim()) {
@@ -479,12 +534,26 @@ export const bulkImportMembers = async (req: AuthRequest, res: Response) => {
         occupation: m.occupation || undefined,
         tenantId: req.tenantId,
         status: 'active',
-        mahallId: `${family.mahallId}-${memberCount + docs.length + 1}`,
       });
     });
 
     if (errors.length) {
       return res.status(400).json({ success: false, message: 'Some details are missing or incorrect. Please check the form and try again.', errors });
+    }
+
+    if (family.mahallId) {
+      // Reserve one block of consecutive ids from the atomic per-family counter (after validation, so
+      // a rejected file burns no numbers). A block that overlaps an id already in use is discarded.
+      const tenantId = String(req.tenantId);
+      const familyMahallId = family.mahallId;
+      const first = await reserveBlock(memberKey(tenantId, familyId), docs.length, {
+        seed: memberSeed(tenantId, family),
+        taken: async (start, count) => {
+          const ids = Array.from({ length: count }, (_, i) => `${familyMahallId}-${start + i}`);
+          return !!(await Member.exists({ tenantId, mahallId: { $in: ids } }));
+        },
+      });
+      docs.forEach((doc, i) => { doc.mahallId = `${familyMahallId}-${first + i}`; });
     }
 
     const created = await Member.insertMany(docs);

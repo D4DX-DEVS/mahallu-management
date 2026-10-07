@@ -1,13 +1,15 @@
-import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { FiCheckCircle, FiPlus, FiUsers, FiXCircle } from 'react-icons/fi';
+import { useState, useEffect, useRef } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { FiCheckCircle, FiEdit2, FiEye, FiPlus, FiTrash2, FiUsers, FiXCircle } from 'react-icons/fi';
 import TableCard from '@/components/ui/TableCard';
 import FilterPanel from '@/components/ui/FilterPanel';
 import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
+import EmptyState from '@/components/ui/EmptyState';
 import { PageSkeleton } from '@/components/ui/Skeleton';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
 import { TableColumn, Pagination as PaginationType } from '@/types';
@@ -17,22 +19,36 @@ import { employeeService } from '@/services/employeeService';
 import { instituteService } from '@/services/instituteService';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useAuthStore } from '@/store/authStore';
-import { loadErrorMessage } from '@/utils/errors';
+import { toast } from '@/store/toastStore';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
+import ActionsMenu from '@/components/ui/ActionsMenu';
+import StatusBadge from '@/components/ui/StatusBadge';
 
 export default function EmployeesList() {
   const navigate = useNavigate();
   const { currentInstituteId: userInstituteId } = useAuthStore();
-  const [searchQuery, setSearchQuery] = useState('');
-  const [isFilterVisible, setIsFilterVisible] = useState(false);
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [instituteFilter, setInstituteFilter] = useState(userInstituteId || 'all');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
+  const [isFilterVisible, setIsFilterVisible] = useState(
+    !!(searchParams.get('status') || searchParams.get('institute'))
+  );
+  const [statusFilter, setStatusFilter] = useState(searchParams.get('status') || 'all');
+  const [instituteFilter, setInstituteFilter] = useState(
+    searchParams.get('institute') || userInstituteId || 'all'
+  );
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [institutes, setInstitutes] = useState<{ id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [currentPage, setCurrentPage] = useState(() => {
+    const page = Number(searchParams.get('page'));
+    return page > 0 ? page : 1;
+  });
   const [itemsPerPage] = useState(10);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
 
@@ -44,9 +60,26 @@ export default function EmployeesList() {
     }
   }, []);
 
+  // Skipped on the mount that restores a page from the URL.
+  const skipPageReset = useRef(true);
   useEffect(() => {
+    if (skipPageReset.current) {
+      skipPageReset.current = false;
+      return;
+    }
     setCurrentPage(1);
   }, [debouncedSearch]);
+
+  // Keep the URL in sync so a filtered/paged list survives navigating to a
+  // detail page and back, and survives a refresh.
+  useEffect(() => {
+    const next = new URLSearchParams();
+    if (debouncedSearch) next.set('q', debouncedSearch);
+    if (statusFilter !== 'all') next.set('status', statusFilter);
+    if (instituteFilter !== 'all' && instituteFilter !== userInstituteId) next.set('institute', instituteFilter);
+    if (currentPage > 1) next.set('page', String(currentPage));
+    setSearchParams(next, { replace: true });
+  }, [debouncedSearch, statusFilter, instituteFilter, currentPage, userInstituteId, setSearchParams]);
 
   useEffect(() => {
     fetchEmployees();
@@ -79,6 +112,22 @@ export default function EmployeesList() {
     }
   };
 
+  const handleDelete = async () => {
+    if (!selectedEmployee) return;
+    try {
+      setDeleting(true);
+      await employeeService.delete(selectedEmployee.id);
+      await fetchEmployees();
+      toast.success('Employee deleted');
+      setShowDeleteModal(false);
+      setSelectedEmployee(null);
+    } catch (err: any) {
+      toast.error(errorMessage(err, { action: 'delete employee' }));
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const columns: TableColumn<Employee>[] = [
     {
       key: 'name',
@@ -101,18 +150,37 @@ export default function EmployeesList() {
       key: 'status',
       label: 'Status',
       width: '7.25rem',
-      render: (status) => (
-        <span
-          className={`px-2 py-1 text-xs font-medium rounded-full ${
-            status === 'active'
-              ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-              : status === 'on_leave'
-                ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-                : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
-          }`}
-        >
-          {status === 'on_leave' ? 'On Leave' : status || 'active'}
-        </span>
+      render: (status) => <StatusBadge status={status || 'active'} />,
+    },
+    {
+      key: 'actions',
+      label: 'Actions',
+      width: '8rem',
+      align: 'center',
+      render: (_, row) => (
+        <ActionsMenu
+          items={[
+            {
+              label: 'View',
+              icon: <FiEye className="h-4 w-4" />,
+              onClick: () => navigate(ROUTES.EMPLOYEES.DETAIL(row.id)),
+            },
+            {
+              label: 'Edit',
+              icon: <FiEdit2 className="h-4 w-4" />,
+              onClick: () => navigate(ROUTES.EMPLOYEES.EDIT(row.id)),
+            },
+            {
+              label: 'Delete',
+              icon: <FiTrash2 className="h-4 w-4" />,
+              onClick: () => {
+                setSelectedEmployee(row);
+                setShowDeleteModal(true);
+              },
+              variant: 'danger',
+            },
+          ]}
+        />
       ),
     },
   ];
@@ -200,20 +268,15 @@ export default function EmployeesList() {
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="text-center py-10">
-            <p className="text-red-600 dark:text-red-400">{error}</p>
-            <Button onClick={fetchEmployees} className="mt-4" variant="outline">
-              Retry
-            </Button>
-          </div>
+          <EmptyState variant="error" entity="employees" description={error} action={{ label: 'Retry', onClick: fetchEmployees }} />
         ) : (
           <Table
             fixedLayout
             striped
             columns={columns}
             data={employees}
+            entity="employees"
             emptyMessage="No employees found"
-            showExport={false}
             onRowClick={(row) => navigate(ROUTES.EMPLOYEES.DETAIL(row.id))}
           />
         )}
@@ -230,6 +293,20 @@ export default function EmployeesList() {
           </div>
         )}
       </TableCard>
+
+      <ConfirmDialog
+        isOpen={showDeleteModal}
+        title="Delete employee"
+        message={`Are you sure you want to delete ${toTitleCase(selectedEmployee?.name) || 'this employee'}? This action cannot be undone.`}
+        confirmLabel="Delete"
+        variant="danger"
+        isLoading={deleting}
+        onConfirm={handleDelete}
+        onCancel={() => {
+          setShowDeleteModal(false);
+          setSelectedEmployee(null);
+        }}
+      />
     </div>
   );
 }

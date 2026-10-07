@@ -9,13 +9,14 @@ import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import { instituteService } from '@/services/instituteService';
 import { errorMessage } from '@/utils/errors';
+import { optionalPhoneSchema, sanitizeDigits } from '@/utils/validation';
 
 const instituteSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   place: z.string().min(1, 'Place is required'),
   type: z.enum(['institute', 'madrasa', 'orphanage', 'hospital', 'other']),
   joinDate: z.string().min(1, 'Join Date is required'),
-  contactNo: z.string().optional(),
+  contactNo: optionalPhoneSchema,
   email: z.string().email('Invalid email').optional().or(z.literal('')),
   description: z.string().optional(),
   status: z.enum(['active', 'inactive']).optional(),
@@ -35,6 +36,7 @@ export default function QuickAddInstitute({ open, onClose, onCreated }: Props) {
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<InstituteFormData>({
     resolver: zodResolver(instituteSchema),
@@ -110,7 +112,16 @@ export default function QuickAddInstitute({ open, onClose, onCreated }: Props) {
             error={errors.joinDate?.message}
             required
           />
-          <Input label="Contact No." type="tel" {...register('contactNo')} placeholder="Contact Number" />
+          <Input
+            label="Contact No."
+            type="tel"
+            inputMode="numeric"
+            maxLength={10}
+            {...register('contactNo')}
+            onChange={(e) => setValue('contactNo', sanitizeDigits(e.target.value, 10), { shouldValidate: true, shouldDirty: true })}
+            placeholder="Contact Number"
+            error={errors.contactNo?.message}
+          />
           <Input
             label="Email"
             type="email"

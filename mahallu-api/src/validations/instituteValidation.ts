@@ -1,4 +1,5 @@
 import { body, param } from 'express-validator';
+import { EMAIL_KEEP_AS_TYPED } from './common';
 
 export const createInstituteValidation = [
   body('name')
@@ -33,7 +34,7 @@ export const createInstituteValidation = [
     .trim()
     .isEmail()
     .withMessage('Please enter a valid email address.')
-    .normalizeEmail(),
+    .normalizeEmail(EMAIL_KEEP_AS_TYPED),
   body('status')
     .optional()
     .isIn(['active', 'inactive'])
@@ -73,7 +74,7 @@ export const updateInstituteValidation = [
     .trim()
     .isEmail()
     .withMessage('Please enter a valid email address.')
-    .normalizeEmail(),
+    .normalizeEmail(EMAIL_KEEP_AS_TYPED),
   body('status')
     .optional()
     .isIn(['active', 'inactive'])

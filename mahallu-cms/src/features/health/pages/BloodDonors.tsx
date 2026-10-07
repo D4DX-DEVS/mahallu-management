@@ -3,6 +3,7 @@ import { FiPlus, FiEdit2, FiTrash2, FiPhone } from 'react-icons/fi';
 import { getHealthResources, deleteHealthResource, IHealthResource } from '@/services/healthService';
 import Pagination from '@/components/ui/Pagination';
 import ExpandableSearch from '@/components/ui/ExpandableSearch';
+import ActionBar from '@/components/ui/ActionBar';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import { useNavigate } from 'react-router-dom';
@@ -91,12 +92,14 @@ export default function BloodDonors() {
         </div>
 
         <div className="mb-4 space-y-4">
-          <ExpandableSearch
-            value={search}
-            onChange={(value) => setSearch(value)}
-            entity="blood donors"
-            placeholder="Search by name"
-          />
+          <ActionBar className="mb-0">
+            <ExpandableSearch
+              value={search}
+              onChange={(value) => setSearch(value)}
+              entity="blood donors"
+              placeholder="Search by name"
+            />
+          </ActionBar>
 
           <div className="flex flex-wrap gap-2">
             <button

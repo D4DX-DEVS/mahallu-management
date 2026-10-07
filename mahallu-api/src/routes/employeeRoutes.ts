@@ -6,8 +6,8 @@ import {
   updateEmployee,
   deleteEmployee,
 } from '../controllers/employeeController';
-import { authMiddleware } from '../middleware/authMiddleware';
-import { tenantMiddleware, tenantFilter } from '../middleware/tenantMiddleware';
+import { authMiddleware, requireInstituteStaff } from '../middleware/authMiddleware';
+import { tenantMiddleware, tenantFilter, instituteFilter } from '../middleware/tenantMiddleware';
 import { validationHandler } from '../middleware/validationHandler';
 import {
   createEmployeeValidation,
@@ -22,6 +22,9 @@ const router = express.Router();
 router.use(authMiddleware);
 router.use(tenantMiddleware);
 router.use(tenantFilter);
+// Employee records carry salary and personal data: survey workers have no business here.
+router.use(requireInstituteStaff);
+router.use(instituteFilter);
 
 /**
  * @swagger

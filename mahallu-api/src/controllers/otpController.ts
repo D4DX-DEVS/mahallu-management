@@ -11,42 +11,23 @@ import Tenant from '../models/Tenant';
 import Institute from '../models/Institute';
 
 import { sendFailure } from '../utils/userMessages';
+import crypto from 'crypto';
+import { getPhoneVariants, maskPhone, samePhone } from '../utils/phone';
+import { isDevelopmentEnvironment } from '../utils/env';
+import { signSessionToken, toPublicUser } from '../utils/sessionToken';
+import { verifyAndConsumeOtp } from '../services/otpService';
+import { randomUnusablePasswordHash } from '../utils/credentials';
+import { isTenantActive, TENANT_SUSPENDED_MESSAGE } from '../services/tenantStatusService';
 
 // App Store Review test account — OTP is always 123456 for this number
 const APP_STORE_TEST_PHONE = '918877665544';
-
-const getPhoneVariants = (input: string): string[] => {
-  const variants = new Set<string>();
-  const raw = (input || '').trim();
-
-  if (raw) {
-    variants.add(raw);
-  }
-
-  const digits = raw.replace(/\D/g, '');
-  if (digits) {
-    variants.add(digits);
-  }
-
-  let local = digits;
-  if (local.startsWith('91') && local.length === 12) {
-    local = local.slice(2);
-  }
-
-  if (local.length === 10) {
-    variants.add(local);
-    variants.add(`91${local}`);
-    variants.add(`+91${local}`);
-  }
-
-  return Array.from(variants);
-};
 
 // Generate and send OTP
 export const sendOTP = async (req: Request, res: Response) => {
   try {
     const { phone } = req.body;
-    const isDevelopment = process.env.NODE_ENV !== 'production';
+    // Fail closed: only an explicit development/test NODE_ENV may generate or echo a code locally.
+    const isDevelopment = isDevelopmentEnvironment();
 
     if (!phone) {
       return res.status(400).json({
@@ -65,7 +46,7 @@ export const sendOTP = async (req: Request, res: Response) => {
       return sendFailure(res, err, 'Please enter a valid 10-digit mobile number.', 400);
     }
 
-    console.info(`[OTP] send-otp requested for phone=${phone} normalized=${normalizedPhone} env=${process.env.NODE_ENV}`);
+    console.info(`[OTP] send-otp requested for ${maskPhone(normalizedPhone)}`);
 
     // ─── App Store Review test account ──────────────────────────────────────────
     // Phone 8877665544 always gets OTP 123456. Test accounts are auto-created on
@@ -155,8 +136,8 @@ export const sendOTP = async (req: Request, res: Response) => {
         let memberUser = await User.findOne({ memberId: member._id, role: 'member' });
 
         if (!memberUser) {
-          const defaultMemberPassword = process.env.DEFAULT_MEMBER_PASSWORD || '123456';
-          const hashedPassword = await bcrypt.hash(defaultMemberPassword, 10);
+          // No shared default password: members sign in with an OTP to their own phone.
+          const hashedPassword = await randomUnusablePasswordHash();
 
           try {
             memberUser = await User.create({
@@ -226,7 +207,7 @@ export const sendOTP = async (req: Request, res: Response) => {
     let otp: any;
 
     if (!isDevelopment) {
-      console.info(`[OTP] Production mode: Sending via DXING to ${normalizedPhone}`);
+      console.info(`[OTP] Sending via DXING to ${maskPhone(normalizedPhone)}`);
 
       // Use DXING's OTP template - DXING will generate and send the OTP
       const message = `🔐 Mahallu Login OTP\n\nYour OTP is {{otp}}. It will expire in 5 minutes.\n\nIf you did not request this OTP, please ignore this message.`;
@@ -250,11 +231,12 @@ export const sendOTP = async (req: Request, res: Response) => {
           deliveryResult.success === true;
 
         if (!confirmed) {
-          console.error('[OTP] DXING did not confirm delivery:', {
-            response: deliveryResult,
-            phone: normalizedPhone,
+          // Never log or embed the provider response: it carries the one-time code.
+          console.error('[OTP] DXING did not confirm delivery', {
+            phone: maskPhone(normalizedPhone),
+            status: deliveryResult?.status,
           });
-          throw new Error(`DXING delivery not confirmed: ${JSON.stringify(deliveryResult)}`);
+          throw new Error('DXING delivery not confirmed');
         }
 
         // Extract OTP from DXING response
@@ -265,10 +247,9 @@ export const sendOTP = async (req: Request, res: Response) => {
 
         otpCode = String(deliveryResult.data.otp);
 
-        console.info(`[OTP] ✅ DXING confirmed delivery to ${normalizedPhone}`, {
+        console.info(`[OTP] DXING confirmed delivery to ${maskPhone(normalizedPhone)}`, {
           messageId: deliveryResult.data.messageId,
           status: deliveryResult.status,
-          otpLength: otpCode.length,
           timestamp: new Date().toISOString(),
         });
 
@@ -282,11 +263,10 @@ export const sendOTP = async (req: Request, res: Response) => {
         await otp.save();
 
       } catch (err: any) {
-        console.error(`[OTP] ❌ DXING delivery failed for ${normalizedPhone}:`, {
+        console.error(`[OTP] DXING delivery failed for ${maskPhone(normalizedPhone)}`, {
           error: err?.message,
           code: err?.code,
           httpStatus: err?.response?.status,
-          dxingResponse: err?.response?.data,
           timestamp: new Date().toISOString(),
         });
 
@@ -298,7 +278,7 @@ export const sendOTP = async (req: Request, res: Response) => {
       }
     } else {
       // Development mode: Generate OTP locally
-      otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+      otpCode = crypto.randomInt(100000, 1000000).toString();
       const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
       otp = new OTP({
@@ -308,7 +288,8 @@ export const sendOTP = async (req: Request, res: Response) => {
       });
       await otp.save();
 
-      console.info(`[OTP] Dev mode: Generated OTP for ${normalizedPhone}, OTP=${otpCode}`);
+      // The development code is returned in the response below; it is never written to the log.
+      console.info(`[OTP] Dev mode: generated a code for ${maskPhone(normalizedPhone)}`);
     }
 
     res.json({
@@ -343,38 +324,18 @@ export const verifyOTP = async (req: Request, res: Response) => {
       return sendFailure(res, err, 'Please enter a valid 10-digit mobile number.', 400);
     }
 
-    // Find the latest valid OTP for this phone
-    const otpRecord = await OTP.findOne({
-      phone: normalizedPhone,
-      isUsed: false,
-      expiresAt: { $gt: new Date() },
-    }).sort({ createdAt: -1 });
+    // Count the attempt and compare the code in one atomic step (see services/otpService.ts):
+    // parallel guesses cannot out-run the per-code attempt limit, and a correct code is consumed once.
+    const otpCheck = await verifyAndConsumeOtp(normalizedPhone, otp);
 
-    if (!otpRecord) {
-      return res.status(401).json({
-        success: false,
-        message: 'That OTP is incorrect or has expired. Please request a new one.',
-      });
-    }
-
-    if (otpRecord.attempts >= 5) {
+    if (otpCheck === 'locked') {
       return res.status(429).json({
         success: false,
         message: 'Too many incorrect attempts. Please request a new OTP.',
       });
     }
 
-    if (otpRecord.code !== otp) {
-      otpRecord.attempts += 1;
-      await otpRecord.save();
-
-      if (otpRecord.attempts >= 5) {
-        return res.status(429).json({
-          success: false,
-          message: 'Too many incorrect attempts. Please request a new OTP.',
-        });
-      }
-
+    if (otpCheck !== 'ok') {
       return res.status(401).json({
         success: false,
         message: 'That OTP is incorrect or has expired. Please request a new one.',
@@ -416,9 +377,7 @@ export const verifyOTP = async (req: Request, res: Response) => {
       });
     }
 
-    // Mark OTP as used
-    otpRecord.isUsed = true;
-    await otpRecord.save();
+    // (The OTP was consumed by verifyAndConsumeOtp above.)
 
     // Multiple active accounts — prompt the user to choose which role to log in as
     if (activeUsers.length > 1) {
@@ -455,7 +414,7 @@ export const verifyOTP = async (req: Request, res: Response) => {
       const preAuthToken = jwt.sign(
         { phone: normalizedPhone, purpose: 'role_selection' },
         process.env.JWT_SECRET,
-        { expiresIn: '5m' }
+        { expiresIn: '5m', algorithm: 'HS256' }
       );
 
       return res.json({
@@ -467,6 +426,11 @@ export const verifyOTP = async (req: Request, res: Response) => {
     // Single active user — proceed with normal login
     const user = activeUsers[0];
 
+    // A suspended Mahallu cannot start new sessions (super admins are platform staff).
+    if (!user.isSuperAdmin && !(await isTenantActive(user.tenantId))) {
+      return res.status(403).json({ success: false, code: 'TENANT_SUSPENDED', message: TENANT_SUSPENDED_MESSAGE });
+    }
+
     // Update last login
     user.lastLogin = new Date();
     await user.save();
@@ -476,11 +440,9 @@ export const verifyOTP = async (req: Request, res: Response) => {
       return res.status(500).json({ success: false, message: 'Something went wrong on our side. Please try again in a moment.' });
     }
 
-    const token = jwt.sign(
-      { userId: user._id, isSuperAdmin: user.isSuperAdmin },
-      process.env.JWT_SECRET,
-      { expiresIn: '7d' }
-    );
+    // The phone was proven by the OTP just consumed: it travels with the session so the person may
+    // switch between their own accounts (and nobody else may).
+    const token = signSessionToken(user, { provenPhone: normalizedPhone });
 
     // Fetch user without populating to keep tenantId as string
     const userResponse = await User.findById(user._id).select('-password');
@@ -488,7 +450,7 @@ export const verifyOTP = async (req: Request, res: Response) => {
     res.json({
       success: true,
       data: {
-        user: userResponse,
+        user: toPublicUser(userResponse),
         token,
       },
     });

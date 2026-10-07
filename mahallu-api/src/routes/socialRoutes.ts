@@ -7,12 +7,13 @@ import {
   deleteBanner,
   getAllFeeds,
   createFeed,
+  deleteFeed,
   getActivityLogs,
   getAllSupport,
   createSupport,
   updateSupport,
 } from '../controllers/socialController';
-import { authMiddleware } from '../middleware/authMiddleware';
+import { authMiddleware, allowRoles, requireAdmin, ROLE_GROUPS } from '../middleware/authMiddleware';
 import { tenantMiddleware, tenantFilter } from '../middleware/tenantMiddleware';
 import { validationHandler } from '../middleware/validationHandler';
 import {
@@ -30,6 +31,20 @@ const router = express.Router();
 router.use(authMiddleware);
 router.use(tenantMiddleware);
 router.use(tenantFilter);
+// Reading the banner list is open to members too: they see their own Mahallu's live banners on the home
+// screen (getAllBanners narrows what a non-admin gets back to own Mahallu, active, inside its dates).
+// It is registered BEFORE the staff-only guard below, which every other endpoint on this router passes through.
+router.get(
+  '/banners',
+  allowRoles([...ROLE_GROUPS.ALL_STAFF, 'member']),
+  listQuery(),
+  validationHandler,
+  getAllBanners
+);
+
+// Every other signed-in staff role may reach this router (the Support entry sits in each user's account menu);
+// anything that publishes or changes Mahallu content is narrowed to the admins on the route itself.
+router.use(allowRoles(ROLE_GROUPS.ALL_STAFF));
 
 /**
  * @swagger
@@ -87,7 +102,6 @@ router.use(tenantFilter);
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  */
-router.get('/banners', listQuery(), validationHandler, getAllBanners);
 router.get('/banners/:id', bannerIdParamValidation, validationHandler, getBannerById);
 
 /**
@@ -140,9 +154,9 @@ router.get('/banners/:id', bannerIdParamValidation, validationHandler, getBanner
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  */
-router.post('/banners', createBannerValidation, validationHandler, createBanner);
-router.put('/banners/:id', updateBannerValidation, validationHandler, updateBanner);
-router.delete('/banners/:id', bannerIdParamValidation, validationHandler, deleteBanner);
+router.post('/banners', requireAdmin,createBannerValidation, validationHandler, createBanner);
+router.put('/banners/:id', requireAdmin,updateBannerValidation, validationHandler, updateBanner);
+router.delete('/banners/:id', requireAdmin,bannerIdParamValidation, validationHandler, deleteBanner);
 
 /**
  * @swagger
@@ -271,7 +285,8 @@ router.get('/feeds', listQuery(), validationHandler, getAllFeeds);
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  */
-router.post('/feeds', createFeedValidation, validationHandler, createFeed);
+router.post('/feeds', requireAdmin,createFeedValidation, validationHandler, createFeed);
+router.delete('/feeds/:id', requireAdmin, idParam('id', 'post'), validationHandler, deleteFeed);
 
 /**
  * @swagger
@@ -354,7 +369,8 @@ router.post('/feeds', createFeedValidation, validationHandler, createFeed);
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  */
-router.get('/activity-logs', listQuery(), validationHandler, getActivityLogs);
+// The log holds request bodies from every user in the tenant; it is an admin tool.
+router.get('/activity-logs', allowRoles(['super_admin', 'mahall']), listQuery(), validationHandler, getActivityLogs);
 
 /**
  * @swagger
@@ -532,7 +548,7 @@ router.post('/support', createSupportValidation, validationHandler, createSuppor
  *       404:
  *         $ref: '#/components/responses/NotFound'
  */
-router.put('/support/:id', updateSupportValidation, validationHandler, updateSupport);
+router.put('/support/:id', requireAdmin,updateSupportValidation, validationHandler, updateSupport);
 
 export default router;
 

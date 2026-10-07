@@ -9,6 +9,7 @@ import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import { memberService } from '@/services/memberService';
 import { familyService } from '@/services/familyService';
+import { fetchAllPages } from '@/services/api';
 import { Family, Member } from '@/types';
 import { errorMessage } from '@/utils/errors';
 
@@ -48,8 +49,9 @@ export default function QuickAddMember({ open, onClose, onCreated }: Props) {
 
   const fetchFamilies = async () => {
     try {
-      const result = await familyService.getAll();
-      setFamilies(result.data || []);
+      // Every family, not just the API's default page of 10.
+      const all = await fetchAllPages((p) => familyService.getAll(p));
+      setFamilies(all);
     } catch (err) {
       console.error("Couldn't load families:", err);
       setFamilies([]);

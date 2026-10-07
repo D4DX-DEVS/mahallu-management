@@ -7,9 +7,13 @@ import { getPaginationParams, createPaginationResponse } from '../utils/paginati
 import { stripImmutable, refBelongsToTenant } from '../utils/sanitizeUpdate';
 import Member from '../models/Member';
 import Family from '../models/Family';
-import { postLedgerEntry } from '../services/ledgerPostingService';
+import { postLedgerEntry, reverseLedgerEntry } from '../services/ledgerPostingService';
+import { runAtomic } from '../utils/transaction';
+import { isDuplicateKeyError } from '../utils/idCounter';
+import { parseAmountInRange, round2 } from '../utils/money';
+import { MSG, isValidId, requireScope } from '../utils/scope';
 
-import { sendFailure } from '../utils/userMessages';
+import { sendFailure, UserFacingError } from '../utils/userMessages';
 import { regexLiteral } from '../utils/queryGuard';
 
 const tenantScope = (req: AuthRequest) => {
@@ -23,12 +27,25 @@ const scopedQuery = (req: AuthRequest): Record<string, any> => {
   return tenantId ? { tenantId } : {};
 };
 
+/**
+ * Does this record belong to the caller's Mahallu? Fails closed: a non-super-admin with no Mahallu
+ * owns nothing (the old `req.tenantId && ...` check let them through).
+ */
+const ownsRecord = (req: AuthRequest, recordTenantId: unknown): boolean =>
+  req.tenantId ? String(recordTenantId) === String(req.tenantId) : !!req.isSuperAdmin;
+
+/** 403 unless the caller is a super admin or has a Mahallu. Returns false after answering. */
+const requireCaller = (req: AuthRequest, res: Response): boolean => !!requireScope(req, res);
+
+const sendBad = (res: Response, message: string) => res.status(400).json({ success: false, message });
+
 // ---------------------------------------------------------------------------
 // Beneficiaries
 // ---------------------------------------------------------------------------
 
 export const getAllBeneficiaries = async (req: AuthRequest, res: Response) => {
   try {
+    if (!requireCaller(req, res)) return;
     const { page, limit, skip } = getPaginationParams(req);
     const { verificationStatus, category, status, search } = req.query;
     const query: any = scopedQuery(req);
@@ -58,7 +75,7 @@ export const getBeneficiaryById = async (req: AuthRequest, res: Response) => {
     const beneficiary = await ZakatBeneficiary.findById(req.params.id)
       .populate('memberId', 'name phone familyName')
       .populate('familyId', 'houseName');
-    if (!beneficiary || (req.tenantId && beneficiary.tenantId.toString() !== req.tenantId)) {
+    if (!beneficiary || !ownsRecord(req, beneficiary.tenantId)) {
       return res.status(404).json({ success: false, message: "We couldn't find that beneficiary. It may have been removed." });
     }
 
@@ -74,7 +91,8 @@ export const getBeneficiaryById = async (req: AuthRequest, res: Response) => {
 
 export const createBeneficiary = async (req: AuthRequest, res: Response) => {
   try {
-    const tenantId = tenantScope(req) || req.body.tenantId;
+    // Only a super admin without a selected Mahallu may name one in the body.
+    const tenantId = tenantScope(req) || (req.isSuperAdmin ? req.body.tenantId : undefined);
     if (!tenantId) return res.status(400).json({ success: false, message: 'Please select a Mahallu before continuing.' });
     if (!req.body.memberId && !req.body.name) {
       return res.status(400).json({ success: false, message: 'Please choose a member, or enter a name.' });
@@ -88,7 +106,7 @@ export const createBeneficiary = async (req: AuthRequest, res: Response) => {
 
     // Verification is a separate, deliberate step - never granted on create
     const beneficiary = await ZakatBeneficiary.create({
-      ...req.body,
+      ...stripImmutable(req.body),
       tenantId,
       verificationStatus: 'pending',
       verifiedBy: undefined,
@@ -114,7 +132,7 @@ export const createBeneficiary = async (req: AuthRequest, res: Response) => {
 export const updateBeneficiary = async (req: AuthRequest, res: Response) => {
   try {
     const existing = await ZakatBeneficiary.findById(req.params.id);
-    if (!existing || (req.tenantId && existing.tenantId.toString() !== req.tenantId)) {
+    if (!existing || !ownsRecord(req, existing.tenantId)) {
       return res.status(404).json({ success: false, message: "We couldn't find that beneficiary. It may have been removed." });
     }
     // Verification only moves through the dedicated endpoint, and tenant /
@@ -147,7 +165,7 @@ export const verifyBeneficiary = async (req: AuthRequest, res: Response) => {
     }
 
     const beneficiary = await ZakatBeneficiary.findById(req.params.id);
-    if (!beneficiary || (req.tenantId && beneficiary.tenantId.toString() !== req.tenantId)) {
+    if (!beneficiary || !ownsRecord(req, beneficiary.tenantId)) {
       return res.status(404).json({ success: false, message: "We couldn't find that beneficiary. It may have been removed." });
     }
 
@@ -176,7 +194,7 @@ export const verifyBeneficiary = async (req: AuthRequest, res: Response) => {
 export const deleteBeneficiary = async (req: AuthRequest, res: Response) => {
   try {
     const existing = await ZakatBeneficiary.findById(req.params.id);
-    if (!existing || (req.tenantId && existing.tenantId.toString() !== req.tenantId)) {
+    if (!existing || !ownsRecord(req, existing.tenantId)) {
       return res.status(404).json({ success: false, message: "We couldn't find that beneficiary. It may have been removed." });
     }
     const paid = await ZakatDistribution.countDocuments({ beneficiaryId: existing._id });
@@ -199,6 +217,7 @@ export const deleteBeneficiary = async (req: AuthRequest, res: Response) => {
 
 export const getAllDistributions = async (req: AuthRequest, res: Response) => {
   try {
+    if (!requireCaller(req, res)) return;
     const { page, limit, skip } = getPaginationParams(req);
     const { type, beneficiaryId, year } = req.query;
     const query: any = scopedQuery(req);
@@ -228,18 +247,65 @@ export const getAllDistributions = async (req: AuthRequest, res: Response) => {
   }
 };
 
+const DISTRIBUTION_TYPES = ['regular', 'monthly', 'fitr', 'qurbani'];
+const CLIENT_REQUEST_ID = /^[A-Za-z0-9_\-:.]{8,64}$/;
+const AMOUNT_MESSAGE = 'Please enter an amount greater than zero (at most two decimal places).';
+
+const cleanText = (value: unknown, max: number): string | undefined =>
+  typeof value === 'string' ? value.trim().slice(0, max) : undefined;
+
+const parseDate = (value: unknown): Date | null => {
+  if (typeof value !== 'string' && !(value instanceof Date)) return null;
+  const date = new Date(value as any);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+/** The ledger entry a posted distribution corresponds to (an expense: money leaves the Mahallu). */
+const distributionLedgerParams = (distribution: any, beneficiaryName?: string) => ({
+  tenantId: distribution.tenantId,
+  ledgerName: 'Zakat Distribution',
+  ledgerType: 'expense' as const,
+  amount: distribution.amount,
+  description: `Zakat distribution (${distribution.type}) to ${beneficiaryName || 'beneficiary'}`,
+  date: distribution.distributionDate,
+  source: 'zakat_distribution' as const,
+  sourceId: distribution._id as mongoose.Types.ObjectId,
+  paymentMethod: distribution.paymentMethod,
+  referenceNo: distribution.receiptNo,
+});
+
+const beneficiaryNameOf = async (beneficiaryId: unknown): Promise<string | undefined> => {
+  try {
+    const found: any = await ZakatBeneficiary.findById(beneficiaryId).select('name').lean();
+    return found?.name;
+  } catch {
+    return undefined;
+  }
+};
+
 /**
  * Distributions are only allowed against a VERIFIED beneficiary. The member
  * `isZakatEligible` flag is a candidate marker and grants nothing on its own.
+ *
+ * With `postToLedger` the row and its ledger entry are written together (one MongoDB transaction when
+ * the cluster supports it, otherwise row first and the row is removed again if posting fails), so a
+ * failed post can no longer leave a saved row behind a 500 for a retry to duplicate. A `clientRequestId`
+ * makes a retry return the existing distribution (200, `idempotent: true`) and, if the first attempt was
+ * interrupted before posting, finishes the posting (posting is idempotent per distribution).
  */
 export const createDistribution = async (req: AuthRequest, res: Response) => {
   try {
-    const tenantId = tenantScope(req) || req.body.tenantId;
-    if (!tenantId) return res.status(400).json({ success: false, message: 'Please select a Mahallu before continuing.' });
+    const scope = requireScope(req, res);
+    if (!scope) return;
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    // A super admin without a selected Mahallu may name one in the body; nobody else can.
+    const tenantId = scope.tenantId || (scope.isSuperAdmin && isValidId(body.tenantId) ? body.tenantId : undefined);
+    if (!tenantId) return sendBad(res, MSG.noTenant);
 
-    const beneficiary = await ZakatBeneficiary.findById(req.body.beneficiaryId);
+    if (!isValidId(body.beneficiaryId)) return sendBad(res, 'Please select a valid beneficiary.');
+    const beneficiary = await ZakatBeneficiary.findById(body.beneficiaryId);
     if (!beneficiary || beneficiary.tenantId.toString() !== tenantId.toString()) {
-      return res.status(400).json({ success: false, message: 'Please select a valid beneficiary.' });
+      return sendBad(res, 'Please select a valid beneficiary.');
     }
     if (beneficiary.verificationStatus !== 'verified') {
       return res.status(400).json({
@@ -248,71 +314,254 @@ export const createDistribution = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    const distribution = await ZakatDistribution.create({
-      ...req.body,
-      tenantId,
-      createdBy: req.user?._id,
-    });
-
-    if (req.body.postToLedger) {
-      await postLedgerEntry({
-        tenantId,
-        ledgerName: 'Zakat Distribution',
-        ledgerType: 'expense',
-        amount: distribution.amount,
-        description: `Zakat distribution (${distribution.type}) to ${beneficiary.name || 'beneficiary'}`,
-        date: distribution.distributionDate,
-        source: 'zakat_distribution',
-        sourceId: distribution._id as mongoose.Types.ObjectId,
-        paymentMethod: distribution.paymentMethod,
-        referenceNo: distribution.receiptNo,
-      });
+    const amount = parseAmountInRange(body.amount, 0.01);
+    if (amount === null) return sendBad(res, AMOUNT_MESSAGE);
+    let distributionDate = new Date();
+    if (body.distributionDate !== undefined && body.distributionDate !== null && body.distributionDate !== '') {
+      const parsed = parseDate(body.distributionDate);
+      if (!parsed) return sendBad(res, 'Please choose a valid distribution date.');
+      distributionDate = parsed;
+    }
+    const type = body.type === undefined || body.type === '' ? 'regular' : body.type;
+    if (!DISTRIBUTION_TYPES.includes(type)) return sendBad(res, 'Please choose a valid distribution type.');
+    let clientRequestId: string | undefined;
+    if (body.clientRequestId !== undefined && body.clientRequestId !== null && body.clientRequestId !== '') {
+      if (typeof body.clientRequestId !== 'string' || !CLIENT_REQUEST_ID.test(body.clientRequestId)) {
+        return sendBad(res, 'The request id must be 8 to 64 letters, numbers, dashes or underscores.');
+      }
+      clientRequestId = body.clientRequestId;
     }
 
-    res.status(201).json({ success: true, data: distribution });
+    const tenantOid = new mongoose.Types.ObjectId(String(tenantId));
+    const postToLedger = body.postToLedger === true || body.postToLedger === 'true';
+
+    // Only whitelisted fields; tenantId / createdBy / clientRequestId are set here, never taken as sent.
+    const data: Record<string, any> = {
+      _id: new mongoose.Types.ObjectId(),
+      tenantId: tenantOid,
+      beneficiaryId: beneficiary._id,
+      amount,
+      distributionDate,
+      type,
+      paymentMethod: cleanText(body.paymentMethod, 100),
+      receiptNo: cleanText(body.receiptNo, 64),
+      remarks: cleanText(body.remarks, 2000),
+      postToLedger,
+      createdBy: req.user?._id,
+    };
+    if (clientRequestId) data.clientRequestId = clientRequestId;
+
+    const respondExisting = async (existing: any) => {
+      if (
+        Number(existing.amount) !== amount ||
+        String(existing.beneficiaryId) !== String(beneficiary._id)
+      ) {
+        return res.status(409).json({
+          success: false,
+          message: 'That request id was already used for a different distribution. Please start a new one.',
+        });
+      }
+      // The first attempt may have stopped after saving the row but before posting: finish it. No-op if posted.
+      if (existing.postToLedger) {
+        await postLedgerEntry(distributionLedgerParams(existing, beneficiary.name));
+      }
+      return res.status(200).json({ success: true, data: existing, idempotent: true });
+    };
+
+    if (clientRequestId) {
+      const existing = await ZakatDistribution.findOne({ tenantId: tenantOid, clientRequestId });
+      if (existing) return await respondExisting(existing);
+    }
+
+    try {
+      const distribution = await runAtomic(
+        async (session, comp) => {
+          const [created]: any[] = await ZakatDistribution.create([data], { session });
+          comp.push('distribution row', async () => {
+            await ZakatDistribution.deleteOne({ _id: data._id });
+          });
+          if (postToLedger) {
+            await postLedgerEntry(distributionLedgerParams(created, beneficiary.name), { session });
+            // (nothing after this step can fail, so it needs no undo of its own)
+          }
+          return created;
+        },
+        { description: 'zakat distribution create', reconcile: { entity: 'ZakatDistribution', entityId: data._id, tenantId: tenantOid } }
+      );
+      return res.status(201).json({ success: true, data: distribution });
+    } catch (err) {
+      if (clientRequestId && isDuplicateKeyError(err, 'clientRequestId')) {
+        const existing = await ZakatDistribution.findOne({ tenantId: tenantOid, clientRequestId });
+        if (existing) return await respondExisting(existing);
+      }
+      throw err;
+    }
   } catch (error: any) {
     sendFailure(res, error, 'We couldn\'t save the distribution. Please try again.');
   }
 };
 
-/** Beneficiary is immutable here - re-pointing a distribution goes through delete + re-create. */
+/**
+ * Beneficiary is immutable here - re-pointing a distribution goes through delete + re-create.
+ *
+ * Once a distribution has been posted to the ledger, changing its amount, date, method or receipt number
+ * REPLACES the ledger entry (reverse the old one, post the new one) in the same atomic step, so the
+ * ledger and the bank balance always match the distribution. The reversal and the post are each
+ * idempotent and the whole step is undone if either fails; the chosen alternative (rejecting the edit)
+ * would only push people to delete and re-create, which is the riskier path. An edit racing another edit
+ * of the amount is refused with 409 (optimistic check on the amount that was read).
+ */
 export const updateDistribution = async (req: AuthRequest, res: Response) => {
   try {
-    const existing = await ZakatDistribution.findById(req.params.id);
-    if (!existing || (req.tenantId && existing.tenantId.toString() !== req.tenantId)) {
+    if (!requireCaller(req, res)) return;
+    if (!isValidId(req.params.id)) return sendBad(res, MSG.badId);
+    const existing: any = await ZakatDistribution.findById(req.params.id);
+    if (!existing || !ownsRecord(req, existing.tenantId)) {
       return res.status(404).json({ success: false, message: "We couldn't find that distribution. It may have been removed." });
     }
-    const { tenantId, beneficiaryId, createdBy, postToLedger, ...rest } = req.body;
-    const payload = stripImmutable(rest);
 
-    const distribution = await ZakatDistribution.findByIdAndUpdate(req.params.id, payload, {
-      new: true,
-      runValidators: true,
-    }).populate({
-      path: 'beneficiaryId',
-      select: 'name category memberId',
-      populate: { path: 'memberId', select: 'name' },
-    });
+    // Whitelist: tenantId, beneficiaryId, createdBy, postToLedger and clientRequestId can never be edited.
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    const changes: Record<string, any> = {};
+    if (body.amount !== undefined) {
+      const amount = parseAmountInRange(body.amount, 0.01);
+      if (amount === null) return sendBad(res, AMOUNT_MESSAGE);
+      changes.amount = amount;
+    }
+    if (body.distributionDate !== undefined) {
+      const date = parseDate(body.distributionDate);
+      if (!date) return sendBad(res, 'Please choose a valid distribution date.');
+      changes.distributionDate = date;
+    }
+    if (body.type !== undefined) {
+      if (!DISTRIBUTION_TYPES.includes(body.type)) return sendBad(res, 'Please choose a valid distribution type.');
+      changes.type = body.type;
+    }
+    for (const field of ['paymentMethod', 'receiptNo', 'remarks'] as const) {
+      if (body[field] !== undefined) {
+        const value = body[field] === null ? '' : cleanText(body[field], field === 'remarks' ? 2000 : 100);
+        if (value === undefined) return sendBad(res, 'Please check the details and try again.');
+        changes[field] = value;
+      }
+    }
+
+    const populateBeneficiary = (query: any) =>
+      query.populate({
+        path: 'beneficiaryId',
+        select: 'name category memberId',
+        populate: { path: 'memberId', select: 'name' },
+      });
+
+    const ledgerRelevant = ['amount', 'distributionDate', 'paymentMethod', 'receiptNo', 'type'].some(
+      (field) => field in changes
+    );
+
+    if (!existing.postToLedger || !ledgerRelevant) {
+      const updated = await ZakatDistribution.findByIdAndUpdate(existing._id, changes, { new: true, runValidators: true });
+      if (!updated) {
+        return res.status(404).json({ success: false, message: "We couldn't find that distribution. It may have been removed." });
+      }
+    } else {
+      const oldPlain = typeof existing.toObject === 'function' ? existing.toObject() : { ...existing };
+      const name = await beneficiaryNameOf(existing.beneficiaryId);
+      await runAtomic(
+        async (session, comp) => {
+          const updated: any = await ZakatDistribution.findOneAndUpdate(
+            { _id: existing._id, tenantId: existing.tenantId, amount: oldPlain.amount },
+            { $set: changes },
+            { new: true, runValidators: true, session }
+          );
+          if (!updated) {
+            throw new UserFacingError('This distribution was changed by someone else. Please refresh and try again.', 409);
+          }
+          comp.push('distribution fields', async () => {
+            const restore: Record<string, any> = {};
+            for (const field of Object.keys(changes)) restore[field] = oldPlain[field];
+            await ZakatDistribution.updateOne({ _id: existing._id }, { $set: restore });
+          });
+
+          const removed = await reverseLedgerEntry('zakat_distribution', existing._id, {
+            session,
+            tenantId: existing.tenantId,
+          });
+          if (removed.length > 0) {
+            comp.push('previous ledger entry', async () => {
+              await postLedgerEntry(distributionLedgerParams(oldPlain, name));
+            });
+          }
+          await postLedgerEntry(distributionLedgerParams(updated, name), { session });
+          comp.push('new ledger entry', async () => {
+            await reverseLedgerEntry('zakat_distribution', existing._id, { tenantId: existing.tenantId });
+          });
+        },
+        { description: 'zakat distribution update', reconcile: { entity: 'ZakatDistribution', entityId: existing._id, tenantId: existing.tenantId } }
+      );
+    }
+
+    const distribution = await populateBeneficiary(ZakatDistribution.findById(existing._id));
     res.json({ success: true, data: distribution });
   } catch (error: any) {
     sendFailure(res, error, 'We couldn\'t update the distribution. Please try again.');
   }
 };
 
+/**
+ * Deleting a distribution reverses its ledger entry and puts the debited bank balance back. The row is
+ * claimed by deleting it (one winner), the reversal is applied once, and if it fails the row is restored
+ * and the error reported, so a half-done delete cannot leave an expense with no distribution.
+ */
 export const deleteDistribution = async (req: AuthRequest, res: Response) => {
   try {
-    const existing = await ZakatDistribution.findById(req.params.id);
-    if (!existing || (req.tenantId && existing.tenantId.toString() !== req.tenantId)) {
+    if (!requireCaller(req, res)) return;
+    if (!isValidId(req.params.id)) return sendBad(res, MSG.badId);
+    const existing: any = await ZakatDistribution.findById(req.params.id);
+    if (!existing || !ownsRecord(req, existing.tenantId)) {
       return res.status(404).json({ success: false, message: "We couldn't find that distribution. It may have been removed." });
     }
-    await existing.deleteOne();
+    const name = await beneficiaryNameOf(existing.beneficiaryId);
+
+    const outcome = await runAtomic(
+      async (session, comp) => {
+        const removedRow: any = await ZakatDistribution.findOneAndDelete(
+          { _id: existing._id, tenantId: existing.tenantId },
+          { session }
+        );
+        if (!removedRow) return 'missing' as const;
+        const plain = typeof removedRow.toObject === 'function' ? removedRow.toObject() : { ...removedRow };
+        comp.push('distribution row', async () => {
+          await ZakatDistribution.create([plain]);
+        });
+
+        // Always reverse by (source, sourceId): a no-op when nothing was posted, and it also clears an
+        // entry whose postToLedger flag was lost.
+        const removed = await reverseLedgerEntry('zakat_distribution', existing._id, {
+          session,
+          tenantId: existing.tenantId,
+        });
+        if (removed.length > 0) {
+          comp.push('ledger entry', async () => {
+            await postLedgerEntry(distributionLedgerParams(plain, name));
+          });
+        }
+        return 'deleted' as const;
+      },
+      { description: 'zakat distribution delete', reconcile: { entity: 'ZakatDistribution', entityId: existing._id, tenantId: existing.tenantId } }
+    );
+
+    if (outcome === 'missing') {
+      return res.status(404).json({ success: false, message: "We couldn't find that distribution. It may have been removed." });
+    }
     res.json({ success: true, message: 'Distribution deleted' });
   } catch (error: any) {
     sendFailure(res, error, 'We couldn\'t delete the distribution. Please try again.');
   }
 };
 
-/** Collected (existing Zakat collections) vs distributed, for a given year. */
+/**
+ * Collected (existing Zakat collections) vs distributed, for a given year.
+ * Only VERIFIED zakat counts as collected: a pending member submission is money nobody has confirmed
+ * receiving. (A payment with no status at all predates the field and was always received, so it counts.)
+ */
 export const getZakatSummary = async (req: AuthRequest, res: Response) => {
   try {
     /*
@@ -322,7 +571,9 @@ export const getZakatSummary = async (req: AuthRequest, res: Response) => {
      * endpoint - qard, welfare, relief - answers across all Mahallus in that
      * state, and the beneficiary and distribution lists behind this page
      * already do too. This one was the outlier.
+     * Anyone who is NOT a super admin and has no Mahallu is refused (403) instead.
      */
+    if (!requireCaller(req, res)) return;
     const tenantId = tenantScope(req);
     const scope = scopedQuery(req);
     // Aggregation does not cast strings to ObjectId the way find() does.
@@ -334,9 +585,13 @@ export const getZakatSummary = async (req: AuthRequest, res: Response) => {
     const from = new Date(year, 0, 1);
     const to = new Date(year + 1, 0, 1);
 
-    const [collectedAgg, distributedAgg, byType, beneficiaryCounts] = await Promise.all([
+    const [collectedAgg, pendingAgg, distributedAgg, byType, beneficiaryCounts] = await Promise.all([
       Zakat.aggregate([
-        { $match: { ...tenantMatch, paymentDate: { $gte: from, $lt: to } } },
+        { $match: { ...tenantMatch, status: { $ne: 'pending' }, paymentDate: { $gte: from, $lt: to } } },
+        { $group: { _id: null, total: { $sum: '$amount' }, count: { $sum: 1 } } },
+      ]),
+      Zakat.aggregate([
+        { $match: { ...tenantMatch, status: 'pending', paymentDate: { $gte: from, $lt: to } } },
         { $group: { _id: null, total: { $sum: '$amount' }, count: { $sum: 1 } } },
       ]),
       ZakatDistribution.aggregate([
@@ -353,8 +608,8 @@ export const getZakatSummary = async (req: AuthRequest, res: Response) => {
       ]),
     ]);
 
-    const collected = collectedAgg[0]?.total || 0;
-    const distributed = distributedAgg[0]?.total || 0;
+    const collected = round2(collectedAgg[0]?.total || 0);
+    const distributed = round2(distributedAgg[0]?.total || 0);
 
     res.json({
       success: true,
@@ -362,9 +617,12 @@ export const getZakatSummary = async (req: AuthRequest, res: Response) => {
         year,
         collected,
         distributed,
-        balance: collected - distributed,
+        balance: round2(collected - distributed),
         collectionCount: collectedAgg[0]?.count || 0,
         distributionCount: distributedAgg[0]?.count || 0,
+        // Submitted by members but not yet verified: NOT part of `collected`.
+        pendingCollected: round2(pendingAgg[0]?.total || 0),
+        pendingCollectionCount: pendingAgg[0]?.count || 0,
         verifiedBeneficiaries: beneficiaryCounts[0],
         pendingBeneficiaries: beneficiaryCounts[1],
         byType: byType.map((row: any) => ({ type: row._id, total: row.total, count: row.count })),

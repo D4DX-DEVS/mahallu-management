@@ -9,6 +9,7 @@ import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
+import EmptyState from '@/components/ui/EmptyState';
 import Pagination from '@/components/ui/Pagination';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import TableToolbar from '@/components/ui/TableToolbar';
@@ -21,6 +22,8 @@ import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
 import { toast } from '@/store/toastStore';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { fetchAllPages } from '@/services/api';
+import { logError } from '@/utils/safeLog';
 
 export default function LedgersList() {
   const { currentInstituteId: userInstituteId } = useAuthStore();
@@ -73,7 +76,7 @@ export default function LedgersList() {
       }
     } catch (err: any) {
       setError(loadErrorMessage(err, 'ledgers'));
-      console.error('Error fetching ledgers:', err);
+      logError('Error fetching ledgers', err);
       setLedgers([]);
     } finally {
       setLoading(false);
@@ -84,10 +87,11 @@ export default function LedgersList() {
     try {
       setIsExporting(true);
 
-      const params: any = { limit: 10000 };
+      const params: any = {};
       if (instituteFilter !== 'all') params.instituteId = instituteFilter;
-      const result = await masterAccountService.getAllLedgers(params);
-      const dataToExport = Array.isArray(result.data) ? result.data : [];
+      const dataToExport = await fetchAllPages((page) =>
+        masterAccountService.getAllLedgers({ ...params, ...page })
+      );
 
       if (dataToExport.length === 0) {
         toast.info('No ledgers to export');
@@ -105,11 +109,11 @@ export default function LedgersList() {
           exportToJSON(columns, dataToExport, filename);
           break;
         case 'pdf':
-          exportToPDF(columns, dataToExport, filename, title);
+          await exportToPDF(columns, dataToExport, filename, title);
           break;
       }
     } catch (error: any) {
-      console.error('Export error:', error);
+      logError('Export error', error);
       toast.error(error?.message || "Couldn't export ledgers");
     } finally {
       setIsExporting(false);
@@ -236,12 +240,12 @@ export default function LedgersList() {
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="text-center py-10">
-            <p className="text-red-600 dark:text-red-400">{error}</p>
-            <Button onClick={fetchLedgers} className="mt-4" variant="outline">
-              Retry
-            </Button>
-          </div>
+          <EmptyState
+            variant="error"
+            entity="ledgers"
+            description={error}
+            action={{ label: 'Retry', onClick: fetchLedgers }}
+          />
         ) : (
           <>
             <Table

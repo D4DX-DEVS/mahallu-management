@@ -1,5 +1,6 @@
 import api from './api';
 import { User } from '@/types';
+import { useAuthStore } from '@/store/authStore';
 
 export interface LoginCredentials {
   phone: string;
@@ -24,12 +25,23 @@ export interface AccountOption {
   tenantName: string | null;
   instituteId?: string;
   instituteName?: string | null;
+  isCurrent?: boolean;
 }
 
 export interface RoleSelectionResponse {
   requiresRoleSelection: true;
   preAuthToken: string;
   accounts: AccountOption[];
+}
+
+/** The 4 roles a Super Admin may temporarily view/act as. Never 'super_admin' itself. */
+export type ImpersonatableRole = 'mahall' | 'survey' | 'institute' | 'member';
+
+export interface StartImpersonationPayload {
+  targetRole: ImpersonatableRole;
+  tenantId: string;
+  instituteId?: string;
+  memberId?: string;
 }
 
 export const authService = {
@@ -61,25 +73,73 @@ export const authService = {
     return response.data.data;
   },
 
+  /** Every active account sharing the current session's own phone number. */
+  getAvailableAccounts: async (): Promise<AccountOption[]> => {
+    const response = await api.get<{ success: boolean; data: { accounts: AccountOption[] } }>(
+      '/auth/available-accounts'
+    );
+    return response.data.data.accounts;
+  },
+
+  /**
+   * Switches the current session to another of the signed-in person's own
+   * accounts. Not a role picker — `targetUserId` is the only input; the
+   * backend alone decides whether it's authorized.
+   */
+  switchAccount: async (targetUserId: string): Promise<AuthResponse> => {
+    const response = await api.post<{ success: boolean; data: AuthResponse }>('/auth/switch-account', {
+      targetUserId,
+    });
+    return response.data.data;
+  },
+
+  /**
+   * Super Admin only — temporarily view/act as another role's context.
+   * The backend alone validates the tenant/institute/member combination;
+   * this never sends anything the backend treats as a permission grant.
+   */
+  startImpersonation: async (payload: StartImpersonationPayload): Promise<AuthResponse> => {
+    const response = await api.post<{ success: boolean; data: AuthResponse }>('/auth/impersonate', payload);
+    return response.data.data;
+  },
+
+  /** Restores the real Super Admin session from an active impersonation session. */
+  exitImpersonation: async (): Promise<AuthResponse> => {
+    const response = await api.post<{ success: boolean; data: AuthResponse }>('/auth/exit-impersonation');
+    return response.data.data;
+  },
+
   getCurrentUser: async () => {
     const response = await api.get<{ success: boolean; data: User }>('/auth/me');
     return response.data.data;
   },
 
   changePassword: async (currentPassword: string, newPassword: string) => {
-    const response = await api.post<{ success: boolean; message: string }>('/auth/change-password', {
+    const response = await api.post<{ success: boolean; message: string; data?: { token?: string } }>('/auth/change-password', {
       currentPassword,
       newPassword,
     });
+    // The server ends every other session of this account and returns a fresh token for this one.
+    if (response.data.data?.token) useAuthStore.getState().setToken(response.data.data.token);
     return response.data;
+  },
+
+  /**
+   * Ends every session of this account on every device. Best effort: the local sign-out must still
+   * happen if the network call fails, so callers should not depend on it succeeding.
+   */
+  logout: async () => {
+    await api.post('/auth/logout');
   },
 
   /** Task C5 — two-factor login for the signed-in user's own account. */
   setTwoFactor: async (enabled: boolean) => {
-    const response = await api.put<{ success: boolean; data: { twoFactorEnabled: boolean } }>(
+    const response = await api.put<{ success: boolean; data: { twoFactorEnabled: boolean; token?: string } }>(
       '/auth/two-factor',
       { enabled }
     );
+    // A security setting changed, so the server ended this account's other sessions and issued a fresh token.
+    if (response.data.data.token) useAuthStore.getState().setToken(response.data.data.token);
     return response.data.data;
   },
 

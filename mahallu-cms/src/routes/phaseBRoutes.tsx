@@ -98,100 +98,101 @@ const staffRoles: { allowedRoles: AppRole[] } = {
 export const phaseBRoutes = [
   // Zakat beneficiaries & distribution (B1)
   route('/zakat', <ZakatSummary />, mahallOnly),
-  route('/zakat/beneficiaries', <BeneficiariesList />, mahallOnly),
-  route('/zakat/beneficiaries/create', <BeneficiaryCreate />, mahallOnly),
-  route('/zakat/beneficiaries/:id', <BeneficiaryEdit />, mahallOnly),
-  route('/zakat/distributions', <DistributionsList />, mahallOnly),
-  route('/zakat/distributions/create', <DistributionCreate />, mahallOnly),
+  route('/zakat/beneficiaries', <BeneficiariesList />, mahallOnly, { label: 'Beneficiaries' }),
+  route('/zakat/beneficiaries/create', <BeneficiaryCreate />, mahallOnly, { label: 'New Beneficiary' }),
+  route('/zakat/beneficiaries/:id', <BeneficiaryEdit />, mahallOnly, { modal: true }),
+  route('/zakat/distributions', <DistributionsList />, mahallOnly, { label: 'Distributions' }),
+  route('/zakat/distributions/create', <DistributionCreate />, mahallOnly, { label: 'New Distribution' }),
 
   // Qard Hasan loans & emergency relief (B2)
   route('/loans', <LoansList />, mahallOnly),
-  route('/loans/create', <LoanCreate />, mahallOnly),
+  route('/loans/create', <LoanCreate />, mahallOnly, { label: 'New Loan' }),
   route('/loans/:id', <LoanDetail />, mahallOnly),
   route('/relief', <ReliefList />, mahallOnly),
-  route('/relief/create', <ReliefCreate />, mahallOnly),
+  route('/relief/create', <ReliefCreate />, mahallOnly, { label: 'New Relief' }),
   route('/relief/:id', <ReliefDetail />, mahallOnly),
 
   // Madrasa classes & students (B3.1) - institute staff run their own classes
   route('/education', <ClassesList />, educationRoles),
-  route('/education/classes/create', <ClassCreate />, educationRoles),
+  route('/education/classes/create', <ClassCreate />, educationRoles, { label: 'New Class' }),
   route('/education/classes/:id', <ClassDetail />, educationRoles),
   route('/education/classes/:id/edit', <ClassEdit />, educationRoles),
 
   // Attendance & exams (B3.2)
   route('/education/classes/:classId/attendance', <AttendanceSheet />, educationRoles),
   route('/education/classes/:classId/exams', <ExamsList />, educationRoles),
-  route('/education/exams/create', <ExamCreate />, educationRoles),
+  route('/education/exams/create', <ExamCreate />, educationRoles, { label: 'New Exam' }),
   route('/education/exams/:id', <ExamDetail />, educationRoles),
 
   // Scholarships & academic support (B3.3)
   route('/education/scholarships', <ScholarshipsList />, mahallOnly),
-  route('/education/scholarships/create', <ScholarshipCreate />, mahallOnly),
+  route('/education/scholarships/create', <ScholarshipCreate />, mahallOnly, { label: 'New Scholarship' }),
   route('/education/scholarships/:scholarshipId', <AwardsList />, mahallOnly),
   route('/education/scholarships/:scholarshipId/awards', <AwardsList />, mahallOnly),
   route('/education/scholarships/:scholarshipId/awards/create', <AwardCreate />, mahallOnly),
   route('/education/support', <AcademicSupportList />, mahallOnly),
-  route('/education/support/create', <AcademicSupportCreate />, mahallOnly),
+  route('/education/support/create', <AcademicSupportCreate />, mahallOnly, { label: 'New Academic Support' }),
   route('/education/support/:id', <AcademicSupportDetail />, mahallOnly),
   route('/education/report', <EducationReport />, educationRoles),
 
   // Employment & economy (B4)
   route('/employment/employers', <EmployersList />, mahallOnly),
-  route('/employment/employers/create', <EmployerCreate />, mahallOnly),
-  route('/employment/employers/:id', <EmployerEdit />, mahallOnly),
-  route('/employment/vacancies', <VacanciesList />, mahallOnly),
-  route('/employment/vacancies/create', <VacancyCreate />, mahallOnly),
+  route('/employment/employers/create', <EmployerCreate />, mahallOnly, { label: 'New Employer' }),
+  route('/employment/employers/:id', <EmployerEdit />, mahallOnly, { modal: true }),
+  route('/employment/vacancies', <VacanciesList />, mahallOnly, { label: 'Vacancies' }),
+  route('/employment/vacancies/create', <VacancyCreate />, mahallOnly, { label: 'New Vacancy' }),
   route('/employment/vacancies/:id', <VacancyDetail />, mahallOnly),
-  route('/employment/trainings', <TrainingsList />, mahallOnly),
-  route('/employment/trainings/create', <TrainingCreate />, mahallOnly),
+  route('/employment/trainings', <TrainingsList />, mahallOnly, { label: 'Trainings' }),
+  route('/employment/trainings/create', <TrainingCreate />, mahallOnly, { label: 'New Training' }),
   route('/employment/trainings/:id', <TrainingDetail />, mahallOnly),
 
   // Volunteer wing (B5)
   route('/volunteers', <VolunteersList />, mahallOnly),
-  route('/volunteers/create', <VolunteerCreate />, mahallOnly),
+  route('/volunteers/create', <VolunteerCreate />, mahallOnly, { label: 'New Volunteer' }),
   route('/volunteers/:id', <VolunteerDetail />, mahallOnly),
   route('/volunteers/:id/edit', <VolunteerDetail />, mahallOnly),
-  route('/volunteers/assignments', <AssignmentsList />, mahallOnly),
-  route('/volunteers/assignments/create', <AssignmentCreate />, mahallOnly),
+  route('/volunteers/assignments', <AssignmentsList />, mahallOnly, { label: 'Assignments' }),
+  route('/volunteers/assignments/create', <AssignmentCreate />, mahallOnly, { label: 'New Assignment' }),
   route('/volunteers/assignments/:id/edit', <AssignmentCreate />, mahallOnly),
 
   // Health & Medical (B6)
   route('/health/doctors', <DoctorsDirectory />, mahallOnly),
-  route('/health/doctors/create', <DoctorCreate />, mahallOnly),
+  route('/health/doctors/create', <DoctorCreate />, mahallOnly, { label: 'New Doctor' }),
   route('/health/doctors/:id/edit', <DoctorEdit />, mahallOnly),
-  route('/health/donors', <BloodDonors />, mahallOnly),
-  route('/health/donors/create', <DonorCreate />, mahallOnly),
+  route('/health/donors', <BloodDonors />, mahallOnly, { label: 'Blood Donors' }),
+  route('/health/donors/create', <DonorCreate />, mahallOnly, { label: 'New Donor' }),
   route('/health/donors/:id/edit', <DonorEdit />, mahallOnly),
-  route('/health/camps', <CampsList />, mahallOnly),
-  route('/health/camps/create', <CampsCreate />, mahallOnly),
-  route('/health/palliative', <PalliativeCases />, mahallOnly),
-  route('/health/patient-support', <PatientSupport />, mahallOnly),
+  route('/health/camps', <CampsList />, mahallOnly, { label: 'Camps' }),
+  route('/health/camps/create', <CampsCreate />, mahallOnly, { label: 'New Camp' }),
+  route('/health/camps/:id/edit', <CampsCreate />, mahallOnly),
+  route('/health/palliative', <PalliativeCases />, mahallOnly, { label: 'Palliative Cases' }),
+  route('/health/patient-support', <PatientSupport />, mahallOnly, { label: 'Patient Support' }),
 
   // Khutbah & Imam management (B7)
   route('/religious/khutbahs', <KhutbahSchedule />, mahallOnly),
-  route('/religious/khutbahs/create', <KhutbahCreate />, mahallOnly),
+  route('/religious/khutbahs/create', <KhutbahCreate />, mahallOnly, { label: 'New Khutbah' }),
   route('/religious/khutbahs/:id/edit', <KhutbahEdit />, mahallOnly),
-  route('/religious/khateebs', <KhateebsList />, mahallOnly),
+  route('/religious/khateebs', <KhateebsList />, mahallOnly, { label: 'Khateebs' }),
 
   // Counselling & Maslahat (B8) - Restricted access
   route('/counselling', <CounsellingList />, mahallOnly),
-  route('/counselling/create', <CounsellingCreate />, mahallOnly),
+  route('/counselling/create', <CounsellingCreate />, mahallOnly, { label: 'New Counselling' }),
   route('/counselling/:id', <CounsellingDetail />, mahallOnly),
   route('/counselling/:id/edit', <CounsellingDetail />, mahallOnly),
   route('/maslahat', <DisputesList />, mahallOnly),
-  route('/maslahat/create', <DisputesCreate />, mahallOnly),
+  route('/maslahat/create', <DisputesCreate />, mahallOnly, { label: 'New Dispute' }),
   route('/maslahat/:id', <DisputesDetail />, mahallOnly),
   route('/inheritance', <InheritanceList />, mahallOnly),
-  route('/inheritance/create', <InheritanceCreate />, mahallOnly),
+  route('/inheritance/create', <InheritanceCreate />, mahallOnly, { label: 'New Inheritance' }),
   route('/inheritance/:id', <InheritanceDetail />, mahallOnly),
 
   // Marriage services (B9)
   route('/registrations/marriage-assistance', <MarriageAssistanceList />, mahallOnly),
-  route('/registrations/marriage-assistance/create', <CreateMarriageAssistance />, mahallOnly),
+  route('/registrations/marriage-assistance/create', <CreateMarriageAssistance />, mahallOnly, { label: 'New Marriage Assistance' }),
 
   // Cemetery (B10)
   route('/cemetery', <CemeteriesList />, mahallOnly),
-  route('/cemetery/create', <CemeteryForm />, mahallOnly),
+  route('/cemetery/create', <CemeteryForm />, mahallOnly, { label: 'New Cemetery' }),
   route('/cemetery/:id', <CemeteryDetail />, mahallOnly),
   route('/cemetery/:id/edit', <CemeteryForm />, mahallOnly),
   route('/cemetery/:cemeteryId/grave/create', <GraveForm />, mahallOnly),
@@ -199,14 +200,14 @@ export const phaseBRoutes = [
 
   // Library (B11)
   route('/library/books', <BooksList />, mahallOnly),
-  route('/library/books/create', <BookForm />, mahallOnly),
+  route('/library/books/create', <BookForm />, mahallOnly, { label: 'New Book' }),
   route('/library/books/:id/edit', <BookForm isEdit />, mahallOnly),
-  route('/library/issues', <IssuesList />, mahallOnly),
-  route('/library/issues/create', <IssueCreate />, mahallOnly),
+  route('/library/issues', <IssuesList />, mahallOnly, { label: 'Issues' }),
+  route('/library/issues/create', <IssueCreate />, mahallOnly, { label: 'New Issue' }),
 
   // Development Projects (B12)
   route('/development', <ProjectsList />, mahallOnly),
-  route('/development/create', <ProjectCreate />, mahallOnly),
+  route('/development/create', <ProjectCreate />, mahallOnly, { label: 'New Project' }),
   route('/development/:id', <ProjectDetail />, mahallOnly),
   route('/development/:id/edit', <ProjectEdit />, mahallOnly),
 

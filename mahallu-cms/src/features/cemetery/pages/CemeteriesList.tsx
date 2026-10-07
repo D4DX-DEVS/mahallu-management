@@ -6,10 +6,12 @@ import Card from '../../../components/ui/Card';
 import Pagination from '../../../components/ui/Pagination';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import ExpandableSearch from '@/components/ui/ExpandableSearch';
+import ActionBar from '@/components/ui/ActionBar';
 import { FiPlus } from 'react-icons/fi';
 import { loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
+import StatusBadge from '@/components/ui/StatusBadge';
 
 export function CemeteriesList() {
   const navigate = useNavigate();
@@ -67,13 +69,13 @@ export function CemeteriesList() {
         </Button>
       </div>
 
-      <div className="w-full">
+      <ActionBar className="mb-0">
         <ExpandableSearch
           value={search}
           onChange={(value) => setSearch(value)}
           entity="cemeteries"
         />
-      </div>
+      </ActionBar>
 
       {error && (
         <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">{error}</div>
@@ -101,15 +103,7 @@ export function CemeteriesList() {
                       <p className="text-xs sm:text-sm text-gray-600 truncate mt-1">{toTitleCase(cemetery.location)}</p>
                     )}
                   </div>
-                  <span
-                    className={`ml-2 px-2 py-1 text-xs font-medium rounded whitespace-nowrap ${
-                      cemetery.status === 'active'
-                        ? 'bg-green-100 text-green-800'
-                        : 'bg-gray-100 text-gray-800'
-                    }`}
-                  >
-                    {cemetery.status}
-                  </span>
+                  <StatusBadge status={cemetery.status} className="ml-2 whitespace-nowrap" />
                 </div>
 
                 <div className="space-y-2">

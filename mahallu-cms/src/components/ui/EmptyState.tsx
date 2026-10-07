@@ -1,13 +1,16 @@
 import { ReactNode } from 'react';
-import { FiInbox, FiSearch, FiAlertCircle, FiLock } from 'react-icons/fi';
+import { FiInbox, FiSearch, FiAlertCircle, FiLock, FiInfo } from 'react-icons/fi';
 import Button from './Button';
 import { cn } from '@/utils/cn';
-export type EmptyStateVariant = 'empty' | 'no-results' | 'error' | 'no-access';
+export type EmptyStateVariant = 'empty' | 'no-results' | 'error' | 'no-access' | 'info';
 export interface EmptyStateProps {
   /*
    *
    * `empty` — nothing exists yet. `no-results` — filters matched nothing.
    * `error` — the request failed. `no-access` — the user lacks permission.
+   * `info` — an expected prerequisite the user can resolve themselves, e.g. a
+   * super admin who hasn't picked a Mahallu yet; not a failure, so it stays
+   * neutral rather than reusing `error`'s red icon.
    * These are different situations and need different copy and different
    * actions; treating them all as "No data available" strands the user. */
   variant?: EmptyStateVariant;
@@ -26,12 +29,14 @@ const DEFAULT_ICON: Record<EmptyStateVariant, React.ComponentType<{ className?: 
   'no-results': FiSearch,
   error: FiAlertCircle,
   'no-access': FiLock,
+  info: FiInfo,
 };
 const ICON_TONE: Record<EmptyStateVariant, string> = {
   empty: 'text-muted-foreground',
   'no-results': 'text-muted-foreground',
   error: 'text-destructive',
   'no-access': 'text-warning',
+  info: 'text-info',
 };
 function defaultCopy(variant: EmptyStateVariant, entity?: string) {
   const thing = entity ?? 'records';
@@ -48,6 +53,8 @@ function defaultCopy(variant: EmptyStateVariant, entity?: string) {
         title: 'You don’t have access',
         description: 'Ask a Mahall admin to grant you access to this section.',
       };
+    case 'info':
+      return { title: 'More information needed', description: 'Please complete the required step to continue.' };
     default:
       return { title: 'No ' + thing + ' yet', description: 'Once ' + thing + ' are added they appear here.' };
   }

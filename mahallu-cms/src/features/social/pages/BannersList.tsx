@@ -1,12 +1,15 @@
 import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { FiCheckCircle, FiImage, FiPlus } from 'react-icons/fi';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { FiCheckCircle, FiEdit2, FiImage, FiPlus, FiTrash2 } from 'react-icons/fi';
 import TableCard from '@/components/ui/TableCard';
+import ActionsMenu from '@/components/ui/ActionsMenu';
+import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
+import EmptyState from '@/components/ui/EmptyState';
 import { PageSkeleton } from '@/components/ui/Skeleton';
-import Modal from '@/components/ui/Modal';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
 import { TableColumn, Pagination as PaginationType } from '@/types';
@@ -17,9 +20,12 @@ import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
 import { toast } from '@/store/toastStore';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { useServerCounts } from '@/hooks/useServerCounts';
+import { logError } from '@/utils/safeLog';
 
 export default function BannersList() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [searchQuery, setSearchQuery] = useState('');
   const [isFilterVisible, setIsFilterVisible] = useState(false);
   const [banners, setBanners] = useState<Banner[]>([]);
@@ -29,10 +35,20 @@ export default function BannersList() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useState(() => {
+    const page = Number(searchParams.get('page'));
+    return page > 0 ? page : 1;
+  });
   const [itemsPerPage] = useState(10);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
   const [isExporting, setIsExporting] = useState(false);
+
+  // Keep the page number in the URL so returning from edit/create restores it.
+  useEffect(() => {
+    const next = new URLSearchParams();
+    if (currentPage > 1) next.set('page', String(currentPage));
+    setSearchParams(next, { replace: true });
+  }, [currentPage, setSearchParams]);
 
   useEffect(() => {
     fetchBanners();
@@ -53,7 +69,7 @@ export default function BannersList() {
       }
     } catch (err: any) {
       setError(loadErrorMessage(err, 'banners'));
-      console.error('Error fetching banners:', err);
+      logError('Error fetching banners', err);
     } finally {
       setLoading(false);
     }
@@ -83,11 +99,11 @@ export default function BannersList() {
           exportToJSON(columns, dataToExport, filename);
           break;
         case 'pdf':
-          exportToPDF(columns, dataToExport, filename, title);
+          await exportToPDF(columns, dataToExport, filename, title);
           break;
       }
     } catch (error: any) {
-      console.error('Export error:', error);
+      logError('Export error', error);
       toast.error(errorMessage(error, { action: 'export data' }));
     } finally {
       setIsExporting(false);
@@ -100,10 +116,11 @@ export default function BannersList() {
       setDeleting(true);
       await socialService.deleteBanner(selectedBanner.id);
       await fetchBanners();
+      toast.success('Banner deleted');
       setShowDeleteModal(false);
       setSelectedBanner(null);
     } catch (err: any) {
-      setError(errorMessage(err, { action: 'delete banner' }));
+      toast.error(errorMessage(err, { action: 'delete banner' }));
     } finally {
       setDeleting(false);
     }
@@ -133,7 +150,42 @@ export default function BannersList() {
       width: '7.75rem',
       render: (date) => formatDate(date),
     },
+    {
+      key: 'actions',
+      label: 'Actions',
+      width: '8rem',
+      align: 'center',
+      render: (_, row) => (
+        <div onClick={(e) => e.stopPropagation()}>
+          <ActionsMenu
+            label={`Actions for ${row.title}`}
+            items={[
+              {
+                label: 'Edit',
+                icon: <FiEdit2 className="h-4 w-4" />,
+                onClick: () => navigate(`/social/banners/${row.id}/edit`),
+              },
+              {
+                label: 'Delete',
+                icon: <FiTrash2 className="h-4 w-4" />,
+                variant: 'danger',
+                onClick: () => {
+                  setSelectedBanner(row);
+                  setShowDeleteModal(true);
+                },
+              },
+            ]}
+          />
+        </div>
+      ),
+    },
   ];
+
+  // Whole-list counts from the server: these cards used to count only the rows on this page.
+  const statusCounts = useServerCounts(
+    { active: () => socialService.getAllBanners({ status: 'active', page: 1, limit: 1 }) },
+    [banners]
+  );
 
   const stats = [
     {
@@ -143,7 +195,7 @@ export default function BannersList() {
     },
     {
       title: 'Active',
-      value: banners.filter((b) => b.status === 'active' || !b.status).length,
+      value: statusCounts.active ?? banners.filter((b) => b.status === 'active' || !b.status).length,
       icon: <FiCheckCircle className="h-5 w-5" />,
     },
   ];
@@ -180,12 +232,12 @@ export default function BannersList() {
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="text-center py-10">
-            <p className="text-red-600 dark:text-red-400">{error}</p>
-            <Button onClick={fetchBanners} className="mt-4" variant="outline">
-              Retry
-            </Button>
-          </div>
+          <EmptyState
+            variant="error"
+            entity="banners"
+            description={error}
+            action={{ label: 'Retry', onClick: fetchBanners }}
+          />
         ) : (
           <Table
             fixedLayout
@@ -295,37 +347,20 @@ export default function BannersList() {
         )}
       </Modal>
 
-      <Modal
+      <ConfirmDialog
         isOpen={showDeleteModal}
-        onClose={() => {
+        title="Delete banner"
+        message={`Are you sure you want to delete ${selectedBanner?.title ? `"${selectedBanner.title}"` : 'this banner'}? This action cannot be undone.`}
+        confirmLabel="Delete"
+        variant="danger"
+        isLoading={deleting}
+        onConfirm={handleDelete}
+        onCancel={() => {
           setShowDeleteModal(false);
           setSelectedBanner(null);
           setDeleting(false);
         }}
-        title="Delete Banner"
-        footer={
-          <>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setShowDeleteModal(false);
-                setSelectedBanner(null);
-                setDeleting(false);
-              }}
-            >
-              Cancel
-            </Button>
-            <Button variant="danger" onClick={handleDelete} isLoading={deleting}>
-              Delete
-            </Button>
-          </>
-        }
-      >
-        <p className="text-gray-600 dark:text-gray-400">
-          Are you sure you want to delete <strong>{selectedBanner?.title}</strong>? This action cannot be
-          undone.
-        </p>
-      </Modal>
+      />
     </div>
   );
 }

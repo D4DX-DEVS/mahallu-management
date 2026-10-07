@@ -8,7 +8,7 @@ import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { toast } from '@/store/toastStore';
 import { errorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
-import { FieldRule, LIMITS, validateForm, firstError } from '@/utils/validation';
+import { FieldRule, LIMITS, validateForm, firstError, sanitizeDigits } from '@/utils/validation';
 import { toTitleCase } from '@/utils/format';
 
 /** The same rules the create form and the API apply. */
@@ -212,9 +212,11 @@ export default function EmployerEdit() {
                 <input
                   aria-label="Contact Number"
                   type="tel"
+                  inputMode="numeric"
+                  maxLength={10}
                   name="contactNo"
                   value={formData.contactNo || ''}
-                  onChange={handleChange}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, contactNo: sanitizeDigits(e.target.value, 10) }))}
                   className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>

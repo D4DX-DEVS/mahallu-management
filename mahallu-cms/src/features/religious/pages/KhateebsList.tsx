@@ -5,6 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import TableCard from '@/components/ui/TableCard';
 import ExpandableSearch from '@/components/ui/ExpandableSearch';
+import ActionBar from '@/components/ui/ActionBar';
 import Button from '@/components/ui/Button';
 import Table from '@/components/ui/Table';
 import Modal from '@/components/ui/Modal';
@@ -20,13 +21,17 @@ import { Member } from '@/types';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
+import StatusBadge from '@/components/ui/StatusBadge';
+import { optionalPhoneSchema, sanitizeDigits } from '@/utils/validation';
+import { fetchAllPages } from '@/services/api';
+import { logError } from '@/utils/safeLog';
 
 const khateebSchema = z.object({
   name: z.string().max(200, 'Please keep the name to 200 characters or less.').min(1, 'Name is required'),
   nameMl: z.string().max(200, 'Please keep the name to 200 characters or less.').optional(),
   memberId: z.string().max(200, 'Please keep the member to 200 characters or less.').optional(),
   qualifications: z.string().max(200, 'Please keep the qualifications to 200 characters or less.').optional(),
-  contactNo: z.string().max(200, 'Please keep the contact no to 200 characters or less.').optional(),
+  contactNo: optionalPhoneSchema,
   status: z.enum(['active', 'inactive']).optional(),
 });
 
@@ -53,6 +58,7 @@ export default function KhateebsList() {
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors, isSubmitting },
     reset,
     watch,
@@ -71,10 +77,10 @@ export default function KhateebsList() {
   const fetchMembers = async () => {
     try {
       setLoadingMembers(true);
-      const result = await memberService.getAll({ limit: 1000 });
-      setMembers(result.data || []);
+      const allRows = await fetchAllPages((page) => memberService.getAll(page));
+      setMembers(allRows || []);
     } catch (err) {
-      console.error('Error fetching members:', err);
+      logError('Error fetching members', err);
     } finally {
       setLoadingMembers(false);
     }
@@ -98,7 +104,7 @@ export default function KhateebsList() {
       }
     } catch (err: any) {
       setError(loadErrorMessage(err, 'khateebs'));
-      console.error('Error fetching khateebs:', err);
+      logError('Error fetching khateebs', err);
     } finally {
       setLoading(false);
     }
@@ -182,15 +188,7 @@ export default function KhateebsList() {
     {
       key: 'status',
       label: 'Status',
-      render: (_: any, khateeb: Khateeb) => (
-        <span
-          className={`px-2 py-1 rounded text-xs font-medium ${
-            khateeb.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-          }`}
-        >
-          {khateeb.status === 'active' ? 'Active' : 'Inactive'}
-        </span>
-      ),
+      render: (_: any, khateeb: Khateeb) => <StatusBadge status={khateeb.status} />,
     },
   ];
 
@@ -202,7 +200,7 @@ export default function KhateebsList() {
 
       {error && <div className="p-4 bg-red-100 text-red-800 rounded">{error}</div>}
 
-      <div className="flex gap-4 justify-between items-center">
+      <ActionBar className="mb-0">
         <ExpandableSearch
           value={searchQuery}
           onChange={(value) => {
@@ -213,7 +211,7 @@ export default function KhateebsList() {
           placeholder="Search khateebs by name"
         />
         <Button onClick={() => handleOpenModal()} icon={<FiPlus />} collapseLabel>New Khateeb</Button>
-      </div>
+      </ActionBar>
 
       <TableCard borderless>
         <Table fixedLayout striped columns={columns} data={khateebs} onRowClick={(row) => handleOpenModal(row)} />
@@ -267,7 +265,16 @@ export default function KhateebsList() {
             />
           </div>
 
-          <Input label="Contact No" {...register('contactNo')} placeholder="Enter contact number" />
+          <Input
+            label="Contact No"
+            type="tel"
+            inputMode="numeric"
+            maxLength={10}
+            {...register('contactNo')}
+            onChange={(e) => setValue('contactNo', sanitizeDigits(e.target.value, 10), { shouldValidate: true, shouldDirty: true })}
+            placeholder="Enter contact number"
+            error={errors.contactNo?.message}
+          />
 
           <Select label="Status" {...register('status')} options={KHATEEB_STATUS_OPTIONS} />
 

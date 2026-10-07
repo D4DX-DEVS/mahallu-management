@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { cn } from '@/utils/cn';
+import { sanitizeHtml } from '@/utils/sanitizeHtml';
 import { FiBold, FiItalic, FiUnderline, FiRotateCcw, FiRotateCw } from 'react-icons/fi';
 
 interface RichTextEditorProps {
@@ -14,18 +15,30 @@ const FONT_OPTIONS = ['Arial', 'Times New Roman', 'Georgia', 'Courier New', 'Ver
 
 export default function RichTextEditor({ label, value, onChange, className, error }: RichTextEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null);
+  // The last value this editor emitted or wrote into the DOM. Comparing against it (rather than
+  // the live innerHTML) keeps the caret in place while typing even though values are sanitized.
+  const syncedValue = useRef<string | null>(null);
 
   useEffect(() => {
-    if (editorRef.current && editorRef.current.innerHTML !== value) {
-      editorRef.current.innerHTML = value;
+    if (editorRef.current && value !== syncedValue.current) {
+      syncedValue.current = value;
+      // Never write raw HTML into the DOM: stored values come from other users.
+      editorRef.current.innerHTML = sanitizeHtml(value);
     }
   }, [value]);
+
+  const emitChange = () => {
+    if (!editorRef.current) return;
+    const safe = sanitizeHtml(editorRef.current.innerHTML);
+    syncedValue.current = safe;
+    onChange(safe);
+  };
 
   const runCommand = (command: string, commandValue?: string) => {
     if (!editorRef.current) return;
     editorRef.current.focus();
     document.execCommand(command, false, commandValue);
-    onChange(editorRef.current.innerHTML);
+    emitChange();
   };
 
   return (
@@ -109,11 +122,7 @@ export default function RichTextEditor({ label, value, onChange, className, erro
           ref={editorRef}
           className="min-h-[220px] p-4 text-sm text-gray-900 dark:text-gray-100 focus:outline-none"
           contentEditable
-          onInput={() => {
-            if (editorRef.current) {
-              onChange(editorRef.current.innerHTML);
-            }
-          }}
+          onInput={emitChange}
         />
       </div>
       {error && <p className="mt-1.5 ml-1 text-sm text-red-600 dark:text-red-400">{error}</p>}

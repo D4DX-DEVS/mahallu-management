@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FiCheckCircle, FiLayers, FiPlus, FiXCircle } from 'react-icons/fi';
+import { FiCheckCircle, FiEdit2, FiEye, FiLayers, FiPlus, FiTrash2, FiXCircle } from 'react-icons/fi';
 import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
+import EmptyState from '@/components/ui/EmptyState';
 import { PageSkeleton } from '@/components/ui/Skeleton';
+import Modal from '@/components/ui/Modal';
 import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
 import { toast } from '@/store/toastStore';
@@ -19,6 +21,10 @@ import { formatDate, toTitleCase } from '@/utils/format';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { useServerCounts } from '@/hooks/useServerCounts';
+import ActionsMenu from '@/components/ui/ActionsMenu';
+import StatusBadge from '@/components/ui/StatusBadge';
+import { logError } from '@/utils/safeLog';
 
 export default function ProgramsList() {
   const navigate = useNavigate();
@@ -27,6 +33,9 @@ export default function ProgramsList() {
   const [programs, setPrograms] = useState<Institute[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedProgram, setSelectedProgram] = useState<Institute | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
@@ -64,7 +73,7 @@ export default function ProgramsList() {
       }
     } catch (err: any) {
       setError(loadErrorMessage(err, 'programs'));
-      console.error('Error fetching programs:', err);
+      logError('Error fetching programs', err);
     } finally {
       setLoading(false);
     }
@@ -99,14 +108,28 @@ export default function ProgramsList() {
           exportToJSON(columns, dataToExport, filename);
           break;
         case 'pdf':
-          exportToPDF(columns, dataToExport, filename, title);
+          await exportToPDF(columns, dataToExport, filename, title);
           break;
       }
     } catch (error: any) {
-      console.error('Export error:', error);
+      logError('Export error', error);
       toast.error(error?.message || "Couldn't export programs");
     } finally {
       setIsExporting(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!selectedProgram) return;
+    try {
+      setDeleting(true);
+      await programService.delete(selectedProgram.id);
+      await fetchPrograms();
+      setShowDeleteModal(false);
+      setSelectedProgram(null);
+    } catch (err: any) {
+      setError(errorMessage(err, { action: 'delete program' }));
+      setDeleting(false);
     }
   };
 
@@ -155,19 +178,57 @@ export default function ProgramsList() {
       key: 'status',
       label: 'Status',
       width: '7.25rem',
-      render: (status) => (
-        <span
-          className={`px-2 py-1 text-xs font-medium rounded-full ${
-            status === 'active'
-              ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-              : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
-          }`}
-        >
-          {status || 'active'}
-        </span>
+      render: (status) => <StatusBadge status={status || 'active'} />,
+    },
+    {
+      key: 'actions',
+      label: 'Actions',
+      width: '8rem',
+      align: 'center',
+      render: (_, row) => (
+        <ActionsMenu
+          items={[
+            {
+              label: 'View',
+              icon: <FiEye className="h-4 w-4" />,
+              onClick: () => {
+                navigate(ROUTES.PROGRAMS.DETAIL(row.id));
+              },
+            },
+            {
+              label: 'Edit',
+              icon: <FiEdit2 className="h-4 w-4" />,
+              onClick: () => {
+                navigate(`/programs/${row.id}/edit`);
+              },
+            },
+            {
+              label: 'Delete',
+              icon: <FiTrash2 className="h-4 w-4" />,
+              onClick: () => {
+                setSelectedProgram(row);
+                setShowDeleteModal(true);
+              },
+              variant: 'danger',
+            },
+          ]}
+        />
       ),
     },
   ];
+
+  // Whole-list counts from the server: these cards used to count only the rows on this page.
+  const countBase: { search?: string; audience?: string; programType?: string } = {};
+  if (debouncedSearch) countBase.search = debouncedSearch;
+  if (selectedAudience) countBase.audience = selectedAudience;
+  if (selectedProgramType) countBase.programType = selectedProgramType;
+  const statusCounts = useServerCounts(
+    {
+      active: () => programService.getAll({ ...countBase, status: 'active', page: 1, limit: 1 }),
+      inactive: () => programService.getAll({ ...countBase, status: 'inactive', page: 1, limit: 1 }),
+    },
+    [programs]
+  );
 
   const stats = [
     {
@@ -177,12 +238,12 @@ export default function ProgramsList() {
     },
     {
       title: 'Active',
-      value: programs.filter((p) => p.status === 'active' || !p.status).length,
+      value: statusCounts.active ?? programs.filter((p) => p.status === 'active' || !p.status).length,
       icon: <FiCheckCircle className="h-5 w-5" />,
     },
     {
       title: 'Inactive',
-      value: programs.filter((p) => p.status === 'inactive').length,
+      value: statusCounts.inactive ?? programs.filter((p) => p.status === 'inactive').length,
       icon: <FiXCircle className="h-5 w-5" />,
     },
   ];
@@ -264,12 +325,12 @@ export default function ProgramsList() {
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="text-center py-10">
-            <p className="text-red-600 dark:text-red-400">{error}</p>
-            <Button onClick={fetchPrograms} className="mt-4" variant="outline">
-              Retry
-            </Button>
-          </div>
+          <EmptyState
+            variant="error"
+            entity="programs"
+            description={error}
+            action={{ label: 'Retry', onClick: fetchPrograms }}
+          />
         ) : (
           <Table
             fixedLayout
@@ -297,6 +358,36 @@ export default function ProgramsList() {
           </div>
         )}
       </TableCard>
+
+      <Modal
+        isOpen={showDeleteModal}
+        onClose={() => {
+          setShowDeleteModal(false);
+          setSelectedProgram(null);
+        }}
+        title="Delete Program"
+        footer={
+          <>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowDeleteModal(false);
+                setSelectedProgram(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button variant="danger" onClick={handleDelete} isLoading={deleting}>
+              Delete
+            </Button>
+          </>
+        }
+      >
+        <p className="text-gray-600 dark:text-gray-400">
+          Are you sure you want to delete <strong>{toTitleCase(selectedProgram?.name)}</strong>? This action cannot be
+          undone.
+        </p>
+      </Modal>
     </div>
   );
 }

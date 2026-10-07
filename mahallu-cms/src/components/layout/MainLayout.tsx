@@ -2,10 +2,14 @@ import { ReactNode, useEffect } from 'react';
 import Sidebar from './Sidebar';
 import { useTenant } from '@/hooks/useTenant';
 import Header from './Header';
+import TenantBanner from './TenantBanner';
+import ImpersonationBanner from './ImpersonationBanner';
 import MobileFooterNav from './MobileFooterNav';
 import { useLayoutStore } from '@/store/layoutStore';
+import { useAuthStore } from '@/store/authStore';
 import { useLocation } from 'react-router-dom';
 import { RouteErrorBoundary } from '@/components/ui/ErrorBoundary';
+import { cn } from '@/utils/cn';
 interface MainLayoutProps {
   children: ReactNode;
 }
@@ -16,6 +20,14 @@ export default function MainLayout({ children }: MainLayoutProps) {
   const isDesktopSidebarCollapsed = useLayoutStore((s) => s.isDesktopSidebarCollapsed);
   const isSubmenuOpen = useLayoutStore((s) => s.isSubmenuOpen);
   const setMobileSidebarOpen = useLayoutStore((s) => s.setMobileSidebarOpen);
+  const { isSuperAdmin, currentTenantId, isImpersonating } = useAuthStore();
+  // Single source of truth for the top-shell offset: the sidebar and the
+  // content column both read this so their top rows stay aligned on every route.
+  // The two banners are mutually exclusive — isSuperAdmin is false for the
+  // whole duration of an impersonation session, so isViewingAsTenant can
+  // never also be true then — but the offset itself still needs to apply.
+  const isViewingAsTenant = Boolean(isSuperAdmin && currentTenantId);
+  const showTopBanner = isViewingAsTenant || isImpersonating;
   const location = useLocation();
   useEffect(() => {
     setMobileSidebarOpen(false);
@@ -32,7 +44,14 @@ export default function MainLayout({ children }: MainLayoutProps) {
    * operational tool. It also mixed the `slate` ramp into a product built on
    * `gray`, which is now the one neutral ramp. */
   return (
-    <div className="workspace-canvas flex h-screen h-[100dvh] overflow-hidden text-foreground">
+    <div
+      className={cn(
+        'workspace-canvas flex h-screen h-[100dvh] overflow-hidden text-foreground',
+        showTopBanner && 'pt-9'
+      )}
+    >
+      {isViewingAsTenant && <TenantBanner />}
+      {isImpersonating && <ImpersonationBanner />}
       {isMobileSidebarOpen && (
         <div
           className="fixed inset-0 z-40 bg-foreground/25 md:hidden"
@@ -43,8 +62,11 @@ export default function MainLayout({ children }: MainLayoutProps) {
       <Sidebar />
       <div
         id="app-content-area"
-        className={
-          'relative z-30 flex min-w-0 flex-1 flex-col overflow-hidden transition-[margin-left] duration-200 ease-out ' +
+        className={cn(
+          'relative z-30 flex min-w-0 flex-1 flex-col overflow-hidden transition-[margin-left] duration-200 ease-out',
+          // Parenthesised through cn(): `'base ' + collapsed ? a : b` binds as `('base ' + collapsed) ? a : b`
+          // and threw the base classes (flex-1, flex-col, overflow-hidden) away, so the content column
+          // shrank to its content and slid under the sidebar.
           isDesktopSidebarCollapsed
             ? isSubmenuOpen
               ? 'md:ml-rail-flyout-content'
@@ -52,7 +74,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
             : isSubmenuOpen
               ? 'md:ml-expanded-flyout-content'
               : 'md:ml-60'
-        }
+        )}
       >
         <a
           href="#main-content"
@@ -77,9 +99,21 @@ export default function MainLayout({ children }: MainLayoutProps) {
             </RouteErrorBoundary>
           </div>
         </main>
-
-        <MobileFooterNav />
       </div>
+      {/* Rendered as a root sibling, not nested inside #app-content-area: that
+       * div is `relative z-30`, which opens its own stacking context, so a
+       * z-index set on something nested inside it (this nav used to live
+       * there) is only ever compared against other things in that same
+       * context — it can never outrank a root-level sibling like the backdrop
+       * above, whatever number it carries. The backdrop (root-level, z-40)
+       * was silently painting over the entire nested context, footer nav
+       * included, so Home/Families/Members/Search stopped receiving taps
+       * whenever the mobile menu was open, even in the strip below the sheet
+       * that the sheet never visually covers. At the root level the footer
+       * nav's z-50 sits above the backdrop (40) but below the menu sheet
+       * (60), so it now stays visible and tappable while the menu is open,
+       * without the sheet itself losing the top slot. */}
+      <MobileFooterNav />
     </div>
   );
 }

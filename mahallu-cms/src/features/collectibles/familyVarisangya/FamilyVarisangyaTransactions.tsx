@@ -132,10 +132,10 @@ export default function FamilyVarisangyaTransactions() {
       const filename = `family-varisangya-transactions${familyId ? `-${familyId}` : ''}`;
       switch (type) {
         case 'csv':
-          exportToCSV(columns, transactions, filename);
+          exportToCSV(exportColumns, transactions, filename);
           break;
         case 'json':
-          exportToJSON(columns, transactions, filename);
+          exportToJSON(exportColumns, transactions, filename);
           break;
         case 'pdf':
           {
@@ -207,6 +207,11 @@ export default function FamilyVarisangyaTransactions() {
       render: (date) => formatDate(date),
     },
   ];
+
+  // The "No." column adds the page offset of the page on screen; an export of every row starts at 1.
+  const exportColumns: TableColumn<Transaction>[] = columns.map((col) =>
+    col.label === 'No.' ? { ...col, render: (_value, _row, index) => index + 1 } : col
+  );
 
   return (
     <div className="space-y-4">

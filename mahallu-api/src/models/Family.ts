@@ -126,6 +126,12 @@ FamilySchema.virtual('members', {
   foreignField: 'familyId',
 });
 
+// Family ids (FID12) are unique inside a Mahallu. Partial so families without an id never collide.
+// NOTE: the build fails on a database that already holds duplicate ids: review and fix those first.
+FamilySchema.index(
+  { tenantId: 1, mahallId: 1 },
+  { unique: true, partialFilterExpression: { mahallId: { $type: 'string' } } }
+);
 FamilySchema.index({ tenantId: 1, status: 1 });
 FamilySchema.index({ tenantId: 1, welfareStatus: 1 });
 

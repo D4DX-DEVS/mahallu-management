@@ -8,6 +8,7 @@ import Modal from '@/components/ui/Modal';
 import { ROUTES } from '@/constants/routes';
 import { memberService } from '@/services/memberService';
 import { instituteService } from '@/services/instituteService';
+import { fetchAllPages } from '@/services/api';
 import { Member } from '@/types';
 import { formatDate, toTitleCase } from '@/utils/format';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
@@ -57,9 +58,8 @@ export default function MemberDetail() {
     if (id) {
       fetchMember();
     }
-    instituteService
-      .getAll()
-      .then((res) => setInstitutes(res.data || []))
+    fetchAllPages((p) => instituteService.getAll(p))
+      .then((all) => setInstitutes(all))
       .catch(() => setInstitutes([]));
   }, [id]);
 
@@ -104,237 +104,228 @@ export default function MemberDetail() {
 
   return (
     <div className="space-y-4">
-      <div className="flex gap-2 items-center justify-between">
-        <div className="flex items-center gap-4">
-          <PageHeader
-            description="Member Details"
-            title={toTitleCase(member.name)}
-            breadcrumbs={[{ label: 'Members', path: ROUTES.MEMBERS.LIST }]}
-          />
-          <div className="flex gap-2 items-center">
+      <PageHeader
+        description="Member Details"
+        title={toTitleCase(member.name)}
+        breadcrumbs={[{ label: 'Members', path: ROUTES.MEMBERS.LIST }]}
+        actions={
+          <>
             <Link to={ROUTES.MEMBERS.EDIT(member.id)}>
               <Button variant="outline" icon={<FiEdit2 />} collapseLabel>Edit</Button>
             </Link>
             <Button variant="danger" onClick={() => setShowDeleteModal(true)} icon={<FiTrash2 />} collapseLabel>Delete</Button>
+          </>
+        }
+      />
+
+      <Card>
+        {/* One continuous field list, not two headed halves: every field here is
+            the same kind of information (the member's own record), so "Basic"
+            vs "Additional" was a layout artifact of the old two-column grid,
+            not a real distinction. */}
+        <div className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
+          <div>
+            <span className="text-sm text-gray-500 dark:text-gray-400">Name</span>
+            <p className="text-gray-900 dark:text-gray-100">{toTitleCase(member.name)}</p>
+          </div>
+          {member.nameMl && (
+            <div>
+              <span className="text-sm text-gray-500 dark:text-gray-400">Name (Malayalam)</span>
+              <p className="text-gray-900 dark:text-gray-100 font-malayalam">{member.nameMl}</p>
+            </div>
+          )}
+          <div>
+            <span className="text-sm text-gray-500 dark:text-gray-400">Family</span>
+            <Link
+              to={ROUTES.FAMILIES.DETAIL(member.familyId)}
+              className="text-primary-600 hover:text-primary-700 dark:text-primary-400"
+            >
+              {toTitleCase(member.familyName)}
+            </Link>
+          </div>
+          {member.mahallId && (
+            <div>
+              <span className="text-sm text-gray-500 dark:text-gray-400">Mahall ID</span>
+              <p className="text-gray-900 dark:text-gray-100">{member.mahallId}</p>
+            </div>
+          )}
+          {member.isFamilyHead && (
+            <div>
+              <span className="text-sm text-gray-500 dark:text-gray-400">Family Head</span>
+              <p className="text-gray-900 dark:text-gray-100">Yes</p>
+            </div>
+          )}
+          {member.relationship && (
+            <div>
+              <span className="text-sm text-gray-500 dark:text-gray-400">Relationship to Head</span>
+              <p className="text-gray-900 dark:text-gray-100">
+                {member.relationship === 'other'
+                  ? member.relationshipOther || 'Other'
+                  : RELATIONSHIP_LABELS[member.relationship] || member.relationship}
+              </p>
+            </div>
+          )}
+          {member.dateOfBirth && (
+            <div>
+              <span className="text-sm text-gray-500 dark:text-gray-400">Date of Birth</span>
+              <p className="text-gray-900 dark:text-gray-100">{formatDate(member.dateOfBirth)}</p>
+            </div>
+          )}
+          {member.age && (
+            <div>
+              <span className="text-sm text-gray-500 dark:text-gray-400">Age</span>
+              <p className="text-gray-900 dark:text-gray-100">{member.age}</p>
+            </div>
+          )}
+          {member.gender && (
+            <div>
+              <span className="text-sm text-gray-500 dark:text-gray-400">Gender</span>
+              <p className="text-gray-900 dark:text-gray-100 capitalize">{member.gender}</p>
+            </div>
+          )}
+          {member.bloodGroup && (
+            <div>
+              <span className="text-sm text-gray-500 dark:text-gray-400">Blood Group</span>
+              <p className="text-gray-900 dark:text-gray-100">{member.bloodGroup}</p>
+            </div>
+          )}
+          {member.maritalStatus && (
+            <div>
+              <span className="text-sm text-gray-500 dark:text-gray-400">Marital Status</span>
+              <p className="text-gray-900 dark:text-gray-100 capitalize">{member.maritalStatus}</p>
+            </div>
+          )}
+          {typeof member.marriageCount === 'number' && (
+            <div>
+              <span className="text-sm text-gray-500 dark:text-gray-400">Number of Marriages</span>
+              <p className="text-gray-900 dark:text-gray-100">{member.marriageCount}</p>
+            </div>
+          )}
+          {member.isOrphan && (
+            <div>
+              <span className="text-sm text-gray-500 dark:text-gray-400">Orphan</span>
+              <p className="text-gray-900 dark:text-gray-100">Yes</p>
+            </div>
+          )}
+          {member.isDead && (
+            <div>
+              <span className="text-sm text-gray-500 dark:text-gray-400">Deceased</span>
+              <p className="text-gray-900 dark:text-gray-100">Yes</p>
+            </div>
+          )}
+          {member.phone && (
+            <div>
+              <span className="text-sm text-gray-500 dark:text-gray-400">Phone</span>
+              <p className="text-gray-900 dark:text-gray-100">{member.phone}</p>
+            </div>
+          )}
+          {member.healthStatus && (
+            <div>
+              <span className="text-sm text-gray-500 dark:text-gray-400">Health Status</span>
+              <p className="text-gray-900 dark:text-gray-100">{member.healthStatus}</p>
+            </div>
+          )}
+          {member.healthNotes && (
+            <div>
+              <span className="text-sm text-gray-500 dark:text-gray-400">Health Details</span>
+              <p className="text-gray-900 dark:text-gray-100">{member.healthNotes}</p>
+            </div>
+          )}
+          {member.education && (
+            <div>
+              <span className="text-sm text-gray-500 dark:text-gray-400">Education</span>
+              <p className="text-gray-900 dark:text-gray-100">{member.education}</p>
+            </div>
+          )}
+          {member.educationInstitutionId && (
+            <div>
+              <span className="text-sm text-gray-500 dark:text-gray-400">Institute</span>
+              <p className="text-gray-900 dark:text-gray-100">
+                {toTitleCase(
+                  institutes.find((inst) => (inst.id || inst._id) === member.educationInstitutionId)?.name ||
+                    member.educationInstitutionId
+                )}
+              </p>
+            </div>
+          )}
+          {member.externalInstitution && (
+            <div>
+              <span className="text-sm text-gray-500 dark:text-gray-400">School or College</span>
+              <p className="text-gray-900 dark:text-gray-100">{member.externalInstitution}</p>
+            </div>
+          )}
+          <div>
+            <span className="text-sm text-gray-500 dark:text-gray-400">Created At</span>
+            <p className="text-gray-900 dark:text-gray-100">{formatDate(member.createdAt)}</p>
           </div>
         </div>
-      </div>
+      </Card>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card>
-          <h2 className="text-lg font-semibold mb-3 text-foreground">Basic Information</h2>
-          <div className="space-y-3">
+      <Card>
+        <h2 className="text-lg font-semibold mb-3 text-foreground">Socio-economic Details</h2>
+        <div className="space-y-3">
+          {(member as any).occupation && (
             <div>
-              <span className="text-sm text-gray-500 dark:text-gray-400">Name</span>
-              <p className="text-gray-900 dark:text-gray-100">{toTitleCase(member.name)}</p>
+              <span className="text-sm text-gray-500 dark:text-gray-400">Occupation</span>
+              <p className="text-gray-900 dark:text-gray-100">{(member as any).occupation}</p>
             </div>
-            {member.nameMl && (
-              <div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">Name (Malayalam)</span>
-                <p className="text-gray-900 dark:text-gray-100 font-malayalam">{member.nameMl}</p>
-              </div>
-            )}
+          )}
+          {(member as any).occupationSector && (
             <div>
-              <span className="text-sm text-gray-500 dark:text-gray-400">Family</span>
-              <Link
-                to={ROUTES.FAMILIES.DETAIL(member.familyId)}
-                className="text-primary-600 hover:text-primary-700 dark:text-primary-400"
-              >
-                {toTitleCase(member.familyName)}
-              </Link>
+              <span className="text-sm text-gray-500 dark:text-gray-400">Occupation Sector</span>
+              <p className="text-gray-900 dark:text-gray-100">
+                {OCCUPATION_SECTOR_LABELS[(member as any).occupationSector] || (member as any).occupationSector}
+              </p>
             </div>
-            {member.isFamilyHead && (
-              <div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">Family Head</span>
-                <p className="text-gray-900 dark:text-gray-100">Yes</p>
-              </div>
-            )}
-            {member.relationship && (
-              <div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">Relationship to Head</span>
-                <p className="text-gray-900 dark:text-gray-100">
-                  {member.relationship === 'other'
-                    ? member.relationshipOther || 'Other'
-                    : RELATIONSHIP_LABELS[member.relationship] || member.relationship}
-                </p>
-              </div>
-            )}
-            {member.mahallId && (
-              <div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">Mahall ID</span>
-                <p className="text-gray-900 dark:text-gray-100">{member.mahallId}</p>
-              </div>
-            )}
-            {member.dateOfBirth && (
-              <div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">Date of Birth</span>
-                <p className="text-gray-900 dark:text-gray-100">{formatDate(member.dateOfBirth)}</p>
-              </div>
-            )}
-            {member.age && (
-              <div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">Age</span>
-                <p className="text-gray-900 dark:text-gray-100">{member.age}</p>
-              </div>
-            )}
-            {member.gender && (
-              <div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">Gender</span>
-                <p className="text-gray-900 dark:text-gray-100 capitalize">{member.gender}</p>
-              </div>
-            )}
-            {member.bloodGroup && (
-              <div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">Blood Group</span>
-                <p className="text-gray-900 dark:text-gray-100">{member.bloodGroup}</p>
-              </div>
-            )}
-            {member.maritalStatus && (
-              <div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">Marital Status</span>
-                <p className="text-gray-900 dark:text-gray-100 capitalize">{member.maritalStatus}</p>
-              </div>
-            )}
-            {typeof member.marriageCount === 'number' && (
-              <div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">Number of Marriages</span>
-                <p className="text-gray-900 dark:text-gray-100">{member.marriageCount}</p>
-              </div>
-            )}
-            {member.isOrphan && (
-              <div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">Orphan</span>
-                <p className="text-gray-900 dark:text-gray-100">Yes</p>
-              </div>
-            )}
-            {member.isDead && (
-              <div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">Deceased</span>
-                <p className="text-gray-900 dark:text-gray-100">Yes</p>
-              </div>
-            )}
-          </div>
-        </Card>
-
-        <Card>
-          <h2 className="text-lg font-semibold mb-3 text-foreground">
-            Additional Information
-          </h2>
-          <div className="space-y-3">
-            {member.phone && (
-              <div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">Phone</span>
-                <p className="text-gray-900 dark:text-gray-100">{member.phone}</p>
-              </div>
-            )}
-            {member.healthStatus && (
-              <div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">Health Status</span>
-                <p className="text-gray-900 dark:text-gray-100">{member.healthStatus}</p>
-              </div>
-            )}
-            {member.healthNotes && (
-              <div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">Health Details</span>
-                <p className="text-gray-900 dark:text-gray-100">{member.healthNotes}</p>
-              </div>
-            )}
-            {member.education && (
-              <div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">Education</span>
-                <p className="text-gray-900 dark:text-gray-100">{member.education}</p>
-              </div>
-            )}
-            {member.educationInstitutionId && (
-              <div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">Institute</span>
-                <p className="text-gray-900 dark:text-gray-100">
-                  {toTitleCase(
-                    institutes.find((inst) => (inst.id || inst._id) === member.educationInstitutionId)?.name ||
-                      member.educationInstitutionId
-                  )}
-                </p>
-              </div>
-            )}
-            {member.externalInstitution && (
-              <div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">School or College</span>
-                <p className="text-gray-900 dark:text-gray-100">{member.externalInstitution}</p>
-              </div>
-            )}
+          )}
+          {(member as any).monthlyIncomeRange && (
             <div>
-              <span className="text-sm text-gray-500 dark:text-gray-400">Created At</span>
-              <p className="text-gray-900 dark:text-gray-100">{formatDate(member.createdAt)}</p>
+              <span className="text-sm text-gray-500 dark:text-gray-400">Monthly Income</span>
+              <p className="text-gray-900 dark:text-gray-100">
+                {INCOME_RANGE_LABELS[(member as any).monthlyIncomeRange] || (member as any).monthlyIncomeRange}
+              </p>
             </div>
-          </div>
-        </Card>
-
-        <Card>
-          <h2 className="text-lg font-semibold mb-3 text-foreground">Socio-economic Details</h2>
-          <div className="space-y-3">
-            {(member as any).occupation && (
-              <div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">Occupation</span>
-                <p className="text-gray-900 dark:text-gray-100">{(member as any).occupation}</p>
-              </div>
-            )}
-            {(member as any).occupationSector && (
-              <div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">Occupation Sector</span>
-                <p className="text-gray-900 dark:text-gray-100">
-                  {OCCUPATION_SECTOR_LABELS[(member as any).occupationSector] || (member as any).occupationSector}
-                </p>
-              </div>
-            )}
-            {(member as any).monthlyIncomeRange && (
-              <div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">Monthly Income</span>
-                <p className="text-gray-900 dark:text-gray-100">
-                  {INCOME_RANGE_LABELS[(member as any).monthlyIncomeRange] || (member as any).monthlyIncomeRange}
-                </p>
-              </div>
-            )}
-            {Boolean((member as any).skills?.length) && (
-              <div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">Skills</span>
-                <p className="text-gray-900 dark:text-gray-100">
-                  {Array.isArray((member as any).skills) ? (member as any).skills.join(', ') : (member as any).skills}
-                </p>
-              </div>
-            )}
-            {Boolean((member as any).volunteerSkills?.length) && (
-              <div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">Volunteer Skills</span>
-                <p className="text-gray-900 dark:text-gray-100">
-                  {Array.isArray((member as any).volunteerSkills)
-                    ? (member as any).volunteerSkills.join(', ')
-                    : (member as any).volunteerSkills}
-                </p>
-              </div>
-            )}
-            {((member as any).isJobSeeker ||
-              (member as any).isZakatPayer ||
-              (member as any).isZakatEligible ||
-              (member as any).isWidow ||
-              (member as any).isVolunteer) && (
-              <div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">Flags</span>
-                <p className="text-gray-900 dark:text-gray-100">
-                  {[
-                    (member as any).isJobSeeker && 'Job seeker',
-                    (member as any).isZakatPayer && 'Zakat payer',
-                    (member as any).isZakatEligible && 'Zakat eligible',
-                    (member as any).isWidow && 'Widow',
-                    (member as any).isVolunteer && 'Volunteer',
-                  ]
-                    .filter(Boolean)
-                    .join(', ')}
-                </p>
-              </div>
-            )}
-          </div>
-        </Card>
-      </div>
+          )}
+          {Boolean((member as any).skills?.length) && (
+            <div>
+              <span className="text-sm text-gray-500 dark:text-gray-400">Skills</span>
+              <p className="text-gray-900 dark:text-gray-100">
+                {Array.isArray((member as any).skills) ? (member as any).skills.join(', ') : (member as any).skills}
+              </p>
+            </div>
+          )}
+          {Boolean((member as any).volunteerSkills?.length) && (
+            <div>
+              <span className="text-sm text-gray-500 dark:text-gray-400">Volunteer Skills</span>
+              <p className="text-gray-900 dark:text-gray-100">
+                {Array.isArray((member as any).volunteerSkills)
+                  ? (member as any).volunteerSkills.join(', ')
+                  : (member as any).volunteerSkills}
+              </p>
+            </div>
+          )}
+          {((member as any).isJobSeeker ||
+            (member as any).isZakatPayer ||
+            (member as any).isZakatEligible ||
+            (member as any).isWidow ||
+            (member as any).isVolunteer) && (
+            <div>
+              <span className="text-sm text-gray-500 dark:text-gray-400">Flags</span>
+              <p className="text-gray-900 dark:text-gray-100">
+                {[
+                  (member as any).isJobSeeker && 'Job seeker',
+                  (member as any).isZakatPayer && 'Zakat payer',
+                  (member as any).isZakatEligible && 'Zakat eligible',
+                  (member as any).isWidow && 'Widow',
+                  (member as any).isVolunteer && 'Volunteer',
+                ]
+                  .filter(Boolean)
+                  .join(', ')}
+              </p>
+            </div>
+          )}
+        </div>
+      </Card>
 
       <Modal
         isOpen={showDeleteModal}

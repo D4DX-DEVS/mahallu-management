@@ -4,6 +4,7 @@ import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
 import Table from '@/components/ui/Table';
+import EmptyState from '@/components/ui/EmptyState';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
@@ -15,6 +16,7 @@ import { useDebounce } from '@/hooks/useDebounce';
 import { formatDate, toTitleCase } from '@/utils/format';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import StatusBadge from '@/components/ui/StatusBadge';
 
 export default function ChangeRequestsList() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -121,19 +123,7 @@ export default function ChangeRequestsList() {
         )}
       </div>
     ),
-    status: (
-      <span
-        className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${
-          req.status === 'pending'
-            ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-            : req.status === 'approved'
-              ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-              : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-        }`}
-      >
-        {req.status?.charAt(0).toUpperCase() + req.status?.slice(1)}
-      </span>
-    ),
+    status: <StatusBadge status={req.status} />,
     createdAt: formatDate(req.createdAt),
     actions:
       req.status === 'pending' ? (
@@ -197,9 +187,12 @@ export default function ChangeRequestsList() {
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="text-center py-8">
-            <p className="text-red-600 dark:text-red-400">{error}</p>
-          </div>
+          <EmptyState
+            variant="error"
+            entity="change requests"
+            description={error}
+            action={{ label: 'Retry', onClick: fetchChangeRequests }}
+          />
         ) : changeRequests.length === 0 ? (
           <div className="text-center py-8">
             <p className="text-gray-500 dark:text-gray-400">No change requests found</p>

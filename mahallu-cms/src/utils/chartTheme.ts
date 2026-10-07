@@ -53,7 +53,7 @@ function resolve(): ChartTheme {
 
   return {
     grid: readToken('--border', 'hsl(180 12% 88%)'),
-    axis: readToken('--muted-foreground', 'hsl(200 9% 42%)'),
+    axis: readToken('--muted-foreground', 'hsl(200 9% 40%)'),
     label: readToken('--foreground', 'hsl(200 18% 12%)'),
     tooltipBg: readToken('--popover', 'hsl(0 0% 100%)'),
     tooltipBorder: readToken('--border', 'hsl(180 12% 88%)'),

@@ -13,6 +13,7 @@ import { loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import SortableTh from '@/components/ui/SortableTh';
 import { useSortableRows } from '@/hooks/useSortableRows';
+import StatusBadge from '@/components/ui/StatusBadge';
 
 const currency = new Intl.NumberFormat('en-IN', {
   style: 'currency',
@@ -80,9 +81,7 @@ function VarisangyaTable({ records }: { records: VarisangyaRecord[] }) {
               <td className="py-3 pr-4">{record.paymentMethod || '-'}</td>
               <td className="py-3 pr-4 text-gray-500 dark:text-gray-400">{record.remarks || '-'}</td>
               <td className="py-3 pr-4">
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
-                  Paid
-                </span>
+                <StatusBadge status={record.status} />
               </td>
             </tr>
           ))}

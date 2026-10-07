@@ -1,11 +1,69 @@
 import { Request, Response } from 'express';
 import { NikahRegistration, DeathRegistration, NOC } from '../models/Registration';
 import Member from '../models/Member';
+import Family from '../models/Family';
+import DocumentFile from '../models/DocumentFile';
+import { GraveRecord } from '../models/Cemetery';
+import mongoose from 'mongoose';
 import { AuthRequest } from '../middleware/authMiddleware';
 import { getPaginationParams, createPaginationResponse } from '../utils/pagination';
 
 import { sendFailure } from '../utils/userMessages';
 import { regexLiteral } from '../utils/queryGuard';
+import { verifyTenantOwnership } from '../utils/tenantCheck';
+import { sanitizeRichText } from '../utils/htmlSanitizer';
+import { refBelongsToTenant, stripImmutable } from '../utils/sanitizeUpdate';
+import { isValidId, MSG, tenantFilterFor } from '../utils/scope';
+
+type RefProblem = { status: number; message: string };
+type RefSpec = [model: mongoose.Model<any>, id: unknown, label: string];
+
+/**
+ * The Mahallu a new record is written into, from the SERVER-derived identity only.
+ * A Mahallu admin always writes into their own; a body `tenantId` is honoured only for a super
+ * admin who has not picked one. A non-super user with no Mahallu gets nothing (fails closed).
+ */
+const writeTenantOf = (req: AuthRequest): string | undefined => {
+  const raw = req.isSuperAdmin ? req.tenantId || req.body?.tenantId : req.tenantId;
+  const text = typeof raw === 'string' || raw instanceof mongoose.Types.ObjectId ? String(raw) : '';
+  return isValidId(text) ? text : undefined;
+};
+
+/**
+ * Every id a body links to (member, family, registration, grave, documents) must be a well-formed id
+ * of a record in the SAME Mahallu. Absent ids pass; a malformed id is a 400, a foreign or unknown id
+ * a plain 404 (it does not reveal whether the record exists in another Mahallu).
+ */
+const findRefProblem = async (tenantId: string, refs: RefSpec[]): Promise<RefProblem | null> => {
+  for (const [model, rawId, label] of refs) {
+    if (rawId === undefined || rawId === null || rawId === '') continue;
+    if (!isValidId(rawId)) return { status: 400, message: MSG.badId };
+    if (!(await refBelongsToTenant(model, rawId, tenantId))) {
+      return { status: 404, message: `We couldn't find that ${label} in this Mahallu.` };
+    }
+  }
+  return null;
+};
+
+const documentRefs = (documents: unknown): RefSpec[] | RefProblem => {
+  if (documents === undefined || documents === null) return [];
+  if (!Array.isArray(documents) || documents.length > 20) return { status: 400, message: MSG.badId };
+  return documents.map((id): RefSpec => [DocumentFile, id, 'document']);
+};
+
+/** Validate the optional refs of a write; answers the 400/404 itself and returns false when refused. */
+const refsOk = async (res: Response, tenantId: string, refs: RefSpec[], documents?: unknown): Promise<boolean> => {
+  const docs = documentRefs(documents);
+  const problem = Array.isArray(docs) ? await findRefProblem(tenantId, [...refs, ...docs]) : docs;
+  if (problem) {
+    res.status(problem.status).json({ success: false, message: problem.message });
+    return false;
+  }
+  return true;
+};
+
+const noMahallu = (res: Response) =>
+  res.status(400).json({ success: false, message: 'Please select a Mahallu before continuing.' });
 
 // Nikah Registration
 export const getAllNikahRegistrations = async (req: AuthRequest, res: Response) => {
@@ -14,12 +72,10 @@ export const getAllNikahRegistrations = async (req: AuthRequest, res: Response) 
     const { page, limit, skip } = getPaginationParams(req);
     const query: any = {};
 
-    // Apply tenant filter - req.tenantId includes x-tenant-id header for super admin viewing as tenant
-    if (req.tenantId) {
-      query.tenantId = req.tenantId;
-    } else if (tenantId && req.isSuperAdmin) {
-      query.tenantId = tenantId;
-    }
+    // Tenant filter from the server-derived identity; refuses (403) a non-super user with no Mahallu.
+    const scopeFilter = tenantFilterFor(req, res);
+    if (!scopeFilter) return;
+    Object.assign(query, scopeFilter);
 
     if (status) query.status = status;
     if (search) {
@@ -68,19 +124,16 @@ export const getNikahRegistrationById = async (req: AuthRequest, res: Response) 
 
 export const createNikahRegistration = async (req: AuthRequest, res: Response) => {
   try {
-    const registrationData = {
-      ...req.body,
-      tenantId: req.tenantId || req.body.tenantId,
-    };
+    const tenantId = writeTenantOf(req);
+    if (!tenantId) return noMahallu(res);
 
-    if (!registrationData.tenantId && !req.isSuperAdmin) {
-      return res.status(400).json({
-        success: false,
-        message: 'Please select a Mahallu before continuing.',
-      });
-    }
+    if (!(await refsOk(res, tenantId, [
+      [Member, req.body.groomId, 'groom'],
+      [Member, req.body.brideId, 'bride'],
+      [Member, req.body.submittedByMemberId, 'member'],
+    ], req.body.documents))) return;
 
-    const registration = new NikahRegistration(registrationData);
+    const registration = new NikahRegistration({ ...stripImmutable(req.body), tenantId });
     await registration.save();
     res.status(201).json({ success: true, data: registration });
   } catch (error: any) {
@@ -107,8 +160,14 @@ export const updateNikahRegistration = async (req: AuthRequest, res: Response) =
       return res.status(403).json({ success: false, message: "You don't have permission to do this. Please contact your Mahallu admin." });
     }
 
-    const updated = await NikahRegistration.findByIdAndUpdate(
-      id,
+    // The people linked to a registration must belong to the registration's own Mahallu.
+    if (!(await refsOk(res, String(registration.tenantId), [
+      [Member, groomId, 'groom'],
+      [Member, brideId, 'bride'],
+    ]))) return;
+
+    const updated = await NikahRegistration.findOneAndUpdate(
+      { _id: id, tenantId: registration.tenantId },
       {
         groomName, groomAge, groomId, brideName, brideAge, brideId,
         mahallMemberType, nikahDate, mahallId, waliName, witness1, witness2,
@@ -132,12 +191,10 @@ export const getAllDeathRegistrations = async (req: AuthRequest, res: Response) 
     const { page, limit, skip } = getPaginationParams(req);
     const query: any = {};
 
-    // Apply tenant filter - req.tenantId includes x-tenant-id header for super admin viewing as tenant
-    if (req.tenantId) {
-      query.tenantId = req.tenantId;
-    } else if (tenantId && req.isSuperAdmin) {
-      query.tenantId = tenantId;
-    }
+    // Tenant filter from the server-derived identity; refuses (403) a non-super user with no Mahallu.
+    const scopeFilter = tenantFilterFor(req, res);
+    if (!scopeFilter) return;
+    Object.assign(query, scopeFilter);
 
     if (status) query.status = status;
     if (search) {
@@ -183,27 +240,27 @@ export const getDeathRegistrationById = async (req: AuthRequest, res: Response) 
 
 export const createDeathRegistration = async (req: AuthRequest, res: Response) => {
   try {
-    const registrationData = {
-      ...req.body,
-      tenantId: req.tenantId || req.body.tenantId,
-    };
+    const tenantId = writeTenantOf(req);
+    if (!tenantId) return noMahallu(res);
 
-    if (!registrationData.tenantId && !req.isSuperAdmin) {
-      return res.status(400).json({
-        success: false,
-        message: 'Please select a Mahallu before continuing.',
-      });
-    }
+    // The deceased (and every other linked record) must be a record of THIS Mahallu: an unchecked
+    // id here let any admin mark any Mahallu's member as deceased.
+    if (!(await refsOk(res, tenantId, [
+      [Member, req.body.deceasedId, 'member'],
+      [Family, req.body.familyId, 'family'],
+      [GraveRecord, req.body.graveRecordId, 'grave record'],
+      [Member, req.body.submittedByMemberId, 'member'],
+    ], req.body.documents))) return;
 
-    const registration = new DeathRegistration(registrationData);
+    const registration = new DeathRegistration({ ...stripImmutable(req.body), tenantId });
     await registration.save();
 
     if (registration.deceasedId) {
-      
-      await Member.findByIdAndUpdate(registration.deceasedId, {
-        isDead: true,
-        status: 'inactive',
-      });
+      // Scoped by the registration's Mahallu as well as the id, so it can never touch another Mahallu's member.
+      await Member.findOneAndUpdate(
+        { _id: registration.deceasedId, tenantId: registration.tenantId },
+        { isDead: true, status: 'inactive' }
+      );
     }
     res.status(201).json({ success: true, data: registration });
   } catch (error: any) {
@@ -230,8 +287,13 @@ export const updateDeathRegistration = async (req: AuthRequest, res: Response) =
       return res.status(403).json({ success: false, message: "You don't have permission to do this. Please contact your Mahallu admin." });
     }
 
-    const updated = await DeathRegistration.findByIdAndUpdate(
-      id,
+    if (!(await refsOk(res, String(registration.tenantId), [
+      [Member, deceasedId, 'member'],
+      [Family, familyId, 'family'],
+    ]))) return;
+
+    const updated = await DeathRegistration.findOneAndUpdate(
+      { _id: id, tenantId: registration.tenantId },
       {
         deceasedName, deceasedId, deathDate, placeOfDeath, causeOfDeath,
         mahallId, familyId, informantName, informantRelation, informantPhone,
@@ -255,12 +317,10 @@ export const getAllNOCs = async (req: AuthRequest, res: Response) => {
     const { page, limit, skip } = getPaginationParams(req);
     const query: any = {};
 
-    // Apply tenant filter - req.tenantId includes x-tenant-id header for super admin viewing as tenant
-    if (req.tenantId) {
-      query.tenantId = req.tenantId;
-    } else if (tenantId && req.isSuperAdmin) {
-      query.tenantId = tenantId;
-    }
+    // Tenant filter from the server-derived identity; refuses (403) a non-super user with no Mahallu.
+    const scopeFilter = tenantFilterFor(req, res);
+    if (!scopeFilter) return;
+    Object.assign(query, scopeFilter);
 
     if (type) query.type = type;
     if (status) query.status = status;
@@ -308,16 +368,28 @@ export const getNOCById = async (req: AuthRequest, res: Response) => {
 
 export const createNOC = async (req: AuthRequest, res: Response) => {
   try {
-    const { purposeTitle, purposeDescription, purpose } = req.body;
+    // purposeDescription / purpose are rendered as HTML by the CMS: store only allow-listed markup.
+    const purposeTitle = req.body.purposeTitle;
+    const purposeDescription = sanitizeRichText(req.body.purposeDescription);
+    const purpose = sanitizeRichText(req.body.purpose);
     if (!purposeTitle && !purpose) {
       return res.status(400).json({ success: false, message: 'Please enter the purpose title.' });
     }
     if (!purposeDescription && !purpose) {
       return res.status(400).json({ success: false, message: 'Please enter the purpose description.' });
     }
+    const tenantId = writeTenantOf(req);
+    if (!tenantId) return noMahallu(res);
+
+    if (!(await refsOk(res, tenantId, [
+      [Member, req.body.applicantId, 'applicant'],
+      [NikahRegistration, req.body.nikahRegistrationId, 'nikah registration'],
+      [Member, req.body.submittedByMemberId, 'member'],
+    ], req.body.documents))) return;
+
     const nocData = {
-      ...req.body,
-      tenantId: req.tenantId || req.body.tenantId,
+      ...stripImmutable(req.body),
+      tenantId,
       purposeTitle: purposeTitle || purpose,
       purposeDescription: purposeDescription || purpose,
       purpose: purpose || purposeTitle || purposeDescription,
@@ -328,13 +400,6 @@ export const createNOC = async (req: AuthRequest, res: Response) => {
       // Record who approved it
       approvedBy: req.user?.name || undefined,
     };
-
-    if (!nocData.tenantId && !req.isSuperAdmin) {
-      return res.status(400).json({
-        success: false,
-        message: 'Please select a Mahallu before continuing.',
-      });
-    }
 
     const noc = new NOC(nocData);
     await noc.save();
@@ -347,13 +412,23 @@ export const createNOC = async (req: AuthRequest, res: Response) => {
 export const updateNOC = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const { status, issuedDate, expiryDate, remarks, purposeTitle, purposeDescription, purpose } = req.body;
+    const { status, issuedDate, expiryDate, remarks, purposeTitle } = req.body;
+    const purposeDescription = sanitizeRichText(req.body.purposeDescription);
+    const purpose = sanitizeRichText(req.body.purpose);
 
     const updateData: Record<string, any> = { status, issuedDate, expiryDate, remarks, purposeTitle, purposeDescription, purpose };
     if (status === 'approved') {
       updateData.approvedBy = req.user?.name || undefined;
       if (!issuedDate) updateData.issuedDate = new Date();
     }
+
+    // Only the Mahallu that owns the NOC may change it; by id alone, any admin could approve
+    // another Mahallu's NOC under their own name.
+    const existing = await NOC.findById(id);
+    if (!existing) {
+      return res.status(404).json({ success: false, message: "We couldn't find that NOC. It may have been removed." });
+    }
+    if (!verifyTenantOwnership(req, res, existing.tenantId, 'NOC')) return;
 
     const noc = await NOC.findByIdAndUpdate(
       id,

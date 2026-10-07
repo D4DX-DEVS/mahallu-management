@@ -10,11 +10,12 @@ import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import { errorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { phoneSchema, sanitizeDigits } from '@/utils/validation';
 
 const doctorSchema = z.object({
   name: z.string().max(200, 'Please keep the name to 200 characters or less.').min(1, 'Name is required'),
   specialty: z.string().max(200, 'Please keep the specialty to 200 characters or less.').optional(),
-  contactNo: z.string().max(200, 'Please keep the contact no to 200 characters or less.').min(1, 'Contact number is required'),
+  contactNo: phoneSchema,
   availability: z.string().max(200, 'Please keep the availability to 200 characters or less.').optional(),
   notes: z.string().max(2000, 'Please keep the notes to 2000 characters or less.').optional(),
 });
@@ -29,6 +30,7 @@ export default function DoctorCreate() {
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors },
   } = useForm<DoctorFormData>({
     resolver: zodResolver(doctorSchema),
@@ -87,8 +89,11 @@ export default function DoctorCreate() {
               <label className="block text-sm font-medium text-gray-700 mb-2">Contact Number *</label>
               <Input
                 {...register('contactNo')}
+                onChange={(e) => setValue('contactNo', sanitizeDigits(e.target.value, 10), { shouldValidate: true, shouldDirty: true })}
                 placeholder="Phone number"
                 type="tel"
+                inputMode="numeric"
+                maxLength={10}
                 className={errors.contactNo ? 'border-red-500' : ''}
               />
               {errors.contactNo && <span className="text-red-500 text-sm">{errors.contactNo.message}</span>}

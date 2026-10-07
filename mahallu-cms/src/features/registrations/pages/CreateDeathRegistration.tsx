@@ -17,6 +17,7 @@ import { toast } from '@/store/toastStore';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
+import { optionalPhoneSchema, sanitizeDigits } from '@/utils/validation';
 
 const deathSchema = z.object({
   deceasedName: z.string().max(200, 'Please keep the deceased name to 200 characters or less.').min(1, 'Deceased name is required'),
@@ -29,7 +30,7 @@ const deathSchema = z.object({
   familyId: z.string().max(200, 'Please keep the family to 200 characters or less.').optional(),
   informantName: z.string().max(200, 'Please keep the informant name to 200 characters or less.').optional(),
   informantRelation: z.string().max(200, 'Please keep the informant relation to 200 characters or less.').optional(),
-  informantPhone: z.string().max(200, 'Please keep the informant phone to 200 characters or less.').optional(),
+  informantPhone: optionalPhoneSchema,
   remarks: z.string().max(2000, 'Please keep the remarks to 2000 characters or less.').optional(),
 });
 
@@ -179,8 +180,12 @@ export default function CreateDeathRegistration() {
             <Input
               label="Informant Phone"
               type="tel"
+              inputMode="numeric"
+              maxLength={10}
               {...register('informantPhone')}
+              onChange={(e) => setValue('informantPhone', sanitizeDigits(e.target.value, 10), { shouldValidate: true, shouldDirty: true })}
               placeholder="Phone Number"
+              error={errors.informantPhone?.message}
             />
             <Input label="Remarks" {...register('remarks')} placeholder="Remarks" className="md:col-span-2" />
           </div>

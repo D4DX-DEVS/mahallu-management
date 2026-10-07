@@ -31,7 +31,7 @@ import {
 } from '@/services/dashboardService';
 import { ROUTES } from '@/constants/routes';
 import { formatDate, toTitleCase } from '@/utils/format';
-import { loadErrorMessage } from '@/utils/errors';
+import { loadErrorInfo, LoadErrorInfo } from '@/utils/errors';
 import { useChartTheme, tooltipStyle } from '@/utils/chartTheme';
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -41,7 +41,7 @@ export default function Dashboard() {
   const [activityTimeline, setActivityTimeline] = useState<ActivityTimelineData[]>([]);
   const [financialSummary, setFinancialSummary] = useState<FinancialSummary | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<LoadErrorInfo | null>(null);
   useEffect(() => {
     fetchDashboardData();
   }, []);
@@ -60,7 +60,7 @@ export default function Dashboard() {
       setActivityTimeline(timelineData);
       setFinancialSummary(financialData);
     } catch (err: any) {
-      setError(loadErrorMessage(err, 'the dashboard'));
+      setError(loadErrorInfo(err, 'the dashboard'));
     } finally {
       setLoading(false);
     }
@@ -97,11 +97,11 @@ export default function Dashboard() {
     return (
       <>
         <Alert
-          variant="error"
-          title="Couldn't load the dashboard"
-          action={{ label: 'Try again', onClick: fetchDashboardData }}
+          variant={error.variant}
+          title={error.title}
+          action={error.variant === 'info' ? undefined : { label: 'Try again', onClick: fetchDashboardData }}
         >
-          {error}
+          {error.message}
         </Alert>
       </>
     );
@@ -133,7 +133,7 @@ export default function Dashboard() {
               <div
                 className="relative mx-auto flex h-32 w-32 items-center justify-center rounded-full sm:h-36 sm:w-36"
                 style={{
-                  background: `conic-gradient(hsl(var(--primary)) ${approvalPercent}%, hsl(var(--muted)) 0)`,
+                  background: `conic-gradient(hsl(var(--primary)) ${approvalPercent}%, hsl(var(--border)) 0)`,
                 }}
                 role="img"
                 aria-label={`${approvalPercent}% of families approved`}

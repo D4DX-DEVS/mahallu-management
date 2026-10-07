@@ -4,16 +4,19 @@ import { FiArrowLeft } from 'react-icons/fi';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
+import EmptyState from '@/components/ui/EmptyState';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import { ROUTES } from '@/constants/routes';
 import { salaryService } from '@/services/salaryService';
 import { instituteService } from '@/services/instituteService';
 import { useAuthStore } from '@/store/authStore';
-import { loadErrorMessage } from '@/utils/errors';
+import { loadErrorInfo, LoadErrorInfo } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import SortableTh from '@/components/ui/SortableTh';
 import { useSortableRows } from '@/hooks/useSortableRows';
 import { toTitleCase } from '@/utils/format';
+import { fetchAllPages } from '@/services/api';
+import { logError } from '@/utils/safeLog';
 
 const MONTHS = [
   { value: '1', label: 'January' },
@@ -48,7 +51,7 @@ interface SummaryItem {
 export default function SalarySummary() {
   const { currentInstituteId: userInstituteId } = useAuthStore();
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<LoadErrorInfo | null>(null);
   const [summary, setSummary] = useState<SummaryItem[]>([]);
   const [institutes, setInstitutes] = useState<{ id: string; name: string }[]>([]);
   const [instituteFilter, setInstituteFilter] = useState(userInstituteId || 'all');
@@ -70,10 +73,10 @@ export default function SalarySummary() {
 
   const fetchInstitutes = async () => {
     try {
-      const result = await instituteService.getAll({ limit: 1000 });
-      setInstitutes(result.data.map((i: any) => ({ id: i.id, name: i.name })));
+      const allRows = await fetchAllPages((page) => instituteService.getAll(page));
+      setInstitutes(allRows.map((i: any) => ({ id: i.id, name: i.name })));
     } catch (err) {
-      console.error('Error:', err);
+      logError('Error', err);
     }
   };
 
@@ -87,7 +90,7 @@ export default function SalarySummary() {
       const data = await salaryService.getSummary(params);
       setSummary(data || []);
     } catch (err: any) {
-      setError(loadErrorMessage(err, 'salary summary'));
+      setError(loadErrorInfo(err, 'salary summary'));
     } finally {
       setLoading(false);
     }
@@ -149,12 +152,13 @@ export default function SalarySummary() {
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="text-center py-10">
-            <p className="text-red-600 dark:text-red-400">{error}</p>
-            <Button onClick={fetchSummary} className="mt-4" variant="outline">
-              Retry
-            </Button>
-          </div>
+          <EmptyState
+            variant={error.variant}
+            entity="salary summary"
+            title={error.variant === 'info' ? error.title : undefined}
+            description={error.message}
+            action={error.variant === 'info' ? undefined : { label: 'Retry', onClick: fetchSummary }}
+          />
         ) : summary.length === 0 ? (
           <div className="text-center py-10 text-gray-500 dark:text-gray-400">
             No salary data found for the selected period

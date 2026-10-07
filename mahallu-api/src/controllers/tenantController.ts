@@ -6,6 +6,7 @@ import { getPaginationParams, createPaginationResponse } from '../utils/paginati
 import { defaultFeaturesFor } from '../config/moduleFeatures';
 
 import { sendFailure } from '../utils/userMessages';
+import { invalidateTenantStatus } from '../services/tenantStatusService';
 import { regexLiteral } from '../utils/queryGuard';
 
 export const getAllTenants = async (req: AuthRequest, res: Response) => {
@@ -95,6 +96,8 @@ export const createTenant = async (req: AuthRequest, res: Response) => {
   }
 };
 
+const PLATFORM_ONLY_TENANT_FIELDS = ['status', 'subscription', 'type', 'classification', 'code'];
+
 export const updateTenant = async (req: AuthRequest, res: Response) => {
   try {
     if (!req.isSuperAdmin && req.tenantId?.toString() !== req.params.id) {
@@ -102,6 +105,20 @@ export const updateTenant = async (req: AuthRequest, res: Response) => {
     }
     // Handle nested settings update properly
     const updateData = { ...req.body };
+
+    // A Mahallu may maintain its own profile and settings; plan, status, type/classification,
+    // its code and the module switches (settings.features) belong to the platform. Without
+    // this a survey worker could suspend their own Mahallu or switch on paid modules.
+    if (!req.isSuperAdmin) {
+      if (req.user?.role !== 'mahall') {
+        return res.status(403).json({ success: false, message: "You don't have permission to do this. Please contact your Mahallu admin." });
+      }
+      for (const field of PLATFORM_ONLY_TENANT_FIELDS) delete updateData[field];
+      if (updateData.settings && typeof updateData.settings === 'object') {
+        const { features: _features, ...ownSettings } = updateData.settings;
+        updateData.settings = ownSettings;
+      }
+    }
 
     // Changing classification re-seeds the default feature set, unless the caller
     // sent an explicit features map in the same request.
@@ -154,6 +171,7 @@ export const deleteTenant = async (req: AuthRequest, res: Response) => {
     if (!tenant) {
       return res.status(404).json({ success: false, message: "We couldn't find that Mahallu. It may have been removed." });
     }
+    invalidateTenantStatus(req.params.id);
 
     // Optionally: Delete all related data or mark as deleted
     res.json({ success: true, message: 'Mahallu deleted' });
@@ -201,6 +219,9 @@ export const suspendTenant = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ success: false, message: "We couldn't find that Mahallu. It may have been removed." });
     }
 
+    // authMiddleware caches tenant status briefly; make the suspension effective immediately here.
+    invalidateTenantStatus(req.params.id);
+
     res.json({ success: true, data: tenant });
   } catch (error: any) {
     sendFailure(res, error, 'We couldn\'t update the Mahallu. Please try again.');
@@ -218,6 +239,8 @@ export const activateTenant = async (req: AuthRequest, res: Response) => {
     if (!tenant) {
       return res.status(404).json({ success: false, message: "We couldn't find that Mahallu. It may have been removed." });
     }
+
+    invalidateTenantStatus(req.params.id);
 
     res.json({ success: true, data: tenant });
   } catch (error: any) {

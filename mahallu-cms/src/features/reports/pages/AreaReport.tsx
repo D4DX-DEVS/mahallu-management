@@ -3,20 +3,23 @@ import { FiDownload, FiFileText, FiFile } from 'react-icons/fi';
 import Card from '@/components/ui/Card';
 import StatCard from '@/components/ui/StatCard';
 import Button from '@/components/ui/Button';
+import Alert from '@/components/ui/Alert';
 import Dropdown, { DropdownItem } from '@/components/ui/Dropdown';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import { reportService, AreaReport } from '@/services/reportService';
-import { exportToPDF } from '@/utils/exportUtils';
-import { loadErrorMessage } from '@/utils/errors';
+import { exportToCSV, exportToPDF } from '@/utils/exportUtils';
+import { TableColumn } from '@/types';
+import { loadErrorInfo, LoadErrorInfo } from '@/utils/errors';
 import { toTitleCase } from '@/utils/format';
 import PageHeader from '@/components/layout/PageHeader';
 import SortableTh from '@/components/ui/SortableTh';
 import { useSortableRows } from '@/hooks/useSortableRows';
+import { logError } from '@/utils/safeLog';
 
 export default function AreaReportPage() {
   const [report, setReport] = useState<AreaReport | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<LoadErrorInfo | null>(null);
 
   useEffect(() => {
     fetchReport();
@@ -29,61 +32,37 @@ export default function AreaReportPage() {
       const data = await reportService.getAreaReport();
       setReport(data);
     } catch (err: any) {
-      setError(loadErrorMessage(err, 'area report'));
-      console.error('Error fetching report:', err);
+      setError(loadErrorInfo(err, 'area report'));
+      logError('Error fetching report', err);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleExportCSV = () => {
-    if (!report) return;
-    const csvData = report.families.map((family) => ({
-      'House Name': family.houseName,
-      Area: family.area || '-',
-      Members: family.memberCount,
-    }));
+  const exportColumns: TableColumn[] = [
+    { key: 'houseName', label: 'House Name' },
+    { key: 'area', label: 'Area' },
+    { key: 'memberCount', label: 'Members' },
+  ];
 
-    const headers = ['House Name', 'Area', 'Members'];
-    const csvRows = [headers.join(',')];
-
-    csvData.forEach((row) => {
-      const values = headers.map((header) => {
-        const value = row[header as keyof typeof row] ?? '';
-        const escaped = String(value).replace(/"/g, '""');
-        return escaped.includes(',') ? `"${escaped}"` : escaped;
-      });
-      csvRows.push(values.join(','));
-    });
-
-    const csvContent = csvRows.join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-
-    link.setAttribute('href', url);
-    link.setAttribute('download', `area-report-${new Date().toISOString().split('T')[0]}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  const handlePrintPDF = () => {
-    if (!report) return;
-    const columns = [
-      { key: 'houseName', label: 'House Name' },
-      { key: 'area', label: 'Area' },
-      { key: 'memberCount', label: 'Members' },
-    ];
-
-    const data = report.families.map((family) => ({
+  const exportRows = () =>
+    (report?.families ?? []).map((family) => ({
       houseName: family.houseName,
       area: family.area || '-',
       memberCount: family.memberCount,
     }));
 
-    exportToPDF(columns, data, `area-report-${new Date().toISOString().split('T')[0]}`, 'Area Report');
+  const exportFilename = () => `area-report-${new Date().toISOString().split('T')[0]}`;
+
+  // exportToCSV applies the shared CSV safeguards (BOM, quoting, formula guard).
+  const handleExportCSV = () => {
+    if (!report) return;
+    exportToCSV(exportColumns, exportRows(), exportFilename());
+  };
+
+  const handlePrintPDF = async () => {
+    if (!report) return;
+    await exportToPDF(exportColumns, exportRows(), exportFilename(), 'Area Report');
   };
 
   const {
@@ -103,21 +82,24 @@ export default function AreaReportPage() {
 
   if (error || !report) {
     return (
-      <div className="text-center py-10">
-        <p className="text-red-600 dark:text-red-400">{error || 'Report not available'}</p>
-        <Button onClick={fetchReport} className="mt-4" variant="outline">
-          Retry
-        </Button>
+      <div className="space-y-4">
+        <Alert
+          variant={error?.variant ?? 'error'}
+          title={error?.title ?? "Couldn't load report"}
+          action={error?.variant === 'info' ? undefined : { label: 'Try again', onClick: fetchReport }}
+        >
+          {error?.message ?? 'Report not available'}
+        </Alert>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
-      <PageHeader description="Area-wise family and member statistics" title="Area Report" />
-
-      <div className="flex gap-2 items-center justify-between">
-        <div className="flex items-center gap-3">
+    <div className="space-y-5">
+      <PageHeader
+        title="Area Report"
+        description="Area-wise family and member statistics"
+        actions={
           <Dropdown
             trigger={
               <Button variant="outline" icon={<FiDownload />} collapseLabel>
@@ -126,10 +108,10 @@ export default function AreaReportPage() {
             }
             items={exportItems}
           />
-        </div>
-      </div>
+        }
+      />
 
-      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <StatCard title="Total Families" value={report.totalFamilies} />
         <StatCard title="Total Members" value={report.totalMembers} />
         <StatCard title="Male" value={report.maleCount} />

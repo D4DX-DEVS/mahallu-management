@@ -1,12 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
+import { FiEye, FiTrash2 } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import Button from '@/components/ui/Button';
 import ExpandableSearch from '@/components/ui/ExpandableSearch';
 import Card from '@/components/ui/Card';
+import Table from '@/components/ui/Table';
+import ActionsMenu from '@/components/ui/ActionsMenu';
 import Pagination from '@/components/ui/Pagination';
-import { PageSkeleton } from '@/components/ui/Skeleton';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
-import EmptyState from '@/components/ui/EmptyState';
 import { toast } from '@/store/toastStore';
 import {
   scholarshipService,
@@ -17,8 +18,7 @@ import {
 import { errorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
-import SortableTh from '@/components/ui/SortableTh';
-import { useSortableRows } from '@/hooks/useSortableRows';
+import { TableColumn } from '@/types';
 
 export default function ScholarshipsList() {
   const navigate = useNavigate();
@@ -31,14 +31,65 @@ export default function ScholarshipsList() {
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  /* Status renders a label, so it sorts on the label rather than the enum. */
-  const {
-    rows: sortedScholarships,
-    sort,
-    toggleSort,
-  } = useSortableRows(scholarships, null, {
-    status: (row) => scholarshipStatusLabel(row.status),
-  });
+  const columns: TableColumn<Scholarship>[] = [
+    {
+      key: 'name',
+      label: 'Name',
+      render: (_v, s) => (
+        <button onClick={() => navigate(`/education/scholarships/${s.id}`)} className="text-primary hover:underline">
+          {toTitleCase(s.name)}
+        </button>
+      ),
+    },
+    {
+      key: 'academicYear',
+      label: 'Year',
+      priority: 'secondary',
+    },
+    {
+      key: 'amount',
+      label: 'Amount',
+      priority: 'secondary',
+      align: 'right',
+      render: (_v, s) => '₹' + s.amount,
+    },
+    {
+      key: 'criteria',
+      label: 'Criteria',
+      priority: 'tertiary',
+      render: (v) => v || '—',
+    },
+    {
+      key: 'status',
+      label: 'Status',
+      sortable: true,
+      render: (_v, s) => <span className="rounded bg-muted px-2 py-1 text-xs">{scholarshipStatusLabel(s.status)}</span>,
+    },
+    {
+      key: 'actions',
+      label: 'Actions',
+      align: 'right',
+      sortable: false,
+      render: (_v, s) => (
+        <ActionsMenu
+          label={'Actions for ' + toTitleCase(s.name)}
+          items={[
+            {
+              label: 'View',
+              icon: <FiEye className="h-4 w-4" />,
+              onClick: () => navigate(`/education/scholarships/${s.id}`),
+            },
+            {
+              label: 'Delete',
+              icon: <FiTrash2 className="h-4 w-4" />,
+              onClick: () => setDeleteConfirm({ id: s.id, name: s.name }),
+              variant: 'danger' as const,
+            },
+          ]}
+        />
+      ),
+    },
+  ];
 
   const fetchScholarships = useCallback(async () => {
     setLoading(true);
@@ -112,126 +163,31 @@ export default function ScholarshipsList() {
             <Button onClick={() => fetchScholarships()}>Refresh</Button>
           </div>
 
-          {loading ? (
-            <PageSkeleton variant="section" />
-          ) : scholarships.length === 0 ? (
-            <EmptyState
-              title="No scholarships found"
-              description={
-                search || status
-                  ? 'Try adjusting your search or filters'
-                  : 'Create your first scholarship to get started'
-              }
-              action={
-                !search && !status
-                  ? { label: 'New Scholarship', onClick: () => navigate('/education/scholarships/create') }
-                  : undefined
-              }
-            />
-          ) : (
-            <>
-              <div className="overflow-x-auto">
-                <table className="data-table w-full text-sm">
-                  <thead>
-                    <tr className="border-b">
-                      <SortableTh sortKey="name" sort={sort} onSort={toggleSort}>
-                        Name
-                      </SortableTh>
-                      <SortableTh
-                        sortKey="academicYear"
-                        sort={sort}
-                        onSort={toggleSort}
-                        responsiveClassName="hidden sm:table-cell"
-                      >
-                        Year
-                      </SortableTh>
-                      <SortableTh
-                        sortKey="amount"
-                        sort={sort}
-                        onSort={toggleSort}
-                        responsiveClassName="hidden md:table-cell"
-                      >
-                        Amount
-                      </SortableTh>
-                      <SortableTh
-                        sortKey="criteria"
-                        sort={sort}
-                        onSort={toggleSort}
-                        responsiveClassName="hidden lg:table-cell"
-                      >
-                        Criteria
-                      </SortableTh>
-                      <SortableTh sortKey="status" sort={sort} onSort={toggleSort}>
-                        Status
-                      </SortableTh>
-                      <th className="px-3 py-2.5 text-left text-label font-semibold text-muted-foreground">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {sortedScholarships.map((s) => (
-                      <tr
-                        key={s.id}
-                        className="border-b hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
-                        onClick={() => navigate(`/education/scholarships/${s.id}`)}
-                      >
-                        <td className="py-2 font-medium">
-                          <button
-                            onClick={() => navigate(`/education/scholarships/${s.id}`)}
-                            className="text-blue-600 hover:underline"
-                          >
-                            {toTitleCase(s.name)}
-                          </button>
-                        </td>
-                        <td className="py-2 hidden sm:table-cell">{s.academicYear}</td>
-                        <td className="py-2 hidden md:table-cell">₹{s.amount}</td>
-                        <td className="py-2 hidden lg:table-cell text-xs">{s.criteria || '—'}</td>
-                        <td className="py-2">
-                          <span className="text-xs px-2 py-1 rounded bg-gray-100 dark:bg-gray-800">
-                            {scholarshipStatusLabel(s.status)}
-                          </span>
-                        </td>
-                        <td className="py-2">
-                          <div className="flex gap-2">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                navigate(`/education/scholarships/${s.id}`);
-                              }}
-                              className="text-xs text-blue-600 hover:underline"
-                            >
-                              View
-                            </button>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setDeleteConfirm({ id: s.id, name: s.name });
-                              }}
-                              className="text-xs text-red-600 hover:underline"
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+          <Table
+            columns={columns}
+            data={scholarships}
+            isLoading={loading}
+            entity="scholarships"
+            emptyVariant={search || status ? 'no-results' : 'empty'}
+            emptyAction={
+              !search && !status
+                ? { label: 'New Scholarship', onClick: () => navigate('/education/scholarships/create') }
+                : undefined
+            }
+            onRowClick={(s) => navigate(`/education/scholarships/${s.id}`)}
+            rowKey={(s) => s.id}
+          />
 
-              {pagination && (
-                <div className="mt-4">
-                  <Pagination
-                    currentPage={pagination.page}
-                    totalPages={pagination.totalPages}
-                    totalItems={pagination.total}
-                    itemsPerPage={10}
-                    onPageChange={setCurrentPage}
-                  />
-                </div>
-              )}
-            </>
+          {!loading && pagination && scholarships.length > 0 && (
+            <div className="mt-4">
+              <Pagination
+                currentPage={pagination.page}
+                totalPages={pagination.totalPages}
+                totalItems={pagination.total}
+                itemsPerPage={10}
+                onPageChange={setCurrentPage}
+              />
+            </div>
           )}
         </div>
       </Card>

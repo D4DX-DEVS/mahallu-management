@@ -20,17 +20,22 @@ interface StatusDef {
 const STATUS_MAP: Record<string, StatusDef> = {
   // Not yet submitted
   draft: { label: 'Draft', tone: 'neutral' },
+  applied: { label: 'Applied', tone: 'neutral' },
+  reported: { label: 'Reported', tone: 'pending' },
+  due: { label: 'Due', tone: 'pending' },
 
   // Awaiting a decision
   pending: { label: 'Pending', tone: 'pending' },
   open: { label: 'Pending', tone: 'pending' },
   unapproved: { label: 'Pending', tone: 'pending' },
   submitted: { label: 'Pending', tone: 'pending' },
+  requested: { label: 'Requested', tone: 'pending' },
   awaiting: { label: 'Pending', tone: 'pending' },
   planned: { label: 'Planned', tone: 'pending' },
   scheduled: { label: 'Scheduled', tone: 'pending' },
   on_leave: { label: 'On leave', tone: 'pending' },
   under_maintenance: { label: 'Under maintenance', tone: 'pending' },
+  correction_required: { label: 'Correction required', tone: 'negative' },
 
   // Being worked on
   in_progress: { label: 'In progress', tone: 'progress' },
@@ -41,6 +46,8 @@ const STATUS_MAP: Record<string, StatusDef> = {
   assigned: { label: 'Assigned', tone: 'progress' },
   in_use: { label: 'In use', tone: 'progress' },
   partial: { label: 'Partly paid', tone: 'progress' },
+  under_review: { label: 'Under review', tone: 'progress' },
+  repaying: { label: 'Repaying', tone: 'progress' },
 
   // Accepted, in force
   approved: { label: 'Approved', tone: 'positive' },
@@ -49,6 +56,10 @@ const STATUS_MAP: Record<string, StatusDef> = {
   active: { label: 'Active', tone: 'positive' },
   paid: { label: 'Paid', tone: 'positive' },
   issued: { label: 'Issued', tone: 'positive' },
+  disbursed: { label: 'Disbursed', tone: 'positive' },
+  published: { label: 'Published', tone: 'positive' },
+  valid: { label: 'Valid', tone: 'positive' },
+  assisted: { label: 'Assisted', tone: 'positive' },
 
   // Declined
   rejected: { label: 'Rejected', tone: 'negative' },
@@ -58,6 +69,9 @@ const STATUS_MAP: Record<string, StatusDef> = {
   revoked: { label: 'Revoked', tone: 'negative' },
   suspended: { label: 'Suspended', tone: 'negative' },
   damaged: { label: 'Damaged', tone: 'negative' },
+  terminated: { label: 'Terminated', tone: 'negative' },
+  defaulted: { label: 'Defaulted', tone: 'negative' },
+  dropped: { label: 'Dropped', tone: 'negative' },
 
   // Finished, nothing left to do
   completed: { label: 'Completed', tone: 'done' },
@@ -73,6 +87,7 @@ const STATUS_MAP: Record<string, StatusDef> = {
   expired: { label: 'Expired', tone: 'neutral' },
   disposed: { label: 'Disposed', tone: 'neutral' },
   unassigned: { label: 'Unassigned', tone: 'neutral' },
+  resigned: { label: 'Resigned', tone: 'neutral' },
 };
 
 const TONE_CLASSES: Record<StatusTone, string> = {

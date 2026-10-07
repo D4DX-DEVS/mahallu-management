@@ -7,6 +7,7 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Modal from '@/components/ui/Modal';
 import ExpandableSearch from '@/components/ui/ExpandableSearch';
+import ActionBar from '@/components/ui/ActionBar';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import EmptyState from '@/components/ui/EmptyState';
 import Pagination from '@/components/ui/Pagination';
@@ -113,7 +114,7 @@ export default function MosquesList() {
        * below is already its own bordered card, and a second frame
        * around the whole list drew a box around boxes on a phone. */}
       <TableCard borderless>
-        <div className="mb-3 flex min-w-0 items-center gap-2">
+        <ActionBar>
           <ExpandableSearch
             value={searchQuery}
             onChange={(value) => {
@@ -125,17 +126,12 @@ export default function MosquesList() {
           <Button size="md" onClick={() => setFormOpen(true)} icon={<FiPlus />} collapseLabel>
             New Mosque
           </Button>
-        </div>
+        </ActionBar>
 
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="py-10 text-center">
-            <p className="text-red-600 dark:text-red-400">{error}</p>
-            <Button onClick={fetchRows} className="mt-4" variant="outline">
-              Retry
-            </Button>
-          </div>
+          <EmptyState variant="error" entity="mosques" description={error} action={{ label: 'Retry', onClick: fetchRows }} />
         ) : rows.length === 0 ? (
           <EmptyState
             title="No mosques recorded"

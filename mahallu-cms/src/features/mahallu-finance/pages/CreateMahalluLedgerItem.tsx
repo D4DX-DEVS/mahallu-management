@@ -5,6 +5,7 @@ import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
+import Alert from '@/components/ui/Alert';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import { ROUTES } from '@/constants/routes';
 import { masterAccountService, Ledger } from '@/services/masterAccountService';
@@ -13,8 +14,9 @@ import { getTenantId } from '@/utils/tenantHelper';
 import { errorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { useFormValidation } from '@/hooks/useFormValidation';
-import { FieldRule, LIMITS } from '@/utils/validation';
+import { FieldRule, LIMITS, sanitizeAmountInput } from '@/utils/validation';
 import { toTitleCase } from '@/utils/format';
+import { fetchAllPages } from '@/services/api';
 
 const RULES: Record<string, FieldRule> = {
   ledgerId: { label: 'ledger', required: true, type: 'id' },
@@ -29,7 +31,7 @@ const RULES: Record<string, FieldRule> = {
 const emptyForm = {
   ledgerId: '',
   date: new Date().toISOString().split('T')[0],
-  amount: 0,
+  amount: '',
   type: 'income' as 'income' | 'expense',
   description: '',
   paymentMethod: '',
@@ -38,8 +40,9 @@ const emptyForm = {
 
 export default function CreateMahalluLedgerItem() {
   const navigate = useNavigate();
-  const { currentTenantId, user } = useAuthStore();
+  const { currentTenantId, user, isSuperAdmin } = useAuthStore();
   const tenantId = getTenantId(user, currentTenantId);
+  const needsTenantSelection = isSuperAdmin && !tenantId;
   const [form, setForm] = useState(emptyForm);
   const { errors, validate } = useFormValidation(RULES);
   const [ledgers, setLedgers] = useState<Ledger[]>([]);
@@ -48,9 +51,8 @@ export default function CreateMahalluLedgerItem() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    masterAccountService
-      .getAllLedgers({ limit: 1000, scope: 'mahallu' })
-      .then((r) => setLedgers(Array.isArray(r.data) ? r.data : []))
+    fetchAllPages((page) => masterAccountService.getAllLedgers({ ...page, scope: 'mahallu' }))
+      .then((r) => setLedgers(r))
       .catch(() => {})
       .finally(() => setLoadingLedgers(false));
   }, []);
@@ -66,6 +68,7 @@ export default function CreateMahalluLedgerItem() {
       setError(null);
       await masterAccountService.createLedgerItem({
         ...form,
+        amount: Number(form.amount) || 0,
         source: 'manual',
         ...(tenantId ? { tenantId } : {}),
       });
@@ -90,6 +93,13 @@ export default function CreateMahalluLedgerItem() {
         ]}
       />
 
+      {needsTenantSelection ? (
+        <Card className="space-y-4">
+          <Alert variant="info" title="Select a Mahallu first">
+            Please select a Mahallu from the top menu before adding a new entry.
+          </Alert>
+        </Card>
+      ) : (
       <form onSubmit={handleSubmit}>
         <Card className="space-y-4">
           {error && (
@@ -130,9 +140,11 @@ export default function CreateMahalluLedgerItem() {
             <Input
               label="Amount *"
               type="number"
+              inputMode="decimal"
               value={form.amount}
               error={errors.amount}
-              onChange={(e) => setForm((f) => ({ ...f, amount: Number(e.target.value) }))}
+              onChange={(e) => setForm((f) => ({ ...f, amount: sanitizeAmountInput(e.target.value) }))}
+              placeholder="0.00"
               required
             />
             <div className="md:col-span-2">
@@ -172,7 +184,7 @@ export default function CreateMahalluLedgerItem() {
             </Button>
             <Button
               type="submit"
-              disabled={saving || !form.ledgerId || !form.description.trim() || form.amount <= 0}
+              disabled={saving || !form.ledgerId || !form.description.trim() || Number(form.amount) <= 0}
             >
               <FiSave className="h-4 w-4 mr-2" />
               {saving ? 'Saving...' : 'Add Entry'}
@@ -180,6 +192,7 @@ export default function CreateMahalluLedgerItem() {
           </div>
         </Card>
       </form>
+      )}
     </div>
   );
 }

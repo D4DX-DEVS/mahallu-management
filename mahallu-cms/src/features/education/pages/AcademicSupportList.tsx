@@ -1,12 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
+import { FiEye, FiTrash2 } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import Button from '@/components/ui/Button';
 import ExpandableSearch from '@/components/ui/ExpandableSearch';
 import Card from '@/components/ui/Card';
+import Table from '@/components/ui/Table';
+import ActionsMenu from '@/components/ui/ActionsMenu';
 import Pagination from '@/components/ui/Pagination';
-import { PageSkeleton } from '@/components/ui/Skeleton';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
-import EmptyState from '@/components/ui/EmptyState';
 import { toast } from '@/store/toastStore';
 import {
   scholarshipService,
@@ -20,8 +21,7 @@ import {
 import { errorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
-import SortableTh from '@/components/ui/SortableTh';
-import { useSortableRows } from '@/hooks/useSortableRows';
+import { TableColumn } from '@/types';
 
 export default function AcademicSupportList() {
   const navigate = useNavigate();
@@ -35,17 +35,67 @@ export default function AcademicSupportList() {
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  /* Student, Type and Status render a looked-up label, so they sort on that
-     label rather than on the id or enum behind it. */
-  const {
-    rows: sortedCases,
-    sort,
-    toggleSort,
-  } = useSortableRows(cases, null, {
-    student: (row) => memberName(row.memberId),
-    type: (row) => supportCaseTypeLabel(row.type),
-    status: (row) => supportCaseStatusLabel(row.status),
-  });
+  const columns: TableColumn<AcademicSupportCase>[] = [
+    {
+      key: 'student',
+      label: 'Student',
+      render: (_v, c) => toTitleCase(memberName(c.memberId)),
+    },
+    {
+      key: 'type',
+      label: 'Type',
+      priority: 'secondary',
+      render: (_v, c) => supportCaseTypeLabel(c.type),
+    },
+    {
+      key: 'description',
+      label: 'Description',
+      priority: 'tertiary',
+      render: (_v, c) => (
+        <button onClick={() => navigate(`/education/support/${c.id}`)} className="text-primary hover:underline">
+          {c.description}
+        </button>
+      ),
+    },
+    {
+      key: 'mentorName',
+      label: 'Mentor',
+      priority: 'tertiary',
+      render: (_v, c) => (c.mentorName ? toTitleCase(c.mentorName) : '—'),
+    },
+    {
+      key: 'status',
+      label: 'Status',
+      sortable: true,
+      render: (_v, c) => (
+        <span className="rounded bg-muted px-2 py-1 text-xs">{supportCaseStatusLabel(c.status)}</span>
+      ),
+    },
+    {
+      key: 'actions',
+      label: 'Actions',
+      align: 'right',
+      sortable: false,
+      render: (_v, c) => (
+        <ActionsMenu
+          label={'Actions for ' + toTitleCase(memberName(c.memberId))}
+          items={[
+            {
+              label: 'View',
+              icon: <FiEye className="h-4 w-4" />,
+              onClick: () => navigate(`/education/support/${c.id}`),
+            },
+            {
+              label: 'Delete',
+              icon: <FiTrash2 className="h-4 w-4" />,
+              onClick: () => setDeleteConfirm({ id: c.id, name: memberName(c.memberId) }),
+              variant: 'danger' as const,
+            },
+          ]}
+        />
+      ),
+    },
+  ];
 
   const fetchCases = useCallback(async () => {
     setLoading(true);
@@ -133,118 +183,31 @@ export default function AcademicSupportList() {
             <Button onClick={() => fetchCases()}>Refresh</Button>
           </div>
 
-          {loading ? (
-            <PageSkeleton variant="section" />
-          ) : cases.length === 0 ? (
-            <EmptyState
-              title="No support cases found"
-              description={
-                search || type || status
-                  ? 'Try adjusting your search or filters'
-                  : 'Create your first support case to get started'
-              }
-              action={
-                !search && !type && !status
-                  ? { label: 'New Case', onClick: () => navigate('/education/support/create') }
-                  : undefined
-              }
-            />
-          ) : (
-            <>
-              <div className="overflow-x-auto">
-                <table className="data-table w-full text-sm">
-                  <thead>
-                    <tr className="border-b">
-                      <SortableTh sortKey="student" sort={sort} onSort={toggleSort}>
-                        Student
-                      </SortableTh>
-                      <SortableTh
-                        sortKey="type"
-                        sort={sort}
-                        onSort={toggleSort}
-                        responsiveClassName="hidden sm:table-cell"
-                      >
-                        Type
-                      </SortableTh>
-                      <SortableTh
-                        sortKey="description"
-                        sort={sort}
-                        onSort={toggleSort}
-                        responsiveClassName="hidden md:table-cell"
-                      >
-                        Description
-                      </SortableTh>
-                      <SortableTh
-                        sortKey="mentorName"
-                        sort={sort}
-                        onSort={toggleSort}
-                        responsiveClassName="hidden lg:table-cell"
-                      >
-                        Mentor
-                      </SortableTh>
-                      <SortableTh sortKey="status" sort={sort} onSort={toggleSort}>
-                        Status
-                      </SortableTh>
-                      <th className="px-3 py-2.5 text-left text-label font-semibold text-muted-foreground">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {sortedCases.map((c) => (
-                      <tr key={c.id} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
-                        <td className="py-2 font-medium">{toTitleCase(memberName(c.memberId))}</td>
-                        <td className="py-2 hidden sm:table-cell text-xs">{supportCaseTypeLabel(c.type)}</td>
-                        <td className="py-2 hidden md:table-cell text-xs">
-                          <button
-                            onClick={() => navigate(`/education/support/${c.id}`)}
-                            className="text-blue-600 hover:underline"
-                          >
-                            {c.description}
-                          </button>
-                        </td>
-                        <td className="py-2 hidden lg:table-cell text-xs">
-                          {c.mentorName ? toTitleCase(c.mentorName) : '—'}
-                        </td>
-                        <td className="py-2">
-                          <span className="text-xs px-2 py-1 rounded bg-gray-100 dark:bg-gray-800">
-                            {supportCaseStatusLabel(c.status)}
-                          </span>
-                        </td>
-                        <td className="py-2">
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => navigate(`/education/support/${c.id}`)}
-                              className="text-xs text-blue-600 hover:underline"
-                            >
-                              View
-                            </button>
-                            <button
-                              onClick={() => setDeleteConfirm({ id: c.id, name: memberName(c.memberId) })}
-                              className="text-xs text-red-600 hover:underline"
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+          <Table
+            columns={columns}
+            data={cases}
+            isLoading={loading}
+            entity="support cases"
+            emptyVariant={search || type || status ? 'no-results' : 'empty'}
+            emptyAction={
+              !search && !type && !status
+                ? { label: 'New Case', onClick: () => navigate('/education/support/create') }
+                : undefined
+            }
+            onRowClick={(c) => navigate(`/education/support/${c.id}`)}
+            rowKey={(c) => c.id}
+          />
 
-              {pagination && (
-                <div className="mt-4">
-                  <Pagination
-                    currentPage={pagination.page}
-                    totalPages={pagination.totalPages}
-                    totalItems={pagination.total}
-                    itemsPerPage={10}
-                    onPageChange={setCurrentPage}
-                  />
-                </div>
-              )}
-            </>
+          {!loading && pagination && cases.length > 0 && (
+            <div className="mt-4">
+              <Pagination
+                currentPage={pagination.page}
+                totalPages={pagination.totalPages}
+                totalItems={pagination.total}
+                itemsPerPage={10}
+                onPageChange={setCurrentPage}
+              />
+            </div>
           )}
         </div>
       </Card>

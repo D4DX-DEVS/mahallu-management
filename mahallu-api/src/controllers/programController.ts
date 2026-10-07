@@ -1,7 +1,8 @@
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import Institute from '../models/Institute';
 import { AuthRequest } from '../middleware/authMiddleware';
 import { getPaginationParams, createPaginationResponse } from '../utils/pagination';
+import { verifyTenantOwnership } from '../utils/tenantCheck';
 
 import { sendFailure } from '../utils/userMessages';
 import { regexLiteral } from '../utils/queryGuard';
@@ -40,12 +41,17 @@ export const getAllPrograms = async (req: AuthRequest, res: Response) => {
   }
 };
 
-export const getProgramById = async (req: Request, res: Response) => {
+export const getProgramById = async (req: AuthRequest, res: Response) => {
   try {
     const program = await Institute.findOne({ _id: req.params.id, type: 'program' });
     if (!program) {
       return res.status(404).json({ success: false, message: "We couldn't find that program. It may have been removed." });
     }
+
+    if (!verifyTenantOwnership(req, res, program.tenantId, 'Program')) {
+      return;
+    }
+
     res.json({ success: true, data: program });
   } catch (error: any) {
     sendFailure(res, error, 'We couldn\'t load the program right now. Please try again.');
@@ -75,8 +81,17 @@ export const createProgram = async (req: AuthRequest, res: Response) => {
   }
 };
 
-export const updateProgram = async (req: Request, res: Response) => {
+export const updateProgram = async (req: AuthRequest, res: Response) => {
   try {
+    const existingProgram = await Institute.findOne({ _id: req.params.id, type: 'program' });
+    if (!existingProgram) {
+      return res.status(404).json({ success: false, message: "We couldn't find that program. It may have been removed." });
+    }
+
+    if (!verifyTenantOwnership(req, res, existingProgram.tenantId, 'Program')) {
+      return;
+    }
+
     const program = await Institute.findOneAndUpdate(
       { _id: req.params.id, type: 'program' },
       { ...req.body, type: 'program' },
@@ -91,8 +106,17 @@ export const updateProgram = async (req: Request, res: Response) => {
   }
 };
 
-export const deleteProgram = async (req: Request, res: Response) => {
+export const deleteProgram = async (req: AuthRequest, res: Response) => {
   try {
+    const existingProgram = await Institute.findOne({ _id: req.params.id, type: 'program' });
+    if (!existingProgram) {
+      return res.status(404).json({ success: false, message: "We couldn't find that program. It may have been removed." });
+    }
+
+    if (!verifyTenantOwnership(req, res, existingProgram.tenantId, 'Program')) {
+      return;
+    }
+
     const program = await Institute.findOneAndDelete({ _id: req.params.id, type: 'program' });
     if (!program) {
       return res.status(404).json({ success: false, message: "We couldn't find that program. It may have been removed." });

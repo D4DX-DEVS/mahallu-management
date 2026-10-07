@@ -109,7 +109,8 @@ export default function ApplicationDetail() {
     try {
       setSaving(true);
       const payload: Record<string, any> = { status: target, note };
-      if (target === 'approved') payload.approvedAmount = Number(approvedAmount || 0);
+      // An empty field is omitted (the server then approves the requested amount); 0 is not a valid amount.
+      if (target === 'approved' && approvedAmount.trim() !== '') payload.approvedAmount = Number(approvedAmount);
       if (target === 'disbursed') payload.disbursedVia = disbursedVia;
       if (target === 'verified') payload.verificationNotes = note;
       const updated = await welfareService.updateStatus(id, payload);

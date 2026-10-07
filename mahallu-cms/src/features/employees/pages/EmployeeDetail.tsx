@@ -67,13 +67,11 @@ export default function EmployeeDetail() {
 
   return (
     <div className="space-y-4">
-      <div className="flex gap-2 items-center justify-between">
-        <div className="flex items-center gap-4">
-          <PageHeader
-            title={toTitleCase(employee.name)}
-            breadcrumbs={[{ label: 'Employees', path: ROUTES.EMPLOYEES.LIST }]}
-          />
-          <div className="flex gap-2 items-center">
+      <PageHeader
+        title={toTitleCase(employee.name)}
+        breadcrumbs={[{ label: 'Employees', path: ROUTES.EMPLOYEES.LIST }]}
+        actions={
+          <>
             <Link to={ROUTES.EMPLOYEES.LIST}>
               <Button variant="outline" icon={<FiArrowLeft />} collapseLabel>Back</Button>
             </Link>
@@ -82,13 +80,15 @@ export default function EmployeeDetail() {
               <Button icon={<FiEdit2 />} collapseLabel>Edit</Button>
             </Link>
             <Button variant="danger" onClick={() => setShowDeleteModal(true)} icon={<FiTrash2 />} collapseLabel>Delete</Button>
-          </div>
-        </div>
-      </div>
+          </>
+        }
+      />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card>
-          <h2 className="text-lg font-semibold mb-3 text-foreground">Basic Information</h2>
+          {/* No heading here — plain employment-record fields, distinct enough
+              from the Contact & Financial card beside them (salary, bank
+              details) without needing one of their own. */}
           <div className="space-y-4">
             <div>
               <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Name</label>

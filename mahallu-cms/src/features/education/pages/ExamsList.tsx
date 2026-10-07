@@ -14,6 +14,7 @@ import { formatDate, toTitleCase } from '@/utils/format';
 import { examService, Exam, ExamStatus } from '@/services/attendanceService';
 import { madrasaService } from '@/services/madrasaService';
 import PageHeader from '@/components/layout/PageHeader';
+import StatusBadge from '@/components/ui/StatusBadge';
 
 const STATUS_OPTIONS = [
   { value: '', label: 'All status' },
@@ -76,16 +77,7 @@ export default function ExamsList() {
       key: 'status',
       label: 'Status',
       width: '7.25rem',
-      render: (v: ExamStatus) => {
-        const colors: Record<ExamStatus, string> = {
-          scheduled: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
-          completed: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
-          cancelled: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
-        };
-        return (
-          <span className={`inline-block rounded px-2 py-1 text-xs font-medium ${colors[v] || ''}`}>{v}</span>
-        );
-      },
+      render: (v: ExamStatus) => <StatusBadge status={v} />,
     },
   ];
 

@@ -13,15 +13,17 @@ import { ROUTES } from '@/constants/routes';
 import { employeeService } from '@/services/employeeService';
 import { instituteService } from '@/services/instituteService';
 import { useAuthStore } from '@/store/authStore';
+import { toast } from '@/store/toastStore';
 import { errorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
+import { optionalPhoneSchema, sanitizeDigits } from '@/utils/validation';
 
 const employeeSchema = z.object({
   instituteId: z.string().max(200, 'Please keep the institute to 200 characters or less.').min(1, 'Institute is required'),
   name: z.string().max(200, 'Please keep the name to 200 characters or less.').min(1, 'Name is required'),
   nameMl: z.string().max(200, 'Please keep the name to 200 characters or less.').optional(),
-  phone: z.string().max(200, 'Please keep the phone to 200 characters or less.').optional(),
+  phone: optionalPhoneSchema,
   email: z.string().max(254, 'Please keep the email to 254 characters or less.').email('Invalid email').optional().or(z.literal('')),
   designation: z.string().max(200, 'Please keep the designation to 200 characters or less.').min(1, 'Designation is required'),
   designationMl: z.string().max(200, 'Please keep the designation to 200 characters or less.').optional(),
@@ -29,10 +31,14 @@ const employeeSchema = z.object({
   joinDate: z.string().max(200, 'Please keep the join date to 200 characters or less.').min(1, 'Join Date is required'),
   salary: z.string().max(200, 'Please keep the salary to 200 characters or less.').optional(),
   qualifications: z.string().max(200, 'Please keep the qualifications to 200 characters or less.').optional(),
-  // An account number keeps its leading zeros, so it stays text.
-  'bankAccount.accountNumber': z.string().max(34, 'Please enter a shorter account number.').optional(),
-  'bankAccount.bankName': z.string().max(200, 'Please keep the bank name to 200 characters or less.').optional(),
-  'bankAccount.ifscCode': z.string().max(11, 'Please enter a valid IFSC code.').optional(),
+  bankAccount: z
+    .object({
+      // An account number keeps its leading zeros, so it stays text.
+      accountNumber: z.string().max(34, 'Please enter a shorter account number.').optional(),
+      bankName: z.string().max(200, 'Please keep the bank name to 200 characters or less.').optional(),
+      ifscCode: z.string().max(11, 'Please enter a valid IFSC code.').optional(),
+    })
+    .optional(),
   status: z.enum(['active', 'on_leave', 'resigned', 'terminated']).optional(),
 });
 
@@ -93,18 +99,21 @@ export default function CreateEmployee() {
         status: data.status || 'active',
       };
 
-      if (data['bankAccount.accountNumber'] || data['bankAccount.bankName']) {
+      if (data.bankAccount?.accountNumber || data.bankAccount?.bankName) {
         employeeData.bankAccount = {
-          accountNumber: data['bankAccount.accountNumber'],
-          bankName: data['bankAccount.bankName'],
-          ifscCode: data['bankAccount.ifscCode'],
+          accountNumber: data.bankAccount.accountNumber,
+          bankName: data.bankAccount.bankName,
+          ifscCode: data.bankAccount.ifscCode,
         };
       }
 
       await employeeService.create(employeeData);
+      toast.success('Employee created');
       navigate(ROUTES.EMPLOYEES.LIST);
     } catch (err: any) {
-      setError(errorMessage(err, { action: 'create employee. please try again' }));
+      const message = errorMessage(err, { action: 'create employee. please try again' });
+      setError(message);
+      toast.error(message);
     }
   };
 
@@ -175,7 +184,16 @@ export default function CreateEmployee() {
               />
             </div>
             <Input label="Department" {...register('department')} placeholder="e.g. Education, Admin" />
-            <Input label="Phone" type="tel" {...register('phone')} placeholder="Phone Number" />
+            <Input
+              label="Phone"
+              type="tel"
+              inputMode="numeric"
+              maxLength={10}
+              {...register('phone')}
+              onChange={(e) => setValue('phone', sanitizeDigits(e.target.value, 10), { shouldValidate: true, shouldDirty: true })}
+              placeholder="Phone Number"
+              error={errors.phone?.message}
+            />
             <Input
               label="Email"
               type="email"

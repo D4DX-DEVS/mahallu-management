@@ -2,9 +2,10 @@ import { useState, useEffect } from 'react';
 import { FiUsers, FiBook, FiPercent, FiFileText, FiGift } from 'react-icons/fi';
 import Card from '@/components/ui/Card';
 import StatCard from '@/components/ui/StatCard';
+import Alert from '@/components/ui/Alert';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import { reportService } from '@/services/reportService';
-import { loadErrorMessage } from '@/utils/errors';
+import { loadErrorInfo, LoadErrorInfo } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 
 interface EducationData {
@@ -12,36 +13,41 @@ interface EducationData {
   activeClassesCount: number;
   attendancePercentThisMonth: number;
   examsCount: number;
+  /** null for institute accounts: scholarships and support cases are Mahallu-level programmes. */
   scholarships: {
     activeScholarships: number;
     totalAwardedAmount: number;
     totalAwards: number;
     awardsByStatus: Record<string, number>;
-  };
+  } | null;
   supportCases: {
     total: number;
     byType: Record<string, number>;
     byStatus: Record<string, number>;
-  };
+  } | null;
+  scopeNote?: string;
 }
 
 export default function EducationReport() {
   const [data, setData] = useState<EducationData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setError] = useState<LoadErrorInfo | null>(null);
+
+  const fetchReport = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await reportService.getEducationReport();
+      setData(response);
+    } catch (err: any) {
+      setError(loadErrorInfo(err, 'report'));
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetch = async () => {
-      try {
-        const response = await reportService.getEducationReport();
-        setData(response);
-      } catch (err: any) {
-        setError(loadErrorMessage(err, 'report'));
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetch();
+    fetchReport();
   }, []);
 
   if (loading) {
@@ -49,7 +55,18 @@ export default function EducationReport() {
   }
 
   if (error || !data) {
-    return <div className="text-center py-8 text-red-600">{error || "Couldn't load report"}</div>;
+    return (
+      <div className="space-y-4">
+        <PageHeader title="Education Report" />
+        <Alert
+          variant={error?.variant ?? 'error'}
+          title={error?.title ?? "Couldn't load report"}
+          action={error?.variant === 'info' ? undefined : { label: 'Try again', onClick: fetchReport }}
+        >
+          {error?.message ?? 'No report data'}
+        </Alert>
+      </div>
+    );
   }
 
   return (
@@ -63,10 +80,19 @@ export default function EducationReport() {
         <StatCard title="Exams" value={data.examsCount} icon={<FiFileText />} />
       </div>
 
+      {data.scopeNote && (
+        <Alert variant="info" title="Your institute">
+          {data.scopeNote}
+        </Alert>
+      )}
+
       {/* Scholarships Section */}
       <Card>
         <div>
           <h2 className="text-lg font-semibold mb-3">Scholarships & Awards</h2>
+          {!data.scholarships ? (
+            <p className="text-sm text-muted-foreground">Not available for institute accounts.</p>
+          ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <StatCard
               title="Active Scholarships"
@@ -93,6 +119,7 @@ export default function EducationReport() {
               </div>
             )}
           </div>
+          )}
         </div>
       </Card>
 
@@ -100,6 +127,9 @@ export default function EducationReport() {
       <Card>
         <div>
           <h2 className="text-lg font-semibold mb-3">Academic Support Cases</h2>
+          {!data.supportCases ? (
+            <p className="text-sm text-muted-foreground">Not available for institute accounts.</p>
+          ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* By Type */}
             <div>
@@ -133,6 +163,7 @@ export default function EducationReport() {
               </div>
             </div>
           </div>
+          )}
         </div>
       </Card>
     </div>

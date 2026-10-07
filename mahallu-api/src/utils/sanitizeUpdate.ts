@@ -12,6 +12,8 @@ const IMMUTABLE_FIELDS = ['tenantId', '_id', 'id', 'createdAt', 'updatedAt', '__
 export const stripImmutable = <T extends Record<string, any>>(body: T): Partial<T> => {
   const clean: Record<string, any> = { ...body };
   IMMUTABLE_FIELDS.forEach((field) => delete clean[field]);
+  // Defence in depth behind sanitizeRequest: an operator ('$inc') or a path ('balance.x') is never a field.
+  for (const key of Object.keys(clean)) if (key.startsWith('$') || key.includes('.')) delete clean[key];
   return clean as Partial<T>;
 };
 

@@ -7,7 +7,7 @@ import { PageSkeleton } from '@/components/ui/Skeleton';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { toast } from '@/store/toastStore';
 import { announcementService, Announcement } from '@/services/announcementService';
-import { errorMessage } from '@/utils/errors';
+import { errorMessage, safeApiMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 
 const formatDate = (value?: string) => (value ? new Date(value).toLocaleString() : '-');
@@ -39,8 +39,17 @@ export default function AnnouncementDetail() {
       toast.success('Announcement sent');
       setConfirmSend(false);
     } catch (err: any) {
-      toast.error(errorMessage(err, { action: 'send announcement' }));
+      // 409 (already sent / being sent) and 422 (nothing could be delivered, still a draft) carry copy
+      // written for the person, longer than the generic limit: show it as sent.
+      const status = err?.response?.status;
+      toast.error(
+        status === 409 || status === 422
+          ? safeApiMessage(err, errorMessage(err, { action: 'send announcement' }), 400)
+          : errorMessage(err, { action: 'send announcement' })
+      );
       setConfirmSend(false);
+      // A failed or partial send records per-channel results on the draft: show them.
+      announcementService.getById(id).then(setAnnouncement).catch(() => undefined);
     } finally {
       setSending(false);
     }

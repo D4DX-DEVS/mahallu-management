@@ -1,4 +1,6 @@
 import { body, param, query } from 'express-validator';
+import { EMAIL_KEEP_AS_TYPED } from './common';
+import { sanitizeRichText } from '../utils/htmlSanitizer';
 
 /**
  * Rules for `/api/member-user/*` — the twenty endpoints the member portal and
@@ -49,6 +51,18 @@ const optionalText = (field: string, label: string, max = 500) =>
   body(field)
     .optional({ values: 'falsy' })
     .trim()
+    .isLength({ max })
+    .withMessage(`Please keep the ${label} to ${max} characters or less.`);
+
+/**
+ * Free text that the CMS renders as HTML (NOC purpose / description). Sanitized
+ * before the length check so only allow-listed markup is ever stored.
+ */
+const optionalRichText = (field: string, label: string, max = 500) =>
+  body(field)
+    .optional({ values: 'falsy' })
+    .trim()
+    .customSanitizer(sanitizeRichText)
     .isLength({ max })
     .withMessage(`Please keep the ${label} to ${max} characters or less.`);
 
@@ -112,6 +126,14 @@ export const registrationsQueryValidation = [
     .withMessage('Please choose a valid registration type.'),
 ];
 
+/** `?type=` on the member certificate list: the registration type the certificate was issued for. */
+export const certificatesQueryValidation = registrationsQueryValidation;
+
+/** `:id` on the member certificate download. */
+export const ownCertificateParamValidation = [
+  param('id').isMongoId().withMessage("We couldn't find that certificate. It may have been removed."),
+];
+
 /**
  * The two fields a member may change on their own record. The controller
  * allowlists them; these decide whether the values are usable.
@@ -130,7 +152,7 @@ export const updateOwnProfileValidation = [
     .bail()
     .isEmail()
     .withMessage('Please enter a valid email address.')
-    .normalizeEmail({ gmail_remove_dots: false }),
+    .normalizeEmail(EMAIL_KEEP_AS_TYPED),
 ];
 
 const paymentBase = [
@@ -225,10 +247,10 @@ export const nocRequestValidation = [
     .bail()
     .isIn(['common', 'nikah'])
     .withMessage('Please choose a valid certificate type.'),
-  optionalText('purpose', 'purpose', 300),
+  optionalRichText('purpose', 'purpose', 300),
   optionalText('purposeTitle', 'purpose', 150),
   optionalText('purposeTitleMl', 'purpose', 150),
-  optionalText('purposeDescription', 'description', 1000),
+  optionalRichText('purposeDescription', 'description', 1000),
   optionalText('remarks', 'remarks', 300),
   // Only read when type is 'nikah'; validated whenever present so a stray value
   // cannot be stored on a common NOC either.
@@ -305,8 +327,8 @@ export const resubmitRegistrationValidation = [
   optionalPhone('informantPhone', 'phone number for the informant'),
   optionalText('purposeTitle', 'purpose', 150),
   optionalText('purposeTitleMl', 'purpose', 150),
-  optionalText('purposeDescription', 'description', 1000),
-  optionalText('purpose', 'purpose', 300),
+  optionalRichText('purposeDescription', 'description', 1000),
+  optionalRichText('purpose', 'purpose', 300),
   optionalPhone('applicantPhone', 'phone number'),
   documentIds,
 ];

@@ -5,6 +5,7 @@ import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
+import Alert from '@/components/ui/Alert';
 import { ROUTES } from '@/constants/routes';
 import { masterAccountService } from '@/services/masterAccountService';
 import { useAuthStore } from '@/store/authStore';
@@ -12,12 +13,18 @@ import { getTenantId } from '@/utils/tenantHelper';
 import { errorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { useFormValidation } from '@/hooks/useFormValidation';
-import { FieldRule, LIMITS } from '@/utils/validation';
+import {
+  FieldRule,
+  LIMITS,
+  accountNumberMessage,
+  digitsOnlyInputProps,
+  sanitizeAmountInput,
+} from '@/utils/validation';
 
 /** An account number keeps its leading zeros, so it is text, not a number. */
 const RULES: Record<string, FieldRule> = {
   accountName: { label: 'account name', required: true, minLength: 2, maxLength: LIMITS.title.max },
-  accountNumber: { label: 'account number', maxLength: 34 },
+  accountNumber: { label: 'account number', type: 'digits', maxLength: 34 },
   bankName: { label: 'bank name', maxLength: LIMITS.title.max },
   ifscCode: { label: 'IFSC code', maxLength: 11 },
   balance: { label: 'opening balance', type: 'number', min: 0, max: LIMITS.amount.max },
@@ -28,16 +35,19 @@ const emptyForm = {
   accountNumber: '',
   bankName: '',
   ifscCode: '',
-  balance: 0,
+  balance: '',
   status: 'active' as 'active' | 'inactive',
 };
 
 export default function CreateMahalluAccount() {
   const navigate = useNavigate();
-  const { currentTenantId, user } = useAuthStore();
+  const { currentTenantId, user, isSuperAdmin } = useAuthStore();
   const tenantId = getTenantId(user, currentTenantId);
+  /* A super admin with no Mahallu picked in the tenant switcher has no
+   * tenantId, known locally before they ever fill in the form. */
+  const needsTenantSelection = isSuperAdmin && !tenantId;
   const [form, setForm] = useState(emptyForm);
-  const { errors, validate } = useFormValidation(RULES);
+  const { errors, validate, validateField, setErrors } = useFormValidation(RULES);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -50,7 +60,11 @@ export default function CreateMahalluAccount() {
     try {
       setSaving(true);
       setError(null);
-      await masterAccountService.createMahalluAccount({ ...form, ...(tenantId ? { tenantId } : {}) });
+      await masterAccountService.createMahalluAccount({
+        ...form,
+        balance: Number(form.balance) || 0,
+        ...(tenantId ? { tenantId } : {}),
+      });
       navigate(ROUTES.MAHALLU_FINANCE.ACCOUNTS);
     } catch (err: any) {
       setError(errorMessage(err, { action: 'create account. please try again' }));
@@ -70,6 +84,13 @@ export default function CreateMahalluAccount() {
         ]}
       />
 
+      {needsTenantSelection ? (
+        <Card className="space-y-4">
+          <Alert variant="info" title="Select a Mahallu first">
+            Please select a Mahallu from the top menu before adding a new account.
+          </Alert>
+        </Card>
+      ) : (
       <form onSubmit={handleSubmit}>
         <Card className="space-y-4">
           {error && (
@@ -91,9 +112,14 @@ export default function CreateMahalluAccount() {
               label="Account Number"
               value={form.accountNumber}
               error={errors.accountNumber}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, accountNumber: e.target.value.replace(/[^0-9]/g, '') }))
-              }
+              {...digitsOnlyInputProps(() =>
+                setErrors((current) => ({ ...current, accountNumber: accountNumberMessage() }))
+              )}
+              onChange={(e) => {
+                const accountNumber = e.target.value;
+                setForm((f) => ({ ...f, accountNumber }));
+                validateField('accountNumber', { ...form, accountNumber });
+              }}
               placeholder="e.g. 1234567890"
             />
             <Input
@@ -121,9 +147,11 @@ export default function CreateMahalluAccount() {
             <Input
               label="Opening Balance"
               type="number"
+              inputMode="decimal"
               value={form.balance}
               error={errors.balance}
-              onChange={(e) => setForm((f) => ({ ...f, balance: Number(e.target.value) }))}
+              onChange={(e) => setForm((f) => ({ ...f, balance: sanitizeAmountInput(e.target.value) }))}
+              placeholder="0.00"
             />
             <Select
               label="Status"
@@ -152,6 +180,7 @@ export default function CreateMahalluAccount() {
           </div>
         </Card>
       </form>
+      )}
     </div>
   );
 }

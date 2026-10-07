@@ -12,6 +12,7 @@ import { formatDate, toTitleCase } from '@/utils/format';
 import ProgramRegistrations from '../components/ProgramRegistrations';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import StatusBadge from '@/components/ui/StatusBadge';
 
 export default function ProgramDetail() {
   const { id } = useParams<{ id: string }>();
@@ -91,83 +92,70 @@ export default function ProgramDetail() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card>
-          <h2 className="text-lg font-semibold mb-3 text-foreground">Basic Information</h2>
-          <div className="space-y-4">
+      {/* One field list rather than two headed halves — identity and contact
+          fields are all the same program record, not distinct categories. */}
+      <Card>
+        <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
+          <div>
+            <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Name</label>
+            <p className="mt-1 text-gray-900 dark:text-gray-100">{toTitleCase(program.name)}</p>
+          </div>
+          {program.nameMl && (
             <div>
-              <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Name</label>
-              <p className="mt-1 text-gray-900 dark:text-gray-100">{toTitleCase(program.name)}</p>
+              <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Name (Malayalam)</label>
+              <p className="mt-1 text-gray-900 dark:text-gray-100 font-malayalam">{program.nameMl}</p>
             </div>
-            {program.nameMl && (
-              <div>
-                <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Name (Malayalam)</label>
-                <p className="mt-1 text-gray-900 dark:text-gray-100 font-malayalam">{program.nameMl}</p>
-              </div>
-            )}
+          )}
+          <div>
+            <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Place</label>
+            <p className="mt-1 text-gray-900 dark:text-gray-100">{toTitleCase(program.place)}</p>
+          </div>
+          {program.placeMl && (
             <div>
-              <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Place</label>
-              <p className="mt-1 text-gray-900 dark:text-gray-100">{toTitleCase(program.place)}</p>
+              <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Place (Malayalam)</label>
+              <p className="mt-1 text-gray-900 dark:text-gray-100 font-malayalam">{program.placeMl}</p>
             </div>
-            {program.placeMl && (
-              <div>
-                <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Place (Malayalam)</label>
-                <p className="mt-1 text-gray-900 dark:text-gray-100 font-malayalam">{program.placeMl}</p>
-              </div>
-            )}
+          )}
+          <div>
+            <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Join Date</label>
+            <p className="mt-1 text-gray-900 dark:text-gray-100">{formatDate(program.joinDate)}</p>
+          </div>
+          <div>
+            <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Status</label>
+            <p className="mt-1">
+              <StatusBadge status={program.status || 'active'} />
+            </p>
+          </div>
+          {program.contactNo && (
             <div>
-              <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Join Date</label>
-              <p className="mt-1 text-gray-900 dark:text-gray-100">{formatDate(program.joinDate)}</p>
+              <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Contact No.</label>
+              <p className="mt-1 text-gray-900 dark:text-gray-100">{program.contactNo}</p>
             </div>
-            {program.audience && (
-              <div>
-                <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Audience</label>
-                <p className="mt-1 text-gray-900 dark:text-gray-100 capitalize">{program.audience}</p>
-              </div>
-            )}
-            {program.programType && (
-              <div>
-                <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Program Type</label>
-                <p className="mt-1 text-gray-900 dark:text-gray-100 capitalize">
-                  {program.programType.replace(/_/g, ' ')}
-                </p>
-              </div>
-            )}
+          )}
+          {program.audience && (
             <div>
-              <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Status</label>
-              <p className="mt-1">
-                <span
-                  className={`px-2 py-1 text-xs font-medium rounded-full ${
-                    program.status === 'active'
-                      ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                      : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
-                  }`}
-                >
-                  {program.status || 'active'}
-                </span>
+              <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Audience</label>
+              <p className="mt-1 text-gray-900 dark:text-gray-100 capitalize">{program.audience}</p>
+            </div>
+          )}
+          {program.programType && (
+            <div>
+              <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Program Type</label>
+              <p className="mt-1 text-gray-900 dark:text-gray-100 capitalize">
+                {program.programType.replace(/_/g, ' ')}
               </p>
             </div>
-          </div>
-        </Card>
+          )}
+          {program.email && (
+            <div>
+              <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Email</label>
+              <p className="mt-1 text-gray-900 dark:text-gray-100">{program.email}</p>
+            </div>
+          )}
+        </div>
+      </Card>
 
-        <Card>
-          <h2 className="text-lg font-semibold mb-3 text-foreground">Contact Information</h2>
-          <div className="space-y-4">
-            {program.contactNo && (
-              <div>
-                <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Contact No.</label>
-                <p className="mt-1 text-gray-900 dark:text-gray-100">{program.contactNo}</p>
-              </div>
-            )}
-            {program.email && (
-              <div>
-                <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Email</label>
-                <p className="mt-1 text-gray-900 dark:text-gray-100">{program.email}</p>
-              </div>
-            )}
-          </div>
-        </Card>
-
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {(program.address?.state ||
           program.address?.district ||
           program.address?.pinCode ||

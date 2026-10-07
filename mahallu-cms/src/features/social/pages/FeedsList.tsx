@@ -7,6 +7,7 @@ import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
+import EmptyState from '@/components/ui/EmptyState';
 import Pagination from '@/components/ui/Pagination';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import TableToolbar from '@/components/ui/TableToolbar';
@@ -21,6 +22,8 @@ import { toast } from '@/store/toastStore';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import StatusBadge from '@/components/ui/StatusBadge';
 import PageHeader from '@/components/layout/PageHeader';
+import { useServerCounts } from '@/hooks/useServerCounts';
+import { logError } from '@/utils/safeLog';
 
 export default function FeedsList() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -60,7 +63,7 @@ export default function FeedsList() {
       }
     } catch (err: any) {
       setError(loadErrorMessage(err, 'feeds'));
-      console.error('Error fetching feeds:', err);
+      logError('Error fetching feeds', err);
       setFeeds([]);
     } finally {
       setLoading(false);
@@ -98,11 +101,11 @@ export default function FeedsList() {
           exportToJSON(columns, dataToExport, filename);
           break;
         case 'pdf':
-          exportToPDF(columns, dataToExport, filename, title);
+          await exportToPDF(columns, dataToExport, filename, title);
           break;
       }
     } catch (error: any) {
-      console.error('Export error:', error);
+      logError('Export error', error);
       toast.error(errorMessage(error, { action: 'export data' }));
     } finally {
       setIsExporting(false);
@@ -137,11 +140,20 @@ export default function FeedsList() {
     },
   ];
 
+  // Whole-list counts from the server: these cards used to count only the rows on this page.
+  const countBase: { isSuperFeed?: boolean } = {};
+  if (typeFilter === 'super') countBase.isSuperFeed = true;
+  else if (typeFilter === 'regular') countBase.isSuperFeed = false;
+  const statusCounts = useServerCounts(
+    { published: () => socialService.getAllFeeds({ ...countBase, status: 'published', page: 1, limit: 1 }) },
+    [feeds]
+  );
+
   const stats = [
-    { title: 'Total Feeds', value: feeds.length, icon: <FiRss className="h-5 w-5" /> },
+    { title: 'Total Feeds', value: pagination?.total ?? feeds.length, icon: <FiRss className="h-5 w-5" /> },
     {
       title: 'Published',
-      value: feeds.filter((f) => f.status === 'published').length,
+      value: statusCounts.published ?? feeds.filter((f) => f.status === 'published').length,
       icon: <FiCheckCircle className="h-5 w-5" />,
     },
   ];
@@ -197,12 +209,12 @@ export default function FeedsList() {
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="text-center py-10">
-            <p className="text-red-600 dark:text-red-400">{error}</p>
-            <Button onClick={fetchFeeds} className="mt-4" variant="outline">
-              Retry
-            </Button>
-          </div>
+          <EmptyState
+            variant="error"
+            entity="feeds"
+            description={error}
+            action={{ label: 'Retry', onClick: fetchFeeds }}
+          />
         ) : (
           <>
             <Table

@@ -6,13 +6,20 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
+import EmptyState from '@/components/ui/EmptyState';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
 import Modal from '@/components/ui/Modal';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { TableColumn, Pagination as PaginationType } from '@/types';
-import { collectibleService, Varisangya } from '@/services/collectibleService';
+import {
+  collectibleService,
+  Varisangya,
+  CollectionSummary,
+  EMPTY_COLLECTION_SUMMARY,
+  summarizeCollectionRows,
+} from '@/services/collectibleService';
 import { fetchAllPages } from '@/services/api';
 import { buildVarisangyaColumns, getPayerName, getFamilyName } from '../varisangyaColumns';
 import { filterByDateRange } from '../varisangyaFilters';
@@ -22,8 +29,9 @@ import { exportInvoicesToPdf, downloadInvoicePdf, InvoiceDetails } from '@/utils
 import { familyService } from '@/services/familyService';
 import { memberService } from '@/services/memberService';
 import { toast } from '@/store/toastStore';
-import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import { errorMessage, isConflict, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { logError } from '@/utils/safeLog';
 
 export default function VarisangyaList() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -37,6 +45,8 @@ export default function VarisangyaList() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
+  /* Totals for the whole filtered set (every page), from the server. */
+  const [summary, setSummary] = useState<CollectionSummary>(EMPTY_COLLECTION_SUMMARY);
   const [isExporting, setIsExporting] = useState(false);
   const [editingRow, setEditingRow] = useState<Varisangya | null>(null);
   const [savingEdit, setSavingEdit] = useState(false);
@@ -54,60 +64,41 @@ export default function VarisangyaList() {
     try {
       setLoading(true);
       setError(null);
-      const hasDateFilter = Boolean(dateFrom || dateTo);
       const hasFamilyFilter = familyNameFilter.trim().length > 0;
-      const hasClientFilter = hasDateFilter || hasFamilyFilter;
+      // The date range is filtered by the server, which also totals the whole range.
+      const dateParams: { dateFrom?: string; dateTo?: string } = {};
+      if (dateFrom) dateParams.dateFrom = dateFrom;
+      if (dateTo) dateParams.dateTo = dateTo;
       let data: Varisangya[];
       let total: number;
       let hasPagination: boolean;
-      if (hasClientFilter) {
-        // Client-side date/name filtering needs every matching row, not one page.
-        // The endpoint caps limit at 100 and 400s above it, so the old
-        // limit:10000 request always failed - page through instead.
-        const filterParams: Record<string, unknown> = { _t: Date.now() };
-        if (dateFrom) filterParams.dateFrom = dateFrom;
-        if (dateTo) filterParams.dateTo = dateTo;
-        data = await fetchAllPages<Varisangya>((p) =>
-          collectibleService.getAllVarisangyas({ ...filterParams, ...p })
+      if (hasFamilyFilter) {
+        // The name filter runs in the browser, so it needs every row in the date
+        // range, not one page. The endpoint caps limit at 100 - page through
+        // instead. Every row is in hand, so the totals are summed from them.
+        const all = await fetchAllPages<Varisangya>((p) =>
+          collectibleService.getAllVarisangyas({ ...dateParams, ...p })
         );
-        total = data.length;
+        const q = familyNameFilter.trim().toLowerCase();
+        const matching = all.filter((row) => getPayerName(row).toLowerCase().includes(q));
+        setSummary(summarizeCollectionRows(matching));
+        total = matching.length;
+        const start = (currentPage - 1) * itemsPerPage;
+        data = matching.slice(start, start + itemsPerPage);
         hasPagination = true;
       } else {
-        const result = await collectibleService.getAllVarisangyas({ page: currentPage, limit: itemsPerPage });
+        // Server paging: the summary covers the whole filtered set, so the cards
+        // stay right when only the page changes.
+        const result = await collectibleService.getAllVarisangyas({
+          ...dateParams,
+          page: currentPage,
+          limit: itemsPerPage,
+        });
         data = result.data ?? [];
         total = result.pagination?.total ?? data.length;
         hasPagination = Boolean(result.pagination);
+        setSummary(result.summary);
       }
-      if (hasDateFilter) data = filterByDateRange(data, dateFrom, dateTo);
-      if (hasFamilyFilter) {
-        const q = familyNameFilter.trim().toLowerCase();
-        data = data.filter((row) => getPayerName(row).toLowerCase().includes(q));
-      }
-      if (hasClientFilter) {
-        total = data.length;
-        const start = (currentPage - 1) * itemsPerPage;
-        data = data.slice(start, start + itemsPerPage);
-      }
-      console.log('[Varisangya Filter] Response:', {
-        count: data.length,
-        total,
-        firstPaymentDate: data[0]?.paymentDate,
-      });
-      console.log(
-        '[Varisangya Filter] What the UI is showing (each row):',
-        data.map((row, i) => ({
-          no: i + 1,
-          name:
-            typeof row.memberId === 'object' && row.memberId?.name
-              ? row.memberId.name
-              : typeof row.familyId === 'object' && row.familyId?.houseName
-                ? row.familyId.houseName
-                : '-',
-          amount: row.amount,
-          paymentDate: row.paymentDate,
-          receiptNo: row.receiptNo,
-        }))
-      );
       setVarisangyas(data);
       if (hasPagination) {
         setPagination({
@@ -119,7 +110,7 @@ export default function VarisangyaList() {
       }
     } catch (err: any) {
       setError(loadErrorMessage(err, 'varisangyas'));
-      console.error('Error fetching varisangyas:', err);
+      logError('Error fetching varisangyas', err);
     } finally {
       setLoading(false);
     }
@@ -254,7 +245,7 @@ export default function VarisangyaList() {
 
       await downloadInvoicePdf(invoiceDetails);
     } catch (error: any) {
-      console.error('Error generating PDF:', error);
+      logError('Error generating PDF', error);
       toast.error(error?.message || "Couldn't generate PDF");
     }
   };
@@ -299,6 +290,11 @@ export default function VarisangyaList() {
       await fetchVarisangyas();
     } catch (err: any) {
       toast.error(errorMessage(err, { action: 'verify varisangya' }));
+      if (isConflict(err)) {
+        // Already processed elsewhere: close the dialog and show the row as it is now.
+        setVerifyConfirm(null);
+        await fetchVarisangyas();
+      }
     } finally {
       setVerifying(false);
     }
@@ -326,17 +322,15 @@ export default function VarisangyaList() {
     onDelete: (row) => setDeleteConfirm(row),
   });
 
-  const totalAmount = varisangyas.reduce((sum, v) => sum + (v.amount || 0), 0);
-
   const stats = [
     {
       title: 'Total Payments',
-      value: pagination?.total || varisangyas.length,
+      value: summary.count,
       icon: <FiCreditCard className="h-5 w-5" />,
     },
     {
       title: 'Total Amount',
-      value: `₹${totalAmount.toLocaleString()}`,
+      value: `₹${summary.totalAmount.toLocaleString()}`,
       icon: <FiDollarSign className="h-5 w-5" />,
     },
   ];
@@ -461,12 +455,12 @@ export default function VarisangyaList() {
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="text-center py-10">
-            <p className="text-red-600 dark:text-red-400">{error}</p>
-            <Button onClick={fetchVarisangyas} className="mt-4" variant="outline">
-              Retry
-            </Button>
-          </div>
+          <EmptyState
+            variant="error"
+            entity="varisangya payments"
+            description={error}
+            action={{ label: 'Retry', onClick: fetchVarisangyas }}
+          />
         ) : (
           <Table
             fixedLayout

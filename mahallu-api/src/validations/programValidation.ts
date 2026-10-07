@@ -1,4 +1,5 @@
 import { body, param } from 'express-validator';
+import { EMAIL_KEEP_AS_TYPED } from './common';
 
 // Programs use the Institute model with type='program'
 export const createProgramValidation = [
@@ -31,7 +32,7 @@ export const createProgramValidation = [
     .trim()
     .isEmail()
     .withMessage('Please enter a valid email address.')
-    .normalizeEmail(),
+    .normalizeEmail(EMAIL_KEEP_AS_TYPED),
   body('address.state').optional().trim(),
   body('address.district').optional().trim(),
   body('address.pinCode').optional().trim(),
@@ -71,7 +72,7 @@ export const updateProgramValidation = [
     .trim()
     .isEmail()
     .withMessage('Please enter a valid email address.')
-    .normalizeEmail(),
+    .normalizeEmail(EMAIL_KEEP_AS_TYPED),
   body('status')
     .optional()
     .isIn(['active', 'inactive'])

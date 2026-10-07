@@ -3,6 +3,7 @@ import { FiPlus, FiCalendar, FiMapPin } from 'react-icons/fi';
 import { getMedicalCamps, deleteMedicalCamp, IMedicalCamp } from '@/services/healthService';
 import Pagination from '@/components/ui/Pagination';
 import ExpandableSearch from '@/components/ui/ExpandableSearch';
+import ActionBar from '@/components/ui/ActionBar';
 import Button from '@/components/ui/Button';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
@@ -94,12 +95,14 @@ export default function CampsList() {
         </div>
 
         <div className="mb-4 space-y-3">
-          <ExpandableSearch
-            value={search}
-            onChange={(value) => setSearch(value)}
-            entity="medical camps"
-            placeholder="Search by name"
-          />
+          <ActionBar className="mb-0">
+            <ExpandableSearch
+              value={search}
+              onChange={(value) => setSearch(value)}
+              entity="medical camps"
+              placeholder="Search by name"
+            />
+          </ActionBar>
           <div className="flex gap-2 flex-wrap">
             {['', 'planned', 'completed', 'cancelled'].map((status) => (
               <button

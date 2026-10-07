@@ -76,6 +76,10 @@ export const computeFamilyDues = async (tenantId: string | mongoose.Types.Object
         $match: {
           tenantId: new mongoose.Types.ObjectId(String(tenantId)),
           familyId: { $ne: null },
+          // Only RECEIVED money reduces dues. A pending member submission is unconfirmed (no wallet,
+          // ledger or receipt yet), so it must neither hide a due nor suppress the reminder.
+          // (A payment with no status predates the field and was always received.)
+          status: { $ne: 'pending' },
           paymentDate: { $gte: yearStart },
         },
       },
@@ -207,10 +211,13 @@ const runMonthlyReminders = async (): Promise<void> => {
 };
 
 /** Hourly tick; sends monthly varisangya reminders on the configured day. */
-export const startVarisangyaReminderScheduler = (): void => {
+export const startVarisangyaReminderScheduler = (): (() => void) => {
   // ponytail: setInterval instead of a cron dep; durable ReminderLog flag prevents double sends across restarts
-  setInterval(() => {
+  const timer = setInterval(() => {
     runMonthlyReminders().catch((err) => console.error('[Reminder] scheduler error:', err?.message || err));
   }, 60 * 60 * 1000);
+  // Never keep the process alive on its own, and hand back a stop function for graceful shutdown.
+  timer.unref?.();
   console.info(`[Reminder] Varisangya reminder scheduler started (day ${REMINDER_DAY}, hour ${REMINDER_HOUR})`);
+  return () => clearInterval(timer);
 };

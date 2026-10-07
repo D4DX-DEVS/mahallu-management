@@ -13,6 +13,7 @@ import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import StatusBadge from '@/components/ui/StatusBadge';
 import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
+import { logError } from '@/utils/safeLog';
 
 export default function ActivityLogsList() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -44,7 +45,7 @@ export default function ActivityLogsList() {
       }
     } catch (err: any) {
       setError(loadErrorMessage(err, 'activity logs'));
-      console.error('Error fetching logs:', err);
+      logError('Error fetching logs', err);
       setLogs([]);
     } finally {
       setLoading(false);
@@ -75,11 +76,11 @@ export default function ActivityLogsList() {
           exportToJSON(columns, dataToExport, filename);
           break;
         case 'pdf':
-          exportToPDF(columns, dataToExport, filename, title);
+          await exportToPDF(columns, dataToExport, filename, title);
           break;
       }
     } catch (error: any) {
-      console.error('Export error:', error);
+      logError('Export error', error);
       toast.error(errorMessage(error, { action: 'export data' }));
     } finally {
       setIsExporting(false);

@@ -58,36 +58,48 @@ export default function Modal({
   const titleId = useId();
   const descId = useId();
 
-  const handleKeyDown = useCallback(
-    (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        event.stopPropagation();
-        onClose();
-        return;
-      }
-      if (event.key !== 'Tab' || !panelRef.current) return;
+  /*
+   * onClose is almost always a fresh inline arrow function from the caller, so
+   * it gets a new identity on every parent render — including every keystroke
+   * in a controlled input inside the modal. Reading it through a ref (rather
+   * than depending on it) keeps handleKeyDown's identity, and therefore the
+   * effect below, stable across those re-renders. Previously the effect's dep
+   * array included handleKeyDown, so it tore down and reran on every
+   * keystroke, which called restoreFocusRef.current?.focus() and yanked focus
+   * off the field the user was typing into.
+   */
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
-      /* Focus trap: Tab cycles inside the dialog instead of escaping behind it. */
-      const nodes = Array.from(panelRef.current.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(
-        (node) => node.offsetParent !== null
-      );
-      if (nodes.length === 0) {
-        event.preventDefault();
-        panelRef.current.focus();
-        return;
-      }
-      const first = nodes[0];
-      const last = nodes[nodes.length - 1];
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    },
-    [onClose]
-  );
+  const handleKeyDown = useCallback((event: KeyboardEvent) => {
+    if (event.key === 'Escape') {
+      event.stopPropagation();
+      onCloseRef.current();
+      return;
+    }
+    if (event.key !== 'Tab' || !panelRef.current) return;
+
+    /* Focus trap: Tab cycles inside the dialog instead of escaping behind it. */
+    const nodes = Array.from(panelRef.current.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(
+      (node) => node.offsetParent !== null
+    );
+    if (nodes.length === 0) {
+      event.preventDefault();
+      panelRef.current.focus();
+      return;
+    }
+    const first = nodes[0];
+    const last = nodes[nodes.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  }, []);
 
   useEffect(() => {
     if (!isOpen) return;

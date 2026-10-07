@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import Card from '@/components/ui/Card';
+import Alert from '@/components/ui/Alert';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import { demographicsReportService, DemographicsReport as ReportData } from '@/services/reportService';
-import { loadErrorMessage } from '@/utils/errors';
+import { loadErrorInfo, LoadErrorInfo } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 
 const Section = ({ title, data }: { title: string; data: Array<{ label: string; count: number }> }) => {
@@ -11,26 +12,42 @@ const Section = ({ title, data }: { title: string; data: Array<{ label: string; 
   // empty section, not a broken page.
   const rows = Array.isArray(data) ? data : [];
   return (
-  <Card>
-    <h2 className="text-sm font-semibold text-foreground">{title}</h2>
+  <Card padding="sm">
+    <h2 className="text-label font-semibold text-foreground">{title}</h2>
     {rows.length === 0 ? (
-      <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">No data</p>
+      <p className="mt-1.5 text-sm text-gray-500 dark:text-gray-400">No data</p>
     ) : (
-      <div className="mt-2 h-56 w-full">
+      <div className="mt-1.5 h-40 w-full sm:h-44">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={rows} margin={{ top: 4, right: 8, left: -20, bottom: 4 }}>
-            <CartesianGrid strokeDasharray="3 3" vertical={false} />
+          <BarChart data={rows} margin={{ top: 4, right: 4, left: -24, bottom: 0 }} barCategoryGap="30%">
+            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
             <XAxis
               dataKey="label"
-              tick={{ fontSize: 10 }}
+              tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+              tickLine={false}
+              axisLine={{ stroke: 'hsl(var(--border))' }}
               interval={0}
               angle={-20}
               textAnchor="end"
-              height={50}
+              height={36}
             />
-            <YAxis tick={{ fontSize: 10 }} allowDecimals={false} />
-            <Tooltip />
-            <Bar dataKey="count" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+            <YAxis
+              tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+              tickLine={false}
+              axisLine={false}
+              allowDecimals={false}
+              width={28}
+            />
+            <Tooltip
+              cursor={{ fill: 'hsl(var(--accent))' }}
+              contentStyle={{
+                fontSize: '0.75rem',
+                borderRadius: '0.375rem',
+                border: '1px solid hsl(var(--border))',
+                backgroundColor: 'hsl(var(--popover))',
+              }}
+            />
+            <Bar dataKey="count" fill="hsl(var(--primary))" radius={[3, 3, 0, 0]} maxBarSize={28} />
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -42,14 +59,20 @@ const Section = ({ title, data }: { title: string; data: Array<{ label: string; 
 export default function DemographicsReport() {
   const [report, setReport] = useState<ReportData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<LoadErrorInfo | null>(null);
 
-  useEffect(() => {
+  const loadReport = () => {
+    setLoading(true);
+    setError(null);
     demographicsReportService
       .get()
       .then(setReport)
-      .catch((err) => setError(loadErrorMessage(err, 'report')))
+      .catch((err) => setError(loadErrorInfo(err, 'report')))
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    loadReport();
   }, []);
 
   if (loading) {
@@ -58,9 +81,16 @@ export default function DemographicsReport() {
 
   if (error || !report) {
     return (
-      <Card>
-        <p className="text-red-600 dark:text-red-400">{error || 'No report data'}</p>
-      </Card>
+      <div className="space-y-4">
+        <PageHeader title="Demographics Report" breadcrumbs={[{ label: 'Reports' }]} />
+        <Alert
+          variant={error?.variant ?? 'error'}
+          title={error?.title ?? "Couldn't load report"}
+          action={error?.variant === 'info' ? undefined : { label: 'Try again', onClick: loadReport }}
+        >
+          {error?.message ?? 'No report data'}
+        </Alert>
+      </div>
     );
   }
 

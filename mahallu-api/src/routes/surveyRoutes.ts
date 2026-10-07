@@ -6,7 +6,7 @@ import {
   getSurveyStatus,
   deleteSurvey,
 } from '../controllers/surveyController';
-import { authMiddleware, allowRoles } from '../middleware/authMiddleware';
+import { authMiddleware, allowRoles, requireFieldStaff } from '../middleware/authMiddleware';
 import { tenantMiddleware, tenantFilter } from '../middleware/tenantMiddleware';
 import { validationHandler } from '../middleware/validationHandler';
 import { idParam, listQuery } from '../validations/common';
@@ -19,6 +19,8 @@ const router = express.Router();
 router.use(authMiddleware);
 router.use(tenantMiddleware);
 router.use(tenantFilter);
+// Field data: the Mahallu admin and survey workers (the write guards already name them); institute admins have no use for it.
+router.use(requireFieldStaff);
 
 /**
  * @swagger

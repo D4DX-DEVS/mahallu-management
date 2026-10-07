@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
+import Alert from '@/components/ui/Alert';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import { reportService, type AnnualReport as AnnualReportData } from '@/services/reportService';
 import { exportToPDF } from '@/utils/exportUtils';
+import { loadErrorInfo, LoadErrorInfo } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 
 const currentYear = new Date().getFullYear();
@@ -31,20 +33,25 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 export default function AnnualReport() {
   const [year, setYear] = useState(currentYear);
+  const [reloadKey, setReloadKey] = useState(0);
   const [data, setData] = useState<AnnualReportData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<LoadErrorInfo | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
+    setError(null);
     reportService
       .getAnnualReport(year)
       .then((res) => {
         if (!cancelled) setData(res);
       })
-      .catch((error) => {
-        console.error("Couldn't load annual report:", error);
-        if (!cancelled) setData(null);
+      .catch((err) => {
+        if (!cancelled) {
+          setError(loadErrorInfo(err, 'report'));
+          setData(null);
+        }
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -52,11 +59,11 @@ export default function AnnualReport() {
     return () => {
       cancelled = true;
     };
-  }, [year]);
+  }, [year, reloadKey]);
 
   // ponytail: flat metric/value rows through the existing exportToPDF helper.
   // No bespoke PDF layout until someone asks for one.
-  const downloadPdf = () => {
+  const downloadPdf = async () => {
     if (!data) return;
     const rows = [
       { metric: 'Total families', value: String(data.demographics.totalFamilies) },
@@ -80,7 +87,7 @@ export default function AnnualReport() {
       { metric: 'Projects completed', value: String(data.projects.completed) },
       { metric: 'Project estimated cost', value: money(data.projects.totalEstimatedCost) },
     ];
-    exportToPDF(
+    await exportToPDF(
       [
         { key: 'metric', label: 'Metric' },
         { key: 'value', label: 'Value' },
@@ -115,7 +122,15 @@ export default function AnnualReport() {
       </div>
 
       {loading && <PageSkeleton variant="section" />}
-      {!loading && !data && <div>Couldn't load report</div>}
+      {!loading && (error || !data) && (
+        <Alert
+          variant={error?.variant ?? 'error'}
+          title={error?.title ?? "Couldn't load report"}
+          action={error?.variant === 'info' ? undefined : { label: 'Try again', onClick: () => setReloadKey((k) => k + 1) }}
+        >
+          {error?.message ?? 'No report data'}
+        </Alert>
+      )}
 
       {!loading && data && (
         <>

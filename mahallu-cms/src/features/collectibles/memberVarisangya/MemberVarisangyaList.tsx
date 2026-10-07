@@ -1,19 +1,23 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FiDollarSign, FiUsers, FiCreditCard, FiDownload } from 'react-icons/fi';
+import { FiEye, FiDollarSign, FiUsers, FiCreditCard, FiDownload } from 'react-icons/fi';
 import TableCard from '@/components/ui/TableCard';
-import { rowActionClass } from '@/components/ui/rowAction';
-import Button from '@/components/ui/Button';
+import ActionsMenu from '@/components/ui/ActionsMenu';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
+import EmptyState from '@/components/ui/EmptyState';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
-import Dropdown from '@/components/ui/Dropdown';
 import { TableColumn, Pagination as PaginationType, Member } from '@/types';
 import { memberService } from '@/services/memberService';
-import { collectibleService, Varisangya } from '@/services/collectibleService';
+import {
+  collectibleService,
+  Varisangya,
+  CollectionSummary,
+  EMPTY_COLLECTION_SUMMARY,
+} from '@/services/collectibleService';
 import { fetchAllPages } from '@/services/api';
 import { useDebounce } from '@/hooks/useDebounce';
 import { formatDate, toTitleCase } from '@/utils/format';
@@ -46,6 +50,8 @@ export default function MemberVarisangyaList() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
+  /* Payments and amount across every member payment (all pages), from the server. */
+  const [summary, setSummary] = useState<CollectionSummary>(EMPTY_COLLECTION_SUMMARY);
 
   const debouncedSearch = useDebounce(searchQuery, 500);
 
@@ -70,6 +76,13 @@ export default function MemberVarisangyaList() {
       // /collectibles/varisangya defaults to 10 rows with no limit passed - fetch every
       // page so per-member totals aren't computed off an arbitrary slice.
       const allVarisangyas = await fetchAllPages<Varisangya>((p) => collectibleService.getAllVarisangyas(p));
+      // The cards total every member payment, not just the members on this page.
+      const { summary: memberSummary } = await collectibleService.getAllVarisangyas({
+        hasMember: true,
+        page: 1,
+        limit: 1,
+      });
+      setSummary(memberSummary);
       const membersWithVarisangya = membersData.map((member) => {
         const memberVarisangyas = allVarisangyas.filter((v) => getMemberId(v) === member.id);
         const totalVarisangya = memberVarisangyas.reduce((sum, v) => sum + (v.amount || 0), 0);
@@ -230,39 +243,41 @@ export default function MemberVarisangyaList() {
       width: '8rem',
       align: 'center',
       render: (_, row) => (
-        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(`${MEMBER_BASE}?view=wallet&memberId=${row.id}`);
-            }}
-            className={rowActionClass()}
-            title="View Wallet"
-            aria-label="View Wallet"
-          >
-            <FiDollarSign className="h-4 w-4" />
-          </button>
-          <Dropdown
-            align="right"
-            trigger={
-              <button
-                onClick={(e) => e.stopPropagation()}
-                disabled={exportingRowId === row.id}
-                className={rowActionClass('default', 'disabled:opacity-50')}
-                title="Export"
-                aria-label="Export"
-              >
-                {exportingRowId === row.id ? (
-                  <LoadingSpinner size="sm" />
-                ) : (
-                  <FiDownload className="h-4 w-4" />
-                )}
-              </button>
-            }
+        <div onClick={(e) => e.stopPropagation()}>
+          <ActionsMenu
+            label={`Actions for ${toTitleCase(row.name)}`}
             items={[
-              { label: 'Export as CSV', onClick: () => handleExportRow(row, 'csv') },
-              { label: 'Export as JSON', onClick: () => handleExportRow(row, 'json') },
-              { label: 'Export as PDF', onClick: () => handleExportRow(row, 'pdf') },
+              {
+                label: 'View Transactions',
+                icon: <FiEye className="h-4 w-4" />,
+                onClick: () => navigate(`${MEMBER_BASE}?view=transactions&memberId=${row.id}`),
+              },
+              {
+                label: 'View Wallet',
+                icon: <FiDollarSign className="h-4 w-4" />,
+                onClick: () => navigate(`${MEMBER_BASE}?view=wallet&memberId=${row.id}`),
+              },
+              {
+                label: 'Export as CSV',
+                icon: exportingRowId === row.id ? <LoadingSpinner size="sm" /> : <FiDownload className="h-4 w-4" />,
+                disabled: exportingRowId === row.id,
+                disabledReason: 'Exporting…',
+                onClick: () => handleExportRow(row, 'csv'),
+              },
+              {
+                label: 'Export as JSON',
+                icon: exportingRowId === row.id ? <LoadingSpinner size="sm" /> : <FiDownload className="h-4 w-4" />,
+                disabled: exportingRowId === row.id,
+                disabledReason: 'Exporting…',
+                onClick: () => handleExportRow(row, 'json'),
+              },
+              {
+                label: 'Export as PDF',
+                icon: exportingRowId === row.id ? <LoadingSpinner size="sm" /> : <FiDownload className="h-4 w-4" />,
+                disabled: exportingRowId === row.id,
+                disabledReason: 'Exporting…',
+                onClick: () => handleExportRow(row, 'pdf'),
+              },
             ]}
           />
         </div>
@@ -270,18 +285,16 @@ export default function MemberVarisangyaList() {
     },
   ];
 
-  const totalAmount = members.reduce((sum, m) => sum + (m.totalVarisangya || 0), 0);
-  const totalPayments = members.reduce((sum, m) => sum + (m.varisangyaCount || 0), 0);
   const stats = [
     {
       title: 'Total Members',
       value: pagination?.total || members.length,
       icon: <FiUsers className="h-5 w-5" />,
     },
-    { title: 'Total Payments', value: totalPayments, icon: <FiCreditCard className="h-5 w-5" /> },
+    { title: 'Total Payments', value: summary.count, icon: <FiCreditCard className="h-5 w-5" /> },
     {
       title: 'Total Amount',
-      value: `₹${totalAmount.toLocaleString()}`,
+      value: `₹${summary.totalAmount.toLocaleString()}`,
       icon: <FiDollarSign className="h-5 w-5" />,
     },
   ];
@@ -307,12 +320,12 @@ export default function MemberVarisangyaList() {
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="text-center py-10">
-            <p className="text-red-600 dark:text-red-400">{error}</p>
-            <Button onClick={fetchMembers} className="mt-4" variant="outline">
-              Retry
-            </Button>
-          </div>
+          <EmptyState
+            variant="error"
+            entity="members"
+            description={error}
+            action={{ label: 'Retry', onClick: fetchMembers }}
+          />
         ) : (
           <Table
             fixedLayout

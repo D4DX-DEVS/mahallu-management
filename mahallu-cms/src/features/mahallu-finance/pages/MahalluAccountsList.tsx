@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiBriefcase } from 'react-icons/fi';
+import { FiEdit2, FiTrash2, FiBriefcase } from 'react-icons/fi';
 import TableCard from '@/components/ui/TableCard';
+import ActionsMenu from '@/components/ui/ActionsMenu';
 import StatCard from '@/components/ui/StatCard';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
@@ -10,13 +11,14 @@ import Pagination from '@/components/ui/Pagination';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import TableToolbar from '@/components/ui/TableToolbar';
 import { TableColumn, Pagination as PaginationType } from '@/types';
-import { masterAccountService, MahalluAccount } from '@/services/masterAccountService';
-import { formatDate, toTitleCase } from '@/utils/format';
+import { masterAccountService, MahalluAccount, BalanceSummary } from '@/services/masterAccountService';
+import { formatDate, formatRupees, toTitleCase } from '@/utils/format';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
 import { ROUTES } from '@/constants/routes';
 import { toast } from '@/store/toastStore';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { fetchAllPages } from '@/services/api';
 
 export default function MahalluAccountsList() {
   const navigate = useNavigate();
@@ -26,6 +28,8 @@ export default function MahalluAccountsList() {
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
+  /* Total balance across every account (all pages), from the server. */
+  const [summary, setSummary] = useState<BalanceSummary>({ totalBalance: 0, count: 0 });
   const [isExporting, setIsExporting] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState<MahalluAccount | null>(null);
@@ -46,6 +50,10 @@ export default function MahalluAccountsList() {
         limit: itemsPerPage,
       });
       setAccounts(Array.isArray(result.data) ? result.data : []);
+      setSummary({
+        totalBalance: Number(result.summary?.totalBalance) || 0,
+        count: Number(result.summary?.count) || 0,
+      });
       if (result.pagination) setPagination(result.pagination);
     } catch (err: any) {
       setError(loadErrorMessage(err, 'accounts'));
@@ -73,8 +81,8 @@ export default function MahalluAccountsList() {
   const handleExport = async (type: 'csv' | 'json' | 'pdf') => {
     try {
       setIsExporting(true);
-      const result = await masterAccountService.getAllMahalluAccounts({ limit: 10000 });
-      const data = Array.isArray(result.data) ? result.data : [];
+      const allRows = await fetchAllPages((page) => masterAccountService.getAllMahalluAccounts(page));
+      const data = Array.isArray(allRows) ? allRows : [];
       if (!data.length) {
         toast.info('No accounts to export');
         return;
@@ -82,7 +90,7 @@ export default function MahalluAccountsList() {
       const filename = 'mahallu-accounts';
       if (type === 'csv') exportToCSV(columns, data, filename);
       else if (type === 'json') exportToJSON(columns, data, filename);
-      else exportToPDF(columns, data, filename, 'Mahallu Accounts');
+      else await exportToPDF(columns, data, filename, 'Mahallu Accounts');
     } catch (err: any) {
       toast.error(err?.message || "Couldn't export accounts");
     } finally {
@@ -97,15 +105,13 @@ export default function MahalluAccountsList() {
       (a.bankName || '').toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const totalBalance = accounts.reduce((s, a) => s + (a.balance || 0), 0);
-
   const columns: TableColumn<MahalluAccount>[] = [
     { key: 'id', label: 'No.', width: '6rem', render: (_, __, i) => i + 1 },
     { key: 'accountName', label: 'Account Name', width: '10.75rem', render: (v) => toTitleCase(v) },
     { key: 'accountNumber', label: 'Account Number', width: '11.75rem' },
     { key: 'bankName', label: 'Bank Name', width: '9.25rem', render: (v) => toTitleCase(v) },
     { key: 'ifscCode', label: 'IFSC Code', width: '9.25rem' },
-    { key: 'balance', label: 'Balance', width: '7.5rem', render: (b) => `₹${(b || 0).toLocaleString()}` },
+    { key: 'balance', label: 'Balance', width: '7.5rem', render: (b) => formatRupees(b) },
     {
       key: 'status',
       label: 'Status',
@@ -119,6 +125,34 @@ export default function MahalluAccountsList() {
       ),
     },
     { key: 'createdAt', label: 'Created', width: '7.75rem', render: (d) => formatDate(d) },
+    {
+      key: 'actions',
+      label: 'Actions',
+      width: '8rem',
+      align: 'center',
+      render: (_, row) => (
+        <ActionsMenu
+          label={`Actions for ${toTitleCase(row.accountName)}`}
+          items={[
+            {
+              label: 'Edit',
+              icon: <FiEdit2 className="h-4 w-4" />,
+              onClick: () =>
+                navigate(ROUTES.MAHALLU_FINANCE.ACCOUNTS_EDIT(row.id), { state: { account: row } }),
+            },
+            {
+              label: 'Delete',
+              icon: <FiTrash2 className="h-4 w-4" />,
+              variant: 'danger',
+              onClick: () => {
+                setSelectedAccount(row);
+                setShowDeleteModal(true);
+              },
+            },
+          ]}
+        />
+      ),
+    },
   ];
 
   return (
@@ -130,8 +164,8 @@ export default function MahalluAccountsList() {
       />
 
       <div className="grid grid-cols-2 sm:grid-cols-2 gap-3">
-        <StatCard title="Total Accounts" value={accounts.length} tone="info" />
-        <StatCard title="Total Balance" value={<>₹{totalBalance.toLocaleString()}</>} tone="success" />
+        <StatCard title="Total Accounts" value={pagination?.total ?? summary.count} tone="info" />
+        <StatCard title="Total Balance" value={formatRupees(summary.totalBalance)} tone="success" />
       </div>
 
       <TableCard borderless>
@@ -244,7 +278,7 @@ export default function MahalluAccountsList() {
             </div>
             <div>
               <p className="text-xs text-gray-500 dark:text-gray-400">Balance</p>
-              <p className="text-gray-900 dark:text-gray-100">₹{(selectedAccount.balance || 0).toLocaleString()}</p>
+              <p className="text-gray-900 dark:text-gray-100">{formatRupees(selectedAccount.balance)}</p>
             </div>
             <div>
               <p className="text-xs text-gray-500 dark:text-gray-400">Status</p>

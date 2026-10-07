@@ -1,4 +1,5 @@
 import { body, param, query, ValidationChain } from 'express-validator';
+import { MAX_AMOUNT, parseMoney } from '../utils/money';
 
 /**
  * Chains shared by every router, so the same rule reads the same way and is
@@ -12,7 +13,7 @@ import { body, param, query, ValidationChain } from 'express-validator';
  */
 
 /** The largest money value this product handles. Keeps `1e308` out of a Number field. */
-export const MAX_AMOUNT = 100_000_000;
+export { MAX_AMOUNT };
 
 /** Dates before this are a typo or a probe, never a record. */
 export const EARLIEST_DATE = '1900-01-01';
@@ -101,6 +102,32 @@ export const optionalText = (
     .isLength({ max })
     .withMessage(`Please keep the ${label} to ${max} characters or less.`);
 
+/**
+ * A bank account number: digits only, any length up to `max`.
+ *
+ * It is an identifier, not a quantity, so it is checked as text and never
+ * coerced to a number - `0012345678` is a real account number and has to come
+ * back out as `0012345678`. A JSON number is refused for the same reason: by
+ * the time one arrives its leading zeros are already gone. Nothing is stripped
+ * or rewritten; a value with a letter, space, dash or dot is rejected.
+ */
+export const accountNumberField = (
+  field = 'accountNumber',
+  label = 'account number',
+  max = 200
+): ValidationChain =>
+  body(field)
+    .optional({ values: 'falsy' })
+    .isString()
+    .withMessage(`Please enter the ${label} using digits only.`)
+    .bail()
+    .trim()
+    .matches(/^[0-9]+$/)
+    .withMessage(`Please enter the ${label} using digits only.`)
+    .bail()
+    .isLength({ max })
+    .withMessage(`Please keep the ${label} to ${max} characters or less.`);
+
 /** A longer free-text field — notes, a description, minutes. */
 export const optionalLongText = (field: string, label: string, max = 5000): ValidationChain =>
   optionalText(field, label, max);
@@ -120,33 +147,111 @@ export const requiredRef = (field: string, label: string): ValidationChain =>
     .isMongoId()
     .withMessage(`Please choose a valid ${label}.`);
 
-/** A money field. Bounded on both sides so a Number field never holds `1e308`. */
+/** Nothing was sent for this field: not given, null, or an empty / blank string. Zero is NOT blank. */
+const isBlank = (value: unknown): boolean =>
+  value === undefined || value === null || (typeof value === 'string' && value.trim() === '');
+
+const rupees = (n: number) => n.toLocaleString('en-IN');
+
+/**
+ * A money field: rupees with at most two decimals, from `min` to `max`.
+ *
+ * - Optional (the default): an absent / null / empty value is skipped, but a
+ *   provided 0 IS validated. (`optional({ values: 'falsy' })` treated 0 as
+ *   absent, so a `min: 1` rule never ran on an update.)
+ * - `required: true`: absent, null or empty is an error; 0 is checked against `min`.
+ * - `min` is inclusive. `min: 0` accepts zero; use `min: 0.01` for "greater than zero".
+ * - Rejects NaN, Infinity, exponent forms ('1e3'), booleans, arrays, a third
+ *   decimal (10.999) and anything above `max` (default MAX_AMOUNT).
+ * - A valid value is converted to a number so a handler never sums strings.
+ */
 export const amountField = (
   field: string,
   label: string,
-  { required = false, min = 0 }: { required?: boolean; min?: number } = {}
+  { required = false, min = 0, max = MAX_AMOUNT }: { required?: boolean; min?: number; max?: number } = {}
 ): ValidationChain => {
-  const chain = required
-    ? body(field).notEmpty().withMessage(`Please enter the ${label}.`).bail()
-    : body(field).optional({ values: 'falsy' });
+  const belowMin =
+    min <= 0
+      ? `The ${label} cannot be negative.`
+      : min <= 0.01
+        ? `The ${label} must be greater than zero.`
+        : `The ${label} must be at least ${rupees(min)}.`;
+  let chain = body(field);
+  if (required) {
+    chain = chain
+      .custom((value) => {
+        if (isBlank(value)) throw new Error(`Please enter the ${label}.`);
+        return true;
+      })
+      .bail();
+  } else {
+    chain = chain.customSanitizer((value) => (isBlank(value) ? undefined : value)).if((value: unknown) => !isBlank(value));
+  }
   return chain
-    .isFloat({ min, max: MAX_AMOUNT })
-    .withMessage(`Please enter a valid ${label}.`);
+    .custom((value) => {
+      if (parseMoney(value) === null) {
+        throw new Error(`Please enter a valid ${label} (a number with at most 2 decimal places).`);
+      }
+      return true;
+    })
+    .bail()
+    .custom((value) => {
+      const amount = parseMoney(value) as number;
+      if (amount < min) throw new Error(belowMin);
+      if (amount > max) throw new Error(`The ${label} cannot be more than ${rupees(max)}.`);
+      return true;
+    })
+    .bail()
+    .customSanitizer((value) => parseMoney(value) as number);
 };
 
-/** A whole number inside a stated range. */
+/**
+ * A whole number inside a stated range. Same absent / zero semantics as
+ * amountField: a provided 0 is checked against `min`.
+ */
 export const intField = (
   field: string,
   label: string,
   { required = false, min = 0, max = 1_000_000 }: { required?: boolean; min?: number; max?: number } = {}
 ): ValidationChain => {
-  const chain = required
-    ? body(field).notEmpty().withMessage(`Please enter the ${label}.`).bail()
-    : body(field).optional({ values: 'falsy' });
-  return chain
-    .isInt({ min, max })
-    .withMessage(`Please enter a whole number between ${min} and ${max} for the ${label}.`);
+  let chain = body(field);
+  if (required) {
+    chain = chain
+      .custom((value) => {
+        if (isBlank(value)) throw new Error(`Please enter the ${label}.`);
+        return true;
+      })
+      .bail();
+  } else {
+    chain = chain.customSanitizer((value) => (isBlank(value) ? undefined : value)).if((value: unknown) => !isBlank(value));
+  }
+  return chain.custom((value) => {
+    const whole =
+      (typeof value === 'number' && Number.isInteger(value)) ||
+      (typeof value === 'string' && /^-?\d+$/.test(value.trim()));
+    if (!whole || Number(value) < min || Number(value) > max) {
+      throw new Error(`Please enter a whole number between ${min} and ${max} for the ${label}.`);
+    }
+    return true;
+  });
 };
+
+/**
+ * An Indian bank IFSC code: four letters, a zero, then six letters or digits
+ * (SBIN0001234). Trimmed and upper-cased, so ` sbin0001234 ` is stored as
+ * `SBIN0001234`. An empty value is skipped.
+ */
+export const IFSC_PATTERN = /^[A-Z]{4}0[A-Z0-9]{6}$/;
+export const ifscField = (field = 'ifscCode', label = 'IFSC code'): ValidationChain =>
+  body(field)
+    .optional({ values: 'falsy' })
+    .isString()
+    .withMessage(`Please enter a valid ${label}, like SBIN0001234.`)
+    .bail()
+    .trim()
+    .toUpperCase()
+    .matches(IFSC_PATTERN)
+    .withMessage(`Please enter a valid ${label}, like SBIN0001234.`);
 
 /**
  * A calendar date. Rejects `Invalid Date`, year 0001 and year 9999 alike —
@@ -271,3 +376,17 @@ export const idArrayField = (
       }
       return true;
     });
+
+/**
+ * express-validator's normalizeEmail() with its defaults rewrites what the user typed:
+ * it deletes the dots and the +tag of a Gmail address (a.b+x@gmail.com is saved as ab@gmail.com).
+ * Only the case is normalised, so the address that is stored is the address that was entered.
+ */
+export const EMAIL_KEEP_AS_TYPED = {
+  gmail_remove_dots: false,
+  gmail_remove_subaddress: false,
+  gmail_convert_googlemaildotcom: false,
+  outlookdotcom_remove_subaddress: false,
+  yahoo_remove_subaddress: false,
+  icloud_remove_subaddress: false,
+};

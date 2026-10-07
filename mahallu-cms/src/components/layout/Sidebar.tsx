@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom';
 import { menuItems, MenuItem } from '@/constants/menuItems';
 import type { ModuleKey, SensitiveModuleKey } from '@/constants/modules';
 import { useModuleAccess } from '@/hooks/useModuleAccess';
+import { isMenuItemAccessible, UserRole } from '@/utils/menuAccess';
 import { FiChevronDown, FiChevronRight, FiChevronUp, FiWifiOff, FiX } from 'react-icons/fi';
 import { cn } from '@/utils/cn';
 import { useAuthStore } from '@/store/authStore';
@@ -11,18 +12,6 @@ import { BRAND_NAME, LOGO_PATH } from '@/constants/theme';
 import { useLayoutStore } from '@/store/layoutStore';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { footerNavByRole, useIsMobile } from './MobileFooterNav';
-type UserRole = 'super_admin' | 'mahall' | 'survey' | 'institute' | 'member';
-function isAccessible(
-  item: MenuItem,
-  userRole: UserRole | null,
-  isSuperAdmin: boolean,
-  sensitiveModules: SensitiveModuleKey[]
-) {
-  if (item.superAdminOnly && !isSuperAdmin) return false;
-  if (item.sensitiveKey && !isSuperAdmin && !sensitiveModules.includes(item.sensitiveKey)) return false;
-  if (item.allowedRoles && userRole) return item.allowedRoles.includes(userRole);
-  return true;
-}
 function hasActiveDescendant(item: MenuItem, pathname: string): boolean {
   if (item.path && matchPath({ path: item.path, end: false }, pathname)) return true;
   return item.children?.some((child) => hasActiveDescendant(child, pathname)) ?? false;
@@ -40,7 +29,9 @@ function filterMenuTree(
     // both the expanded footer and compact rail while retaining the route for
     // the account menu.
     if (item.id === 'support') return result;
-    if (!isAccessible(item, userRole, isSuperAdmin, sensitiveModules)) return result;
+    // CEO decision: hidden features stay in code but never appear in navigation. Do not delete underlying pages/routes.
+    if ((item as MenuItem & { hidden?: boolean }).hidden) return result;
+    if (!isMenuItemAccessible(item, userRole, isSuperAdmin, sensitiveModules)) return result;
     if (!isModuleEnabled(item.moduleKey)) return result;
     const accessibleChildren = item.children
       ? filterMenuTree(item.children, '', userRole, isSuperAdmin, isModuleEnabled, sensitiveModules)
@@ -631,7 +622,10 @@ export default function Sidebar() {
   const setDesktopSidebarCollapsed = useLayoutStore((s) => s.setDesktopSidebarCollapsed);
   const isDesktopSidebarCollapsedRaw = useLayoutStore((s) => s.isDesktopSidebarCollapsed);
   const isOnline = useOnlineStatus();
-  const { isSuperAdmin, user } = useAuthStore();
+  const { isSuperAdmin, user, currentTenantId, isImpersonating } = useAuthStore();
+  // MainLayout reserves 36px at the top for the tenant / impersonation banner; the rail
+  // starts below it so the brand row stays level with the header beside it.
+  const hasTopBanner = Boolean((isSuperAdmin && currentTenantId) || isImpersonating);
   const userRole = (user?.role || (isSuperAdmin ? 'super_admin' : null)) as UserRole | null;
   const { isModuleEnabled } = useModuleAccess();
   const sensitiveModules = user?.permissions?.sensitiveModules ?? [];
@@ -729,7 +723,8 @@ export default function Sidebar() {
       role={isMobile && isMobileSidebarOpen ? 'dialog' : undefined}
       aria-modal={isMobile && isMobileSidebarOpen ? true : undefined}
       className={cn(
-        'fixed left-0 top-0 z-[60] h-screen h-[100dvh] border-r border-border/80 bg-card text-card-foreground',
+        'fixed left-0 z-[60] border-r border-border/80 bg-card text-card-foreground',
+        hasTopBanner ? 'top-9 h-[calc(100dvh-2.25rem)]' : 'top-0 h-screen h-[100dvh]',
         'transition-[width,transform] duration-200 ease-out md:translate-x-0',
         /* The drawer never exceeds the viewport: at 320px a fixed 16rem panel
          * left 64px of page, which is not enough to read what is behind it. */
@@ -815,7 +810,7 @@ export default function Sidebar() {
                       )}
                     >
                     {!isDesktopSidebarCollapsed && startsSection && (
-                      <p className="nav-section-label mb-1 px-2 text-muted-foreground/70">
+                      <p className="nav-section-label mb-1 px-2 text-muted-foreground">
                         {sectionLabel}
                       </p>
                     )}
@@ -841,7 +836,7 @@ export default function Sidebar() {
         </nav>
         {!isDesktopSidebarCollapsed && sidebarFooterItems.length > 0 && (
           <div className="flex-shrink-0 border-t border-border px-3 pb-2 pt-3">
-            <p className="nav-section-label mb-1 px-2 text-muted-foreground/70">Others</p>
+            <p className="nav-section-label mb-1 px-2 text-muted-foreground">Others</p>
             <div className="space-y-1">
               {sidebarFooterItems.map((item) => {
                 const Icon = item.icon as React.ComponentType<{ className?: string }>;

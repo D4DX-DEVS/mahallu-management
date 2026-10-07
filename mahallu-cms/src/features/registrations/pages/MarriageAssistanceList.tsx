@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FiCheckCircle, FiClock, FiFileText, FiList, FiPlus } from 'react-icons/fi';
+import { FiCheckCircle, FiClock, FiFileText, FiList, FiPlus, FiTrash2 } from 'react-icons/fi';
 import TableCard from '@/components/ui/TableCard';
-import { rowActionClass } from '@/components/ui/rowAction';
+import ActionsMenu from '@/components/ui/ActionsMenu';
 import FilterPanel from '@/components/ui/FilterPanel';
 import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
+import EmptyState from '@/components/ui/EmptyState';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
@@ -19,6 +20,8 @@ import { useDebounce } from '@/hooks/useDebounce';
 import { toast } from '@/store/toastStore';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { useServerCounts } from '@/hooks/useServerCounts';
+import StatusBadge from '@/components/ui/StatusBadge';
 import { toTitleCase } from '@/utils/format';
 
 export default function MarriageAssistanceList() {
@@ -111,15 +114,6 @@ export default function MarriageAssistanceList() {
     return labels[type] || type;
   };
 
-  const getStatusBadgeColor = (status: string) => {
-    const colors: Record<string, string> = {
-      requested: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
-      approved: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-      completed: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-    };
-    return colors[status] || 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200';
-  };
-
   const columns: TableColumn<MarriageAssistance>[] = [
     {
       key: 'memberId',
@@ -148,34 +142,60 @@ export default function MarriageAssistanceList() {
       key: 'status',
       label: 'Status',
       width: '7.25rem',
-      render: (status) => (
-        <span
-          className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusBadgeColor(status as string)}`}
-        >
-          {status}
-        </span>
-      ),
+      render: (status) => <StatusBadge status={status as string} />,
     },
     {
       key: 'actions',
       label: 'Actions',
       width: '8rem',
       align: 'center',
-      render: (_, row) =>
-        row.type === 'premarital_counselling' ? (
-          <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-            <button
-              onClick={() => navigate('/counselling/create')}
-              className={rowActionClass()}
-              title="Create Counselling Case"
-              aria-label="Create Counselling Case"
-            >
-              <FiPlus className="h-4 w-4" />
-            </button>
+      render: (_, row) => {
+        const label = toTitleCase(
+          typeof row.memberId === 'object'
+            ? row.memberId?.name
+            : typeof row.familyId === 'object'
+              ? row.familyId?.houseName
+              : 'Record'
+        );
+        return (
+          <div onClick={(e) => e.stopPropagation()}>
+            <ActionsMenu
+              label={`Actions for ${label}`}
+              items={[
+                ...(row.type === 'premarital_counselling'
+                  ? [
+                      {
+                        label: 'Create Counselling Case',
+                        icon: <FiPlus className="h-4 w-4" />,
+                        onClick: () => navigate('/counselling/create'),
+                      },
+                    ]
+                  : []),
+                {
+                  label: 'Delete',
+                  icon: <FiTrash2 className="h-4 w-4" />,
+                  variant: 'danger' as const,
+                  onClick: () => handleDeleteClick(row.id, label),
+                },
+              ]}
+            />
           </div>
-        ) : null,
+        );
+      },
     },
   ];
+
+  // Whole-list counts from the server: these cards used to count only the rows on this page.
+  const countBase: { search?: string; type?: string } = {};
+  if (debouncedSearch) countBase.search = debouncedSearch;
+  if (typeFilter !== 'all') countBase.type = typeFilter;
+  const statusCounts = useServerCounts(
+    {
+      requested: () => marriageAssistanceService.getAll({ ...countBase, status: 'requested', page: 1, limit: 1 }),
+      completed: () => marriageAssistanceService.getAll({ ...countBase, status: 'completed', page: 1, limit: 1 }),
+    },
+    [records]
+  );
 
   const stats = [
     {
@@ -185,12 +205,12 @@ export default function MarriageAssistanceList() {
     },
     {
       title: 'Pending',
-      value: records.filter((r) => r.status === 'requested').length,
+      value: statusCounts.requested ?? records.filter((r) => r.status === 'requested').length,
       icon: <FiClock className="h-5 w-5" />,
     },
     {
       title: 'Completed',
-      value: records.filter((r) => r.status === 'completed').length,
+      value: statusCounts.completed ?? records.filter((r) => r.status === 'completed').length,
       icon: <FiCheckCircle className="h-5 w-5" />,
     },
   ];
@@ -265,12 +285,12 @@ export default function MarriageAssistanceList() {
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="text-center py-10">
-            <p className="text-red-600 dark:text-red-400">{error}</p>
-            <Button onClick={fetchRecords} className="mt-4" variant="outline">
-              Retry
-            </Button>
-          </div>
+          <EmptyState
+            variant="error"
+            entity="marriage assistance records"
+            description={error}
+            action={{ label: 'Retry', onClick: fetchRecords }}
+          />
         ) : (
           <Table
             fixedLayout

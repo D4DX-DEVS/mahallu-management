@@ -1,6 +1,7 @@
 import { jsPDF } from 'jspdf';
 import { BRAND_NAME, LOGO_PATH } from '@/constants/theme';
 import { formatDate } from '@/utils/format';
+import { PDF_FONT_FAMILY, registerPdfFont, toPdfSafeText } from '@/utils/pdfFonts';
 
 export interface InvoiceDetails {
   title: string;
@@ -42,11 +43,18 @@ const renderInvoicePage = (
   doc: jsPDF,
   details: InvoiceDetails,
   logoDataUrl: string | null,
-  isFirstPage: boolean
+  isFirstPage: boolean,
+  unicodeFont: boolean
 ) => {
   if (!isFirstPage) {
     doc.addPage();
   }
+
+  // Noto Sans has the rupee sign; Helvetica (the fallback when the font cannot be fetched) does not.
+  // Text it cannot draw (Malayalam names) prints as a visible "?" instead of silently vanishing.
+  doc.setFont(unicodeFont ? PDF_FONT_FAMILY : 'helvetica', 'normal');
+  const safe = (text: string) => toPdfSafeText(text);
+  const currency = unicodeFont ? '₹' : 'Rs. ';
 
   const marginX = 14;
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -65,13 +73,13 @@ const renderInvoicePage = (
 
   doc.setFontSize(10);
   doc.setTextColor(82, 82, 91);
-  const subtitle = details.title;
+  const subtitle = safe(details.title);
   const subtitleWidth = doc.getTextWidth(subtitle);
   doc.text(subtitle, (pageWidth - subtitleWidth) / 2, currentY + 16);
 
   doc.setFontSize(10);
   doc.setTextColor(24, 24, 27);
-  const receiptText = `Receipt No: ${details.receiptNo || '-'}`;
+  const receiptText = safe(`Receipt No: ${details.receiptNo || '-'}`);
   const receiptWidth = doc.getTextWidth(receiptText);
   doc.text(receiptText, pageWidth - marginX - receiptWidth, currentY + 10);
 
@@ -83,12 +91,12 @@ const renderInvoicePage = (
   currentY += 10;
   doc.setFontSize(11);
   doc.setTextColor(24, 24, 27);
-  doc.text(`${details.payerLabel}: ${details.payerName}`, marginX, currentY);
+  doc.text(safe(`${details.payerLabel}: ${details.payerName}`), marginX, currentY);
 
   currentY += 8;
   doc.setFontSize(11);
   doc.setTextColor(24, 24, 27);
-  const amountText = `Amount: ${formatAmount(details.amount)}`;
+  const amountText = `Amount: ${currency}${formatAmount(details.amount)}`;
   doc.text(amountText, marginX, currentY);
   const dateText = `Date: ${formatDate(details.paymentDate)}`;
   const dateWidth = doc.getTextWidth(dateText);
@@ -97,20 +105,21 @@ const renderInvoicePage = (
   currentY += 8;
   doc.setFontSize(11);
   doc.setTextColor(24, 24, 27);
-  doc.text(`Payment Method: ${details.paymentMethod || '-'}`, marginX, currentY);
+  doc.text(safe(`Payment Method: ${details.paymentMethod || '-'}`), marginX, currentY);
 
   if (details.remarks) {
     currentY += 8;
     doc.setFontSize(10);
     doc.setTextColor(82, 82, 91);
-    doc.text(`Remarks: ${details.remarks}`, marginX, currentY);
+    doc.text(safe(`Remarks: ${details.remarks}`), marginX, currentY);
   }
 };
 
 export const downloadInvoicePdf = async (details: InvoiceDetails) => {
   const doc = new jsPDF();
+  const unicodeFont = await registerPdfFont(doc);
   const logoDataUrl = await fetchLogoDataUrl();
-  renderInvoicePage(doc, details, logoDataUrl, true);
+  renderInvoicePage(doc, details, logoDataUrl, true, unicodeFont);
   const filenameSafeReceipt = details.receiptNo ? `-${details.receiptNo}` : '';
   doc.save(`${details.title.toLowerCase().replace(/\s+/g, '-')}${filenameSafeReceipt}.pdf`);
 };
@@ -118,9 +127,10 @@ export const downloadInvoicePdf = async (details: InvoiceDetails) => {
 export const exportInvoicesToPdf = async (detailsList: InvoiceDetails[], filename: string) => {
   if (detailsList.length === 0) return;
   const doc = new jsPDF();
+  const unicodeFont = await registerPdfFont(doc);
   const logoDataUrl = await fetchLogoDataUrl();
   detailsList.forEach((details, index) => {
-    renderInvoicePage(doc, details, logoDataUrl, index === 0);
+    renderInvoicePage(doc, details, logoDataUrl, index === 0, unicodeFont);
   });
   doc.save(`${filename}.pdf`);
 };

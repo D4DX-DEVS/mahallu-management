@@ -52,7 +52,7 @@ export default function NikahRegistrationDetail() {
     try {
       setIssuingCert(true);
       const cert = await registrationService.issueCertificate('nikah', registration.id);
-      toast.success(`Certificate ${cert.certificateNo} issued`);
+      toast.success(`Certificate ${cert.certificateNo} ${cert.alreadyIssued ? 'was already issued' : 'issued'}`);
       setShowCertModal(false);
       await fetchRegistration();
     } catch (err: any) {

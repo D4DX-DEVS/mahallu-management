@@ -1,6 +1,6 @@
 import express from 'express';
 import { getRegister, getRegisterSummary } from '../controllers/registerController';
-import { authMiddleware } from '../middleware/authMiddleware';
+import { authMiddleware, requireFieldStaff } from '../middleware/authMiddleware';
 import { tenantMiddleware, tenantFilter } from '../middleware/tenantMiddleware';
 import { validationHandler } from '../middleware/validationHandler';
 import { idParam, listQuery } from '../validations/common';
@@ -10,6 +10,8 @@ const router = express.Router();
 router.use(authMiddleware);
 router.use(tenantMiddleware);
 router.use(tenantFilter);
+// Field registers: the CMS menu opens them to survey workers as well as the admins; institute admins have no use for them.
+router.use(requireFieldStaff);
 
 /**
  * @swagger

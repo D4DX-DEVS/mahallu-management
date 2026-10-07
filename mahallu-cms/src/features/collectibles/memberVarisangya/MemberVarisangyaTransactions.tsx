@@ -132,10 +132,10 @@ export default function MemberVarisangyaTransactions() {
       const filename = `member-varisangya-transactions${memberId ? `-${memberId}` : ''}`;
       switch (type) {
         case 'csv':
-          exportToCSV(columns, transactions, filename);
+          exportToCSV(exportColumns, transactions, filename);
           break;
         case 'json':
-          exportToJSON(columns, transactions, filename);
+          exportToJSON(exportColumns, transactions, filename);
           break;
         case 'pdf':
           {
@@ -186,6 +186,11 @@ export default function MemberVarisangyaTransactions() {
     { key: 'paymentMethod', label: 'Payment Method', width: '8.75rem', render: (method) => method || '-' },
     { key: 'createdAt', label: 'Date', width: '6.25rem', render: (date) => formatDate(date) },
   ];
+
+  // The "No." column adds the page offset of the page on screen; an export of every row starts at 1.
+  const exportColumns: TableColumn<Transaction>[] = columns.map((col) =>
+    col.label === 'No.' ? { ...col, render: (_value, _row, index) => index + 1 } : col
+  );
 
   return (
     <div className="space-y-4">

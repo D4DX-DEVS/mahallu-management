@@ -1,14 +1,21 @@
 import { Response } from 'express';
 import { ClassAttendance, Exam } from '../models/Attendance';
-import { StudentEnrollment, MadrasaClass } from '../models/Madrasa';
+import { StudentEnrollment } from '../models/Madrasa';
 import { AuthRequest } from '../middleware/authMiddleware';
 import { getPaginationParams, createPaginationResponse } from '../utils/pagination';
-import { refBelongsToTenant } from '../utils/sanitizeUpdate';
+import { requireScope, requireWriteScope } from '../utils/scope';
+import {
+  tenantScope,
+  loadScopedClass,
+  classAccessForRecord,
+  ownClassIds,
+  limitToClasses,
+  classIdFilter,
+  classRefInScope,
+  CLASS_REF_MESSAGE,
+} from '../utils/educationScope';
 
 import { sendFailure } from '../utils/userMessages';
-
-const tenantScope = (req: AuthRequest): Record<string, any> =>
-  req.tenantId ? { tenantId: req.tenantId } : {};
 
 const normalizeDate = (date: string | Date): Date => {
   const d = new Date(date);
@@ -61,15 +68,17 @@ const normalizeDate = (date: string | Date): Date => {
  */
 export const upsertAttendance = async (req: AuthRequest, res: Response) => {
   try {
+    const caller = requireWriteScope(req, res);
+    if (!caller) return;
     const { classId, date, records } = req.body;
 
     if (!classId || !date) {
       return res.status(400).json({ success: false, message: 'Please choose a class and a date.' });
     }
 
-    // Validate classId belongs to tenant
-    if (!(await refBelongsToTenant(MadrasaClass, classId, req.tenantId))) {
-      return res.status(400).json({ success: false, message: 'This class belongs to another Mahallu.' });
+    // The class must be in this Mahallu and, for an institute account, one of that institute's own.
+    if (!(await classRefInScope(caller, caller.tenantId, classId))) {
+      return res.status(400).json({ success: false, message: CLASS_REF_MESSAGE });
     }
 
     // Validate all enrollmentIds belong to this class and tenant
@@ -140,12 +149,16 @@ export const upsertAttendance = async (req: AuthRequest, res: Response) => {
  */
 export const listAttendance = async (req: AuthRequest, res: Response) => {
   try {
+    const caller = requireScope(req, res);
+    if (!caller) return;
+    const classFilter = classIdFilter(req, res);
+    if (!classFilter) return;
+
     const { page, limit, skip } = getPaginationParams(req);
     const query: any = { ...tenantScope(req) };
 
-    if (req.query.classId) {
-      query.classId = req.query.classId;
-    }
+    // An institute account only sees sheets of its own classes; ?classId= can only pick one of them.
+    limitToClasses(query, await ownClassIds(req, caller), classFilter.value);
 
     if (req.query.month) {
       // month format: YYYY-MM
@@ -198,6 +211,8 @@ export const listAttendance = async (req: AuthRequest, res: Response) => {
  */
 export const getAttendanceById = async (req: AuthRequest, res: Response) => {
   try {
+    const caller = requireScope(req, res);
+    if (!caller) return;
     const record = await ClassAttendance.findOne({ _id: req.params.id, ...tenantScope(req) })
       .populate('classId', 'name')
       .populate('records.enrollmentId', 'rollNo memberId');
@@ -205,6 +220,9 @@ export const getAttendanceById = async (req: AuthRequest, res: Response) => {
     if (!record) {
       return res.status(404).json({ success: false, message: "We couldn't find that attendance record. It may have been removed." });
     }
+    // classId is populated here; classAccessForRecord needs the id of the parent class.
+    const parentClassId = (record.classId as any)?._id ?? record.classId;
+    if (!(await classAccessForRecord(req, res, caller, parentClassId, 'Attendance record'))) return;
 
     res.json({ success: true, data: record });
   } catch (error: any) {
@@ -239,14 +257,16 @@ export const getClassProgress = async (req: AuthRequest, res: Response) => {
   try {
     const { id: classId } = req.params;
 
-    // Verify class exists and belongs to tenant
-    const cls = await MadrasaClass.findOne({ _id: classId, tenantId: req.tenantId });
-    if (!cls) {
-      return res.status(404).json({ success: false, message: "We couldn't find that class. It may have been removed." });
-    }
+    const caller = requireScope(req, res);
+    if (!caller) return;
+    // Verify the class exists in this Mahallu and, for an institute account, is its own.
+    const cls = await loadScopedClass(req, res, caller, classId);
+    if (!cls) return;
+    // Everything below belongs to the class, so it uses the class's own Mahallu.
+    const tenantId = cls.tenantId;
 
     // Get all enrollments for the class
-    const enrollments = await StudentEnrollment.find({ classId, tenantId: req.tenantId })
+    const enrollments = await StudentEnrollment.find({ classId, tenantId })
       .populate('memberId', 'name');
 
     if (enrollments.length === 0) {
@@ -265,7 +285,7 @@ export const getClassProgress = async (req: AuthRequest, res: Response) => {
     // Calculate attendance per student
     const attendanceRecords = await ClassAttendance.find({
       classId,
-      tenantId: req.tenantId,
+      tenantId,
     });
 
     const attendanceByEnrollment: Record<string, { present: number; total: number }> = {};
@@ -286,7 +306,7 @@ export const getClassProgress = async (req: AuthRequest, res: Response) => {
     });
 
     // Calculate exam averages per student
-    const exams = await Exam.find({ classId, tenantId: req.tenantId });
+    const exams = await Exam.find({ classId, tenantId });
 
     const examsByEnrollment: Record<string, { marks: number[]; count: number }> = {};
     enrollmentIds.forEach((id) => {

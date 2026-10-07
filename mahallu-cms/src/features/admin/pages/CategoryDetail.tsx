@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { FiArrowLeft, FiEdit2, FiPlus, FiToggleLeft, FiToggleRight, FiTrash2 } from 'react-icons/fi';
 import TableCard from '@/components/ui/TableCard';
-import { rowActionClass } from '@/components/ui/rowAction';
+import ActionsMenu from '@/components/ui/ActionsMenu';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import Input from '@/components/ui/Input';
@@ -171,39 +171,35 @@ export default function CategoryDetail() {
       width: '8rem',
       align: 'center',
       render: (_, row) => (
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => openEditModal(row)}
-            className={rowActionClass()}
-            title="Edit"
-            aria-label="Edit"
-          >
-            <FiEdit2 className="h-4 w-4" />
-          </button>
-          <button
-            onClick={() => setStatusConfirm(row)}
-            className={rowActionClass()}
-            title={row.status === 'active' ? 'Deactivate' : 'Activate'}
-            aria-label={row.status === 'active' ? 'Deactivate' : 'Activate'}
-          >
-            {row.status === 'active' ? (
-              <FiToggleRight className="h-4 w-4" />
-            ) : (
-              <FiToggleLeft className="h-4 w-4" />
-            )}
-          </button>
-          <button
-            onClick={() => {
-              setSelectedValue(row);
-              setShowDeleteDialog(true);
-            }}
-            className={rowActionClass('danger')}
-            title="Delete"
-            aria-label="Delete"
-          >
-            <FiTrash2 className="h-4 w-4" />
-          </button>
-        </div>
+        <ActionsMenu
+          label={`Actions for ${row.label}`}
+          items={[
+            {
+              label: 'Edit',
+              icon: <FiEdit2 className="h-4 w-4" />,
+              onClick: () => openEditModal(row),
+            },
+            {
+              label: row.status === 'active' ? 'Deactivate' : 'Activate',
+              icon:
+                row.status === 'active' ? (
+                  <FiToggleRight className="h-4 w-4" />
+                ) : (
+                  <FiToggleLeft className="h-4 w-4" />
+                ),
+              onClick: () => setStatusConfirm(row),
+            },
+            {
+              label: 'Delete',
+              icon: <FiTrash2 className="h-4 w-4" />,
+              variant: 'danger',
+              onClick: () => {
+                setSelectedValue(row);
+                setShowDeleteDialog(true);
+              },
+            },
+          ]}
+        />
       ),
     },
   ];

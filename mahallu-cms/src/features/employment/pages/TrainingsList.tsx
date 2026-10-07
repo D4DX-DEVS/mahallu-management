@@ -1,18 +1,19 @@
 import { useEffect, useState, useCallback } from 'react';
-import { FiPlus } from 'react-icons/fi';
+import { FiEdit2, FiPlus, FiTrash2 } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import { employmentService, type SkillTraining, type EmploymentSummary } from '@/services/employmentService';
 import Button from '@/components/ui/Button';
 import ExpandableSearch from '@/components/ui/ExpandableSearch';
-import Card from '@/components/ui/Card';
+import ActionBar from '@/components/ui/ActionBar';
 import StatCard from '@/components/ui/StatCard';
+import Table from '@/components/ui/Table';
+import ActionsMenu from '@/components/ui/ActionsMenu';
 import Pagination from '@/components/ui/Pagination';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { toast } from '@/store/toastStore';
 import StatusBadge from '@/components/ui/StatusBadge';
 import PageHeader from '@/components/layout/PageHeader';
-import SortableTh from '@/components/ui/SortableTh';
-import { useSortableRows } from '@/hooks/useSortableRows';
+import { TableColumn } from '@/types';
 import { toTitleCase } from '@/utils/format';
 
 export default function TrainingsList() {
@@ -85,15 +86,64 @@ export default function TrainingsList() {
     }
   }, [deleteId]);
 
-  /* Duration reads as a date range, so it orders by when the training starts;
-     Participants counts the list when the API has not sent a total. */
-  const {
-    rows: sortedTrainings,
-    sort,
-    toggleSort,
-  } = useSortableRows(trainings, null, {
-    participants: (row) => row.participantCount ?? row.participants?.length ?? 0,
-  });
+  const columns: TableColumn<SkillTraining>[] = [
+    {
+      key: 'name',
+      label: 'Training Name',
+      render: (_v, training) => (
+        <div>
+          <div className="font-medium text-foreground">{toTitleCase(training.name)}</div>
+          <div className="text-xs text-muted-foreground">
+            {training.trainerName ? toTitleCase(training.trainerName) : 'No trainer'}
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'startDate',
+      label: 'Duration',
+      priority: 'secondary',
+      render: (_v, training) =>
+        new Date(training.startDate).toLocaleDateString() + ' - ' + new Date(training.endDate).toLocaleDateString(),
+    },
+    {
+      key: 'status',
+      label: 'Status',
+      sortable: true,
+      render: (_v, training) => <StatusBadge status={training.status} />,
+    },
+    {
+      key: 'participants',
+      label: 'Participants',
+      align: 'center',
+      priority: 'secondary',
+      render: (_v, training) => training.participantCount || training.participants?.length || 0,
+    },
+    {
+      key: 'actions',
+      label: 'Actions',
+      align: 'right',
+      sortable: false,
+      render: (_v, training) => (
+        <ActionsMenu
+          label={'Actions for ' + training.name}
+          items={[
+            {
+              label: 'Edit',
+              icon: <FiEdit2 className="h-4 w-4" />,
+              onClick: () => navigate(`/employment/trainings/${training.id}`),
+            },
+            {
+              label: 'Delete',
+              icon: <FiTrash2 className="h-4 w-4" />,
+              onClick: () => handleDeleteClick(training.id),
+              variant: 'danger' as const,
+            },
+          ]}
+        />
+      ),
+    },
+  ];
 
   return (
     <div className="space-y-4">
@@ -103,7 +153,7 @@ export default function TrainingsList() {
         breadcrumbs={[{ label: 'Employment' }]}
       />
       <div className="space-y-2">
-        <div className="flex items-center gap-2">
+        <ActionBar className="mb-0">
           <ExpandableSearch
             value={search}
             onChange={(value) => {
@@ -116,7 +166,7 @@ export default function TrainingsList() {
           <Button onClick={() => navigate('/employment/trainings/create')} icon={<FiPlus />} collapseLabel>
             New Training
           </Button>
-        </div>
+        </ActionBar>
         <div className="flex gap-2 flex-wrap">
           {['', 'planned', 'ongoing', 'completed', 'cancelled'].map((status) => (
             <button
@@ -147,95 +197,22 @@ export default function TrainingsList() {
         </div>
       )}
 
-      {loading ? (
-        <Card>
-          <div className="py-8 text-center">Loading trainings...</div>
-        </Card>
-      ) : trainings.length === 0 ? (
-        <Card>
-          <div className="py-8 text-center text-gray-500">
-            <p>No skill trainings found</p>
-          </div>
-        </Card>
-      ) : (
-        <>
-          <div className="overflow-x-auto">
-            <table className="data-table w-full text-sm">
-              <thead>
-                <tr className="bg-gray-50">
-                  <SortableTh sortKey="name" sort={sort} onSort={toggleSort}>
-                    Training Name
-                  </SortableTh>
-                  <SortableTh
-                    sortKey="startDate"
-                    sort={sort}
-                    onSort={toggleSort}
-                    responsiveClassName="hidden sm:table-cell"
-                  >
-                    Duration
-                  </SortableTh>
-                  <SortableTh sortKey="status" sort={sort} onSort={toggleSort}>
-                    Status
-                  </SortableTh>
-                  <SortableTh sortKey="participants" sort={sort} onSort={toggleSort} align="center">
-                    Participants
-                  </SortableTh>
-                  <th className="px-4 py-3 text-right text-label font-semibold text-muted-foreground">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {sortedTrainings.map((training) => (
-                  <tr key={training.id} className="border-b hover:bg-gray-50">
-                    <td className="px-4 py-3 text-sm">
-                      <div className="font-medium text-gray-900">{toTitleCase(training.name)}</div>
-                      <div className="text-xs text-gray-500">{training.trainerName ? toTitleCase(training.trainerName) : 'No trainer'}</div>
-                    </td>
-                    <td className="px-4 py-3 text-sm hidden sm:table-cell text-gray-700">
-                      {new Date(training.startDate).toLocaleDateString()} -{' '}
-                      {new Date(training.endDate).toLocaleDateString()}
-                    </td>
-                    <td className="px-4 py-3">
-                      <StatusBadge status={training.status} />
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <div className="text-sm text-gray-700">
-                        {training.participantCount || training.participants?.length || 0}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-right space-x-2">
-                      <button
-                        onClick={() => navigate(`/employment/trainings/${training.id}`)}
-                        className="text-blue-600 hover:text-blue-900 px-2 py-1 text-xs hover:bg-blue-50 rounded"
-                        title="View"
-                        aria-label="View"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDeleteClick(training.id)}
-                        className="text-red-600 hover:text-red-900 px-2 py-1 text-xs hover:bg-red-50 rounded"
-                        title="Delete"
-                        aria-label="Delete"
-                      >
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+      <Table
+        columns={columns}
+        data={trainings}
+        isLoading={loading}
+        entity="skill trainings"
+        rowKey={(training) => training.id}
+      />
 
-          <Pagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            totalItems={trainings.length * totalPages}
-            itemsPerPage={itemsPerPage}
-            onPageChange={setCurrentPage}
-          />
-        </>
+      {!loading && trainings.length > 0 && (
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={trainings.length * totalPages}
+          itemsPerPage={itemsPerPage}
+          onPageChange={setCurrentPage}
+        />
       )}
 
       <ConfirmDialog

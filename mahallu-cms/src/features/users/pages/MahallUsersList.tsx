@@ -5,6 +5,7 @@ import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
+import EmptyState from '@/components/ui/EmptyState';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
@@ -18,7 +19,9 @@ import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
 import { toast } from '@/store/toastStore';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import StatusBadge from '@/components/ui/StatusBadge';
 import { toTitleCase } from '@/utils/format';
+import { logError } from '@/utils/safeLog';
 
 export default function MahallUsersList() {
   const navigate = useNavigate();
@@ -62,7 +65,7 @@ export default function MahallUsersList() {
       }
     } catch (err: any) {
       setError(loadErrorMessage(err, 'users'));
-      console.error('Error fetching users:', err);
+      logError('Error fetching users', err);
     } finally {
       setLoading(false);
     }
@@ -94,11 +97,11 @@ export default function MahallUsersList() {
           exportToJSON(columns, dataToExport, filename);
           break;
         case 'pdf':
-          exportToPDF(columns, dataToExport, filename, title);
+          await exportToPDF(columns, dataToExport, filename, title);
           break;
       }
     } catch (error: any) {
-      console.error('Export error:', error);
+      logError('Export error', error);
       toast.error(errorMessage(error, { action: 'export data' }));
     } finally {
       setIsExporting(false);
@@ -113,15 +116,9 @@ export default function MahallUsersList() {
       render: (name, row) => (
         <div>
           <div className="font-medium text-gray-900 dark:text-white">{toTitleCase(name)}</div>
-          <span
-            className={`inline-block mt-1 px-2 py-0.5 text-xs font-medium rounded-full ${
-              row.status === 'active'
-                ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
-            }`}
-          >
-            {row.status}
-          </span>
+          <div className="mt-1">
+            <StatusBadge status={row.status} />
+          </div>
         </div>
       ),
     },
@@ -204,12 +201,12 @@ export default function MahallUsersList() {
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="text-center py-10">
-            <p className="text-red-600 dark:text-red-400">{error}</p>
-            <Button onClick={fetchUsers} className="mt-4" variant="outline">
-              Retry
-            </Button>
-          </div>
+          <EmptyState
+            variant="error"
+            entity="mahall users"
+            description={error}
+            action={{ label: 'Retry', onClick: fetchUsers }}
+          />
         ) : (
           <Table
             fixedLayout

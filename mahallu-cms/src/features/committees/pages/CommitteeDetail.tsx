@@ -15,6 +15,7 @@ import { formatDate } from '@/utils/format';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
+import StatusBadge from '@/components/ui/StatusBadge';
 
 export default function CommitteeDetail() {
   const { id } = useParams<{ id: string }>();
@@ -117,7 +118,9 @@ export default function CommitteeDetail() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card>
-          <h2 className="text-lg font-semibold mb-3 text-foreground">Basic Information</h2>
+          {/* No heading here — these are just the committee's own record fields,
+              distinct enough from the Statistics card beside them (which holds
+              aggregate counts, not record fields) to not need one of its own. */}
           <div className="space-y-3">
             <div>
               <p className="text-sm text-gray-500 dark:text-gray-400">Name</p>
@@ -161,15 +164,7 @@ export default function CommitteeDetail() {
             )}
             <div>
               <p className="text-sm text-gray-500 dark:text-gray-400">Status</p>
-              <span
-                className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                  committee.status === 'active'
-                    ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                    : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
-                }`}
-              >
-                {committee.status || 'active'}
-              </span>
+              <StatusBadge status={committee.status || 'active'} />
             </div>
             <div>
               <p className="text-sm text-gray-500 dark:text-gray-400">Created</p>

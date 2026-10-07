@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useThemeStore } from './store/themeStore';
 import { useAuthStore } from './store/authStore';
 import { applyTheme } from './utils/theme';
+import { useCrossTabAuthSync } from './hooks/useCrossTabAuthSync';
 import ProtectedRoute from './components/ui/ProtectedRoute';
 import Toaster from './components/ui/Toaster';
 import Login from './features/auth/pages/Login';
@@ -19,6 +20,10 @@ function App() {
   useEffect(() => {
     applyTheme();
   }, [theme]);
+
+  // A login, role/tenant switch or logout in another tab changes the token this
+  // tab sends, but not the role it draws: reload (or go to /login) when that happens.
+  useCrossTabAuthSync();
 
   return (
     <AppErrorBoundary>

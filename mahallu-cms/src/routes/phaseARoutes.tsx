@@ -38,7 +38,7 @@ export const phaseARoutes = [
   // Welfare (A5)
   route('/welfare/schemes', <SchemesList />, mahallOnly),
   route('/welfare/applications', <ApplicationsList />, surveyRoles),
-  route('/welfare/applications/create', <ApplicationCreate />, surveyRoles),
+  route('/welfare/applications/create', <ApplicationCreate />, surveyRoles, { label: 'New Application' }),
   route('/welfare/applications/:id', <ApplicationDetail />, surveyRoles),
 
   // Mosque profile (A6)
@@ -50,6 +50,6 @@ export const phaseARoutes = [
 
   // Announcements (A9)
   route('/announcements', <AnnouncementsList />, mahallOnly),
-  route('/announcements/create', <AnnouncementCreate />, mahallOnly),
+  route('/announcements/create', <AnnouncementCreate />, mahallOnly, { label: 'New Announcement' }),
   route('/announcements/:id', <AnnouncementDetail />, mahallOnly),
 ];

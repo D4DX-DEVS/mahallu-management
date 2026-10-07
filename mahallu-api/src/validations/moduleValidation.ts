@@ -1,5 +1,6 @@
 import { body, ValidationChain } from 'express-validator';
 import {
+  accountNumberField,
   amountField,
   boolField,
   dateField,
@@ -7,6 +8,7 @@ import {
   enumField,
   idArrayField,
   idParam,
+  ifscField,
   intField,
   optionalLongText,
   optionalRef,
@@ -29,9 +31,10 @@ import { KHUTBAH_STATUSES } from '../models/Khutbah';
 import { BOOK_CATEGORIES, RESOURCE_TYPES } from '../models/Library';
 import { CLASS_TYPES, ENROLLMENT_STATUSES } from '../models/Madrasa';
 import { MARRIAGE_ASSISTANCE_TYPES, MARRIAGE_ASSISTANCE_STATUSES } from '../models/MarriageAssistance';
-import { QARD_PURPOSES } from '../models/QardLoan';
-import { RELIEF_URGENCIES } from '../models/ReliefCase';
-import { SUPPORT_CASE_TYPES, SUPPORT_CASE_STATUSES } from '../models/Scholarship';
+import { QARD_PURPOSES, QARD_STATUSES } from '../models/QardLoan';
+import { RELIEF_URGENCIES, RELIEF_STATUSES } from '../models/ReliefCase';
+import { AWARD_STATUSES, SUPPORT_CASE_TYPES, SUPPORT_CASE_STATUSES } from '../models/Scholarship';
+import { WELFARE_STATUSES, WELFARE_DISBURSE_METHODS } from '../models/Welfare';
 import { VOLUNTEER_WINGS, SERVICE_TYPES } from '../models/VolunteerProfile';
 
 /**
@@ -88,6 +91,19 @@ const whole = (
   label: string,
   { min = 0, max = 1_000_000 }: { min?: number; max?: number } = {}
 ): ValidationChain => intField(field, label, { required: mode === 'create', min, max });
+
+/**
+ * A true/false that must arrive as a JSON boolean. `isBoolean()` accepts the strings "false" and
+ * "0", and a flag like `override` is read with a truthiness check somewhere, so "false" would turn
+ * the safeguard OFF. Only `true` and `false` are accepted here.
+ */
+const strictBool = (field: string, label: string): ValidationChain =>
+  body(field)
+    .optional()
+    .custom((value: unknown) => {
+      if (typeof value !== 'boolean') throw new Error(`Please choose yes or no for the ${label}.`);
+      return true;
+    });
 
 const date = (
   mode: Mode,
@@ -502,8 +518,9 @@ const marriageAssistanceFields = (mode: Mode): ValidationChain[] => [
   optionalRef('memberId', 'member'),
   optionalRef('familyId', 'family'),
   enumOf(mode, 'type', MARRIAGE_ASSISTANCE_TYPES, 'assistance type'),
-  amountField('amount', 'amount'),
-  enumField('status', MARRIAGE_ASSISTANCE_STATUSES, 'status'),
+  // `status` is not a field of create/update: it is always "requested" on create and moves only
+  // through the status endpoint.
+  money(mode, 'amount', 'amount'),
   optionalLongText('notes', 'notes', 2000),
 ];
 
@@ -511,6 +528,13 @@ export const createMarriageAssistanceValidation = marriageAssistanceFields('crea
 export const updateMarriageAssistanceValidation = [
   idParam('id', 'application'),
   ...marriageAssistanceFields('update'),
+];
+
+/** PUT /marriage-assistance/:id/status */
+export const updateMarriageAssistanceStatusValidation = [
+  idParam('id', 'application'),
+  enumField('status', MARRIAGE_ASSISTANCE_STATUSES, 'status', { required: true }),
+  optionalLongText('notes', 'notes', 2000),
 ];
 
 const reliefFields = (mode: Mode): ValidationChain[] => [
@@ -521,13 +545,23 @@ const reliefFields = (mode: Mode): ValidationChain[] => [
   optionalLongText('description', 'description', 3000),
   enumField('urgency', RELIEF_URGENCIES, 'urgency'),
   optionalText('assistanceGiven', 'assistance given', 500),
-  amountField('amount', 'amount'),
+  money(mode, 'amount', 'amount', { min: 0.01 }),
   dateField('followUpDate', 'follow-up date'),
   optionalLongText('notes', 'notes', 2000),
 ];
 
 export const createReliefCaseValidation = reliefFields('create');
 export const updateReliefCaseValidation = [idParam('id', 'relief case'), ...reliefFields('update')];
+
+/** PUT /relief/cases/:id/status */
+export const updateReliefStatusValidation = [
+  idParam('id', 'relief case'),
+  enumField('status', RELIEF_STATUSES, 'status', { required: true }),
+  optionalText('assistanceGiven', 'assistance given', 500),
+  money('update', 'amount', 'amount', { min: 0.01 }),
+  dateField('followUpDate', 'follow-up date'),
+  optionalLongText('notes', 'notes', 2000),
+];
 
 const qardLoanFields = (mode: Mode): ValidationChain[] => [
   optionalRef('applicantMemberId', 'member'),
@@ -538,19 +572,39 @@ const qardLoanFields = (mode: Mode): ValidationChain[] => [
   optionalText('purposeDetails', 'purpose details', 1000),
   dateField('appliedDate', 'application date'),
   intField('repaymentMonths', 'repayment period in months', { min: 1, max: 600 }),
-  amountField('approvedAmount', 'approved amount'),
+  // The approved amount is not a field here: it is set only when the loan is approved, through
+  // the status endpoint.
   optionalLongText('notes', 'notes', 2000),
 ];
 
 export const createQardLoanValidation = qardLoanFields('create');
 export const updateQardLoanValidation = [idParam('id', 'loan'), ...qardLoanFields('update')];
 
+/** PUT /qard/loans/:id/status */
+export const updateQardLoanStatusValidation = [
+  idParam('id', 'loan'),
+  enumField('status', QARD_STATUSES, 'status', { required: true }),
+  amountField('approvedAmount', 'approved amount', { min: 0.01 }),
+  strictBool('allowOverApproval', 'approval above the requested amount'),
+  dateField('disbursedDate', 'disbursement date', { allowFuture: false }),
+  optionalLongText('notes', 'notes', 2000),
+];
+
 export const createQardRepaymentValidation = [
   requiredRef('loanId', 'loan'),
-  amountField('amount', 'amount', { required: true, min: 1 }),
+  // A rupee is not the smallest repayment: a loan with 0.50 left could never be closed at min 1.
+  amountField('amount', 'amount', { required: true, min: 0.01 }),
   dateField('paymentDate', 'payment date', { allowFuture: false }),
   optionalText('receiptNo', 'receipt number', 50),
   optionalText('remarks', 'remarks', 500),
+  // Makes a retried POST apply once. Generate one id per repayment form and resend it on retry.
+  body('clientRequestId')
+    .optional({ values: 'falsy' })
+    .isString()
+    .withMessage('The request id is not valid. Please try again.')
+    .bail()
+    .matches(/^[A-Za-z0-9._:-]{8,100}$/)
+    .withMessage('The request id is not valid. Please try again.'),
 ];
 
 const welfareApplicationFields = (mode: Mode): ValidationChain[] => [
@@ -560,7 +614,8 @@ const welfareApplicationFields = (mode: Mode): ValidationChain[] => [
   money(mode, 'requestedAmount', 'requested amount', { min: 1 }),
   optionalLongText('reason', 'reason', 2000),
   enumField('priority', ['low', 'medium', 'high', 'urgent'], 'priority'),
-  amountField('approvedAmount', 'approved amount'),
+  // The approved amount is not a field here: it is set only when the application is approved,
+  // through the status endpoint, and capped by the requested amount.
   optionalLongText('verificationNotes', 'verification notes', 2000),
 ];
 
@@ -568,6 +623,18 @@ export const createWelfareApplicationValidation = welfareApplicationFields('crea
 export const updateWelfareApplicationValidation = [
   idParam('id', 'application'),
   ...welfareApplicationFields('update'),
+];
+
+/** PUT /welfare/applications/:id/status */
+export const updateWelfareApplicationStatusValidation = [
+  idParam('id', 'application'),
+  enumField('status', WELFARE_STATUSES, 'status', { required: true }),
+  amountField('approvedAmount', 'approved amount', { min: 0.01 }),
+  strictBool('override', 'approval above the requested amount'),
+  optionalLongText('note', 'note', 2000),
+  optionalLongText('verificationNotes', 'verification notes', 2000),
+  dateField('disbursedDate', 'disbursement date', { allowFuture: false }),
+  enumField('disbursedVia', WELFARE_DISBURSE_METHODS, 'payment method'),
 ];
 
 const zakatDistributionFields = (mode: Mode): ValidationChain[] => [
@@ -606,12 +673,21 @@ const awardFields = (mode: Mode): ValidationChain[] => [
   ref(mode, 'memberId', 'student'),
   dateField('awardedDate', 'award date'),
   money(mode, 'amount', 'amount', { min: 1 }),
-  enumField('status', ['applied', 'approved', 'paid'], 'status'),
+  // On create the status is ignored (an award always starts as "applied"); on update it is a
+  // transition request checked against the award transition map.
+  enumField('status', AWARD_STATUSES, 'status'),
   optionalText('remarks', 'remarks', 500),
 ];
 
 export const createAwardValidation = awardFields('create');
 export const updateAwardValidation = [idParam('id', 'award'), ...awardFields('update')];
+
+/** PUT /scholarship-awards/:id/status */
+export const updateAwardStatusValidation = [
+  idParam('id', 'award'),
+  enumField('status', AWARD_STATUSES, 'status', { required: true }),
+  optionalText('remarks', 'remarks', 500),
+];
 
 const supportCaseFields = (mode: Mode): ValidationChain[] => [
   ref(mode, 'memberId', 'member'),
@@ -772,10 +848,11 @@ export const issueCertificateValidation = [
 
 const mahalluAccountFields = (mode: Mode): ValidationChain[] => [
   text(mode, 'accountName', 'account name', { max: 150 }),
-  // An account number keeps its leading zeros, so it is text, not a number.
-  optionalText('accountNumber', 'account number', 34),
+  // An account number keeps its leading zeros, so it is text, not a number -
+  // but only digits are a valid account number.
+  accountNumberField('accountNumber', 'account number', 34),
   optionalText('bankName', 'bank name', 150),
-  optionalText('ifscCode', 'IFSC code', 11),
+  ifscField('ifscCode', 'IFSC code'),
   amountField('balance', 'balance'),
   enumField('status', ['active', 'inactive'], 'status'),
 ];

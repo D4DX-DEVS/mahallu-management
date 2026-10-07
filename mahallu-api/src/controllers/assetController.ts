@@ -5,6 +5,29 @@ import { getPaginationParams, createPaginationResponse } from '../utils/paginati
 
 import { sendFailure } from '../utils/userMessages';
 import { regexLiteral } from '../utils/queryGuard';
+import { verifyTenantOwnership } from '../utils/tenantCheck';
+
+/**
+ * Loads an asset only if it belongs to the caller's Mahallu (Super Admin: any).
+ * Every by-id handler here used to look the id up bare, so any signed-in user could read,
+ * rewrite - tenantFilter even re-parented the record into their own Mahallu - or delete
+ * another Mahallu's asset by id. Sends the 404/403 itself and returns null in that case.
+ */
+const loadOwnedAsset = async (req: AuthRequest, res: Response) => {
+  const asset = await Asset.findById(req.params.id);
+  if (!asset) {
+    res.status(404).json({ success: false, message: "We couldn't find that asset. It may have been removed." });
+    return null;
+  }
+  if (!verifyTenantOwnership(req, res, asset.tenantId, 'Asset')) return null;
+  return asset;
+};
+
+/** A client may not move a record to another Mahallu through an update body. */
+const withoutTenant = (body: any) => {
+  const { tenantId: _tenantId, ...rest } = body || {};
+  return rest;
+};
 
 // ==================== ASSET CRUD ====================
 
@@ -43,12 +66,11 @@ export const getAllAssets = async (req: AuthRequest, res: Response) => {
   }
 };
 
-export const getAssetById = async (req: Request, res: Response) => {
+export const getAssetById = async (req: AuthRequest, res: Response) => {
   try {
-    const asset = await Asset.findById(req.params.id).populate('mosqueId', 'name');
-    if (!asset) {
-      return res.status(404).json({ success: false, message: "We couldn't find that asset. It may have been removed." });
-    }
+    const owned = await loadOwnedAsset(req, res);
+    if (!owned) return;
+    const asset = await Asset.findById(owned._id).populate('mosqueId', 'name');
     res.json({ success: true, data: asset });
   } catch (error: any) {
     sendFailure(res, error, 'We couldn\'t load the asset right now. Please try again.');
@@ -79,28 +101,26 @@ export const createAsset = async (req: AuthRequest, res: Response) => {
   }
 };
 
-export const updateAsset = async (req: Request, res: Response) => {
+export const updateAsset = async (req: AuthRequest, res: Response) => {
   try {
+    const owned = await loadOwnedAsset(req, res);
+    if (!owned) return;
     const asset = await Asset.findByIdAndUpdate(
-      req.params.id,
-      req.body,
+      owned._id,
+      withoutTenant(req.body),
       { new: true, runValidators: true }
     );
-    if (!asset) {
-      return res.status(404).json({ success: false, message: "We couldn't find that asset. It may have been removed." });
-    }
     res.json({ success: true, data: asset });
   } catch (error: any) {
     sendFailure(res, error, 'We couldn\'t update the asset. Please try again.');
   }
 };
 
-export const deleteAsset = async (req: Request, res: Response) => {
+export const deleteAsset = async (req: AuthRequest, res: Response) => {
   try {
-    const asset = await Asset.findByIdAndDelete(req.params.id);
-    if (!asset) {
-      return res.status(404).json({ success: false, message: "We couldn't find that asset. It may have been removed." });
-    }
+    const owned = await loadOwnedAsset(req, res);
+    if (!owned) return;
+    await owned.deleteOne();
     // Also delete all maintenance records for this asset
     await AssetMaintenance.deleteMany({ assetId: req.params.id });
     res.json({ success: true, message: 'Asset deleted' });
@@ -134,16 +154,14 @@ export const getAssetMaintenanceRecords = async (req: AuthRequest, res: Response
 
 export const createMaintenanceRecord = async (req: AuthRequest, res: Response) => {
   try {
-    // Verify asset exists
-    const asset = await Asset.findById(req.params.id);
-    if (!asset) {
-      return res.status(404).json({ success: false, message: "We couldn't find that asset. It may have been removed." });
-    }
+    // The asset must exist and belong to the caller's Mahallu.
+    const asset = await loadOwnedAsset(req, res);
+    if (!asset) return;
 
     const maintenanceData = {
       ...req.body,
       assetId: req.params.id,
-      tenantId: req.tenantId || req.body.tenantId || asset.tenantId,
+      tenantId: asset.tenantId,
     };
 
     const record = new AssetMaintenance(maintenanceData);
@@ -154,11 +172,12 @@ export const createMaintenanceRecord = async (req: AuthRequest, res: Response) =
   }
 };
 
-export const updateMaintenanceRecord = async (req: Request, res: Response) => {
+export const updateMaintenanceRecord = async (req: AuthRequest, res: Response) => {
   try {
+    if (!(await loadOwnedAsset(req, res))) return;
     const record = await AssetMaintenance.findOneAndUpdate(
       { _id: req.params.maintenanceId, assetId: req.params.id },
-      req.body,
+      withoutTenant(req.body),
       { new: true, runValidators: true }
     );
     if (!record) {
@@ -170,8 +189,9 @@ export const updateMaintenanceRecord = async (req: Request, res: Response) => {
   }
 };
 
-export const deleteMaintenanceRecord = async (req: Request, res: Response) => {
+export const deleteMaintenanceRecord = async (req: AuthRequest, res: Response) => {
   try {
+    if (!(await loadOwnedAsset(req, res))) return;
     const record = await AssetMaintenance.findOneAndDelete({
       _id: req.params.maintenanceId,
       assetId: req.params.id,

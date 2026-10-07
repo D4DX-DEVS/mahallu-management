@@ -1,8 +1,20 @@
 import express from 'express';
-import { login, getCurrentUser, changePassword, registerDevice, setTwoFactor, selectAccount } from '../controllers/authController';
+import {
+  login,
+  getCurrentUser,
+  changePassword,
+  registerDevice,
+  setTwoFactor,
+  selectAccount,
+  getAvailableAccounts,
+  switchAccount,
+  startImpersonation,
+  exitImpersonation,
+  logout,
+} from '../controllers/authController';
 import { sendOTP, verifyOTP } from '../controllers/otpController';
-import { authMiddleware } from '../middleware/authMiddleware';
-import { verifyOtpRateLimiter, loginRateLimiter, sendOtpRateLimiter } from '../middleware/rateLimit';
+import { authMiddleware, superAdminOnly } from '../middleware/authMiddleware';
+import { verifyOtpRateLimiter, loginRateLimiter, sendOtpRateLimiter, switchAccountRateLimiter, selectAccountRateLimiter } from '../middleware/rateLimit';
 import { validationHandler } from '../middleware/validationHandler';
 import {
   loginValidation,
@@ -12,6 +24,8 @@ import {
   registerDeviceValidation,
   twoFactorValidation,
   selectAccountValidation,
+  switchAccountValidation,
+  startImpersonationValidation,
 } from '../validations/authValidation';
 
 const router = express.Router();
@@ -328,7 +342,176 @@ router.put('/register-device', authMiddleware, registerDeviceValidation, validat
  */
 router.put('/two-factor', authMiddleware, twoFactorValidation, validationHandler, setTwoFactor);
 
-router.post('/select-account', selectAccountValidation, validationHandler, selectAccount);
+router.post('/select-account', selectAccountValidation, validationHandler, selectAccountRateLimiter, selectAccount);
+
+/**
+ * @swagger
+ * /auth/available-accounts:
+ *   get:
+ *     summary: List the authenticated person's other active accounts
+ *     tags: [Auth]
+ *     description: |
+ *       Identity comes entirely from the request's own JWT. Finds every active
+ *       User account sharing the authenticated user's own phone number, using
+ *       the same phone-variant matching login/verifyOTP/selectAccount already
+ *       use. Never accepts a phone number, role, tenantId or instituteId from
+ *       the client. The caller's own current account is included, flagged
+ *       with `isCurrent: true`.
+ *       **Access:** any authenticated user, own accounts only
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Available accounts
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ */
+router.get('/available-accounts', authMiddleware, getAvailableAccounts);
+
+/**
+ * @swagger
+ * /auth/logout:
+ *   post:
+ *     summary: Sign out of every session of this account
+ *     tags: [Authentication]
+ *     description: Revokes all existing tokens of the signed-in account (all devices).
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Signed out
+ */
+router.post('/logout', authMiddleware, logout);
+
+/**
+ * @swagger
+ * /auth/switch-account:
+ *   post:
+ *     summary: Switch the current session to another of your own accounts
+ *     tags: [Auth]
+ *     description: |
+ *       Not a general role-change endpoint. The request may only name WHICH
+ *       account (`targetUserId`) — role, tenantId and instituteId are never
+ *       read from the body. The target is authorized only when it is active
+ *       and shares the CURRENT authenticated user's own phone number, checked
+ *       with the same logic `selectAccount` uses. A Super Admin can only
+ *       switch into an account that already exists for their own phone, never
+ *       into an arbitrary Mahallu's admin context.
+ *       **Access:** any authenticated user, own accounts only
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [targetUserId]
+ *             properties:
+ *               targetUserId:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: New session for the target account
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         description: Target account is inactive or does not belong to you
+ *       404:
+ *         description: Target account not found
+ */
+router.post(
+  '/switch-account',
+  authMiddleware,
+  switchAccountRateLimiter,
+  switchAccountValidation,
+  validationHandler,
+  switchAccount
+);
+
+/**
+ * @swagger
+ * /auth/impersonate:
+ *   post:
+ *     summary: "Super Admin only — temporarily view/act as another role's context"
+ *     tags: [Auth]
+ *     description: |
+ *       Not a general role switch. Requires `superAdminOnly` (`req.isSuperAdmin`,
+ *       which is false during an existing impersonation session, so this can
+ *       never chain a second one on top of the first). The backend
+ *       independently validates the tenant is active and, when applicable,
+ *       that the institute/member actually belongs to that tenant — a
+ *       mismatched combination is always rejected, never trusted from the
+ *       client. Mints a clearly-marked impersonation session that retains the
+ *       real Super Admin's own id for traceability and exit.
+ *       **Access:** Super Admin only
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [targetRole, tenantId]
+ *             properties:
+ *               targetRole:
+ *                 type: string
+ *                 enum: [mahall, survey, institute, member]
+ *               tenantId:
+ *                 type: string
+ *               instituteId:
+ *                 type: string
+ *                 description: Required when targetRole is "institute"
+ *               memberId:
+ *                 type: string
+ *                 description: Required when targetRole is "member"
+ *     responses:
+ *       200:
+ *         description: New impersonation session
+ *       400:
+ *         description: Invalid role/tenant/institute/member combination
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         description: Caller is not a Super Admin
+ */
+router.post(
+  '/impersonate',
+  authMiddleware,
+  superAdminOnly,
+  switchAccountRateLimiter,
+  startImpersonationValidation,
+  validationHandler,
+  startImpersonation
+);
+
+/**
+ * @swagger
+ * /auth/exit-impersonation:
+ *   post:
+ *     summary: Return to the real Super Admin session
+ *     tags: [Auth]
+ *     description: |
+ *       Only valid while the current session IS an impersonation session
+ *       (`req.impersonation`, set by authMiddleware from the token's own
+ *       `imp` claim). Re-verifies the original account is still an active
+ *       Super Admin before restoring it, then mints an ordinary, unmarked
+ *       session token — identical in shape to a fresh login.
+ *       **Access:** any account currently impersonating another role
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Restored Super Admin session
+ *       400:
+ *         description: Not currently impersonating
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         description: Original account could not be restored
+ */
+router.post('/exit-impersonation', authMiddleware, exitImpersonation);
 
 export default router;
 

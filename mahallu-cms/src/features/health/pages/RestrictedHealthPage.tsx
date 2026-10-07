@@ -14,6 +14,7 @@ import { PageSkeleton } from '@/components/ui/Skeleton';
 import { toast } from '@/store/toastStore';
 import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
+import { PHONE_PATTERN, sanitizeDigits } from '@/utils/validation';
 
 interface RestrictedHealthPageProps {
   title: string;
@@ -88,6 +89,7 @@ export default function RestrictedHealthPage({ title, type, subtitle }: Restrict
     const errs: typeof formErrors = {};
     if (!form.name.trim()) errs.name = 'Name is required';
     if (!form.contactNo.trim()) errs.contactNo = 'Contact number is required';
+    else if (!PHONE_PATTERN.test(form.contactNo.trim())) errs.contactNo = 'Please enter a 10-digit phone number.';
     setFormErrors(errs);
     if (Object.keys(errs).length > 0) return;
 
@@ -212,7 +214,10 @@ export default function RestrictedHealthPage({ title, type, subtitle }: Restrict
             <input
               aria-label="Contact Number"
               value={form.contactNo}
-              onChange={(e) => setForm({ ...form, contactNo: e.target.value })}
+              onChange={(e) => setForm({ ...form, contactNo: sanitizeDigits(e.target.value, 10) })}
+              type="tel"
+              inputMode="numeric"
+              maxLength={10}
               className="w-full px-3 py-2 border border-gray-300 rounded"
               placeholder="Phone number"
             />

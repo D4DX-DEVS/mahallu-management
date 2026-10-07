@@ -13,6 +13,7 @@ import { formatDate, formatDateTime, toTitleCase } from '@/utils/format';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { useAuthStore } from '@/store/authStore';
+import StatusBadge from '@/components/ui/StatusBadge';
 import { SENSITIVE_MODULE_LABELS } from '@/constants/modules';
 
 export default function UserDetail() {
@@ -82,14 +83,12 @@ export default function UserDetail() {
 
   return (
     <div className="space-y-4">
-      <div className="flex gap-2 items-center justify-between">
-        <div className="flex items-center gap-4">
-          <PageHeader
-            description="User Details"
-            title={toTitleCase(user.name)}
-            breadcrumbs={[{ label: 'Mahall Users', path: ROUTES.USERS.MAHALL }]}
-          />
-          <div className="flex gap-2 items-center">
+      <PageHeader
+        description="User Details"
+        title={toTitleCase(user.name)}
+        breadcrumbs={[{ label: 'Mahall Users', path: ROUTES.USERS.MAHALL }]}
+        actions={
+          <>
             <Link to={ROUTES.USERS.EDIT_MAHALL(user.id)}>
               <Button variant="outline" icon={<FiEdit2 />} collapseLabel>Edit</Button>
             </Link>
@@ -103,113 +102,96 @@ export default function UserDetail() {
             >
               Delete
             </Button>
+          </>
+        }
+      />
+
+      {/* One field list rather than two headed halves — every field here is
+          the same user record, not two distinct kinds of information. */}
+      <Card>
+        <div className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
+          <div>
+            <span className="text-sm text-gray-500 dark:text-gray-400">Name</span>
+            <p className="text-gray-900 dark:text-gray-100">{toTitleCase(user.name)}</p>
           </div>
+          <div>
+            <span className="text-sm text-gray-500 dark:text-gray-400">Phone</span>
+            <p className="text-gray-900 dark:text-gray-100">{user.phone}</p>
+          </div>
+          {user.email && (
+            <div>
+              <span className="text-sm text-gray-500 dark:text-gray-400">Email</span>
+              <p className="text-gray-900 dark:text-gray-100">{user.email}</p>
+            </div>
+          )}
+          <div>
+            <span className="text-sm text-gray-500 dark:text-gray-400">Role</span>
+            <p className="text-gray-900 dark:text-gray-100 capitalize">{user.role}</p>
+          </div>
+          <div>
+            <span className="text-sm text-gray-500 dark:text-gray-400">Status</span>
+            <StatusBadge status={user.status} />
+          </div>
+          <div>
+            <span className="text-sm text-gray-500 dark:text-gray-400">Joining Date</span>
+            <p className="text-gray-900 dark:text-gray-100">{formatDate(user.joiningDate)}</p>
+          </div>
+          {user.lastLogin && (
+            <div>
+              <span className="text-sm text-gray-500 dark:text-gray-400">Last Login</span>
+              <p className="text-gray-900 dark:text-gray-100">{formatDateTime(user.lastLogin)}</p>
+            </div>
+          )}
+          {user.tenant && (
+            <div>
+              <span className="text-sm text-gray-500 dark:text-gray-400">Tenant</span>
+              <p className="text-gray-900 dark:text-gray-100">{toTitleCase(user.tenant.name)}</p>
+            </div>
+          )}
+          {user.instituteId && (
+            <div>
+              <span className="text-sm text-gray-500 dark:text-gray-400">Institute</span>
+              <p className="text-gray-900 dark:text-gray-100">
+                {instituteName ? toTitleCase(instituteName) : user.instituteId}
+              </p>
+            </div>
+          )}
         </div>
-      </div>
+      </Card>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {user.permissions && (
         <Card>
-          <h2 className="text-lg font-semibold mb-3 text-foreground">Basic Information</h2>
-          <div className="space-y-3">
+          <h2 className="text-lg font-semibold mb-3 text-foreground">Permissions</h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div>
-              <span className="text-sm text-gray-500 dark:text-gray-400">Name</span>
-              <p className="text-gray-900 dark:text-gray-100">{toTitleCase(user.name)}</p>
+              <span className="text-sm text-gray-500 dark:text-gray-400">View</span>
+              <p className="text-gray-900 dark:text-gray-100">{user.permissions.view ? 'Yes' : 'No'}</p>
             </div>
             <div>
-              <span className="text-sm text-gray-500 dark:text-gray-400">Phone</span>
-              <p className="text-gray-900 dark:text-gray-100">{user.phone}</p>
-            </div>
-            {user.email && (
-              <div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">Email</span>
-                <p className="text-gray-900 dark:text-gray-100">{user.email}</p>
-              </div>
-            )}
-            <div>
-              <span className="text-sm text-gray-500 dark:text-gray-400">Role</span>
-              <p className="text-gray-900 dark:text-gray-100 capitalize">{user.role}</p>
+              <span className="text-sm text-gray-500 dark:text-gray-400">Add</span>
+              <p className="text-gray-900 dark:text-gray-100">{user.permissions.add ? 'Yes' : 'No'}</p>
             </div>
             <div>
-              <span className="text-sm text-gray-500 dark:text-gray-400">Status</span>
-              <span
-                className={`inline-block px-2 py-1 text-xs font-medium rounded-full ${
-                  user.status === 'active'
-                    ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                    : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
-                }`}
-              >
-                {user.status}
-              </span>
+              <span className="text-sm text-gray-500 dark:text-gray-400">Edit</span>
+              <p className="text-gray-900 dark:text-gray-100">{user.permissions.edit ? 'Yes' : 'No'}</p>
+            </div>
+            <div>
+              <span className="text-sm text-gray-500 dark:text-gray-400">Delete</span>
+              <p className="text-gray-900 dark:text-gray-100">{user.permissions.delete ? 'Yes' : 'No'}</p>
             </div>
           </div>
-        </Card>
-
-        <Card>
-          <h2 className="text-lg font-semibold mb-3 text-foreground">
-            Additional Information
-          </h2>
-          <div className="space-y-3">
-            <div>
-              <span className="text-sm text-gray-500 dark:text-gray-400">Joining Date</span>
-              <p className="text-gray-900 dark:text-gray-100">{formatDate(user.joiningDate)}</p>
+          {user.permissions.sensitiveModules && user.permissions.sensitiveModules.length > 0 && (
+            <div className="mt-4">
+              <span className="text-sm text-gray-500 dark:text-gray-400">Restricted Module Access</span>
+              <p className="text-gray-900 dark:text-gray-100">
+                {user.permissions.sensitiveModules
+                  .map((key) => SENSITIVE_MODULE_LABELS[key])
+                  .join(', ')}
+              </p>
             </div>
-            {user.lastLogin && (
-              <div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">Last Login</span>
-                <p className="text-gray-900 dark:text-gray-100">{formatDateTime(user.lastLogin)}</p>
-              </div>
-            )}
-            {user.tenant && (
-              <div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">Tenant</span>
-                <p className="text-gray-900 dark:text-gray-100">{toTitleCase(user.tenant.name)}</p>
-              </div>
-            )}
-            {user.instituteId && (
-              <div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">Institute</span>
-                <p className="text-gray-900 dark:text-gray-100">
-                  {instituteName ? toTitleCase(instituteName) : user.instituteId}
-                </p>
-              </div>
-            )}
-          </div>
+          )}
         </Card>
-
-        {user.permissions && (
-          <Card className="md:col-span-2">
-            <h2 className="text-lg font-semibold mb-3 text-foreground">Permissions</h2>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">View</span>
-                <p className="text-gray-900 dark:text-gray-100">{user.permissions.view ? 'Yes' : 'No'}</p>
-              </div>
-              <div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">Add</span>
-                <p className="text-gray-900 dark:text-gray-100">{user.permissions.add ? 'Yes' : 'No'}</p>
-              </div>
-              <div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">Edit</span>
-                <p className="text-gray-900 dark:text-gray-100">{user.permissions.edit ? 'Yes' : 'No'}</p>
-              </div>
-              <div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">Delete</span>
-                <p className="text-gray-900 dark:text-gray-100">{user.permissions.delete ? 'Yes' : 'No'}</p>
-              </div>
-            </div>
-            {user.permissions.sensitiveModules && user.permissions.sensitiveModules.length > 0 && (
-              <div className="mt-4">
-                <span className="text-sm text-gray-500 dark:text-gray-400">Restricted Module Access</span>
-                <p className="text-gray-900 dark:text-gray-100">
-                  {user.permissions.sensitiveModules
-                    .map((key) => SENSITIVE_MODULE_LABELS[key])
-                    .join(', ')}
-                </p>
-              </div>
-            )}
-          </Card>
-        )}
-      </div>
+      )}
 
       <Modal
         isOpen={showDeleteModal}

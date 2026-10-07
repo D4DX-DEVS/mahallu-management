@@ -16,6 +16,8 @@ import { Committee, Member } from '@/types';
 import { errorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
+import { fetchAllPages } from '@/services/api';
+import { logError } from '@/utils/safeLog';
 
 const meetingSchema = z.object({
   committeeId: z.string().max(200, 'Please keep the committee to 200 characters or less.').min(1, 'Committee is required'),
@@ -58,10 +60,10 @@ export default function CreateMeeting() {
   useEffect(() => {
     const fetchCommittees = async () => {
       try {
-        const result = await committeeService.getAll({ limit: 1000 });
-        setCommittees(result.data || []);
+        const allRows = await fetchAllPages((page) => committeeService.getAll(page));
+        setCommittees(allRows || []);
       } catch (err) {
-        console.error('Error fetching committees:', err);
+        logError('Error fetching committees', err);
         setCommittees([]);
       }
     };
@@ -79,7 +81,7 @@ export default function CreateMeeting() {
         const committee = await committeeService.getById(selectedCommitteeId);
         setCommitteeMembers((committee.members as Member[]) || []);
       } catch (err) {
-        console.error('Error fetching committee members:', err);
+        logError('Error fetching committee members', err);
         setCommitteeMembers([]);
       } finally {
         setLoadingMembers(false);
@@ -122,7 +124,7 @@ export default function CreateMeeting() {
       navigate(ROUTES.COMMITTEES.MEETINGS);
     } catch (err: any) {
       setError(errorMessage(err, { action: 'create meeting. please try again' }));
-      console.error('Error creating meeting:', err);
+      logError('Error creating meeting', err);
     }
   };
 

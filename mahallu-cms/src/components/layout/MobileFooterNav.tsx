@@ -9,7 +9,6 @@ import {
   FiClipboard,
   FiTarget,
   FiUser,
-  FiBookOpen,
   FiSearch,
   FiMenu,
 } from 'react-icons/fi';
@@ -49,7 +48,6 @@ export const footerNavByRole: Record<string, FooterItem[]> = {
     { id: 'f-inst-staff', label: 'Staff', icon: FiUser, path: '/employees' },
   ],
 }; /** Institute day book keeps a home in the side menu; see menuItems. */
-export const legacyFooterExtras = [{ icon: FiBookOpen }];
 export function useIsMobile(): boolean {
   const [isMobile, setIsMobile] = useState(
     () => typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches
@@ -89,7 +87,7 @@ export default function MobileFooterNav() {
   return (
     <nav
       aria-label="Primary"
-      className="fixed inset-x-0 bottom-0 z-40 flex h-16 items-stretch border-t border-border bg-card pb-safe md:hidden"
+      className="fixed inset-x-0 bottom-0 z-50 flex h-16 items-stretch border-t border-border bg-card pb-safe md:hidden"
     >
       {items.map((item) => {
         const Icon = item.icon;

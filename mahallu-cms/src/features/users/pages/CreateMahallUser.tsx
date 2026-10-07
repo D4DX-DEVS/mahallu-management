@@ -15,6 +15,7 @@ import { Tenant } from '@/types/tenant';
 import { errorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
+import { sanitizeDigits } from '@/utils/validation';
 
 const userSchema = z.object({
   name: z
@@ -44,6 +45,7 @@ export default function CreateMahallUser() {
     register,
     handleSubmit,
     watch,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<UserFormData>({
     resolver: zodResolver(userSchema),
@@ -87,7 +89,6 @@ export default function CreateMahallUser() {
       await userService.create({
         ...data,
         role: 'mahall',
-        password: '123456', // Default password
         tenantId: isSuperAdmin ? data.tenantId : undefined,
       });
       navigate(ROUTES.USERS.MAHALL);
@@ -164,7 +165,9 @@ export default function CreateMahallUser() {
               <Input
                 label="Phone Number"
                 type="tel"
+                inputMode="numeric"
                 {...register('phone')}
+                onChange={(e) => setValue('phone', sanitizeDigits(e.target.value, 10), { shouldValidate: true, shouldDirty: true })}
                 error={errors.phone?.message}
                 required
                 placeholder="9876543210"

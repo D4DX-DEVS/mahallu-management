@@ -7,6 +7,7 @@ import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
+import EmptyState from '@/components/ui/EmptyState';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
@@ -20,6 +21,8 @@ import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import StatusBadge from '@/components/ui/StatusBadge';
 import PageHeader from '@/components/layout/PageHeader';
+import { useServerCounts } from '@/hooks/useServerCounts';
+import { logError } from '@/utils/safeLog';
 
 export default function DeathRegistrationsList() {
   const navigate = useNavigate();
@@ -65,7 +68,7 @@ export default function DeathRegistrationsList() {
       }
     } catch (err: any) {
       setError(loadErrorMessage(err, 'death registrations'));
-      console.error('Error fetching registrations:', err);
+      logError('Error fetching registrations', err);
     } finally {
       setLoading(false);
     }
@@ -101,7 +104,7 @@ export default function DeathRegistrationsList() {
           exportToJSON(columns, dataToExport, filename);
           break;
         case 'pdf':
-          exportToPDF(columns, dataToExport, filename, title);
+          await exportToPDF(columns, dataToExport, filename, title);
           break;
       }
     } catch (error: any) {
@@ -136,6 +139,16 @@ export default function DeathRegistrationsList() {
     },
   ];
 
+  // Whole-list counts from the server: these cards used to count only the rows on this page.
+  const countBase = debouncedSearch ? { search: debouncedSearch } : {};
+  const statusCounts = useServerCounts(
+    {
+      pending: () => registrationService.getAllDeath({ ...countBase, status: 'pending', page: 1, limit: 1 }),
+      approved: () => registrationService.getAllDeath({ ...countBase, status: 'approved', page: 1, limit: 1 }),
+    },
+    [registrations]
+  );
+
   const stats = [
     {
       title: 'Total Registrations',
@@ -144,12 +157,12 @@ export default function DeathRegistrationsList() {
     },
     {
       title: 'Pending',
-      value: registrations.filter((r) => r.status === 'pending' || !r.status).length,
+      value: statusCounts.pending ?? registrations.filter((r) => r.status === 'pending' || !r.status).length,
       icon: <FiClock className="h-5 w-5" />,
     },
     {
       title: 'Approved',
-      value: registrations.filter((r) => r.status === 'approved').length,
+      value: statusCounts.approved ?? registrations.filter((r) => r.status === 'approved').length,
       icon: <FiCheckCircle className="h-5 w-5" />,
     },
   ];
@@ -207,12 +220,12 @@ export default function DeathRegistrationsList() {
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="text-center py-10">
-            <p className="text-red-600 dark:text-red-400">{error}</p>
-            <Button onClick={fetchRegistrations} className="mt-4" variant="outline">
-              Retry
-            </Button>
-          </div>
+          <EmptyState
+            variant="error"
+            entity="death registrations"
+            description={error}
+            action={{ label: 'Retry', onClick: fetchRegistrations }}
+          />
         ) : (
           <Table
             fixedLayout

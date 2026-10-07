@@ -93,12 +93,21 @@ export default function PettyCashDetail() {
     try {
       setReplenishing(true);
       const result = await pettyCashService.replenish(id!);
-      toast.success(result.message || 'Petty cash replenished');
+      if ((result.ledgerPending ?? 0) > 0) {
+        // Replenished, but some expenses are still waiting to be posted to the accounts.
+        toast.warning(
+          result.message ||
+            `Replenished. ${result.ledgerPending} expense(s) could not be posted to the accounts yet and will be retried at the next replenishment.`
+        );
+      } else {
+        toast.success(result.message || 'Petty cash replenished');
+      }
       setShowReplenishDialog(false);
       fetchFund();
       fetchTransactions();
     } catch (err: any) {
       toast.error(errorMessage(err, { action: 'replenish petty cash' }));
+    } finally {
       setReplenishing(false);
     }
   };
@@ -111,7 +120,7 @@ export default function PettyCashDetail() {
     return (
       <div className="text-center py-10">
         <p className="text-gray-500">Petty cash fund not found</p>
-        <Button onClick={() => navigate('/petty-cash')} className="mt-4">
+        <Button onClick={() => navigate('/accounting/petty-cash')} className="mt-4">
           Back to List
         </Button>
       </div>

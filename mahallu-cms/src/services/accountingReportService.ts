@@ -17,6 +17,79 @@ export interface DayBookEntry {
   referenceNo?: string;
 }
 
+/** Totals over the WHOLE date range, identical on every page of the day book. */
+export interface DayBookSummary {
+  totalIncome: number;
+  totalExpense: number;
+  netBalance: number;
+  totalEntries: number;
+}
+
+/** Describes the page of rows returned (the API serves at most 100 per page). */
+export interface ReportPagination {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
+export interface DayBookResult {
+  entries: DayBookEntry[];
+  summary: DayBookSummary;
+  pagination: ReportPagination;
+}
+
+/** Page and size for a paged report. */
+export interface ReportPageParams {
+  page?: number;
+  limit?: number;
+}
+
+export interface DayBookParams extends ReportPageParams {
+  instituteId?: string;
+  startDate: string;
+  endDate: string;
+  scope?: string;
+  includeEntities?: string;
+}
+
+export interface LedgerReportEntry {
+  id?: string;
+  date: string;
+  description: string;
+  category?: string;
+  institute?: string;
+  debit: number;
+  credit: number;
+  /** Running balance, correct for this page's position in the whole range. */
+  balance: number;
+  paymentMethod?: string;
+  referenceNo?: string;
+  source?: string;
+}
+
+export interface LedgerReportResult {
+  ledger?: { id?: string; name?: string; type?: string };
+  openingBalance: number;
+  closingBalance: number;
+  /** Whole-range totals, not this page's. */
+  totalDebit: number;
+  totalCredit: number;
+  entries: LedgerReportEntry[];
+  pagination: ReportPagination;
+}
+
+const toPagination = (raw: any, rowCount: number, requested: ReportPageParams): ReportPagination => {
+  const limit = Number(raw?.limit) || requested.limit || rowCount || 1;
+  const total = Number.isFinite(Number(raw?.total)) ? Number(raw.total) : rowCount;
+  return {
+    page: Number(raw?.page) || requested.page || 1,
+    limit,
+    total,
+    totalPages: Number(raw?.totalPages) || Math.max(1, Math.ceil(total / limit)),
+  };
+};
+
 export interface TrialBalanceEntry {
   ledgerId: string;
   ledgerName: string;
@@ -38,19 +111,15 @@ export interface BalanceSheetData {
 }
 
 export const accountingReportService = {
-  getDayBook: async (params: {
-    instituteId?: string;
-    startDate: string;
-    endDate: string;
-    scope?: string;
-    includeEntities?: string;
-  }) => {
+  getDayBook: async (params: DayBookParams): Promise<DayBookResult> => {
     const response = await api.get<{ success: boolean; data: any }>('/accounting-reports/day-book', {
       params: { ...params, endDate: toInclusiveEndDate(params.endDate) },
     });
     const raw = response.data.data;
-    // API returns { entries, summary } — extract and normalize entries
-    const entries: DayBookEntry[] = (raw?.entries || raw || []).map((e: any) => ({
+    // API returns { entries, summary, pagination } — `summary` covers the whole
+    // range and `pagination` describes this page of `entries`.
+    const rows: any[] = Array.isArray(raw?.entries) ? raw.entries : Array.isArray(raw) ? raw : [];
+    const entries: DayBookEntry[] = rows.map((e: any) => ({
       date: e.date,
       description: e.description,
       type: e.type || e.ledgerType,
@@ -60,7 +129,19 @@ export const accountingReportService = {
       employeeName: e.employeeName,
       referenceNo: e.referenceNo,
     }));
-    return entries;
+    const totalIncome = Number(raw?.summary?.totalIncome) || 0;
+    const totalExpense = Number(raw?.summary?.totalExpense) || 0;
+    const pagination = toPagination(raw?.pagination, entries.length, params);
+    return {
+      entries,
+      summary: {
+        totalIncome,
+        totalExpense,
+        netBalance: Number(raw?.summary?.netBalance ?? totalIncome - totalExpense) || 0,
+        totalEntries: Number(raw?.summary?.totalEntries ?? pagination.total) || 0,
+      },
+      pagination,
+    };
   },
 
   getTrialBalance: async (params: {
@@ -142,11 +223,24 @@ export const accountingReportService = {
     endDate?: string;
     scope?: string;
     includeEntities?: string;
-  }) => {
+    page?: number;
+    limit?: number;
+  }): Promise<LedgerReportResult> => {
     const response = await api.get<{ success: boolean; data: any }>('/accounting-reports/ledger-report', {
       params: { ...params, endDate: toInclusiveEndDate(params.endDate) },
     });
-    return response.data.data;
+    const raw = response.data.data;
+    const entries: LedgerReportEntry[] = Array.isArray(raw?.entries) ? raw.entries : [];
+    return {
+      ...raw,
+      ledger: raw?.ledger,
+      openingBalance: Number(raw?.openingBalance) || 0,
+      closingBalance: Number(raw?.closingBalance) || 0,
+      totalDebit: Number(raw?.totalDebit) || 0,
+      totalCredit: Number(raw?.totalCredit) || 0,
+      entries,
+      pagination: toPagination(raw?.pagination, entries.length, params),
+    };
   },
 
   getIncomeExpenditure: async (params: {

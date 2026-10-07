@@ -26,7 +26,7 @@ import { route, superAdminRoute } from './routeHelpers';
 export const adminRoutes = [
   // Tenants (super admin only)
   superAdminRoute('/admin/tenants', <TenantsList />),
-  superAdminRoute('/admin/tenants/create', <CreateTenant />),
+  superAdminRoute('/admin/tenants/create', <CreateTenant />, { label: 'New Tenant' }),
   superAdminRoute('/admin/tenants/:id', <TenantDetails />),
   superAdminRoute('/admin/tenants/:id/edit', <EditTenant />),
 
@@ -35,25 +35,25 @@ export const adminRoutes = [
 
   // Mahall users
   route(ROUTES.USERS.MAHALL, <MahallUsersList />),
-  route(ROUTES.USERS.CREATE_MAHALL, <CreateMahallUser />),
+  route(ROUTES.USERS.CREATE_MAHALL, <CreateMahallUser />, {}, { label: 'New Mahall User' }),
   route('/users/mahall/:id/edit', <EditMahallUser />),
   route('/users/mahall/:id', <UserDetail />),
 
   // Survey users
   route(ROUTES.USERS.SURVEY, <SurveyUsersList />),
-  route('/users/survey/create', <CreateSurveyUser />),
+  route('/users/survey/create', <CreateSurveyUser />, {}, { label: 'New Survey User' }),
   route('/users/survey/:id/edit', <EditSurveyUser />),
   route('/users/survey/:id', <UserDetail />),
 
   // Institute users
   route(ROUTES.USERS.INSTITUTE, <InstituteUsersList />),
-  route('/users/institute/create', <CreateInstituteUser />),
+  route('/users/institute/create', <CreateInstituteUser />, {}, { label: 'New Institute User' }),
   route('/users/institute/:id/edit', <EditInstituteUser />),
   route('/users/institute/:id', <UserDetail />),
 
   // All users (super admin only)
   superAdminRoute('/admin/users', <AllUsersList />),
-  superAdminRoute('/admin/users/create', <SelectUserType />),
+  superAdminRoute('/admin/users/create', <SelectUserType />, { label: 'Select User Type' }),
   superAdminRoute('/admin/users/:id', <UserDetail />),
   superAdminRoute('/admin/users/:id/edit', <EditMahallUser />),
 

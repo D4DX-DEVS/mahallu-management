@@ -1,4 +1,5 @@
 import mongoose, { Schema, Document } from 'mongoose';
+import { MAX_AMOUNT } from '../utils/money';
 
 export interface IEmployee extends Document {
   tenantId: mongoose.Types.ObjectId;
@@ -76,7 +77,8 @@ const EmployeeSchema = new Schema<IEmployee>(
     salary: {
       type: Number,
       required: [true, 'Salary is required'],
-      min: [0, 'Salary must be a positive number'],
+      min: [0, 'Please enter a salary of zero or more.'],
+      max: [MAX_AMOUNT, 'Please enter a smaller salary.'],
     },
     status: {
       type: String,
@@ -92,7 +94,8 @@ const EmployeeSchema = new Schema<IEmployee>(
       trim: true,
     },
     bankAccount: {
-      accountNumber: String,
+      // Digits only, kept as text so leading zeros survive. An empty value is skipped.
+      accountNumber: { type: String, trim: true, match: [/^[0-9]+$/, 'Please enter the account number using digits only.'] },
       bankName: String,
       ifscCode: String,
     },

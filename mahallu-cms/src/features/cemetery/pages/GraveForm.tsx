@@ -94,11 +94,11 @@ export function GraveForm() {
             // dropdown fails to match its current value on edit.
             deceasedMemberId:
               graveData.deceasedMemberId && typeof graveData.deceasedMemberId === 'object'
-                ? (graveData.deceasedMemberId as any)._id
+                ? (graveData.deceasedMemberId as any)._id || (graveData.deceasedMemberId as any).id
                 : graveData.deceasedMemberId,
             familyId:
               graveData.familyId && typeof graveData.familyId === 'object'
-                ? (graveData.familyId as any)._id
+                ? (graveData.familyId as any)._id || (graveData.familyId as any).id
                 : graveData.familyId,
           });
         }

@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FiCheckCircle, FiInbox, FiPlus, FiXCircle } from 'react-icons/fi';
+import { FiCheckCircle, FiEdit2, FiEye, FiInbox, FiPlus, FiTrash2, FiXCircle } from 'react-icons/fi';
 import TableCard from '@/components/ui/TableCard';
 import FilterPanel from '@/components/ui/FilterPanel';
 import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
+import EmptyState from '@/components/ui/EmptyState';
 import { PageSkeleton } from '@/components/ui/Skeleton';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
 import { toast } from '@/store/toastStore';
@@ -20,6 +22,10 @@ import { formatDate, toTitleCase } from '@/utils/format';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { useServerCounts } from '@/hooks/useServerCounts';
+import ActionsMenu from '@/components/ui/ActionsMenu';
+import StatusBadge from '@/components/ui/StatusBadge';
+import { logError } from '@/utils/safeLog';
 
 export default function InstitutesList() {
   const navigate = useNavigate();
@@ -29,6 +35,9 @@ export default function InstitutesList() {
   const [institutes, setInstitutes] = useState<Institute[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedInstitute, setSelectedInstitute] = useState<Institute | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
@@ -66,7 +75,7 @@ export default function InstitutesList() {
       }
     } catch (err: any) {
       setError(loadErrorMessage(err, 'institutes'));
-      console.error('Error fetching institutes:', err);
+      logError('Error fetching institutes', err);
     } finally {
       setLoading(false);
     }
@@ -94,14 +103,33 @@ export default function InstitutesList() {
           exportToJSON(columns, dataToExport, filename);
           break;
         case 'pdf':
-          exportToPDF(columns, dataToExport, filename, title);
+          await exportToPDF(columns, dataToExport, filename, title);
           break;
       }
     } catch (error: any) {
-      console.error('Export error:', error);
+      logError('Export error', error);
       toast.error(errorMessage(error, { action: 'export the institutes' }));
     } finally {
       setIsExporting(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!selectedInstitute) return;
+    try {
+      setDeleting(true);
+      await instituteService.delete(selectedInstitute.id);
+      setShowDeleteModal(false);
+      setSelectedInstitute(null);
+      await fetchInstitutes();
+      toast.success('Institute deleted');
+    } catch (err: any) {
+      // The list keeps its rows; the failure belongs on the dialog the user is in.
+      toast.error(errorMessage(err, { action: 'delete this institute' }));
+    } finally {
+      // Left true on the happy path, the next delete opened onto a spinner that
+      // never stopped and a Delete button that could not be pressed again.
+      setDeleting(false);
     }
   };
 
@@ -134,19 +162,56 @@ export default function InstitutesList() {
       key: 'status',
       label: 'Status',
       width: '7.25rem',
-      render: (status) => (
-        <span
-          className={`px-2 py-1 text-xs font-medium rounded-full ${
-            status === 'active'
-              ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-              : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
-          }`}
-        >
-          {status || 'active'}
-        </span>
+      render: (status) => <StatusBadge status={status || 'active'} />,
+    },
+    {
+      key: 'actions',
+      label: 'Actions',
+      width: '8rem',
+      align: 'center',
+      render: (_, row) => (
+        <ActionsMenu
+          items={[
+            {
+              label: 'View',
+              icon: <FiEye className="h-4 w-4" />,
+              onClick: () => {
+                navigate(ROUTES.INSTITUTES.DETAIL(row.id));
+              },
+            },
+            {
+              label: 'Edit',
+              icon: <FiEdit2 className="h-4 w-4" />,
+              onClick: () => {
+                navigate(`/institutes/${row.id}/edit`);
+              },
+            },
+            {
+              label: 'Delete',
+              icon: <FiTrash2 className="h-4 w-4" />,
+              onClick: () => {
+                setSelectedInstitute(row);
+                setShowDeleteModal(true);
+              },
+              variant: 'danger',
+            },
+          ]}
+        />
       ),
     },
   ];
+
+  // Whole-list counts from the server: these cards used to count only the rows on this page.
+  const countBase: { search?: string; type?: string } = {};
+  if (debouncedSearch) countBase.search = debouncedSearch;
+  if (typeFilter !== 'all') countBase.type = typeFilter;
+  const statusCounts = useServerCounts(
+    {
+      active: () => instituteService.getAll({ ...countBase, status: 'active', page: 1, limit: 1 }),
+      inactive: () => instituteService.getAll({ ...countBase, status: 'inactive', page: 1, limit: 1 }),
+    },
+    [institutes]
+  );
 
   const stats = [
     {
@@ -156,12 +221,12 @@ export default function InstitutesList() {
     },
     {
       title: 'Active',
-      value: institutes.filter((i) => i.status === 'active' || !i.status).length,
+      value: statusCounts.active ?? institutes.filter((i) => i.status === 'active' || !i.status).length,
       icon: <FiCheckCircle className="h-5 w-5" />,
     },
     {
       title: 'Inactive',
-      value: institutes.filter((i) => i.status === 'inactive').length,
+      value: statusCounts.inactive ?? institutes.filter((i) => i.status === 'inactive').length,
       icon: <FiXCircle className="h-5 w-5" />,
     },
   ];
@@ -217,18 +282,14 @@ export default function InstitutesList() {
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="text-center py-10">
-            <p className="text-red-600 dark:text-red-400">{error}</p>
-            <Button onClick={fetchInstitutes} className="mt-4" variant="outline">
-              Retry
-            </Button>
-          </div>
+          <EmptyState variant="error" entity="institutes" description={error} action={{ label: 'Retry', onClick: fetchInstitutes }} />
         ) : (
           <Table
             fixedLayout
             striped
             columns={columns}
             data={institutes}
+            entity="institutes"
             emptyMessage="No institutes found"
             onRowClick={(row) => navigate(ROUTES.INSTITUTES.DETAIL(row.id))}
           />
@@ -249,6 +310,20 @@ export default function InstitutesList() {
           </div>
         )}
       </TableCard>
+
+      <ConfirmDialog
+        isOpen={showDeleteModal}
+        title="Delete institute"
+        message={`Are you sure you want to delete ${toTitleCase(selectedInstitute?.name) || 'this institute'}? This action cannot be undone.`}
+        confirmLabel="Delete"
+        variant="danger"
+        isLoading={deleting}
+        onConfirm={handleDelete}
+        onCancel={() => {
+          setShowDeleteModal(false);
+          setSelectedInstitute(null);
+        }}
+      />
     </div>
   );
 }

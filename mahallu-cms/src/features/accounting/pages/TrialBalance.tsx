@@ -3,18 +3,21 @@ import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
+import Alert from '@/components/ui/Alert';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import { accountingReportService, TrialBalanceEntry } from '@/services/accountingReportService';
 import { instituteService } from '@/services/instituteService';
 import { useAuthStore } from '@/store/authStore';
-import { loadErrorMessage } from '@/utils/errors';
+import { loadErrorInfo, LoadErrorInfo } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
+import { fetchAllPages } from '@/services/api';
+import { logError } from '@/utils/safeLog';
 
 export default function TrialBalance() {
   const { currentInstituteId: userInstituteId } = useAuthStore();
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<LoadErrorInfo | null>(null);
   const [entries, setEntries] = useState<TrialBalanceEntry[]>([]);
   const [institutes, setInstitutes] = useState<{ id: string; name: string }[]>([]);
   const [instituteFilter, setInstituteFilter] = useState(userInstituteId || 'all');
@@ -31,10 +34,10 @@ export default function TrialBalance() {
 
   const fetchInstitutes = async () => {
     try {
-      const result = await instituteService.getAll({ limit: 1000 });
-      setInstitutes(result.data.map((i: any) => ({ id: i.id, name: i.name })));
+      const allRows = await fetchAllPages((page) => instituteService.getAll(page));
+      setInstitutes(allRows.map((i: any) => ({ id: i.id, name: i.name })));
     } catch (err) {
-      console.error('Error:', err);
+      logError('Error', err);
     }
   };
 
@@ -47,7 +50,7 @@ export default function TrialBalance() {
       const data = await accountingReportService.getTrialBalance(params);
       setEntries(data || []);
     } catch (err: any) {
-      setError(loadErrorMessage(err, 'trial balance'));
+      setError(loadErrorInfo(err, 'trial balance'));
     } finally {
       setLoading(false);
     }
@@ -99,9 +102,13 @@ export default function TrialBalance() {
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="text-center py-10">
-            <p className="text-red-600 dark:text-red-400">{error}</p>
-          </div>
+          <Alert
+            variant={error.variant}
+            title={error.title}
+            action={error.variant === 'info' ? undefined : { label: 'Try again', onClick: fetchTrialBalance }}
+          >
+            {error.message}
+          </Alert>
         ) : entries.length === 0 ? (
           <div className="text-center py-10 text-gray-500 dark:text-gray-400">
             Select a date range and click "Generate" to view the trial balance

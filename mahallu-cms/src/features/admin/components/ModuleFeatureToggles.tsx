@@ -38,7 +38,7 @@ export default function ModuleFeatureToggles({ value, onChange, disabled }: Modu
                 'disabled:opacity-60',
                 enabled
                   ? 'border-primary-200 bg-primary-50 text-primary-900'
-                  : 'border-gray-200 bg-white text-gray-500',
+                  : 'border-border bg-card text-muted-foreground',
               ].join(' ')}
             >
               <span className="text-xs sm:text-sm font-medium leading-tight break-words">

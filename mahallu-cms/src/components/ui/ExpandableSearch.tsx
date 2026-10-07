@@ -130,6 +130,10 @@ export default function ExpandableSearch({
               'h-10 w-full rounded-lg border border-input bg-background pl-9 pr-9 text-sm text-foreground',
               'placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2',
               'focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+              // type="search" grows its own native clear icon in Chromium/WebKit once the
+              // field has a value, sitting right on top of the custom FiX button below —
+              // two X's while typing. Only the native one needs hiding.
+              '[&::-webkit-search-cancel-button]:appearance-none [&::-ms-clear]:hidden',
               desktopAlwaysVisible && !isExpanded && 'hidden sm:block'
             )}
           />

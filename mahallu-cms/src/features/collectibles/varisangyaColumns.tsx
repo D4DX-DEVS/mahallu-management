@@ -1,6 +1,8 @@
-import { FiDownload, FiCheckCircle, FiTrash2 } from 'react-icons/fi';
+import { FiEdit2, FiDownload, FiCheckCircle, FiTrash2 } from 'react-icons/fi';
 
-import { rowActionClass } from '@/components/ui/rowAction';import { TableColumn } from '@/types';
+import ActionsMenu from '@/components/ui/ActionsMenu';
+import StatusBadge from '@/components/ui/StatusBadge';
+import { TableColumn } from '@/types';
 import { Varisangya } from '@/services/collectibleService';
 import { formatDate, toTitleCase } from '@/utils/format';
 
@@ -32,6 +34,7 @@ export const getFamilyName = (row: Varisangya): string => {
 };
 
 export const buildVarisangyaColumns = ({
+  openEdit,
   handleViewPdf,
   onVerify,
   onDelete,
@@ -62,17 +65,7 @@ export const buildVarisangyaColumns = ({
     key: 'status',
     label: 'Status',
     width: '7.25rem',
-    render: (status) => (
-      <span
-        className={`inline-block px-2 py-1 rounded text-xs font-semibold ${
-          status === 'pending'
-            ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-            : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-        }`}
-      >
-        {status === 'pending' ? 'Pending' : 'Verified'}
-      </span>
-    ),
+    render: (status) => <StatusBadge status={status || 'verified'} />,
   },
   {
     key: 'actions',
@@ -80,44 +73,41 @@ export const buildVarisangyaColumns = ({
     width: '8rem',
     align: 'center',
     render: (_, row) => (
-      <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            handleViewPdf(row);
-          }}
-          className={rowActionClass()}
-          title="View/Download PDF"
-          aria-label="View/Download PDF"
-        >
-          <FiDownload className="h-4 w-4" />
-        </button>
-        {row.status === 'pending' && onVerify && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onVerify(row);
-            }}
-            className={rowActionClass()}
-            title="Verify payment"
-            aria-label="Verify payment"
-          >
-            <FiCheckCircle className="h-4 w-4" />
-          </button>
-        )}
-        {onDelete && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onDelete(row);
-            }}
-            className={rowActionClass('danger')}
-            title="Delete payment"
-            aria-label="Delete payment"
-          >
-            <FiTrash2 className="h-4 w-4" />
-          </button>
-        )}
+      <div onClick={(e) => e.stopPropagation()}>
+        <ActionsMenu
+          label={`Actions for ${toTitleCase(getPayerName(row))}`}
+          items={[
+            {
+              label: 'Edit payment',
+              icon: <FiEdit2 className="h-4 w-4" />,
+              onClick: () => openEdit(row),
+            },
+            {
+              label: 'View/Download PDF',
+              icon: <FiDownload className="h-4 w-4" />,
+              onClick: () => handleViewPdf(row),
+            },
+            ...(row.status === 'pending' && onVerify
+              ? [
+                  {
+                    label: 'Verify payment',
+                    icon: <FiCheckCircle className="h-4 w-4" />,
+                    onClick: () => onVerify(row),
+                  },
+                ]
+              : []),
+            ...(onDelete
+              ? [
+                  {
+                    label: 'Delete payment',
+                    icon: <FiTrash2 className="h-4 w-4" />,
+                    variant: 'danger' as const,
+                    onClick: () => onDelete(row),
+                  },
+                ]
+              : []),
+          ]}
+        />
       </div>
     ),
   },

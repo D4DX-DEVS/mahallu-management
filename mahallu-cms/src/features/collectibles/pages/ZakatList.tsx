@@ -6,21 +6,28 @@ import { rowActionClass } from '@/components/ui/rowAction';
 import Button from '@/components/ui/Button';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
+import EmptyState from '@/components/ui/EmptyState';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
 import Modal from '@/components/ui/Modal';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { TableColumn, Pagination as PaginationType } from '@/types';
-import { collectibleService, Zakat } from '@/services/collectibleService';
+import {
+  collectibleService,
+  Zakat,
+  CollectionSummary,
+  EMPTY_COLLECTION_SUMMARY,
+} from '@/services/collectibleService';
 import { fetchAllPages } from '@/services/api';
 import { useDebounce } from '@/hooks/useDebounce';
 import { formatDate, toTitleCase } from '@/utils/format';
 import { exportToCSV, exportToJSON } from '@/utils/exportUtils';
 import { exportInvoicesToPdf, InvoiceDetails } from '@/utils/invoiceUtils';
 import { toast } from '@/store/toastStore';
-import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import { errorMessage, isConflict, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import StatusBadge from '@/components/ui/StatusBadge';
 
 export default function ZakatList() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -31,6 +38,8 @@ export default function ZakatList() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
+  /* Totals for the whole filtered set (every page), from the server. */
+  const [summary, setSummary] = useState<CollectionSummary>(EMPTY_COLLECTION_SUMMARY);
   const [isExporting, setIsExporting] = useState(false);
   const [selectedZakat, setSelectedZakat] = useState<Zakat | null>(null);
   const [showViewModal, setShowViewModal] = useState(false);
@@ -64,6 +73,7 @@ export default function ZakatList() {
       }
       const result = await collectibleService.getAllZakats(params);
       setZakats(result.data);
+      setSummary(result.summary);
       if (result.pagination) {
         setPagination(result.pagination);
       }
@@ -134,6 +144,11 @@ export default function ZakatList() {
       await fetchZakats();
     } catch (err: any) {
       toast.error(errorMessage(err, { action: 'verify zakat' }));
+      if (isConflict(err)) {
+        // Already processed elsewhere: close the dialog and show the row as it is now.
+        setVerifyConfirm(null);
+        await fetchZakats();
+      }
     } finally {
       setVerifying(false);
     }
@@ -180,17 +195,7 @@ export default function ZakatList() {
       key: 'status',
       label: 'Status',
       width: '7.25rem',
-      render: (status) => (
-        <span
-          className={`inline-block px-2 py-1 rounded text-xs font-semibold ${
-            status === 'pending'
-              ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-              : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-          }`}
-        >
-          {status === 'pending' ? 'Pending' : 'Verified'}
-        </span>
-      ),
+      render: (status) => <StatusBadge status={status === 'pending' ? 'pending' : 'verified'} />,
     },
     {
       key: 'actions',
@@ -217,17 +222,15 @@ export default function ZakatList() {
     },
   ];
 
-  const totalAmount = zakats.reduce((sum, z) => sum + (z.amount || 0), 0);
-
   const stats = [
     {
       title: 'Total Payments',
-      value: pagination?.total || zakats.length,
+      value: summary.count,
       icon: <FiCreditCard className="h-5 w-5" />,
     },
     {
       title: 'Total Amount',
-      value: `₹${totalAmount.toLocaleString()}`,
+      value: `₹${summary.totalAmount.toLocaleString()}`,
       icon: <FiDollarSign className="h-5 w-5" />,
     },
   ];
@@ -264,12 +267,12 @@ export default function ZakatList() {
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="text-center py-10">
-            <p className="text-red-600 dark:text-red-400">{error}</p>
-            <Button onClick={fetchZakats} className="mt-4" variant="outline">
-              Retry
-            </Button>
-          </div>
+          <EmptyState
+            variant="error"
+            entity="zakat payments"
+            description={error}
+            action={{ label: 'Retry', onClick: fetchZakats }}
+          />
         ) : (
           <Table
             fixedLayout

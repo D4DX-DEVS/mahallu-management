@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { FiPlus } from 'react-icons/fi';
+import ActionsMenu from '@/components/ui/ActionsMenu';
+import { FiEdit2, FiPlus, FiTrash2 } from 'react-icons/fi';
 import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -7,6 +8,7 @@ import Select from '@/components/ui/Select';
 import Table from '@/components/ui/Table';
 import Modal from '@/components/ui/Modal';
 import ExpandableSearch from '@/components/ui/ExpandableSearch';
+import ActionBar from '@/components/ui/ActionBar';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import EmptyState from '@/components/ui/EmptyState';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
@@ -18,6 +20,7 @@ import { toast } from '@/store/toastStore';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
+import { PHONE_PATTERN, sanitizeDigits } from '@/utils/validation';
 
 const TYPE_OPTIONS = [
   { value: 'school', label: 'School' },
@@ -106,6 +109,9 @@ export default function FacilitiesList() {
     if (!form.name.trim()) {
       newErrors.name = 'Name is required';
     }
+    if (form.contactNo && !PHONE_PATTERN.test(form.contactNo)) {
+      newErrors.contactNo = 'Please enter a 10-digit phone number.';
+    }
     if (Object.keys(newErrors).length > 0) {
       setFieldErrors(newErrors);
       return;
@@ -159,6 +165,25 @@ export default function FacilitiesList() {
     },
     { key: 'address', label: 'Address', width: '7.75rem', render: (v) => (v ? toTitleCase(v) : '-') },
     { key: 'contactNo', label: 'Contact', width: '7.75rem', render: (v) => v || '-' },
+    {
+      key: 'actions',
+      label: 'Actions',
+      width: '8rem',
+      align: 'center',
+      render: (_v, row) => (
+        <ActionsMenu
+          items={[
+            { label: 'Edit', icon: <FiEdit2 className="h-4 w-4" />, onClick: () => openEdit(row) },
+            {
+              label: 'Delete',
+              icon: <FiTrash2 className="h-4 w-4" />,
+              onClick: () => openDeleteConfirm(row),
+              variant: 'danger' as const,
+            },
+          ]}
+        />
+      ),
+    },
   ];
 
   return (
@@ -170,7 +195,7 @@ export default function FacilitiesList() {
       />
 
       <TableCard borderless>
-        <div className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto_auto] sm:items-center">
+        <ActionBar>
           <ExpandableSearch
             value={searchQuery}
             onChange={(value) => {
@@ -179,26 +204,23 @@ export default function FacilitiesList() {
             }}
             entity="facilities"
           />
-          <Select
-            options={[{ value: '', label: 'All types' }, ...TYPE_OPTIONS]}
-            value={typeFilter}
-            onChange={(e) => {
-              setTypeFilter(e.target.value);
-              setCurrentPage(1);
-            }}
-          />
-          <Button size="md" onClick={openCreate} icon={<FiPlus />} collapseLabel>New Facility</Button>
-        </div>
+          <div className="min-w-0 flex-1 sm:w-48 sm:flex-none">
+            <Select
+              options={[{ value: '', label: 'All types' }, ...TYPE_OPTIONS]}
+              value={typeFilter}
+              onChange={(e) => {
+                setTypeFilter(e.target.value);
+                setCurrentPage(1);
+              }}
+            />
+          </div>
+          <Button size="md" onClick={openCreate} icon={<FiPlus />} collapseLabel className="flex-shrink-0">New Facility</Button>
+        </ActionBar>
 
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="py-10 text-center">
-            <p className="text-red-600 dark:text-red-400">{error}</p>
-            <Button onClick={fetchRows} className="mt-4" variant="outline">
-              Retry
-            </Button>
-          </div>
+          <EmptyState variant="error" entity="facilities" description={error} action={{ label: 'Retry', onClick: fetchRows }} />
         ) : rows.length === 0 ? (
           <EmptyState
             title="No facilities recorded"
@@ -270,11 +292,24 @@ export default function FacilitiesList() {
             value={form.type}
             onChange={(e) => setForm({ ...form, type: e.target.value })}
           />
-          <Input
-            label="Contact No."
-            value={form.contactNo}
-            onChange={(e) => setForm({ ...form, contactNo: e.target.value })}
-          />
+          <div>
+            <Input
+              label="Contact No."
+              type="tel"
+              inputMode="numeric"
+              maxLength={10}
+              value={form.contactNo}
+              onChange={(e) => {
+                setForm({ ...form, contactNo: sanitizeDigits(e.target.value, 10) });
+                if (fieldErrors.contactNo) {
+                  setFieldErrors({ ...fieldErrors, contactNo: '' });
+                }
+              }}
+            />
+            {fieldErrors.contactNo && (
+              <p className="mt-1 text-sm text-red-600 dark:text-red-400">{fieldErrors.contactNo}</p>
+            )}
+          </div>
           <div className="md:col-span-2">
             <Input
               label="Address"

@@ -6,7 +6,7 @@ import {
   updateInstitute,
   deleteInstitute,
 } from '../controllers/instituteController';
-import { authMiddleware } from '../middleware/authMiddleware';
+import { authMiddleware, requireInstituteStaff } from '../middleware/authMiddleware';
 import { tenantMiddleware, tenantFilter } from '../middleware/tenantMiddleware';
 import { validationHandler } from '../middleware/validationHandler';
 import {
@@ -22,6 +22,8 @@ const router = express.Router();
 router.use(authMiddleware);
 router.use(tenantMiddleware);
 router.use(tenantFilter);
+// Survey workers are excluded; the own-institute rules stay in the controller.
+router.use(requireInstituteStaff);
 
 /**
  * @swagger

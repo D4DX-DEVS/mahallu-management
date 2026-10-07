@@ -210,26 +210,24 @@ export default function BeneficiariesList() {
                   setCurrentPage(1);
                 }}
                 className={[
-                  'rounded-lg border px-2 py-1.5 text-xs font-medium',
+                  'rounded-lg border px-2 py-1.5 text-xs font-medium transition-colors',
                   statusFilter === tab.value
-                    ? 'border-primary-300 bg-primary-50 text-primary-900'
-                    : 'border-gray-200 bg-white text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300',
+                    ? 'border-primary/30 bg-primary/10 text-primary'
+                    : 'border-border bg-background text-muted-foreground hover:bg-accent hover:text-accent-foreground',
                 ].join(' ')}
               >
                 {tab.label}
               </button>
             ))}
           </div>
-          <div className="flex min-w-0 items-center gap-2">
-            <div className="min-w-0 flex-1 sm:w-56 sm:flex-none">
-              <ExpandableSearch
-                value={searchQuery}
-                onChange={setSearchQuery}
-                entity="beneficiaries"
-                placeholder="Search by name"
-              />
-            </div>
-            <Link to="/zakat/beneficiaries/create">
+          <div className="flex min-w-0 items-center justify-end gap-2">
+            <ExpandableSearch
+              value={searchQuery}
+              onChange={setSearchQuery}
+              entity="beneficiaries"
+              placeholder="Search by name"
+            />
+            <Link to="/zakat/beneficiaries/create" className="flex-shrink-0">
               <Button size="md" icon={<FiPlus />} collapseLabel>
                 New Beneficiary
               </Button>
@@ -240,12 +238,12 @@ export default function BeneficiariesList() {
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="py-10 text-center">
-            <p className="text-red-600 dark:text-red-400">{error}</p>
-            <Button onClick={fetchRows} className="mt-4" variant="outline">
-              Retry
-            </Button>
-          </div>
+          <EmptyState
+            variant="error"
+            entity="beneficiaries"
+            description={error}
+            action={{ label: 'Retry', onClick: fetchRows }}
+          />
         ) : rows.length === 0 ? (
           <EmptyState
             title="No beneficiaries yet"
@@ -258,7 +256,6 @@ export default function BeneficiariesList() {
             striped
             columns={columns}
             data={rows}
-            showExport={false}
             onRowClick={(row) => setViewing(row)}
           />
         )}

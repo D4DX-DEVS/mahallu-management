@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { FiAlertTriangle, FiCheckCircle, FiPackage, FiPlus, FiXCircle } from 'react-icons/fi';
+import { FiAlertTriangle, FiCheckCircle, FiEdit2, FiEye, FiPackage, FiPlus, FiTrash2, FiXCircle } from 'react-icons/fi';
 import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
+import EmptyState from '@/components/ui/EmptyState';
 import { PageSkeleton } from '@/components/ui/Skeleton';
+import Modal from '@/components/ui/Modal';
 import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
 import { TableColumn, Pagination as PaginationType } from '@/types';
@@ -21,7 +23,10 @@ import { toast } from '@/store/toastStore';
 import { errorMessage } from '@/utils/errors';
 import StatusBadge from '@/components/ui/StatusBadge';
 import PageHeader from '@/components/layout/PageHeader';
+import { useServerCounts } from '@/hooks/useServerCounts';
+import ActionsMenu from '@/components/ui/ActionsMenu';
 import { toTitleCase } from '@/utils/format';
+import { logError } from '@/utils/safeLog';
 
 const categoryLabels: Record<string, string> = {
   furniture: 'Furniture',
@@ -50,6 +55,9 @@ export default function AssetsList() {
   const [mosques, setMosques] = useState<MosqueProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
@@ -96,7 +104,7 @@ export default function AssetsList() {
         setPagination(result.pagination);
       }
     } catch (err: any) {
-      console.error('Error fetching assets:', err);
+      logError('Error fetching assets', err);
       // Don't show error - just show empty state
       setAssets([]);
       setPagination(null);
@@ -136,14 +144,34 @@ export default function AssetsList() {
           exportToJSON(columns, dataToExport, filename);
           break;
         case 'pdf':
-          exportToPDF(columns, dataToExport, filename, title);
+          await exportToPDF(columns, dataToExport, filename, title);
           break;
       }
     } catch (error: any) {
-      console.error('Export error:', error);
+      logError('Export error', error);
       toast.error(errorMessage(error, { action: 'export data' }));
     } finally {
       setIsExporting(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!selectedAsset) return;
+    try {
+      setDeleting(true);
+      await assetService.delete(selectedAsset.id);
+      await fetchAssets();
+      setShowDeleteModal(false);
+      setSelectedAsset(null);
+      toast.success('Asset deleted');
+    } catch (err: any) {
+      /* A failed delete used to reuse the page-level `error` state, which also
+       * drives the table-vs-error-box branch below — so a delete failure made
+       * the whole list disappear behind a full-page error instead of just
+       * failing the one action. */
+      toast.error(errorMessage(err, { action: 'delete asset' }));
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -187,7 +215,61 @@ export default function AssetsList() {
       width: '7.25rem',
       render: (status) => <StatusBadge status={status} />,
     },
+    {
+      key: 'actions',
+      label: 'Actions',
+      width: '8rem',
+      align: 'center',
+      render: (_, row) => (
+        <ActionsMenu
+          items={[
+            {
+              label: 'View',
+              icon: <FiEye className="h-4 w-4" />,
+              onClick: () => {
+                navigate(ROUTES.ASSETS.DETAIL(row.id));
+              },
+            },
+            {
+              label: 'Edit',
+              icon: <FiEdit2 className="h-4 w-4" />,
+              onClick: () => {
+                navigate(ROUTES.ASSETS.EDIT(row.id));
+              },
+            },
+            {
+              label: 'Delete',
+              icon: <FiTrash2 className="h-4 w-4" />,
+              onClick: () => {
+                setSelectedAsset(row);
+                setShowDeleteModal(true);
+              },
+              variant: 'danger',
+            },
+          ]}
+        />
+      ),
+    },
   ];
+
+  // Whole-list counts from the server: these cards used to count only the rows on this page.
+  const countBase: { search?: string; category?: string; mosqueId?: string } = {};
+  if (debouncedSearch) countBase.search = debouncedSearch;
+  if (categoryFilter) countBase.category = categoryFilter;
+  if (mosqueFilter) countBase.mosqueId = mosqueFilter;
+  const countOf = (status: string) => assetService.getAll({ ...countBase, status, page: 1, limit: 1 });
+  const statusCounts = useServerCounts(
+    {
+      active: () => countOf('active'),
+      inUse: () => countOf('in_use'),
+      maintenance: () => countOf('under_maintenance'),
+      disposed: () => countOf('disposed'),
+      damaged: () => countOf('damaged'),
+    },
+    [assets]
+  );
+  const sumCounts = (...values: (number | undefined)[]) =>
+    values.every((v) => v !== undefined) ? values.reduce<number>((sum, v) => sum + (v as number), 0) : undefined;
 
   const stats = [
     {
@@ -197,17 +279,17 @@ export default function AssetsList() {
     },
     {
       title: 'Active',
-      value: assets.filter((a) => a.status === 'active' || a.status === 'in_use').length,
+      value: sumCounts(statusCounts.active, statusCounts.inUse) ?? assets.filter((a) => a.status === 'active' || a.status === 'in_use').length,
       icon: <FiCheckCircle className="h-5 w-5" />,
     },
     {
       title: 'Under Maintenance',
-      value: assets.filter((a) => a.status === 'under_maintenance').length,
+      value: statusCounts.maintenance ?? assets.filter((a) => a.status === 'under_maintenance').length,
       icon: <FiAlertTriangle className="h-5 w-5" />,
     },
     {
       title: 'Disposed / Damaged',
-      value: assets.filter((a) => a.status === 'disposed' || a.status === 'damaged').length,
+      value: sumCounts(statusCounts.disposed, statusCounts.damaged) ?? assets.filter((a) => a.status === 'disposed' || a.status === 'damaged').length,
       icon: <FiXCircle className="h-5 w-5" />,
     },
   ];
@@ -316,12 +398,7 @@ export default function AssetsList() {
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="text-center py-10">
-            <p className="text-red-600 dark:text-red-400">{error}</p>
-            <Button onClick={fetchAssets} className="mt-4" variant="outline">
-              Retry
-            </Button>
-          </div>
+          <EmptyState variant="error" entity="assets" description={error} action={{ label: 'Retry', onClick: fetchAssets }} />
         ) : (
           <Table
             fixedLayout
@@ -348,6 +425,36 @@ export default function AssetsList() {
           </div>
         )}
       </TableCard>
+
+      <Modal
+        isOpen={showDeleteModal}
+        onClose={() => {
+          setShowDeleteModal(false);
+          setSelectedAsset(null);
+        }}
+        title="Delete Asset"
+        footer={
+          <>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowDeleteModal(false);
+                setSelectedAsset(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button variant="danger" onClick={handleDelete} isLoading={deleting}>
+              Delete
+            </Button>
+          </>
+        }
+      >
+        <p className="text-gray-600 dark:text-gray-400">
+          Are you sure you want to delete <strong>{toTitleCase(selectedAsset?.name)}</strong>? This will also delete all
+          maintenance records. This action cannot be undone.
+        </p>
+      </Modal>
     </div>
   );
 }

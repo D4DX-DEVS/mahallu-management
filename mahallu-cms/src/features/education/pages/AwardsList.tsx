@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
+import { FiTrash2 } from 'react-icons/fi';
 import { useNavigate, useParams } from 'react-router-dom';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
+import Table from '@/components/ui/Table';
+import ActionsMenu from '@/components/ui/ActionsMenu';
 import Pagination from '@/components/ui/Pagination';
-import { PageSkeleton } from '@/components/ui/Skeleton';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
-import EmptyState from '@/components/ui/EmptyState';
 import Modal from '@/components/ui/Modal';
 import { toast } from '@/store/toastStore';
 import {
@@ -18,8 +19,7 @@ import {
 import { errorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
-import SortableTh from '@/components/ui/SortableTh';
-import { useSortableRows } from '@/hooks/useSortableRows';
+import { TableColumn } from '@/types';
 
 export default function AwardsList() {
   const navigate = useNavigate();
@@ -35,16 +35,53 @@ export default function AwardsList() {
   const [selectedAward, setSelectedAward] = useState<ScholarshipAward | null>(null);
   const [showViewModal, setShowViewModal] = useState(false);
 
-  /* Student shows a looked-up name and Status a label, so both sort on what
-     the cell reads rather than on the id or enum behind it. */
-  const {
-    rows: sortedAwards,
-    sort,
-    toggleSort,
-  } = useSortableRows(awards, null, {
-    student: (row) => memberName(row.memberId),
-    status: (row) => awardStatusLabel(row.status),
-  });
+  const columns: TableColumn<ScholarshipAward>[] = [
+    {
+      key: 'student',
+      label: 'Student',
+      render: (_v, award) => toTitleCase(memberName(award.memberId)),
+    },
+    {
+      key: 'awardedDate',
+      label: 'Awarded Date',
+      priority: 'secondary',
+      render: (_v, award) => new Date(award.awardedDate).toLocaleDateString(),
+    },
+    {
+      key: 'amount',
+      label: 'Amount',
+      priority: 'secondary',
+      align: 'right',
+      render: (_v, award) => '₹' + award.amount,
+    },
+    {
+      key: 'status',
+      label: 'Status',
+      sortable: true,
+      render: (_v, award) => (
+        <span className="rounded bg-muted px-2 py-1 text-xs">{awardStatusLabel(award.status)}</span>
+      ),
+    },
+    {
+      key: 'actions',
+      label: 'Actions',
+      align: 'right',
+      sortable: false,
+      render: (_v, award) => (
+        <ActionsMenu
+          label={'Actions for ' + toTitleCase(memberName(award.memberId))}
+          items={[
+            {
+              label: 'Delete',
+              icon: <FiTrash2 className="h-4 w-4" />,
+              onClick: () => setDeleteConfirm({ id: award.id, name: memberName(award.memberId) }),
+              variant: 'danger' as const,
+            },
+          ]}
+        />
+      ),
+    },
+  ];
 
   const fetchAwards = useCallback(async () => {
     if (!scholarshipId) return;
@@ -128,105 +165,37 @@ export default function AwardsList() {
             <Button onClick={() => fetchAwards()}>Refresh</Button>
           </div>
 
-          {loading ? (
-            <PageSkeleton variant="section" />
-          ) : awards.length === 0 ? (
-            <EmptyState
-              title="No awards found"
-              description={status ? 'Try adjusting your filters' : 'Create your first award to get started'}
-              action={
-                !status
-                  ? {
-                      label: 'New Award',
-                      onClick: () => navigate(`/education/scholarships/${scholarshipId}/awards/create`),
-                    }
-                  : undefined
-              }
-            />
-          ) : (
-            <>
-              <div className="overflow-x-auto">
-                <table className="data-table w-full text-sm">
-                  <thead>
-                    <tr className="border-b">
-                      <SortableTh sortKey="student" sort={sort} onSort={toggleSort}>
-                        Student
-                      </SortableTh>
-                      <SortableTh
-                        sortKey="awardedDate"
-                        sort={sort}
-                        onSort={toggleSort}
-                        responsiveClassName="hidden sm:table-cell"
-                      >
-                        Awarded Date
-                      </SortableTh>
-                      <SortableTh
-                        sortKey="amount"
-                        sort={sort}
-                        onSort={toggleSort}
-                        responsiveClassName="hidden md:table-cell"
-                      >
-                        Amount
-                      </SortableTh>
-                      <SortableTh sortKey="status" sort={sort} onSort={toggleSort}>
-                        Status
-                      </SortableTh>
-                      <th className="px-3 py-2.5 text-left text-label font-semibold text-muted-foreground">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {sortedAwards.map((award) => (
-                      <tr
-                        key={award.id}
-                        className="border-b hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
-                        onClick={() => {
-                          setSelectedAward(award);
-                          setShowViewModal(true);
-                        }}
-                      >
-                        <td className="py-2 font-medium">{toTitleCase(memberName(award.memberId))}</td>
-                        <td className="py-2 hidden sm:table-cell text-xs">
-                          {new Date(award.awardedDate).toLocaleDateString()}
-                        </td>
-                        <td className="py-2 hidden md:table-cell">₹{award.amount}</td>
-                        <td className="py-2">
-                          <span className="text-xs px-2 py-1 rounded bg-gray-100 dark:bg-gray-800">
-                            {awardStatusLabel(award.status)}
-                          </span>
-                        </td>
-                        <td className="py-2">
-                          <div className="flex gap-2">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setDeleteConfirm({ id: award.id, name: memberName(award.memberId) });
-                              }}
-                              className="text-xs text-red-600 hover:underline"
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+          <Table
+            columns={columns}
+            data={awards}
+            isLoading={loading}
+            entity="awards"
+            emptyVariant={status ? 'no-results' : 'empty'}
+            emptyAction={
+              !status
+                ? {
+                    label: 'New Award',
+                    onClick: () => navigate(`/education/scholarships/${scholarshipId}/awards/create`),
+                  }
+                : undefined
+            }
+            rowKey={(award) => award.id}
+            onRowClick={(award) => {
+              setSelectedAward(award);
+              setShowViewModal(true);
+            }}
+          />
 
-              {pagination && (
-                <div className="mt-4">
-                  <Pagination
-                    currentPage={pagination.page}
-                    totalPages={pagination.totalPages}
-                    totalItems={pagination.total}
-                    itemsPerPage={10}
-                    onPageChange={setCurrentPage}
-                  />
-                </div>
-              )}
-            </>
+          {!loading && pagination && awards.length > 0 && (
+            <div className="mt-4">
+              <Pagination
+                currentPage={pagination.page}
+                totalPages={pagination.totalPages}
+                totalItems={pagination.total}
+                itemsPerPage={10}
+                onPageChange={setCurrentPage}
+              />
+            </div>
           )}
         </div>
       </Card>

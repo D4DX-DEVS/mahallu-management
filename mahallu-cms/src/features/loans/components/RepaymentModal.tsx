@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -6,6 +6,7 @@ import { formatCurrency } from '@/utils/format';
 import { toast } from '@/store/toastStore';
 import { qardService } from '@/services/qardService';
 import { errorMessage } from '@/utils/errors';
+import { newClientRequestId } from '@/utils/clientRequestId';
 
 interface RepaymentModalProps {
   isOpen: boolean;
@@ -30,6 +31,9 @@ export default function RepaymentModal({
   const [remarks, setRemarks] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // One key per logical repayment: a retry after a timeout reuses it, so the server applies it once.
+  // Changing the amount or date makes it a different repayment, so it gets a new key.
+  const requestKey = useRef<{ signature: string; id: string } | null>(null);
 
   const value = Number(amount);
   // The API rejects an over-payment too; catching it here saves a round trip.
@@ -46,6 +50,10 @@ export default function RepaymentModal({
 
   const submit = async () => {
     if (invalid) return;
+    const signature = `${loanId}|${value}|${paymentDate}`;
+    if (requestKey.current?.signature !== signature) {
+      requestKey.current = { signature, id: newClientRequestId() };
+    }
     try {
       setSaving(true);
       setError(null);
@@ -55,7 +63,9 @@ export default function RepaymentModal({
         paymentDate,
         receiptNo: receiptNo || undefined,
         remarks: remarks || undefined,
+        clientRequestId: requestKey.current.id,
       });
+      requestKey.current = null;
       toast.success(`Repayment of ${formatCurrency(value)} applied`);
       reset();
       onRecorded();

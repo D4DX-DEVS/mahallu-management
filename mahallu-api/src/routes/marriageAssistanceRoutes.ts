@@ -7,13 +7,14 @@ import {
   updateAssistanceStatus,
   deleteAssistance,
 } from '../controllers/marriageAssistanceController';
-import { authMiddleware, allowRoles } from '../middleware/authMiddleware';
+import { authMiddleware, allowRoles, requireAdmin } from '../middleware/authMiddleware';
 import { tenantMiddleware, tenantFilter } from '../middleware/tenantMiddleware';
 import { validationHandler } from '../middleware/validationHandler';
 import { idParam, listQuery } from '../validations/common';
 import {
   createMarriageAssistanceValidation,
   updateMarriageAssistanceValidation,
+  updateMarriageAssistanceStatusValidation,
 } from '../validations/moduleValidation';
 
 const router = express.Router();
@@ -21,6 +22,8 @@ const router = express.Router();
 router.use(authMiddleware);
 router.use(tenantMiddleware);
 router.use(tenantFilter);
+// Mahallu-admin module (the CMS menu and routes are Mahallu-admin only). Reads used to be open to every staff role while every write already needed the admin.
+router.use(requireAdmin);
 
 /**
  * @swagger
@@ -194,7 +197,7 @@ router.put('/:id', updateMarriageAssistanceValidation, validationHandler, allowR
  *       400:
  *         description: Invalid status transition
  */
-router.put('/:id/status', idParam('id', 'application'), validationHandler, allowRoles(['mahall']), updateAssistanceStatus);
+router.put('/:id/status', updateMarriageAssistanceStatusValidation, validationHandler, allowRoles(['mahall']), updateAssistanceStatus);
 
 /**
  * @swagger

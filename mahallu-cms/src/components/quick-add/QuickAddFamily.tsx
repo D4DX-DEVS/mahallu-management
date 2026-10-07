@@ -10,6 +10,7 @@ import Select from '@/components/ui/Select';
 import { familyService } from '@/services/familyService';
 import { tenantService } from '@/services/tenantService';
 import { errorMessage } from '@/utils/errors';
+import { sanitizeDigits } from '@/utils/validation';
 
 const familySchema = z.object({
   varisangyaGrade: z.string().optional(),
@@ -49,6 +50,7 @@ export default function QuickAddFamily({ open, onClose, onCreated, tenantId }: P
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<FamilyFormData>({
     resolver: zodResolver(familySchema),
@@ -128,14 +130,18 @@ export default function QuickAddFamily({ open, onClose, onCreated, tenantId }: P
           <Input
             label="Contact No."
             type="tel"
+            inputMode="numeric"
             {...register('contactNo')}
+            onChange={(e) => setValue('contactNo', sanitizeDigits(e.target.value, 10), { shouldValidate: true, shouldDirty: true })}
             error={errors.contactNo?.message}
             placeholder="Contact No. (10 digits)"
             maxLength={10}
           />
           <Input
             label="Ward Number"
+            inputMode="numeric"
             {...register('wardNumber')}
+            onChange={(e) => setValue('wardNumber', sanitizeDigits(e.target.value), { shouldValidate: true, shouldDirty: true })}
             error={errors.wardNumber?.message}
             placeholder="Ward Number"
           />

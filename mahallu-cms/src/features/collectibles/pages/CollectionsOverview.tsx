@@ -7,9 +7,12 @@ import { PageSkeleton } from '@/components/ui/Skeleton';
 import { collectibleService } from '@/services/collectibleService';
 import { ROUTES } from '@/constants/routes';
 import PageHeader from '@/components/layout/PageHeader';
+import Alert from '@/components/ui/Alert';
+import { loadErrorInfo, LoadErrorInfo } from '@/utils/errors';
 
 export default function CollectionsOverview() {
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<LoadErrorInfo | null>(null);
   const [stats, setStats] = useState({
     varisangya: { total: 0, amount: 0 },
     zakat: { total: 0, amount: 0 },
@@ -22,23 +25,19 @@ export default function CollectionsOverview() {
   const fetchStats = async () => {
     try {
       setLoading(true);
+      setError(null);
 
-      // Fetch varisangya stats
-      const varisangyaResult = await collectibleService.getAllVarisangyas({ page: 1, limit: 1 });
-      const varisangyaTotal = varisangyaResult.pagination?.total || 0;
-      const varisangyaAmount = varisangyaResult.data.reduce((sum, v) => sum + (v.amount || 0), 0);
-
-      // Fetch zakat stats
-      const zakatResult = await collectibleService.getAllZakats({ page: 1, limit: 1 });
-      const zakatTotal = zakatResult.pagination?.total || 0;
-      const zakatAmount = zakatResult.data.reduce((sum, z) => sum + (z.amount || 0), 0);
+      // One request: the server totals every payment, not a single fetched row.
+      const { varisangya, zakat } = await collectibleService.getCollectionsSummary();
 
       setStats({
-        varisangya: { total: varisangyaTotal, amount: varisangyaAmount },
-        zakat: { total: zakatTotal, amount: zakatAmount },
+        varisangya: { total: varisangya.count, amount: varisangya.totalAmount },
+        zakat: { total: zakat.count, amount: zakat.totalAmount },
       });
     } catch (err) {
       console.error('Error fetching collections stats:', err);
+      // Without this the page showed zeros, which reads as "no collections" rather than "could not load".
+      setError(loadErrorInfo(err, 'the collections summary'));
     } finally {
       setLoading(false);
     }
@@ -75,13 +74,23 @@ export default function CollectionsOverview() {
       <PageHeader description="Overview of all collectible types" title="Collections" />
 
       {/* Summary Stats */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-2">
-        <StatCard title="Total Payments" value={totalPayments} />
-        <StatCard title="Total Amount" value={`₹${totalAmount.toLocaleString()}`} />
-      </div>
+      {!error && (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-2">
+          <StatCard title="Total Payments" value={totalPayments} />
+          <StatCard title="Total Amount" value={`₹${totalAmount.toLocaleString()}`} />
+        </div>
+      )}
 
       {loading ? (
         <PageSkeleton variant="section" />
+      ) : error ? (
+        <Alert
+          variant={error.variant}
+          title={error.title}
+          action={error.variant === 'info' ? undefined : { label: 'Try again', onClick: fetchStats }}
+        >
+          {error.message}
+        </Alert>
       ) : (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {collectibleTypes.map((type) => (

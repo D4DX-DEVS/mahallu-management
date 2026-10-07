@@ -20,6 +20,8 @@ import {
   getPublicFeeds,
   getPublicBanners,
   getOwnFamilyMembers,
+  getOwnCertificates,
+  downloadOwnCertificate,
 } from '../controllers/memberUserController';
 import { authMiddleware, memberUserOnly } from '../middleware/authMiddleware';
 import { validationHandler } from '../middleware/validationHandler';
@@ -35,6 +37,8 @@ import {
   nocRequestValidation,
   ownRegistrationParamValidation,
   resubmitRegistrationValidation,
+  certificatesQueryValidation,
+  ownCertificateParamValidation,
 } from '../validations/memberUserValidation';
 
 const router = express.Router();
@@ -294,6 +298,49 @@ router.post('/payments/zakat', zakatPaymentValidation, validationHandler, reques
  *         description: Registrations retrieved successfully
  */
 router.get('/registrations', registrationsQueryValidation, validationHandler, getOwnRegistrations);
+
+/**
+ * @swagger
+ * /member-user/certificates:
+ *   get:
+ *     summary: Get own certificates
+ *     tags: [Member User]
+ *     description: |
+ *       Certificates issued for the member's own registrations (the same ones /member-user/registrations
+ *       returns), revoked ones included. **Access:** Member User only
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: type
+ *         schema:
+ *           type: string
+ *           enum: [nikah, death, noc]
+ *     responses:
+ *       200:
+ *         description: Certificates retrieved successfully
+ * /member-user/certificates/{id}/download:
+ *   get:
+ *     summary: Get a short-lived download link for an own certificate
+ *     tags: [Member User]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Link returned in data.url
+ *       403:
+ *         description: The certificate has been revoked
+ *       404:
+ *         description: Not found, or not the member's certificate
+ */
+router.get('/certificates', certificatesQueryValidation, validationHandler, getOwnCertificates);
+router.get('/certificates/:id/download', ownCertificateParamValidation, validationHandler, downloadOwnCertificate);
 
 /**
  * @swagger

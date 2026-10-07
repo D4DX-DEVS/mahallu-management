@@ -36,12 +36,15 @@ import { familyService } from '@/services/familyService';
 import { tenantService } from '@/services/tenantService';
 import { instituteService } from '@/services/instituteService';
 import { facilityService } from '@/services/surveyService';
+import { fetchAllPages } from '@/services/api';
 import { Family } from '@/types';
 import { useAuthStore } from '@/store/authStore';
 import { getTenantId as extractTenantId } from '@/utils/tenantHelper';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
+import { toast } from '@/store/toastStore';
+import { sanitizeDigits } from '@/utils/validation';
 
 const memberSchemaShape = z.object({
   name: z.string().max(200, 'Please keep the name to 200 characters or less.').min(1, 'Name is required'),
@@ -139,14 +142,15 @@ export default function EditMember() {
 
   const fetchFamilies = async () => {
     try {
-      const [familyResult, instituteResult, facilityResult] = await Promise.all([
-        familyService.getAll(),
-        instituteService.getAll(),
-        facilityService.getAll(),
+      // Every family, institute and facility, not just the API's default page of 10 of each.
+      const [allFamilies, allInstitutes, allFacilities] = await Promise.all([
+        fetchAllPages((p) => familyService.getAll(p)),
+        fetchAllPages((p) => instituteService.getAll(p)),
+        fetchAllPages((p) => facilityService.getAll(p)),
       ]);
-      setFamilies(familyResult.data || []);
-      setInstitutes(instituteResult.data || []);
-      setFacilities(facilityResult.data || []);
+      setFamilies(allFamilies);
+      setInstitutes(allInstitutes);
+      setFacilities(allFacilities);
     } catch (err) {
       console.error('Error fetching families:', err);
       setFamilies([]);
@@ -235,6 +239,7 @@ export default function EditMember() {
         ...normalizeConditionalFields(data),
       };
       await memberService.update(id, memberData);
+      toast.success('Member updated');
       navigate(ROUTES.MEMBERS.LIST);
     } catch (err: any) {
       setError(errorMessage(err, { action: 'update member. please try again' }));
@@ -418,7 +423,9 @@ export default function EditMember() {
             <Input
               label="Phone"
               type="tel"
+              inputMode="numeric"
               {...register('phone')}
+              onChange={(e) => setValue('phone', sanitizeDigits(e.target.value, 10), { shouldValidate: true, shouldDirty: true })}
               error={errors.phone?.message}
               placeholder="Phone Number (10 digits)"
               maxLength={10}

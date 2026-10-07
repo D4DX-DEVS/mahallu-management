@@ -22,14 +22,14 @@ export const serviceRoutes = [
   route(ROUTES.REPORTS.BLOOD_BANK, <BloodBankReport />),
   route(ROUTES.REPORTS.ORPHANS, <OrphansReport />),
 
-  route(ROUTES.SOCIAL.CREATE_BANNER, <CreateBanner />),
+  route(ROUTES.SOCIAL.CREATE_BANNER, <CreateBanner />, {}, { label: 'New Banner' }),
   route(ROUTES.SOCIAL.EDIT_BANNER, <EditBanner />),
   route(ROUTES.SOCIAL.BANNERS, <BannersList />),
-  route(ROUTES.SOCIAL.CREATE_FEED, <CreateFeed />),
+  route(ROUTES.SOCIAL.CREATE_FEED, <CreateFeed />, {}, { label: 'New Feed' }),
   route(ROUTES.SOCIAL.FEEDS, <FeedsList />),
   route(ROUTES.SOCIAL.SUPER_FEEDS, <FeedsList />),
   route(ROUTES.SOCIAL.ACTIVITY_LOGS, <ActivityLogsList />),
-  route(ROUTES.SOCIAL.CREATE_SUPPORT, <CreateSupport />),
+  route(ROUTES.SOCIAL.CREATE_SUPPORT, <CreateSupport />, {}, { label: 'New Support' }),
   route(ROUTES.SOCIAL.SUPPORT_DETAIL(':id'), <SupportDetail />),
   route(ROUTES.SOCIAL.SUPPORT, <SupportList />),
 

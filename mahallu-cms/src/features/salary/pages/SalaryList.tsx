@@ -1,24 +1,31 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { FiBarChart2, FiCheckCircle, FiClock, FiDollarSign, FiPlus } from 'react-icons/fi';
+import { FiBarChart2, FiCheckCircle, FiClock, FiDollarSign, FiEdit2, FiEye, FiPlus, FiTrash2 } from 'react-icons/fi';
 import TableCard from '@/components/ui/TableCard';
 import FilterPanel from '@/components/ui/FilterPanel';
 import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
+import EmptyState from '@/components/ui/EmptyState';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { TableColumn, Pagination as PaginationType } from '@/types';
 import { SalaryPayment } from '@/types';
 import { ROUTES } from '@/constants/routes';
-import { salaryService } from '@/services/salaryService';
+import { salaryService, type SalaryListSummary } from '@/services/salaryService';
 import { instituteService } from '@/services/instituteService';
 import { useAuthStore } from '@/store/authStore';
-import { loadErrorMessage } from '@/utils/errors';
+import { toast } from '@/store/toastStore';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import ActionsMenu from '@/components/ui/ActionsMenu';
+import StatusBadge from '@/components/ui/StatusBadge';
 import { toTitleCase } from '@/utils/format';
+import { fetchAllPages } from '@/services/api';
+import { logError } from '@/utils/safeLog';
 
 const MONTHS = [
   { value: '1', label: 'January' },
@@ -52,6 +59,9 @@ export default function SalaryList() {
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
+  const [summary, setSummary] = useState<SalaryListSummary | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; label: string } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     if (!userInstituteId) fetchInstitutes();
@@ -63,10 +73,10 @@ export default function SalaryList() {
 
   const fetchInstitutes = async () => {
     try {
-      const result = await instituteService.getAll({ limit: 1000 });
-      setInstitutes(result.data.map((i: any) => ({ id: i.id, name: i.name })));
+      const allRows = await fetchAllPages((page) => instituteService.getAll(page));
+      setInstitutes(allRows.map((i: any) => ({ id: i.id, name: i.name })));
     } catch (err) {
-      console.error('Error fetching institutes:', err);
+      logError('Error fetching institutes', err);
     }
   };
 
@@ -83,11 +93,31 @@ export default function SalaryList() {
       if (employeeId) params.employeeId = employeeId;
       const result = await salaryService.getAll(params);
       setPayments(result.data);
+      setSummary(result.summary);
       if (result.pagination) setPagination(result.pagination);
     } catch (err: any) {
       setError(loadErrorMessage(err, 'salary payments'));
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDeleteClick = (id: string, label: string) => {
+    setDeleteConfirm({ id, label });
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteConfirm) return;
+    try {
+      setIsDeleting(true);
+      await salaryService.delete(deleteConfirm.id);
+      toast.success('Salary payment deleted');
+      setDeleteConfirm(null);
+      await fetchPayments();
+    } catch (err: any) {
+      toast.error(errorMessage(err, { action: 'delete salary payment' }));
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -112,28 +142,52 @@ export default function SalaryList() {
       key: 'status',
       label: 'Status',
       width: '7.25rem',
-      render: (status) => (
-        <span
-          className={`px-2 py-1 text-xs font-medium rounded-full ${
-            status === 'paid'
-              ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-              : status === 'pending'
-                ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-                : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-          }`}
-        >
-          {status || 'pending'}
-        </span>
-      ),
+      render: (status) => <StatusBadge status={status || 'pending'} />,
+    },
+    {
+      key: 'actions',
+      label: 'Actions',
+      width: '8rem',
+      align: 'center',
+      render: (_, row) => {
+        const empLabel =
+          typeof row.employeeId === 'object' && row.employeeId?.name
+            ? toTitleCase(row.employeeId.name)
+            : 'this employee';
+        return (
+          <ActionsMenu
+            items={[
+              {
+                label: 'View',
+                icon: <FiEye className="h-4 w-4" />,
+                onClick: () => navigate(ROUTES.SALARY.DETAIL(row.id)),
+              },
+              {
+                label: 'Edit',
+                icon: <FiEdit2 className="h-4 w-4" />,
+                onClick: () => navigate(ROUTES.SALARY.EDIT(row.id)),
+              },
+              {
+                label: 'Delete',
+                icon: <FiTrash2 className="h-4 w-4" />,
+                onClick: () =>
+                  handleDeleteClick(row.id, `${getMonthName(row.month)} ${row.year} – ${empLabel}`),
+                variant: 'danger',
+              },
+            ]}
+          />
+        );
+      },
     },
   ];
 
-  const totalPaid = payments
-    .filter((p) => p.status === 'paid')
-    .reduce((sum, p) => sum + (p.netAmount || 0), 0);
-  const totalPending = payments
-    .filter((p) => p.status === 'pending')
-    .reduce((sum, p) => sum + (p.netAmount || 0), 0);
+  // The cards cover the whole filtered list (server summary), not just the rows on this page.
+  const totalPaid = summary
+    ? summary.paidAmount
+    : payments.filter((p) => p.status === 'paid').reduce((sum, p) => sum + (p.netAmount || 0), 0);
+  const totalPending = summary
+    ? summary.pendingAmount
+    : payments.filter((p) => p.status === 'pending').reduce((sum, p) => sum + (p.netAmount || 0), 0);
 
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 5 }, (_, i) => ({
@@ -242,12 +296,12 @@ export default function SalaryList() {
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="text-center py-10">
-            <p className="text-red-600 dark:text-red-400">{error}</p>
-            <Button onClick={fetchPayments} className="mt-4" variant="outline">
-              Retry
-            </Button>
-          </div>
+          <EmptyState
+            variant="error"
+            entity="salary payments"
+            description={error}
+            action={{ label: 'Retry', onClick: fetchPayments }}
+          />
         ) : (
           <Table
             fixedLayout
@@ -272,6 +326,19 @@ export default function SalaryList() {
           </div>
         )}
       </TableCard>
+
+      <ConfirmDialog
+        isOpen={deleteConfirm !== null}
+        title="Delete Salary Payment"
+        message={deleteConfirm ? `Delete salary payment for ${deleteConfirm.label}?` : ''}
+        consequence="This action cannot be undone."
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        variant="danger"
+        isLoading={isDeleting}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setDeleteConfirm(null)}
+      />
     </div>
   );
 }

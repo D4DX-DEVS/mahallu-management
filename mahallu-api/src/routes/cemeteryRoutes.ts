@@ -12,7 +12,7 @@ import {
   deleteGraveRecord,
   getCemeteryGraves,
 } from '../controllers/cemeteryController';
-import { authMiddleware, allowRoles } from '../middleware/authMiddleware';
+import { authMiddleware, allowRoles, requireAdmin } from '../middleware/authMiddleware';
 import { tenantMiddleware, tenantFilter } from '../middleware/tenantMiddleware';
 import { validationHandler } from '../middleware/validationHandler';
 import { idParam, listQuery } from '../validations/common';
@@ -28,6 +28,8 @@ const applyAuth = (router: express.Router) => {
   router.use(authMiddleware);
   router.use(tenantMiddleware);
   router.use(tenantFilter);
+  // Mahallu-admin module (the CMS menu and routes are Mahallu-admin only). Reads used to be open to every staff role while every write already needed the admin.
+  router.use(requireAdmin);
 };
 
 // Create separate routers for each resource type

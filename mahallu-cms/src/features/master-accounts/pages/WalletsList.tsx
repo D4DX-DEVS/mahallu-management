@@ -5,17 +5,20 @@ import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
+import EmptyState from '@/components/ui/EmptyState';
 import Pagination from '@/components/ui/Pagination';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import TableToolbar from '@/components/ui/TableToolbar';
 import Modal from '@/components/ui/Modal';
 import { TableColumn, Pagination as PaginationType } from '@/types';
-import { masterAccountService, MasterWallet } from '@/services/masterAccountService';
+import { masterAccountService, MasterWallet, BalanceSummary } from '@/services/masterAccountService';
 import { formatDate, toTitleCase } from '@/utils/format';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
 import { toast } from '@/store/toastStore';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { fetchAllPages } from '@/services/api';
+import { logError } from '@/utils/safeLog';
 
 export default function WalletsList() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -26,6 +29,8 @@ export default function WalletsList() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
+  /* Total balance across every wallet (all pages), from the server. */
+  const [summary, setSummary] = useState<BalanceSummary>({ totalBalance: 0, count: 0 });
   const [isExporting, setIsExporting] = useState(false);
   const [selectedWallet, setSelectedWallet] = useState<MasterWallet | null>(null);
   const [showViewModal, setShowViewModal] = useState(false);
@@ -43,10 +48,14 @@ export default function WalletsList() {
       const params = { page: currentPage, limit: itemsPerPage };
       const result = await masterAccountService.getAllWallets(params);
       setWallets(Array.isArray(result.data) ? result.data : []);
+      setSummary({
+        totalBalance: Number(result.summary?.totalBalance) || 0,
+        count: Number(result.summary?.count) || 0,
+      });
       if (result.pagination) setPagination(result.pagination);
     } catch (err: any) {
       setError(loadErrorMessage(err, 'wallets'));
-      console.error('Error fetching wallets:', err);
+      logError('Error fetching wallets', err);
       setWallets([]);
     } finally {
       setLoading(false);
@@ -56,9 +65,7 @@ export default function WalletsList() {
   const handleExport = async (type: 'csv' | 'json' | 'pdf') => {
     try {
       setIsExporting(true);
-      const params = { limit: 10000 };
-      const result = await masterAccountService.getAllWallets(params);
-      const dataToExport = Array.isArray(result.data) ? result.data : [];
+      const dataToExport = await fetchAllPages((page) => masterAccountService.getAllWallets(page));
       if (dataToExport.length === 0) {
         toast.info('No wallets to export');
         return;
@@ -73,11 +80,11 @@ export default function WalletsList() {
           exportToJSON(columns, dataToExport, filename);
           break;
         case 'pdf':
-          exportToPDF(columns, dataToExport, filename, title);
+          await exportToPDF(columns, dataToExport, filename, title);
           break;
       }
     } catch (error: any) {
-      console.error('Export error:', error);
+      logError('Export error', error);
       toast.error(error?.message || "Couldn't export wallets");
     } finally {
       setIsExporting(false);
@@ -123,17 +130,15 @@ export default function WalletsList() {
     (w) => !searchQuery || w.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const totalBalance = wallets.reduce((sum, w) => sum + (w.balance || 0), 0);
-
   const stats = [
     {
       title: 'Total Wallets',
-      value: pagination?.total || wallets.length,
+      value: pagination?.total || summary.count || wallets.length,
       icon: <FiCreditCard className="h-5 w-5" />,
     },
     {
       title: 'Total Balance',
-      value: `₹${totalBalance.toLocaleString()}`,
+      value: `₹${summary.totalBalance.toLocaleString()}`,
       icon: <FiDollarSign className="h-5 w-5" />,
     },
   ];
@@ -169,12 +174,12 @@ export default function WalletsList() {
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="text-center py-10">
-            <p className="text-red-600 dark:text-red-400">{error}</p>
-            <Button onClick={fetchWallets} className="mt-4" variant="outline">
-              Retry
-            </Button>
-          </div>
+          <EmptyState
+            variant="error"
+            entity="wallets"
+            description={error}
+            action={{ label: 'Retry', onClick: fetchWallets }}
+          />
         ) : (
           <>
             <Table

@@ -7,6 +7,7 @@ import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
+import EmptyState from '@/components/ui/EmptyState';
 import Pagination from '@/components/ui/Pagination';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import TableToolbar from '@/components/ui/TableToolbar';
@@ -20,6 +21,8 @@ import { ROUTES } from '@/constants/routes';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import StatusBadge from '@/components/ui/StatusBadge';
 import PageHeader from '@/components/layout/PageHeader';
+import { useServerCounts } from '@/hooks/useServerCounts';
+import { logError } from '@/utils/safeLog';
 
 export default function SupportList() {
   const navigate = useNavigate();
@@ -60,7 +63,7 @@ export default function SupportList() {
       }
     } catch (err: any) {
       setError(loadErrorMessage(err, 'support tickets'));
-      console.error('Error fetching support:', err);
+      logError('Error fetching support', err);
       setSupport([]);
     } finally {
       setLoading(false);
@@ -95,11 +98,11 @@ export default function SupportList() {
           exportToJSON(columns, dataToExport, filename);
           break;
         case 'pdf':
-          exportToPDF(columns, dataToExport, filename, title);
+          await exportToPDF(columns, dataToExport, filename, title);
           break;
       }
     } catch (error: any) {
-      console.error('Export error:', error);
+      logError('Export error', error);
       toast.error(errorMessage(error, { action: 'export data' }));
     } finally {
       setIsExporting(false);
@@ -143,16 +146,26 @@ export default function SupportList() {
     },
   ];
 
+  // Whole-list counts from the server: these cards used to count only the rows on this page.
+  const countBase = priorityFilter !== 'all' ? { priority: priorityFilter } : {};
+  const statusCounts = useServerCounts(
+    {
+      open: () => socialService.getAllSupport({ ...countBase, status: 'open', page: 1, limit: 1 }),
+      resolved: () => socialService.getAllSupport({ ...countBase, status: 'resolved', page: 1, limit: 1 }),
+    },
+    [support]
+  );
+
   const stats = [
-    { title: 'Total Tickets', value: support.length, icon: <FiHelpCircle className="h-5 w-5" /> },
+    { title: 'Total Tickets', value: pagination?.total ?? support.length, icon: <FiHelpCircle className="h-5 w-5" /> },
     {
       title: 'Open',
-      value: support.filter((s) => s.status === 'open' || !s.status).length,
+      value: statusCounts.open ?? support.filter((s) => s.status === 'open' || !s.status).length,
       icon: <FiAlertCircle className="h-5 w-5" />,
     },
     {
       title: 'Resolved',
-      value: support.filter((s) => s.status === 'resolved').length,
+      value: statusCounts.resolved ?? support.filter((s) => s.status === 'resolved').length,
       icon: <FiCheckCircle className="h-5 w-5" />,
     },
   ];
@@ -225,12 +238,12 @@ export default function SupportList() {
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="text-center py-10">
-            <p className="text-red-600 dark:text-red-400">{error}</p>
-            <Button onClick={fetchSupport} className="mt-4" variant="outline">
-              Retry
-            </Button>
-          </div>
+          <EmptyState
+            variant="error"
+            entity="support tickets"
+            description={error}
+            action={{ label: 'Retry', onClick: fetchSupport }}
+          />
         ) : (
           <>
             <Table

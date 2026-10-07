@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import Card from '@/components/ui/Card';
 import TableCard from '@/components/ui/TableCard';
-import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
 import Table from '@/components/ui/Table';
 import ExpandableSearch from '@/components/ui/ExpandableSearch';
@@ -119,18 +118,13 @@ export default function RegisterList() {
         </div>
 
         {pagination && (
-          <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">{pagination.total} records</p>
+          <p className="mb-2 text-label text-muted-foreground">{pagination.total} records</p>
         )}
 
         {loading ? (
           <PageSkeleton variant="section" />
         ) : error ? (
-          <div className="py-10 text-center">
-            <p className="text-red-600 dark:text-red-400">{error}</p>
-            <Button onClick={fetchRows} className="mt-4" variant="outline">
-              Retry
-            </Button>
-          </div>
+          <EmptyState variant="error" entity="records" description={error} action={{ label: 'Retry', onClick: fetchRows }} />
         ) : rows.length === 0 ? (
           <EmptyState
             title="No records found"
