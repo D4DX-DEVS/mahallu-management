@@ -216,7 +216,7 @@ export default function MemberRequests() {
         <div className="space-y-4">
           <Card>
             <div className="overflow-x-auto">
-              <table className="min-w-full text-sm">
+              <table className="data-table min-w-full text-sm">
                 <thead>
                   <tr className="text-left border-b border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-400">
                     <SortableTh sortKey="label" sort={sort} onSort={toggleSort} className="py-2 pr-4">

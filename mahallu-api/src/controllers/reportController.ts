@@ -12,6 +12,11 @@ import Institute from '../models/Institute';
 import Announcement from '../models/Announcement';
 
 import { sendFailure } from '../utils/userMessages';
+import { MSG, getCallerScope, isValidId, tenantFilterFor } from '../utils/scope';
+
+/** Shown with an institute account's education report, which leaves the Mahallu-level programmes out. */
+export const INSTITUTE_EDUCATION_SCOPE_NOTE =
+  "Showing your institute's classes only. Scholarships and academic support are Mahallu-level programmes and are not available for institute accounts.";
 
 /**
  * Every member-facing report counts living people only. Kept in one place so
@@ -20,38 +25,90 @@ import { sendFailure } from '../utils/userMessages';
  */
 const LIVE_MEMBER = { status: { $nin: ['inactive', 'deleted'] }, isDead: { $ne: true } };
 
+export const DEFAULT_REPORT_MAX_ROWS = 5000;
+
+/** Rows a report may list: REPORT_MAX_ROWS, default 5000 (a bad value falls back to it). */
+export const reportMaxRows = (env: NodeJS.ProcessEnv = process.env): number => {
+  const n = Number(env.REPORT_MAX_ROWS);
+  return Number.isFinite(n) && n >= 1 ? Math.floor(n) : DEFAULT_REPORT_MAX_ROWS;
+};
+
+/**
+ * Cap a list read with `.limit(cap + 1)`: the extra row is only there to tell "exactly cap" from
+ * "more than cap". `truncated` is true when the list was cut.
+ */
+export const capRows = <T>(rows: T[], cap: number): { rows: T[]; truncated: boolean } =>
+  rows.length > cap ? { rows: rows.slice(0, cap), truncated: true } : { rows, truncated: false };
+
+/** `{ truncated: true }` to spread into a response, or nothing, so shapes are unchanged when nothing was cut. */
+const truncationFlag = (truncated: boolean): { truncated?: true } => (truncated ? { truncated: true } : {});
+
+/** The Mahallu for a report that needs exactly one (400 otherwise), as a validated id string. */
+const reportTenantId = (req: AuthRequest, res: Response): string | null => {
+  const tenantId = req.tenantId || (req.isSuperAdmin ? (req.query.tenantId as string) : undefined);
+  if (!tenantId || !isValidId(String(tenantId))) {
+    res.status(400).json({ success: false, message: 'Please select a Mahallu before continuing.' });
+    return null;
+  }
+  return String(tenantId);
+};
+
+/** A find() filter made safe for aggregate(), which (unlike find) does not cast ids from strings. */
+const forAggregate = (filter: Record<string, any>): Record<string, any> =>
+  filter.tenantId ? { ...filter, tenantId: new mongoose.Types.ObjectId(String(filter.tenantId)) } : filter;
+
 export const getAreaReport = async (req: AuthRequest, res: Response) => {
   try {
-    const { area, tenantId } = req.query;
-    const query: any = {};
+    const { area } = req.query;
+    const scope = tenantFilterFor(req, res);
+    if (!scope) return;
+    const query: any = { ...scope };
+    if (typeof area === 'string' && area) query.area = area;
 
-    // Apply tenant filter - req.tenantId includes x-tenant-id header for super admin viewing as tenant
-    if (req.tenantId) {
-      query.tenantId = req.tenantId;
-    } else if (tenantId && req.isSuperAdmin) {
-      query.tenantId = tenantId;
-    }
+    const cap = reportMaxRows();
 
-    if (area) query.area = area;
+    // Totals are counted by the database; only the listed families are capped.
+    const [totalFamilies, familyRows, allFamilyIds] = await Promise.all([
+      Family.countDocuments(query),
+      Family.find(query).select('houseName area').sort({ _id: 1 }).limit(cap + 1).lean(),
+      Family.distinct('_id', query),
+    ]);
+    const { rows: families, truncated } = capRows(familyRows, cap);
 
-    const families = await Family.find(query);
-    const familyIds = families.map((f) => f._id);
-    const members = await Member.find({ familyId: { $in: familyIds }, ...LIVE_MEMBER });
+    const [totals, perFamily] = await Promise.all([
+      Member.aggregate([
+        { $match: { familyId: { $in: allFamilyIds }, ...LIVE_MEMBER } },
+        {
+          $group: {
+            _id: null,
+            total: { $sum: 1 },
+            male: { $sum: { $cond: [{ $eq: ['$gender', 'male'] }, 1, 0] } },
+            female: { $sum: { $cond: [{ $eq: ['$gender', 'female'] }, 1, 0] } },
+          },
+        },
+      ]),
+      Member.aggregate([
+        { $match: { familyId: { $in: families.map((f: any) => f._id) }, ...LIVE_MEMBER } },
+        { $group: { _id: '$familyId', count: { $sum: 1 } } },
+      ]),
+    ]);
+    const memberCounts = new Map<string, number>(perFamily.map((row: any) => [String(row._id), row.count]));
 
     const report = {
-      totalFamilies: families.length,
-      totalMembers: members.length,
-      maleCount: members.filter((m) => m.gender === 'male').length,
-      femaleCount: members.filter((m) => m.gender === 'female').length,
-      families: families.map((f) => ({
+      totalFamilies,
+      totalMembers: totals[0]?.total || 0,
+      maleCount: totals[0]?.male || 0,
+      femaleCount: totals[0]?.female || 0,
+      families: families.map((f: any) => ({
         id: f._id,
         houseName: f.houseName,
         area: f.area,
-        memberCount: members.filter((m) => m.familyId.toString() === f._id.toString()).length,
+        memberCount: memberCounts.get(String(f._id)) || 0,
       })),
+      ...truncationFlag(truncated),
     };
 
-    res.json({ success: true, data: report });
+    res.json({ success: true, data: report, ...truncationFlag(truncated) });
   } catch (error: any) {
     sendFailure(res, error, 'We couldn\'t load the area report right now. Please try again.');
   }
@@ -59,35 +116,40 @@ export const getAreaReport = async (req: AuthRequest, res: Response) => {
 
 export const getBloodBankReport = async (req: AuthRequest, res: Response) => {
   try {
-    const { bloodGroup, tenantId } = req.query;
-    const query: any = {};
+    const { bloodGroup } = req.query;
+    const scope = tenantFilterFor(req, res);
+    if (!scope) return;
+    const query: any = { ...scope, ...LIVE_MEMBER };
+    if (typeof bloodGroup === 'string' && bloodGroup) query.bloodGroup = bloodGroup;
 
-    // Apply tenant filter - req.tenantId includes x-tenant-id header for super admin viewing as tenant
-    if (req.tenantId) {
-      query.tenantId = req.tenantId;
-    } else if (tenantId && req.isSuperAdmin) {
-      query.tenantId = tenantId;
-    }
+    // Members that have a blood group recorded (the list and the per-group counts).
+    const withGroup: any = { ...query, bloodGroup: query.bloodGroup ?? { $nin: [null, ''] } };
+    const cap = reportMaxRows();
 
-    if (bloodGroup) query.bloodGroup = bloodGroup;
-    Object.assign(query, LIVE_MEMBER);
-
-    const members = await Member.find(query).select('name bloodGroup phone age gender');
+    const [total, stats, memberRows] = await Promise.all([
+      Member.countDocuments(query),
+      Member.aggregate([
+        { $match: forAggregate(withGroup) },
+        { $group: { _id: '$bloodGroup', count: { $sum: 1 } } },
+      ]),
+      Member.find(withGroup).select('name bloodGroup phone age gender').sort({ _id: 1 }).limit(cap + 1).lean(),
+    ]);
+    const { rows: members, truncated } = capRows(memberRows, cap);
 
     const bloodGroupStats: Record<string, number> = {};
-    members.forEach((member) => {
-      if (member.bloodGroup) {
-        bloodGroupStats[member.bloodGroup] = (bloodGroupStats[member.bloodGroup] || 0) + 1;
-      }
+    stats.forEach((row: any) => {
+      if (row._id) bloodGroupStats[row._id] = row.count;
     });
 
     res.json({
       success: true,
       data: {
-        total: members.length,
+        total,
         bloodGroupStats,
-        members: members.filter((m) => m.bloodGroup),
+        members,
+        ...truncationFlag(truncated),
       },
+      ...truncationFlag(truncated),
     });
   } catch (error: any) {
     sendFailure(res, error, 'We couldn\'t load the blood bank report right now. Please try again.');
@@ -96,39 +158,40 @@ export const getBloodBankReport = async (req: AuthRequest, res: Response) => {
 
 export const getOrphansReport = async (req: AuthRequest, res: Response) => {
   try {
-    const { tenantId } = req.query;
-    const query: any = {};
+    const scope = tenantFilterFor(req, res);
+    if (!scope) return;
 
-    // Apply tenant filter - req.tenantId includes x-tenant-id header for super admin viewing as tenant
-    if (req.tenantId) {
-      query.tenantId = req.tenantId;
-    } else if (tenantId && req.isSuperAdmin) {
-      query.tenantId = tenantId;
-    }
-
-    Object.assign(query, LIVE_MEMBER);
-
-    // This is a simplified version - in reality, you'd need to identify orphans based on family structure
-    const members = await Member.find(query)
-      .populate('familyId', 'houseName')
-      .select('name age gender familyId');
-
+    // This is a simplified version - in reality, you'd need to identify orphans based on family structure.
     // Minors only. An unrecorded age is unknown, not zero - counting those as
-    // orphans put every age-less member on the list.
-    const orphans = members.filter((m) => typeof m.age === 'number' && m.age < 18);
+    // orphans put every age-less member on the list. The database does the filtering.
+    const query: any = { ...scope, ...LIVE_MEMBER, age: { $type: 'number', $lt: 18 } };
+    const cap = reportMaxRows();
+
+    const [total, rows] = await Promise.all([
+      Member.countDocuments(query),
+      Member.find(query)
+        .populate('familyId', 'houseName')
+        .select('name age gender familyId')
+        .sort({ _id: 1 })
+        .limit(cap + 1)
+        .lean(),
+    ]);
+    const { rows: orphans, truncated } = capRows(rows, cap);
 
     res.json({
       success: true,
       data: {
-        total: orphans.length,
-        orphans: orphans.map((o) => ({
+        total,
+        orphans: orphans.map((o: any) => ({
           id: o._id,
           name: o.name,
           age: o.age,
           gender: o.gender,
           family: (o.familyId as any)?.houseName,
         })),
+        ...truncationFlag(truncated),
       },
+      ...truncationFlag(truncated),
     });
   } catch (error: any) {
     sendFailure(res, error, 'We couldn\'t load the orphans report right now. Please try again.');
@@ -139,72 +202,108 @@ export const getOrphansReport = async (req: AuthRequest, res: Response) => {
 /**
  * Education report (spec 34.3): students count, active classes, attendance %,
  * exams, scholarship totals, support cases by type/status.
+ *
+ * Everything is counted / summed by the database: nothing is loaded into memory, so there is no cap.
  */
 export const getEducationReport = async (req: AuthRequest, res: Response) => {
   try {
-    const tenantId = req.tenantId || (req.isSuperAdmin ? (req.query.tenantId as string) : undefined);
-    if (!tenantId) {
-      return res.status(400).json({ success: false, message: 'Please select a Mahallu before continuing.' });
+    const tenantId = reportTenantId(req, res);
+    if (!tenantId) return;
+
+    // The institute comes from the caller's session, never from the query. An institute account
+    // with no institute is refused instead of being given the Mahallu-wide numbers.
+    const caller = getCallerScope(req);
+    if (caller.isInstitute && !caller.isSuperAdmin && !caller.instituteId) {
+      return res.status(403).json({ success: false, message: MSG.noInstitute });
     }
+    const instituteOnly = caller.isInstitute && !caller.isSuperAdmin;
 
     // Import models needed for education report
     const { MadrasaClass, StudentEnrollment } = require('../models/Madrasa');
     const { ClassAttendance, Exam } = require('../models/Attendance');
     const { Scholarship, ScholarshipAward, AcademicSupportCase } = require('../models/Scholarship');
 
-    const query = { tenantId };
+    const tenantObjectId = new mongoose.Types.ObjectId(tenantId);
 
-    // Get students count (active enrollments)
-    const activeStudents = await StudentEnrollment.countDocuments({
-      ...query,
-      status: 'active',
-    });
+    // Classes carry the institute (MadrasaClass.instituteId); enrollments, attendance sheets and
+    // exams reach it through their classId. For an institute account every one of those counts is
+    // limited to the classes of THAT institute in THIS Mahallu.
+    const classFilter: Record<string, any> = { tenantId };
+    let classIds: mongoose.Types.ObjectId[] | undefined;
+    if (instituteOnly) {
+      classFilter.instituteId = caller.instituteId;
+      const ids: any[] = await MadrasaClass.distinct('_id', classFilter);
+      classIds = ids.map((id) => new mongoose.Types.ObjectId(String(id)));
+    }
+    const byClass = classIds ? { classId: { $in: classIds } } : {};
 
-    // Get active classes count
-    const activeClasses = await MadrasaClass.countDocuments({
-      ...query,
-      status: 'active',
-    });
+    const query = { tenantId, ...byClass };
 
-    // Get attendance for this month
+    // Attendance for this month
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
-    const attendanceRecords = await ClassAttendance.find({
-      ...query,
-      date: { $gte: monthStart, $lte: monthEnd },
-    });
+    // Scholarships, awards and academic support cases are Mahallu-level programmes: none of them
+    // has an institute (or a class) to attribute it to, so an institute account does not get them.
+    const mahalluLevel = (run: () => Promise<any>, empty: any) => (instituteOnly ? Promise.resolve(empty) : run());
 
-    let attendancePercent = 0;
-    if (attendanceRecords.length > 0) {
-      const totalRecords = attendanceRecords.reduce((sum: number, rec: any) => sum + rec.records.length, 0);
-      const presentCount = attendanceRecords.reduce(
-        (sum: number, rec: any) => sum + rec.records.filter((r: any) => r.present).length,
-        0
-      );
-      attendancePercent = totalRecords > 0 ? Math.round((presentCount / totalRecords) * 100) : 0;
-    }
+    const [activeStudents, activeClasses, attendanceAgg, examsCount, scholarships, awardRows, caseRows] = await Promise.all([
+      // students count (active enrollments)
+      StudentEnrollment.countDocuments({ ...query, status: 'active' }),
+      // active classes count
+      MadrasaClass.countDocuments({ ...classFilter, status: 'active' }),
+      ClassAttendance.aggregate([
+        { $match: { tenantId: tenantObjectId, ...byClass, date: { $gte: monthStart, $lte: monthEnd } } },
+        {
+          $group: {
+            _id: null,
+            total: { $sum: { $size: { $ifNull: ['$records', []] } } },
+            present: {
+              $sum: { $size: { $filter: { input: { $ifNull: ['$records', []] }, as: 'r', cond: '$$r.present' } } },
+            },
+          },
+        },
+      ]),
+      Exam.countDocuments(query),
+      mahalluLevel(() => Scholarship.countDocuments({ tenantId, status: 'active' }), 0),
+      mahalluLevel(
+        () =>
+          ScholarshipAward.aggregate([
+            { $match: { tenantId: tenantObjectId } },
+            { $group: { _id: '$status', count: { $sum: 1 }, amount: { $sum: '$amount' } } },
+          ]),
+        []
+      ),
+      mahalluLevel(
+        () =>
+          AcademicSupportCase.aggregate([
+            { $match: { tenantId: tenantObjectId } },
+            { $group: { _id: { type: '$type', status: '$status' }, count: { $sum: 1 } } },
+          ]),
+        []
+      ),
+    ]);
 
-    // Get exams count
-    const examsCount = await Exam.countDocuments(query);
+    const attendancePercent =
+      attendanceAgg[0]?.total > 0 ? Math.round((attendanceAgg[0].present / attendanceAgg[0].total) * 100) : 0;
 
-    // Get scholarship stats
-    const scholarships = await Scholarship.countDocuments({ ...query, status: 'active' });
-    const awards = await ScholarshipAward.find(query);
-    const totalAwarded = awards.reduce((sum: number, a: any) => sum + a.amount, 0);
+    let totalAwarded = 0;
+    let totalAwards = 0;
     const awardsByStatus: Record<string, number> = {};
-    awards.forEach((a: any) => {
-      awardsByStatus[a.status] = (awardsByStatus[a.status] || 0) + 1;
+    awardRows.forEach((row: any) => {
+      totalAwarded += row.amount || 0;
+      totalAwards += row.count;
+      awardsByStatus[String(row._id)] = (awardsByStatus[String(row._id)] || 0) + row.count;
     });
 
-    // Get support cases by type and status
-    const supportCases = await AcademicSupportCase.find(query);
+    let supportTotal = 0;
     const casesByType: Record<string, number> = {};
     const casesByStatus: Record<string, number> = {};
-    supportCases.forEach((c: any) => {
-      casesByType[c.type] = (casesByType[c.type] || 0) + 1;
-      casesByStatus[c.status] = (casesByStatus[c.status] || 0) + 1;
+    caseRows.forEach((row: any) => {
+      supportTotal += row.count;
+      casesByType[String(row._id.type)] = (casesByType[String(row._id.type)] || 0) + row.count;
+      casesByStatus[String(row._id.status)] = (casesByStatus[String(row._id.status)] || 0) + row.count;
     });
 
     res.json({
@@ -214,17 +313,23 @@ export const getEducationReport = async (req: AuthRequest, res: Response) => {
         activeClassesCount: activeClasses,
         attendancePercentThisMonth: attendancePercent,
         examsCount,
-        scholarships: {
-          activeScholarships: scholarships,
-          totalAwardedAmount: totalAwarded,
-          totalAwards: awards.length,
-          awardsByStatus,
-        },
-        supportCases: {
-          total: supportCases.length,
-          byType: casesByType,
-          byStatus: casesByStatus,
-        },
+        // null, not zero: "not available for this account", never a number that looks like data.
+        scholarships: instituteOnly
+          ? null
+          : {
+              activeScholarships: scholarships,
+              totalAwardedAmount: totalAwarded,
+              totalAwards,
+              awardsByStatus,
+            },
+        supportCases: instituteOnly
+          ? null
+          : {
+              total: supportTotal,
+              byType: casesByType,
+              byStatus: casesByStatus,
+            },
+        ...(instituteOnly ? { scopeNote: INSTITUTE_EDUCATION_SCOPE_NOTE } : {}),
       },
     });
   } catch (error: any) {
@@ -238,10 +343,8 @@ export const getEducationReport = async (req: AuthRequest, res: Response) => {
  */
 export const getDemographicsReport = async (req: AuthRequest, res: Response) => {
   try {
-    const tenantId = req.tenantId || (req.isSuperAdmin ? (req.query.tenantId as string) : undefined);
-    if (!tenantId) {
-      return res.status(400).json({ success: false, message: 'Please select a Mahallu before continuing.' });
-    }
+    const tenantId = reportTenantId(req, res);
+    if (!tenantId) return;
 
     // Missing status on legacy records predates the field's default and should count as active.
     const memberBase: any = { tenantId, status: { $nin: ['inactive', 'deleted'] }, isDead: { $ne: true } };
@@ -296,57 +399,70 @@ export const getDemographicsReport = async (req: AuthRequest, res: Response) => 
 
 /**
  * Welfare report (spec 34.2): beneficiaries, assistance totals, pending applications.
+ *
+ * Counted / summed by the database: nothing is loaded into memory, so there is no cap.
  */
 export const getWelfareReport = async (req: AuthRequest, res: Response) => {
   try {
-    const tenantId = req.tenantId || (req.isSuperAdmin ? (req.query.tenantId as string) : undefined);
-    if (!tenantId) {
-      return res.status(400).json({ success: false, message: 'Please select a Mahallu before continuing.' });
-    }
+    const tenantId = reportTenantId(req, res);
+    if (!tenantId) return;
 
-    const tenantObjectId = new mongoose.Types.ObjectId(tenantId as string);
+    const tenantObjectId = new mongoose.Types.ObjectId(tenantId);
     const query = { tenantId: tenantObjectId };
 
-    const [applications, zakatBeneficiaries, zakatDistributions, reliefCases] = await Promise.all([
-      WelfareApplication.find(query),
-      ZakatBeneficiary.find(query),
-      ZakatDistribution.find(query),
-      ReliefCase.find(query),
+    const [appRows, zakatBeneficiaryTotal, zakatVerified, zakatDistributionAgg, reliefRows] = await Promise.all([
+      WelfareApplication.aggregate([
+        { $match: query },
+        {
+          $group: {
+            _id: '$status',
+            count: { $sum: 1 },
+            requested: { $sum: '$requestedAmount' },
+            approved: { $sum: '$approvedAmount' },
+          },
+        },
+      ]),
+      ZakatBeneficiary.countDocuments(query),
+      ZakatBeneficiary.countDocuments({ ...query, verificationStatus: 'verified' }),
+      ZakatDistribution.aggregate([
+        { $match: query },
+        { $group: { _id: null, count: { $sum: 1 }, amount: { $sum: '$amount' } } },
+      ]),
+      ReliefCase.aggregate([{ $match: query }, { $group: { _id: '$status', count: { $sum: 1 } } }]),
     ]);
 
     // Welfare application stats
-    const appsByStatus = {
-      pending: applications.filter((a: any) => a.status === 'pending').length,
-      verified: applications.filter((a: any) => a.status === 'verified').length,
-      approved: applications.filter((a: any) => a.status === 'approved').length,
-      disbursed: applications.filter((a: any) => a.status === 'disbursed').length,
-      rejected: applications.filter((a: any) => a.status === 'rejected').length,
-      closed: applications.filter((a: any) => a.status === 'closed').length,
-    };
+    const appsByStatus = { pending: 0, verified: 0, approved: 0, disbursed: 0, rejected: 0, closed: 0 };
+    let applicationsTotal = 0;
+    let requestedTotal = 0;
+    let approvedTotal = 0;
+    let disbursedTotal = 0;
+    appRows.forEach((row: any) => {
+      applicationsTotal += row.count;
+      requestedTotal += row.requested || 0;
+      approvedTotal += row.approved || 0;
+      if (row._id === 'disbursed') disbursedTotal += row.approved || 0;
+      if (row._id in appsByStatus) (appsByStatus as Record<string, number>)[row._id] += row.count;
+    });
 
-    const requestedTotal = applications.reduce((sum: number, a: any) => sum + (a.requestedAmount || 0), 0);
-    const approvedTotal = applications.reduce((sum: number, a: any) => sum + (a.approvedAmount || 0), 0);
-    const disbursedTotal = applications.filter((a: any) => a.status === 'disbursed').reduce((sum: number, a: any) => sum + (a.approvedAmount || 0), 0);
-
-    // Zakat beneficiary stats
-    const zakatVerified = zakatBeneficiaries.filter((b: any) => b.verificationStatus === 'verified').length;
-    const zakatDistributionTotal = zakatDistributions.reduce((sum: number, d: any) => sum + (d.amount || 0), 0);
+    // Zakat distribution stats
+    const zakatDistributionCount = zakatDistributionAgg[0]?.count || 0;
+    const zakatDistributionTotal = zakatDistributionAgg[0]?.amount || 0;
 
     // Relief case stats
-    const reliefByStatus = {
-      reported: reliefCases.filter((r: any) => r.status === 'reported').length,
-      verified: reliefCases.filter((r: any) => r.status === 'verified').length,
-      approved: reliefCases.filter((r: any) => r.status === 'approved').length,
-      assisted: reliefCases.filter((r: any) => r.status === 'assisted').length,
-      closed: reliefCases.filter((r: any) => r.status === 'closed').length,
-    };
+    const reliefByStatus = { reported: 0, verified: 0, approved: 0, assisted: 0, closed: 0 };
+    let reliefTotal = 0;
+    reliefRows.forEach((row: any) => {
+      reliefTotal += row.count;
+      if (row._id in reliefByStatus) (reliefByStatus as Record<string, number>)[row._id] += row.count;
+    });
 
     res.json({
       success: true,
       data: {
         welfare: {
           applications: {
-            total: applications.length,
+            total: applicationsTotal,
             byStatus: appsByStatus,
           },
           requested: requestedTotal,
@@ -355,17 +471,17 @@ export const getWelfareReport = async (req: AuthRequest, res: Response) => {
         },
         zakat: {
           beneficiaries: {
-            total: zakatBeneficiaries.length,
+            total: zakatBeneficiaryTotal,
             verified: zakatVerified,
           },
           distributions: {
-            total: zakatDistributions.length,
+            total: zakatDistributionCount,
             totalAmount: zakatDistributionTotal,
           },
         },
         relief: {
           cases: {
-            total: reliefCases.length,
+            total: reliefTotal,
             byStatus: reliefByStatus,
           },
         },
@@ -378,58 +494,62 @@ export const getWelfareReport = async (req: AuthRequest, res: Response) => {
 
 /**
  * Community report (spec 34.2): programs, volunteers, projects
+ *
+ * Counted / summed by the database: nothing is loaded into memory, so there is no cap.
  */
 export const getCommunityReport = async (req: AuthRequest, res: Response) => {
   try {
-    const tenantId = req.tenantId || (req.isSuperAdmin ? (req.query.tenantId as string) : undefined);
-    if (!tenantId) {
-      return res.status(400).json({ success: false, message: 'Please select a Mahallu before continuing.' });
-    }
+    const tenantId = reportTenantId(req, res);
+    if (!tenantId) return;
 
-    const tenantObjectId = new mongoose.Types.ObjectId(tenantId as string);
+    const tenantObjectId = new mongoose.Types.ObjectId(tenantId);
     const query = { tenantId: tenantObjectId };
 
-    const [programs, volunteers, projects, announcements] = await Promise.all([
-      Institute.find({ ...query, type: 'program' }),
-      VolunteerProfile.find(query),
-      DevelopmentProject.find(query),
-      Announcement.find(query),
+    const [programsTotal, volunteersTotal, youth, women, general, projectRows, announcementsSent] = await Promise.all([
+      Institute.countDocuments({ ...query, type: 'program' }),
+      VolunteerProfile.countDocuments(query),
+      VolunteerProfile.countDocuments({ ...query, wings: 'youth' }),
+      VolunteerProfile.countDocuments({ ...query, wings: 'women' }),
+      VolunteerProfile.countDocuments({ ...query, wings: 'general' }),
+      DevelopmentProject.aggregate([
+        { $match: query },
+        {
+          $group: {
+            _id: '$status',
+            count: { $sum: 1 },
+            cost: { $sum: '$estimatedCost' },
+            progress: { $sum: '$progressPercent' },
+          },
+        },
+      ]),
+      Announcement.countDocuments({ ...query, status: 'sent' }),
     ]);
 
     // Project stats
-    const projectsByStatus = {
-      proposed: projects.filter((p: any) => p.status === 'proposed').length,
-      approved: projects.filter((p: any) => p.status === 'approved').length,
-      in_progress: projects.filter((p: any) => p.status === 'in_progress').length,
-      completed: projects.filter((p: any) => p.status === 'completed').length,
-      dropped: projects.filter((p: any) => p.status === 'dropped').length,
-    };
-
-    const totalEstimatedCost = projects.reduce((sum: number, p: any) => sum + (p.estimatedCost || 0), 0);
-    const avgProgress = projects.length > 0 ? Math.round(projects.reduce((sum: number, p: any) => sum + (p.progressPercent || 0), 0) / projects.length) : 0;
-
-    // Volunteer stats
-    const volunteersByWing = {
-      youth: volunteers.filter((v: any) => v.wings && v.wings.includes('youth')).length,
-      women: volunteers.filter((v: any) => v.wings && v.wings.includes('women')).length,
-      general: volunteers.filter((v: any) => v.wings && v.wings.includes('general')).length,
-    };
-
-    // Announcement stats
-    const announcementsSent = announcements.filter((a: any) => a.status === 'sent').length;
+    const projectsByStatus = { proposed: 0, approved: 0, in_progress: 0, completed: 0, dropped: 0 };
+    let projectsTotal = 0;
+    let totalEstimatedCost = 0;
+    let progressSum = 0;
+    projectRows.forEach((row: any) => {
+      projectsTotal += row.count;
+      totalEstimatedCost += row.cost || 0;
+      progressSum += row.progress || 0;
+      if (row._id in projectsByStatus) (projectsByStatus as Record<string, number>)[row._id] += row.count;
+    });
+    const avgProgress = projectsTotal > 0 ? Math.round(progressSum / projectsTotal) : 0;
 
     res.json({
       success: true,
       data: {
         programs: {
-          total: programs.length,
+          total: programsTotal,
         },
         volunteers: {
-          total: volunteers.length,
-          byWing: volunteersByWing,
+          total: volunteersTotal,
+          byWing: { youth, women, general },
         },
         projects: {
-          total: projects.length,
+          total: projectsTotal,
           byStatus: projectsByStatus,
           totalEstimatedCost,
           averageProgress: avgProgress,

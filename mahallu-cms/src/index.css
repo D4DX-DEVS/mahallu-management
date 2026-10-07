@@ -24,16 +24,22 @@
     --popover-foreground: 200 18% 12%;
 
     /* Brand — green. The one primary. */
-    --primary: 142 76% 36%;
+    --primary: 150 54% 35%;
     --primary-foreground: 0 0% 100%;
 
     /* Neutral supporting surfaces */
-    --secondary: 180 14% 96%;
+    /* secondary/muted/accent used to be pure white (= card), so hover, focus and
+     * selected states built on them (hover:bg-accent, bg-accent/50, the
+     * dashboard ring track) were invisible. Each now carries a faint tint.
+     * accent-foreground on accent is 6.6:1, muted-foreground on accent/muted
+     * is >= 4.5:1. The forced-white `bg-muted`/`bg-secondary`/`bg-gray-*`
+     * surface rules further down are deliberate and unchanged. */
+    --secondary: 220 16% 96%;
     --secondary-foreground: 200 18% 12%;
-    --muted: 180 14% 96%;
-    --muted-foreground: 200 9% 42%;
-    --accent: 142 40% 95%;
-    --accent-foreground: 142 84% 22%;
+    --muted: 220 16% 96%;
+    --muted-foreground: 200 9% 40%;
+    --accent: 150 26% 93%;
+    --accent-foreground: 150 64% 23%;
 
     /* Semantic state — four roles, one ramp each */
     --destructive: 0 72% 46%;
@@ -46,19 +52,25 @@
     --info-foreground: 0 0% 100%;
 
     /* Lines and focus */
-    --border: 180 12% 88%;
-    --input: 180 12% 85%;
-    --ring: 142 76% 36%;
+    /* --border stays light: it separates cards and table rows. --input is the
+     * boundary of a form control, which WCAG 1.4.11 wants at >= 3:1 against its
+     * surround: 3.5:1 on white, 3.4:1 on --background. */
+    --border: 220 16% 89%;
+    --input: 220 9% 55%;
+    --ring: 150 54% 35%;
 
     /* Geometry — three radii derived from one value */
     --radius: 0.5rem;
 
     /* Elevation — two levels only */
-    --shadow-sm: 0 1px 2px 0 hsl(200 18% 12% / 0.05);
-    --shadow-md: 0 4px 12px -2px hsl(200 18% 12% / 0.10), 0 2px 4px -2px hsl(200 18% 12% / 0.06);
+    --shadow-sm: 0 1px 2px 0 hsl(220 24% 12% / 0.04), 0 1px 3px 0 hsl(220 24% 12% / 0.03);
+    --shadow-md: 0 12px 30px -18px hsl(220 24% 12% / 0.20), 0 2px 8px -4px hsl(220 24% 12% / 0.08);
   }
 
   .dark {
+    /* Dark surfaces and text. origin/main's refresh had set this whole block to the light values
+     * (a white-only system), which left a working theme toggle with nothing to toggle to; the
+     * dark tokens are restored here. Main's brand green, border hue and ring are kept. */
     --background: 200 24% 8%;
     --foreground: 180 12% 95%;
     --card: 200 20% 12%;
@@ -66,17 +78,17 @@
     --popover: 200 20% 12%;
     --popover-foreground: 180 12% 95%;
 
-    --primary: 142 71% 45%;
-    --primary-foreground: 200 24% 8%;
+    --primary: 150 58% 48%;
+    --primary-foreground: 220 24% 8%;
 
     --secondary: 200 16% 17%;
     --secondary-foreground: 180 12% 95%;
     --muted: 200 16% 17%;
     --muted-foreground: 195 8% 64%;
-    --accent: 142 30% 18%;
-    --accent-foreground: 142 66% 72%;
+    --accent: 150 30% 18%;
+    --accent-foreground: 150 66% 72%;
 
-    --destructive: 0 68% 56%;
+    --destructive: 0 72% 64%;
     --destructive-foreground: 200 24% 8%;
     --success: 152 52% 48%;
     --success-foreground: 200 24% 8%;
@@ -85,9 +97,14 @@
     --info: 213 74% 62%;
     --info-foreground: 200 24% 8%;
 
-    --border: 200 14% 22%;
-    --input: 200 14% 26%;
-    --ring: 142 71% 45%;
+    --border: 220 14% 22%;
+    --input: 220 12% 32%;
+    --ring: 150 58% 48%;
+
+    /* Native controls — unstyled inputs and textareas, select popups, date
+     * pickers, scrollbars — draw their own chrome from this. Without it a
+     * raw <input> is a white box with black text on a dark page. */
+    color-scheme: dark;
 
     --shadow-sm: 0 1px 2px 0 hsl(0 0% 0% / 0.4);
     --shadow-md: 0 4px 12px -2px hsl(0 0% 0% / 0.5), 0 2px 4px -2px hsl(0 0% 0% / 0.4);
@@ -95,6 +112,14 @@
 }
 
 @layer base {
+  :root {
+    font-family: 'Manrope', 'Noto Sans Malayalam', system-ui, sans-serif;
+    font-size: 16px;
+    line-height: 1.5;
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+  }
+
   html,
   body,
   #root {
@@ -108,8 +133,63 @@
   body {
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
+    font-family: 'Manrope', 'Noto Sans Malayalam', system-ui, sans-serif;
+    font-size: 0.875rem;
+    line-height: 1.375rem;
     font-feature-settings: "rlig" 1, "calt" 1;
     @apply font-sans antialiased;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6,
+  button,
+  input,
+  select,
+  textarea {
+    font-family: inherit;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    letter-spacing: -0.01em;
+  }
+
+  h1 {
+    font-size: 1.5rem;
+    line-height: 1.875rem;
+  }
+
+  h2 {
+    font-size: 1.125rem;
+    line-height: 1.625rem;
+  }
+
+  h3 {
+    font-size: 1rem;
+    line-height: 1.5rem;
+  }
+
+  h4,
+  h5,
+  h6 {
+    font-size: 0.875rem;
+    line-height: 1.375rem;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+    line-height: 1.375rem;
   }
 
   ::selection {
@@ -120,6 +200,171 @@
   :focus-visible {
     outline: 2px solid hsl(var(--ring));
     outline-offset: 2px;
+  }
+}
+
+/* Placeholders on a dark ground: the browser default is a fixed grey that
+ * reads as disabled text. :where() keeps this at zero specificity, so a
+ * component's own `placeholder:` utility still wins. */
+:where(.dark) ::placeholder {
+  color: hsl(var(--muted-foreground));
+  opacity: 1;
+}
+
+@layer components {
+  .workspace-canvas {
+    background: hsl(var(--background));
+  }
+
+  .page-enter {
+    animation: page-enter 180ms ease-out both;
+  }
+
+  @keyframes page-enter {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Create/edit pages are hosted in one consistent, white modal workspace. */
+  .form-modal-single form .grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .form-modal-single form .grid > [class*='col-span-'] {
+    grid-column: span 1 / span 1 !important;
+  }
+
+  .form-modal-double form .grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  @media (min-width: 640px) {
+    .form-modal-double form .grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
+  }
+
+  .form-modal-double form .grid > [class*='col-span-'] {
+    grid-column: span 2 / span 2 !important;
+  }
+
+  /* Neutral utility backgrounds are presentation surfaces, not state. Keep
+     the product canvas and its components consistently white.
+     LIGHT MODE ONLY: forced to #fff with !important these would also turn every
+     card, table and input white on the dark theme (white text on white), and no
+     `dark:` class could undo it. Dark keeps the token surfaces. */
+  :root:not(.dark) [class*='bg-gray-'],
+  :root:not(.dark) [class*='bg-slate-'],
+  :root:not(.dark) [class*='bg-zinc-'],
+  :root:not(.dark) [class*='bg-neutral-'] {
+    background-color: #fff !important;
+  }
+
+  :root:not(.dark) [class~='bg-muted'],
+  :root:not(.dark) [class*='bg-muted/'],
+  :root:not(.dark) [class~='bg-secondary'],
+  :root:not(.dark) [class*='bg-secondary/'] {
+    background-color: #fff !important;
+  }
+
+  .surface {
+    border: 1px solid hsl(var(--border));
+    border-radius: calc(var(--radius) + 4px);
+    background: hsl(var(--card));
+    box-shadow: var(--shadow-sm);
+  }
+
+  .nav-section-label {
+    color: hsl(var(--muted-foreground));
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    line-height: 1rem;
+    text-transform: uppercase;
+  }
+
+  .table-surface {
+    overflow: hidden;
+    border: 1px solid hsl(var(--border));
+    border-radius: calc(var(--radius) + 4px);
+    background: hsl(var(--card));
+    box-shadow: var(--shadow-sm);
+  }
+
+  /* Route-level alignment contract. Every protected route gets the same
+     shrink behaviour, so a long page or a nested flyout cannot widen the
+     content column and push controls out of view. */
+  .page-route-shell {
+    min-width: 0;
+    width: 100%;
+  }
+
+  /* Hand-written tables use this class while older feature screens migrate to
+     the shared Table component. It keeps their header height, cell rhythm and
+     row separators identical to the shared list surface. */
+  .data-table {
+    min-width: 42rem;
+    border-collapse: collapse;
+    color: hsl(var(--foreground));
+  }
+
+  .data-table thead {
+    /* The legacy `bg-muted` utility is intentionally forced to white by the
+       product-wide surface rule. Keep the table header's one controlled tint
+       explicit so the header still reads as a separate row. */
+    background: hsl(210 20% 98%) !important;
+  }
+
+  .dark .data-table thead {
+    background: hsl(var(--muted)) !important;
+  }
+
+  .data-table th {
+    height: 2.625rem;
+    padding: 0.625rem 0.75rem;
+    border-bottom: 1px solid hsl(var(--border));
+    color: hsl(var(--muted-foreground));
+    font-size: 0.8125rem;
+    font-weight: 600;
+    line-height: 1.125rem;
+    text-align: left;
+    vertical-align: middle;
+    white-space: nowrap;
+  }
+
+  .data-table td {
+    min-height: 2.75rem;
+    padding: 0.6875rem 0.75rem;
+    border-bottom: 1px solid hsl(var(--border));
+    font-size: 0.875rem;
+    line-height: 1.375rem;
+    vertical-align: middle;
+  }
+
+  .data-table tbody tr:last-child td {
+    border-bottom: 0;
+  }
+
+  .data-table tbody tr {
+    transition: background-color 150ms ease;
+  }
+
+  .data-table tbody tr:hover {
+    background: hsl(var(--accent) / 0.6);
+  }
+
+  @media (max-width: 767px) {
+    .data-table-surface {
+      border-radius: 0;
+      border-left: 0;
+      border-right: 0;
+    }
   }
 }
 
@@ -213,13 +458,8 @@
     opacity: 0.5;
   }
 
-  /* The picker glyph is black by default and disappears on a dark ground. */
-  .dark input[type='date']::-webkit-calendar-picker-indicator,
-  .dark input[type='datetime-local']::-webkit-calendar-picker-indicator,
-  .dark input[type='time']::-webkit-calendar-picker-indicator {
-    filter: invert(1) opacity(0.6);
-  }
-
+  /* The picker glyph is black by default and disappears on a dark ground;
+   * `color-scheme: dark` (set on .dark above) draws it light, so no filter. */
   input[type='date']::-webkit-calendar-picker-indicator {
     cursor: pointer;
     opacity: 0.6;
@@ -304,5 +544,289 @@ input[type='number'] {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+}
+
+/*
+ * Dark-mode safety net for the raw palette.
+ *
+ * ~180 pages were written against Tailwind's raw `gray` / `red` / `green` ...
+ * ramps, and a good share of them carry a light-theme colour with no `dark:`
+ * partner — `text-gray-900` on a dark card is near-black on near-black, and
+ * `text-gray-500` is a 3.4:1 grey that fails WCAG AA on every dark surface.
+ * Patching each page one `dark:` pair at a time kept losing to the next page
+ * written, so the fallback lives here, in the theme, and maps the raw ramp
+ * onto the same tokens the shared components use.
+ *
+ * It sits in `@layer components`, which Tailwind emits BEFORE utilities, at the
+ * same specificity as a `dark:` utility. So it only applies where a page set a
+ * light colour and no dark one: an explicit `dark:text-*` or `dark:bg-*` on the
+ * element always wins, and light mode is untouched.
+ *
+ * Do not add new `text-gray-*` / `bg-gray-*` to components — use the tokens
+ * (text-foreground, text-muted-foreground, bg-card, bg-muted, border-border).
+ */
+@layer components {
+  /* Primary text */
+  .dark .text-gray-900,
+  .dark .text-gray-800 {
+    color: hsl(var(--foreground));
+  }
+  .dark .text-gray-700 {
+    color: hsl(var(--foreground) / 0.88);
+  }
+  /* Secondary / muted text stays a step below, still comfortably above AA */
+  .dark .text-gray-600,
+  .dark .text-gray-500 {
+    color: hsl(var(--muted-foreground));
+  }
+  .dark .placeholder\:text-gray-500::placeholder,
+  .dark .placeholder\:text-gray-400::placeholder {
+    color: hsl(var(--muted-foreground));
+  }
+
+  /* Neutral surfaces */
+  .dark .bg-gray-50,
+  .dark .bg-gray-100 {
+    background-color: hsl(var(--muted));
+  }
+  /* `bg-primary-600 text-white` chips are 3.3:1 on a dark page; one step
+   * deeper clears AA with the white label. */
+  .dark .bg-primary-600 {
+    background-color: #15803d;
+  }
+
+  /* A step above gray-100, so `bg-gray-100 hover:bg-gray-200` still reads as
+   * a hover. Tailwind derives the `hover:` / `focus:` forms of these classes
+   * itself, so they are not repeated here. */
+  .dark .bg-gray-200 {
+    background-color: hsl(var(--border));
+  }
+
+  /* Lines */
+  .dark .border-gray-100,
+  .dark .border-gray-200,
+  .dark .divide-gray-100 > :not([hidden]) ~ :not([hidden]),
+  .dark .divide-gray-200 > :not([hidden]) ~ :not([hidden]) {
+    border-color: hsl(var(--border));
+  }
+  .dark .border-gray-300 {
+    border-color: hsl(var(--input));
+  }
+  /* red */
+  .dark .text-red-600,
+  .dark .text-red-700,
+  .dark .text-red-800,
+  .dark .text-red-900 {
+    color: rgb(252 165 165);
+  }
+  .dark .text-red-500 {
+    color: rgb(248 113 113);
+  }
+  .dark .bg-red-50,
+  .dark .bg-red-100 {
+    background-color: rgb(239 68 68 / 0.16);
+  }
+  .dark .border-red-200,
+  .dark .border-red-300 {
+    border-color: rgb(239 68 68 / 0.35);
+  }
+  /* green */
+  .dark .text-green-600,
+  .dark .text-green-700,
+  .dark .text-green-800,
+  .dark .text-green-900 {
+    color: rgb(134 239 172);
+  }
+  .dark .text-green-500 {
+    color: rgb(74 222 128);
+  }
+  .dark .bg-green-50,
+  .dark .bg-green-100 {
+    background-color: rgb(34 197 94 / 0.16);
+  }
+  .dark .border-green-200,
+  .dark .border-green-300 {
+    border-color: rgb(34 197 94 / 0.35);
+  }
+  /* blue */
+  .dark .text-blue-600,
+  .dark .text-blue-700,
+  .dark .text-blue-800,
+  .dark .text-blue-900 {
+    color: rgb(147 197 253);
+  }
+  .dark .text-blue-500 {
+    color: rgb(96 165 250);
+  }
+  .dark .bg-blue-50,
+  .dark .bg-blue-100 {
+    background-color: rgb(59 130 246 / 0.16);
+  }
+  .dark .border-blue-200,
+  .dark .border-blue-300 {
+    border-color: rgb(59 130 246 / 0.35);
+  }
+  /* yellow */
+  .dark .text-yellow-600,
+  .dark .text-yellow-700,
+  .dark .text-yellow-800,
+  .dark .text-yellow-900 {
+    color: rgb(253 224 71);
+  }
+  .dark .text-yellow-500 {
+    color: rgb(250 204 21);
+  }
+  .dark .bg-yellow-50,
+  .dark .bg-yellow-100 {
+    background-color: rgb(234 179 8 / 0.16);
+  }
+  .dark .border-yellow-200,
+  .dark .border-yellow-300 {
+    border-color: rgb(234 179 8 / 0.35);
+  }
+  /* amber */
+  .dark .text-amber-600,
+  .dark .text-amber-700,
+  .dark .text-amber-800,
+  .dark .text-amber-900 {
+    color: rgb(252 211 77);
+  }
+  .dark .text-amber-500 {
+    color: rgb(251 191 36);
+  }
+  .dark .bg-amber-50,
+  .dark .bg-amber-100 {
+    background-color: rgb(245 158 11 / 0.16);
+  }
+  .dark .border-amber-200,
+  .dark .border-amber-300 {
+    border-color: rgb(245 158 11 / 0.35);
+  }
+  /* orange */
+  .dark .text-orange-600,
+  .dark .text-orange-700,
+  .dark .text-orange-800,
+  .dark .text-orange-900 {
+    color: rgb(253 186 116);
+  }
+  .dark .text-orange-500 {
+    color: rgb(251 146 60);
+  }
+  .dark .bg-orange-50,
+  .dark .bg-orange-100 {
+    background-color: rgb(249 115 22 / 0.16);
+  }
+  .dark .border-orange-200,
+  .dark .border-orange-300 {
+    border-color: rgb(249 115 22 / 0.35);
+  }
+  /* emerald */
+  .dark .text-emerald-600,
+  .dark .text-emerald-700,
+  .dark .text-emerald-800,
+  .dark .text-emerald-900 {
+    color: rgb(110 231 183);
+  }
+  .dark .text-emerald-500 {
+    color: rgb(52 211 153);
+  }
+  .dark .bg-emerald-50,
+  .dark .bg-emerald-100 {
+    background-color: rgb(16 185 129 / 0.16);
+  }
+  .dark .border-emerald-200,
+  .dark .border-emerald-300 {
+    border-color: rgb(16 185 129 / 0.35);
+  }
+  /* purple */
+  .dark .text-purple-600,
+  .dark .text-purple-700,
+  .dark .text-purple-800,
+  .dark .text-purple-900 {
+    color: rgb(216 180 254);
+  }
+  .dark .text-purple-500 {
+    color: rgb(192 132 252);
+  }
+  .dark .bg-purple-50,
+  .dark .bg-purple-100 {
+    background-color: rgb(168 85 247 / 0.16);
+  }
+  .dark .border-purple-200,
+  .dark .border-purple-300 {
+    border-color: rgb(168 85 247 / 0.35);
+  }
+  /* indigo */
+  .dark .text-indigo-600,
+  .dark .text-indigo-700,
+  .dark .text-indigo-800,
+  .dark .text-indigo-900 {
+    color: rgb(165 180 252);
+  }
+  .dark .text-indigo-500 {
+    color: rgb(129 140 248);
+  }
+  .dark .bg-indigo-50,
+  .dark .bg-indigo-100 {
+    background-color: rgb(99 102 241 / 0.16);
+  }
+  .dark .border-indigo-200,
+  .dark .border-indigo-300 {
+    border-color: rgb(99 102 241 / 0.35);
+  }
+  /* pink */
+  .dark .text-pink-600,
+  .dark .text-pink-700,
+  .dark .text-pink-800,
+  .dark .text-pink-900 {
+    color: rgb(249 168 212);
+  }
+  .dark .text-pink-500 {
+    color: rgb(244 114 182);
+  }
+  .dark .bg-pink-50,
+  .dark .bg-pink-100 {
+    background-color: rgb(236 72 153 / 0.16);
+  }
+  .dark .border-pink-200,
+  .dark .border-pink-300 {
+    border-color: rgb(236 72 153 / 0.35);
+  }
+  /* teal */
+  .dark .text-teal-600,
+  .dark .text-teal-700,
+  .dark .text-teal-800,
+  .dark .text-teal-900 {
+    color: rgb(94 234 212);
+  }
+  .dark .text-teal-500 {
+    color: rgb(45 212 191);
+  }
+  .dark .bg-teal-50,
+  .dark .bg-teal-100 {
+    background-color: rgb(20 184 166 / 0.16);
+  }
+  .dark .border-teal-200,
+  .dark .border-teal-300 {
+    border-color: rgb(20 184 166 / 0.35);
+  }
+  /* primary */
+  .dark .text-primary-600,
+  .dark .text-primary-700,
+  .dark .text-primary-800,
+  .dark .text-primary-900 {
+    color: rgb(134 239 172);
+  }
+  .dark .text-primary-500 {
+    color: rgb(74 222 128);
+  }
+  .dark .bg-primary-50,
+  .dark .bg-primary-100 {
+    background-color: rgb(34 197 94 / 0.16);
+  }
+  .dark .border-primary-200,
+  .dark .border-primary-300 {
+    border-color: rgb(34 197 94 / 0.35);
   }
 }

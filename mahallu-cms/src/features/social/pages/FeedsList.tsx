@@ -11,6 +11,7 @@ import EmptyState from '@/components/ui/EmptyState';
 import Pagination from '@/components/ui/Pagination';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import TableToolbar from '@/components/ui/TableToolbar';
+import Modal from '@/components/ui/Modal';
 import { TableColumn, Pagination as PaginationType } from '@/types';
 import { socialService, Feed } from '@/services/socialService';
 import { fetchAllPages } from '@/services/api';
@@ -21,6 +22,8 @@ import { toast } from '@/store/toastStore';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import StatusBadge from '@/components/ui/StatusBadge';
 import PageHeader from '@/components/layout/PageHeader';
+import { useServerCounts } from '@/hooks/useServerCounts';
+import { logError } from '@/utils/safeLog';
 
 export default function FeedsList() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -33,6 +36,8 @@ export default function FeedsList() {
   const [itemsPerPage] = useState(10);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [selectedFeed, setSelectedFeed] = useState<Feed | null>(null);
+  const [showViewModal, setShowViewModal] = useState(false);
 
   useEffect(() => {
     fetchFeeds();
@@ -58,7 +63,7 @@ export default function FeedsList() {
       }
     } catch (err: any) {
       setError(loadErrorMessage(err, 'feeds'));
-      console.error('Error fetching feeds:', err);
+      logError('Error fetching feeds', err);
       setFeeds([]);
     } finally {
       setLoading(false);
@@ -96,11 +101,11 @@ export default function FeedsList() {
           exportToJSON(columns, dataToExport, filename);
           break;
         case 'pdf':
-          exportToPDF(columns, dataToExport, filename, title);
+          await exportToPDF(columns, dataToExport, filename, title);
           break;
       }
     } catch (error: any) {
-      console.error('Export error:', error);
+      logError('Export error', error);
       toast.error(errorMessage(error, { action: 'export data' }));
     } finally {
       setIsExporting(false);
@@ -135,11 +140,20 @@ export default function FeedsList() {
     },
   ];
 
+  // Whole-list counts from the server: these cards used to count only the rows on this page.
+  const countBase: { isSuperFeed?: boolean } = {};
+  if (typeFilter === 'super') countBase.isSuperFeed = true;
+  else if (typeFilter === 'regular') countBase.isSuperFeed = false;
+  const statusCounts = useServerCounts(
+    { published: () => socialService.getAllFeeds({ ...countBase, status: 'published', page: 1, limit: 1 }) },
+    [feeds]
+  );
+
   const stats = [
-    { title: 'Total Feeds', value: feeds.length, icon: <FiRss className="h-5 w-5" /> },
+    { title: 'Total Feeds', value: pagination?.total ?? feeds.length, icon: <FiRss className="h-5 w-5" /> },
     {
       title: 'Published',
-      value: feeds.filter((f) => f.status === 'published').length,
+      value: statusCounts.published ?? feeds.filter((f) => f.status === 'published').length,
       icon: <FiCheckCircle className="h-5 w-5" />,
     },
   ];
@@ -156,7 +170,7 @@ export default function FeedsList() {
         </div>
       </div>
 
-      <TableCard>
+      <TableCard borderless>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -203,7 +217,18 @@ export default function FeedsList() {
           />
         ) : (
           <>
-            <Table fixedLayout striped columns={columns} data={feeds} emptyMessage="No feeds found" showExport={false} />
+            <Table
+              fixedLayout
+              striped
+              columns={columns}
+              data={feeds}
+              emptyMessage="No feeds found"
+              showExport={false}
+              onRowClick={(row) => {
+                setSelectedFeed(row);
+                setShowViewModal(true);
+              }}
+            />
             {pagination && pagination.totalPages > 1 && (
               <div className="mt-4">
                 <Pagination
@@ -218,6 +243,64 @@ export default function FeedsList() {
           </>
         )}
       </TableCard>
+
+      {/* View Modal */}
+      <Modal
+        isOpen={showViewModal}
+        onClose={() => {
+          setShowViewModal(false);
+          setSelectedFeed(null);
+        }}
+        title="Feed Details"
+        footer={
+          <Button
+            variant="outline"
+            onClick={() => {
+              setShowViewModal(false);
+              setSelectedFeed(null);
+            }}
+          >
+            Close
+          </Button>
+        }
+      >
+        {selectedFeed && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+            <div className="sm:col-span-2">
+              <p className="text-xs text-gray-500 dark:text-gray-400">Title</p>
+              <p className="text-gray-900 dark:text-gray-100 font-medium">{selectedFeed.title}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Type</p>
+              <p className="text-gray-900 dark:text-gray-100">
+                {selectedFeed.isSuperFeed ? 'Super Feed' : 'Regular'}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Status</p>
+              <p className="text-gray-900 dark:text-gray-100 capitalize">{selectedFeed.status || '—'}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Author</p>
+              <p className="text-gray-900 dark:text-gray-100">{selectedFeed.authorName || '—'}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Created</p>
+              <p className="text-gray-900 dark:text-gray-100">{formatDate(selectedFeed.createdAt)}</p>
+            </div>
+            <div className="sm:col-span-2">
+              <p className="text-xs text-gray-500 dark:text-gray-400">Content</p>
+              <p className="text-gray-900 dark:text-gray-100 whitespace-pre-wrap">{selectedFeed.content}</p>
+            </div>
+            {selectedFeed.image && (
+              <div className="sm:col-span-2">
+                <p className="text-xs text-gray-500 dark:text-gray-400">Image</p>
+                <img src={selectedFeed.image} alt={selectedFeed.title} className="max-h-40 rounded-md" />
+              </div>
+            )}
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

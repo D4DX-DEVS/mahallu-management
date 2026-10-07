@@ -29,6 +29,7 @@ function varisangyaToTransaction(v: Varisangya): Transaction {
     description: v.remarks || `Varisangya payment${payerInfo} - ${v.receiptNo || 'N/A'}`,
     referenceId: v.receiptNo,
     referenceType: 'varisangya',
+    paymentMethod: v.paymentMethod,
     createdAt: v.paymentDate || v.createdAt || new Date().toISOString(),
   };
 }
@@ -131,10 +132,10 @@ export default function MemberVarisangyaTransactions() {
       const filename = `member-varisangya-transactions${memberId ? `-${memberId}` : ''}`;
       switch (type) {
         case 'csv':
-          exportToCSV(columns, transactions, filename);
+          exportToCSV(exportColumns, transactions, filename);
           break;
         case 'json':
-          exportToJSON(columns, transactions, filename);
+          exportToJSON(exportColumns, transactions, filename);
           break;
         case 'pdf':
           {
@@ -182,8 +183,14 @@ export default function MemberVarisangyaTransactions() {
     { key: 'amount', label: 'Amount', width: '7.75rem', render: (amount) => `₹${amount?.toLocaleString() || 0}` },
     { key: 'description', label: 'Description', width: '9.25rem' },
     { key: 'referenceType', label: 'Reference', width: '8.75rem', render: (type) => type || '-' },
+    { key: 'paymentMethod', label: 'Payment Method', width: '8.75rem', render: (method) => method || '-' },
     { key: 'createdAt', label: 'Date', width: '6.25rem', render: (date) => formatDate(date) },
   ];
+
+  // The "No." column adds the page offset of the page on screen; an export of every row starts at 1.
+  const exportColumns: TableColumn<Transaction>[] = columns.map((col) =>
+    col.label === 'No.' ? { ...col, render: (_value, _row, index) => index + 1 } : col
+  );
 
   return (
     <div className="space-y-4">
@@ -219,7 +226,7 @@ export default function MemberVarisangyaTransactions() {
         </Card>
       )}
 
-      <TableCard>
+      <TableCard borderless>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}

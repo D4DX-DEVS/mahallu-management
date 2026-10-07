@@ -80,6 +80,8 @@ export interface IZakatDistribution extends Document {
   receiptNo?: string;
   remarks?: string;
   postToLedger: boolean;
+  /** Client-generated id that makes a retried create idempotent (unique per tenant). */
+  clientRequestId?: string;
   createdBy?: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
@@ -111,12 +113,19 @@ const ZakatDistributionSchema = new Schema<IZakatDistribution>(
     receiptNo: { type: String, trim: true },
     remarks: { type: String, trim: true },
     postToLedger: { type: Boolean, default: false },
+    clientRequestId: { type: String, trim: true, minlength: 8, maxlength: 64 },
     createdBy: { type: Schema.Types.ObjectId, ref: 'User' },
   },
   { timestamps: true }
 );
 
 ZakatDistributionSchema.index({ tenantId: 1, distributionDate: -1 });
+// Partial, so rows without a clientRequestId (all existing ones) are never covered and the index
+// cannot fail to build on old data. The create path also checks in code before inserting.
+ZakatDistributionSchema.index(
+  { tenantId: 1, clientRequestId: 1 },
+  { unique: true, partialFilterExpression: { clientRequestId: { $type: 'string' } } }
+);
 
 export const ZakatBeneficiary = mongoose.model<IZakatBeneficiary>(
   'ZakatBeneficiary',

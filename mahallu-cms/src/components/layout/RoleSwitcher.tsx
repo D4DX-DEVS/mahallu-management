@@ -77,7 +77,7 @@ const impersonationErrorMessage = (error: unknown): string => {
  * itself, so it never flips to an "Exit" state on some pages and not others.
  */
 export default function RoleSwitcher({ className }: { className?: string } = {}) {
-  const { user, isSuperAdmin, isImpersonating, setUser, setToken, setImpersonation } = useAuthStore();
+  const { user, isSuperAdmin, isImpersonating, setUser, setToken, setImpersonation, resetSessionContext } = useAuthStore();
   const {
     accounts,
     canSwitch: hasMultipleRealRoles,
@@ -223,6 +223,8 @@ export default function RoleSwitcher({ className }: { className?: string } = {})
 
       setUser(response.user);
       setToken(response.token);
+      // Same as an account switch: nothing of the previous context (module flags) carries into the new one.
+      resetSessionContext();
       setImpersonation({
         role: selectedRole,
         tenantName: tenant?.name || '',

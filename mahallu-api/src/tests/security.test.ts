@@ -68,3 +68,26 @@ test('two-factor is off unless a user opts in', () => {
   assert.ok(path, 'twoFactorEnabled is missing from the User schema');
   assert.equal(path.options.default, false);
 });
+
+import { sanitizeRequestBody } from '../middleware/activityLogger';
+
+test('activity log redaction covers password-change bodies, OTPs and pre-auth tokens at any depth', () => {
+  const out = sanitizeRequestBody({
+    currentPassword: 'old-secret',
+    newPassword: 'new-secret',
+    preAuthToken: 'abc',
+    otp: '123456',
+    phoneOtp: '654321',
+    name: 'Visible',
+    nested: { password: 'p', list: [{ apiKey: 'k', ok: 1 }] },
+  });
+  assert.equal(out.currentPassword, '***REDACTED***');
+  assert.equal(out.newPassword, '***REDACTED***');
+  assert.equal(out.preAuthToken, '***REDACTED***');
+  assert.equal(out.otp, '***REDACTED***');
+  assert.equal(out.phoneOtp, '***REDACTED***');
+  assert.equal(out.nested.password, '***REDACTED***');
+  assert.equal(out.nested.list[0].apiKey, '***REDACTED***');
+  assert.equal(out.name, 'Visible');
+  assert.equal(out.nested.list[0].ok, 1);
+});

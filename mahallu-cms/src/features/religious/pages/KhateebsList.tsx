@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
-import ActionsMenu from '@/components/ui/ActionsMenu';
-import { FiEdit2, FiTrash2, FiPlus } from 'react-icons/fi';
+import { FiPlus } from 'react-icons/fi';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import TableCard from '@/components/ui/TableCard';
 import ExpandableSearch from '@/components/ui/ExpandableSearch';
+import ActionBar from '@/components/ui/ActionBar';
 import Button from '@/components/ui/Button';
 import Table from '@/components/ui/Table';
 import Modal from '@/components/ui/Modal';
@@ -23,6 +23,8 @@ import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
 import StatusBadge from '@/components/ui/StatusBadge';
 import { optionalPhoneSchema, sanitizeDigits } from '@/utils/validation';
+import { fetchAllPages } from '@/services/api';
+import { logError } from '@/utils/safeLog';
 
 const khateebSchema = z.object({
   name: z.string().max(200, 'Please keep the name to 200 characters or less.').min(1, 'Name is required'),
@@ -75,10 +77,10 @@ export default function KhateebsList() {
   const fetchMembers = async () => {
     try {
       setLoadingMembers(true);
-      const result = await memberService.getAll({ limit: 1000 });
-      setMembers(result.data || []);
+      const allRows = await fetchAllPages((page) => memberService.getAll(page));
+      setMembers(allRows || []);
     } catch (err) {
-      console.error('Error fetching members:', err);
+      logError('Error fetching members', err);
     } finally {
       setLoadingMembers(false);
     }
@@ -102,7 +104,7 @@ export default function KhateebsList() {
       }
     } catch (err: any) {
       setError(loadErrorMessage(err, 'khateebs'));
-      console.error('Error fetching khateebs:', err);
+      logError('Error fetching khateebs', err);
     } finally {
       setLoading(false);
     }
@@ -188,32 +190,6 @@ export default function KhateebsList() {
       label: 'Status',
       render: (_: any, khateeb: Khateeb) => <StatusBadge status={khateeb.status} />,
     },
-    {
-      key: 'actions',
-      label: 'Actions',
-      align: 'center' as const,
-      render: (_: any, khateeb: Khateeb) => (
-        <ActionsMenu
-          label={'Actions for ' + toTitleCase(khateeb.name)}
-          items={[
-            {
-              label: 'Edit',
-              icon: <FiEdit2 className="h-4 w-4" />,
-              onClick: () => handleOpenModal(khateeb),
-            },
-            {
-              label: 'Delete',
-              icon: <FiTrash2 className="h-4 w-4" />,
-              onClick: () => {
-                setSelectedKhateeb(khateeb);
-                setShowDeleteModal(true);
-              },
-              variant: 'danger' as const,
-            },
-          ]}
-        />
-      ),
-    },
   ];
 
   if (loading) return <PageSkeleton />;
@@ -224,7 +200,7 @@ export default function KhateebsList() {
 
       {error && <div className="p-4 bg-red-100 text-red-800 rounded">{error}</div>}
 
-      <div className="flex gap-4 justify-between items-center">
+      <ActionBar className="mb-0">
         <ExpandableSearch
           value={searchQuery}
           onChange={(value) => {
@@ -235,10 +211,10 @@ export default function KhateebsList() {
           placeholder="Search khateebs by name"
         />
         <Button onClick={() => handleOpenModal()} icon={<FiPlus />} collapseLabel>New Khateeb</Button>
-      </div>
+      </ActionBar>
 
-      <TableCard>
-        <Table fixedLayout striped columns={columns} data={khateebs} />
+      <TableCard borderless>
+        <Table fixedLayout striped columns={columns} data={khateebs} onRowClick={(row) => handleOpenModal(row)} />
       </TableCard>
 
       {pagination && (
@@ -314,6 +290,20 @@ export default function KhateebsList() {
             >
               Cancel
             </Button>
+            {editingKhateeb && (
+              <Button
+                type="button"
+                variant="danger"
+                onClick={() => {
+                  setSelectedKhateeb(editingKhateeb);
+                  setShowModal(false);
+                  setShowDeleteModal(true);
+                }}
+                disabled={isSubmitting}
+              >
+                Delete
+              </Button>
+            )}
             <Button type="submit" isLoading={isSubmitting} disabled={isSubmitting}>
               {editingKhateeb ? 'Update' : 'Create'}
             </Button>

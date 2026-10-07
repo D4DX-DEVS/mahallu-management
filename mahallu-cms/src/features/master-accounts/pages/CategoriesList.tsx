@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { FiEdit2, FiEye, FiPlus, FiTag, FiTrash2 } from 'react-icons/fi';
+import { FiPlus, FiTag } from 'react-icons/fi';
 import TableCard from '@/components/ui/TableCard';
 import FilterPanel from '@/components/ui/FilterPanel';
 import Button from '@/components/ui/Button';
@@ -22,7 +22,8 @@ import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
 import { toast } from '@/store/toastStore';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
-import ActionsMenu from '@/components/ui/ActionsMenu';
+import { fetchAllPages } from '@/services/api';
+import { logError } from '@/utils/safeLog';
 
 export default function CategoriesList() {
   const { currentInstituteId: userInstituteId } = useAuthStore();
@@ -75,7 +76,7 @@ export default function CategoriesList() {
       }
     } catch (err: any) {
       setError(loadErrorMessage(err, 'categories'));
-      console.error('Error fetching categories:', err);
+      logError('Error fetching categories', err);
       setCategories([]);
     } finally {
       setLoading(false);
@@ -85,10 +86,11 @@ export default function CategoriesList() {
   const handleExport = async (type: 'csv' | 'json' | 'pdf') => {
     try {
       setIsExporting(true);
-      const params: any = { limit: 10000 };
+      const params: any = {};
       if (instituteFilter !== 'all') params.instituteId = instituteFilter;
-      const result = await masterAccountService.getAllCategories(params);
-      const dataToExport = Array.isArray(result.data) ? result.data : [];
+      const dataToExport = await fetchAllPages((page) =>
+        masterAccountService.getAllCategories({ ...params, ...page })
+      );
       if (dataToExport.length === 0) {
         toast.info('No categories to export');
         return;
@@ -103,11 +105,11 @@ export default function CategoriesList() {
           exportToJSON(columns, dataToExport, filename);
           break;
         case 'pdf':
-          exportToPDF(columns, dataToExport, filename, title);
+          await exportToPDF(columns, dataToExport, filename, title);
           break;
       }
     } catch (error: any) {
-      console.error('Export error:', error);
+      logError('Export error', error);
       toast.error(error?.message || "Couldn't export categories");
     } finally {
       setIsExporting(false);
@@ -136,37 +138,12 @@ export default function CategoriesList() {
       width: '7.75rem',
       render: (date) => formatDate(date),
     },
-    {
-      key: 'actions',
-      label: 'Actions',
-      width: '8rem',
-      align: 'center',
-      render: (_, row) => (
-        <ActionsMenu
-          items={[
-            {
-              label: 'View',
-              icon: <FiEye className="h-4 w-4" />,
-              onClick: () => {
-                setSelectedCategory(row);
-                setShowViewModal(true);
-              },
-            },
-            { label: 'Edit', icon: <FiEdit2 className="h-4 w-4" />, onClick: () => openEditModal(row) },
-            {
-              label: 'Delete',
-              icon: <FiTrash2 className="h-4 w-4" />,
-              onClick: () => {
-                setSelectedCategory(row);
-                setShowDeleteModal(true);
-              },
-              variant: 'danger',
-            },
-          ]}
-        />
-      ),
-    },
   ];
+
+  const openViewModal = (category: Category) => {
+    setSelectedCategory(category);
+    setShowViewModal(true);
+  };
 
   const openEditModal = (category: Category) => {
     setSelectedCategory(category);
@@ -229,7 +206,7 @@ export default function CategoriesList() {
         </div>
       </div>
 
-      <TableCard>
+      <TableCard borderless>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -281,6 +258,7 @@ export default function CategoriesList() {
               data={filteredCategories}
               emptyMessage="No categories found"
               showExport={false}
+              onRowClick={openViewModal}
             />
             {pagination && pagination.totalPages > 1 && (
               <div className="mt-4">
@@ -306,15 +284,34 @@ export default function CategoriesList() {
         }}
         title="Category Details"
         footer={
-          <Button
-            variant="outline"
-            onClick={() => {
-              setShowViewModal(false);
-              setSelectedCategory(null);
-            }}
-          >
-            Close
-          </Button>
+          <>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowViewModal(false);
+                setSelectedCategory(null);
+              }}
+            >
+              Close
+            </Button>
+            <Button
+              variant="danger"
+              onClick={() => {
+                setShowViewModal(false);
+                setShowDeleteModal(true);
+              }}
+            >
+              Delete
+            </Button>
+            <Button
+              onClick={() => {
+                if (selectedCategory) openEditModal(selectedCategory);
+                setShowViewModal(false);
+              }}
+            >
+              Edit
+            </Button>
+          </>
         }
       >
         {selectedCategory && (

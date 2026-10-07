@@ -1,5 +1,6 @@
 import api from './api';
 import { User } from '@/types';
+import { useAuthStore } from '@/store/authStore';
 
 export interface LoginCredentials {
   phone: string;
@@ -114,19 +115,31 @@ export const authService = {
   },
 
   changePassword: async (currentPassword: string, newPassword: string) => {
-    const response = await api.post<{ success: boolean; message: string }>('/auth/change-password', {
+    const response = await api.post<{ success: boolean; message: string; data?: { token?: string } }>('/auth/change-password', {
       currentPassword,
       newPassword,
     });
+    // The server ends every other session of this account and returns a fresh token for this one.
+    if (response.data.data?.token) useAuthStore.getState().setToken(response.data.data.token);
     return response.data;
+  },
+
+  /**
+   * Ends every session of this account on every device. Best effort: the local sign-out must still
+   * happen if the network call fails, so callers should not depend on it succeeding.
+   */
+  logout: async () => {
+    await api.post('/auth/logout');
   },
 
   /** Task C5 — two-factor login for the signed-in user's own account. */
   setTwoFactor: async (enabled: boolean) => {
-    const response = await api.put<{ success: boolean; data: { twoFactorEnabled: boolean } }>(
+    const response = await api.put<{ success: boolean; data: { twoFactorEnabled: boolean; token?: string } }>(
       '/auth/two-factor',
       { enabled }
     );
+    // A security setting changed, so the server ended this account's other sessions and issued a fresh token.
+    if (response.data.data.token) useAuthStore.getState().setToken(response.data.data.token);
     return response.data.data;
   },
 

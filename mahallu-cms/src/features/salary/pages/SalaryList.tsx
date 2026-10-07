@@ -15,7 +15,7 @@ import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { TableColumn, Pagination as PaginationType } from '@/types';
 import { SalaryPayment } from '@/types';
 import { ROUTES } from '@/constants/routes';
-import { salaryService } from '@/services/salaryService';
+import { salaryService, type SalaryListSummary } from '@/services/salaryService';
 import { instituteService } from '@/services/instituteService';
 import { useAuthStore } from '@/store/authStore';
 import { toast } from '@/store/toastStore';
@@ -24,6 +24,8 @@ import PageHeader from '@/components/layout/PageHeader';
 import ActionsMenu from '@/components/ui/ActionsMenu';
 import StatusBadge from '@/components/ui/StatusBadge';
 import { toTitleCase } from '@/utils/format';
+import { fetchAllPages } from '@/services/api';
+import { logError } from '@/utils/safeLog';
 
 const MONTHS = [
   { value: '1', label: 'January' },
@@ -57,6 +59,7 @@ export default function SalaryList() {
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
+  const [summary, setSummary] = useState<SalaryListSummary | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; label: string } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -70,10 +73,10 @@ export default function SalaryList() {
 
   const fetchInstitutes = async () => {
     try {
-      const result = await instituteService.getAll({ limit: 1000 });
-      setInstitutes(result.data.map((i: any) => ({ id: i.id, name: i.name })));
+      const allRows = await fetchAllPages((page) => instituteService.getAll(page));
+      setInstitutes(allRows.map((i: any) => ({ id: i.id, name: i.name })));
     } catch (err) {
-      console.error('Error fetching institutes:', err);
+      logError('Error fetching institutes', err);
     }
   };
 
@@ -90,6 +93,7 @@ export default function SalaryList() {
       if (employeeId) params.employeeId = employeeId;
       const result = await salaryService.getAll(params);
       setPayments(result.data);
+      setSummary(result.summary);
       if (result.pagination) setPagination(result.pagination);
     } catch (err: any) {
       setError(loadErrorMessage(err, 'salary payments'));
@@ -177,12 +181,13 @@ export default function SalaryList() {
     },
   ];
 
-  const totalPaid = payments
-    .filter((p) => p.status === 'paid')
-    .reduce((sum, p) => sum + (p.netAmount || 0), 0);
-  const totalPending = payments
-    .filter((p) => p.status === 'pending')
-    .reduce((sum, p) => sum + (p.netAmount || 0), 0);
+  // The cards cover the whole filtered list (server summary), not just the rows on this page.
+  const totalPaid = summary
+    ? summary.paidAmount
+    : payments.filter((p) => p.status === 'paid').reduce((sum, p) => sum + (p.netAmount || 0), 0);
+  const totalPending = summary
+    ? summary.pendingAmount
+    : payments.filter((p) => p.status === 'pending').reduce((sum, p) => sum + (p.netAmount || 0), 0);
 
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 5 }, (_, i) => ({
@@ -213,7 +218,7 @@ export default function SalaryList() {
         </div>
       </div>
 
-      <TableCard>
+      <TableCard borderless>
         <TableToolbar
           searchQuery=""
           onSearchChange={() => {}}

@@ -135,8 +135,13 @@ export const deleteCommittee = async (req: AuthRequest, res: Response) => {
   }
 };
 
-export const getCommitteeMeetings = async (req: Request, res: Response) => {
+export const getCommitteeMeetings = async (req: AuthRequest, res: Response) => {
   try {
+    const committee = await Committee.findById(req.params.id).select('tenantId');
+    if (!committee) {
+      return res.status(404).json({ success: false, message: "We couldn't find that committee. It may have been removed." });
+    }
+    if (!verifyTenantOwnership(req, res, committee.tenantId, 'Committee')) return;
     const meetings = await Meeting.find({ committeeId: req.params.id })
       .populate('attendance', 'name')
       .sort({ meetingDate: -1 });

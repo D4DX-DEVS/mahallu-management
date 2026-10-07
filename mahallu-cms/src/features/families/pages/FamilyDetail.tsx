@@ -212,10 +212,22 @@ export default function FamilyDetail() {
               <dt className="text-muted-foreground">House name</dt>
               <dd className="font-medium text-foreground">{toTitleCase(family.houseName)}</dd>
             </div>
+            {family.houseNameMl && (
+              <div className="flex justify-between gap-4 py-1 text-sm">
+                <dt className="text-muted-foreground">House name (Malayalam)</dt>
+                <dd className="font-medium font-malayalam text-foreground">{family.houseNameMl}</dd>
+              </div>
+            )}
             {family.familyHead && (
               <div className="flex justify-between gap-4 py-1 text-sm">
                 <dt className="text-muted-foreground">Family head</dt>
                 <dd className="font-medium text-foreground">{toTitleCase(family.familyHead)}</dd>
+              </div>
+            )}
+            {family.familyHeadMl && (
+              <div className="flex justify-between gap-4 py-1 text-sm">
+                <dt className="text-muted-foreground">Family head (Malayalam)</dt>
+                <dd className="font-medium font-malayalam text-foreground">{family.familyHeadMl}</dd>
               </div>
             )}
             {family.contactNo && (
@@ -272,6 +284,78 @@ export default function FamilyDetail() {
                 <dd className="font-medium text-foreground">{toTitleCase(family.postOffice)}</dd>
               </div>
             )}
+            {family.houseNo && (
+              <div className="flex justify-between gap-4 py-1 text-sm">
+                <dt className="text-muted-foreground">House no.</dt>
+                <dd className="font-medium text-foreground">{family.houseNo}</dd>
+              </div>
+            )}
+            {family.wardNumber && (
+              <div className="flex justify-between gap-4 py-1 text-sm">
+                <dt className="text-muted-foreground">Ward number</dt>
+                <dd className="font-medium tabular-nums text-foreground">{family.wardNumber}</dd>
+              </div>
+            )}
+            {family.area && (
+              <div className="flex justify-between gap-4 py-1 text-sm">
+                <dt className="text-muted-foreground">Area</dt>
+                <dd className="font-medium text-foreground">{toTitleCase(family.area)}</dd>
+              </div>
+            )}
+            {family.areaMl && (
+              <div className="flex justify-between gap-4 py-1 text-sm">
+                <dt className="text-muted-foreground">Area (Malayalam)</dt>
+                <dd className="font-medium font-malayalam text-foreground">{family.areaMl}</dd>
+              </div>
+            )}
+            {family.place && (
+              <div className="flex justify-between gap-4 py-1 text-sm">
+                <dt className="text-muted-foreground">Address</dt>
+                <dd className="font-medium text-foreground">{toTitleCase(family.place)}</dd>
+              </div>
+            )}
+            {family.placeMl && (
+              <div className="flex justify-between gap-4 py-1 text-sm">
+                <dt className="text-muted-foreground">Address (Malayalam)</dt>
+                <dd className="font-medium font-malayalam text-foreground">{family.placeMl}</dd>
+              </div>
+            )}
+          </dl>
+        </Card>
+
+        <Card padding="lg">
+          <h2 className="mb-4 text-sm font-semibold text-foreground">Socio-economic details</h2>
+          <dl className="space-y-3">
+            {(family as any).economicStatus && (
+              <div className="flex justify-between gap-4 py-1 text-sm">
+                <dt className="text-muted-foreground">Economic status</dt>
+                <dd className="font-medium capitalize text-foreground">{String((family as any).economicStatus).replace(/_/g, ' ')}</dd>
+              </div>
+            )}
+            {(family as any).welfareStatus && (
+              <div className="flex justify-between gap-4 py-1 text-sm">
+                <dt className="text-muted-foreground">Welfare status</dt>
+                <dd className="font-medium capitalize text-foreground">{String((family as any).welfareStatus).replace(/_/g, ' ')}</dd>
+              </div>
+            )}
+            {(family as any).housingType && (
+              <div className="flex justify-between gap-4 py-1 text-sm">
+                <dt className="text-muted-foreground">Housing type</dt>
+                <dd className="font-medium capitalize text-foreground">{(family as any).housingType}</dd>
+              </div>
+            )}
+            {(family as any).specialRequirements && (
+              <div className="flex justify-between gap-4 py-1 text-sm">
+                <dt className="text-muted-foreground">Special requirements</dt>
+                <dd className="font-medium text-foreground">{(family as any).specialRequirements}</dd>
+              </div>
+            )}
+            {!(family as any).economicStatus &&
+              !(family as any).welfareStatus &&
+              !(family as any).housingType &&
+              !(family as any).specialRequirements && (
+                <p className="text-sm text-muted-foreground">No socio-economic details recorded.</p>
+              )}
           </dl>
         </Card>
 
@@ -290,7 +374,13 @@ export default function FamilyDetail() {
             </div>
           </div>
           {members.length > 0 ? (
-            <Table fixedLayout striped columns={memberColumns} data={members} />
+            <Table
+              fixedLayout
+              striped
+              columns={memberColumns}
+              data={members}
+              onRowClick={(row) => navigate(ROUTES.MEMBERS.DETAIL(row.id))}
+            />
           ) : (
             <p className="text-gray-500 dark:text-gray-400 text-center py-8">
               No members found. Add a member to get started.

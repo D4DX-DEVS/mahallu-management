@@ -1,4 +1,5 @@
 import { body, param } from 'express-validator';
+import { sanitizeRichText } from '../utils/htmlSanitizer';
 
 // Nikah Registration Validations
 export const createNikahRegistrationValidation = [
@@ -52,7 +53,7 @@ export const createNikahRegistrationValidation = [
   body('mahrDescription').optional().trim(),
   body('status')
     .optional()
-    .isIn(['pending', 'approved', 'rejected'])
+    .isIn(['pending', 'correction_required', 'approved', 'rejected'])
     .withMessage('Please choose a valid status.'),
   body('remarks').optional().trim(),
 ];
@@ -110,7 +111,7 @@ export const updateNikahRegistrationValidation = [
   body('mahrDescription').optional().trim(),
   body('status')
     .optional()
-    .isIn(['pending', 'approved', 'rejected'])
+    .isIn(['pending', 'correction_required', 'approved', 'rejected'])
     .withMessage('Please choose a valid status.'),
   body('remarks').optional().trim(),
 ];
@@ -149,7 +150,7 @@ export const createDeathRegistrationValidation = [
     .withMessage('Please enter a 10-digit informant phone.'),
   body('status')
     .optional()
-    .isIn(['pending', 'approved', 'rejected'])
+    .isIn(['pending', 'correction_required', 'approved', 'rejected'])
     .withMessage('Please choose a valid status.'),
   body('remarks').optional().trim(),
 ];
@@ -189,7 +190,7 @@ export const updateDeathRegistrationValidation = [
     .withMessage('Please enter a 10-digit informant phone.'),
   body('status')
     .optional()
-    .isIn(['pending', 'approved', 'rejected'])
+    .isIn(['pending', 'correction_required', 'approved', 'rejected'])
     .withMessage('Please choose a valid status.'),
   body('remarks').optional().trim(),
 ];
@@ -220,11 +221,13 @@ export const createNOCValidation = [
   body('purposeTitleMl').optional().trim(),
   body('purposeDescription')
     .optional()
+    .customSanitizer(sanitizeRichText)
     .isLength({ min: 2 })
     .withMessage('Please use at least 2 characters for the purpose description.'),
   body('purpose')
     .optional()
     .trim()
+    .customSanitizer(sanitizeRichText)
     .isLength({ min: 2, max: 500 })
     .withMessage('Please keep the purpose between 2 and 500 characters.'),
   body('type')
@@ -236,7 +239,7 @@ export const createNOCValidation = [
     .withMessage('Please select a valid nikah registration.'),
   body('status')
     .optional()
-    .isIn(['pending', 'approved', 'rejected'])
+    .isIn(['pending', 'correction_required', 'approved', 'rejected'])
     .withMessage('Please choose a valid status.'),
   body('issuedDate')
     .optional()
@@ -253,7 +256,7 @@ export const updateNOCValidation = [
   param('id').isMongoId().withMessage('Please select a valid NOC.'),
   body('status')
     .optional()
-    .isIn(['pending', 'approved', 'rejected'])
+    .isIn(['pending', 'correction_required', 'approved', 'rejected'])
     .withMessage('Please choose a valid status.'),
   body('issuedDate')
     .optional()
@@ -271,11 +274,13 @@ export const updateNOCValidation = [
   body('purposeTitleMl').optional().trim(),
   body('purposeDescription')
     .optional()
+    .customSanitizer(sanitizeRichText)
     .isLength({ min: 2 })
     .withMessage('Please use at least 2 characters for the purpose description.'),
   body('purpose')
     .optional()
     .trim()
+    .customSanitizer(sanitizeRichText)
     .isLength({ min: 2, max: 500 })
     .withMessage('Please keep the purpose between 2 and 500 characters.'),
   body('remarks').optional().trim(),

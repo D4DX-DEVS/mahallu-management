@@ -30,8 +30,34 @@ interface AuthState {
   setCurrentTenant: (tenantId: string | null) => void;
   setCurrentInstitute: (instituteId: string | null) => void;
   setImpersonation: (context: ImpersonationContext | null) => void;
+  /**
+   * Called whenever a DIFFERENT account signs in on this browser (OTP sign-in, role selection, account
+   * switch). Without it, the previous session's "Viewing as ..." banner and its tenant's module flags
+   * survived into the new account until something refetched them.
+   */
+  resetSessionContext: () => void;
   logout: () => void;
 }
+
+/**
+ * Browser storage that belongs to whoever is signed in, not to the browser.
+ *
+ * The Assistant keeps its chat history in localStorage, keyed by tenant. Without
+ * this, logging out and signing in as someone else on the same Mahallu — or
+ * switching from an admin account to the member account of the same phone
+ * number — showed the previous account's questions and answers. Cleared on
+ * logout and whenever the session token changes to a different one.
+ */
+const USER_SCOPED_STORAGE_PREFIXES = ['assistant-chats:'];
+export const clearUserScopedStorage = () => {
+  try {
+    Object.keys(localStorage)
+      .filter((key) => USER_SCOPED_STORAGE_PREFIXES.some((prefix) => key.startsWith(prefix)))
+      .forEach((key) => localStorage.removeItem(key));
+  } catch {
+    // Storage can be unavailable (private mode); nothing to clear then.
+  }
+};
 
 export const useAuthStore = create<AuthState>()(
   persist(
@@ -53,6 +79,8 @@ export const useAuthStore = create<AuthState>()(
           currentInstituteId: user?.instituteId || null,
         }),
       setToken: (token) => {
+        const previous = localStorage.getItem('token');
+        if (token && previous !== token) clearUserScopedStorage();
         set({ token });
         if (token) {
           localStorage.setItem('token', token);
@@ -63,8 +91,10 @@ export const useAuthStore = create<AuthState>()(
       setCurrentTenant: (tenantId) => set({ currentTenantId: tenantId }),
       setCurrentInstitute: (instituteId) => set({ currentInstituteId: instituteId }),
       setImpersonation: (context) => set({ isImpersonating: !!context, impersonationContext: context }),
+      resetSessionContext: () => set({ isImpersonating: false, impersonationContext: null, tenantFeatures: null }),
       logout: () => {
         localStorage.removeItem('token');
+        clearUserScopedStorage();
         set({
           user: null,
           token: null,

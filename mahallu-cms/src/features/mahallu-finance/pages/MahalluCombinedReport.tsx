@@ -4,8 +4,13 @@ import StatCard from '@/components/ui/StatCard';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
+import Pagination from '@/components/ui/Pagination';
 import { PageSkeleton } from '@/components/ui/Skeleton';
-import { accountingReportService, DayBookEntry, TrialBalanceEntry } from '@/services/accountingReportService';
+import {
+  accountingReportService,
+  DayBookResult,
+  TrialBalanceEntry,
+} from '@/services/accountingReportService';
 import { instituteService } from '@/services/instituteService';
 import { FiHome, FiBook } from 'react-icons/fi';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
@@ -33,6 +38,15 @@ export default function MahalluCombinedReport() {
   });
   const [endDate, setEndDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [reportData, setReportData] = useState<any>(null);
+  /* The filters the day book was generated with, so paging is not affected by later edits to the inputs. */
+  const [appliedDayBook, setAppliedDayBook] = useState<{
+    startDate: string;
+    endDate: string;
+    scope: string;
+    includeEntities: string;
+  } | null>(null);
+  const [dayBookPageSize, setDayBookPageSize] = useState(50);
+  const [paging, setPaging] = useState(false);
 
   useEffect(() => {
     // The API refuses any `limit` above 100, so a single getAll({limit: 1000}) call was
@@ -65,7 +79,8 @@ export default function MahalluCombinedReport() {
       let result: any;
       switch (reportType) {
         case 'day-book':
-          result = await accountingReportService.getDayBook(params);
+          setAppliedDayBook(params);
+          result = await accountingReportService.getDayBook({ ...params, page: 1, limit: dayBookPageSize });
           break;
         case 'trial-balance':
           result = await accountingReportService.getTrialBalance(params);
@@ -82,6 +97,19 @@ export default function MahalluCombinedReport() {
       setError(errorMessage(err, { action: 'generate combined report' }));
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadDayBookPage = async (page: number, limit: number) => {
+    if (!appliedDayBook) return;
+    try {
+      setPaging(true);
+      const result = await accountingReportService.getDayBook({ ...appliedDayBook, page, limit });
+      setReportData(result);
+    } catch (err: any) {
+      setError(errorMessage(err, { action: 'load this page of the day book' }));
+    } finally {
+      setPaging(false);
     }
   };
 
@@ -211,7 +239,17 @@ export default function MahalluCombinedReport() {
             <span className="text-xs text-gray-500">— {toTitleCase(selectedNames.join(' + '))}</span>
           </div>
 
-          {reportType === 'day-book' && Array.isArray(reportData) && <DayBookView entries={reportData} />}
+          {reportType === 'day-book' && Array.isArray(reportData?.entries) && (
+            <DayBookView
+              result={reportData as DayBookResult}
+              paging={paging}
+              onPageChange={(page) => loadDayBookPage(page, dayBookPageSize)}
+              onPageSizeChange={(size) => {
+                setDayBookPageSize(size);
+                loadDayBookPage(1, size);
+              }}
+            />
+          )}
 
           {reportType === 'trial-balance' && Array.isArray(reportData) && (
             <TrialBalanceView entries={reportData} />
@@ -226,9 +264,21 @@ export default function MahalluCombinedReport() {
   );
 }
 
-function DayBookView({ entries }: { entries: DayBookEntry[] }) {
-  const totalIncome = entries.filter((e) => e.type === 'income').reduce((s, e) => s + e.amount, 0);
-  const totalExpense = entries.filter((e) => e.type !== 'income').reduce((s, e) => s + e.amount, 0);
+function DayBookView({
+  result,
+  paging,
+  onPageChange,
+  onPageSizeChange,
+}: {
+  result: DayBookResult;
+  paging: boolean;
+  onPageChange: (page: number) => void;
+  onPageSizeChange: (size: number) => void;
+}) {
+  const { entries, summary, pagination } = result;
+  // Whole-range totals from the server, so they are right on every page.
+  const totalIncome = summary.totalIncome;
+  const totalExpense = summary.totalExpense;
   return (
     <>
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
@@ -236,12 +286,12 @@ function DayBookView({ entries }: { entries: DayBookEntry[] }) {
         <StatCard title="Total Expense" value={<>₹{totalExpense.toLocaleString()}</>} tone="destructive" />
         <StatCard
           title="Net Balance"
-          value={<>₹{(totalIncome - totalExpense).toLocaleString()}</>}
+          value={<>₹{summary.netBalance.toLocaleString()}</>}
           tone="info"
         />
       </div>
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-border">
+      <div className={paging ? 'overflow-x-auto opacity-60 pointer-events-none' : 'overflow-x-auto'}>
+        <table className="data-table min-w-full divide-y divide-border">
           <thead className="bg-muted">
             <tr>
               {['Date', 'Description', 'Type', 'Ledger', 'Category', 'Amount'].map((h) => (
@@ -277,6 +327,17 @@ function DayBookView({ entries }: { entries: DayBookEntry[] }) {
           </tbody>
         </table>
       </div>
+      <div className="mt-4">
+        <Pagination
+          currentPage={pagination.page}
+          totalPages={pagination.totalPages}
+          totalItems={pagination.total}
+          itemsPerPage={pagination.limit}
+          onPageChange={onPageChange}
+          onItemsPerPageChange={onPageSizeChange}
+          entity="entries"
+        />
+      </div>
     </>
   );
 }
@@ -292,7 +353,7 @@ function TrialBalanceView({ entries }: { entries: TrialBalanceEntry[] }) {
         <StatCard title="Difference" value={<>₹{Math.abs(totalCredit - totalDebit).toLocaleString()}</>} />
       </div>
       <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-border">
+        <table className="data-table min-w-full divide-y divide-border">
           <thead className="bg-muted">
             <tr>
               {['Ledger', 'Type', 'Debit', 'Credit'].map((h) => (

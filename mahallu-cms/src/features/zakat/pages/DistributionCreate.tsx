@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
@@ -19,6 +19,7 @@ import PageHeader from '@/components/layout/PageHeader';
 import { useFormValidation } from '@/hooks/useFormValidation';
 import { FieldRule, LIMITS } from '@/utils/validation';
 import { toTitleCase } from '@/utils/format';
+import { requestIdFor, RequestIdStore } from '@/utils/clientRequestId';
 
 /**
  * The same limits the API applies, so a form that passes here is not
@@ -51,6 +52,10 @@ export default function DistributionCreate() {
     postToLedger: false,
   });
   const { errors, validate, setErrors } = useFormValidation(RULES);
+  /* Idempotency key per (beneficiary, date), kept across submits so a retry after a
+   * timeout returns the distribution that did save instead of creating a second one.
+   * Replaced if the amount changes (the server refuses one id for a different amount). */
+  const requestIdsRef = useRef<RequestIdStore>(new Map());
 
   useEffect(() => {
     // Only verified beneficiaries can be paid. /zakat/beneficiaries caps limit at
@@ -82,11 +87,14 @@ export default function DistributionCreate() {
     try {
       setSaving(true);
       const amount = Number(form.amount);
+      const requestKey = `${form.beneficiaryId}|${form.distributionDate}`;
       await zakatDistributionService.createDistribution({
         ...form,
         amount,
         distributionDate: form.distributionDate || undefined,
+        clientRequestId: requestIdFor(requestIdsRef.current, requestKey, amount),
       });
+      requestIdsRef.current.delete(requestKey);
       toast.success(`Distribution recorded`);
       navigate('/zakat/distributions');
     } catch (err: any) {

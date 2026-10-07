@@ -9,6 +9,7 @@ import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import { committeeService } from '@/services/committeeService';
 import { memberService } from '@/services/memberService';
+import { fetchAllPages } from '@/services/api';
 import { Member } from '@/types';
 import { errorMessage } from '@/utils/errors';
 
@@ -49,9 +50,9 @@ export default function QuickAddCommittee({ open, onClose, onCreated }: Props) {
   useEffect(() => {
     if (open) {
       setLoadingMembers(true);
-      memberService
-        .getAll()
-        .then((result) => setMembers(result.data || []))
+      // Every member, not just the API's default page of 10.
+      fetchAllPages((p) => memberService.getAll(p))
+        .then((all) => setMembers(all))
         .catch(console.error)
         .finally(() => setLoadingMembers(false));
     }

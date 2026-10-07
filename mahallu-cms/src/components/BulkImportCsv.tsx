@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import Modal from '@/components/ui/Modal';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import Button from '@/components/ui/Button';
 import { FiUpload } from 'react-icons/fi';
 import { errorMessage, safeApiMessage } from '@/utils/errors';
@@ -129,9 +130,11 @@ export default function BulkImportCsv({
   const [errors, setErrors] = useState<string[]>([]);
   const [fileName, setFileName] = useState('');
   const [importing, setImporting] = useState(false);
+  const [confirmImport, setConfirmImport] = useState(false);
   const [result, setResult] = useState<string>('');
 
   const reset = () => {
+    setConfirmImport(false);
     setRows([]);
     setErrors([]);
     setFileName('');
@@ -174,6 +177,7 @@ export default function BulkImportCsv({
   };
 
   const handleImport = async () => {
+    setConfirmImport(false);
     setImporting(true);
     setResult('');
     try {
@@ -203,15 +207,16 @@ export default function BulkImportCsv({
   const optionalCols = columnSpec.filter((c) => !c.required).map((c) => c.label);
 
   return (
-    <Modal
-      isOpen={isOpen}
-      onClose={() => {
-        reset();
-        onClose();
-      }}
-      title={title}
-    >
-      <div className="space-y-4">
+    <>
+      <Modal
+        isOpen={isOpen}
+        onClose={() => {
+          reset();
+          onClose();
+        }}
+        title={title}
+      >
+        <div className="space-y-4">
         <div className="text-sm text-gray-500">
           <p>
             <b>Required columns:</b> {requiredCols.join(', ')}
@@ -271,12 +276,27 @@ export default function BulkImportCsv({
           >
             Close
           </Button>
-          <Button onClick={handleImport} disabled={rows.length === 0 || errors.length > 0 || importing}>
+          <Button
+            onClick={() => setConfirmImport(true)}
+            disabled={rows.length === 0 || errors.length > 0 || importing}
+          >
             <FiUpload className="mr-2 h-4 w-4" />
             {importing ? 'Importing…' : `Import ${rows.length || ''}`}
           </Button>
         </div>
-      </div>
-    </Modal>
+        </div>
+      </Modal>
+      <ConfirmDialog
+        isOpen={confirmImport}
+        title="Import these records?"
+        message={`This will add ${rows.length} records from ${fileName || 'the selected CSV'} to the system.`}
+        consequence="Please review the detected rows before confirming."
+        confirmLabel="Import records"
+        variant="primary"
+        isLoading={importing}
+        onConfirm={handleImport}
+        onCancel={() => setConfirmImport(false)}
+      />
+    </>
   );
 }

@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { FiArrowLeft } from 'react-icons/fi';
-import { createMedicalCamp } from '@/services/healthService';
+import { createMedicalCamp, getMedicalCampById, updateMedicalCamp } from '@/services/healthService';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import { errorMessage } from '@/utils/errors';
@@ -21,30 +21,64 @@ const campSchema = z.object({
 
 type CampFormData = z.infer<typeof campSchema>;
 
+/**
+ * Create and edit share this form: the list's Edit button goes to /health/camps/:id/edit, which had
+ * no page behind it and landed on "page not found".
+ */
 export default function CampsCreate() {
   const navigate = useNavigate();
+  const { id } = useParams<{ id: string }>();
+  const isEdit = Boolean(id);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   const {
     register,
     handleSubmit,
+    reset,
     formState: { errors },
   } = useForm<CampFormData>({
     resolver: zodResolver(campSchema),
   });
 
+  useEffect(() => {
+    if (!id) return;
+    let cancelled = false;
+    getMedicalCampById(id)
+      .then(({ data }) => {
+        if (cancelled) return;
+        reset({
+          name: data.name,
+          // <input type="date"> only understands YYYY-MM-DD
+          campDate: data.campDate ? String(data.campDate).slice(0, 10) : '',
+          location: data.location,
+          organizer: data.organizer ?? '',
+          attendeeCount: data.attendeeCount,
+          notes: data.notes ?? '',
+        });
+      })
+      .catch((err) => !cancelled && setError(errorMessage(err, { action: 'load the medical camp' })));
+    return () => {
+      cancelled = true;
+    };
+  }, [id, reset]);
+
   const onSubmit = async (data: CampFormData) => {
     try {
       setError('');
       setLoading(true);
-      await createMedicalCamp({
-        ...data,
-        status: 'planned',
-      });
+      if (id) {
+        // Edit leaves the camp's status alone - only a new camp starts as 'planned'.
+        await updateMedicalCamp(id, data);
+      } else {
+        await createMedicalCamp({
+          ...data,
+          status: 'planned',
+        });
+      }
       navigate('/health/camps');
     } catch (err: any) {
-      setError(errorMessage(err, { action: 'create medical camp' }));
+      setError(errorMessage(err, { action: isEdit ? 'update medical camp' : 'create medical camp' }));
     } finally {
       setLoading(false);
     }
@@ -60,7 +94,7 @@ export default function CampsCreate() {
           <FiArrowLeft /> Back to Camps
         </button>
 
-        <PageHeader title="Create Medical Camp" />
+        <PageHeader title={isEdit ? 'Edit Medical Camp' : 'Create Medical Camp'} />
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4 text-red-700">{error}</div>
         )}
@@ -129,7 +163,7 @@ export default function CampsCreate() {
               Cancel
             </Button>
             <Button type="submit" disabled={loading}>
-              {loading ? 'Creating...' : 'Create Camp'}
+              {loading ? (isEdit ? 'Saving...' : 'Creating...') : isEdit ? 'Save Changes' : 'Create Camp'}
             </Button>
           </div>
         </form>

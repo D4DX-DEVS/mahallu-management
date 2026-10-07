@@ -1,6 +1,17 @@
 import api, { asList } from './api';
 import { SalaryPayment } from '@/types';
 
+/** Totals over every payment matching the list's filters (server-side), whatever page is showing. */
+export interface SalaryListSummary {
+  count: number;
+  paidAmount: number;
+  pendingAmount: number;
+  cancelledAmount: number;
+  paidCount: number;
+  pendingCount: number;
+  cancelledCount: number;
+}
+
 export const salaryService = {
   getAll: async (params?: {
     instituteId?: string;
@@ -11,14 +22,18 @@ export const salaryService = {
     page?: number;
     limit?: number;
   }) => {
-    const response = await api.get<{ success: boolean; data: SalaryPayment[]; pagination?: any }>(
-      '/salary-payments',
-      { params }
-    );
+    const response = await api.get<{
+      success: boolean;
+      data: SalaryPayment[];
+      pagination?: any;
+      summary?: SalaryListSummary;
+    }>('/salary-payments', { params });
+    // `summary` is computed by the server over the whole filtered set, not just this page.
+    const summary = response.data.summary ?? null;
     if (response.data.pagination) {
-      return { data: asList(response.data.data), pagination: response.data.pagination };
+      return { data: asList(response.data.data), pagination: response.data.pagination, summary };
     }
-    return { data: asList(response.data.data), pagination: null };
+    return { data: asList(response.data.data), pagination: null, summary };
   },
 
   getById: async (id: string) => {

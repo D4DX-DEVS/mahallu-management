@@ -2,6 +2,7 @@ import { Response } from 'express';
 import User from '../models/User';
 import Member from '../models/Member';
 import bcrypt from 'bcryptjs';
+import { randomUnusablePasswordHash } from '../utils/credentials';
 import { AuthRequest } from '../middleware/authMiddleware';
 import { getPaginationParams, createPaginationResponse } from '../utils/pagination';
 
@@ -170,7 +171,9 @@ export const createUser = async (req: AuthRequest, res: Response) => {
       }
 
       // Hash password
-      const hashedPassword = await bcrypt.hash(password || '123456', 10);
+      // No shared default: an account created without a password starts with one nobody knows, and
+      // its owner signs in with an OTP to their own phone.
+      const hashedPassword = password ? await bcrypt.hash(password, 10) : await randomUnusablePasswordHash();
 
       const user = new User({
         name: name || member.name,
@@ -216,7 +219,7 @@ export const createUser = async (req: AuthRequest, res: Response) => {
     }
 
     // Hash password
-    const hashedPassword = await bcrypt.hash(password || '123456', 10);
+    const hashedPassword = password ? await bcrypt.hash(password, 10) : await randomUnusablePasswordHash();
 
     const user = new User({
       name,
@@ -246,6 +249,27 @@ export const createUser = async (req: AuthRequest, res: Response) => {
   }
 };
 
+const PERMISSION_KEYS = ['view', 'add', 'edit', 'delete', 'sensitiveModules'] as const;
+
+/**
+ * `$set` entries for the permission fields a request actually mentions, one dotted path each.
+ *
+ * Passing `permissions` whole made Mongoose write `$set: { permissions: { view, add, edit, delete } }`,
+ * which REPLACES the stored object. EditSurveyUser and EditInstituteUser send only the four flags, so
+ * saving either form silently erased the account's `sensitiveModules` (its counselling / maslahat /
+ * inheritance / health / welfare access). A field the request does not mention is left as it is; an
+ * explicit `sensitiveModules: []` still revokes every grant.
+ */
+const permissionsUpdate = (permissions: unknown): Record<string, unknown> => {
+  const set: Record<string, unknown> = {};
+  if (!permissions || typeof permissions !== 'object' || Array.isArray(permissions)) return set;
+  for (const key of PERMISSION_KEYS) {
+    const value = (permissions as Record<string, unknown>)[key];
+    if (value !== undefined) set[`permissions.${key}`] = value;
+  }
+  return set;
+};
+
 export const updateUser = async (req: AuthRequest, res: Response) => {
   try {
     const existingUser = await User.findById(req.params.id);
@@ -258,9 +282,28 @@ export const updateUser = async (req: AuthRequest, res: Response) => {
     }
 
     const { name, phone, email, status, permissions } = req.body;
+
+    // The phone number is what links one person's accounts together: switch-account
+    // trusts "same phone" as proof the target account is also yours. If an admin could
+    // rewrite their OWN number here, they could set it to anyone's (a Super Admin's,
+    // another Mahallu's admin) and switch straight into that account with no OTP.
+    // Changing the number you sign in with has to go through the OTP-verified flow.
+    const isOwnRecord = String(existingUser._id) === String(req.user?._id);
+    if (!req.isSuperAdmin && isOwnRecord && phone !== undefined && phone !== existingUser.phone) {
+      return res.status(403).json({
+        success: false,
+        message: "You can't change your own phone number here. Please ask your Mahallu admin or request a change from your profile.",
+      });
+    }
+
+    // Changing the number an account is tied to is a security event: every session the account
+    // already holds ends (tokenVersion), so a token obtained before the change cannot be carried
+    // across it.
+    const phoneChanged = phone !== undefined && phone !== existingUser.phone;
+    const update: Record<string, unknown> = { name, phone, email, status, ...permissionsUpdate(permissions) };
     const user = await User.findByIdAndUpdate(
       req.params.id,
-      { name, phone, email, status, permissions },
+      phoneChanged ? { ...update, $inc: { tokenVersion: 1 } } : update,
       { new: true, runValidators: true }
     ).select('-password');
 

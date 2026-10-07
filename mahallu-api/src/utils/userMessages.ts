@@ -70,12 +70,46 @@ export function humanField(path?: string | null): string {
 const TECHNICAL_TOKENS =
   /(cast to|objectid|validation ?error|e11000|duplicate key|econnrefused|enotfound|etimedout|econnreset|mongo|mongoose|bson|prisma|redis|axios|multer|jwt|secret|dxing|onesignal|openrouter|firebase|cloudinary|smtp|api[_ ]?key|\.env\b|process\.env|undefined|\bnull\b|\bnan\b|stack|\bat\s+\w+[.(]|[{}[\]<>]|https?:\/\/|\berror:|\bexception\b|\.ts\b|\.js\b|[\\/](?:src|node_modules)[\\/]|\b[A-Z][A-Z0-9]*_[A-Z0-9_]+\b)/i;
 
+/**
+ * What the driver, the JS runtime and the storage / AI providers say when something breaks:
+ * BSON and ObjectId parsing ("input must be a 24 character hex string"), runtime TypeErrors
+ * ("x is not a function"), JSON parse failures, HTTP client and DNS failures, bucket / provider
+ * errors, query operators and Mongoose schema paths (backticks). None of it is for a person.
+ */
+const RUNTIME_AND_PROVIDER_TOKENS: RegExp[] = [
+  // BSON / ObjectId parsing
+  /input must be/i,
+  /hex (?:string|characters?)/i,
+  /\d+ ?bytes/i,
+  // JS runtime
+  /is not a (?:function|constructor|valid object)/i,
+  /is not (?:defined|iterable)/i,
+  /cannot (?:read|set|destructure|access|convert)\b/i,
+  /unexpected (?:token|end)/i,
+  /\bin json\b/i,
+  /(?:type|reference|syntax|range|eval)error/i,
+  // Mongoose / driver
+  /validation failed/i,
+  /\bschema\b|\bpopulate\b|\bpipeline\b|\bcursor\b|\bnamespace\b/i,
+  /\$[a-z]{2,}/i,
+  /`/,
+  // HTTP client, DNS, TLS, abort
+  /failed to (?:connect|parse|fetch|execute|decode|serialize|authenticate)/i,
+  /fetch failed|socket hang up|getaddrinfo|econnaborted|eai_again/i,
+  /timeout of \d+|status code \d{3}|request failed|network error/i,
+  /aborterror|timeouterror|operation was aborted|\bsignal\b/i,
+  /self[- ]signed|certificate (?:has )?expired/i,
+  // Object storage / AI providers
+  /object storage|\bbucket\b|nosuch(?:key|bucket)|accessdenied|signaturedoesnotmatch|invalidaccesskeyid/i,
+  /(?:access|secret) key|\bs3\b|\baws\b|digitalocean|\bendpoint\b|provider error/i,
+];
+
 /** A backend string safe to show: short, sentence-like, no technical tokens. */
 export function looksHumanReadable(message: unknown): message is string {
   if (typeof message !== 'string') return false;
   const text = message.trim();
   if (text.length === 0 || text.length > 200) return false;
-  return !TECHNICAL_TOKENS.test(text);
+  return !TECHNICAL_TOKENS.test(text) && !RUNTIME_AND_PROVIDER_TOKENS.some((token) => token.test(text));
 }
 
 /**
@@ -224,7 +258,10 @@ export function sendFailure(
 ): Response {
   const req = (res as unknown as { req?: { method?: string; originalUrl?: string } }).req;
   logFailure((req?.method ?? 'REQ') + ' ' + (req?.originalUrl ?? ''), error);
+  // A failed undo (ReconciliationRequiredError, duck-typed: utils/reconciliation.ts imports this module)
+  // is never a plain error: say so, so a client can tell "failed, nothing changed" from "needs review".
+  const needsReview = (error as { reconciliationRequired?: unknown })?.reconciliationRequired === true;
   return res
     .status(statusForError(error, fallbackStatus))
-    .json({ success: false, message: toUserMessage(error, fallback) });
+    .json({ success: false, ...(needsReview ? { reconciliationRequired: true } : {}), message: toUserMessage(error, fallback) });
 }

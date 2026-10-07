@@ -104,7 +104,7 @@ export default function ReliefList() {
         </div>
       )}
 
-      <TableCard>
+      <TableCard borderless>
         <div className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto] sm:items-end">
           <ExpandableSearch
             value={searchQuery}

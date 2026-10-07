@@ -6,7 +6,7 @@ import {
   updateSupportCase,
   deleteSupportCase,
 } from '../controllers/scholarshipController';
-import { authMiddleware, allowRoles } from '../middleware/authMiddleware';
+import { authMiddleware, allowRoles, requireAdmin } from '../middleware/authMiddleware';
 import { tenantMiddleware, tenantFilter } from '../middleware/tenantMiddleware';
 import { validationHandler } from '../middleware/validationHandler';
 import { idParam, listQuery } from '../validations/common';
@@ -19,6 +19,8 @@ const supportRouter = express.Router();
 supportRouter.use(authMiddleware);
 supportRouter.use(tenantMiddleware);
 supportRouter.use(tenantFilter);
+// Mahallu-admin module (the CMS menu and routes are Mahallu-admin only). Reads used to be open to every staff role while every write already needed the admin.
+supportRouter.use(requireAdmin);
 
 // ============= ACADEMIC SUPPORT ENDPOINTS =============
 

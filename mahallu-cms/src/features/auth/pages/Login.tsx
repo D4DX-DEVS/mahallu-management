@@ -26,6 +26,7 @@ import Alert from '@/components/ui/Alert';
 import { BRAND_NAME, LOGO_PATH } from '@/constants/theme';
 import { ROUTES } from '@/constants/routes';
 import { errorMessage } from '@/utils/errors';
+import { peekAuthNotice, clearAuthNotice } from '@/utils/authNotice';
 import { toTitleCase } from '@/utils/format';
 
 /* Login is India-only, so the country code is fixed and never typed by the
@@ -52,12 +53,16 @@ const [BRAND_ACCENT, ...BRAND_REST] = BRAND_NAME.split(' ');
 
 export default function Login() {
   const navigate = useNavigate();
-  const { setUser, setToken } = useAuthStore();
+  const { setUser, setToken, resetSessionContext } = useAuthStore();
   const [step, setStep] = useState<'phone' | 'otp' | 'select'>('phone');
   const [phone, setPhone] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSendingOTP, setIsSendingOTP] = useState(false);
-  const [error, setError] = useState('');
+  // A session ended elsewhere in the app for a reason worth showing (a suspended Mahallu): say it once.
+  const [error, setError] = useState(() => peekAuthNotice());
+  useEffect(() => {
+    clearAuthNotice();
+  }, []);
   const [otpSent, setOtpSent] = useState(false);
   const [countdown, setCountdown] = useState(0);
   /* The one-time passcode is never rendered in a production build. It used to
@@ -112,8 +117,8 @@ export default function Login() {
 
       // Show OTP in development mode
       if (response.otp) {
+        // Shown on screen in development builds only (see `showDevOTP`); never written to the console.
         setDevOTP(response.otp);
-        console.log('OTP (dev mode):', response.otp);
       }
     } catch (err: any) {
       setError(errorMessage(err, { action: 'send otp. please try again' }));
@@ -144,6 +149,7 @@ export default function Login() {
       }
 
       const auth = response as AuthResponse;
+      resetSessionContext();
       setUser(auth.user);
       setToken(auth.token);
 
@@ -181,6 +187,7 @@ export default function Login() {
       setIsLoading(true);
       setError('');
       const response = await authService.selectAccount(preAuthToken, userId);
+      resetSessionContext();
       setUser(response.user);
       setToken(response.token);
 
@@ -235,7 +242,7 @@ export default function Login() {
   };
 
   return (
-    <div className="flex min-h-[100dvh] items-center justify-center bg-gradient-to-br from-slate-50 via-white to-primary-50 p-4 py-10 lg:p-10">
+    <div className="flex min-h-[100dvh] items-center justify-center bg-gradient-to-br from-slate-50 via-white to-primary-50 p-4 dark:from-background dark:via-background dark:to-primary-900/20 py-10 lg:p-10">
       <div className="grid w-full max-w-6xl overflow-hidden rounded-3xl bg-card shadow-[0_30px_70px_-25px_rgba(21,128,61,0.35)] lg:grid-cols-2">
         {/* Promo panel — mirrors the live marketing side, hidden below lg */}
         <div className="relative hidden flex-col justify-between overflow-hidden bg-gradient-to-br from-emerald-950 via-primary-900 to-emerald-900 p-10 text-white lg:flex">

@@ -13,7 +13,8 @@ import {
   deleteApplication,
   getWelfareSummary,
 } from '../controllers/welfareController';
-import { authMiddleware, allowRoles } from '../middleware/authMiddleware';
+import { authMiddleware, allowRoles, requireFieldStaff } from '../middleware/authMiddleware';
+import { sensitiveAccess } from '../middleware/sensitiveAccess';
 import { tenantMiddleware, tenantFilter } from '../middleware/tenantMiddleware';
 import { validationHandler } from '../middleware/validationHandler';
 import { validCategoryValue } from '../validations/categoryValueValidation';
@@ -21,6 +22,7 @@ import { idParam, listQuery } from '../validations/common';
 import {
   createWelfareApplicationValidation,
   updateWelfareApplicationValidation,
+  updateWelfareApplicationStatusValidation,
 } from '../validations/moduleValidation';
 
 const router = express.Router();
@@ -28,6 +30,11 @@ const router = express.Router();
 router.use(authMiddleware);
 router.use(tenantMiddleware);
 router.use(tenantFilter);
+// Welfare records (beneficiaries, assistance) are sensitive: the CMS shows them to Mahallu admin and survey
+// workers who hold the 'welfare' sensitive module, and the API now requires the same. An institute admin has
+// no welfare screen, so a granted permission cannot open it either.
+router.use(requireFieldStaff);
+router.use(sensitiveAccess('welfare'));
 
 /**
  * @swagger
@@ -411,7 +418,7 @@ router.put('/applications/:id', updateWelfareApplicationValidation, validationHa
  *       400:
  *         description: Illegal status transition
  */
-router.put('/applications/:id/status', idParam('id', 'record'), validationHandler, allowRoles(['mahall']), updateApplicationStatus);
+router.put('/applications/:id/status', updateWelfareApplicationStatusValidation, validationHandler, allowRoles(['mahall']), updateApplicationStatus);
 router.delete('/applications/:id', idParam('id', 'record'), validationHandler, allowRoles(['mahall']), deleteApplication);
 
 export default router;

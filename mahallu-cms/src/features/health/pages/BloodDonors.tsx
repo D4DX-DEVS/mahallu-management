@@ -3,12 +3,14 @@ import { FiPlus, FiEdit2, FiTrash2, FiPhone } from 'react-icons/fi';
 import { getHealthResources, deleteHealthResource, IHealthResource } from '@/services/healthService';
 import Pagination from '@/components/ui/Pagination';
 import ExpandableSearch from '@/components/ui/ExpandableSearch';
+import ActionBar from '@/components/ui/ActionBar';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import { useNavigate } from 'react-router-dom';
 import { toast } from '@/store/toastStore';
 import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
+import { PageSkeleton } from '@/components/ui/Skeleton';
 
 export default function BloodDonors() {
   const navigate = useNavigate();
@@ -74,7 +76,7 @@ export default function BloodDonors() {
   };
 
   if (loading) {
-    return <div className="p-4">Loading...</div>;
+    return <PageSkeleton variant="section" />;
   }
 
   return (
@@ -90,12 +92,14 @@ export default function BloodDonors() {
         </div>
 
         <div className="mb-4 space-y-4">
-          <ExpandableSearch
-            value={search}
-            onChange={(value) => setSearch(value)}
-            entity="blood donors"
-            placeholder="Search by name"
-          />
+          <ActionBar className="mb-0">
+            <ExpandableSearch
+              value={search}
+              onChange={(value) => setSearch(value)}
+              entity="blood donors"
+              placeholder="Search by name"
+            />
+          </ActionBar>
 
           <div className="flex flex-wrap gap-2">
             <button

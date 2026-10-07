@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { FiArrowLeft, FiEdit2, FiPlus, FiToggleLeft, FiToggleRight, FiTrash2 } from 'react-icons/fi';
 import TableCard from '@/components/ui/TableCard';
-import { rowActionClass } from '@/components/ui/rowAction';
+import ActionsMenu from '@/components/ui/ActionsMenu';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import Input from '@/components/ui/Input';
@@ -30,6 +30,8 @@ export default function CategoryDetail() {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [statusConfirm, setStatusConfirm] = useState<CategoryValue | null>(null);
+  const [togglingStatus, setTogglingStatus] = useState(false);
   const [addForm, setAddForm] = useState({ code: '', label: '', amount: '' });
   const [editForm, setEditForm] = useState({
     label: '',
@@ -114,13 +116,17 @@ export default function CategoryDetail() {
   const handleToggleStatus = async (value: CategoryValue) => {
     if (!id) return;
     try {
+      setTogglingStatus(true);
       await categoryService.updateValue(id, value.id, {
         status: value.status === 'active' ? 'inactive' : 'active',
       });
       toast.success(value.status === 'active' ? 'Value deactivated' : 'Value activated');
+      setStatusConfirm(null);
       fetchData();
     } catch (err: any) {
       toast.error(errorMessage(err, { action: 'update value' }));
+    } finally {
+      setTogglingStatus(false);
     }
   };
   const handleDelete = async () => {
@@ -165,39 +171,35 @@ export default function CategoryDetail() {
       width: '8rem',
       align: 'center',
       render: (_, row) => (
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => openEditModal(row)}
-            className={rowActionClass()}
-            title="Edit"
-            aria-label="Edit"
-          >
-            <FiEdit2 className="h-4 w-4" />
-          </button>
-          <button
-            onClick={() => handleToggleStatus(row)}
-            className={rowActionClass()}
-            title={row.status === 'active' ? 'Deactivate' : 'Activate'}
-            aria-label={row.status === 'active' ? 'Deactivate' : 'Activate'}
-          >
-            {row.status === 'active' ? (
-              <FiToggleRight className="h-4 w-4" />
-            ) : (
-              <FiToggleLeft className="h-4 w-4" />
-            )}
-          </button>
-          <button
-            onClick={() => {
-              setSelectedValue(row);
-              setShowDeleteDialog(true);
-            }}
-            className={rowActionClass('danger')}
-            title="Delete"
-            aria-label="Delete"
-          >
-            <FiTrash2 className="h-4 w-4" />
-          </button>
-        </div>
+        <ActionsMenu
+          label={`Actions for ${row.label}`}
+          items={[
+            {
+              label: 'Edit',
+              icon: <FiEdit2 className="h-4 w-4" />,
+              onClick: () => openEditModal(row),
+            },
+            {
+              label: row.status === 'active' ? 'Deactivate' : 'Activate',
+              icon:
+                row.status === 'active' ? (
+                  <FiToggleRight className="h-4 w-4" />
+                ) : (
+                  <FiToggleLeft className="h-4 w-4" />
+                ),
+              onClick: () => setStatusConfirm(row),
+            },
+            {
+              label: 'Delete',
+              icon: <FiTrash2 className="h-4 w-4" />,
+              variant: 'danger',
+              onClick: () => {
+                setSelectedValue(row);
+                setShowDeleteDialog(true);
+              },
+            },
+          ]}
+        />
       ),
     },
   ];
@@ -352,6 +354,16 @@ export default function CategoryDetail() {
           />
         </div>
       </Modal>
+      <ConfirmDialog
+        isOpen={!!statusConfirm}
+        title={statusConfirm?.status === 'active' ? 'Deactivate this value?' : 'Activate this value?'}
+        message={`This will ${statusConfirm?.status === 'active' ? 'hide' : 'enable'} "${statusConfirm?.label || 'this value'}" for future selections.`}
+        confirmLabel={statusConfirm?.status === 'active' ? 'Deactivate value' : 'Activate value'}
+        variant="primary"
+        isLoading={togglingStatus}
+        onConfirm={() => statusConfirm && handleToggleStatus(statusConfirm)}
+        onCancel={() => setStatusConfirm(null)}
+      />
       <ConfirmDialog
         isOpen={showDeleteDialog}
         title="Delete Value"

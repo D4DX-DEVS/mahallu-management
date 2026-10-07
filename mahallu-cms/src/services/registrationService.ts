@@ -260,12 +260,19 @@ export const registrationService = {
   },
 
   // Certificates
+  /**
+   * 201 = issued now; 200 with `alreadyIssued: true` = the registration already had a valid certificate
+   * and that same one is returned (nothing new was issued). 409 `CERTIFICATE_BEING_ISSUED` = another
+   * request is issuing it right now (errorMessage() turns that into a "try again" message).
+   */
   issueCertificate: async (type: 'nikah' | 'death' | 'noc', registrationId: string) => {
-    const response = await api.post<{ success: boolean; data: Certificate }>('/certificates/issue', {
-      type,
-      registrationId,
-    });
-    return response.data.data;
+    const response = await api.post<{ success: boolean; data: Certificate; alreadyIssued?: boolean }>(
+      '/certificates/issue',
+      { type, registrationId }
+    );
+    return { ...response.data.data, alreadyIssued: response.data.alreadyIssued === true } as Certificate & {
+      alreadyIssued: boolean;
+    };
   },
 
   getCertificates: async (params?: { type?: string; status?: string; page?: number; limit?: number }) => {

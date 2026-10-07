@@ -1,12 +1,18 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import User from '../models/User';
+import { isTenantActive, TENANT_SUSPENDED_MESSAGE } from '../services/tenantStatusService';
 
 export interface AuthRequest extends Request {
   user?: any;
   tenantId?: string;
   instituteId?: string;
   isSuperAdmin?: boolean;
+  /**
+   * The phone number this session's holder proved they own with an OTP (JWT claim `pp`). Absent for
+   * password-only and impersonation sessions. Account switching trusts this and nothing else.
+   */
+  provenPhone?: string;
   /**
    * Present only on a Super Admin "View As" session. `req.user`/`req.isSuperAdmin`/
    * `req.tenantId`/`req.instituteId` are deliberately reshaped to look exactly like a
@@ -66,8 +72,20 @@ const MEMBER_ALLOWED_PREFIXES = [
 const isObjectId = (value: unknown): value is string =>
   typeof value === 'string' && /^[a-fA-F0-9]{24}$/.test(value);
 
-const isMemberAllowedPath = (url: string): boolean => {
+/*
+ * Certificates are the one shared router a member reaches by method AND exact path shape, not by prefix:
+ * the member portal lists the member's own certificates and downloads one, and certificateController
+ * narrows both to certificates the member is a subject of. Issuing and revoking stay out of reach (the
+ * router also guards them with allowRoles), so nothing else under /api/certificates is opened.
+ */
+const MEMBER_CERTIFICATE_LIST = /^\/api\/certificates\/?$/;
+const MEMBER_CERTIFICATE_DOWNLOAD = /^\/api\/certificates\/[a-fA-F0-9]{24}\/download\/?$/;
+
+const isMemberAllowedPath = (url: string, method?: string): boolean => {
   const path = (url || '').split('?')[0];
+  if (method === 'GET' && (MEMBER_CERTIFICATE_LIST.test(path) || MEMBER_CERTIFICATE_DOWNLOAD.test(path))) {
+    return true;
+  }
   return MEMBER_ALLOWED_PREFIXES.some((p) => path === p || path.startsWith(p + '/'));
 };
 
@@ -87,7 +105,9 @@ export const authMiddleware = async (
       return res.status(500).json({ success: false, message: 'Something went wrong on our side. Please try again in a moment.' });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET) as any;
+    // Only HS256 is ever issued; pinning it stops a token signed with another algorithm (or "none")
+    // from being accepted by whatever the library would otherwise infer from the token header.
+    const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] }) as any;
     // The impersonation JWT's userId is ALWAYS the real Super Admin's own id —
     // there may be no User document at all for the role being impersonated, so
     // every request re-resolves the REAL account first, exactly like a normal
@@ -100,6 +120,40 @@ export const authMiddleware = async (
 
     if (user.status !== 'active') {
       return res.status(403).json({ success: false, message: 'This account is inactive. Please contact your Mahallu admin.' });
+    }
+
+    // Session revocation: logout, a password change and a phone change bump the account's
+    // tokenVersion, which ends every token issued before it. Tokens minted before this field
+    // existed carry no `tv` and count as version 0, which is what an untouched account holds,
+    // so existing sessions stay valid until the first security event.
+    if ((decoded.tv ?? 0) !== ((user as any).tokenVersion ?? 0)) {
+      return res.status(401).json({ success: false, message: 'Your session has ended. Please sign in again to continue.' });
+    }
+
+    // A suspended (or deleted) Mahallu loses API access for all of its own users at once. Super
+    // admins are platform staff and are never blocked by a tenant's status; an impersonation
+    // session acts as the super admin and is checked when it is started.
+    if (!user.isSuperAdmin && !decoded.imp && !(await isTenantActive(user.tenantId))) {
+      return res.status(403).json({ success: false, code: 'TENANT_SUSPENDED', message: TENANT_SUSPENDED_MESSAGE });
+    }
+
+    // A staff account with no Mahallu would be scoped to NOTHING by the `if (req.tenantId)` filters
+    // used across the controllers - i.e. it would read every Mahallu's data. Such an account is
+    // invalid (only a Super Admin is tenant-less), so it is refused outright, except on the auth
+    // endpoints it needs to sign out or inspect itself.
+    if (!user.isSuperAdmin && !decoded.imp && !user.tenantId && !(req.originalUrl || '').startsWith('/api/auth')) {
+      return res.status(403).json({
+        success: false,
+        code: 'NO_TENANT',
+        message: "This account isn't linked to a Mahallu yet. Please contact your administrator.",
+      });
+    }
+    if (!user.isSuperAdmin && !decoded.imp && user.role === 'institute' && !user.instituteId && !(req.originalUrl || '').startsWith('/api/auth')) {
+      return res.status(403).json({
+        success: false,
+        code: 'NO_INSTITUTE',
+        message: "This account isn't linked to an institute yet. Please contact your administrator.",
+      });
     }
 
     if (decoded.imp) {
@@ -158,7 +212,7 @@ export const authMiddleware = async (
         req.instituteId = imp.instituteId;
       }
 
-      if (imp.role === 'member' && !isMemberAllowedPath(req.originalUrl)) {
+      if (imp.role === 'member' && !isMemberAllowedPath(req.originalUrl, req.method)) {
         return res.status(403).json({
           success: false,
           message: "Your role doesn't have access to this. Please contact your Mahallu admin.",
@@ -168,7 +222,7 @@ export const authMiddleware = async (
       return next();
     }
 
-    if (user.role === 'member' && !user.isSuperAdmin && !isMemberAllowedPath(req.originalUrl)) {
+    if (user.role === 'member' && !user.isSuperAdmin && !isMemberAllowedPath(req.originalUrl, req.method)) {
       return res.status(403).json({
         success: false,
         message: "Your role doesn't have access to this. Please contact your Mahallu admin.",
@@ -177,6 +231,7 @@ export const authMiddleware = async (
 
     req.user = user;
     req.isSuperAdmin = user.isSuperAdmin;
+    if (typeof decoded.pp === 'string' && decoded.pp) req.provenPhone = decoded.pp;
 
     // Headers name a scope, so they have to look like an id before they become
     // one. An arbitrary string reached a query as a cast failure and answered
@@ -236,8 +291,33 @@ export const memberUserOnly = (
   next();
 };
 
-export const allowRoles = (allowedRoles: Array<'super_admin' | 'mahall' | 'survey' | 'institute' | 'member'>) => {
-  return (req: AuthRequest, res: Response, next: NextFunction) => {
+export type AppRole = 'super_admin' | 'mahall' | 'survey' | 'institute' | 'member';
+
+/**
+ * The role sets a route may be opened to. Authorization lives on the server: the CMS menu hiding a
+ * screen is a convenience, never a control. Pick the narrowest group that matches who the screen is
+ * for, instead of listing roles ad hoc on each router.
+ *
+ *  - ADMIN            Super Admin and the Mahallu admin.
+ *  - INSTITUTE_STAFF  ADMIN plus an Institute admin (institute data, finance, salary of an institute).
+ *  - FIELD_STAFF      ADMIN plus a survey worker (field registers and survey data).
+ *  - ALL_STAFF        every non-member role.
+ *
+ * A Super Admin always passes `allowRoles`, so SUPER_ADMIN never needs to be listed on its own.
+ */
+export const ROLE_GROUPS = {
+  ADMIN: ['super_admin', 'mahall'],
+  INSTITUTE_STAFF: ['super_admin', 'mahall', 'institute'],
+  FIELD_STAFF: ['super_admin', 'mahall', 'survey'],
+  ALL_STAFF: ['super_admin', 'mahall', 'survey', 'institute'],
+} as const satisfies Record<string, readonly AppRole[]>;
+
+/**
+ * Role guard. The returned middleware carries its role list as `allowedRoles` so tests (and
+ * tooling) can read the effective policy of a router instead of guessing it.
+ */
+export const allowRoles = (allowedRoles: readonly AppRole[]) => {
+  const guard = (req: AuthRequest, res: Response, next: NextFunction) => {
     if (req.isSuperAdmin) {
       return next();
     }
@@ -251,5 +331,12 @@ export const allowRoles = (allowedRoles: Array<'super_admin' | 'mahall' | 'surve
 
     next();
   };
+  (guard as any).allowedRoles = [...allowedRoles];
+  (guard as any).isRoleGuard = true;
+  return guard;
 };
+
+export const requireAdmin = allowRoles(ROLE_GROUPS.ADMIN);
+export const requireInstituteStaff = allowRoles(ROLE_GROUPS.INSTITUTE_STAFF);
+export const requireFieldStaff = allowRoles(ROLE_GROUPS.FIELD_STAFF);
 

@@ -53,40 +53,40 @@ export const communityRoutes = [
 
   // Families
   route(ROUTES.FAMILIES.LIST, <FamiliesList />),
-  route(ROUTES.FAMILIES.CREATE, <CreateFamily />),
-  route(ROUTES.FAMILIES.UNAPPROVED, <UnapprovedFamiliesList />),
+  route(ROUTES.FAMILIES.CREATE, <CreateFamily />, {}, { label: 'New Family' }),
+  route(ROUTES.FAMILIES.UNAPPROVED, <UnapprovedFamiliesList />, {}, { label: 'Unapproved Families' }),
   route('/families/:id/edit', <EditFamily />),
   route(ROUTES.FAMILIES.DETAIL(':id'), <FamilyDetail />),
 
   // Members
   route(ROUTES.MEMBERS.LIST, <MembersList />),
-  route(ROUTES.MEMBERS.CREATE, <CreateMember />),
+  route(ROUTES.MEMBERS.CREATE, <CreateMember />, {}, { label: 'New Member' }),
   route('/members/:id/edit', <EditMember />),
   route(ROUTES.MEMBERS.DETAIL(':id'), <MemberDetail />),
 
   // Institutes
   route(ROUTES.INSTITUTES.LIST, <InstitutesList />),
-  route(ROUTES.INSTITUTES.CREATE, <CreateInstitute />),
+  route(ROUTES.INSTITUTES.CREATE, <CreateInstitute />, {}, { label: 'New Institute' }),
   route(ROUTES.INSTITUTES.DETAIL(':id'), <InstituteDetail />),
   route('/institutes/:id/edit', <EditInstitute />),
 
   // Programs
   route(ROUTES.PROGRAMS.LIST, <ProgramsList />),
-  route(ROUTES.PROGRAMS.CREATE, <CreateProgram />),
+  route(ROUTES.PROGRAMS.CREATE, <CreateProgram />, {}, { label: 'New Program' }),
   route(ROUTES.PROGRAMS.DETAIL(':id'), <ProgramDetail />),
   route('/programs/:id/edit', <EditProgram />),
 
   // Employees
   route(ROUTES.EMPLOYEES.LIST, <EmployeesList />),
-  route(ROUTES.EMPLOYEES.CREATE, <CreateEmployee />),
+  route(ROUTES.EMPLOYEES.CREATE, <CreateEmployee />, {}, { label: 'New Employee' }),
   route(ROUTES.EMPLOYEES.DETAIL(':id'), <EmployeeDetail />),
   route(ROUTES.EMPLOYEES.EDIT(':id'), <EditEmployee />),
 
   // Committees & meetings
   route(ROUTES.COMMITTEES.LIST, <CommitteesList />),
-  route('/committees/create', <CreateCommittee />),
+  route('/committees/create', <CreateCommittee />, {}, { label: 'New Committee' }),
   route(ROUTES.COMMITTEES.MEETINGS, <MeetingsList />),
-  route('/committees/meetings/create', <CreateMeeting />),
+  route('/committees/meetings/create', <CreateMeeting />, {}, { label: 'New Meeting' }),
   route('/committees/meetings/:id', <MeetingDetail />),
   route(ROUTES.COMMITTEES.DETAIL(':id'), <CommitteeDetail />),
   route('/committees/:id/edit', <EditCommittee />),
@@ -94,26 +94,26 @@ export const communityRoutes = [
 
   // Assets
   route(ROUTES.ASSETS.LIST, <AssetsList />),
-  route(ROUTES.ASSETS.CREATE, <CreateAsset />),
+  route(ROUTES.ASSETS.CREATE, <CreateAsset />, {}, { label: 'New Asset' }),
   route(ROUTES.ASSETS.DETAIL(':id'), <AssetDetail />),
   route(ROUTES.ASSETS.EDIT(':id'), <EditAsset />),
 
   // Registrations - Nikah
   route(ROUTES.REGISTRATIONS.NIKAH, <NikahRegistrationsList />),
-  route('/registrations/nikah/create', <CreateNikahRegistration />),
+  route('/registrations/nikah/create', <CreateNikahRegistration />, {}, { label: 'New Nikah Registration' }),
   route('/registrations/nikah/:id', <NikahRegistrationDetail />),
   route('/registrations/nikah/:id/edit', <EditNikahRegistration />),
 
   // Registrations - Death
   route(ROUTES.REGISTRATIONS.DEATH, <DeathRegistrationsList />),
-  route('/registrations/death/create', <CreateDeathRegistration />),
+  route('/registrations/death/create', <CreateDeathRegistration />, {}, { label: 'New Death Registration' }),
   route('/registrations/death/:id', <DeathRegistrationDetail />),
   route('/registrations/death/:id/edit', <EditDeathRegistration />),
 
   // Registrations - NOC
   route(ROUTES.REGISTRATIONS.NOC.COMMON, <NOCList />),
   route(ROUTES.REGISTRATIONS.NOC.NIKAH, <NOCList />),
-  route('/registrations/noc/create', <CreateNOC />),
+  route('/registrations/noc/create', <CreateNOC />, {}, { label: 'New NOC' }),
   route('/registrations/noc/:id', <NOCDetail />),
   route('/registrations/noc/:id/edit', <EditNOC />),
 ];

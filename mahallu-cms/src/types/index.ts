@@ -80,6 +80,7 @@ export interface Member {
   marriageCount?: number;
   isOrphan?: boolean;
   isDead?: boolean;
+  status?: 'active' | 'inactive' | 'deleted';
   isFamilyHead?: boolean;
   relationship?: 'head' | 'spouse' | 'son' | 'daughter' | 'father' | 'mother' | 'other';
   /** Free-text relationship, captured when relationship is 'other'. */

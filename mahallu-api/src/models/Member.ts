@@ -215,6 +215,13 @@ MemberSchema.pre('save', function (next) {
   next();
 });
 
+// Member ids (FID12-3) are unique inside a Mahallu. Partial so members without an id never collide.
+// NOTE: the build fails on a database that already holds duplicate ids: review and fix those first.
+MemberSchema.index(
+  { tenantId: 1, mahallId: 1 },
+  { unique: true, partialFilterExpression: { mahallId: { $type: 'string' } } }
+);
+
 // Register queries filter on tenant + flag + status
 MemberSchema.index({ tenantId: 1, status: 1 });
 MemberSchema.index({ tenantId: 1, occupationSector: 1 });

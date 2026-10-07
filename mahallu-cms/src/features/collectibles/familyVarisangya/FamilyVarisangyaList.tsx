@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { FiEye, FiDollarSign, FiHome, FiCreditCard, FiDownload } from 'react-icons/fi';
 import TableCard from '@/components/ui/TableCard';
-import { rowActionClass } from '@/components/ui/rowAction';
+import ActionsMenu from '@/components/ui/ActionsMenu';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
 import EmptyState from '@/components/ui/EmptyState';
@@ -10,10 +10,14 @@ import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
-import Dropdown, { DropdownItem } from '@/components/ui/Dropdown';
 import { TableColumn, Pagination as PaginationType, Family } from '@/types';
 import { familyService } from '@/services/familyService';
-import { collectibleService, Varisangya } from '@/services/collectibleService';
+import {
+  collectibleService,
+  Varisangya,
+  CollectionSummary,
+  EMPTY_COLLECTION_SUMMARY,
+} from '@/services/collectibleService';
 import { fetchAllPages } from '@/services/api';
 import { useDebounce } from '@/hooks/useDebounce';
 import { formatDate, toTitleCase } from '@/utils/format';
@@ -46,6 +50,8 @@ export default function FamilyVarisangyaList() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
+  /* Payments and amount across every family payment (all pages), from the server. */
+  const [summary, setSummary] = useState<CollectionSummary>(EMPTY_COLLECTION_SUMMARY);
 
   const debouncedSearch = useDebounce(searchQuery, 500);
 
@@ -77,6 +83,13 @@ export default function FamilyVarisangyaList() {
       // /collectibles/varisangya defaults to 10 rows with no limit passed - fetch every
       // page so per-family totals aren't computed off an arbitrary slice.
       const allVarisangyas = await fetchAllPages<Varisangya>((p) => collectibleService.getAllVarisangyas(p));
+      // The cards total every family payment, not just the families on this page.
+      const { summary: familySummary } = await collectibleService.getAllVarisangyas({
+        hasFamily: true,
+        page: 1,
+        limit: 1,
+      });
+      setSummary(familySummary);
 
       const familiesWithVarisangya = familiesData.map((family) => {
         const fid = (family as any).id ?? (family as any)._id;
@@ -254,50 +267,41 @@ export default function FamilyVarisangyaList() {
       width: '8rem',
       align: 'center',
       render: (_, row) => (
-        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(`${FAMILY_BASE}?view=transactions&familyId=${row.id}`);
-            }}
-            className={rowActionClass()}
-            title="View Transactions"
-            aria-label="View Transactions"
-          >
-            <FiEye className="h-4 w-4" />
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(`${FAMILY_BASE}?view=wallet&familyId=${row.id}`);
-            }}
-            className={rowActionClass()}
-            title="View Wallet"
-            aria-label="View Wallet"
-          >
-            <FiDollarSign className="h-4 w-4" />
-          </button>
-          <Dropdown
-            align="right"
-            trigger={
-              <button
-                onClick={(e) => e.stopPropagation()}
-                disabled={exportingRowId === row.id}
-                className={rowActionClass('default', 'disabled:opacity-50')}
-                title="Export"
-                aria-label="Export"
-              >
-                {exportingRowId === row.id ? (
-                  <LoadingSpinner size="sm" />
-                ) : (
-                  <FiDownload className="h-4 w-4" />
-                )}
-              </button>
-            }
+        <div onClick={(e) => e.stopPropagation()}>
+          <ActionsMenu
+            label={`Actions for ${toTitleCase(row.houseName)}`}
             items={[
-              { label: 'Export as CSV', onClick: () => handleExportRow(row, 'csv') },
-              { label: 'Export as JSON', onClick: () => handleExportRow(row, 'json') },
-              { label: 'Export as PDF', onClick: () => handleExportRow(row, 'pdf') },
+              {
+                label: 'View Transactions',
+                icon: <FiEye className="h-4 w-4" />,
+                onClick: () => navigate(`${FAMILY_BASE}?view=transactions&familyId=${row.id}`),
+              },
+              {
+                label: 'View Wallet',
+                icon: <FiDollarSign className="h-4 w-4" />,
+                onClick: () => navigate(`${FAMILY_BASE}?view=wallet&familyId=${row.id}`),
+              },
+              {
+                label: 'Export as CSV',
+                icon: exportingRowId === row.id ? <LoadingSpinner size="sm" /> : <FiDownload className="h-4 w-4" />,
+                disabled: exportingRowId === row.id,
+                disabledReason: 'Exporting…',
+                onClick: () => handleExportRow(row, 'csv'),
+              },
+              {
+                label: 'Export as JSON',
+                icon: exportingRowId === row.id ? <LoadingSpinner size="sm" /> : <FiDownload className="h-4 w-4" />,
+                disabled: exportingRowId === row.id,
+                disabledReason: 'Exporting…',
+                onClick: () => handleExportRow(row, 'json'),
+              },
+              {
+                label: 'Export as PDF',
+                icon: exportingRowId === row.id ? <LoadingSpinner size="sm" /> : <FiDownload className="h-4 w-4" />,
+                disabled: exportingRowId === row.id,
+                disabledReason: 'Exporting…',
+                onClick: () => handleExportRow(row, 'pdf'),
+              },
             ]}
           />
         </div>
@@ -305,18 +309,16 @@ export default function FamilyVarisangyaList() {
     },
   ];
 
-  const totalAmount = families.reduce((sum, f) => sum + (f.totalVarisangya || 0), 0);
-  const totalPayments = families.reduce((sum, f) => sum + (f.varisangyaCount || 0), 0);
   const stats = [
     {
       title: 'Total Families',
       value: pagination?.total || families.length,
       icon: <FiHome className="h-5 w-5" />,
     },
-    { title: 'Total Payments', value: totalPayments, icon: <FiCreditCard className="h-5 w-5" /> },
+    { title: 'Total Payments', value: summary.count, icon: <FiCreditCard className="h-5 w-5" /> },
     {
       title: 'Total Amount',
-      value: `₹${totalAmount.toLocaleString()}`,
+      value: `₹${summary.totalAmount.toLocaleString()}`,
       icon: <FiDollarSign className="h-5 w-5" />,
     },
   ];
@@ -328,7 +330,7 @@ export default function FamilyVarisangyaList() {
           <StatCard key={index} {...stat} />
         ))}
       </div>
-      <TableCard>
+      <TableCard borderless>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -349,7 +351,15 @@ export default function FamilyVarisangyaList() {
             action={{ label: 'Retry', onClick: fetchFamilies }}
           />
         ) : (
-          <Table fixedLayout striped columns={columns} data={families} emptyMessage="No families found" showExport={false} />
+          <Table
+            fixedLayout
+            striped
+            columns={columns}
+            data={families}
+            emptyMessage="No families found"
+            showExport={false}
+            onRowClick={(row) => navigate(`${FAMILY_BASE}?view=transactions&familyId=${row.id}`)}
+          />
         )}
         {pagination && (
           <div className="mt-4">

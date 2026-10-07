@@ -24,6 +24,11 @@ export interface IUser extends Document {
   /** Task C5 — when on, password login stops at an OTP step instead of issuing a token. */
   twoFactorEnabled: boolean;
   oneSignalPlayerId?: string;
+  /**
+   * Bumped on logout, password change, phone change and similar security events. Session tokens carry
+   * the value they were issued with (`tv`); authMiddleware rejects a token that no longer matches.
+   */
+  tokenVersion: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -108,6 +113,10 @@ const UserSchema = new Schema<IUser>(
     oneSignalPlayerId: {
       type: String,
       default: null,
+    },
+    tokenVersion: {
+      type: Number,
+      default: 0,
     },
   },
   {

@@ -126,7 +126,6 @@ export default function CreateInstituteUser() {
       await userService.create({
         ...data,
         role: 'institute',
-        password: '123456', // Default password
         tenantId: isSuperAdmin ? data.tenantId : undefined,
         instituteId: data.instituteId,
       });

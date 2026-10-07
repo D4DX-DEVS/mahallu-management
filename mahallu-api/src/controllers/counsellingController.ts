@@ -10,36 +10,66 @@ import { stripImmutable, refBelongsToTenant } from '../utils/sanitizeUpdate';
 
 import { sendFailure } from '../utils/userMessages';
 import { regexLiteral } from '../utils/queryGuard';
+import Member from '../models/Member';
+import { DeathRegistration } from '../models/Registration';
+import { isValidId, MSG } from '../utils/scope';
+import { createWithSequence, maxNumericSuffix } from '../utils/idCounter';
 
 const tenantScope = (req: AuthRequest): Record<string, any> =>
   req.tenantId ? { tenantId: req.tenantId } : {};
 
 /**
- * Generate the next case number for a given collection and tenant.
- * Format: CNS-0001, MSL-0001, INH-0001, etc.
+ * A member / registration a body links to must be a well-formed id of a record in the caller's own
+ * Mahallu (a foreign one would be shown back through populate). Answers 400/404 and returns false.
  */
-const generateCaseNo = async (
+const linkedRecordsOk = async (
+  req: AuthRequest,
+  res: Response,
+  refs: Array<[model: any, id: unknown, label: string]>
+): Promise<boolean> => {
+  for (const [model, id, label] of refs) {
+    if (id === undefined || id === null || id === '') continue;
+    if (!isValidId(id)) {
+      res.status(400).json({ success: false, message: MSG.badId });
+      return false;
+    }
+    if (!(await refBelongsToTenant(model, id, req.tenantId))) {
+      res.status(404).json({ success: false, message: `We couldn't find that ${label} in this Mahallu.` });
+      return false;
+    }
+  }
+  return true;
+};
+
+const NO_MAHALLU = { success: false, message: 'Please select a Mahallu before continuing.' };
+
+/**
+ * Create a case with the next case number for this Mahallu and collection.
+ * Format: CNS-0001, MSL-0001, INH-0001, etc.
+ *
+ * The number comes from an atomic per-(Mahallu, prefix) counter (see utils/idCounter), seeded on
+ * first use from the highest number already issued, so concurrent creates and deletes can never be
+ * handed the same number. If the database still reports it as taken (unique index on
+ * tenantId + caseNo), the next number is used.
+ */
+const createCase = async (
   model: any,
   tenantId: string,
-  prefix: string
-): Promise<string> => {
-  const lastCase = await model
-    .findOne({ tenantId })
-    .sort({ _id: -1 })
-    .select('caseNo');
-
-  if (!lastCase) {
-    return `${prefix}-0001`;
-  }
-
-  const match = lastCase.caseNo.match(/(\d+)$/);
-  if (!match) {
-    return `${prefix}-0001`;
-  }
-
-  const nextNum = (parseInt(match[1], 10) + 1).toString().padStart(4, '0');
-  return `${prefix}-${nextNum}`;
-};
+  prefix: string,
+  fields: Record<string, any>
+): Promise<any> =>
+  createWithSequence(
+    `case:${prefix}:${tenantId}`,
+    {
+      field: 'caseNo',
+      seed: () => maxNumericSuffix(model, { tenantId }, 'caseNo', new RegExp(`^${prefix}-(\\d+)$`)),
+    },
+    async (n) => {
+      const doc = new model({ ...fields, tenantId, caseNo: `${prefix}-${String(n).padStart(4, '0')}` });
+      await doc.save();
+      return doc;
+    }
+  );
 
 // ====== COUNSELLING CASES ======
 
@@ -102,15 +132,10 @@ export const createCounsellingCase = async (req: AuthRequest, res: Response) => 
       });
     }
 
-    const caseNo = await generateCaseNo(
-      CounsellingCase,
-      req.tenantId?.toString() || '',
-      'CNS'
-    );
+    if (!req.tenantId) return res.status(400).json(NO_MAHALLU);
+    if (!(await linkedRecordsOk(req, res, [[Member, clientMemberId, 'member']]))) return;
 
-    const newCase = new CounsellingCase({
-      tenantId: req.tenantId,
-      caseNo,
+    const newCase = await createCase(CounsellingCase, String(req.tenantId), 'CNS', {
       category,
       clientMemberId: clientMemberId || undefined,
       clientName: clientName || undefined,
@@ -118,8 +143,6 @@ export const createCounsellingCase = async (req: AuthRequest, res: Response) => 
       appointmentDate,
       status: 'open',
     });
-
-    await newCase.save();
     await newCase.populate('clientMemberId', 'name phone');
 
     res.status(201).json({ success: true, data: newCase });
@@ -130,7 +153,10 @@ export const createCounsellingCase = async (req: AuthRequest, res: Response) => 
 
 export const updateCounsellingCase = async (req: AuthRequest, res: Response) => {
   try {
-    const updateData = stripImmutable(req.body);
+    // A case number is assigned once, by the server.
+    const updateData: Record<string, any> = stripImmutable(req.body);
+    delete updateData.caseNo;
+    if (!(await linkedRecordsOk(req, res, [[Member, updateData.clientMemberId, 'member']]))) return;
 
     const caseRecord = await CounsellingCase.findOneAndUpdate(
       { _id: req.params.id, ...tenantScope(req) },
@@ -258,19 +284,15 @@ export const createDisputeCase = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    const caseNo = await generateCaseNo(DisputeCase, req.tenantId?.toString() || '', 'MSL');
+    if (!req.tenantId) return res.status(400).json(NO_MAHALLU);
 
-    const newCase = new DisputeCase({
-      tenantId: req.tenantId,
-      caseNo,
+    const newCase = await createCase(DisputeCase, String(req.tenantId), 'MSL', {
       type,
       parties,
       description,
       mediators: mediators || [],
       status: 'registered',
     });
-
-    await newCase.save();
 
     res.status(201).json({ success: true, data: newCase });
   } catch (error: any) {
@@ -280,7 +302,9 @@ export const createDisputeCase = async (req: AuthRequest, res: Response) => {
 
 export const updateDisputeCase = async (req: AuthRequest, res: Response) => {
   try {
-    const updateData = stripImmutable(req.body);
+    // A case number is assigned once, by the server.
+    const updateData: Record<string, any> = stripImmutable(req.body);
+    delete updateData.caseNo;
 
     const caseRecord = await DisputeCase.findOneAndUpdate(
       { _id: req.params.id, ...tenantScope(req) },
@@ -381,19 +405,19 @@ export const createInheritanceCase = async (req: AuthRequest, res: Response) => 
       });
     }
 
-    const caseNo = await generateCaseNo(InheritanceCase, req.tenantId?.toString() || '', 'INH');
+    if (!req.tenantId) return res.status(400).json(NO_MAHALLU);
+    if (!(await linkedRecordsOk(req, res, [
+      [Member, deceasedMemberId, 'member'],
+      [DeathRegistration, deathRegistrationId, 'death registration'],
+    ]))) return;
 
-    const newCase = new InheritanceCase({
-      tenantId: req.tenantId,
-      caseNo,
+    const newCase = await createCase(InheritanceCase, String(req.tenantId), 'INH', {
       deceasedMemberId: deceasedMemberId || undefined,
       deceasedName: deceasedName || undefined,
       deathRegistrationId: deathRegistrationId || undefined,
       heirs,
       status: 'reported',
     });
-
-    await newCase.save();
     await newCase.populate('deceasedMemberId', 'name');
 
     res.status(201).json({ success: true, data: newCase });
@@ -404,7 +428,13 @@ export const createInheritanceCase = async (req: AuthRequest, res: Response) => 
 
 export const updateInheritanceCase = async (req: AuthRequest, res: Response) => {
   try {
-    const updateData = stripImmutable(req.body);
+    // A case number is assigned once, by the server.
+    const updateData: Record<string, any> = stripImmutable(req.body);
+    delete updateData.caseNo;
+    if (!(await linkedRecordsOk(req, res, [
+      [Member, updateData.deceasedMemberId, 'member'],
+      [DeathRegistration, updateData.deathRegistrationId, 'death registration'],
+    ]))) return;
 
     const caseRecord = await InheritanceCase.findOneAndUpdate(
       { _id: req.params.id, ...tenantScope(req) },

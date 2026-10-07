@@ -1,6 +1,6 @@
 import express from 'express';
 import { getDashboardStats, getRecentFamilies, getActivityTimeline, getFinancialSummary } from '../controllers/dashboardController';
-import { authMiddleware, allowRoles } from '../middleware/authMiddleware';
+import { authMiddleware, allowRoles, requireAdmin } from '../middleware/authMiddleware';
 import { tenantMiddleware } from '../middleware/tenantMiddleware';
 import { validationHandler } from '../middleware/validationHandler';
 import { idParam, listQuery } from '../validations/common';
@@ -119,7 +119,7 @@ router.get('/activity-timeline', listQuery(), validationHandler, allowRoles(['su
  *         description: Internal server error
  */
 router.get('/stats', listQuery(), validationHandler, allowRoles(['super_admin', 'mahall', 'survey', 'institute', 'member']), getDashboardStats);
-router.get('/financial-summary', listQuery(), validationHandler, allowRoles(['super_admin', 'mahall', 'institute']), getFinancialSummary);
+router.get('/financial-summary', listQuery(), validationHandler, requireAdmin, getFinancialSummary);
 
 export default router;
 

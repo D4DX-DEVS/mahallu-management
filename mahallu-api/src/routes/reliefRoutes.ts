@@ -8,13 +8,14 @@ import {
   deleteReliefCase,
   getReliefSummary,
 } from '../controllers/reliefController';
-import { authMiddleware, allowRoles } from '../middleware/authMiddleware';
+import { authMiddleware, allowRoles, requireFieldStaff } from '../middleware/authMiddleware';
 import { tenantMiddleware, tenantFilter } from '../middleware/tenantMiddleware';
 import { validationHandler } from '../middleware/validationHandler';
 import { idParam, listQuery } from '../validations/common';
 import {
   createReliefCaseValidation,
   updateReliefCaseValidation,
+  updateReliefStatusValidation,
 } from '../validations/moduleValidation';
 
 const router = express.Router();
@@ -22,6 +23,8 @@ const router = express.Router();
 router.use(authMiddleware);
 router.use(tenantMiddleware);
 router.use(tenantFilter);
+// Field data: the Mahallu admin and survey workers (the write guards already name them); institute admins have no use for it.
+router.use(requireFieldStaff);
 
 /**
  * @swagger
@@ -246,6 +249,6 @@ router.delete('/cases/:id', idParam('id', 'relief case'), validationHandler, all
  *       404:
  *         description: Relief case not found
  */
-router.put('/cases/:id/status', idParam('id', 'relief case'), validationHandler, allowRoles(['mahall']), updateReliefStatus);
+router.put('/cases/:id/status', updateReliefStatusValidation, validationHandler, allowRoles(['mahall']), updateReliefStatus);
 
 export default router;

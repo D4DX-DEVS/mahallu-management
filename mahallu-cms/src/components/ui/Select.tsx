@@ -241,7 +241,8 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
           role="listbox"
           id={listboxId}
           aria-label={label ?? 'Options'}
-          className="max-h-60 overflow-y-auto p-1"
+          className="overflow-y-auto p-1"
+          style={{ maxHeight: showSearch ? menuRect.maxHeight - 56 : menuRect.maxHeight }}
         >
           {filteredOptions.length === 0 ? (
             <p className="px-3 py-6 text-center text-sm text-muted-foreground">
@@ -280,7 +281,7 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
                 setIsOpen(false);
                 onAddNew();
               }}
-              className="flex w-full items-center gap-2 rounded-sm px-3 py-2 text-sm font-medium text-primary hover:bg-accent"
+              className="flex w-full items-center gap-2 rounded-sm px-3 py-2 text-sm font-medium text-primary hover:bg-accent hover:text-accent-foreground"
             >
               <FiPlus className="h-4 w-4" aria-hidden="true" /> {addNewLabel}
             </button>

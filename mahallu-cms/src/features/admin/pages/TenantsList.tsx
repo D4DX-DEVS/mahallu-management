@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { FiAlertCircle, FiCheckCircle, FiEye, FiGlobe, FiPlus, FiTrash2, FiXCircle } from 'react-icons/fi';
 import TableCard from '@/components/ui/TableCard';
-import { rowActionClass } from '@/components/ui/rowAction';
+import ActionsMenu from '@/components/ui/ActionsMenu';
 import FilterPanel from '@/components/ui/FilterPanel';
 import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
@@ -22,8 +22,10 @@ import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
 import { toast } from '@/store/toastStore';
 import { errorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { useServerCounts } from '@/hooks/useServerCounts';
 import { toTitleCase } from '@/utils/format';
 import StatusBadge from '@/components/ui/StatusBadge';
+import { logError } from '@/utils/safeLog';
 
 export default function TenantsList() {
   const { isSuperAdmin } = useAuthStore();
@@ -64,7 +66,7 @@ export default function TenantsList() {
       setTenants(response.data || []);
       setPagination(response.pagination);
     } catch (error) {
-      console.error('Error loading tenants:', error);
+      logError('Error loading tenants', error);
       setTenants([]);
       setPagination(null);
     } finally {
@@ -95,11 +97,11 @@ export default function TenantsList() {
           exportToJSON(columns, dataToExport, filename);
           break;
         case 'pdf':
-          exportToPDF(columns, dataToExport, filename, title);
+          await exportToPDF(columns, dataToExport, filename, title);
           break;
       }
     } catch (error: any) {
-      console.error('Export error:', error);
+      logError('Export error', error);
       toast.error(errorMessage(error, { action: 'export data' }));
     } finally {
       setIsExporting(false);
@@ -198,76 +200,70 @@ export default function TenantsList() {
       width: '8rem',
       align: 'center',
       render: (_, row) => (
-        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(`/admin/tenants/${row.id}`);
-            }}
-            className={rowActionClass()}
-            title="View Details"
-            aria-label="View Details"
-          >
-            <FiEye className="h-4 w-4" />
-          </button>
-          {row.status === 'active' ? (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
+        <ActionsMenu
+          label={`Actions for ${row.name}`}
+          items={[
+            {
+              label: 'View Details',
+              icon: <FiEye className="h-4 w-4" />,
+              onClick: () => navigate(`/admin/tenants/${row.id}`),
+            },
+            row.status === 'active'
+              ? {
+                  label: 'Suspend',
+                  icon: <FiXCircle className="h-4 w-4" />,
+                  variant: 'warning',
+                  onClick: () => {
+                    setSelectedTenant(row);
+                    setShowSuspendModal(true);
+                  },
+                }
+              : {
+                  label: 'Activate',
+                  icon: <FiCheckCircle className="h-4 w-4" />,
+                  onClick: () => handleActivate(row),
+                },
+            {
+              label: 'Delete',
+              icon: <FiTrash2 className="h-4 w-4" />,
+              variant: 'danger',
+              onClick: () => {
                 setSelectedTenant(row);
-                setShowSuspendModal(true);
-              }}
-              className={rowActionClass('warning')}
-              title="Suspend"
-              aria-label="Suspend"
-            >
-              <FiXCircle className="h-4 w-4" />
-            </button>
-          ) : (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                handleActivate(row);
-              }}
-              className={rowActionClass()}
-              title="Activate"
-              aria-label="Activate"
-            >
-              <FiCheckCircle className="h-4 w-4" />
-            </button>
-          )}
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setSelectedTenant(row);
-              setShowDeleteModal(true);
-            }}
-            className={rowActionClass('danger')}
-            title="Delete"
-            aria-label="Delete"
-          >
-            <FiTrash2 className="h-4 w-4" />
-          </button>
-        </div>
+                setShowDeleteModal(true);
+              },
+            },
+          ]}
+        />
       ),
     },
   ];
 
+  // Whole-list counts from the server: these cards used to count only the rows on this page.
+  const countBase = debouncedSearch ? { search: debouncedSearch } : {};
+  const statusCounts = useServerCounts(
+    {
+      active: () =>
+        isSuperAdmin ? tenantService.getAll({ ...countBase, status: 'active', page: 1, limit: 1 }) : Promise.resolve({ pagination: null }),
+      suspended: () =>
+        isSuperAdmin ? tenantService.getAll({ ...countBase, status: 'suspended', page: 1, limit: 1 }) : Promise.resolve({ pagination: null }),
+    },
+    [tenants, isSuperAdmin]
+  );
+
   const stats = [
     {
       title: 'Total Tenants',
-      // ponytail: total from server; Active/Suspended still count the current page
       value: pagination?.total ?? tenants.length,
       icon: <FiGlobe className="h-5 w-5" />,
     },
     {
       title: 'Active Tenants',
-      value: tenants.filter((t) => t.status === 'active').length,
+      value: statusCounts.active ?? tenants.filter((t) => t.status === 'active').length,
       icon: <FiCheckCircle className="h-5 w-5" />,
     },
     {
       title: 'Suspended',
-      value: tenants.filter((t) => t.status === 'suspended').length,
+      value: statusCounts.suspended ?? tenants.filter((t) => t.status === 'suspended').length,
       icon: <FiAlertCircle className="h-5 w-5" />,
     },
   ];
@@ -294,7 +290,7 @@ export default function TenantsList() {
       </div>
 
       {/* Actions and Table */}
-      <TableCard>
+      <TableCard borderless>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -336,6 +332,7 @@ export default function TenantsList() {
           isLoading={isLoading}
           emptyMessage="No tenants found"
           showExport={false}
+          onRowClick={(row) => navigate(`/admin/tenants/${row.id}`)}
         />
         {pagination && pagination.totalPages > 1 && (
           <div className="mt-4">

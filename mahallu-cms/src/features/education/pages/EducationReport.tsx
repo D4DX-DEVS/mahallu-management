@@ -13,17 +13,19 @@ interface EducationData {
   activeClassesCount: number;
   attendancePercentThisMonth: number;
   examsCount: number;
+  /** null for institute accounts: scholarships and support cases are Mahallu-level programmes. */
   scholarships: {
     activeScholarships: number;
     totalAwardedAmount: number;
     totalAwards: number;
     awardsByStatus: Record<string, number>;
-  };
+  } | null;
   supportCases: {
     total: number;
     byType: Record<string, number>;
     byStatus: Record<string, number>;
-  };
+  } | null;
+  scopeNote?: string;
 }
 
 export default function EducationReport() {
@@ -78,10 +80,19 @@ export default function EducationReport() {
         <StatCard title="Exams" value={data.examsCount} icon={<FiFileText />} />
       </div>
 
+      {data.scopeNote && (
+        <Alert variant="info" title="Your institute">
+          {data.scopeNote}
+        </Alert>
+      )}
+
       {/* Scholarships Section */}
       <Card>
         <div>
           <h2 className="text-lg font-semibold mb-3">Scholarships & Awards</h2>
+          {!data.scholarships ? (
+            <p className="text-sm text-muted-foreground">Not available for institute accounts.</p>
+          ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <StatCard
               title="Active Scholarships"
@@ -108,6 +119,7 @@ export default function EducationReport() {
               </div>
             )}
           </div>
+          )}
         </div>
       </Card>
 
@@ -115,6 +127,9 @@ export default function EducationReport() {
       <Card>
         <div>
           <h2 className="text-lg font-semibold mb-3">Academic Support Cases</h2>
+          {!data.supportCases ? (
+            <p className="text-sm text-muted-foreground">Not available for institute accounts.</p>
+          ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* By Type */}
             <div>
@@ -148,6 +163,7 @@ export default function EducationReport() {
               </div>
             </div>
           </div>
+          )}
         </div>
       </Card>
     </div>

@@ -12,6 +12,7 @@ import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import StatusBadge from '@/components/ui/StatusBadge';
+import { PageSkeleton } from '@/components/ui/Skeleton';
 
 const PROJECT_AREAS = [
   { value: 'roads', label: 'Roads' },
@@ -93,7 +94,7 @@ export default function ProjectsList() {
   const getAreaBadgeColor = (area: string) => {
     const colors: Record<string, string> = {
       roads: 'bg-blue-100 text-blue-800',
-      water: 'bg-cyan-100 text-cyan-800',
+      water: 'bg-cyan-100 text-cyan-800 dark:bg-cyan-500/15 dark:text-cyan-300',
       sanitation: 'bg-green-100 text-green-800',
       environment: 'bg-emerald-100 text-emerald-800',
       education: 'bg-purple-100 text-purple-800',
@@ -159,7 +160,7 @@ export default function ProjectsList() {
 
       {/* Projects Grid */}
       {loading ? (
-        <div className="text-center py-8">Loading...</div>
+        <PageSkeleton variant="section" />
       ) : projects.length === 0 ? (
         <div className="text-center py-8 text-gray-500">No projects found</div>
       ) : (

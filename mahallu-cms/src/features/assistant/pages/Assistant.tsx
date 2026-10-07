@@ -5,15 +5,15 @@ import Button from '@/components/ui/Button';
 import { assistantService, type AssistantTurn } from '@/services/assistantService';
 import { useAuthStore } from '@/store/authStore';
 import PageHeader from '@/components/layout/PageHeader';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 /** A question, not a payload. The API answers a prompt, and pays per token. */
 const MAX_QUESTION_LENGTH = 1000;
 
 /**
  * Task C4 — AI assistant chat panel.
  *
- * Fonts: `font-body` is Poppins with a Noto Sans Malayalam fallback, so an
- * answer that mixes English and Malayalam renders each script in its own face.
- * Titles use Anek Malayalam (`font-title`).
+ * Typography: `font-body` and `font-title` both resolve to the shared Manrope
+ * stack, with Noto Sans Malayalam used when Malayalam glyphs are present.
  */
 
 /** Friendly source labels — raw tool names are internal. */
@@ -91,6 +91,7 @@ export default function Assistant() {
   const [chats, setChats] = useState<StoredChat[]>(() => loadChats(storageKey));
   const [currentId, setCurrentId] = useState<string | null>(() => loadChats(storageKey)[0]?.id ?? null);
   const [showHistory, setShowHistory] = useState(false);
+  const [deleteChatId, setDeleteChatId] = useState<string | null>(null);
   const [question, setQuestion] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -143,6 +144,7 @@ export default function Assistant() {
   const deleteChat = (id: string) => {
     setChats((prev) => prev.filter((c) => c.id !== id));
     if (id === currentId) setCurrentId(null);
+    setDeleteChatId(null);
   };
 
   const send = async (text: string) => {
@@ -228,7 +230,7 @@ export default function Assistant() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => deleteChat(c.id)}
+                    onClick={() => setDeleteChatId(c.id)}
                     className="shrink-0 rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-red-600 dark:hover:bg-gray-700"
                     aria-label="Delete chat"
                   >
@@ -316,6 +318,16 @@ export default function Assistant() {
           </p>
         )}
       </Card>
+
+      <ConfirmDialog
+        isOpen={Boolean(deleteChatId)}
+        title="Delete this chat?"
+        message="This removes the saved chat history from this device."
+        confirmLabel="Delete chat"
+        variant="danger"
+        onConfirm={() => deleteChatId && deleteChat(deleteChatId)}
+        onCancel={() => setDeleteChatId(null)}
+      />
     </div>
   );
 }

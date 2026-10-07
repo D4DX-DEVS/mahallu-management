@@ -87,48 +87,69 @@ const API_MAX_LIMIT = 100;
 /** A hard stop, so an unexpected `pagination` shape can never spin forever. */
 const MAX_PAGES = 200;
 
-interface ListResponse<T> {
+/** Totals over the WHOLE filtered set (every page) for `/master-accounts/ledger-items`. */
+export interface LedgerItemsSummary {
+  totalIncome: number;
+  totalExpense: number;
+  net: number;
+  count: number;
+}
+
+/** Totals over the whole filtered set for institute accounts, Mahallu accounts and wallets. */
+export interface BalanceSummary {
+  totalBalance: number;
+  count: number;
+}
+
+interface ListResponse<T, S = unknown> {
   success: boolean;
   data: T[];
   pagination?: any;
+  summary?: S;
 }
 
-async function getList<T>(
+async function getList<T, S = unknown>(
   url: string,
   params?: Record<string, any>
-): Promise<{ data: T[]; pagination: any }> {
+): Promise<{ data: T[]; pagination: any; summary?: S }> {
   const requested = Number(params?.limit);
   const wantsEverything =
     Number.isFinite(requested) && requested > API_MAX_LIMIT && params?.page === undefined;
 
   if (!wantsEverything) {
-    const response = await api.get<ListResponse<T>>(url, { params });
-    return { data: asList(response.data.data), pagination: response.data.pagination ?? null };
+    const response = await api.get<ListResponse<T, S>>(url, { params });
+    return {
+      data: asList(response.data.data),
+      pagination: response.data.pagination ?? null,
+      summary: response.data.summary,
+    };
   }
 
   const rows: T[] = [];
   let pagination: any = null;
+  let summary: S | undefined;
 
   for (let page = 1; page <= MAX_PAGES; page += 1) {
-    const response = await api.get<ListResponse<T>>(url, {
+    const response = await api.get<ListResponse<T, S>>(url, {
       params: { ...params, page, limit: API_MAX_LIMIT },
     });
     const batch = asList(response.data.data);
     rows.push(...batch);
     pagination = response.data.pagination ?? pagination;
+    summary = response.data.summary ?? summary;
 
     if (batch.length < API_MAX_LIMIT) break;
     if (rows.length >= requested) break;
     if (pagination?.totalPages && page >= pagination.totalPages) break;
   }
 
-  return { data: rows, pagination };
+  return { data: rows, pagination, summary };
 }
 
 export const masterAccountService = {
   // Institute Accounts
-  getAllInstituteAccounts: async (params?: { instituteId?: string; page?: number; limit?: number }) =>
-    getList<InstituteAccount>('/master-accounts/institute', params),
+  getAllInstituteAccounts: async (params?: { instituteId?: string; search?: string; page?: number; limit?: number }) =>
+    getList<InstituteAccount, BalanceSummary>('/master-accounts/institute', params),
 
   createInstituteAccount: async (data: Partial<InstituteAccount>) => {
     const response = await api.post<{ success: boolean; data: InstituteAccount }>(
@@ -187,7 +208,7 @@ export const masterAccountService = {
 
   // Wallets
   getAllWallets: async (params?: { type?: string; page?: number; limit?: number }) =>
-    getList<MasterWallet>('/master-accounts/wallets', params),
+    getList<MasterWallet, BalanceSummary>('/master-accounts/wallets', params),
 
   createWallet: async (data: Partial<MasterWallet>) => {
     const response = await api.post<{ success: boolean; data: MasterWallet }>(
@@ -250,7 +271,7 @@ export const masterAccountService = {
     endDate?: string;
     page?: number;
     limit?: number;
-  }) => getList<LedgerItem>('/master-accounts/ledger-items', params),
+  }) => getList<LedgerItem, LedgerItemsSummary>('/master-accounts/ledger-items', params),
 
   createLedgerItem: async (data: Partial<LedgerItem>) => {
     const response = await api.post<{ success: boolean; data: LedgerItem }>(
@@ -277,7 +298,7 @@ export const masterAccountService = {
 
   // Mahallu Accounts (tenant-level, no instituteId)
   getAllMahalluAccounts: async (params?: { page?: number; limit?: number }) =>
-    getList<MahalluAccount>('/master-accounts/mahallu-accounts', params),
+    getList<MahalluAccount, BalanceSummary>('/master-accounts/mahallu-accounts', params),
 
   createMahalluAccount: async (data: Partial<MahalluAccount>) => {
     const response = await api.post<{ success: boolean; data: MahalluAccount }>(

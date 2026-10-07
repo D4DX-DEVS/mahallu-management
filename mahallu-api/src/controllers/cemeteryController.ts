@@ -1,12 +1,15 @@
 import { Response } from 'express';
 import { Cemetery, GraveRecord } from '../models/Cemetery';
 import { DeathRegistration } from '../models/Registration';
+import Member from '../models/Member';
+import Family from '../models/Family';
 import { AuthRequest } from '../middleware/authMiddleware';
 import { getPaginationParams, createPaginationResponse } from '../utils/pagination';
 
 import { sendFailure } from '../utils/userMessages';
 import { regexLiteral } from '../utils/queryGuard';
 import { verifyTenantOwnership } from '../utils/tenantCheck';
+import { stripImmutable } from '../utils/sanitizeUpdate';
 
 // ==================== CEMETERY CRUD ====================
 
@@ -121,7 +124,7 @@ export const updateCemetery = async (req: AuthRequest, res: Response) => {
       return;
     }
 
-    const cemetery = await Cemetery.findByIdAndUpdate(req.params.id, req.body, {
+    const cemetery = await Cemetery.findByIdAndUpdate(req.params.id, stripImmutable(req.body), {
       new: true,
       runValidators: true,
     });
@@ -277,44 +280,37 @@ export const createGraveRecord = async (req: AuthRequest, res: Response) => {
     }
 
     // If deceasedMemberId is provided, validate it exists
+    // (These were `require('../models/Member').Member` - a named export that does not exist,
+    // so `Member` was undefined, the lookup threw, and the empty catch skipped the whole
+    // check: a member or family id from another Mahallu was accepted.)
     if (graveData.deceasedMemberId) {
-      try {
-        const { Member } = require('../models/Member');
-        const member = await Member.findOne({
-          _id: graveData.deceasedMemberId,
-          tenantId: graveData.tenantId,
+      const member = await Member.findOne({
+        _id: graveData.deceasedMemberId,
+        tenantId: graveData.tenantId,
+      });
+      if (!member) {
+        return res.status(400).json({
+          success: false,
+          message: "We couldn't find that member in this Mahallu.",
         });
-        if (!member) {
-          return res.status(400).json({
-            success: false,
-            message: "We couldn't find that member in this Mahallu.",
-          });
-        }
-        // If member exists, use their name if deceasedName not provided
-        if (!graveData.deceasedName && member.name) {
-          graveData.deceasedName = member.name;
-        }
-      } catch (e) {
-        // Continue without strict validation
+      }
+      // If member exists, use their name if deceasedName not provided
+      if (!graveData.deceasedName && member.name) {
+        graveData.deceasedName = member.name;
       }
     }
 
     // If familyId is provided, validate it exists
     if (graveData.familyId) {
-      try {
-        const { Family } = require('../models/Family');
-        const family = await Family.findOne({
-          _id: graveData.familyId,
-          tenantId: graveData.tenantId,
+      const family = await Family.findOne({
+        _id: graveData.familyId,
+        tenantId: graveData.tenantId,
+      });
+      if (!family) {
+        return res.status(400).json({
+          success: false,
+          message: "We couldn't find that family in this Mahallu.",
         });
-        if (!family) {
-          return res.status(400).json({
-            success: false,
-            message: "We couldn't find that family in this Mahallu.",
-          });
-        }
-      } catch (e) {
-        // Continue without strict validation
       }
     }
 
@@ -343,7 +339,8 @@ export const updateGraveRecord = async (req: AuthRequest, res: Response) => {
     }
 
     // Prevent changing cemeteryId or graveNo (would break uniqueness)
-    const { cemeteryId, graveNo, ...safeData } = req.body;
+    // tenantId / _id are stripped too so an update can never move the record to another Mahallu.
+    const { cemeteryId, graveNo, ...safeData } = stripImmutable(req.body);
 
     const record = await GraveRecord.findByIdAndUpdate(req.params.id, safeData, {
       new: true,

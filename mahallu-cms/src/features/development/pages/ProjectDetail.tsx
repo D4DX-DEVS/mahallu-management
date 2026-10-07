@@ -1,14 +1,17 @@
 import { useEffect, useState } from 'react';
-import { FiArrowLeft, FiEdit2 } from 'react-icons/fi';
+import { FiArrowLeft, FiEdit2, FiTrash2 } from 'react-icons/fi';
 import { useParams, useNavigate } from 'react-router-dom';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
+import Modal from '@/components/ui/Modal';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import Pagination from '@/components/ui/Pagination';
 import { toast } from '@/store/toastStore';
 import { developmentService, DevelopmentProject, ProjectExpenditure } from '@/services/developmentService';
 import PageHeader from '@/components/layout/PageHeader';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import { toTitleCase } from '@/utils/format';
+import { PageSkeleton } from '@/components/ui/Skeleton';
 
 const PROJECT_AREAS: Record<string, string> = {
   roads: 'Roads',
@@ -33,6 +36,9 @@ export default function ProjectDetail() {
   const [currentPage, setCurrentPage] = useState(1);
   const [progressPercent, setProgressPercent] = useState(0);
   const [status, setStatus] = useState('proposed');
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [showUpdateConfirm, setShowUpdateConfirm] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -59,8 +65,7 @@ export default function ProjectDetail() {
     }
   };
 
-  const handleUpdate = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleUpdate = async () => {
     if (!id) return;
     setUpdating(true);
     try {
@@ -70,6 +75,7 @@ export default function ProjectDetail() {
       });
       setProject((prev) => (prev ? { ...prev, progressPercent, status: status as any } : null));
       toast.success('Project progress updated');
+      setShowUpdateConfirm(false);
     } catch (error) {
       console.error("Couldn't update project:", error);
       toast.error(errorMessage(error, { action: 'update project progress' }));
@@ -78,7 +84,20 @@ export default function ProjectDetail() {
     }
   };
 
-  if (loading) return <div className="p-4">Loading...</div>;
+  const handleDelete = async () => {
+    if (!id) return;
+    try {
+      setDeleting(true);
+      await developmentService.deleteProject(id);
+      toast.success('Project deleted');
+      navigate('/development');
+    } catch (error) {
+      toast.error(errorMessage(error, { action: 'delete project' }));
+      setDeleting(false);
+    }
+  };
+
+  if (loading) return <PageSkeleton />;
   if (!project) return <div className="p-4">Project not found</div>;
 
   const areaLabel = PROJECT_AREAS[project.area] || project.area;
@@ -89,6 +108,7 @@ export default function ProjectDetail() {
         <PageHeader title={toTitleCase(project.name)} />
         <div className="flex gap-2 items-center">
           <Button onClick={() => navigate(`/development/${id}/edit`)} icon={<FiEdit2 />} collapseLabel>Edit</Button>
+          <Button variant="danger" onClick={() => setShowDeleteModal(true)} icon={<FiTrash2 />} collapseLabel>Delete</Button>
           <Button variant="secondary" onClick={() => navigate('/development')} icon={<FiArrowLeft />} collapseLabel>Back</Button>
         </div>
       </div>
@@ -98,6 +118,12 @@ export default function ProjectDetail() {
         <div>
           <h2 className="font-semibold mb-3">Project Information</h2>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
+            {project.nameMl && (
+              <div>
+                <span className="text-gray-600">Malayalam Name</span>
+                <div className="font-medium">{project.nameMl}</div>
+              </div>
+            )}
             <div>
               <span className="text-gray-600">Area</span>
               <div className="font-medium">{areaLabel}</div>
@@ -141,6 +167,12 @@ export default function ProjectDetail() {
               <p className="mt-2 text-sm">{project.proposal}</p>
             </div>
           )}
+          {project.completionReport && (
+            <div className="mt-4 pt-4 border-t">
+              <span className="text-gray-600 text-sm">Completion Report</span>
+              <p className="mt-2 text-sm">{project.completionReport}</p>
+            </div>
+          )}
         </div>
       </Card>
 
@@ -148,7 +180,7 @@ export default function ProjectDetail() {
       <Card className="mb-4">
         <div>
           <h2 className="font-semibold mb-3">Update Progress</h2>
-          <form onSubmit={handleUpdate} className="space-y-4">
+          <form onSubmit={(e) => { e.preventDefault(); setShowUpdateConfirm(true); }} className="space-y-4">
             <div>
               <label className="block text-sm font-medium mb-2">Progress Percent</label>
               <div className="flex items-center gap-4">
@@ -194,6 +226,17 @@ export default function ProjectDetail() {
         </div>
       </Card>
 
+      <ConfirmDialog
+        isOpen={showUpdateConfirm}
+        title="Save project progress?"
+        message={`This will save the project at ${progressPercent}% progress with status “${status.replace(/_/g, ' ')}”.`}
+        confirmLabel="Save progress"
+        variant="primary"
+        isLoading={updating}
+        onConfirm={handleUpdate}
+        onCancel={() => setShowUpdateConfirm(false)}
+      />
+
       {/* Expenditure Section */}
       <Card>
         <div>
@@ -212,7 +255,7 @@ export default function ProjectDetail() {
               ) : (
                 <>
                   <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
+                    <table className="data-table w-full text-sm">
                       <thead className="bg-gray-50">
                         <tr>
                           <th className="px-3 py-2 text-left">Date</th>
@@ -253,6 +296,26 @@ export default function ProjectDetail() {
           )}
         </div>
       </Card>
+
+      <Modal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        title="Delete Project"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setShowDeleteModal(false)}>
+              Cancel
+            </Button>
+            <Button variant="danger" onClick={handleDelete} isLoading={deleting}>
+              Delete
+            </Button>
+          </>
+        }
+      >
+        <p className="text-gray-600 dark:text-gray-400">
+          Are you sure you want to delete <strong>{toTitleCase(project.name)}</strong>? This action cannot be undone.
+        </p>
+      </Modal>
     </div>
   );
 }

@@ -35,6 +35,13 @@ export const WELFARE_TRANSITIONS: Record<WelfareStatus, WelfareStatus[]> = {
   closed: [],
 };
 
+/** How an approved application is paid out. Only `ledger` posts an expense entry. */
+export const WELFARE_DISBURSE_METHODS = ['cash', 'bank', 'ledger'] as const;
+export type WelfareDisburseMethod = (typeof WELFARE_DISBURSE_METHODS)[number];
+
+/** Requested/approved amounts may only change while the application is still in these states. */
+export const WELFARE_MONEY_EDITABLE_STATUSES: readonly WelfareStatus[] = ['pending', 'verified'];
+
 export interface IWelfareScheme extends Document {
   tenantId: mongoose.Types.ObjectId;
   name: string;
@@ -88,7 +95,7 @@ export interface IWelfareApplication extends Document {
   verificationNotes?: string;
   approvedAmount?: number;
   disbursedDate?: Date;
-  disbursedVia?: 'cash' | 'bank' | 'ledger';
+  disbursedVia?: WelfareDisburseMethod;
   ledgerItemId?: mongoose.Types.ObjectId;
   history: IStatusChange[];
   createdBy?: mongoose.Types.ObjectId;
@@ -119,7 +126,7 @@ const WelfareApplicationSchema = new Schema<IWelfareApplication>(
     verificationNotes: { type: String, trim: true },
     approvedAmount: { type: Number, min: 0 },
     disbursedDate: { type: Date },
-    disbursedVia: { type: String, enum: ['cash', 'bank', 'ledger'] },
+    disbursedVia: { type: String, enum: WELFARE_DISBURSE_METHODS },
     ledgerItemId: { type: Schema.Types.ObjectId },
     history: [
       {

@@ -63,8 +63,13 @@ export const pettyCashService = {
     return normalize(response.data.data) as PettyCashTransaction;
   },
 
+  /**
+   * `ledgerPending` is set (and `message` says so) when the replenishment itself
+   * was recorded but some expenses could not be posted to the accounts yet; they
+   * are retried at the next replenishment.
+   */
   replenish: async (id: string) => {
-    const response = await api.post<{ success: boolean; data: any; message: string }>(
+    const response = await api.post<{ success: boolean; data: any; message: string; ledgerPending?: number }>(
       `/petty-cash/${id}/replenish`
     );
     return response.data;

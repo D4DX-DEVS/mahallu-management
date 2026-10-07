@@ -174,6 +174,7 @@ export default function ScholarshipsList() {
                 ? { label: 'New Scholarship', onClick: () => navigate('/education/scholarships/create') }
                 : undefined
             }
+            onRowClick={(s) => navigate(`/education/scholarships/${s.id}`)}
             rowKey={(s) => s.id}
           />
 

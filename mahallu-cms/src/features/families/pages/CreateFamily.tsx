@@ -219,7 +219,7 @@ export default function CreateFamily() {
                 addNewLabel="Add Area"
                 {...register('area')}
               />
-              <Input label="Place" {...register('place')} placeholder="e.g. Calicut" />
+              <Input label="Address" {...register('place')} placeholder="Address" />
               <div className="hidden">
                 <Input
                   label="Area (Malayalam)"

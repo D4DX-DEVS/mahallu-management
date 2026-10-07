@@ -1,13 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { FiArrowLeft, FiEdit2, FiSave } from 'react-icons/fi';
+import { FiArrowLeft, FiEdit2, FiSave, FiTrash2 } from 'react-icons/fi';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
+import Modal from '@/components/ui/Modal';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { toast } from '@/store/toastStore';
-import { getDisputeCaseById, updateDisputeCase, IDisputeCase } from '@/services/counsellingService';
+import { getDisputeCaseById, updateDisputeCase, deleteDisputeCase, IDisputeCase } from '@/services/counsellingService';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
+import { PageSkeleton } from '@/components/ui/Skeleton';
 
 const STATUSES = ['registered', 'mediation', 'resolved', 'referred', 'closed'];
 
@@ -21,6 +24,9 @@ export default function DisputesDetail() {
   const [resolutionNotes, setResolutionNotes] = useState('');
   const [referredTo, setReferredTo] = useState('');
   const [saving, setSaving] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [showSaveConfirm, setShowSaveConfirm] = useState(false);
 
   useEffect(() => {
     if (id) fetchCase(id);
@@ -53,6 +59,7 @@ export default function DisputesDetail() {
       });
       setCaseRecord(response.data);
       setIsEditing(false);
+      setShowSaveConfirm(false);
       toast.success('Dispute case updated');
     } catch (error) {
       console.error("Couldn't update case:", error);
@@ -62,12 +69,34 @@ export default function DisputesDetail() {
     }
   };
 
-  if (loading) return <div className="p-4">Loading...</div>;
+  const handleDelete = async () => {
+    if (!id) return;
+    try {
+      setDeleting(true);
+      await deleteDisputeCase(id);
+      toast.success('Dispute case deleted');
+      navigate('/maslahat');
+    } catch (error) {
+      toast.error(errorMessage(error, { action: 'delete dispute case' }));
+      setDeleting(false);
+    }
+  };
+
+  if (loading) return <PageSkeleton />;
   if (!caseRecord) return <div className="p-4">Case not found</div>;
 
   return (
     <div>
-      <PageHeader title="Dispute" breadcrumbs={[{ label: 'Maslahat', path: '/maslahat' }]} />
+      <div className="flex gap-2 items-center justify-between">
+        <div className="flex items-center gap-4">
+          <PageHeader title="Dispute" breadcrumbs={[{ label: 'Maslahat', path: '/maslahat' }]} />
+          <div className="flex gap-2 items-center">
+            <Button variant="danger" onClick={() => setShowDeleteModal(true)} icon={<FiTrash2 />} collapseLabel>
+              Delete
+            </Button>
+          </div>
+        </div>
+      </div>
       <div>
         <Button
           variant="ghost"
@@ -163,7 +192,7 @@ export default function DisputesDetail() {
                   />
                 </div>
                 <div className="flex flex-wrap gap-2 pt-3">
-                  <Button variant="primary" size="sm" onClick={handleSave} disabled={saving}>
+                  <Button variant="primary" size="sm" onClick={() => setShowSaveConfirm(true)} disabled={saving}>
                     <FiSave size={16} />
                     Save
                   </Button>
@@ -201,6 +230,37 @@ export default function DisputesDetail() {
           <p className="text-sm text-gray-700">{caseRecord.description}</p>
         </Card>
       </div>
+
+      <ConfirmDialog
+        isOpen={showSaveConfirm}
+        title="Save this dispute case?"
+        message={`This will save the case with status “${editStatus.replace(/_/g, ' ')}” and the resolution details.`}
+        confirmLabel="Save case"
+        variant="primary"
+        isLoading={saving}
+        onConfirm={handleSave}
+        onCancel={() => setShowSaveConfirm(false)}
+      />
+
+      <Modal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        title="Delete Dispute Case"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setShowDeleteModal(false)}>
+              Cancel
+            </Button>
+            <Button variant="danger" onClick={handleDelete} isLoading={deleting}>
+              Delete
+            </Button>
+          </>
+        }
+      >
+        <p className="text-gray-600 dark:text-gray-400">
+          Are you sure you want to delete <strong>{caseRecord.caseNo}</strong>? This action cannot be undone.
+        </p>
+      </Modal>
     </div>
   );
 }

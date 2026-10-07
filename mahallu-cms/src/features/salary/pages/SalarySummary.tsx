@@ -15,6 +15,8 @@ import PageHeader from '@/components/layout/PageHeader';
 import SortableTh from '@/components/ui/SortableTh';
 import { useSortableRows } from '@/hooks/useSortableRows';
 import { toTitleCase } from '@/utils/format';
+import { fetchAllPages } from '@/services/api';
+import { logError } from '@/utils/safeLog';
 
 const MONTHS = [
   { value: '1', label: 'January' },
@@ -71,10 +73,10 @@ export default function SalarySummary() {
 
   const fetchInstitutes = async () => {
     try {
-      const result = await instituteService.getAll({ limit: 1000 });
-      setInstitutes(result.data.map((i: any) => ({ id: i.id, name: i.name })));
+      const allRows = await fetchAllPages((page) => instituteService.getAll(page));
+      setInstitutes(allRows.map((i: any) => ({ id: i.id, name: i.name })));
     } catch (err) {
-      console.error('Error:', err);
+      logError('Error', err);
     }
   };
 
@@ -164,7 +166,7 @@ export default function SalarySummary() {
         ) : (
           <>
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-border">
+              <table className="data-table min-w-full divide-y divide-border">
                 <thead className="bg-muted">
                   <tr>
                     <SortableTh

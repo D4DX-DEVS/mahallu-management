@@ -113,6 +113,9 @@ const CounsellingCaseSchema = new Schema<ICounsellingCase>(
   { timestamps: true }
 );
 
+// Case numbers are unique inside a Mahallu. NOTE: the build fails on a database that already holds
+// duplicate numbers: review and fix those first.
+CounsellingCaseSchema.index({ tenantId: 1, caseNo: 1 }, { unique: true });
 CounsellingCaseSchema.index({ tenantId: 1, status: 1 });
 CounsellingCaseSchema.index({ tenantId: 1, category: 1 });
 CounsellingCaseSchema.index({ tenantId: 1, appointmentDate: -1 });
@@ -177,6 +180,9 @@ const DisputeCaseSchema = new Schema<IDisputeCase>(
   { timestamps: true }
 );
 
+// Case numbers are unique inside a Mahallu. NOTE: the build fails on a database that already holds
+// duplicate numbers: review and fix those first.
+DisputeCaseSchema.index({ tenantId: 1, caseNo: 1 }, { unique: true });
 DisputeCaseSchema.index({ tenantId: 1, status: 1 });
 DisputeCaseSchema.index({ tenantId: 1, type: 1 });
 
@@ -245,6 +251,9 @@ const InheritanceCaseSchema = new Schema<IInheritanceCase>(
   { timestamps: true }
 );
 
+// Case numbers are unique inside a Mahallu. NOTE: the build fails on a database that already holds
+// duplicate numbers: review and fix those first.
+InheritanceCaseSchema.index({ tenantId: 1, caseNo: 1 }, { unique: true });
 InheritanceCaseSchema.index({ tenantId: 1, status: 1 });
 
 export const CounsellingCase = mongoose.model<ICounsellingCase>(

@@ -89,7 +89,6 @@ export default function CreateMahallUser() {
       await userService.create({
         ...data,
         role: 'mahall',
-        password: '123456', // Default password
         tenantId: isSuperAdmin ? data.tenantId : undefined,
       });
       navigate(ROUTES.USERS.MAHALL);

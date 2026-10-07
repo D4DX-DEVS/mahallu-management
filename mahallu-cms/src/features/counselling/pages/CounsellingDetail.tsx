@@ -1,15 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { FiArrowLeft, FiEdit2, FiSave } from 'react-icons/fi';
+import { FiArrowLeft, FiEdit2, FiSave, FiTrash2 } from 'react-icons/fi';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import { PageSkeleton } from '@/components/ui/Skeleton';
+import Modal from '@/components/ui/Modal';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { toast } from '@/store/toastStore';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import {
   getCounsellingCaseById,
   addCounsellingNote,
   updateCounsellingCase,
+  deleteCounsellingCase,
   ICounsellingCase,
 } from '@/services/counsellingService';
 import PageHeader from '@/components/layout/PageHeader';
@@ -24,6 +27,10 @@ export default function CounsellingDetail() {
   const [addingNote, setAddingNote] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editStatus, setEditStatus] = useState('');
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [showSaveConfirm, setShowSaveConfirm] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (id) fetchCase(id);
@@ -62,13 +69,30 @@ export default function CounsellingDetail() {
   const handleSaveStatus = async () => {
     if (!id) return;
     try {
+      setSaving(true);
       const response = await updateCounsellingCase(id, { status: editStatus as any });
       setCaseRecord(response.data);
       setIsEditing(false);
+      setShowSaveConfirm(false);
       toast.success('Case status updated');
     } catch (error) {
       console.error("Couldn't update status:", error);
       toast.error(errorMessage(error, { action: 'update case status' }));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!id) return;
+    try {
+      setDeleting(true);
+      await deleteCounsellingCase(id);
+      toast.success('Counselling case deleted');
+      navigate('/counselling');
+    } catch (error) {
+      toast.error(errorMessage(error, { action: 'delete counselling case' }));
+      setDeleting(false);
     }
   };
 
@@ -77,7 +101,16 @@ export default function CounsellingDetail() {
 
   return (
     <div>
-      <PageHeader title="Counselling case" breadcrumbs={[{ label: 'Counselling', path: '/counselling' }]} />
+      <div className="flex gap-2 items-center justify-between">
+        <div className="flex items-center gap-4">
+          <PageHeader title="Counselling case" breadcrumbs={[{ label: 'Counselling', path: '/counselling' }]} />
+          <div className="flex gap-2 items-center">
+            <Button variant="danger" onClick={() => setShowDeleteModal(true)} icon={<FiTrash2 />} collapseLabel>
+              Delete
+            </Button>
+          </div>
+        </div>
+      </div>
       <div>
         <Button
           variant="ghost"
@@ -151,7 +184,7 @@ export default function CounsellingDetail() {
                   <option value="closed">Closed</option>
                 </select>
                 <div className="flex flex-wrap gap-2">
-                  <Button variant="primary" size="sm" onClick={handleSaveStatus}>
+                  <Button variant="primary" size="sm" onClick={() => setShowSaveConfirm(true)} disabled={saving}>
                     <FiSave size={16} />
                     Save
                   </Button>
@@ -215,6 +248,37 @@ export default function CounsellingDetail() {
           </Card>
         )}
       </div>
+
+      <ConfirmDialog
+        isOpen={showSaveConfirm}
+        title="Save this case status?"
+        message={`This will change the counselling case status to “${editStatus.replace(/_/g, ' ')}”.`}
+        confirmLabel="Save status"
+        variant="primary"
+        isLoading={saving}
+        onConfirm={handleSaveStatus}
+        onCancel={() => setShowSaveConfirm(false)}
+      />
+
+      <Modal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        title="Delete Counselling Case"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setShowDeleteModal(false)}>
+              Cancel
+            </Button>
+            <Button variant="danger" onClick={handleDelete} isLoading={deleting}>
+              Delete
+            </Button>
+          </>
+        }
+      >
+        <p className="text-gray-600 dark:text-gray-400">
+          Are you sure you want to delete <strong>{caseRecord.caseNo}</strong>? This action cannot be undone.
+        </p>
+      </Modal>
     </div>
   );
 }

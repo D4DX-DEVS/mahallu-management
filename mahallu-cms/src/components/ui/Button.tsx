@@ -70,14 +70,14 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     ref
   ) => {
     const base =
-      'inline-flex items-center justify-center gap-2 rounded-md font-medium transition-colors ' +
+      'inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-[background-color,border-color,color,box-shadow,transform] duration-150 active:scale-[0.98] ' +
       'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ' +
       'focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50 ' +
       'whitespace-nowrap';
     const variants = {
       primary: 'bg-primary text-primary-foreground shadow-sm hover:bg-primary/90',
       secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
-      outline: 'border border-border bg-transparent text-foreground hover:bg-muted',
+      outline: 'border border-border bg-card text-foreground shadow-sm hover:bg-muted',
       ghost: 'text-muted-foreground hover:bg-muted hover:text-foreground',
       danger: 'bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90',
     };
@@ -104,11 +104,9 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     const iconOnly = size === 'icon' || size === 'icon-sm';
     const collapsed = collapseLabel && Boolean(icon) && !iconOnly;
     if (import.meta.env.DEV && iconOnly && !props['aria-label']) {
-      // eslint-disable-next-line no-console
       console.warn('Button: icon-only buttons require an aria-label.');
     }
     if (import.meta.env.DEV && collapseLabel && !icon) {
-      // eslint-disable-next-line no-console
       console.warn('Button: collapseLabel needs an icon — a collapsed button would be empty.');
     }
     /* Every glyph the same size, whatever the call site passed. */

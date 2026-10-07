@@ -7,12 +7,14 @@ import Alert from '@/components/ui/Alert';
 import Dropdown, { DropdownItem } from '@/components/ui/Dropdown';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import { reportService, OrphansReport } from '@/services/reportService';
-import { exportToPDF } from '@/utils/exportUtils';
+import { exportToCSV, exportToPDF } from '@/utils/exportUtils';
+import { TableColumn } from '@/types';
 import { loadErrorInfo, LoadErrorInfo } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
 import SortableTh from '@/components/ui/SortableTh';
 import { useSortableRows } from '@/hooks/useSortableRows';
+import { logError } from '@/utils/safeLog';
 
 export default function OrphansReportPage() {
   const [report, setReport] = useState<OrphansReport | null>(null);
@@ -31,63 +33,39 @@ export default function OrphansReportPage() {
       setReport(data);
     } catch (err: any) {
       setError(loadErrorInfo(err, 'orphans report'));
-      console.error('Error fetching report:', err);
+      logError('Error fetching report', err);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleExportCSV = () => {
-    if (!report) return;
-    const csvData = sortedOrphans.map((orphan) => ({
-      Name: orphan.name,
-      Age: orphan.age || '-',
-      Gender: orphan.gender || '-',
-      Family: orphan.family || '-',
-    }));
+  const exportColumns: TableColumn[] = [
+    { key: 'name', label: 'Name' },
+    { key: 'age', label: 'Age' },
+    { key: 'gender', label: 'Gender' },
+    { key: 'familyName', label: 'Family' },
+  ];
 
-    const headers = ['Name', 'Age', 'Gender', 'Family'];
-    const csvRows = [headers.join(',')];
-
-    csvData.forEach((row) => {
-      const values = headers.map((header) => {
-        const value = row[header as keyof typeof row] ?? '';
-        const escaped = String(value).replace(/"/g, '""');
-        return escaped.includes(',') ? `"${escaped}"` : escaped;
-      });
-      csvRows.push(values.join(','));
-    });
-
-    const csvContent = csvRows.join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-
-    link.setAttribute('href', url);
-    link.setAttribute('download', `orphans-report-${new Date().toISOString().split('T')[0]}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  const handlePrintPDF = () => {
-    if (!report) return;
-    const columns = [
-      { key: 'name', label: 'Name' },
-      { key: 'age', label: 'Age' },
-      { key: 'gender', label: 'Gender' },
-      { key: 'familyName', label: 'Family' },
-    ];
-
-    const data = report.orphans.map((orphan) => ({
+  const toExportRows = (orphans: NonNullable<typeof report>['orphans']) =>
+    orphans.map((orphan) => ({
       name: orphan.name,
       age: orphan.age || '-',
       gender: orphan.gender || '-',
       familyName: orphan.family || '-',
     }));
 
-    exportToPDF(columns, data, `orphans-report-${new Date().toISOString().split('T')[0]}`, 'Orphans Report');
+  const exportFilename = () => `orphans-report-${new Date().toISOString().split('T')[0]}`;
+
+  // The CSV follows the order on screen; exportToCSV applies the shared CSV
+  // safeguards (BOM, quoting, formula guard).
+  const handleExportCSV = () => {
+    if (!report) return;
+    exportToCSV(exportColumns, toExportRows(sortedOrphans), exportFilename());
+  };
+
+  const handlePrintPDF = async () => {
+    if (!report) return;
+    await exportToPDF(exportColumns, toExportRows(report.orphans), exportFilename(), 'Orphans Report');
   };
 
   const {
@@ -141,7 +119,7 @@ export default function OrphansReportPage() {
       <Card>
         <h2 className="text-lg font-semibold mb-3">Orphan Details</h2>
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-border">
+          <table className="data-table min-w-full divide-y divide-border">
             <thead className="bg-muted">
               <tr>
                 <SortableTh sortKey="name" sort={sort} onSort={toggleSort}>

@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { employmentService, type SkillTraining, type EmploymentSummary } from '@/services/employmentService';
 import Button from '@/components/ui/Button';
 import ExpandableSearch from '@/components/ui/ExpandableSearch';
+import ActionBar from '@/components/ui/ActionBar';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
 import ActionsMenu from '@/components/ui/ActionsMenu';
@@ -152,7 +153,7 @@ export default function TrainingsList() {
         breadcrumbs={[{ label: 'Employment' }]}
       />
       <div className="space-y-2">
-        <div className="flex items-center gap-2">
+        <ActionBar className="mb-0">
           <ExpandableSearch
             value={search}
             onChange={(value) => {
@@ -165,7 +166,7 @@ export default function TrainingsList() {
           <Button onClick={() => navigate('/employment/trainings/create')} icon={<FiPlus />} collapseLabel>
             New Training
           </Button>
-        </div>
+        </ActionBar>
         <div className="flex gap-2 flex-wrap">
           {['', 'planned', 'ongoing', 'completed', 'cancelled'].map((status) => (
             <button

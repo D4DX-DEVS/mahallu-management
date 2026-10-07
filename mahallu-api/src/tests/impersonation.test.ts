@@ -7,6 +7,7 @@ import { startImpersonation, exitImpersonation } from '../controllers/authContro
 import { authMiddleware, superAdminOnly } from '../middleware/authMiddleware';
 import User from '../models/User';
 import Tenant from '../models/Tenant';
+import { invalidateTenantStatus } from '../services/tenantStatusService';
 import Institute from '../models/Institute';
 import Member from '../models/Member';
 
@@ -309,9 +310,13 @@ test('authMiddleware rejects a tampered/invalid imp.role value', async () => {
 
 test('a normal (non-impersonation) token still authenticates exactly as before', async () => {
   const originalFindById = User.findById;
+  const originalTenantFindById = Tenant.findById;
+  invalidateTenantStatus();
   (User as any).findById = () => ({
     select: async () => ({ _id: 'normalUserId', isSuperAdmin: false, status: 'active', role: 'mahall', tenantId: 'tenantA' }),
   });
+  // The tenant is checked on every request now; an active one lets the request through unchanged.
+  (Tenant as any).findById = () => ({ select: async () => ({ status: 'active' }) });
   try {
     const token = jwt.sign({ userId: 'normalUserId', isSuperAdmin: false }, process.env.JWT_SECRET as string, {
       expiresIn: '5m',
@@ -323,5 +328,7 @@ test('a normal (non-impersonation) token still authenticates exactly as before',
     assert.equal(req.impersonation, undefined);
   } finally {
     (User as any).findById = originalFindById;
+    (Tenant as any).findById = originalTenantFindById;
+    invalidateTenantStatus();
   }
 });

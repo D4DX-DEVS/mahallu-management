@@ -94,13 +94,19 @@ export default function DemographicsReport() {
     );
   }
 
+  const ageGroups = Array.isArray(report.ageGroups) ? report.ageGroups : [];
+  const education = Array.isArray(report.education) ? report.education : [];
+  const employment = Array.isArray(report.employment) ? report.employment : [];
+  const welfare = Array.isArray(report.welfare) ? report.welfare : [];
+  const gender = report.gender ?? { male: 0, female: 0 };
+
   const totals = [
-    { label: 'Men', value: report.gender.male },
-    { label: 'Women', value: report.gender.female },
-    { label: 'Total', value: report.gender.male + report.gender.female },
+    { label: 'Men', value: gender.male ?? 0 },
+    { label: 'Women', value: gender.female ?? 0 },
+    { label: 'Total', value: (gender.male ?? 0) + (gender.female ?? 0) },
     {
       label: 'Age 60+',
-      value: report.ageGroups.find((group) => group.label === '60+')?.count ?? 0,
+      value: ageGroups.find((group) => group.label === '60+')?.count ?? 0,
     },
   ];
 
@@ -124,10 +130,10 @@ export default function DemographicsReport() {
       </div>
 
       <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
-        <Section title="Age Groups" data={report.ageGroups} />
-        <Section title="Employment" data={report.employment} />
-        <Section title="Education" data={report.education} />
-        <Section title="Welfare Status" data={report.welfare} />
+        <Section title="Age Groups" data={ageGroups} />
+        <Section title="Employment" data={employment} />
+        <Section title="Education" data={education} />
+        <Section title="Welfare Status" data={welfare} />
       </div>
     </div>
   );

@@ -8,6 +8,7 @@ import Select from '@/components/ui/Select';
 import Table from '@/components/ui/Table';
 import Modal from '@/components/ui/Modal';
 import ExpandableSearch from '@/components/ui/ExpandableSearch';
+import ActionBar from '@/components/ui/ActionBar';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import EmptyState from '@/components/ui/EmptyState';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
@@ -59,6 +60,7 @@ export default function FacilitiesList() {
   const [isConfirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deletingName, setDeletingName] = useState<string>('');
+  const [viewing, setViewing] = useState<LocalityFacility | null>(null);
 
   const debouncedSearch = useDebounce(searchQuery, 500);
 
@@ -192,8 +194,8 @@ export default function FacilitiesList() {
         breadcrumbs={[{ label: 'Survey', path: '/survey' }]}
       />
 
-      <TableCard>
-        <div className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto_auto] sm:items-center">
+      <TableCard borderless>
+        <ActionBar>
           <ExpandableSearch
             value={searchQuery}
             onChange={(value) => {
@@ -202,16 +204,18 @@ export default function FacilitiesList() {
             }}
             entity="facilities"
           />
-          <Select
-            options={[{ value: '', label: 'All types' }, ...TYPE_OPTIONS]}
-            value={typeFilter}
-            onChange={(e) => {
-              setTypeFilter(e.target.value);
-              setCurrentPage(1);
-            }}
-          />
-          <Button size="md" onClick={openCreate} icon={<FiPlus />} collapseLabel>New Facility</Button>
-        </div>
+          <div className="min-w-0 flex-1 sm:w-48 sm:flex-none">
+            <Select
+              options={[{ value: '', label: 'All types' }, ...TYPE_OPTIONS]}
+              value={typeFilter}
+              onChange={(e) => {
+                setTypeFilter(e.target.value);
+                setCurrentPage(1);
+              }}
+            />
+          </div>
+          <Button size="md" onClick={openCreate} icon={<FiPlus />} collapseLabel className="flex-shrink-0">New Facility</Button>
+        </ActionBar>
 
         {loading ? (
           <PageSkeleton variant="section" />
@@ -227,7 +231,15 @@ export default function FacilitiesList() {
             }}
           />
         ) : (
-          <Table fixedLayout striped columns={columns} data={rows} emptyMessage="No facilities recorded" showExport={false} />
+          <Table
+            fixedLayout
+            striped
+            columns={columns}
+            data={rows}
+            emptyMessage="No facilities recorded"
+            showExport={false}
+            onRowClick={(row) => setViewing(row)}
+          />
         )}
 
         {pagination && (
@@ -329,6 +341,76 @@ export default function FacilitiesList() {
             {saving ? 'Saving...' : 'Save'}
           </Button>
         </div>
+      </Modal>
+
+      <Modal
+        isOpen={Boolean(viewing)}
+        onClose={() => setViewing(null)}
+        title="Facility Details"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setViewing(null)}>
+              Close
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (viewing) openEdit(viewing);
+                setViewing(null);
+              }}
+            >
+              Edit
+            </Button>
+            <Button
+              variant="danger"
+              onClick={() => {
+                if (viewing) openDeleteConfirm(viewing);
+                setViewing(null);
+              }}
+            >
+              Delete
+            </Button>
+          </>
+        }
+      >
+        {viewing && (
+          <div className="space-y-3">
+            <div>
+              <span className="text-sm text-gray-500 dark:text-gray-400">Name</span>
+              <p className="text-gray-900 dark:text-gray-100">{toTitleCase(viewing.name)}</p>
+            </div>
+            {viewing.nameMl && (
+              <div>
+                <span className="text-sm text-gray-500 dark:text-gray-400">Name (Malayalam)</span>
+                <p className="font-malayalam text-gray-900 dark:text-gray-100">{viewing.nameMl}</p>
+              </div>
+            )}
+            <div>
+              <span className="text-sm text-gray-500 dark:text-gray-400">Type</span>
+              <p className="text-gray-900 dark:text-gray-100">
+                {TYPE_OPTIONS.find((option) => option.value === viewing.type)?.label || viewing.type || '-'}
+              </p>
+            </div>
+            {viewing.address && (
+              <div>
+                <span className="text-sm text-gray-500 dark:text-gray-400">Address</span>
+                <p className="text-gray-900 dark:text-gray-100">{toTitleCase(viewing.address)}</p>
+              </div>
+            )}
+            {viewing.contactNo && (
+              <div>
+                <span className="text-sm text-gray-500 dark:text-gray-400">Contact No.</span>
+                <p className="text-gray-900 dark:text-gray-100">{viewing.contactNo}</p>
+              </div>
+            )}
+            {viewing.notes && (
+              <div>
+                <span className="text-sm text-gray-500 dark:text-gray-400">Notes</span>
+                <p className="text-gray-900 dark:text-gray-100">{viewing.notes}</p>
+              </div>
+            )}
+          </div>
+        )}
       </Modal>
 
       <ConfirmDialog

@@ -11,8 +11,15 @@ import { PageSkeleton } from '@/components/ui/Skeleton';
 import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
 import Modal from '@/components/ui/Modal';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { TableColumn, Pagination as PaginationType } from '@/types';
-import { collectibleService, Varisangya } from '@/services/collectibleService';
+import {
+  collectibleService,
+  Varisangya,
+  CollectionSummary,
+  EMPTY_COLLECTION_SUMMARY,
+  summarizeCollectionRows,
+} from '@/services/collectibleService';
 import { fetchAllPages } from '@/services/api';
 import { buildVarisangyaColumns, getPayerName, getFamilyName } from '../varisangyaColumns';
 import { filterByDateRange } from '../varisangyaFilters';
@@ -22,8 +29,9 @@ import { exportInvoicesToPdf, downloadInvoicePdf, InvoiceDetails } from '@/utils
 import { familyService } from '@/services/familyService';
 import { memberService } from '@/services/memberService';
 import { toast } from '@/store/toastStore';
-import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import { errorMessage, isConflict, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { logError } from '@/utils/safeLog';
 
 export default function VarisangyaList() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -37,10 +45,16 @@ export default function VarisangyaList() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
+  /* Totals for the whole filtered set (every page), from the server. */
+  const [summary, setSummary] = useState<CollectionSummary>(EMPTY_COLLECTION_SUMMARY);
   const [isExporting, setIsExporting] = useState(false);
   const [editingRow, setEditingRow] = useState<Varisangya | null>(null);
   const [savingEdit, setSavingEdit] = useState(false);
   const [editForm, setEditForm] = useState({ amount: 0, paymentDate: '', paymentMethod: '', remarks: '' });
+  const [deleteConfirm, setDeleteConfirm] = useState<Varisangya | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [verifyConfirm, setVerifyConfirm] = useState<Varisangya | null>(null);
+  const [verifying, setVerifying] = useState(false);
 
   useEffect(() => {
     fetchVarisangyas();
@@ -50,60 +64,41 @@ export default function VarisangyaList() {
     try {
       setLoading(true);
       setError(null);
-      const hasDateFilter = Boolean(dateFrom || dateTo);
       const hasFamilyFilter = familyNameFilter.trim().length > 0;
-      const hasClientFilter = hasDateFilter || hasFamilyFilter;
+      // The date range is filtered by the server, which also totals the whole range.
+      const dateParams: { dateFrom?: string; dateTo?: string } = {};
+      if (dateFrom) dateParams.dateFrom = dateFrom;
+      if (dateTo) dateParams.dateTo = dateTo;
       let data: Varisangya[];
       let total: number;
       let hasPagination: boolean;
-      if (hasClientFilter) {
-        // Client-side date/name filtering needs every matching row, not one page.
-        // The endpoint caps limit at 100 and 400s above it, so the old
-        // limit:10000 request always failed - page through instead.
-        const filterParams: Record<string, unknown> = { _t: Date.now() };
-        if (dateFrom) filterParams.dateFrom = dateFrom;
-        if (dateTo) filterParams.dateTo = dateTo;
-        data = await fetchAllPages<Varisangya>((p) =>
-          collectibleService.getAllVarisangyas({ ...filterParams, ...p })
+      if (hasFamilyFilter) {
+        // The name filter runs in the browser, so it needs every row in the date
+        // range, not one page. The endpoint caps limit at 100 - page through
+        // instead. Every row is in hand, so the totals are summed from them.
+        const all = await fetchAllPages<Varisangya>((p) =>
+          collectibleService.getAllVarisangyas({ ...dateParams, ...p })
         );
-        total = data.length;
+        const q = familyNameFilter.trim().toLowerCase();
+        const matching = all.filter((row) => getPayerName(row).toLowerCase().includes(q));
+        setSummary(summarizeCollectionRows(matching));
+        total = matching.length;
+        const start = (currentPage - 1) * itemsPerPage;
+        data = matching.slice(start, start + itemsPerPage);
         hasPagination = true;
       } else {
-        const result = await collectibleService.getAllVarisangyas({ page: currentPage, limit: itemsPerPage });
+        // Server paging: the summary covers the whole filtered set, so the cards
+        // stay right when only the page changes.
+        const result = await collectibleService.getAllVarisangyas({
+          ...dateParams,
+          page: currentPage,
+          limit: itemsPerPage,
+        });
         data = result.data ?? [];
         total = result.pagination?.total ?? data.length;
         hasPagination = Boolean(result.pagination);
+        setSummary(result.summary);
       }
-      if (hasDateFilter) data = filterByDateRange(data, dateFrom, dateTo);
-      if (hasFamilyFilter) {
-        const q = familyNameFilter.trim().toLowerCase();
-        data = data.filter((row) => getPayerName(row).toLowerCase().includes(q));
-      }
-      if (hasClientFilter) {
-        total = data.length;
-        const start = (currentPage - 1) * itemsPerPage;
-        data = data.slice(start, start + itemsPerPage);
-      }
-      console.log('[Varisangya Filter] Response:', {
-        count: data.length,
-        total,
-        firstPaymentDate: data[0]?.paymentDate,
-      });
-      console.log(
-        '[Varisangya Filter] What the UI is showing (each row):',
-        data.map((row, i) => ({
-          no: i + 1,
-          name:
-            typeof row.memberId === 'object' && row.memberId?.name
-              ? row.memberId.name
-              : typeof row.familyId === 'object' && row.familyId?.houseName
-                ? row.familyId.houseName
-                : '-',
-          amount: row.amount,
-          paymentDate: row.paymentDate,
-          receiptNo: row.receiptNo,
-        }))
-      );
       setVarisangyas(data);
       if (hasPagination) {
         setPagination({
@@ -115,7 +110,7 @@ export default function VarisangyaList() {
       }
     } catch (err: any) {
       setError(loadErrorMessage(err, 'varisangyas'));
-      console.error('Error fetching varisangyas:', err);
+      logError('Error fetching varisangyas', err);
     } finally {
       setLoading(false);
     }
@@ -250,7 +245,7 @@ export default function VarisangyaList() {
 
       await downloadInvoicePdf(invoiceDetails);
     } catch (error: any) {
-      console.error('Error generating PDF:', error);
+      logError('Error generating PDF', error);
       toast.error(error?.message || "Couldn't generate PDF");
     }
   };
@@ -285,29 +280,57 @@ export default function VarisangyaList() {
     }
   };
 
-  const handleVerify = async (row: Varisangya) => {
+  const handleVerify = async () => {
+    if (!verifyConfirm?.id) return;
     try {
-      await collectibleService.verifyVarisangya(row.id);
+      setVerifying(true);
+      await collectibleService.verifyVarisangya(verifyConfirm.id);
       toast.success('Varisangya verified');
+      setVerifyConfirm(null);
       await fetchVarisangyas();
     } catch (err: any) {
       toast.error(errorMessage(err, { action: 'verify varisangya' }));
+      if (isConflict(err)) {
+        // Already processed elsewhere: close the dialog and show the row as it is now.
+        setVerifyConfirm(null);
+        await fetchVarisangyas();
+      }
+    } finally {
+      setVerifying(false);
     }
   };
 
-  const columns = buildVarisangyaColumns({ openEdit, handleViewPdf, onVerify: handleVerify });
+  const handleDeleteConfirm = async () => {
+    if (!deleteConfirm?.id) return;
+    try {
+      setDeleting(true);
+      await collectibleService.deleteVarisangya(deleteConfirm.id);
+      toast.success('Varisangya payment deleted');
+      setDeleteConfirm(null);
+      await fetchVarisangyas();
+    } catch (err: any) {
+      toast.error(errorMessage(err, { action: 'delete varisangya payment' }));
+    } finally {
+      setDeleting(false);
+    }
+  };
 
-  const totalAmount = varisangyas.reduce((sum, v) => sum + (v.amount || 0), 0);
+  const columns = buildVarisangyaColumns({
+    openEdit,
+    handleViewPdf,
+    onVerify: (row) => setVerifyConfirm(row),
+    onDelete: (row) => setDeleteConfirm(row),
+  });
 
   const stats = [
     {
       title: 'Total Payments',
-      value: pagination?.total || varisangyas.length,
+      value: summary.count,
       icon: <FiCreditCard className="h-5 w-5" />,
     },
     {
       title: 'Total Amount',
-      value: `₹${totalAmount.toLocaleString()}`,
+      value: `₹${summary.totalAmount.toLocaleString()}`,
       icon: <FiDollarSign className="h-5 w-5" />,
     },
   ];
@@ -324,7 +347,7 @@ export default function VarisangyaList() {
         </div>
       </div>
 
-      <TableCard>
+      <TableCard borderless>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -446,6 +469,7 @@ export default function VarisangyaList() {
             data={varisangyas}
             emptyMessage="No varisangya payments found"
             showExport={false}
+            onRowClick={(row) => openEdit(row)}
           />
         )}
 
@@ -517,6 +541,39 @@ export default function VarisangyaList() {
           </div>
         )}
       </Modal>
+
+      {/* Delete Modal */}
+      <Modal
+        isOpen={!!deleteConfirm}
+        onClose={() => setDeleteConfirm(null)}
+        title="Delete Payment"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setDeleteConfirm(null)}>
+              Cancel
+            </Button>
+            <Button variant="danger" onClick={handleDeleteConfirm} isLoading={deleting}>
+              Delete
+            </Button>
+          </>
+        }
+      >
+        <p className="text-gray-600 dark:text-gray-400">
+          Are you sure you want to delete this payment (
+          <strong>₹{deleteConfirm?.amount?.toLocaleString()}</strong> - {deleteConfirm && toTitleCase(getPayerName(deleteConfirm))}
+          )? This action cannot be undone.
+        </p>
+      </Modal>
+      <ConfirmDialog
+        isOpen={!!verifyConfirm}
+        title="Verify this payment?"
+        message={`This will mark the varisangya payment from ${verifyConfirm ? toTitleCase(getPayerName(verifyConfirm)) : 'this payer'} as verified.`}
+        confirmLabel="Verify payment"
+        variant="primary"
+        isLoading={verifying}
+        onConfirm={handleVerify}
+        onCancel={() => setVerifyConfirm(null)}
+      />
     </div>
   );
 }

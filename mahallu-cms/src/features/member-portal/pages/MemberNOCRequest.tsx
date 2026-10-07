@@ -60,7 +60,7 @@ export default function MemberNOCRequest() {
   // Nikah NOC — same fields as the standalone Register Nikah form
   const [side, setSide] = useState<'groom' | 'bride'>('groom');
   const [subjectMemberId, setSubjectMemberId] = useState('');
-  const [groomName, setGroomName] = useState(user?.name || '');
+  const [groomName, setGroomName] = useState('');
   const [groomAge, setGroomAge] = useState('');
   const [brideName, setBrideName] = useState('');
   const [brideAge, setBrideAge] = useState('');

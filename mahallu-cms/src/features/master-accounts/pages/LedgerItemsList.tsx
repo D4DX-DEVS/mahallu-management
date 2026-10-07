@@ -14,7 +14,13 @@ import Pagination from '@/components/ui/Pagination';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import TableToolbar from '@/components/ui/TableToolbar';
 import { TableColumn, Pagination as PaginationType } from '@/types';
-import { masterAccountService, LedgerItem, Ledger } from '@/services/masterAccountService';
+import {
+  masterAccountService,
+  LedgerItem,
+  Ledger,
+  Category,
+  LedgerItemsSummary,
+} from '@/services/masterAccountService';
 import { instituteService } from '@/services/instituteService';
 import { useAuthStore } from '@/store/authStore';
 import { formatDate, toTitleCase } from '@/utils/format';
@@ -24,6 +30,8 @@ import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import ActionsMenu from '@/components/ui/ActionsMenu';
 import { sanitizeAmountInput } from '@/utils/validation';
+import { fetchAllPages } from '@/services/api';
+import { logError } from '@/utils/safeLog';
 
 export default function LedgerItemsList() {
   const { currentInstituteId: userInstituteId } = useAuthStore();
@@ -32,11 +40,14 @@ export default function LedgerItemsList() {
   const [ledgerFilter, setLedgerFilter] = useState('all');
   const [items, setItems] = useState<LedgerItem[]>([]);
   const [ledgers, setLedgers] = useState<Ledger[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
+  /* Income / expense across every item matching the filters (all pages), from the server. */
+  const [summary, setSummary] = useState<LedgerItemsSummary>({ totalIncome: 0, totalExpense: 0, net: 0, count: 0 });
   const [isExporting, setIsExporting] = useState(false);
   const [selectedItem, setSelectedItem] = useState<LedgerItem | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -56,6 +67,7 @@ export default function LedgerItemsList() {
 
   useEffect(() => {
     fetchLedgers();
+    fetchCategories();
     if (!userInstituteId) {
       // The API caps `limit` at 100 and answers 400 above it — getAllForExport
       // pages through all institutes instead of failing the dropdown silently.
@@ -73,11 +85,21 @@ export default function LedgerItemsList() {
   const fetchLedgers = async () => {
     try {
       // Fetch all ledgers for dropdown (no pagination needed for filter)
-      const result = await masterAccountService.getAllLedgers({ limit: 1000 });
-      setLedgers(Array.isArray(result.data) ? result.data : []);
+      const allRows = await fetchAllPages((page) => masterAccountService.getAllLedgers(page));
+      setLedgers(Array.isArray(allRows) ? allRows : []);
     } catch (err) {
-      console.error('Error fetching ledgers:', err);
+      logError('Error fetching ledgers', err);
       setLedgers([]);
+    }
+  };
+
+  const fetchCategories = async () => {
+    try {
+      const allRows = await fetchAllPages((page) => masterAccountService.getAllCategories(page));
+      setCategories(Array.isArray(allRows) ? allRows : []);
+    } catch (err) {
+      logError('Error fetching categories', err);
+      setCategories([]);
     }
   };
 
@@ -97,12 +119,18 @@ export default function LedgerItemsList() {
       }
       const result = await masterAccountService.getLedgerItems(params);
       setItems(Array.isArray(result.data) ? result.data : []);
+      setSummary({
+        totalIncome: Number(result.summary?.totalIncome) || 0,
+        totalExpense: Number(result.summary?.totalExpense) || 0,
+        net: Number(result.summary?.net) || 0,
+        count: Number(result.summary?.count) || 0,
+      });
       if (result.pagination) {
         setPagination(result.pagination);
       }
     } catch (err: any) {
       setError(loadErrorMessage(err, 'ledger items'));
-      console.error('Error fetching items:', err);
+      logError('Error fetching items', err);
       setItems([]);
     } finally {
       setLoading(false);
@@ -113,12 +141,13 @@ export default function LedgerItemsList() {
     try {
       setIsExporting(true);
 
-      const params: any = { limit: 10000 };
+      const params: any = {};
       if (ledgerFilter !== 'all') params.ledgerId = ledgerFilter;
       if (instituteFilter !== 'all') params.instituteId = instituteFilter;
 
-      const result = await masterAccountService.getLedgerItems(params);
-      const dataToExport = Array.isArray(result.data) ? result.data : [];
+      const dataToExport = await fetchAllPages((page) =>
+        masterAccountService.getLedgerItems({ ...params, ...page })
+      );
 
       if (dataToExport.length === 0) {
         toast.info('No ledger items to export');
@@ -136,11 +165,11 @@ export default function LedgerItemsList() {
           exportToJSON(columns, dataToExport, filename);
           break;
         case 'pdf':
-          exportToPDF(columns, dataToExport, filename, title);
+          await exportToPDF(columns, dataToExport, filename, title);
           break;
       }
     } catch (error: any) {
-      console.error('Export error:', error);
+      logError('Export error', error);
       toast.error(error?.message || "Couldn't export ledger items");
     } finally {
       setIsExporting(false);
@@ -284,9 +313,6 @@ export default function LedgerItemsList() {
     }
   };
 
-  const totalIncome = items.filter((i) => i.type === 'income').reduce((sum, i) => sum + (i.amount || 0), 0);
-  const totalExpense = items.filter((i) => i.type === 'expense').reduce((sum, i) => sum + (i.amount || 0), 0);
-
   // The list endpoint has no `search` query param, so — same as the Mahallu
   // Finance ledger items screen — the search box filters the page already loaded.
   const filteredItems = items.filter(
@@ -297,12 +323,12 @@ export default function LedgerItemsList() {
     { title: 'Total Items', value: pagination?.total || items.length, icon: <FiList className="h-5 w-5" /> },
     {
       title: 'Total Income',
-      value: `₹${totalIncome.toLocaleString()}`,
+      value: `₹${summary.totalIncome.toLocaleString()}`,
       icon: <FiTrendingUp className="h-5 w-5" />,
     },
     {
       title: 'Total Expense',
-      value: `₹${totalExpense.toLocaleString()}`,
+      value: `₹${summary.totalExpense.toLocaleString()}`,
       icon: <FiTrendingDown className="h-5 w-5" />,
     },
   ];
@@ -319,7 +345,7 @@ export default function LedgerItemsList() {
         </div>
       </div>
 
-      <TableCard>
+      <TableCard borderless>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -382,7 +408,18 @@ export default function LedgerItemsList() {
           />
         ) : (
           <>
-            <Table fixedLayout striped columns={columns} data={filteredItems} emptyMessage="No ledger items found" showExport={false} />
+            <Table
+              fixedLayout
+              striped
+              columns={columns}
+              data={filteredItems}
+              emptyMessage="No ledger items found"
+              showExport={false}
+              onRowClick={(row) => {
+                setSelectedItem(row);
+                setShowViewModal(true);
+              }}
+            />
             {pagination && pagination.totalPages > 1 && (
               <div className="mt-4">
                 <Pagination
@@ -407,15 +444,39 @@ export default function LedgerItemsList() {
         }}
         title="Ledger Item Details"
         footer={
-          <Button
-            variant="outline"
-            onClick={() => {
-              setShowViewModal(false);
-              setSelectedItem(null);
-            }}
-          >
-            Close
-          </Button>
+          <>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowViewModal(false);
+                setSelectedItem(null);
+              }}
+            >
+              Close
+            </Button>
+            {!(selectedItem?.source && selectedItem.source !== 'manual') && (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    if (selectedItem) openEditModal(selectedItem);
+                    setShowViewModal(false);
+                  }}
+                >
+                  Edit
+                </Button>
+                <Button
+                  variant="danger"
+                  onClick={() => {
+                    setShowViewModal(false);
+                    setShowDeleteModal(true);
+                  }}
+                >
+                  Delete
+                </Button>
+              </>
+            )}
+          </>
         }
       >
         {selectedItem && (
@@ -438,6 +499,12 @@ export default function LedgerItemsList() {
               <p className="text-xs text-gray-500 dark:text-gray-400">Ledger</p>
               <p className="text-gray-900 dark:text-gray-100">
                 {toTitleCase(ledgers.find((l) => l.id === selectedItem.ledgerId)?.name) || '—'}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Category</p>
+              <p className="text-gray-900 dark:text-gray-100">
+                {toTitleCase(categories.find((c) => c.id === selectedItem.categoryId)?.name) || '—'}
               </p>
             </div>
             <div className="sm:col-span-2">

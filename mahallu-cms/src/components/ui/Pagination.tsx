@@ -50,7 +50,7 @@ export default function Pagination({
   const startItem = (safeCurrentPage - 1) * safePerPage + 1;
   const endItem = Math.min(safeCurrentPage * safePerPage, safeTotalItems);
   const btn =
-    'inline-flex h-9 min-w-9 items-center justify-center rounded-md px-2 text-sm transition-colors ' +
+    'inline-flex h-9 min-w-9 items-center justify-center rounded-lg px-2 text-sm transition-colors ' +
     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-40 disabled:pointer-events-none';
   return (
     <nav

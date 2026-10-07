@@ -16,7 +16,7 @@ import { ROUTES } from '@/constants/routes';
  * available-accounts query.
  */
 export function useAccountSwitcher() {
-  const { user, setUser, setToken } = useAuthStore();
+  const { user, setUser, setToken, resetSessionContext } = useAuthStore();
   const [accounts, setAccounts] = useState<AccountOption[]>([]);
   const [hasLoaded, setHasLoaded] = useState(false);
   const [isSwitching, setIsSwitching] = useState(false);
@@ -37,6 +37,7 @@ export function useAccountSwitcher() {
       setIsSwitching(true);
       setError(null);
       const response = await authService.switchAccount(account.userId);
+      resetSessionContext();
       setUser(response.user);
       setToken(response.token);
       // A full reload, not a client-side navigate — every store (tenant

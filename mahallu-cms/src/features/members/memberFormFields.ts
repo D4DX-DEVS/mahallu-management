@@ -6,6 +6,10 @@ export const OTHER_RELATIONSHIP = 'other';
 export const HEALTHY_STATUS = 'healthy';
 /** Health status code under which disability details are captured. */
 export const DISABLED_STATUS = 'disabled';
+/** Education dropdown code that opens the free-text "specify" box. */
+export const OTHER_EDUCATION = 'other';
+
+export const isOtherEducation = (education?: string) => education === OTHER_EDUCATION;
 
 export const isOtherRelationship = (relationship?: string) => relationship === OTHER_RELATIONSHIP;
 
@@ -62,6 +66,8 @@ export const conditionalSchemaFields = {
   dateOfBirth: z.string().optional(),
   healthNotes: z.string().max(500, 'Health details must be 500 characters or less').optional(),
   relationshipOther: z.string().max(100, 'Relationship must be 100 characters or less').optional(),
+  educationOther: z.string().max(200, 'Qualification must be 200 characters or less').optional(),
+  externalInstitution: z.string().max(200, 'Please keep this to 200 characters or less').optional(),
 };
 
 /**
@@ -89,6 +95,8 @@ export const normalizeConditionalFields = (data: Record<string, any>) => ({
   dateOfBirth: data.dateOfBirth || undefined,
   relationshipOther: isOtherRelationship(data.relationship) ? data.relationshipOther?.trim() || '' : '',
   healthNotes: needsHealthNotes(data.healthStatus) ? data.healthNotes?.trim() || '' : '',
+  education: isOtherEducation(data.education) ? data.educationOther?.trim() || '' : data.education,
+  educationOther: isOtherEducation(data.education) ? data.educationOther?.trim() || '' : '',
 });
 
 /** API record -> form defaults for the edit form. */
@@ -99,4 +107,6 @@ export const conditionalDefaults = (member: Record<string, any>) => ({
   // Falls back to the retired socio-economic field so text captured there
   // still surfaces (and gets re-saved) in its new home.
   healthNotes: member.healthNotes || member.disabilityDetails || '',
+  educationOther: member.educationOther || '',
+  externalInstitution: member.externalInstitution || '',
 });

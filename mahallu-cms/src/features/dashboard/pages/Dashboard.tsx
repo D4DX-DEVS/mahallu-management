@@ -1,27 +1,26 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiHome, FiUsers, FiDollarSign, FiClock } from 'react-icons/fi';
+import {
+  FiActivity,
+  FiAlertCircle,
+  FiArrowRight,
+  FiCalendar,
+  FiClock,
+  FiUser,
+  FiUsers,
+} from 'react-icons/fi';
 import {
   PieChart,
   Pie,
   Cell,
-  BarChart,
-  Bar,
-  LabelList,
-  XAxis,
-  YAxis,
-  CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  AreaChart,
-  Area,
 } from 'recharts';
 import Card from '@/components/ui/Card';
 import Alert from '@/components/ui/Alert';
 import EmptyState from '@/components/ui/EmptyState';
-import PageHeader from '@/components/layout/PageHeader';
 import CommunitySnapshot from '../components/CommunitySnapshot';
-import DashboardStatCard from '../components/DashboardStatCard';
+import FinanceSnapshot from '../components/FinanceSnapshot';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import {
   dashboardService,
@@ -34,12 +33,9 @@ import { ROUTES } from '@/constants/routes';
 import { formatDate, toTitleCase } from '@/utils/format';
 import { loadErrorInfo, LoadErrorInfo } from '@/utils/errors';
 import { useChartTheme, tooltipStyle } from '@/utils/chartTheme';
-import { useAuthStore } from '@/store/authStore';
 export default function Dashboard() {
   const navigate = useNavigate();
   const chart = useChartTheme();
-  const user = useAuthStore((state) => state.user);
-  const firstName = user?.name?.split(' ')[0];
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [recentFamilies, setRecentFamilies] = useState<RecentFamily[]>([]);
   const [activityTimeline, setActivityTimeline] = useState<ActivityTimelineData[]>([]);
@@ -83,78 +79,23 @@ export default function Dashboard() {
     if (diffInDays < 30) return Math.floor(diffInDays / 7) + ' weeks ago';
     return formatDate(dateString);
   };
-  /*
-   *
-   * Tiles lead with what a Mahall admin can act on today.
-   *
-   * "Total Users" — the count of admin accounts — used to be the first figure
-   * on a community operations dashboard. A tile earns its place if someone
-   * would click it or act on it. */
-  const statCards = stats
-    ? [
-        {
-          label: 'Families awaiting approval',
-          value: stats.families.pending,
-          icon: <FiClock className="h-4 w-4" />,
-          hint: 'of ' + stats.families.total + ' families',
-          onClick: () => navigate(ROUTES.FAMILIES.LIST),
-        },
-        {
-          label: 'Families',
-          value: stats.families.total,
-          icon: <FiHome className="h-4 w-4" />,
-          onClick: () => navigate(ROUTES.FAMILIES.LIST),
-        },
-        {
-          label: 'Members',
-          value: stats.members.total,
-          icon: <FiUsers className="h-4 w-4" />,
-          onClick: () => navigate(ROUTES.MEMBERS.LIST),
-        },
-        /*
-         * Financial summary is only fetched successfully for roles the backend
-         * grants it to (super_admin, mahall, institute) - a survey admin gets a
-         * 403 that the fetch swallows into `null`. Only show the tile once real
-         * data has loaded, so a role without finance access sees no tile
-         * instead of a fabricated "₹0" that reads as a real, empty balance.
-         */
-        ...(financialSummary
-          ? [
-              {
-                label: 'Income this month',
-                value: '₹' + (financialSummary.monthlyIncome || 0).toLocaleString('en-IN'),
-                icon: <FiDollarSign className="h-4 w-4" />,
-                hint: 'Bank balance ₹' + (financialSummary.totalBankBalance || 0).toLocaleString('en-IN'),
-                trend:
-                  financialSummary.incomeGrowthPercent != null
-                    ? {
-                        value: Math.abs(financialSummary.incomeGrowthPercent),
-                        isPositive: financialSummary.incomeGrowthPercent >= 0,
-                      }
-                    : undefined,
-              },
-            ]
-          : []),
-      ]
-    : [];
   const genderData = stats
     ? [
         { name: 'Male', value: stats.members.male },
         { name: 'Female', value: stats.members.female },
       ]
     : [];
-  const familyStatusData = stats
-    ? [
-        { name: 'Approved', value: stats.families.approved },
-        { name: 'Pending', value: stats.families.pending },
-        { name: 'Unapproved', value: stats.families.unapproved },
-      ]
-    : [];
+  const totalFamilies = stats?.families.total ?? 0;
+  const approvedFamilies = stats?.families.approved ?? 0;
+  const pendingFamilies = stats?.families.pending ?? 0;
+  const approvalPercent = totalFamilies > 0 ? Math.round((approvedFamilies / totalFamilies) * 100) : 0;
+  const maxActivity = Math.max(1, ...activityTimeline.map((item) => item.value));
+  const latestFamily = recentFamilies[0];
+  const latestFamilyInitials = latestFamily ? getInitials(latestFamily.familyName) : '';
   if (loading) return <PageSkeleton />;
   if (error) {
     return (
       <>
-        <PageHeader title="Dashboard" />
         <Alert
           variant={error.variant}
           title={error.title}
@@ -165,147 +106,245 @@ export default function Dashboard() {
       </>
     );
   }
-  // Hierarchical overview: awaiting approval is the actionable hero, others are quiet totals.
-  const pendingStat = statCards.find((s) => s.label === 'Families awaiting approval');
-  const otherStats = statCards.filter((s) => s.label !== 'Families awaiting approval');
-
   return (
     <>
-      <div className="border-b border-border/60 bg-card/50">
-        <div className="mx-auto max-w-content px-3 py-3 sm:px-0 sm:py-4">
-          <PageHeader
-            title={firstName ? `Welcome back, ${firstName}` : 'Dashboard'}
-            description="What needs your attention across the mahallu today."
-          />
-        </div>
-      </div>
-      <div className="space-y-4 py-3 sm:py-4">
-        {/* OVERVIEW — four equal-sized cards, not a hero + siblings */}
-        {statCards.length > 0 && (
-          <section className="grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-4">
-            {pendingStat && (
-              <div className="flex min-h-[104px] flex-col justify-between rounded-xl bg-amber-500/10 p-3 ring-1 ring-amber-500/20 sm:min-h-[136px] sm:p-3.5">
+      <div className="space-y-4">
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+          <Card padding="none" className="overflow-hidden">
+            <div className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-5">
+              <div className="flex items-center gap-2.5">
+                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                  <FiClock className="h-4 w-4" aria-hidden="true" />
+                </span>
                 <div>
-                  <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-400">
-                    <FiClock className="h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" /> <span className="truncate">Needs attention</span>
-                  </p>
-                  <p className="mt-1.5 text-xl font-bold tracking-tight text-foreground tabular-nums sm:text-2xl">{pendingStat.value}</p>
-                  <p className="mt-0.5 truncate text-xs text-muted-foreground">{pendingStat.label} — {pendingStat.hint}</p>
+                  <h2 className="text-sm font-semibold text-foreground">Pending approvals</h2>
+                  <p className="text-xs text-muted-foreground">Work that needs a decision</p>
                 </div>
-                <button
-                  type="button"
-                  onClick={pendingStat.onClick}
-                  className="mt-2 inline-flex w-fit items-center gap-1.5 rounded-full bg-amber-600 px-3 py-1 text-xs font-medium text-white transition-colors hover:bg-amber-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-600"
-                >
-                  Review families <span aria-hidden="true">→</span>
-                </button>
               </div>
-            )}
-            {otherStats.map((stat) => (
-              <div
-                key={stat.label}
-                className="flex min-h-[104px] flex-col justify-between rounded-xl border border-border bg-card p-3 sm:min-h-[136px] sm:p-3.5"
+              <button
+                type="button"
+                onClick={() => navigate(ROUTES.FAMILIES.LIST)}
+                className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
-                <div className="min-w-0">
-                  <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                    <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">{stat.icon}</span>
-                    <span className="truncate">{stat.label}</span>
-                  </p>
-                  <p className="mt-1.5 text-xl font-semibold tabular-nums tracking-tight text-foreground sm:text-2xl">{stat.value}</p>
-                </div>
-                <div className="min-w-0">
-                  {stat.hint && <p className="truncate text-xs tabular-nums text-muted-foreground">{stat.hint}</p>}
-                  {stat.trend && (
-                    <p className={`mt-0.5 inline-flex items-center gap-1 text-xs font-medium tabular-nums ${stat.trend.isPositive ? 'text-success' : 'text-destructive'}`}>
-                      <span aria-hidden="true">{stat.trend.isPositive ? '↑' : '↓'}</span> {stat.trend.value}% vs last month
-                    </p>
-                  )}
+                Review families <FiArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+              </button>
+            </div>
+            <div className="flex items-center gap-5 p-4 sm:gap-8 sm:p-5">
+              <div
+                className="relative mx-auto flex h-32 w-32 items-center justify-center rounded-full sm:h-36 sm:w-36"
+                style={{
+                  background: `conic-gradient(hsl(var(--primary)) ${approvalPercent}%, hsl(var(--border)) 0)`,
+                }}
+                role="img"
+                aria-label={`${approvalPercent}% of families approved`}
+              >
+                <div className="flex h-24 w-24 flex-col items-center justify-center rounded-full bg-card sm:h-28 sm:w-28">
+                  <span className="text-3xl font-semibold leading-none tabular-nums text-foreground">
+                    {pendingFamilies}
+                  </span>
+                  <span className="mt-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                    pending
+                  </span>
                 </div>
               </div>
-            ))}
-          </section>
-        )}
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-foreground">Family approvals</p>
+                <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                  {pendingFamilies > 0
+                    ? `${pendingFamilies} family registration${pendingFamilies === 1 ? '' : 's'} need review.`
+                    : 'All family registrations are up to date.'}
+                </p>
+                <p className="mt-2 text-xs text-muted-foreground">{totalFamilies} families registered in total</p>
+              </div>
+            </div>
+          </Card>
 
-        <CommunitySnapshot>{null}</CommunitySnapshot>
-        <div className="grid grid-cols-1 items-stretch gap-4 lg:grid-cols-5">
-          <div className="flex h-full flex-col rounded-xl border border-border bg-card p-3 sm:p-3.5 lg:col-span-3 lg:min-h-[230px]">
-            <div className="mb-2.5 flex items-baseline justify-between gap-2">
-              <h2 className="text-sm font-semibold text-foreground">New registrations</h2>
-              <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium tabular-nums text-muted-foreground">Last 7 days</span>
+          <FinanceSnapshot
+            summary={financialSummary}
+            onViewAccounts={() => navigate(ROUTES.MAHALLU_FINANCE.ACCOUNTS)}
+            onOpenDayBook={() => navigate(ROUTES.MAHALLU_FINANCE.DAY_BOOK)}
+          />
+
+          <Card padding="none" className="overflow-hidden">
+            <div className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-5">
+              <div className="flex items-center gap-2.5">
+                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                  <FiActivity className="h-4 w-4" aria-hidden="true" />
+                </span>
+                <div>
+                  <h2 className="text-sm font-semibold text-foreground">Community pulse</h2>
+                  <p className="text-xs text-muted-foreground">A quick view of your mahallu</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => navigate('/reports/community')}
+                className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                View report <FiArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+              </button>
             </div>
-            {activityTimeline.every((d) => d.value === 0) ? (
-              <div className="flex min-h-[120px] flex-1 items-center justify-center rounded-lg bg-muted/30">
-                <p className="text-sm text-muted-foreground">No registrations this week</p>
+            <div className="space-y-4 p-4 sm:p-5">
+              <div className="flex items-center gap-3">
+                <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                  {latestFamily ? (
+                    <span className="text-sm font-semibold">{latestFamilyInitials}</span>
+                  ) : (
+                    <FiUser className="h-5 w-5" aria-hidden="true" />
+                  )}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs text-muted-foreground">Latest family registration</p>
+                  <p className="truncate text-sm font-semibold text-foreground">
+                    {latestFamily ? toTitleCase(latestFamily.familyName) : 'No registrations yet'}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {latestFamily ? getTimeAgo(latestFamily.createdAt) : 'New entries will appear here'}
+                  </p>
+                </div>
               </div>
-            ) : (
-              <div className="min-h-[120px] w-full flex-1">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={activityTimeline}>
-                    <defs>
-                      <linearGradient id="registrationsFill" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor={chart.primary} stopOpacity={0.15} />
-                        <stop offset="95%" stopColor={chart.primary} stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={chart.grid} />
-                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: chart.axis, fontSize: 11 }} dy={10} />
-                    <YAxis axisLine={false} tickLine={false} tick={{ fill: chart.axis, fontSize: 11 }} allowDecimals={false} width={28} />
-                    <Tooltip contentStyle={tooltipStyle(chart)} formatter={(value: number) => [value + (value === 1 ? ' registration' : ' registrations'), '']} />
-                    <Area type="monotone" dataKey="value" stroke={chart.primary} strokeWidth={2} fillOpacity={1} fill="url(#registrationsFill)" dot={{ r: 3, fill: chart.primary, strokeWidth: 0 }} activeDot={{ r: 5, fill: chart.primary, strokeWidth: 2, stroke: chart.tooltipBg }} />
-                  </AreaChart>
-                </ResponsiveContainer>
+              <div className="grid grid-cols-2 divide-x divide-border rounded-lg border border-border bg-muted/30">
+                <div className="px-3 py-3 text-center">
+                  <p className="text-lg font-semibold tabular-nums text-foreground">{totalFamilies}</p>
+                  <p className="mt-0.5 text-[11px] text-muted-foreground">Families</p>
+                </div>
+                <div className="px-3 py-3 text-center">
+                  <p className="text-lg font-semibold tabular-nums text-foreground">{stats?.members.total ?? 0}</p>
+                  <p className="mt-0.5 text-[11px] text-muted-foreground">Members</p>
+                </div>
               </div>
-            )}
-          </div>
-          <div className="flex h-full flex-col rounded-xl border border-border bg-card p-3 sm:p-3.5 lg:col-span-2 lg:min-h-[230px]">
-            <div className="mb-2.5 flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-foreground">Latest registrations</h2>
-              <span className="text-xs tabular-nums text-muted-foreground">{recentFamilies.length} recent</span>
             </div>
-            {recentFamilies.length > 0 ? (
-              <div className="flex-1 divide-y divide-border/60 overflow-hidden rounded-lg border border-border/60">
-                {recentFamilies.map((family) => (
-                  <button
-                    key={family.id}
-                    type="button"
-                    onClick={() => navigate('/families/' + family.id)}
-                    className="flex w-full items-center gap-3 px-3 py-1.5 text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
-                  >
-                    <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary" aria-hidden="true">
-                      {getInitials(family.familyName)}
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-medium text-foreground">{toTitleCase(family.familyName)}</span>
-                      <span className="block truncate text-xs text-muted-foreground">{getTimeAgo(family.createdAt)}</span>
-                    </span>
-                    <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center text-muted-foreground" aria-hidden="true">→</span>
-                  </button>
-                ))}
+          </Card>
+
+          <Card padding="none" className="overflow-hidden">
+            <div className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-5">
+              <div className="flex items-center gap-2.5">
+                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                  <FiCalendar className="h-4 w-4" aria-hidden="true" />
+                </span>
+                <div>
+                  <h2 className="text-sm font-semibold text-foreground">Registration activity</h2>
+                  <p className="text-xs text-muted-foreground">New family entries over the last 7 days</p>
+                </div>
               </div>
-            ) : (
-              <div className="flex min-h-[100px] flex-1 items-center justify-center rounded-lg border border-dashed border-border text-center">
-                <p className="text-sm text-muted-foreground">No recent families</p>
+              <button
+                type="button"
+                onClick={() => navigate(ROUTES.FAMILIES.LIST)}
+                className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                See all <FiArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+              </button>
+            </div>
+            <div className="p-4 sm:p-5">
+              <div className="grid grid-cols-7 gap-1.5 sm:gap-2">
+                {activityTimeline.map((item) => {
+                  const date = new Date(item.date);
+                  const dateLabel = Number.isNaN(date.getTime()) ? item.name : date.toLocaleDateString('en', { weekday: 'short' });
+                  const dayNumber = Number.isNaN(date.getTime()) ? '' : date.getDate();
+                  const isPeak = item.value === maxActivity && item.value > 0;
+                  return (
+                    <div key={`${item.date}-${item.name}`} className="flex min-w-0 flex-col items-center gap-2">
+                      <span className="text-[11px] font-medium text-muted-foreground">{dateLabel}</span>
+                      <div className="flex h-24 w-full items-end justify-center rounded-lg bg-muted/40 p-1.5">
+                        <div
+                          className={isPeak ? 'w-full rounded-md bg-primary' : 'w-full rounded-md bg-primary/25'}
+                          style={{ height: `${Math.max(item.value > 0 ? 18 : 5, (item.value / maxActivity) * 100)}%` }}
+                          title={`${item.value} registrations`}
+                        />
+                      </div>
+                      <span className="text-xs font-semibold tabular-nums text-foreground">{dayNumber || item.value}</span>
+                    </div>
+                  );
+                })}
               </div>
-            )}
-          </div>
+              {activityTimeline.length === 0 && (
+                <EmptyState variant="empty" entity="registration activity" className="py-4" />
+              )}
+            </div>
+          </Card>
+
+          <Card padding="none" className="overflow-hidden">
+            <div className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-5">
+              <div className="flex items-center gap-2.5">
+                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                  <FiAlertCircle className="h-4 w-4" aria-hidden="true" />
+                </span>
+                <div>
+                  <h2 className="text-sm font-semibold text-foreground">Status tracker</h2>
+                  <p className="text-xs text-muted-foreground">Where the community stands today</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => navigate(ROUTES.FAMILIES.LIST)}
+                className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                Manage <FiArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+              </button>
+            </div>
+            <div className="space-y-3 p-4 sm:p-5">
+              {recentFamilies.length > 0 ? (
+                <div className="divide-y divide-border">
+                  {recentFamilies.slice(0, 3).map((family) => {
+                    const status = family.status?.replace(/_/g, ' ') || 'pending';
+                    const statusClass =
+                      family.status === 'approved'
+                        ? 'bg-success/10 text-success'
+                        : family.status === 'rejected'
+                          ? 'bg-destructive/10 text-destructive'
+                          : 'bg-warning/10 text-warning';
+                    return (
+                      <button
+                        type="button"
+                        key={family.id}
+                        onClick={() => navigate(`/families/${family.id}`)}
+                        className="flex w-full items-center gap-3 py-3 text-left first:pt-0 last:pb-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      >
+                        <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                          {getInitials(family.familyName)}
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-sm font-medium text-foreground">
+                            {toTitleCase(family.familyName)}
+                          </span>
+                          <span className="block text-xs text-muted-foreground">{getTimeAgo(family.createdAt)}</span>
+                        </span>
+                        <span className={`rounded-full px-2 py-1 text-[11px] font-medium capitalize ${statusClass}`}>
+                          {status}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <EmptyState variant="empty" entity="family statuses" className="py-4" />
+              )}
+              <div className="flex items-center gap-2 border-t border-border pt-3 text-xs text-muted-foreground">
+                <FiUsers className="h-4 w-4" aria-hidden="true" />
+                {stats?.members.total ?? 0} members are currently recorded in the mahallu register.
+              </div>
+            </div>
+          </Card>
         </div>
-        <div className="grid grid-cols-1 items-stretch gap-3 xl:grid-cols-2">
-          <Card className="flex h-full flex-col xl:min-h-[240px]">
-            <div className="mb-2.5">
+
+        <CommunitySnapshot />
+        <div className="grid grid-cols-1 gap-4">
+          <Card>
+            <div className="mb-4">
               <h2 className="text-base font-semibold text-foreground">Gender split</h2>
               <p className="text-xs text-muted-foreground">Across {stats?.members.total ?? 0} members</p>
             </div>
             {genderData.length > 0 && stats ? (
-              <div className="flex flex-1 flex-col items-center justify-center gap-4 sm:flex-row sm:justify-around">
-                <div className="relative h-[150px] w-[150px] flex-shrink-0">
+              <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-around">
+                <div className="relative h-[200px] w-[200px] flex-shrink-0">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
                         data={genderData}
                         cx="50%"
                         cy="50%"
-                        innerRadius={42}
-                        outerRadius={60}
+                        innerRadius={60}
+                        outerRadius={85}
                         paddingAngle={3}
                         dataKey="value"
                         stroke="none"
@@ -352,61 +391,7 @@ export default function Dashboard() {
                 </dl>
               </div>
             ) : (
-              <EmptyState variant="empty" entity="member records" className="flex-1 py-8" />
-            )}
-          </Card>
-          <Card className="flex h-full flex-col xl:min-h-[240px]">
-            <div className="mb-2.5">
-              <h2 className="text-base font-semibold text-foreground">Family status</h2>
-              <p className="text-xs text-muted-foreground">Registration status across all families</p>
-            </div>
-            {familyStatusData.length > 0 ? (
-              <div className="min-h-[150px] flex-1">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={familyStatusData}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={chart.grid} />
-                  <XAxis
-                    dataKey="name"
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fill: chart.axis, fontSize: 12 }}
-                    dy={10}
-                  />
-                  <YAxis
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fill: chart.axis, fontSize: 12 }}
-                    allowDecimals={false}
-                  />
-                  <Tooltip
-                    cursor={{ fill: chart.grid, fillOpacity: 0.3 }}
-                    contentStyle={tooltipStyle(chart)}
-                  />
-                  <Bar dataKey="value" radius={[6, 6, 0, 0]} barSize={40}>
-                    {familyStatusData.map((entry) => (
-                      <Cell
-                        key={entry.name}
-                        fill={
-                          entry.name === 'Approved'
-                            ? chart.success
-                            : entry.name === 'Pending'
-                              ? chart.warning
-                              : chart.destructive
-                        }
-                      />
-                    ))}
-                    <LabelList
-                      dataKey="value"
-                      position="top"
-                      offset={8}
-                      style={{ fill: chart.label, fontSize: 12, fontWeight: 600 }}
-                    />
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-              </div>
-            ) : (
-              <EmptyState variant="empty" entity="families" className="flex-1 py-8" />
+              <EmptyState variant="empty" entity="member records" className="py-8" />
             )}
           </Card>
         </div>

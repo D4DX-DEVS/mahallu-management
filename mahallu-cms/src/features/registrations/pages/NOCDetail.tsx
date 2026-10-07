@@ -11,8 +11,10 @@ import { registrationService, NOC } from '@/services/registrationService';
 import { formatDate, toTitleCase } from '@/utils/format';
 import { toast } from '@/store/toastStore';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import { sanitizeHtml } from '@/utils/sanitizeHtml';
 import StatusBadge from '@/components/ui/StatusBadge';
 import PageHeader from '@/components/layout/PageHeader';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 
 export default function NOCDetail() {
   const { id } = useParams<{ id: string }>();
@@ -25,6 +27,7 @@ export default function NOCDetail() {
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [statusRemark, setStatusRemark] = useState('');
   const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [showApproveConfirm, setShowApproveConfirm] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -50,7 +53,7 @@ export default function NOCDetail() {
     try {
       setIssuingCert(true);
       const cert = await registrationService.issueCertificate('noc', noc.id);
-      toast.success(`Certificate ${cert.certificateNo} issued`);
+      toast.success(`Certificate ${cert.certificateNo} ${cert.alreadyIssued ? 'was already issued' : 'issued'}`);
       setShowCertModal(false);
       await fetchNOC();
     } catch (err: any) {
@@ -74,6 +77,7 @@ export default function NOCDetail() {
         remarks: statusRemark || undefined,
       });
       toast.success('Status updated');
+      setShowApproveConfirm(false);
       setShowStatusModal(false);
       setStatusRemark('');
       await fetchNOC();
@@ -192,7 +196,7 @@ export default function NOCDetail() {
                 <span className="text-sm text-gray-500 dark:text-gray-400">Purpose Description</span>
                 <div
                   className="prose prose-sm max-w-none text-gray-900 dark:text-gray-100"
-                  dangerouslySetInnerHTML={{ __html: noc.purposeDescription || noc.purpose || '' }}
+                  dangerouslySetInnerHTML={{ __html: sanitizeHtml(noc.purposeDescription || noc.purpose || '') }}
                 />
               </div>
             )}
@@ -256,7 +260,7 @@ export default function NOCDetail() {
           <h2 className="text-lg font-semibold mb-3 text-foreground">Review Status</h2>
           <div className="flex gap-2 items-center">
             <Button
-              onClick={() => handleUpdateStatus('approved')}
+              onClick={() => setShowApproveConfirm(true)}
               className="bg-green-600 hover:bg-green-700" icon={<FiCheck />} collapseLabel>Approve</Button>
             <Button
               onClick={() => {
@@ -330,6 +334,16 @@ export default function NOCDetail() {
           </div>
         </div>
       </Modal>
+      <ConfirmDialog
+        isOpen={showApproveConfirm}
+        title="Approve this NOC?"
+        message="Approving this request will allow the certificate workflow to continue."
+        confirmLabel="Approve NOC"
+        variant="primary"
+        isLoading={updatingStatus}
+        onConfirm={() => handleUpdateStatus('approved')}
+        onCancel={() => setShowApproveConfirm(false)}
+      />
     </div>
   );
 }

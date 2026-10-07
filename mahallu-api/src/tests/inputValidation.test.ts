@@ -293,9 +293,11 @@ test('listQuery leaves an absent page and limit alone', async () => {
 test('an amount cannot be negative, absurd, or a word', async () => {
   const chain = [amountField('amount', 'amount', { required: true, min: 1 })];
   assert.deepEqual(await runChain(chain, { body: { amount: 500 } }), []);
-  assert.deepEqual(await runChain(chain, { body: { amount: -5 } }), ['Please enter a valid amount.']);
-  assert.deepEqual(await runChain(chain, { body: { amount: 1e308 } }), ['Please enter a valid amount.']);
-  assert.deepEqual(await runChain(chain, { body: { amount: 'lots' } }), ['Please enter a valid amount.']);
+  assert.deepEqual(await runChain(chain, { body: { amount: -5 } }), ['Please enter a valid amount (a number with at most 2 decimal places).']);
+  assert.deepEqual(await runChain(chain, { body: { amount: 1e308 } }), ['Please enter a valid amount (a number with at most 2 decimal places).']);
+  assert.deepEqual(await runChain(chain, { body: { amount: 'lots' } }), ['Please enter a valid amount (a number with at most 2 decimal places).']);
+  // a zero on the same chain: below the minimum, said plainly
+  assert.deepEqual(await runChain(chain, { body: { amount: 0 } }), ['The amount must be at least 1.']);
   assert.deepEqual(await runChain(chain, { body: {} }), ['Please enter the amount.']);
 });
 

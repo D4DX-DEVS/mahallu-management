@@ -21,8 +21,10 @@ import { formatDate, toTitleCase } from '@/utils/format';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { useServerCounts } from '@/hooks/useServerCounts';
 import ActionsMenu from '@/components/ui/ActionsMenu';
 import StatusBadge from '@/components/ui/StatusBadge';
+import { logError } from '@/utils/safeLog';
 
 export default function ProgramsList() {
   const navigate = useNavigate();
@@ -71,7 +73,7 @@ export default function ProgramsList() {
       }
     } catch (err: any) {
       setError(loadErrorMessage(err, 'programs'));
-      console.error('Error fetching programs:', err);
+      logError('Error fetching programs', err);
     } finally {
       setLoading(false);
     }
@@ -106,11 +108,11 @@ export default function ProgramsList() {
           exportToJSON(columns, dataToExport, filename);
           break;
         case 'pdf':
-          exportToPDF(columns, dataToExport, filename, title);
+          await exportToPDF(columns, dataToExport, filename, title);
           break;
       }
     } catch (error: any) {
-      console.error('Export error:', error);
+      logError('Export error', error);
       toast.error(error?.message || "Couldn't export programs");
     } finally {
       setIsExporting(false);
@@ -215,6 +217,19 @@ export default function ProgramsList() {
     },
   ];
 
+  // Whole-list counts from the server: these cards used to count only the rows on this page.
+  const countBase: { search?: string; audience?: string; programType?: string } = {};
+  if (debouncedSearch) countBase.search = debouncedSearch;
+  if (selectedAudience) countBase.audience = selectedAudience;
+  if (selectedProgramType) countBase.programType = selectedProgramType;
+  const statusCounts = useServerCounts(
+    {
+      active: () => programService.getAll({ ...countBase, status: 'active', page: 1, limit: 1 }),
+      inactive: () => programService.getAll({ ...countBase, status: 'inactive', page: 1, limit: 1 }),
+    },
+    [programs]
+  );
+
   const stats = [
     {
       title: 'Total Programs',
@@ -223,12 +238,12 @@ export default function ProgramsList() {
     },
     {
       title: 'Active',
-      value: programs.filter((p) => p.status === 'active' || !p.status).length,
+      value: statusCounts.active ?? programs.filter((p) => p.status === 'active' || !p.status).length,
       icon: <FiCheckCircle className="h-5 w-5" />,
     },
     {
       title: 'Inactive',
-      value: programs.filter((p) => p.status === 'inactive').length,
+      value: statusCounts.inactive ?? programs.filter((p) => p.status === 'inactive').length,
       icon: <FiXCircle className="h-5 w-5" />,
     },
   ];
@@ -245,7 +260,7 @@ export default function ProgramsList() {
         </div>
       </div>
 
-      <TableCard>
+      <TableCard borderless>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}

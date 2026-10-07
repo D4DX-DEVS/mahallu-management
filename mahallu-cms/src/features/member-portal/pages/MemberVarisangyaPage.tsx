@@ -40,7 +40,7 @@ function VarisangyaTable({ records }: { records: VarisangyaRecord[] }) {
 
   return (
     <div className="overflow-x-auto">
-      <table className="min-w-full text-sm">
+      <table className="data-table min-w-full text-sm">
         <thead>
           <tr className="text-left border-b border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400">
             <SortableTh sortKey="receiptNo" sort={sort} onSort={toggleSort} className="py-2 pr-4">

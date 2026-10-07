@@ -18,6 +18,10 @@ export const getAllInstitutes = async (req: AuthRequest, res: Response) => {
       query.tenantId = req.tenantId;
     } else if (tenantId && req.isSuperAdmin) {
       query.tenantId = tenantId;
+    } else if (!req.isSuperAdmin) {
+      // Nothing above scoped this query, and only a super admin may read across
+      // Mahallus. An account with no Mahallu of its own gets nothing, not everything.
+      return res.json(createPaginationResponse([], 0, page, limit));
     }
 
     if (type) query.type = type;
@@ -51,10 +55,9 @@ export const getInstituteById = async (req: AuthRequest, res: Response) => {
     if (!verifyTenantOwnership(req, res, institute.tenantId, 'Institute')) {
       return;
     }
-    // An institute admin may only see their own institute, not siblings in the same tenant
-    if (!verifyInstituteOwnership(req, res, institute._id, 'Institute')) {
-      return;
-    }
+    // Any institute in the caller's own Mahallu may be opened, including by an
+    // institute admin - the Mahallu check above is the boundary, and it is
+    // derived from the signed-in account, never from the request.
 
     res.json({ success: true, data: institute });
   } catch (error: any) {
@@ -96,10 +99,9 @@ export const updateInstitute = async (req: AuthRequest, res: Response) => {
     if (!verifyTenantOwnership(req, res, existingInstitute.tenantId, 'Institute')) {
       return;
     }
-    // An institute admin may only update their own institute, not siblings in the same tenant
-    if (!verifyInstituteOwnership(req, res, existingInstitute._id, 'Institute')) {
-      return;
-    }
+    // Same boundary as viewing: any institute in the caller's own Mahallu.
+    // tenantFilter has already pinned body.tenantId, so an update cannot move
+    // the institute to another Mahallu.
 
     const institute = await Institute.findByIdAndUpdate(
       req.params.id,

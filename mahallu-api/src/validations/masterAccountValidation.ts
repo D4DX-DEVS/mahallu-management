@@ -1,4 +1,5 @@
 import { body, param } from 'express-validator';
+import { accountNumberField, amountField, ifscField } from './common';
 
 // Common param validation for :id routes
 export const idParamValidation = [
@@ -18,13 +19,11 @@ export const createInstituteAccountValidation = [
     .withMessage('Please enter the account name.')
     .isLength({ min: 2, max: 200 })
     .withMessage('Please keep the account name between 2 and 200 characters.'),
-  body('accountNumber').optional().trim(),
+  accountNumberField('accountNumber', 'account number'),
   body('bankName').optional().trim(),
-  body('ifscCode').optional().trim(),
-  body('balance')
-    .optional()
-    .isFloat({ min: 0 })
-    .withMessage('Please enter a balance of zero or more.'),
+  ifscField('ifscCode', 'IFSC code'),
+  // An opening balance can be set once, here. Updates ignore `balance` (see updateInstituteAccount).
+  amountField('balance', 'opening balance'),
   body('status')
     .optional()
     .isIn(['active', 'inactive'])
@@ -54,10 +53,7 @@ export const createWalletValidation = [
     .withMessage('Please enter the wallet name.')
     .isLength({ min: 2, max: 200 })
     .withMessage('Please keep the wallet name between 2 and 200 characters.'),
-  body('balance')
-    .optional()
-    .isFloat({ min: 0 })
-    .withMessage('Please enter a balance of zero or more.'),
+  amountField('balance', 'opening balance'),
   body('type')
     .isIn(['main', 'reserve', 'charity'])
     .withMessage('Please choose a valid wallet type.'),
@@ -90,11 +86,7 @@ export const createLedgerItemValidation = [
     .withMessage('Please select the date.')
     .isISO8601()
     .withMessage('Please choose a valid date.'),
-  body('amount')
-    .notEmpty()
-    .withMessage('Please enter the amount.')
-    .isFloat({ min: 0 })
-    .withMessage('Please enter an amount greater than zero.'),
+  amountField('amount', 'amount', { required: true, min: 0.01 }),
   body('type')
     .notEmpty()
     .withMessage('Please select the type.')
@@ -118,10 +110,10 @@ export const createLedgerItemValidation = [
 export const updateInstituteAccountValidation = [
   ...idParamValidation,
   body('accountName').optional().trim().isLength({ min: 2, max: 200 }).withMessage('Please keep the account name between 2 and 200 characters.'),
-  body('accountNumber').optional().trim(),
+  accountNumberField('accountNumber', 'account number'),
   body('bankName').optional().trim(),
-  body('ifscCode').optional().trim(),
-  body('balance').optional().isFloat({ min: 0 }).withMessage('Please enter a balance of zero or more.'),
+  ifscField('ifscCode', 'IFSC code'),
+  // `balance` is not editable: the books move it. Any value sent is dropped by the controller.
   body('status').optional().isIn(['active', 'inactive']).withMessage('Please choose a valid status.'),
 ];
 
@@ -136,7 +128,6 @@ export const updateCategoryValidation = [
 export const updateWalletValidation = [
   ...idParamValidation,
   body('name').optional().trim().isLength({ min: 2, max: 200 }).withMessage('Please keep the wallet name between 2 and 200 characters.'),
-  body('balance').optional().isFloat({ min: 0 }).withMessage('Please enter a balance of zero or more.'),
   body('type').optional().isIn(['main', 'reserve', 'charity']).withMessage('Please choose a valid wallet type.'),
 ];
 
@@ -152,7 +143,7 @@ export const updateLedgerItemValidation = [
   ...idParamValidation,
   body('ledgerId').optional().isMongoId().withMessage('Please select a valid ledger.'),
   body('date').optional().isISO8601().withMessage('Please choose a valid date.'),
-  body('amount').optional().isFloat({ min: 0 }).withMessage('Please enter an amount greater than zero.'),
+  amountField('amount', 'amount', { min: 0.01 }),
   body('type').optional().isIn(['income', 'expense']).withMessage('Please choose either income or expense.'),
   body('description').optional().trim().isLength({ min: 1, max: 500 }).withMessage('Please keep the description between 1 and 500 characters.'),
   body('categoryId').optional().isMongoId().withMessage('Please select a valid category.'),

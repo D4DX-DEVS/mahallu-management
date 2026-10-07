@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FiCheckCircle, FiClock, FiEdit2, FiEye, FiFileText, FiPlus } from 'react-icons/fi';
+import { FiCheckCircle, FiClock, FiFileText, FiPlus } from 'react-icons/fi';
 import TableCard from '@/components/ui/TableCard';
 import FilterPanel from '@/components/ui/FilterPanel';
 import Button from '@/components/ui/Button';
@@ -21,7 +21,8 @@ import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import StatusBadge from '@/components/ui/StatusBadge';
 import PageHeader from '@/components/layout/PageHeader';
-import ActionsMenu from '@/components/ui/ActionsMenu';
+import { useServerCounts } from '@/hooks/useServerCounts';
+import { logError } from '@/utils/safeLog';
 
 export default function DeathRegistrationsList() {
   const navigate = useNavigate();
@@ -67,7 +68,7 @@ export default function DeathRegistrationsList() {
       }
     } catch (err: any) {
       setError(loadErrorMessage(err, 'death registrations'));
-      console.error('Error fetching registrations:', err);
+      logError('Error fetching registrations', err);
     } finally {
       setLoading(false);
     }
@@ -103,7 +104,7 @@ export default function DeathRegistrationsList() {
           exportToJSON(columns, dataToExport, filename);
           break;
         case 'pdf':
-          exportToPDF(columns, dataToExport, filename, title);
+          await exportToPDF(columns, dataToExport, filename, title);
           break;
       }
     } catch (error: any) {
@@ -136,33 +137,17 @@ export default function DeathRegistrationsList() {
         return <StatusBadge status={status} />;
       },
     },
-    {
-      key: 'actions',
-      label: 'Actions',
-      width: '8rem',
-      align: 'center',
-      render: (_, row) => (
-        <ActionsMenu
-          items={[
-            {
-              label: 'View',
-              icon: <FiEye className="h-4 w-4" />,
-              onClick: () => {
-                navigate(`/registrations/death/${row.id}`);
-              },
-            },
-            {
-              label: 'Edit',
-              icon: <FiEdit2 className="h-4 w-4" />,
-              onClick: () => {
-                navigate(`/registrations/death/${row.id}/edit`);
-              },
-            },
-          ]}
-        />
-      ),
-    },
   ];
+
+  // Whole-list counts from the server: these cards used to count only the rows on this page.
+  const countBase = debouncedSearch ? { search: debouncedSearch } : {};
+  const statusCounts = useServerCounts(
+    {
+      pending: () => registrationService.getAllDeath({ ...countBase, status: 'pending', page: 1, limit: 1 }),
+      approved: () => registrationService.getAllDeath({ ...countBase, status: 'approved', page: 1, limit: 1 }),
+    },
+    [registrations]
+  );
 
   const stats = [
     {
@@ -172,12 +157,12 @@ export default function DeathRegistrationsList() {
     },
     {
       title: 'Pending',
-      value: registrations.filter((r) => r.status === 'pending' || !r.status).length,
+      value: statusCounts.pending ?? registrations.filter((r) => r.status === 'pending' || !r.status).length,
       icon: <FiClock className="h-5 w-5" />,
     },
     {
       title: 'Approved',
-      value: registrations.filter((r) => r.status === 'approved').length,
+      value: statusCounts.approved ?? registrations.filter((r) => r.status === 'approved').length,
       icon: <FiCheckCircle className="h-5 w-5" />,
     },
   ];
@@ -194,7 +179,7 @@ export default function DeathRegistrationsList() {
         </div>
       </div>
 
-      <TableCard>
+      <TableCard borderless>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}

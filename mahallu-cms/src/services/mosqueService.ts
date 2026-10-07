@@ -4,6 +4,7 @@ export interface MosqueProfile {
   id: string;
   name: string;
   nameMl?: string;
+  address?: string;
   capacity?: number;
   facilities: string[];
   prayerFacilityNotes?: string;

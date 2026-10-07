@@ -4,7 +4,7 @@ import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import SearchableSelect from '@/components/ui/SearchableSelect';
 import { toast } from '@/store/toastStore';
-import { scholarshipService, AWARD_STATUS_OPTIONS } from '@/services/scholarshipService';
+import { scholarshipService } from '@/services/scholarshipService';
 import { memberService } from '@/services/memberService';
 import { fetchAllPages } from '@/services/api';
 import { errorMessage } from '@/utils/errors';
@@ -22,7 +22,6 @@ const RULES: Record<string, FieldRule> = {
   memberId: { label: 'member', required: true, type: 'id' },
   amount: { label: 'amount', required: true, type: 'number', min: 1, max: LIMITS.amount.max },
   awardedDate: { label: 'awarded date', type: 'date' },
-  status: { label: 'status', maxLength: LIMITS.shortText.max },
   remarks: { label: 'remarks', maxLength: LIMITS.notes.max },
 };
 
@@ -37,7 +36,6 @@ export default function AwardCreate() {
     memberId: '',
     amount: '',
     awardedDate: new Date().toISOString().split('T')[0],
-    status: 'applied',
     remarks: '',
   });
   const { errors, setErrors } = useFormValidation(RULES);
@@ -72,7 +70,6 @@ export default function AwardCreate() {
         memberId: formData.memberId,
         amount: parseInt(formData.amount),
         awardedDate: new Date(formData.awardedDate).toISOString(),
-        status: formData.status,
         remarks: formData.remarks || undefined,
       });
       const member = members.find((m) => (m._id || m.id) === formData.memberId);
@@ -129,22 +126,6 @@ export default function AwardCreate() {
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium mb-2">Status</label>
-              <select
-                aria-label="Status"
-                name="status"
-                value={formData.status}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700"
-              >
-                {AWARD_STATUS_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-            </div>
           </div>
 
           <Input

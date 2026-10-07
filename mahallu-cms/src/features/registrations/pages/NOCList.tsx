@@ -32,6 +32,8 @@ import { sanitizeDigits } from '@/utils/validation';
 import { buildNocColumns } from '../nocColumns';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { useServerCounts } from '@/hooks/useServerCounts';
+import { logError } from '@/utils/safeLog';
 
 export default function NOCList() {
   const navigate = useNavigate();
@@ -143,7 +145,7 @@ export default function NOCList() {
       }
     } catch (err: any) {
       setError(loadErrorMessage(err, 'nocs'));
-      console.error('Error fetching NOCs:', err);
+      logError('Error fetching NOCs', err);
     } finally {
       setLoading(false);
     }
@@ -177,7 +179,7 @@ export default function NOCList() {
             .join('; ')
         : null;
       setCreateError(detail || errorMessage(err, { action: 'create noc. please try again' }));
-      console.error('Error creating NOC:', err);
+      logError('Error creating NOC', err);
     }
   };
 
@@ -212,7 +214,7 @@ export default function NOCList() {
           exportToJSON(columns, dataToExport, filename);
           break;
         case 'pdf':
-          exportToPDF(columns, dataToExport, filename, title);
+          await exportToPDF(columns, dataToExport, filename, title);
           break;
       }
     } catch (error: any) {
@@ -224,6 +226,18 @@ export default function NOCList() {
 
   const columns = buildNocColumns({ navigate });
 
+  // Whole-list counts from the server: these cards used to count only the rows on this page.
+  const countBase: { search?: string; type?: string } = {};
+  if (debouncedSearch) countBase.search = debouncedSearch;
+  if (typeFilter !== 'all') countBase.type = typeFilter;
+  const statusCounts = useServerCounts(
+    {
+      pending: () => registrationService.getAllNOC({ ...countBase, status: 'pending', page: 1, limit: 1 }),
+      approved: () => registrationService.getAllNOC({ ...countBase, status: 'approved', page: 1, limit: 1 }),
+    },
+    [nocs]
+  );
+
   const stats = [
     {
       title: 'Total NOCs',
@@ -232,12 +246,12 @@ export default function NOCList() {
     },
     {
       title: 'Pending',
-      value: nocs.filter((n) => n.status === 'pending' || !n.status).length,
+      value: statusCounts.pending ?? nocs.filter((n) => n.status === 'pending' || !n.status).length,
       icon: <FiClock className="h-5 w-5" />,
     },
     {
       title: 'Approved',
-      value: nocs.filter((n) => n.status === 'approved').length,
+      value: statusCounts.approved ?? nocs.filter((n) => n.status === 'approved').length,
       icon: <FiCheckCircle className="h-5 w-5" />,
     },
   ];
@@ -264,7 +278,7 @@ export default function NOCList() {
         </div>
       </div>
 
-      <TableCard>
+      <TableCard borderless>
         <div className="mb-4">
           <Button variant="outline" onClick={() => setShowCreate(!showCreate)}>
             {showCreate ? 'Close NOC Form' : '+ Create NOC'}

@@ -32,6 +32,28 @@ const makeRes = () => {
   return { res, out };
 };
 
+
+/**
+ * verifyOTP now counts the attempt and consumes the code with atomic conditional updates
+ * (services/otpService.ts). This stub models the OTP collection those calls hit.
+ */
+const stubOtpCollection = (record: any) => {
+  (OTP as any).findOne = () => ({ sort: () => ({ select: async () => record }) });
+  (OTP as any).findOneAndUpdate = async (_filter: any, update: any) => {
+    if (update.$inc) {
+      if (record.isUsed || record.attempts >= 5) return null;
+      record.attempts += 1;
+      return record;
+    }
+    if (update.isUsed) {
+      if (record.isUsed) return null;
+      record.isUsed = true;
+      return record;
+    }
+    return record;
+  };
+};
+
 const stubOtpRecord = () => ({
   code: '123456',
   attempts: 0,
@@ -41,9 +63,10 @@ const stubOtpRecord = () => ({
 
 test('verifyOTP: a single active account logs in directly, no role selection', async () => {
   const originalOtpFindOne = OTP.findOne;
+  const originalOtpFindOneAndUpdate = OTP.findOneAndUpdate;
   const originalUserFind = User.find;
   const record = stubOtpRecord();
-  (OTP as any).findOne = () => ({ sort: async () => record });
+  stubOtpCollection(record);
   (User as any).find = async () => [
     { _id: 'onlyUserId', phone: '918000000000', status: 'active', role: 'mahall', isSuperAdmin: false, save: async () => {} },
   ];
@@ -59,15 +82,17 @@ test('verifyOTP: a single active account logs in directly, no role selection', a
     assert.ok(out.body.data.token, 'expected a token for the single-account path');
   } finally {
     (OTP as any).findOne = originalOtpFindOne;
+    (OTP as any).findOneAndUpdate = originalOtpFindOneAndUpdate;
     (User as any).find = originalUserFind;
   }
 });
 
 test('verifyOTP: multiple active accounts return requiresRoleSelection with the account list', async () => {
   const originalOtpFindOne = OTP.findOne;
+  const originalOtpFindOneAndUpdate = OTP.findOneAndUpdate;
   const originalUserFind = User.find;
   const record = stubOtpRecord();
-  (OTP as any).findOne = () => ({ sort: async () => record });
+  stubOtpCollection(record);
   (User as any).find = async () => [
     { _id: 'mahallUserId', phone: '918000000000', status: 'active', role: 'mahall', tenantId: null, instituteId: null },
     { _id: 'memberUserId', phone: '918000000000', status: 'active', role: 'member', tenantId: null, instituteId: null },
@@ -84,15 +109,17 @@ test('verifyOTP: multiple active accounts return requiresRoleSelection with the 
     assert.deepEqual(roles, ['mahall', 'member']);
   } finally {
     (OTP as any).findOne = originalOtpFindOne;
+    (OTP as any).findOneAndUpdate = originalOtpFindOneAndUpdate;
     (User as any).find = originalUserFind;
   }
 });
 
 test('verifyOTP: an inactive sibling is excluded, leaving a single active account (no role selection)', async () => {
   const originalOtpFindOne = OTP.findOne;
+  const originalOtpFindOneAndUpdate = OTP.findOneAndUpdate;
   const originalUserFind = User.find;
   const record = stubOtpRecord();
-  (OTP as any).findOne = () => ({ sort: async () => record });
+  stubOtpCollection(record);
   (User as any).find = async () => [
     { _id: 'activeUserId', phone: '918000000000', status: 'active', role: 'mahall', isSuperAdmin: false, save: async () => {} },
     { _id: 'inactiveUserId', phone: '918000000000', status: 'inactive', role: 'member' },
@@ -108,15 +135,17 @@ test('verifyOTP: an inactive sibling is excluded, leaving a single active accoun
     assert.ok(out.body.data.token);
   } finally {
     (OTP as any).findOne = originalOtpFindOne;
+    (OTP as any).findOneAndUpdate = originalOtpFindOneAndUpdate;
     (User as any).find = originalUserFind;
   }
 });
 
 test('verifyOTP: every sibling inactive is rejected rather than offered as a choice', async () => {
   const originalOtpFindOne = OTP.findOne;
+  const originalOtpFindOneAndUpdate = OTP.findOneAndUpdate;
   const originalUserFind = User.find;
   const record = stubOtpRecord();
-  (OTP as any).findOne = () => ({ sort: async () => record });
+  stubOtpCollection(record);
   (User as any).find = async () => [
     { _id: 'inactiveUserId', phone: '918000000000', status: 'inactive', role: 'mahall' },
   ];
@@ -129,6 +158,7 @@ test('verifyOTP: every sibling inactive is rejected rather than offered as a cho
     assert.equal(out.body.success, false);
   } finally {
     (OTP as any).findOne = originalOtpFindOne;
+    (OTP as any).findOneAndUpdate = originalOtpFindOneAndUpdate;
     (User as any).find = originalUserFind;
   }
 });

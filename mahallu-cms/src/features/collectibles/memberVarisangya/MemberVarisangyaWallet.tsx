@@ -1,6 +1,4 @@
-import { useState, useEffect } from 'react';
-import ActionsMenu from '@/components/ui/ActionsMenu';
-import { FiList } from 'react-icons/fi';
+import { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { FiDollarSign, FiCreditCard, FiCheckCircle } from 'react-icons/fi';
 import TableCard from '@/components/ui/TableCard';
@@ -8,16 +6,27 @@ import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
 import EmptyState from '@/components/ui/EmptyState';
 import { PageSkeleton } from '@/components/ui/Skeleton';
+import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
-import { TableColumn } from '@/types';
-import { collectibleService, Wallet } from '@/services/collectibleService';
+import { TableColumn, Pagination as PaginationType } from '@/types';
+import { collectibleService } from '@/services/collectibleService';
 import { memberService } from '@/services/memberService';
+import { fetchAllPages } from '@/services/api';
+import { useDebounce } from '@/hooks/useDebounce';
 import { formatDate, toTitleCase } from '@/utils/format';
 import { ROUTES } from '@/constants/routes';
 import { exportToCSV, exportToJSON } from '@/utils/exportUtils';
 import { exportInvoicesToPdf, InvoiceDetails } from '@/utils/invoiceUtils';
 import { toast } from '@/store/toastStore';
 import { loadErrorMessage } from '@/utils/errors';
+import {
+  EMPTY_WALLET_SUMMARY,
+  WALLET_PAGE_SIZE,
+  singleWalletRow,
+  summarizeWalletRows,
+  type WalletListRow,
+  type WalletListSummary,
+} from '@/utils/walletList';
 
 const MEMBER_BASE = ROUTES.COLLECTIBLES.MEMBER_VARISANGYA.BASE;
 
@@ -26,81 +35,105 @@ export default function MemberVarisangyaWallet() {
   const [searchParams] = useSearchParams();
   const memberId = searchParams.get('memberId');
 
-  const [wallets, setWallets] = useState<(Wallet & { member?: any })[]>([]);
+  /* One page of rows from the server: every members (with or without a wallet), not just those with a payment. */
+  const [wallets, setWallets] = useState<WalletListRow[]>([]);
+  /* Totals over the whole filtered set (all pages), from the server. */
+  const [summary, setSummary] = useState<WalletListSummary>(EMPTY_WALLET_SUMMARY);
+  const [pagination, setPagination] = useState<PaginationType | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isFilterVisible, setIsFilterVisible] = useState(false);
+  // A slow response for an old page/search must not overwrite a newer one.
+  const latestRequest = useRef(0);
+
+  const debouncedSearch = useDebounce(searchQuery, 500);
+
+  // A page number that only made sense for the previous search must not survive into the new one.
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearch]);
 
   useEffect(() => {
     fetchWallets();
-  }, [memberId]);
+  }, [memberId, debouncedSearch, currentPage]);
 
   const fetchWallets = async () => {
+    const requestId = ++latestRequest.current;
     try {
       setLoading(true);
       setError(null);
       if (memberId) {
-        const walletData = await collectibleService.getWallet({ memberId });
-        const memberData = await memberService.getById(memberId);
-        setWallets([{ ...walletData, member: memberData }]);
+        const [walletData, memberData] = await Promise.all([
+          collectibleService.getWallet({ memberId }),
+          memberService.getById(memberId),
+        ]);
+        if (requestId !== latestRequest.current) return;
+        const rows = [
+          singleWalletRow(
+            'member',
+            { id: memberId, name: memberData?.name, mahallId: memberData?.mahallId },
+            walletData
+          ),
+        ];
+        setWallets(rows);
+        setSummary(summarizeWalletRows(rows));
+        setPagination(null);
       } else {
-        const membersResult = await memberService.getAll();
-        const members = membersResult.data;
-        const walletsData: (Wallet & { member?: any })[] = [];
-        for (const member of members) {
-          try {
-            const walletData = await collectibleService.getWallet({ memberId: member.id });
-            if (walletData && walletData.balance !== undefined) {
-              walletsData.push({ ...walletData, member });
-            }
-          } catch (err) {
-            // Skip if wallet doesn't exist
-          }
-        }
-        setWallets(walletsData.sort((a, b) => (b.balance || 0) - (a.balance || 0)));
+        const result = await collectibleService.listWallets('member', {
+          page: currentPage,
+          limit: WALLET_PAGE_SIZE,
+          search: debouncedSearch,
+        });
+        if (requestId !== latestRequest.current) return;
+        setWallets(result.data);
+        setSummary(result.summary);
+        setPagination(result.pagination);
       }
     } catch (err: any) {
+      if (requestId !== latestRequest.current) return;
       setError(loadErrorMessage(err, 'wallets'));
       console.error('Error fetching wallets:', err);
     } finally {
-      setLoading(false);
+      if (requestId === latestRequest.current) setLoading(false);
     }
   };
 
   const handleExport = async (type: 'csv' | 'json' | 'pdf') => {
     try {
       setIsExporting(true);
-      if (wallets.length === 0) {
+      // The export is every row of the list the user is looking at (same search), not just this page.
+      const rows = memberId
+        ? wallets
+        : await fetchAllPages<WalletListRow>((p) =>
+            collectibleService.listWallets('member', { ...p, search: debouncedSearch })
+          );
+      if (rows.length === 0) {
         toast.info('No wallet data to export');
         return;
       }
       const filename = `member-varisangya-wallets${memberId ? `-${memberId}` : ''}`;
       switch (type) {
         case 'csv':
-          exportToCSV(columns, wallets, filename);
+          exportToCSV(columns, rows, filename);
           break;
         case 'json':
-          exportToJSON(columns, wallets, filename);
+          exportToJSON(columns, rows, filename);
           break;
         case 'pdf':
           {
-            const invoices: InvoiceDetails[] = [];
-            for (const wallet of wallets) {
-              if (wallet.member) {
-                invoices.push({
-                  title: 'Member Varisangya Wallet',
-                  receiptNo: '-',
-                  payerLabel: 'Member',
-                  payerName: toTitleCase(wallet.member.name) || '-',
-                  amount: wallet.balance || 0,
-                  paymentDate: wallet.lastTransactionDate || new Date().toISOString(),
-                  paymentMethod: '-',
-                  remarks: `Wallet Balance as of ${formatDate(new Date().toISOString())}`,
-                });
-              }
-            }
+            const invoices: InvoiceDetails[] = rows.map((wallet) => ({
+              title: 'Member Varisangya Wallet',
+              receiptNo: '-',
+              payerLabel: 'Member',
+              payerName: toTitleCase(wallet.name) || '-',
+              amount: wallet.balance || 0,
+              paymentDate: wallet.lastTransactionDate || new Date().toISOString(),
+              paymentMethod: '-',
+              remarks: `Wallet Balance as of ${formatDate(new Date().toISOString())}`,
+            }));
             await exportInvoicesToPdf(invoices, filename);
           }
           break;
@@ -113,18 +146,18 @@ export default function MemberVarisangyaWallet() {
     }
   };
 
-  const columns: TableColumn<Wallet & { member?: any }>[] = [
+  const columns: TableColumn<WalletListRow>[] = [
     {
-      key: 'member',
+      key: 'name',
       label: 'Member',
       width: '8rem',
-      render: (member) =>
-        member ? (
+      render: (name, row) =>
+        row.memberId ? (
           <Link
-            to={ROUTES.MEMBERS.DETAIL(member.id)}
+            to={ROUTES.MEMBERS.DETAIL(row.memberId)}
             className="text-primary-600 hover:text-primary-700 dark:text-primary-400"
           >
-            {toTitleCase(member.name)}
+            {toTitleCase(name)}
           </Link>
         ) : (
           '-'
@@ -147,34 +180,14 @@ export default function MemberVarisangyaWallet() {
       width: '12.25rem',
       render: (date) => (date ? formatDate(date) : '-'),
     },
-    {
-      key: 'actions',
-      label: 'Actions',
-      width: '8rem',
-      align: 'center',
-      render: (_, row) => (
-        <ActionsMenu
-          items={[
-            {
-              label: 'View transactions',
-              icon: <FiList className="h-4 w-4" />,
-              onClick: () =>
-                navigate(`${MEMBER_BASE}?view=transactions&memberId=${row.member?.id || ''}`),
-            },
-          ]}
-        />
-      ),
-    },
   ];
 
-  const totalBalance = wallets.reduce((sum, w) => sum + (w.balance || 0), 0);
-  const activeWallets = wallets.filter((w) => (w.balance || 0) > 0).length;
   const stats = [
-    { title: 'Total Wallets', value: wallets.length, icon: <FiCreditCard className="h-5 w-5" /> },
-    { title: 'Active Wallets', value: activeWallets, icon: <FiCheckCircle className="h-5 w-5" /> },
+    { title: 'Total Wallets', value: summary.count, icon: <FiCreditCard className="h-5 w-5" /> },
+    { title: 'Active Wallets', value: summary.activeCount, icon: <FiCheckCircle className="h-5 w-5" /> },
     {
       title: 'Total Balance',
-      value: `₹${totalBalance.toLocaleString()}`,
+      value: `₹${summary.totalBalance.toLocaleString()}`,
       icon: <FiDollarSign className="h-5 w-5" />,
     },
   ];
@@ -184,7 +197,7 @@ export default function MemberVarisangyaWallet() {
       <div>
         <h2 className="text-lg font-semibold text-foreground">
           Member Varisangya Wallets
-          {wallets[0]?.member && <span> - {toTitleCase(wallets[0].member.name)}</span>}
+          {memberId && wallets[0]?.name && ` - ${toTitleCase(wallets[0].name)}`}
         </h2>
         <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">View wallet balances for members</p>
       </div>
@@ -193,7 +206,7 @@ export default function MemberVarisangyaWallet() {
           <StatCard key={index} {...stat} />
         ))}
       </div>
-      <TableCard>
+      <TableCard borderless>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -214,7 +227,28 @@ export default function MemberVarisangyaWallet() {
             action={{ label: 'Retry', onClick: fetchWallets }}
           />
         ) : (
-          <Table fixedLayout striped columns={columns} data={wallets} emptyMessage="No wallets found" showExport={false} />
+          <Table
+            fixedLayout
+            striped
+            columns={columns}
+            data={wallets}
+            emptyMessage="No wallets found"
+            showExport={false}
+            rowKey={(row, index) => row.memberId || String(index)}
+            onRowClick={(row) => navigate(`${MEMBER_BASE}?view=transactions&memberId=${row.memberId || ''}`)}
+          />
+        )}
+        {pagination && !memberId && (
+          <div className="mt-4">
+            <Pagination
+              currentPage={pagination.page}
+              totalPages={pagination.totalPages}
+              totalItems={pagination.total}
+              itemsPerPage={pagination.limit}
+              entity="members"
+              onPageChange={(page) => setCurrentPage(page)}
+            />
+          </div>
         )}
       </TableCard>
     </div>

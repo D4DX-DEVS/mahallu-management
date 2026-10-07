@@ -19,6 +19,8 @@ import { loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { errorMessage } from '@/utils/errors';
 import { toTitleCase } from '@/utils/format';
+import { fetchAllPages } from '@/services/api';
+import { logError } from '@/utils/safeLog';
 
 const MONTHS = [
   { value: '1', label: 'January' },
@@ -51,6 +53,30 @@ const salarySchema = z.object({
 });
 
 type SalaryFormData = z.infer<typeof salarySchema>;
+type SalaryStatus = NonNullable<SalaryFormData['status']>;
+
+const STATUS_LABELS: Record<SalaryStatus, string> = {
+  pending: 'Pending',
+  paid: 'Paid',
+  cancelled: 'Cancelled',
+};
+
+/**
+ * The statuses the API accepts next. A new payment is pending or paid; after that
+ * pending -> paid, pending -> cancelled and paid -> cancelled are allowed, a paid
+ * payment never goes back to pending, and cancelled is final.
+ */
+const statusOptionsFor = (current: SalaryStatus | null): { value: SalaryStatus; label: string }[] => {
+  const allowed: SalaryStatus[] =
+    current === null
+      ? ['pending', 'paid']
+      : current === 'pending'
+        ? ['pending', 'paid', 'cancelled']
+        : current === 'paid'
+          ? ['paid', 'cancelled']
+          : ['cancelled'];
+  return allowed.map((value) => ({ value, label: STATUS_LABELS[value] }));
+};
 
 export default function CreateSalaryPayment() {
   const navigate = useNavigate();
@@ -62,6 +88,8 @@ export default function CreateSalaryPayment() {
   const [employees, setEmployees] = useState<{ id: string; name: string; salary: number }[]>([]);
   const [addInstituteOpen, setAddInstituteOpen] = useState(false);
   const [loadingPayment, setLoadingPayment] = useState(isEdit);
+  /* The status the payment had when it was loaded: only the moves from it are offered. */
+  const [savedStatus, setSavedStatus] = useState<SalaryStatus | null>(null);
 
   const {
     register,
@@ -129,6 +157,7 @@ export default function CreateSalaryPayment() {
           status: payment.status || 'pending',
           remarks: payment.remarks || '',
         });
+        setSavedStatus((payment.status as SalaryStatus) || 'pending');
         if (instId) fetchEmployees(instId);
       } catch (err: any) {
         setError(loadErrorMessage(err, 'salary payment'));
@@ -141,19 +170,21 @@ export default function CreateSalaryPayment() {
 
   const fetchInstitutes = async () => {
     try {
-      const result = await instituteService.getAll({ limit: 1000 });
-      setInstitutes(result.data.map((i: any) => ({ id: i.id, name: i.name })));
+      const allRows = await fetchAllPages((page) => instituteService.getAll(page));
+      setInstitutes(allRows.map((i: any) => ({ id: i.id, name: i.name })));
     } catch (err) {
-      console.error('Error fetching institutes:', err);
+      logError('Error fetching institutes', err);
     }
   };
 
   const fetchEmployees = async (instId: string) => {
     try {
-      const result = await employeeService.getAll({ instituteId: instId, status: 'active', limit: 1000 });
-      setEmployees(result.data.map((e: any) => ({ id: e.id, name: e.name, salary: e.salary || 0 })));
+      const allEmployees = await fetchAllPages((page) =>
+        employeeService.getAll({ instituteId: instId, status: 'active', ...page })
+      );
+      setEmployees(allEmployees.map((e: any) => ({ id: e.id, name: e.name, salary: e.salary || 0 })));
     } catch (err) {
-      console.error('Error fetching employees:', err);
+      logError('Error fetching employees', err);
     }
   };
 
@@ -298,7 +329,7 @@ export default function CreateSalaryPayment() {
               options={[
                 { value: '', label: 'Select...' },
                 { value: 'cash', label: 'Cash' },
-                { value: 'bank_transfer', label: 'Bank Transfer' },
+                { value: 'bank', label: 'Bank Transfer' },
                 { value: 'cheque', label: 'Cheque' },
                 { value: 'upi', label: 'UPI' },
               ]}
@@ -308,11 +339,7 @@ export default function CreateSalaryPayment() {
             <Input label="Reference No." {...register('referenceNo')} placeholder="Transaction/Cheque No." />
             <Select
               label="Status"
-              options={[
-                { value: 'pending', label: 'Pending' },
-                { value: 'paid', label: 'Paid' },
-                { value: 'cancelled', label: 'Cancelled' },
-              ]}
+              options={statusOptionsFor(isEdit ? (savedStatus ?? 'pending') : null)}
               value={watch('status') || ''}
               {...register('status')}
             />

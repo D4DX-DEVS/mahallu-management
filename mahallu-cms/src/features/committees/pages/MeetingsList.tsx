@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FiCalendar, FiCheckCircle, FiClock, FiEye, FiPlus, FiTrash2 } from 'react-icons/fi';
+import { FiCalendar, FiCheckCircle, FiClock, FiPlus } from 'react-icons/fi';
 import TableCard from '@/components/ui/TableCard';
 import FilterPanel from '@/components/ui/FilterPanel';
 import Button from '@/components/ui/Button';
@@ -9,7 +9,6 @@ import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
 import EmptyState from '@/components/ui/EmptyState';
 import { PageSkeleton } from '@/components/ui/Skeleton';
-import Modal from '@/components/ui/Modal';
 import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
 import { toast } from '@/store/toastStore';
@@ -20,10 +19,11 @@ import { committeeService } from '@/services/committeeService';
 import { fetchAllPages } from '@/services/api';
 import { formatDate, toTitleCase } from '@/utils/format';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
-import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import { loadErrorMessage } from '@/utils/errors';
 import StatusBadge from '@/components/ui/StatusBadge';
 import PageHeader from '@/components/layout/PageHeader';
-import ActionsMenu from '@/components/ui/ActionsMenu';
+import { useServerCounts } from '@/hooks/useServerCounts';
+import { logError } from '@/utils/safeLog';
 
 export default function MeetingsList() {
   const navigate = useNavigate();
@@ -34,9 +34,6 @@ export default function MeetingsList() {
   const [committees, setCommittees] = useState<Committee[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedMeeting, setSelectedMeeting] = useState<Meeting | null>(null);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [deleting, setDeleting] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
@@ -49,10 +46,11 @@ export default function MeetingsList() {
 
   const fetchCommittees = async () => {
     try {
-      const result = await committeeService.getAll();
-      setCommittees(result.data || []);
+      // Every committee, not just the API's default page of 10.
+      const all = await fetchAllPages((p) => committeeService.getAll(p));
+      setCommittees(all);
     } catch (err) {
-      console.error('Error fetching committees:', err);
+      logError('Error fetching committees', err);
       setCommittees([]);
     }
   };
@@ -75,7 +73,7 @@ export default function MeetingsList() {
       }
     } catch (err: any) {
       setError(loadErrorMessage(err, 'meetings'));
-      console.error('Error fetching meetings:', err);
+      logError('Error fetching meetings', err);
     } finally {
       setLoading(false);
     }
@@ -108,28 +106,14 @@ export default function MeetingsList() {
           exportToJSON(columns, dataToExport, filename);
           break;
         case 'pdf':
-          exportToPDF(columns, dataToExport, filename, title);
+          await exportToPDF(columns, dataToExport, filename, title);
           break;
       }
     } catch (error: any) {
-      console.error('Export error:', error);
+      logError('Export error', error);
       toast.error(error?.message || "Couldn't export meetings");
     } finally {
       setIsExporting(false);
-    }
-  };
-
-  const handleDelete = async () => {
-    if (!selectedMeeting) return;
-    try {
-      setDeleting(true);
-      await meetingService.delete(selectedMeeting.id);
-      await fetchMeetings();
-      setShowDeleteModal(false);
-      setSelectedMeeting(null);
-    } catch (err: any) {
-      setError(errorMessage(err, { action: 'delete meeting' }));
-      setDeleting(false);
     }
   };
 
@@ -161,35 +145,17 @@ export default function MeetingsList() {
       width: '9.25rem',
       render: (percent) => `${percent || 0}%`,
     },
-    {
-      key: 'actions',
-      label: 'Actions',
-      width: '8rem',
-      align: 'center',
-      render: (_, row) => (
-        <ActionsMenu
-          items={[
-            {
-              label: 'View',
-              icon: <FiEye className="h-4 w-4" />,
-              onClick: () => {
-                navigate(`/committees/meetings/${row.id}`);
-              },
-            },
-            {
-              label: 'Delete',
-              icon: <FiTrash2 className="h-4 w-4" />,
-              onClick: () => {
-                setSelectedMeeting(row);
-                setShowDeleteModal(true);
-              },
-              variant: 'danger',
-            },
-          ]}
-        />
-      ),
-    },
   ];
+
+  // Whole-list counts from the server: these cards used to count only the rows on this page.
+  const countBase = committeeFilter !== 'all' ? { committeeId: committeeFilter } : {};
+  const statusCounts = useServerCounts(
+    {
+      scheduled: () => meetingService.getAll({ ...countBase, status: 'scheduled', page: 1, limit: 1 }),
+      completed: () => meetingService.getAll({ ...countBase, status: 'completed', page: 1, limit: 1 }),
+    },
+    [meetings]
+  );
 
   const stats = [
     {
@@ -199,12 +165,12 @@ export default function MeetingsList() {
     },
     {
       title: 'Scheduled',
-      value: meetings.filter((m) => m.status === 'scheduled' || !m.status).length,
+      value: statusCounts.scheduled ?? meetings.filter((m) => m.status === 'scheduled' || !m.status).length,
       icon: <FiClock className="h-5 w-5" />,
     },
     {
       title: 'Completed',
-      value: meetings.filter((m) => m.status === 'completed').length,
+      value: statusCounts.completed ?? meetings.filter((m) => m.status === 'completed').length,
       icon: <FiCheckCircle className="h-5 w-5" />,
     },
   ];
@@ -221,7 +187,7 @@ export default function MeetingsList() {
         </div>
       </div>
 
-      <TableCard>
+      <TableCard borderless>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -295,36 +261,6 @@ export default function MeetingsList() {
           </div>
         )}
       </TableCard>
-
-      <Modal
-        isOpen={showDeleteModal}
-        onClose={() => {
-          setShowDeleteModal(false);
-          setSelectedMeeting(null);
-        }}
-        title="Delete Meeting"
-        footer={
-          <>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setShowDeleteModal(false);
-                setSelectedMeeting(null);
-              }}
-            >
-              Cancel
-            </Button>
-            <Button variant="danger" onClick={handleDelete} isLoading={deleting}>
-              Delete
-            </Button>
-          </>
-        }
-      >
-        <p className="text-gray-600 dark:text-gray-400">
-          Are you sure you want to delete <strong>{toTitleCase(selectedMeeting?.title)}</strong>? This action cannot be
-          undone.
-        </p>
-      </Modal>
     </div>
   );
 }

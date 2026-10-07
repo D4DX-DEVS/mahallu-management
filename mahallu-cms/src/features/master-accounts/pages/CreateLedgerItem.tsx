@@ -15,6 +15,8 @@ import { masterAccountService, Ledger, Category } from '@/services/masterAccount
 import { errorMessage } from '@/utils/errors';
 import { toTitleCase } from '@/utils/format';
 import PageHeader from '@/components/layout/PageHeader';
+import { fetchAllPages } from '@/services/api';
+import { logError } from '@/utils/safeLog';
 
 const ledgerItemSchema = z.object({
   ledgerId: z.string().max(200, 'Please keep the ledger to 200 characters or less.').min(1, 'Ledger is required'),
@@ -71,15 +73,15 @@ export default function CreateLedgerItem() {
   const fetchData = async () => {
     try {
       setLoadingData(true);
-      // Fetch all data for dropdowns (use high limit to get all)
-      const [ledgersResult, categoriesResult] = await Promise.all([
-        masterAccountService.getAllLedgers({ limit: 1000 }),
-        masterAccountService.getAllCategories({ limit: 1000 }),
+      // Every ledger and category, not just the first page.
+      const [allLedgers, allCategories] = await Promise.all([
+        fetchAllPages((page) => masterAccountService.getAllLedgers(page)),
+        fetchAllPages((page) => masterAccountService.getAllCategories(page)),
       ]);
-      setLedgers(Array.isArray(ledgersResult.data) ? ledgersResult.data : []);
-      setCategories(Array.isArray(categoriesResult.data) ? categoriesResult.data : []);
+      setLedgers(allLedgers);
+      setCategories(allCategories);
     } catch (err) {
-      console.error('Error fetching data:', err);
+      logError('Error fetching data', err);
     } finally {
       setLoadingData(false);
     }
@@ -103,7 +105,7 @@ export default function CreateLedgerItem() {
       navigate(ROUTES.MASTER_ACCOUNTS.LEDGER_ITEMS);
     } catch (err: any) {
       setError(errorMessage(err, { action: 'create ledger item. please try again' }));
-      console.error('Error creating ledger item:', err);
+      logError('Error creating ledger item', err);
     }
   };
 

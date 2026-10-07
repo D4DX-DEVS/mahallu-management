@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import ActionsMenu from '@/components/ui/ActionsMenu';
-import { FiUserMinus } from 'react-icons/fi';
-import { useParams, Link } from 'react-router-dom';
+import { FiUserMinus, FiTrash2, FiEdit2 } from 'react-icons/fi';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import Card from '@/components/ui/Card';
 import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
@@ -20,6 +20,7 @@ import { useDebounce } from '@/hooks/useDebounce';
 import { errorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
+import { ROUTES } from '@/constants/routes';
 
 type Tab = 'families' | 'visits';
 
@@ -34,9 +35,16 @@ const emptyVisit = {
 
 export default function ClusterDetail() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [cluster, setCluster] = useState<Cluster | null>(null);
   const [tab, setTab] = useState<Tab>('families');
   const [loading, setLoading] = useState(true);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [isEditOpen, setEditOpen] = useState(false);
+  const [editForm, setEditForm] = useState({ name: '', nameMl: '', code: '', notes: '' });
+  const [editNameError, setEditNameError] = useState<string | null>(null);
+  const [editSaving, setEditSaving] = useState(false);
 
   const [families, setFamilies] = useState<any[]>([]);
   const [familyPage, setFamilyPage] = useState(1);
@@ -165,6 +173,49 @@ export default function ClusterDetail() {
     }
   };
 
+  const openEdit = () => {
+    if (!cluster) return;
+    setEditForm({
+      name: cluster.name || '',
+      nameMl: (cluster as any).nameMl || '',
+      code: cluster.code || '',
+      notes: (cluster as any).notes || '',
+    });
+    setEditNameError(null);
+    setEditOpen(true);
+  };
+
+  const handleEdit = async () => {
+    if (!id) return;
+    if (!editForm.name.trim()) {
+      setEditNameError('Cluster name is required');
+      return;
+    }
+    try {
+      setEditSaving(true);
+      const updated = await clusterService.update(id, editForm);
+      setCluster(updated);
+      setEditOpen(false);
+      toast.success('Cluster updated');
+    } catch (err: any) {
+      toast.error(errorMessage(err, { action: 'update cluster' }));
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!id) return;
+    try {
+      setDeleting(true);
+      await clusterService.remove(id);
+      navigate('/clusters');
+    } catch (err: any) {
+      toast.error(errorMessage(err, { action: 'delete cluster' }));
+      setDeleting(false);
+    }
+  };
+
   const familyColumns: TableColumn<any>[] = [
     {
       key: 'houseName',
@@ -239,11 +290,42 @@ export default function ClusterDetail() {
 
   return (
     <div className="space-y-3">
-      <PageHeader
-        title={toTitleCase(cluster.name)}
-        description={`${cluster.familyCount ?? 0} families${cluster.code ? ` · ${cluster.code}` : ''}`}
-        breadcrumbs={[{ label: 'Clusters', path: '/clusters' }]}
-      />
+      <div className="flex gap-2 items-center justify-between">
+        <div className="flex items-center gap-4">
+          <PageHeader
+            title={toTitleCase(cluster.name)}
+            description={`${cluster.familyCount ?? 0} families${cluster.code ? ` · ${cluster.code}` : ''}`}
+            breadcrumbs={[{ label: 'Clusters', path: '/clusters' }]}
+          />
+          <div className="flex gap-2 items-center">
+            <Button variant="outline" onClick={openEdit} icon={<FiEdit2 />} collapseLabel>
+              Edit
+            </Button>
+            <Button variant="danger" onClick={() => setShowDeleteModal(true)} icon={<FiTrash2 />} collapseLabel>
+              Delete
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {((cluster as any).nameMl || (cluster as any).notes) && (
+        <Card>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+            {(cluster as any).nameMl && (
+              <div>
+                <span className="text-sm text-gray-500 dark:text-gray-400">Name (Malayalam)</span>
+                <p className="text-gray-900 dark:text-gray-100 font-malayalam">{(cluster as any).nameMl}</p>
+              </div>
+            )}
+            {(cluster as any).notes && (
+              <div>
+                <span className="text-sm text-gray-500 dark:text-gray-400">Notes</span>
+                <p className="text-gray-900 dark:text-gray-100">{(cluster as any).notes}</p>
+              </div>
+            )}
+          </div>
+        </Card>
+      )}
 
       <div className="grid grid-cols-2 gap-3">
         <button
@@ -287,6 +369,7 @@ export default function ClusterDetail() {
             data={families}
             emptyMessage="No families assigned yet"
             showExport={false}
+            onRowClick={(row) => navigate(ROUTES.FAMILIES.DETAIL(row._id || row.id))}
           />
           {familyPagination && (
             <div className="mt-4">
@@ -435,6 +518,66 @@ export default function ClusterDetail() {
           setUnassignFamilyId(null);
         }}
       />
+
+      <Modal isOpen={isEditOpen} onClose={() => setEditOpen(false)} title="Edit Cluster">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+          <Input
+            label="Cluster Name"
+            value={editForm.name}
+            onChange={(e) => {
+              setEditForm({ ...editForm, name: e.target.value });
+              if (editNameError) setEditNameError(null);
+            }}
+            error={editNameError ?? undefined}
+            required
+          />
+          <Input
+            label="Name (Malayalam)"
+            value={editForm.nameMl}
+            onChange={(e) => setEditForm({ ...editForm, nameMl: e.target.value })}
+            className="font-malayalam"
+          />
+          <Input
+            label="Code"
+            value={editForm.code}
+            onChange={(e) => setEditForm({ ...editForm, code: e.target.value })}
+            placeholder="CL-01"
+          />
+          <Input
+            label="Notes"
+            value={editForm.notes}
+            onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
+          />
+        </div>
+        <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-end">
+          <Button variant="outline" onClick={() => setEditOpen(false)} disabled={editSaving}>
+            Cancel
+          </Button>
+          <Button onClick={handleEdit} disabled={editSaving}>
+            {editSaving ? 'Saving...' : 'Save Changes'}
+          </Button>
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        title="Delete Cluster"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setShowDeleteModal(false)}>
+              Cancel
+            </Button>
+            <Button variant="danger" onClick={handleDelete} isLoading={deleting}>
+              Delete
+            </Button>
+          </>
+        }
+      >
+        <p className="text-gray-600 dark:text-gray-400">
+          Are you sure you want to delete <strong>{toTitleCase(cluster.name)}</strong>? This action cannot be undone.
+        </p>
+      </Modal>
     </div>
   );
 }

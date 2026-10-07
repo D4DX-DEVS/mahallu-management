@@ -1,5 +1,6 @@
 import api, { asList } from './api';
 import { Family } from '@/types';
+import { toast } from '@/store/toastStore';
 
 export const familyService = {
   getAll: async (params?: {
@@ -32,6 +33,7 @@ export const familyService = {
     search?: string;
     area?: string;
     sortBy?: string;
+    sortOrder?: string;
   } = {}) => {
     const PAGE_SIZE = 100;
     const MAX_PAGES = 100; // 10,000 rows — the ceiling the export already assumed
@@ -45,6 +47,12 @@ export const familyService = {
       rows.push(...pageRows);
       const totalPages = response.data.pagination?.totalPages ?? 1;
       if (pageRows.length === 0 || page >= totalPages) break;
+      if (page === MAX_PAGES) {
+        // The cap was reached with pages still to come: say so rather than hand over a file that looks complete.
+        toast.warning(
+          `Only the first ${rows.length.toLocaleString()} families were exported and there are more. Narrow the filters and export again to get the rest.`
+        );
+      }
     }
 
     return rows;

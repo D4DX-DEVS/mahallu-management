@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { FiCheckCircle, FiEdit2, FiImage, FiPlus, FiTrash2 } from 'react-icons/fi';
 import TableCard from '@/components/ui/TableCard';
-import { rowActionClass } from '@/components/ui/rowAction';
+import ActionsMenu from '@/components/ui/ActionsMenu';
+import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
@@ -19,8 +20,11 @@ import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
 import { toast } from '@/store/toastStore';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { useServerCounts } from '@/hooks/useServerCounts';
+import { logError } from '@/utils/safeLog';
 
 export default function BannersList() {
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchQuery, setSearchQuery] = useState('');
   const [isFilterVisible, setIsFilterVisible] = useState(false);
@@ -29,6 +33,7 @@ export default function BannersList() {
   const [error, setError] = useState<string | null>(null);
   const [selectedBanner, setSelectedBanner] = useState<Banner | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showViewModal, setShowViewModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [currentPage, setCurrentPage] = useState(() => {
     const page = Number(searchParams.get('page'));
@@ -64,7 +69,7 @@ export default function BannersList() {
       }
     } catch (err: any) {
       setError(loadErrorMessage(err, 'banners'));
-      console.error('Error fetching banners:', err);
+      logError('Error fetching banners', err);
     } finally {
       setLoading(false);
     }
@@ -94,11 +99,11 @@ export default function BannersList() {
           exportToJSON(columns, dataToExport, filename);
           break;
         case 'pdf':
-          exportToPDF(columns, dataToExport, filename, title);
+          await exportToPDF(columns, dataToExport, filename, title);
           break;
       }
     } catch (error: any) {
-      console.error('Export error:', error);
+      logError('Export error', error);
       toast.error(errorMessage(error, { action: 'export data' }));
     } finally {
       setIsExporting(false);
@@ -151,31 +156,36 @@ export default function BannersList() {
       width: '8rem',
       align: 'center',
       render: (_, row) => (
-        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-          <Link
-            to={`/social/banners/${row.id}/edit`}
-            className={rowActionClass()}
-            title="Edit"
-          >
-            <FiEdit2 className="h-4 w-4" />
-          </Link>
-
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setSelectedBanner(row);
-              setShowDeleteModal(true);
-            }}
-            className={rowActionClass('danger')}
-            title="Delete"
-            aria-label="Delete"
-          >
-            <FiTrash2 className="h-4 w-4" />
-          </button>
+        <div onClick={(e) => e.stopPropagation()}>
+          <ActionsMenu
+            label={`Actions for ${row.title}`}
+            items={[
+              {
+                label: 'Edit',
+                icon: <FiEdit2 className="h-4 w-4" />,
+                onClick: () => navigate(`/social/banners/${row.id}/edit`),
+              },
+              {
+                label: 'Delete',
+                icon: <FiTrash2 className="h-4 w-4" />,
+                variant: 'danger',
+                onClick: () => {
+                  setSelectedBanner(row);
+                  setShowDeleteModal(true);
+                },
+              },
+            ]}
+          />
         </div>
       ),
     },
   ];
+
+  // Whole-list counts from the server: these cards used to count only the rows on this page.
+  const statusCounts = useServerCounts(
+    { active: () => socialService.getAllBanners({ status: 'active', page: 1, limit: 1 }) },
+    [banners]
+  );
 
   const stats = [
     {
@@ -185,7 +195,7 @@ export default function BannersList() {
     },
     {
       title: 'Active',
-      value: banners.filter((b) => b.status === 'active' || !b.status).length,
+      value: statusCounts.active ?? banners.filter((b) => b.status === 'active' || !b.status).length,
       icon: <FiCheckCircle className="h-5 w-5" />,
     },
   ];
@@ -202,7 +212,7 @@ export default function BannersList() {
         </div>
       </div>
 
-      <TableCard>
+      <TableCard borderless>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -229,7 +239,18 @@ export default function BannersList() {
             action={{ label: 'Retry', onClick: fetchBanners }}
           />
         ) : (
-          <Table fixedLayout striped columns={columns} data={banners} emptyMessage="No banners found" showExport={false} />
+          <Table
+            fixedLayout
+            striped
+            columns={columns}
+            data={banners}
+            emptyMessage="No banners found"
+            showExport={false}
+            onRowClick={(row) => {
+              setSelectedBanner(row);
+              setShowViewModal(true);
+            }}
+          />
         )}
 
         {/* Pagination */}
@@ -247,6 +268,84 @@ export default function BannersList() {
           </div>
         )}
       </TableCard>
+
+      {/* View Modal */}
+      <Modal
+        isOpen={showViewModal}
+        onClose={() => {
+          setShowViewModal(false);
+          setSelectedBanner(null);
+        }}
+        title="Banner Details"
+        footer={
+          <>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowViewModal(false);
+                setSelectedBanner(null);
+              }}
+            >
+              Close
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (selectedBanner) navigate(`/social/banners/${selectedBanner.id}/edit`);
+              }}
+            >
+              Edit
+            </Button>
+            <Button
+              variant="danger"
+              onClick={() => {
+                setShowViewModal(false);
+                setShowDeleteModal(true);
+              }}
+            >
+              Delete
+            </Button>
+          </>
+        }
+      >
+        {selectedBanner && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+            <div className="sm:col-span-2">
+              <p className="text-xs text-gray-500 dark:text-gray-400">Title</p>
+              <p className="text-gray-900 dark:text-gray-100 font-medium">{selectedBanner.title}</p>
+            </div>
+            {selectedBanner.image && (
+              <div className="sm:col-span-2">
+                <img src={selectedBanner.image} alt={selectedBanner.title} className="max-h-40 rounded-md" />
+              </div>
+            )}
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Status</p>
+              <p className="text-gray-900 dark:text-gray-100 capitalize">{selectedBanner.status || 'active'}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Link</p>
+              <p className="text-gray-900 dark:text-gray-100 break-all">{selectedBanner.link || '—'}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Start Date</p>
+              <p className="text-gray-900 dark:text-gray-100">
+                {selectedBanner.startDate ? formatDate(selectedBanner.startDate) : '—'}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">End Date</p>
+              <p className="text-gray-900 dark:text-gray-100">
+                {selectedBanner.endDate ? formatDate(selectedBanner.endDate) : '—'}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Created</p>
+              <p className="text-gray-900 dark:text-gray-100">{formatDate(selectedBanner.createdAt)}</p>
+            </div>
+          </div>
+        )}
+      </Modal>
 
       <ConfirmDialog
         isOpen={showDeleteModal}

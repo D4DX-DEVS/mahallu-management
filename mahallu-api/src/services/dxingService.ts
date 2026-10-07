@@ -1,4 +1,5 @@
 import axios, { AxiosError, AxiosResponse } from 'axios';
+import { maskPhone } from '../utils/phone';
 
 // Create dedicated axios instance for DXING with interceptors
 const dxingAxios = axios.create();
@@ -11,14 +12,13 @@ dxingAxios.interceptors.request.use(
       method: config.method?.toUpperCase(),
       baseURL: config.baseURL,
       timeout: config.timeout,
-      headers: config.headers,
       dataSize: config.data ? JSON.stringify(config.data).length : 0,
       timestamp: new Date().toISOString(),
     });
     return config;
   },
   (error) => {
-    console.error('[DXING-INTERCEPTOR] ❌ Request setup failed:', error);
+    console.error('[DXING-INTERCEPTOR] Request setup failed:', error?.message);
     return Promise.reject(error);
   }
 );
@@ -30,10 +30,7 @@ dxingAxios.interceptors.response.use(
       status: response.status,
       statusText: response.statusText,
       url: response.config.url,
-      headers: response.headers,
-      dataPreview: typeof response.data === 'object' 
-        ? JSON.stringify(response.data).slice(0, 200)
-        : String(response.data).slice(0, 200),
+      // The body is never logged: for an OTP send it contains the one-time code.
       timestamp: new Date().toISOString(),
     });
     return response;
@@ -44,7 +41,6 @@ dxingAxios.interceptors.response.use(
       code: error.code,
       status: error.response?.status,
       statusText: error.response?.statusText,
-      responseData: error.response?.data,
       url: error.config?.url,
       timestamp: new Date().toISOString(),
     });
@@ -116,14 +112,6 @@ export const sendWhatsAppMessage = async (phone: string, message: string) => {
   const { secret, account } = validateCredentials();
 
   // Log credential check (safely)
-  console.info('[DXING] Credentials check:', {
-    secretLength: secret.length,
-    secretPrefix: secret.slice(0, 4),
-    secretSuffix: secret.slice(-4),
-    account: account.slice(0, 3) + '***' + account.slice(-2),
-    url: DXING_URL,
-  });
-
   const { normalized } = normalizeIndianPhone(phone);
 
   let lastError: any;
@@ -148,7 +136,7 @@ export const sendWhatsAppMessage = async (phone: string, message: string) => {
       console.info('[DXING] 🚀 Outbound Request:', {
         url: DXING_URL,
         method: 'POST',
-        to: normalized,
+        to: maskPhone(normalized),
         messageLength: message.length,
         payloadKeys: Object.keys(payload),
         timestamp: new Date().toISOString(),
@@ -156,10 +144,9 @@ export const sendWhatsAppMessage = async (phone: string, message: string) => {
       });
 
       if (DIAG) {
-        console.info('[DXING] 🔍 Full Payload (DIAG mode):', {
-          payload: { ...payload, secret: `***${secret.slice(-4)}` },
-          config: axiosConfig,
-        });
+        // Diagnostics are limited to shape, never values: the payload holds the API secret and the
+        // response holds the one-time code.
+        console.info('[DXING] Payload shape (DIAG mode):', { keys: Object.keys(payload), timeout: axiosConfig.timeout });
       }
 
       const response = await dxingAxios.post(
@@ -179,19 +166,15 @@ export const sendWhatsAppMessage = async (phone: string, message: string) => {
       });
 
       if (DIAG) {
-        console.info('[DXING] 🔍 Full Response (DIAG mode):', {
-          headers: response.headers,
-          data: response.data,
+        console.info('[DXING] Response shape (DIAG mode):', {
+          keys: response.data && typeof response.data === 'object' ? Object.keys(response.data) : [],
         });
       }
 
       // Strict response validation
       if (!response.data || typeof response.data !== 'object') {
         const error = new Error('[DXING] Invalid response format - expected JSON object');
-        console.error('[DXING] ❌ Response validation failed:', {
-          receivedData: response.data,
-          receivedType: typeof response.data,
-        });
+        console.error('[DXING] Response validation failed:', { receivedType: typeof response.data });
         throw error;
       }
 
@@ -199,28 +182,26 @@ export const sendWhatsAppMessage = async (phone: string, message: string) => {
       // Expected: { status: 200, message: "...", data: { phone, message, messageId, otp } }
       if ('status' in response.data) {
         if (response.data.status !== 200 && response.data.status !== true) {
-          console.error('[DXING] ❌ DXING API returned error:', {
+          console.error('[DXING] DXING API returned an error:', {
             dxingStatus: response.data.status,
             message: response.data.message,
-            fullResponse: response.data,
           });
-          throw new Error(`DXing API Error: ${response.data.message || JSON.stringify(response.data)}`);
+          throw new Error(`DXing API Error: ${response.data.message || 'request rejected'}`);
         }
         console.info('[DXING] ✅ DXING confirmed success:', {
           status: response.data.status,
           message: response.data.message,
           messageId: response.data.data?.messageId,
-          otp: response.data.data?.otp,
         });
       } else {
         // No status field - might be unexpected provider
-        console.warn('[DXING] ⚠️ Response missing "status" field:', {
-          data: response.data,
+        console.warn('[DXING] Response missing "status" field:', {
+          keys: Object.keys(response.data),
           possibleIssue: 'Unexpected response format - verify DXING API documentation',
         });
       }
 
-      console.info(`[DXING] ✅ OTP sent successfully to ${normalized}`);
+      console.info(`[DXING] Message sent to ${maskPhone(normalized)}`);
       return response.data;
     } catch (error: any) {
       lastError = error;
@@ -233,7 +214,6 @@ export const sendWhatsAppMessage = async (phone: string, message: string) => {
         errorCode: error.code,
         errorMessage: error.message,
         httpStatus: status,
-        responseData: error?.response?.data,
         isNetworkError,
         url: DXING_URL,
         timestamp: new Date().toISOString(),
@@ -249,10 +229,8 @@ export const sendWhatsAppMessage = async (phone: string, message: string) => {
 
       // Full error dump in DIAG mode
       if (DIAG) {
-        console.error('[DXING] 🔍 Full error (DIAG mode):', {
-          stack: error.stack,
-          config: error.config,
-        });
+        // error.config would include the request body (API secret + message): stack only.
+        console.error('[DXING] Error stack (DIAG mode):', { stack: error.stack });
       }
 
       const retriable = status && status >= 500;

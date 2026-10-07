@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FiCheckCircle, FiEdit2, FiPlus, FiUsers, FiXCircle } from 'react-icons/fi';
+import { FiCheckCircle, FiPlus, FiUsers, FiXCircle } from 'react-icons/fi';
 import TableCard from '@/components/ui/TableCard';
-import { rowActionClass } from '@/components/ui/rowAction';
 import Button from '@/components/ui/Button';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
@@ -22,6 +21,7 @@ import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import StatusBadge from '@/components/ui/StatusBadge';
 import { toTitleCase } from '@/utils/format';
+import { logError } from '@/utils/safeLog';
 
 export default function MahallUsersList() {
   const navigate = useNavigate();
@@ -65,7 +65,7 @@ export default function MahallUsersList() {
       }
     } catch (err: any) {
       setError(loadErrorMessage(err, 'users'));
-      console.error('Error fetching users:', err);
+      logError('Error fetching users', err);
     } finally {
       setLoading(false);
     }
@@ -97,11 +97,11 @@ export default function MahallUsersList() {
           exportToJSON(columns, dataToExport, filename);
           break;
         case 'pdf':
-          exportToPDF(columns, dataToExport, filename, title);
+          await exportToPDF(columns, dataToExport, filename, title);
           break;
       }
     } catch (error: any) {
-      console.error('Export error:', error);
+      logError('Export error', error);
       toast.error(errorMessage(error, { action: 'export data' }));
     } finally {
       setIsExporting(false);
@@ -151,27 +151,6 @@ export default function MahallUsersList() {
       width: '9.25rem',
       render: (lastLogin) => (lastLogin ? formatDateTime(lastLogin) : '-'),
     },
-    {
-      key: 'actions',
-      label: 'Actions',
-      width: '8rem',
-      align: 'center',
-      render: (_, row) => (
-        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(ROUTES.USERS.EDIT_MAHALL(row.id));
-            }}
-            className={rowActionClass()}
-            title="Edit"
-            aria-label="Edit"
-          >
-            <FiEdit2 className="h-4 w-4" />
-          </button>
-        </div>
-      ),
-    },
   ];
 
   const stats = [
@@ -202,7 +181,7 @@ export default function MahallUsersList() {
       </div>
 
       {/* Actions and Table */}
-      <TableCard>
+      <TableCard borderless>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}

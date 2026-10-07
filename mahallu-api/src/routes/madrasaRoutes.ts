@@ -13,7 +13,7 @@ import {
   getMadrasaSummary,
 } from '../controllers/madrasaController';
 import { getClassProgress } from '../controllers/attendanceController';
-import { authMiddleware, allowRoles } from '../middleware/authMiddleware';
+import { authMiddleware, allowRoles, requireInstituteStaff } from '../middleware/authMiddleware';
 import { tenantMiddleware, tenantFilter } from '../middleware/tenantMiddleware';
 import { validationHandler } from '../middleware/validationHandler';
 import { idParam, listQuery } from '../validations/common';
@@ -29,6 +29,8 @@ const router = express.Router();
 router.use(authMiddleware);
 router.use(tenantMiddleware);
 router.use(tenantFilter);
+// Education module: the CMS opens it to the Mahallu admin and institute admin only (no survey access).
+router.use(requireInstituteStaff);
 
 /**
  * @swagger

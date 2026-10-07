@@ -6,6 +6,19 @@ export type ScholarshipStatus = (typeof SCHOLARSHIP_STATUSES)[number];
 export const AWARD_STATUSES = ['applied', 'approved', 'paid'] as const;
 export type AwardStatus = (typeof AWARD_STATUSES)[number];
 
+/** A new award always starts here, whatever the request body says. */
+export const AWARD_INITIAL_STATUS: AwardStatus = 'applied';
+
+/** Legal moves for an award. Same-status is not a move; it is "already processed" (409). */
+export const AWARD_TRANSITIONS: Record<AwardStatus, AwardStatus[]> = {
+  applied: ['approved'],
+  approved: ['paid'],
+  paid: [],
+};
+
+/** Amount and beneficiary are fixed once an award is approved. */
+export const AWARD_LOCKED_STATUSES: readonly AwardStatus[] = ['approved', 'paid'];
+
 export const SUPPORT_CASE_TYPES = [
   'career_guidance',
   'competitive_exam',

@@ -4,12 +4,20 @@ import Member from '../models/Member';
 import { AuthRequest } from '../middleware/authMiddleware';
 import { getPaginationParams, createPaginationResponse } from '../utils/pagination';
 import { stripImmutable, refBelongsToTenant } from '../utils/sanitizeUpdate';
+import { requireScope, requireWriteScope } from '../utils/scope';
 
 import { sendFailure } from '../utils/userMessages';
 import { regexLiteral } from '../utils/queryGuard';
 
+/** Callers are checked with requireScope first, so an empty scope here is only ever a super admin's. */
 const tenantScope = (req: AuthRequest): Record<string, any> =>
   req.tenantId ? { tenantId: req.tenantId } : {};
+
+const SENSITIVE_TYPES = ['palliative_case', 'patient_support'];
+
+/** Same rule as sensitiveAccess('health'): a super admin, or an account granted the 'health' module. */
+const canAccessSensitiveHealth = (req: AuthRequest): boolean =>
+  !!req.isSuperAdmin || !!req.user?.permissions?.sensitiveModules?.includes('health');
 
 /**
  * Check that referenced member belongs to tenant.
@@ -30,6 +38,7 @@ const validateHealthResourceRefs = async (req: AuthRequest): Promise<string | nu
  */
 export const getAllHealthResources = async (req: AuthRequest, res: Response) => {
   try {
+    if (!requireScope(req, res)) return;
     const { page, limit, skip } = getPaginationParams(req);
     const query: any = { ...tenantScope(req) };
 
@@ -74,6 +83,7 @@ export const getAllHealthResources = async (req: AuthRequest, res: Response) => 
  */
 export const getAllSensitiveHealthResources = async (req: AuthRequest, res: Response) => {
   try {
+    if (!requireScope(req, res)) return;
     const { page, limit, skip } = getPaginationParams(req);
     const query: any = { ...tenantScope(req), type: { $in: ['palliative_case', 'patient_support'] } };
 
@@ -101,6 +111,7 @@ export const getAllSensitiveHealthResources = async (req: AuthRequest, res: Resp
  */
 export const getHealthResourceById = async (req: AuthRequest, res: Response) => {
   try {
+    if (!requireScope(req, res)) return;
     const resource = await HealthResource.findOne({ _id: req.params.id, ...tenantScope(req) }).populate(
       'memberId',
       'name phone'
@@ -108,6 +119,14 @@ export const getHealthResourceById = async (req: AuthRequest, res: Response) => 
 
     if (!resource) {
       return res.status(404).json({ success: false, message: "We couldn't find that health resource. It may have been removed." });
+    }
+
+    // Palliative-case / patient-support records are as restricted here as in the list endpoint.
+    if (SENSITIVE_TYPES.includes(resource.type) && !canAccessSensitiveHealth(req)) {
+      return res.status(403).json({
+        success: false,
+        message: 'This record is restricted. Please contact your Mahallu admin for access.',
+      });
     }
 
     res.json({ success: true, data: resource });
@@ -122,6 +141,7 @@ export const getHealthResourceById = async (req: AuthRequest, res: Response) => 
  */
 export const createHealthResource = async (req: AuthRequest, res: Response) => {
   try {
+    if (!requireWriteScope(req, res)) return;
     // Validate sensitive type not being created via regular endpoint
     if (['palliative_case', 'patient_support'].includes(req.body.type)) {
       return res.status(403).json({
@@ -136,8 +156,8 @@ export const createHealthResource = async (req: AuthRequest, res: Response) => {
     }
 
     const resource = await HealthResource.create({
+      ...stripImmutable(req.body),
       tenantId: req.tenantId,
-      ...req.body,
     });
 
     res.status(201).json({ success: true, data: resource });
@@ -153,6 +173,7 @@ export const createHealthResource = async (req: AuthRequest, res: Response) => {
  */
 export const createSensitiveHealthResource = async (req: AuthRequest, res: Response) => {
   try {
+    if (!requireWriteScope(req, res)) return;
     // Validate type is sensitive
     if (!['palliative_case', 'patient_support'].includes(req.body.type)) {
       return res.status(400).json({
@@ -167,8 +188,8 @@ export const createSensitiveHealthResource = async (req: AuthRequest, res: Respo
     }
 
     const resource = await HealthResource.create({
+      ...stripImmutable(req.body),
       tenantId: req.tenantId,
-      ...req.body,
     });
 
     res.status(201).json({ success: true, data: resource });
@@ -183,6 +204,7 @@ export const createSensitiveHealthResource = async (req: AuthRequest, res: Respo
  */
 export const updateHealthResource = async (req: AuthRequest, res: Response) => {
   try {
+    if (!requireScope(req, res)) return;
     const resource = await HealthResource.findOne({ _id: req.params.id, ...tenantScope(req) });
 
     if (!resource) {
@@ -227,6 +249,7 @@ export const updateHealthResource = async (req: AuthRequest, res: Response) => {
  */
 export const deleteHealthResource = async (req: AuthRequest, res: Response) => {
   try {
+    if (!requireScope(req, res)) return;
     const resource = await HealthResource.findOne({ _id: req.params.id, ...tenantScope(req) });
 
     if (!resource) {
@@ -261,6 +284,7 @@ export const deleteHealthResource = async (req: AuthRequest, res: Response) => {
  */
 export const getHealthSummary = async (req: AuthRequest, res: Response) => {
   try {
+    if (!requireScope(req, res)) return;
     const baseQuery = { ...tenantScope(req), status: 'active' };
 
     // Non-sensitive queries
@@ -282,7 +306,7 @@ export const getHealthSummary = async (req: AuthRequest, res: Response) => {
     ]);
 
     // Determine if user can see sensitive counts
-    const canSeeSensitive = req.isSuperAdmin || req.user?.permissions?.sensitiveModules?.includes('health');
+    const canSeeSensitive = canAccessSensitiveHealth(req);
 
     let palliativeCaseCount = 0;
     let patientSupportCount = 0;

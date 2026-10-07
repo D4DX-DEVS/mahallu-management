@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { FiCheckCircle, FiClock, FiFileText, FiList, FiPlus, FiTrash2 } from 'react-icons/fi';
 import TableCard from '@/components/ui/TableCard';
-import { rowActionClass } from '@/components/ui/rowAction';
+import ActionsMenu from '@/components/ui/ActionsMenu';
 import FilterPanel from '@/components/ui/FilterPanel';
 import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
@@ -13,12 +13,14 @@ import { PageSkeleton } from '@/components/ui/Skeleton';
 import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import Modal from '@/components/ui/Modal';
 import { TableColumn, Pagination as PaginationType } from '@/types';
 import { marriageAssistanceService, MarriageAssistance } from '@/services/marriageAssistanceService';
 import { useDebounce } from '@/hooks/useDebounce';
 import { toast } from '@/store/toastStore';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { useServerCounts } from '@/hooks/useServerCounts';
 import StatusBadge from '@/components/ui/StatusBadge';
 import { toTitleCase } from '@/utils/format';
 
@@ -36,6 +38,8 @@ export default function MarriageAssistanceList() {
   const [pagination, setPagination] = useState<PaginationType | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; label: string } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [selectedRecord, setSelectedRecord] = useState<MarriageAssistance | null>(null);
+  const [showViewModal, setShowViewModal] = useState(false);
 
   const debouncedSearch = useDebounce(searchQuery, 500);
 
@@ -154,30 +158,44 @@ export default function MarriageAssistanceList() {
               : 'Record'
         );
         return (
-          <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-            {row.type === 'premarital_counselling' && (
-              <button
-                onClick={() => navigate('/counselling/create')}
-                className={rowActionClass()}
-                title="Create Counselling Case"
-                aria-label="Create Counselling Case"
-              >
-                <FiPlus className="h-4 w-4" />
-              </button>
-            )}
-            <button
-              onClick={() => handleDeleteClick(row.id, label)}
-              className={rowActionClass('danger')}
-              title="Delete"
-              aria-label="Delete"
-            >
-              <FiTrash2 className="h-4 w-4" />
-            </button>
+          <div onClick={(e) => e.stopPropagation()}>
+            <ActionsMenu
+              label={`Actions for ${label}`}
+              items={[
+                ...(row.type === 'premarital_counselling'
+                  ? [
+                      {
+                        label: 'Create Counselling Case',
+                        icon: <FiPlus className="h-4 w-4" />,
+                        onClick: () => navigate('/counselling/create'),
+                      },
+                    ]
+                  : []),
+                {
+                  label: 'Delete',
+                  icon: <FiTrash2 className="h-4 w-4" />,
+                  variant: 'danger' as const,
+                  onClick: () => handleDeleteClick(row.id, label),
+                },
+              ]}
+            />
           </div>
         );
       },
     },
   ];
+
+  // Whole-list counts from the server: these cards used to count only the rows on this page.
+  const countBase: { search?: string; type?: string } = {};
+  if (debouncedSearch) countBase.search = debouncedSearch;
+  if (typeFilter !== 'all') countBase.type = typeFilter;
+  const statusCounts = useServerCounts(
+    {
+      requested: () => marriageAssistanceService.getAll({ ...countBase, status: 'requested', page: 1, limit: 1 }),
+      completed: () => marriageAssistanceService.getAll({ ...countBase, status: 'completed', page: 1, limit: 1 }),
+    },
+    [records]
+  );
 
   const stats = [
     {
@@ -187,12 +205,12 @@ export default function MarriageAssistanceList() {
     },
     {
       title: 'Pending',
-      value: records.filter((r) => r.status === 'requested').length,
+      value: statusCounts.requested ?? records.filter((r) => r.status === 'requested').length,
       icon: <FiClock className="h-5 w-5" />,
     },
     {
       title: 'Completed',
-      value: records.filter((r) => r.status === 'completed').length,
+      value: statusCounts.completed ?? records.filter((r) => r.status === 'completed').length,
       icon: <FiCheckCircle className="h-5 w-5" />,
     },
   ];
@@ -209,7 +227,7 @@ export default function MarriageAssistanceList() {
         </div>
       </div>
 
-      <TableCard>
+      <TableCard borderless>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -281,6 +299,10 @@ export default function MarriageAssistanceList() {
             data={records}
             emptyMessage="No marriage assistance records found"
             showExport={false}
+            onRowClick={(row) => {
+              setSelectedRecord(row);
+              setShowViewModal(true);
+            }}
           />
         )}
 
@@ -296,6 +318,82 @@ export default function MarriageAssistanceList() {
           </div>
         )}
       </TableCard>
+
+      {/* View Modal */}
+      <Modal
+        isOpen={showViewModal}
+        onClose={() => {
+          setShowViewModal(false);
+          setSelectedRecord(null);
+        }}
+        title="Marriage Assistance Details"
+        footer={
+          <>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowViewModal(false);
+                setSelectedRecord(null);
+              }}
+            >
+              Close
+            </Button>
+            {selectedRecord && (
+              <Button
+                variant="danger"
+                onClick={() => {
+                  const label = toTitleCase(
+                    typeof selectedRecord.memberId === 'object'
+                      ? selectedRecord.memberId?.name
+                      : typeof selectedRecord.familyId === 'object'
+                        ? selectedRecord.familyId?.houseName
+                        : 'Record'
+                  );
+                  setShowViewModal(false);
+                  handleDeleteClick(selectedRecord.id, label);
+                }}
+              >
+                Delete
+              </Button>
+            )}
+          </>
+        }
+      >
+        {selectedRecord && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Member/Family</p>
+              <p className="text-gray-900 dark:text-gray-100 font-medium">
+                {toTitleCase(
+                  typeof selectedRecord.memberId === 'object'
+                    ? selectedRecord.memberId?.name
+                    : typeof selectedRecord.familyId === 'object'
+                      ? selectedRecord.familyId?.houseName
+                      : '—'
+                ) || '—'}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Type</p>
+              <p className="text-gray-900 dark:text-gray-100">{getTypeLabel(selectedRecord.type)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Amount</p>
+              <p className="text-gray-900 dark:text-gray-100">
+                {selectedRecord.amount ? `₹${selectedRecord.amount.toLocaleString()}` : '—'}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Status</p>
+              <p className="text-gray-900 dark:text-gray-100 capitalize">{selectedRecord.status}</p>
+            </div>
+            <div className="sm:col-span-2">
+              <p className="text-xs text-gray-500 dark:text-gray-400">Notes</p>
+              <p className="text-gray-900 dark:text-gray-100">{selectedRecord.notes || '—'}</p>
+            </div>
+          </div>
+        )}
+      </Modal>
 
       <ConfirmDialog
         isOpen={deleteConfirm !== null}

@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "tsc -p tsconfig.json --noEmit && vite build",
     "build:check": "tsc && vite build",
+    "audit:ui": "node scripts/ui-audit.mjs",
     "lint": "eslint . --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview"
   },
@@ -17,6 +18,7 @@
     "axios": "^1.6.2",
     "clsx": "^2.0.0",
     "date-fns": "^2.30.0",
+    "dompurify": "^3.4.16",
     "dotenv": "^17.2.3",
     "jspdf": "^4.2.0",
     "jspdf-autotable": "^5.0.2",

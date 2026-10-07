@@ -13,7 +13,7 @@ import {
   createNOC,
   updateNOC,
 } from '../controllers/registrationController';
-import { authMiddleware } from '../middleware/authMiddleware';
+import { authMiddleware, requireAdmin } from '../middleware/authMiddleware';
 import { tenantMiddleware, tenantFilter } from '../middleware/tenantMiddleware';
 import { validationHandler } from '../middleware/validationHandler';
 import {
@@ -34,6 +34,8 @@ const router = express.Router();
 router.use(authMiddleware);
 router.use(tenantMiddleware);
 router.use(tenantFilter);
+// Nikah, death and NOC registrations are civil records handled by the Mahallu admin only.
+router.use(requireAdmin);
 
 /**
  * @swagger

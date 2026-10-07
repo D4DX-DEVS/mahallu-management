@@ -8,12 +8,14 @@ import Dropdown, { DropdownItem } from '@/components/ui/Dropdown';
 import Select from '@/components/ui/Select';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import { reportService, BloodBankReport } from '@/services/reportService';
-import { exportToPDF } from '@/utils/exportUtils';
+import { exportToCSV, exportToPDF } from '@/utils/exportUtils';
+import { TableColumn } from '@/types';
 import { loadErrorInfo, LoadErrorInfo } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
 import SortableTh from '@/components/ui/SortableTh';
 import { useSortableRows } from '@/hooks/useSortableRows';
+import { logError } from '@/utils/safeLog';
 
 export default function BloodBankReportPage() {
   const [bloodGroupFilter, setBloodGroupFilter] = useState('all');
@@ -37,58 +39,22 @@ export default function BloodBankReportPage() {
       setReport(data);
     } catch (err: any) {
       setError(loadErrorInfo(err, 'blood bank report'));
-      console.error('Error fetching report:', err);
+      logError('Error fetching report', err);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleExportCSV = () => {
-    if (!report) return;
-    const csvData = report.members.map((member) => ({
-      Name: member.name,
-      'Blood Group': member.bloodGroup,
-      Age: member.age || '-',
-      Gender: member.gender || '-',
-      Phone: member.phone || '-',
-    }));
+  const exportColumns: TableColumn[] = [
+    { key: 'name', label: 'Name' },
+    { key: 'bloodGroup', label: 'Blood Group' },
+    { key: 'age', label: 'Age' },
+    { key: 'gender', label: 'Gender' },
+    { key: 'phone', label: 'Phone' },
+  ];
 
-    const headers = ['Name', 'Blood Group', 'Age', 'Gender', 'Phone'];
-    const csvRows = [headers.join(',')];
-
-    csvData.forEach((row) => {
-      const values = headers.map((header) => {
-        const value = row[header as keyof typeof row] ?? '';
-        const escaped = String(value).replace(/"/g, '""');
-        return escaped.includes(',') ? `"${escaped}"` : escaped;
-      });
-      csvRows.push(values.join(','));
-    });
-
-    const csvContent = csvRows.join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-
-    link.setAttribute('href', url);
-    link.setAttribute('download', `blood-bank-report-${new Date().toISOString().split('T')[0]}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  const handlePrintPDF = () => {
-    if (!report) return;
-    const columns = [
-      { key: 'name', label: 'Name' },
-      { key: 'bloodGroup', label: 'Blood Group' },
-      { key: 'age', label: 'Age' },
-      { key: 'gender', label: 'Gender' },
-      { key: 'phone', label: 'Phone' },
-    ];
-
-    const data = report.members.map((member) => ({
+  const exportRows = () =>
+    (report?.members ?? []).map((member) => ({
       name: member.name,
       bloodGroup: member.bloodGroup,
       age: member.age || '-',
@@ -96,12 +62,17 @@ export default function BloodBankReportPage() {
       phone: member.phone || '-',
     }));
 
-    exportToPDF(
-      columns,
-      data,
-      `blood-bank-report-${new Date().toISOString().split('T')[0]}`,
-      'Blood Bank Report'
-    );
+  const exportFilename = () => `blood-bank-report-${new Date().toISOString().split('T')[0]}`;
+
+  // exportToCSV applies the shared CSV safeguards (BOM, quoting, formula guard).
+  const handleExportCSV = () => {
+    if (!report) return;
+    exportToCSV(exportColumns, exportRows(), exportFilename());
+  };
+
+  const handlePrintPDF = async () => {
+    if (!report) return;
+    await exportToPDF(exportColumns, exportRows(), exportFilename(), 'Blood Bank Report');
   };
 
   const {
@@ -176,7 +147,7 @@ export default function BloodBankReportPage() {
       <Card>
         <h2 className="text-lg font-semibold mb-3">Member Details</h2>
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-border">
+          <table className="data-table min-w-full divide-y divide-border">
             <thead className="bg-muted">
               <tr>
                 <SortableTh sortKey="name" sort={sort} onSort={toggleSort}>

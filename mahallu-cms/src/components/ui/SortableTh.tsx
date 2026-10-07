@@ -47,7 +47,7 @@ export default function SortableTh({
       scope="col"
       aria-sort={isSorted ? (direction === 'asc' ? 'ascending' : 'descending') : 'none'}
       className={cn(
-        'px-3 py-2.5 text-label font-semibold text-muted-foreground',
+        'bg-muted/60 px-3 py-2 text-label font-semibold text-muted-foreground',
         ALIGN[align],
         responsiveClassName,
         className
@@ -71,10 +71,10 @@ export default function SortableTh({
         )}
       >
         <span className="truncate">{children}</span>
-        <span className="inline-flex flex-col items-center leading-none" aria-hidden="true">
-          <FiChevronUp className={cn('-mb-1 h-3 w-3', direction === 'asc' ? 'opacity-100' : 'opacity-30')} />
+        <span className="inline-flex flex-shrink-0 flex-col items-center gap-px leading-none" aria-hidden="true">
+          <FiChevronUp className={cn('h-3 w-3', direction === 'asc' ? 'opacity-100' : 'opacity-60')} />
           <FiChevronDown
-            className={cn('-mt-1 h-3 w-3', direction === 'desc' ? 'opacity-100' : 'opacity-30')}
+            className={cn('h-3 w-3', direction === 'desc' ? 'opacity-100' : 'opacity-60')}
           />
         </span>
       </button>

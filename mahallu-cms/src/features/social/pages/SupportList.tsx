@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FiAlertCircle, FiCheckCircle, FiEye, FiHelpCircle, FiPlus } from 'react-icons/fi';
+import { FiAlertCircle, FiCheckCircle, FiHelpCircle, FiPlus } from 'react-icons/fi';
 import TableCard from '@/components/ui/TableCard';
-import { rowActionClass } from '@/components/ui/rowAction';
 import FilterPanel from '@/components/ui/FilterPanel';
 import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
@@ -22,6 +21,8 @@ import { ROUTES } from '@/constants/routes';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import StatusBadge from '@/components/ui/StatusBadge';
 import PageHeader from '@/components/layout/PageHeader';
+import { useServerCounts } from '@/hooks/useServerCounts';
+import { logError } from '@/utils/safeLog';
 
 export default function SupportList() {
   const navigate = useNavigate();
@@ -62,7 +63,7 @@ export default function SupportList() {
       }
     } catch (err: any) {
       setError(loadErrorMessage(err, 'support tickets'));
-      console.error('Error fetching support:', err);
+      logError('Error fetching support', err);
       setSupport([]);
     } finally {
       setLoading(false);
@@ -97,11 +98,11 @@ export default function SupportList() {
           exportToJSON(columns, dataToExport, filename);
           break;
         case 'pdf':
-          exportToPDF(columns, dataToExport, filename, title);
+          await exportToPDF(columns, dataToExport, filename, title);
           break;
       }
     } catch (error: any) {
-      console.error('Export error:', error);
+      logError('Export error', error);
       toast.error(errorMessage(error, { action: 'export data' }));
     } finally {
       setIsExporting(false);
@@ -143,39 +144,28 @@ export default function SupportList() {
       width: '7.75rem',
       render: (date) => formatDate(date),
     },
-    {
-      key: 'actions',
-      label: 'Actions',
-      width: '8rem',
-      align: 'center',
-      render: (_, row) => (
-        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(ROUTES.SOCIAL.SUPPORT_DETAIL(row.id));
-            }}
-            className={rowActionClass()}
-            title="View"
-            aria-label="View"
-          >
-            <FiEye className="h-4 w-4" />
-          </button>
-        </div>
-      ),
-    },
   ];
 
+  // Whole-list counts from the server: these cards used to count only the rows on this page.
+  const countBase = priorityFilter !== 'all' ? { priority: priorityFilter } : {};
+  const statusCounts = useServerCounts(
+    {
+      open: () => socialService.getAllSupport({ ...countBase, status: 'open', page: 1, limit: 1 }),
+      resolved: () => socialService.getAllSupport({ ...countBase, status: 'resolved', page: 1, limit: 1 }),
+    },
+    [support]
+  );
+
   const stats = [
-    { title: 'Total Tickets', value: support.length, icon: <FiHelpCircle className="h-5 w-5" /> },
+    { title: 'Total Tickets', value: pagination?.total ?? support.length, icon: <FiHelpCircle className="h-5 w-5" /> },
     {
       title: 'Open',
-      value: support.filter((s) => s.status === 'open' || !s.status).length,
+      value: statusCounts.open ?? support.filter((s) => s.status === 'open' || !s.status).length,
       icon: <FiAlertCircle className="h-5 w-5" />,
     },
     {
       title: 'Resolved',
-      value: support.filter((s) => s.status === 'resolved').length,
+      value: statusCounts.resolved ?? support.filter((s) => s.status === 'resolved').length,
       icon: <FiCheckCircle className="h-5 w-5" />,
     },
   ];
@@ -192,7 +182,7 @@ export default function SupportList() {
         </div>
       </div>
 
-      <TableCard>
+      <TableCard borderless>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -263,6 +253,7 @@ export default function SupportList() {
               data={support}
               emptyMessage="No support tickets found"
               showExport={false}
+              onRowClick={(row) => navigate(ROUTES.SOCIAL.SUPPORT_DETAIL(row.id))}
             />
             {pagination && pagination.totalPages > 1 && (
               <div className="mt-4">

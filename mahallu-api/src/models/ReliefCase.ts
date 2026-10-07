@@ -15,6 +15,9 @@ export const RELIEF_TRANSITIONS: Record<ReliefStatus, ReliefStatus[]> = {
   closed: [],
 };
 
+/** Once assistance is given the amount is a fact; it can no longer be edited and the case can't be deleted. */
+export const RELIEF_MONEY_LOCKED_STATUSES: readonly ReliefStatus[] = ['assisted', 'closed'];
+
 export interface IReliefCase extends Document {
   tenantId: mongoose.Types.ObjectId;
   familyId?: mongoose.Types.ObjectId;

@@ -1,4 +1,5 @@
 import mongoose, { Schema, Document } from 'mongoose';
+import { MAX_AMOUNT } from '../utils/money';
 
 export interface IPettyCash extends Document {
   tenantId: mongoose.Types.ObjectId;
@@ -32,8 +33,9 @@ const PettyCashSchema = new Schema<IPettyCash>(
     tenantId: { type: Schema.Types.ObjectId, ref: 'Tenant', required: true, index: true },
     instituteId: { type: Schema.Types.ObjectId, ref: 'Institute', required: true },
     custodianName: { type: String, required: true, trim: true },
-    floatAmount: { type: Number, required: true, min: 0 },
-    currentBalance: { type: Number, default: 0 },
+    floatAmount: { type: Number, required: true, min: 0, max: MAX_AMOUNT },
+    // Moved only by atomic $inc / $set in the controller, never below zero.
+    currentBalance: { type: Number, default: 0, min: 0, max: MAX_AMOUNT },
     status: { type: String, enum: ['active', 'inactive'], default: 'active' },
   },
   { timestamps: true }
@@ -45,7 +47,7 @@ const PettyCashTransactionSchema = new Schema<IPettyCashTransaction>(
     instituteId: { type: Schema.Types.ObjectId, ref: 'Institute', required: true },
     pettyCashId: { type: Schema.Types.ObjectId, ref: 'PettyCash', required: true },
     type: { type: String, enum: ['float', 'expense', 'replenishment'], required: true },
-    amount: { type: Number, required: true, min: 0 },
+    amount: { type: Number, required: true, min: 0, max: MAX_AMOUNT },
     description: { type: String, required: true, trim: true },
     categoryId: { type: Schema.Types.ObjectId, ref: 'Category' },
     receiptNo: String,

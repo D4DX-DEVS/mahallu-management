@@ -5,19 +5,35 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import Alert from '@/components/ui/Alert';
+import Pagination from '@/components/ui/Pagination';
 import { PageSkeleton } from '@/components/ui/Skeleton';
-import { accountingReportService, DayBookEntry } from '@/services/accountingReportService';
+import {
+  accountingReportService,
+  DayBookEntry,
+  DayBookParams,
+  DayBookSummary,
+  ReportPagination,
+} from '@/services/accountingReportService';
 import { instituteService } from '@/services/instituteService';
 import { useAuthStore } from '@/store/authStore';
 import { loadErrorInfo, LoadErrorInfo } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
+import { fetchAllPages } from '@/services/api';
+import { logError } from '@/utils/safeLog';
 
 export default function DayBook() {
   const { currentInstituteId: userInstituteId } = useAuthStore();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<LoadErrorInfo | null>(null);
   const [entries, setEntries] = useState<DayBookEntry[]>([]);
+  /* Whole-range totals and the current page's position, both from the server. */
+  const [summary, setSummary] = useState<DayBookSummary | null>(null);
+  const [pagination, setPagination] = useState<ReportPagination | null>(null);
+  /* The filters the report was generated with: paging must not pick up later edits to the inputs. */
+  const [appliedParams, setAppliedParams] = useState<Omit<DayBookParams, 'page' | 'limit'> | null>(null);
+  const [pageSize, setPageSize] = useState(50);
+  const [paging, setPaging] = useState(false);
   const [institutes, setInstitutes] = useState<{ id: string; name: string }[]>([]);
   const [instituteFilter, setInstituteFilter] = useState(userInstituteId || 'all');
   const [startDate, setStartDate] = useState(() => {
@@ -33,32 +49,55 @@ export default function DayBook() {
 
   const fetchInstitutes = async () => {
     try {
-      const result = await instituteService.getAll({ limit: 1000 });
-      setInstitutes(result.data.map((i: any) => ({ id: i.id, name: i.name })));
+      const allRows = await fetchAllPages((page) => instituteService.getAll(page));
+      setInstitutes(allRows.map((i: any) => ({ id: i.id, name: i.name })));
     } catch (err) {
-      console.error('Error:', err);
+      logError('Error', err);
     }
   };
 
-  const fetchDayBook = async () => {
+  const loadPage = async (
+    params: Omit<DayBookParams, 'page' | 'limit'>,
+    page: number,
+    limit: number,
+    isNewReport: boolean
+  ) => {
     try {
-      setLoading(true);
+      if (isNewReport) setLoading(true);
+      else setPaging(true);
       setError(null);
-      const params: any = { startDate, endDate };
-      if (instituteFilter !== 'all') params.instituteId = instituteFilter;
-      const data = await accountingReportService.getDayBook(params);
-      setEntries(data || []);
+      const data = await accountingReportService.getDayBook({ ...params, page, limit });
+      setEntries(data.entries);
+      setSummary(data.summary);
+      setPagination(data.pagination);
     } catch (err: any) {
       setError(loadErrorInfo(err, 'day book'));
     } finally {
       setLoading(false);
+      setPaging(false);
     }
   };
 
-  const totalIncome = entries.filter((e) => e.type === 'income').reduce((sum, e) => sum + e.amount, 0);
-  const totalExpense = entries
-    .filter((e) => e.type === 'expense' || e.type === 'salary')
-    .reduce((sum, e) => sum + e.amount, 0);
+  const fetchDayBook = async () => {
+    const params: Omit<DayBookParams, 'page' | 'limit'> = { startDate, endDate };
+    if (instituteFilter !== 'all') params.instituteId = instituteFilter;
+    setAppliedParams(params);
+    await loadPage(params, 1, pageSize, true);
+  };
+
+  const changePage = (page: number) => {
+    if (appliedParams) loadPage(appliedParams, page, pageSize, false);
+  };
+
+  const changePageSize = (size: number) => {
+    setPageSize(size);
+    if (appliedParams) loadPage(appliedParams, 1, size, false);
+  };
+
+  // Whole-range totals from the server, so they are right on every page.
+  const totalIncome = summary?.totalIncome ?? 0;
+  const totalExpense = summary?.totalExpense ?? 0;
+  const netBalance = summary?.netBalance ?? totalIncome - totalExpense;
 
   return (
     <div className="space-y-4">
@@ -127,13 +166,13 @@ export default function DayBook() {
               />
               <StatCard
                 title="Net Balance"
-                value={<>₹{(totalIncome - totalExpense).toLocaleString()}</>}
+                value={<>₹{netBalance.toLocaleString()}</>}
                 tone="info"
               />
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-border">
+            <div className={paging ? 'overflow-x-auto opacity-60 pointer-events-none' : 'overflow-x-auto'}>
+              <table className="data-table min-w-full divide-y divide-border">
                 <thead className="bg-muted">
                   <tr>
                     <th className="px-4 py-3 text-left text-label font-medium text-gray-500 dark:text-gray-400 uppercase">
@@ -195,6 +234,19 @@ export default function DayBook() {
                 </tbody>
               </table>
             </div>
+            {pagination && (
+              <div className="mt-4">
+                <Pagination
+                  currentPage={pagination.page}
+                  totalPages={pagination.totalPages}
+                  totalItems={pagination.total}
+                  itemsPerPage={pagination.limit}
+                  onPageChange={changePage}
+                  onItemsPerPageChange={changePageSize}
+                  entity="entries"
+                />
+              </div>
+            )}
           </>
         )}
       </Card>

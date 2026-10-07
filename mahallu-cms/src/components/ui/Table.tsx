@@ -1,4 +1,4 @@
-import { ReactNode, useId, useMemo, useState } from 'react';
+import { KeyboardEvent, MouseEvent, ReactNode, useId, useMemo, useState } from 'react';
 import { FiChevronUp, FiChevronDown, FiChevronRight } from 'react-icons/fi';
 import { TableColumn, SortState } from '@/types';
 import { cn } from '@/utils/cn';
@@ -14,9 +14,9 @@ import EmptyState, { EmptyStateVariant } from './EmptyState';
  */
 function SortIndicator({ direction }: { direction: 'asc' | 'desc' | null }) {
   return (
-    <span className="inline-flex flex-col items-center leading-none" aria-hidden="true">
-      <FiChevronUp className={cn('-mb-1 h-3 w-3', direction === 'asc' ? 'opacity-100' : 'opacity-30')} />
-      <FiChevronDown className={cn('-mt-1 h-3 w-3', direction === 'desc' ? 'opacity-100' : 'opacity-30')} />
+    <span className="inline-flex flex-shrink-0 flex-col items-center gap-px leading-none" aria-hidden="true">
+      <FiChevronUp className={cn('h-3 w-3', direction === 'asc' ? 'opacity-100' : 'opacity-60')} />
+      <FiChevronDown className={cn('h-3 w-3', direction === 'desc' ? 'opacity-100' : 'opacity-60')} />
     </span>
   );
 }
@@ -122,6 +122,33 @@ const PRIORITY_CLASS: Record<NonNullable<TableColumn['priority']>, string> = {
 const HEAD_FONT = { fontSize: '0.8125rem' }; // label 13
 const CELL_FONT = { fontSize: '0.875rem' }; // sm 14
 
+/**
+ * Keep activation keys and clicks that happen inside a row's controls (actions
+ * menu, selection checkbox) from reaching the row's own handler. React
+ * synthetic events also bubble out of portalled children, so Enter on an item
+ * of a three-dot menu would otherwise run the action *and* navigate to the row.
+ * Only Enter and Space are stopped: other keys (Tab, Escape, Ctrl+K) must keep
+ * reaching global shortcuts.
+ */
+const isActivationKey = (event: KeyboardEvent<HTMLElement>) =>
+  event.key === 'Enter' || event.key === ' ' || event.key === 'Spacebar';
+
+const rowControlEvents = {
+  onClick: (event: MouseEvent<HTMLElement>) => event.stopPropagation(),
+  onKeyDown: (event: KeyboardEvent<HTMLElement>) => {
+    if (isActivationKey(event)) event.stopPropagation();
+  },
+};
+
+/** Enter/Space activate a row only when the row itself has focus. */
+const activateRowOnKey = (event: KeyboardEvent<HTMLElement>, activate: () => void) => {
+  if (event.target !== event.currentTarget) return;
+  if (isActivationKey(event)) {
+    event.preventDefault();
+    activate();
+  }
+};
+
 const ALIGN_CLASS = {
   left: 'text-left',
   right: 'text-right tabular-nums',
@@ -150,11 +177,6 @@ function Table<T extends Record<string, any>>({
   minWidth = '48rem',
   fixedLayout = false,
   striped = false,
-  // Deprecated export props are intentionally destructured and unused.
-  exportFilename: _exportFilename,
-  exportTitle: _exportTitle,
-  showExport: _showExport,
-  onExportAll: _onExportAll,
 }: TableProps<T>) {
   /* A list endpoint that answers with something other than an array — a 200
    * missing its `data`, an error envelope, a shape change — used to reach
@@ -375,19 +397,10 @@ function Table<T extends Record<string, any>>({
                 role={onRowClick ? 'button' : undefined}
                 tabIndex={onRowClick ? 0 : undefined}
                 onClick={onRowClick ? () => onRowClick(row) : undefined}
-                onKeyDown={
-                  onRowClick
-                    ? (event) => {
-                        if (event.key === 'Enter' || event.key === ' ') {
-                          event.preventDefault();
-                          onRowClick(row);
-                        }
-                      }
-                    : undefined
-                }
+                onKeyDown={onRowClick ? (event) => activateRowOnKey(event, () => onRowClick(row)) : undefined}
                 className={cn(
-                  'min-w-0 rounded-lg border border-border bg-card p-2.5 transition-colors sm:p-3',
-                  selected && 'border-primary bg-accent/50',
+                  'min-w-0 rounded-xl border border-border/80 bg-card p-2.5 transition-colors sm:p-3',
+                  selected && 'border-primary bg-accent',
                   onRowClick &&
                     'cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
                 )}
@@ -398,7 +411,7 @@ function Table<T extends Record<string, any>>({
                       type="checkbox"
                       checked={selected}
                       onChange={() => toggleOne(key)}
-                      onClick={(e) => e.stopPropagation()}
+                      {...rowControlEvents}
                       aria-label={'Select row ' + (rowIndex + 1)}
                       className="mt-0.5 h-4 w-4 flex-shrink-0 rounded-sm border-input accent-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     />
@@ -422,14 +435,11 @@ function Table<T extends Record<string, any>>({
                          * height a phone list carried, and it pushed a row's actions
                          * onto their own line instead of staying level with the record
                          * they act on. */
-                        <div
-                          className="flex-shrink-0"
-                          onClick={(e) => e.stopPropagation()}
-                          /* Only the click was stopped, so Enter on a row action ran the
-                           * action and then the row's own click handler — deleting a
-                           * record and navigating to it in one keystroke. */
-                          onKeyDown={(e) => e.stopPropagation()}
-                        >
+                        /* Click and Enter/Space are both stopped: with only the click
+                         * stopped, Enter on a row action ran the action and then the
+                         * row's own handler — deleting a record and navigating to it
+                         * in one keystroke. */
+                        <div className="flex-shrink-0" {...rowControlEvents}>
                           {cellValue(actionsColumn, row, rowIndex)}
                         </div>
                       )}
@@ -465,15 +475,15 @@ function Table<T extends Record<string, any>>({
       </ul>
 
       {/* ---- Tablet and up: the table ------------------------------------ */}
-      <div className="hidden overflow-x-auto rounded-lg border border-border md:block">
+      <div className="data-table-surface hidden overflow-x-auto rounded-xl border border-border/80 md:block">
         <table
-          className="w-full border-collapse"
+          className="data-table w-full border-collapse"
           style={{ minWidth, ...(fixedLayout ? { tableLayout: 'fixed' as const } : {}) }}
         >
-          <thead className="sticky top-0 z-10 bg-muted">
+          <thead className="sticky top-0 z-10 bg-muted/60">
             <tr className="border-b border-border">
               {selectable && (
-                <th scope="col" className="w-10 px-3 py-3">
+                <th scope="col" className="w-10 px-3 py-2.5">
                   <input
                     type="checkbox"
                     checked={allSelected}
@@ -517,7 +527,7 @@ function Table<T extends Record<string, any>>({
                     className={cn(
                       /* Size comes from HEAD_FONT. `whitespace-nowrap` stops
                        * a two-word heading folding into its neighbour. */
-                      'whitespace-nowrap px-3 py-3 font-semibold text-muted-foreground',
+                      'whitespace-nowrap bg-muted/60 px-4 py-2.5 font-semibold text-muted-foreground',
                       ALIGN_CLASS[column.headerAlign ?? column.align ?? 'left'],
                       PRIORITY_CLASS[column.priority ?? 'primary']
                     )}
@@ -576,30 +586,21 @@ function Table<T extends Record<string, any>>({
                   tabIndex={onRowClick ? 0 : undefined}
                   role={onRowClick ? 'button' : undefined}
                   onClick={onRowClick ? () => onRowClick(row) : undefined}
-                  onKeyDown={
-                    onRowClick
-                      ? (event) => {
-                          if (event.key === 'Enter' || event.key === ' ') {
-                            event.preventDefault();
-                            onRowClick(row);
-                          }
-                        }
-                      : undefined
-                  }
+                  onKeyDown={onRowClick ? (event) => activateRowOnKey(event, () => onRowClick(row)) : undefined}
                   className={cn(
                     'transition-colors',
                     /* Selection, then the stripe, then hover - written as one
                      * class rather than an `even:` variant, whose extra
                      * specificity would have outranked the selected tint. */
                     selected
-                      ? 'bg-accent/50'
-                      : cn(striped && rowIndex % 2 === 1 && 'bg-muted/40', 'hover:bg-accent/30'),
+                      ? 'bg-accent'
+                      : cn(striped && rowIndex % 2 === 1 && 'bg-muted/40', 'hover:bg-accent/60'),
                     onRowClick &&
                       'cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring'
                   )}
                 >
                   {selectable && (
-                    <td className="w-10 px-3 py-3" onClick={(e) => e.stopPropagation()}>
+                    <td className="w-10 px-3 py-3" {...rowControlEvents}>
                       <input
                         type="checkbox"
                         checked={selected}
@@ -613,6 +614,8 @@ function Table<T extends Record<string, any>>({
                     <td
                       key={column.key}
                       style={CELL_FONT}
+                      /* The actions cell must not leak clicks or Enter/Space to the row. */
+                      {...(column.key === 'actions' ? rowControlEvents : {})}
                       /* The actions cell holds controls, not text - clipping it
                        * would cut a menu button in half. */
                       title={
@@ -621,7 +624,7 @@ function Table<T extends Record<string, any>>({
                           : undefined
                       }
                       className={cn(
-                        'px-3 py-3 text-foreground',
+                        'px-4 py-3.5 text-foreground',
                         ALIGN_CLASS[column.align ?? 'left'],
                         PRIORITY_CLASS[column.priority ?? 'primary']
                       )}

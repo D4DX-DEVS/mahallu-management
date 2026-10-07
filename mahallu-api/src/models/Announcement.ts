@@ -20,10 +20,16 @@ export interface IAnnouncement extends Document {
   audience: 'all' | 'families' | 'committee' | 'cluster' | 'custom';
   audienceRefIds: mongoose.Types.ObjectId[];
   channels: string[];
-  /** Per-channel outcome of the last send, e.g. { push: 'sent', sms: 'not_configured' } */
+  /**
+   * Per-channel outcome of the last send attempt, e.g. { push: 'sent', whatsapp: 'sent to 12/14',
+   * sms: 'not_configured', email: 'not_supported' }. Values are plain codes, never provider text.
+   */
   deliveryResults?: Record<string, string>;
   sentAt?: Date;
-  status: 'draft' | 'sent';
+  /** 'sending' = claimed by one send in progress; back to 'draft' if nothing was delivered. */
+  status: 'draft' | 'sending' | 'sent';
+  /** When the current claim was taken; a claim older than the stale window can be taken over. */
+  sendingStartedAt?: Date;
   createdBy?: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
@@ -53,7 +59,8 @@ const AnnouncementSchema = new Schema<IAnnouncement>(
     },
     deliveryResults: { type: Map, of: String },
     sentAt: { type: Date },
-    status: { type: String, enum: ['draft', 'sent'], default: 'draft', index: true },
+    status: { type: String, enum: ['draft', 'sending', 'sent'], default: 'draft', index: true },
+    sendingStartedAt: { type: Date },
     createdBy: { type: Schema.Types.ObjectId, ref: 'User' },
   },
   { timestamps: true }

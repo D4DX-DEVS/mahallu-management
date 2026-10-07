@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiEdit2, FiTrash2, FiList } from 'react-icons/fi';
 import TableCard from '@/components/ui/TableCard';
-import { rowActionClass } from '@/components/ui/rowAction';
+import ActionsMenu from '@/components/ui/ActionsMenu';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import Table from '@/components/ui/Table';
@@ -17,6 +17,7 @@ import { ROUTES } from '@/constants/routes';
 import { toast } from '@/store/toastStore';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { fetchAllPages } from '@/services/api';
 
 export default function MahalluCategoriesList() {
   const navigate = useNavigate();
@@ -73,15 +74,15 @@ export default function MahalluCategoriesList() {
   const handleExport = async (type: 'csv' | 'json' | 'pdf') => {
     try {
       setIsExporting(true);
-      const result = await masterAccountService.getAllCategories({ limit: 10000, scope: 'mahallu' });
-      const data = Array.isArray(result.data) ? result.data : [];
+      const allRows = await fetchAllPages((page) => masterAccountService.getAllCategories({ ...page, scope: 'mahallu' }));
+      const data = Array.isArray(allRows) ? allRows : [];
       if (!data.length) {
         toast.info('No categories to export');
         return;
       }
       if (type === 'csv') exportToCSV(columns, data, 'mahallu-categories');
       else if (type === 'json') exportToJSON(columns, data, 'mahallu-categories');
-      else exportToPDF(columns, data, 'mahallu-categories', 'Mahallu Categories');
+      else await exportToPDF(columns, data, 'mahallu-categories', 'Mahallu Categories');
     } catch (err: any) {
       toast.error(err?.message || "Couldn't export categories");
     } finally {
@@ -116,30 +117,32 @@ export default function MahalluCategoriesList() {
       width: '8rem',
       align: 'center',
       render: (_, row) => (
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() =>
-              navigate(ROUTES.MAHALLU_FINANCE.CATEGORIES_EDIT(row.id), { state: { category: row } })
-            }
-            className={rowActionClass()}
-            aria-label="Edit"
-          >
-            <FiEdit2 className="h-4 w-4" />
-          </button>
-          <button
-            onClick={() => {
-              setSelected(row);
-              setShowDeleteModal(true);
-            }}
-            className={rowActionClass('danger')}
-            aria-label="Delete"
-          >
-            <FiTrash2 className="h-4 w-4" />
-          </button>
-        </div>
+        <ActionsMenu
+          label={`Actions for ${toTitleCase(row.name)}`}
+          items={[
+            {
+              label: 'Edit',
+              icon: <FiEdit2 className="h-4 w-4" />,
+              onClick: () =>
+                navigate(ROUTES.MAHALLU_FINANCE.CATEGORIES_EDIT(row.id), { state: { category: row } }),
+            },
+            {
+              label: 'Delete',
+              icon: <FiTrash2 className="h-4 w-4" />,
+              variant: 'danger',
+              onClick: () => {
+                setSelected(row);
+                setShowDeleteModal(true);
+              },
+            },
+          ]}
+        />
       ),
     },
   ];
+
+  const openEditPage = (row: Category) =>
+    navigate(ROUTES.MAHALLU_FINANCE.CATEGORIES_EDIT(row.id), { state: { category: row } });
 
   return (
     <div className="space-y-4">
@@ -149,7 +152,7 @@ export default function MahalluCategoriesList() {
         breadcrumbs={[{ label: 'Mahallu Finance', path: '/mahallu-finance/accounts' }]}
       />
 
-      <TableCard>
+      <TableCard borderless>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -172,7 +175,14 @@ export default function MahalluCategoriesList() {
           <p className="text-center py-8 text-red-600">{error}</p>
         ) : (
           <>
-            <Table fixedLayout striped columns={columns} data={filtered} emptyMessage="No categories found" />
+            <Table
+              fixedLayout
+              striped
+              columns={columns}
+              data={filtered}
+              emptyMessage="No categories found"
+              onRowClick={openEditPage}
+            />
             {pagination && (
               <Pagination
                 currentPage={currentPage}

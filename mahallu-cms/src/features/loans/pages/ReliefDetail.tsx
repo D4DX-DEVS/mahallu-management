@@ -1,10 +1,14 @@
 import { useState, useEffect, ReactNode } from 'react';
+import { FiTrash2 } from 'react-icons/fi';
 import { useParams, useNavigate } from 'react-router-dom';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
+import Modal from '@/components/ui/Modal';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { PageSkeleton } from '@/components/ui/Skeleton';
+import { toast } from '@/store/toastStore';
 import { formatCurrency, formatDate } from '@/utils/format';
 import { reliefService, ReliefCase, ReliefStatus, RELIEF_TRANSITIONS } from '@/services/qardService';
 import { ReliefStatusBadge, UrgencyBadge } from '../components/LoanStatusBadge';
@@ -31,6 +35,9 @@ export default function ReliefDetail() {
   const [amount, setAmount] = useState('');
   const [saving, setSaving] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [showStatusConfirm, setShowStatusConfirm] = useState(false);
 
   useEffect(() => {
     if (id) fetchCase(id);
@@ -61,11 +68,25 @@ export default function ReliefDetail() {
       if (assistanceGiven) payload.assistanceGiven = assistanceGiven;
       if (amount) payload.amount = Number(amount);
       await reliefService.updateCaseStatus(reliefCase.id, payload);
+      setShowStatusConfirm(false);
       if (id) fetchCase(id);
     } catch (err: any) {
       setActionError(errorMessage(err, { action: 'update the case' }));
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!id) return;
+    try {
+      setDeleting(true);
+      await reliefService.deleteCase(id);
+      toast.success('Relief case deleted');
+      navigate('/relief');
+    } catch (err: any) {
+      toast.error(errorMessage(err, { action: 'delete relief case' }));
+      setDeleting(false);
     }
   };
 
@@ -95,9 +116,12 @@ export default function ReliefDetail() {
         breadcrumbs={[{ label: 'Services' }, { label: 'Emergency Relief', path: '/relief' }]}
       />
 
-      <div className="mb-4 flex flex-wrap items-center gap-3">
-        <ReliefStatusBadge status={reliefCase.status} />
-        <UrgencyBadge urgency={reliefCase.urgency} />
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <ReliefStatusBadge status={reliefCase.status} />
+          <UrgencyBadge urgency={reliefCase.urgency} />
+        </div>
+        <Button variant="danger" onClick={() => setShowDeleteModal(true)} icon={<FiTrash2 />} collapseLabel>Delete</Button>
       </div>
 
       <Card className="mb-4">
@@ -167,8 +191,8 @@ export default function ReliefDetail() {
               placeholder="Optional"
             />
 
-            <Button onClick={moveStatus} disabled={!nextStatus || saving}>
-              {saving ? 'Saving...' : 'Update'}
+            <Button onClick={() => setShowStatusConfirm(true)} disabled={!nextStatus || saving}>
+              Update
             </Button>
           </div>
         )}
@@ -179,6 +203,37 @@ export default function ReliefDetail() {
           </div>
         )}
       </Card>
+
+      <ConfirmDialog
+        isOpen={showStatusConfirm}
+        title="Update this relief case?"
+        message={`This will move the case to “${nextStatus || 'the selected status'}” and save the assistance details.`}
+        confirmLabel="Update case"
+        variant="primary"
+        isLoading={saving}
+        onConfirm={moveStatus}
+        onCancel={() => setShowStatusConfirm(false)}
+      />
+
+      <Modal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        title="Delete Relief Case"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setShowDeleteModal(false)}>
+              Cancel
+            </Button>
+            <Button variant="danger" onClick={handleDelete} isLoading={deleting}>
+              Delete
+            </Button>
+          </>
+        }
+      >
+        <p className="text-gray-600 dark:text-gray-400">
+          Are you sure you want to delete <strong>{reliefCase.title}</strong>? This action cannot be undone.
+        </p>
+      </Modal>
     </div>
   );
 }

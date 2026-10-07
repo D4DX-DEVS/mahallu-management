@@ -1,14 +1,58 @@
 import { Response } from 'express';
 import mongoose from 'mongoose';
-import ReliefCase, { RELIEF_TRANSITIONS, ReliefStatus } from '../models/ReliefCase';
+import ReliefCase, {
+  RELIEF_TRANSITIONS,
+  RELIEF_STATUSES,
+  RELIEF_MONEY_LOCKED_STATUSES,
+  ReliefStatus,
+} from '../models/ReliefCase';
 import Member from '../models/Member';
 import Family from '../models/Family';
 import { AuthRequest } from '../middleware/authMiddleware';
 import { getPaginationParams, createPaginationResponse } from '../utils/pagination';
-import { stripImmutable, refBelongsToTenant } from '../utils/sanitizeUpdate';
+import { refBelongsToTenant } from '../utils/sanitizeUpdate';
+import {
+  round2,
+  isMoney,
+  pick,
+  differs,
+  requireMahallWriter,
+  sendConflict,
+  sendInvalid,
+  sendNotFound,
+} from '../utils/workflow';
+import { MAX_AMOUNT } from '../validations/common';
 
 import { sendFailure } from '../utils/userMessages';
 import { regexLiteral } from '../utils/queryGuard';
+
+const NOT_FOUND = "We couldn't find that relief case. It may have been removed.";
+const CHANGED = 'This case was changed by someone else a moment ago. Please refresh and try again.';
+
+/** What a report may carry. Assistance, amount and status are recorded later, by the status endpoint. */
+const CREATE_FIELDS = [
+  'familyId',
+  'memberId',
+  'title',
+  'titleMl',
+  'description',
+  'urgency',
+  'followUpDate',
+  'notes',
+] as const;
+
+/** Details editable at any state. The amount is checked separately; status is never here. */
+const DETAIL_FIELDS = [
+  'familyId',
+  'memberId',
+  'title',
+  'titleMl',
+  'description',
+  'urgency',
+  'assistanceGiven',
+  'followUpDate',
+  'notes',
+] as const;
 
 const tenantScope = (req: AuthRequest): Record<string, any> =>
   req.tenantId ? { tenantId: req.tenantId } : {};
@@ -70,12 +114,13 @@ export const createReliefCase = async (req: AuthRequest, res: Response) => {
   try {
     const refError = await validateRefs(req);
     if (refError) {
-      return res.status(400).json({ success: false, message: refError });
+      return sendInvalid(res, refError);
     }
 
-    // Every case starts at `reported`; verification is a separate step.
+    // Every case starts at `reported`; verification is a separate step. Only the report itself is
+    // taken from the body: assistance, amount and status are recorded by the status endpoint.
     const reliefCase = await ReliefCase.create({
-      ...stripImmutable(req.body),
+      ...pick(req.body, CREATE_FIELDS),
       tenantId: req.tenantId,
       status: 'reported',
     });
@@ -88,24 +133,37 @@ export const createReliefCase = async (req: AuthRequest, res: Response) => {
 
 export const updateReliefCase = async (req: AuthRequest, res: Response) => {
   try {
+    if (!requireMahallWriter(req, res)) return;
     const existing = await ReliefCase.findOne({ _id: req.params.id, ...tenantScope(req) });
     if (!existing) {
-      return res.status(404).json({ success: false, message: "We couldn't find that relief case. It may have been removed." });
+      return sendNotFound(res, NOT_FOUND);
     }
 
     const refError = await validateRefs(req);
     if (refError) {
-      return res.status(400).json({ success: false, message: refError });
+      return sendInvalid(res, refError);
     }
 
-    // Status moves only through the dedicated endpoint.
-    const payload = stripImmutable(req.body);
-    delete payload.status;
+    // Status moves only through the dedicated endpoint (it is not in the allow-list).
+    const payload = pick(req.body, DETAIL_FIELDS);
 
-    const reliefCase = await ReliefCase.findByIdAndUpdate(req.params.id, payload, {
-      new: true,
-      runValidators: true,
-    });
+    // Once assistance has been given the amount is a fact about money that left the Mahallu.
+    if (differs(req.body.amount, existing.amount)) {
+      if (RELIEF_MONEY_LOCKED_STATUSES.includes(existing.status)) {
+        return sendConflict(res, `The amount can't be changed once a case is ${existing.status}.`);
+      }
+      if (!isMoney(req.body.amount) || !(Number(req.body.amount) > 0) || Number(req.body.amount) > MAX_AMOUNT) {
+        return sendInvalid(res, 'Please enter a valid amount, with at most 2 decimals.');
+      }
+      payload.amount = round2(Number(req.body.amount));
+    }
+
+    const reliefCase = await ReliefCase.findOneAndUpdate(
+      { _id: req.params.id, tenantId: existing.tenantId, status: existing.status },
+      { $set: payload },
+      { new: true, runValidators: true }
+    );
+    if (!reliefCase) return sendConflict(res, CHANGED);
 
     res.json({ success: true, data: reliefCase });
   } catch (error: any) {
@@ -115,39 +173,79 @@ export const updateReliefCase = async (req: AuthRequest, res: Response) => {
 
 export const updateReliefStatus = async (req: AuthRequest, res: Response) => {
   try {
+    if (!requireMahallWriter(req, res)) return;
     const { status, assistanceGiven, amount, followUpDate, notes } = req.body;
+
+    if (!RELIEF_STATUSES.includes(status)) {
+      return sendInvalid(res, 'Please choose a valid status.');
+    }
+    for (const [text, max] of [
+      [assistanceGiven, 500],
+      [notes, 2000],
+    ] as Array<[unknown, number]>) {
+      if (text !== undefined && text !== null && (typeof text !== 'string' || text.length > max)) {
+        return sendInvalid(res, `Please keep the text to ${max} characters or less.`);
+      }
+    }
+    if (
+      amount !== undefined &&
+      amount !== null &&
+      amount !== '' &&
+      (!isMoney(amount) || !(Number(amount) > 0) || Number(amount) > MAX_AMOUNT)
+    ) {
+      return sendInvalid(res, 'Please enter a valid amount, with at most 2 decimals.');
+    }
+    let followUp: Date | undefined;
+    if (followUpDate !== undefined && followUpDate !== null && followUpDate !== '') {
+      followUp = new Date(followUpDate);
+      if (Number.isNaN(followUp.getTime())) return sendInvalid(res, 'Please choose a valid follow-up date.');
+    }
 
     const reliefCase = await ReliefCase.findOne({ _id: req.params.id, ...tenantScope(req) });
     if (!reliefCase) {
-      return res.status(404).json({ success: false, message: "We couldn't find that relief case. It may have been removed." });
+      return sendNotFound(res, NOT_FOUND);
     }
 
     const next = status as ReliefStatus;
     const allowed = RELIEF_TRANSITIONS[reliefCase.status] || [];
     if (!allowed.includes(next)) {
-      return res.status(400).json({
-        success: false,
-        message: `Cannot move a relief case from ${reliefCase.status} to ${next}. Allowed: ${
+      return sendConflict(
+        res,
+        `Cannot move a relief case from ${reliefCase.status} to ${next}. Allowed: ${
           allowed.join(', ') || 'none'
-        }`,
-      });
+        }`
+      );
     }
 
     if (next === 'assisted' && !assistanceGiven && !reliefCase.assistanceGiven) {
-      return res.status(400).json({
-        success: false,
-        message: 'Please record what assistance was given before marking this case as assisted.',
-      });
+      return sendInvalid(
+        res,
+        'Please record what assistance was given before marking this case as assisted.'
+      );
     }
 
-    reliefCase.status = next;
-    if (assistanceGiven !== undefined) reliefCase.assistanceGiven = assistanceGiven;
-    if (amount !== undefined) reliefCase.amount = Number(amount);
-    if (followUpDate !== undefined) reliefCase.followUpDate = new Date(followUpDate);
-    if (notes !== undefined) reliefCase.notes = notes;
-    await reliefCase.save();
+    const set: Record<string, any> = { status: next };
+    if (assistanceGiven !== undefined) set.assistanceGiven = assistanceGiven;
+    if (amount !== undefined && amount !== null && amount !== '') {
+      // The amount is fixed once assistance has been given.
+      if (RELIEF_MONEY_LOCKED_STATUSES.includes(reliefCase.status) && differs(amount, reliefCase.amount)) {
+        return sendConflict(res, `The amount can't be changed once a case is ${reliefCase.status}.`);
+      }
+      set.amount = round2(Number(amount));
+    }
+    if (followUp) set.followUpDate = followUp;
+    if (notes !== undefined) set.notes = notes;
 
-    res.json({ success: true, data: reliefCase });
+    const updated = await ReliefCase.findOneAndUpdate(
+      { _id: req.params.id, tenantId: reliefCase.tenantId, status: reliefCase.status },
+      { $set: set },
+      { new: true, runValidators: true }
+    );
+    if (!updated) {
+      return sendConflict(res, 'This case has already been processed or changed. Please refresh and try again.');
+    }
+
+    res.json({ success: true, data: updated });
   } catch (error: any) {
     sendFailure(res, error, 'We couldn\'t update the relief status. Please try again.');
   }
@@ -155,13 +253,26 @@ export const updateReliefStatus = async (req: AuthRequest, res: Response) => {
 
 export const deleteReliefCase = async (req: AuthRequest, res: Response) => {
   try {
-    const reliefCase = await ReliefCase.findOneAndDelete({
-      _id: req.params.id,
-      ...tenantScope(req),
-    });
-    if (!reliefCase) {
-      return res.status(404).json({ success: false, message: "We couldn't find that relief case. It may have been removed." });
+    if (!requireMahallWriter(req, res)) return;
+    const existing = await ReliefCase.findOne({ _id: req.params.id, ...tenantScope(req) });
+    if (!existing) {
+      return sendNotFound(res, NOT_FOUND);
     }
+
+    // Assistance already given is a record of money that left the Mahallu: it stays.
+    const assistanceRecorded =
+      existing.status === 'assisted' ||
+      (existing.status === 'closed' && (Number(existing.amount) > 0 || !!existing.assistanceGiven));
+    if (assistanceRecorded) {
+      return sendConflict(res, "A case where assistance was given is kept on record and can't be deleted.");
+    }
+
+    const deleted = await ReliefCase.findOneAndDelete({
+      _id: existing._id,
+      tenantId: existing.tenantId,
+      status: existing.status,
+    });
+    if (!deleted) return sendConflict(res, CHANGED);
     res.json({ success: true, message: 'Relief case deleted' });
   } catch (error: any) {
     sendFailure(res, error, 'We couldn\'t delete the relief case. Please try again.');

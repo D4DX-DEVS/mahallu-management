@@ -7,11 +7,11 @@ interface SkeletonProps {
 export default function Skeleton({ className }: SkeletonProps) {
   return (
     <div
+      aria-hidden="true"
       className={cn(
-        'relative overflow-hidden rounded-md bg-muted',
+        'relative overflow-hidden rounded-md bg-primary/10',
         'after:absolute after:inset-0 after:-translate-x-full after:animate-shimmer',
-        'after:bg-gradient-to-r after:from-transparent after:via-white/60 after:to-transparent',
-        'dark:after:via-white/10',
+        'after:bg-gradient-to-r after:from-transparent after:via-primary/15 after:to-transparent',
         className
       )}
     />
@@ -59,7 +59,12 @@ interface TableSkeletonProps {
 
 export function TableSkeleton({ columns, rows = 8 }: TableSkeletonProps) {
   return (
-    <div className="divide-y divide-border">
+    <div
+      className="divide-y divide-border"
+      role="status"
+      aria-busy="true"
+      aria-label="Loading content"
+    >
       {Array.from({ length: rows }).map((_, r) => (
         <div key={r} className="flex items-center gap-3 px-3 py-3">
           {Array.from({ length: columns }).map((_, c) => (

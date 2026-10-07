@@ -75,6 +75,10 @@ interface RequestDetailModalProps {
   mode: 'view' | 'edit';
   onClose: () => void;
   onSaved: () => void;
+  /** View mode only. Shown in the footer alongside Close when provided. */
+  onEdit?: () => void;
+  /** View mode only. Shown in the footer alongside Close when provided. */
+  onDelete?: () => void;
 }
 
 export default function RequestDetailModal({
@@ -83,6 +87,8 @@ export default function RequestDetailModal({
   mode,
   onClose,
   onSaved,
+  onEdit,
+  onDelete,
 }: RequestDetailModalProps) {
   const fields = FIELDS[type];
   const [formData, setFormData] = useState<Record<string, string>>(() =>
@@ -154,9 +160,21 @@ export default function RequestDetailModal({
             </Button>
           </>
         ) : (
-          <Button variant="outline" onClick={onClose}>
-            Close
-          </Button>
+          <>
+            <Button variant="outline" onClick={onClose}>
+              Close
+            </Button>
+            {onEdit && (
+              <Button variant="outline" onClick={onEdit}>
+                Edit
+              </Button>
+            )}
+            {onDelete && (
+              <Button variant="danger" onClick={onDelete}>
+                Delete
+              </Button>
+            )}
+          </>
         )
       }
     >

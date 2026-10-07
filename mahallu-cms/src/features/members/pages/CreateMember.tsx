@@ -14,7 +14,6 @@ import FormSection from '@/components/ui/FormSection';
 import RadioCardGroup from '@/components/ui/RadioCardGroup';
 import DatePicker from '@/components/ui/DatePicker';
 import QuickAddFamily from '@/components/quick-add/QuickAddFamily';
-import QuickAddTenantSetting from '@/components/quick-add/QuickAddTenantSetting';
 import { ROUTES } from '@/constants/routes';
 import SocioEconomicSection from '../components/SocioEconomicSection';
 import { socioEconomicSchemaFields, normalizeSocioEconomic } from '../socioEconomicFields';
@@ -23,6 +22,7 @@ import {
   withConditionalRules,
   normalizeConditionalFields,
   isOtherRelationship,
+  isOtherEducation,
   needsHealthNotes,
   healthNotesCopy,
   calculateAge,
@@ -34,6 +34,7 @@ import { familyService } from '@/services/familyService';
 import { tenantService } from '@/services/tenantService';
 import { instituteService } from '@/services/instituteService';
 import { facilityService } from '@/services/surveyService';
+import { fetchAllPages } from '@/services/api';
 import { Family } from '@/types';
 import { useAuthStore } from '@/store/authStore';
 import { getTenantId as extractTenantId } from '@/utils/tenantHelper';
@@ -99,7 +100,6 @@ export default function CreateMember() {
   const [facilities, setFacilities] = useState<any[]>([]);
   const [tenantId, setTenantId] = useState<string | null>(null);
   const [addFamilyOpen, setAddFamilyOpen] = useState(false);
-  const [addEducationOpen, setAddEducationOpen] = useState(false);
   const [studyPlace, setStudyPlace] = useState('');
 
   const {
@@ -116,6 +116,7 @@ export default function CreateMember() {
   const maritalStatus = watch('maritalStatus');
   const relationship = watch('relationship');
   const healthStatus = watch('healthStatus');
+  const education = watch('education');
   const dateOfBirth = watch('dateOfBirth');
   const selectedFamily = families.find((f) => f.id === selectedFamilyId);
   const selectedFamilyName = selectedFamily?.houseName;
@@ -149,14 +150,15 @@ export default function CreateMember() {
   const fetchFamilies = async () => {
     try {
       setLoadingFamilies(true);
-      const [familyResult, instituteResult, facilityResult] = await Promise.all([
-        familyService.getAll(),
-        instituteService.getAll(),
-        facilityService.getAll(),
+      // Every family, institute and facility, not just the API's default page of 10 of each.
+      const [allFamilies, allInstitutes, allFacilities] = await Promise.all([
+        fetchAllPages((p) => familyService.getAll(p)),
+        fetchAllPages((p) => instituteService.getAll(p)),
+        fetchAllPages((p) => facilityService.getAll(p)),
       ]);
-      setFamilies(familyResult.data || []);
-      setInstitutes(instituteResult.data || []);
-      setFacilities(facilityResult.data || []);
+      setFamilies(allFamilies);
+      setInstitutes(allInstitutes);
+      setFacilities(allFacilities);
 
       const { currentTenantId, user } = useAuthStore.getState();
       const tid = extractTenantId(user, currentTenantId);
@@ -484,11 +486,9 @@ export default function CreateMember() {
                 />
               </div>
 
-              {/* These two checkboxes were rendered twice, registering the same
-                  fields twice. Labels read as language, not as booleans. */}
+              {/* Deceased is set from the edit form only, once a member record exists. */}
               <div className="flex flex-wrap items-center gap-4 md:col-span-2">
                 <Checkbox label="Orphan" {...register('isOrphan')} />
-                <Checkbox label="Deceased" {...register('isDead')} />
               </div>
             </div>
           </FormSection>
@@ -504,13 +504,22 @@ export default function CreateMember() {
                 label="Qualification"
                 {...register('education')}
                 value={watch('education') || ''}
-                onAddNew={tenantId ? () => setAddEducationOpen(true) : undefined}
-                addNewLabel="Add qualification"
                 options={[
                   { value: '', label: 'Not set' },
                   ...educationOptions.map((opt) => ({ value: opt, label: opt })),
+                  { value: 'other', label: 'Other' },
                 ]}
               />
+
+              {/* Only asked when the qualification dropdown is on 'other'. */}
+              {isOtherEducation(education) && (
+                <Input
+                  label="Qualification (specify)"
+                  {...register('educationOther')}
+                  error={errors.educationOther?.message}
+                  placeholder="e.g. B.Tech, M.A."
+                />
+              )}
 
               {/* One choice, then the matching field. The two "Studying at"
                   selects used to sit side by side and could both be filled. */}
@@ -525,7 +534,7 @@ export default function CreateMember() {
                 onChange={(e) => {
                   setStudyPlace(e.target.value);
                   setValue('educationInstitutionId', '');
-                  setValue('localityFacilityId', '');
+                  setValue('externalInstitution', '');
                 }}
               />
 
@@ -544,13 +553,11 @@ export default function CreateMember() {
 
               {studyPlace === 'external' && (
                 <div className="md:col-span-2">
-                  <Select
+                  <Input
                     label="School or college"
-                    {...register('localityFacilityId')}
-                    options={[
-                      { value: '', label: 'Select a facility' },
-                      ...facilities.map((fac) => ({ value: fac.id, label: toTitleCase(fac.name) })),
-                    ]}
+                    {...register('externalInstitution')}
+                    error={errors.externalInstitution?.message}
+                    placeholder="Name of the school or college"
                   />
                 </div>
               )}
@@ -592,21 +599,6 @@ export default function CreateMember() {
           setValue('familyName', newFamily.label);
         }}
       />
-
-      {tenantId && (
-        <QuickAddTenantSetting
-          open={addEducationOpen}
-          onClose={() => setAddEducationOpen(false)}
-          settingKey="educationOptions"
-          label="Education"
-          placeholder="e.g. B.Tech, M.A."
-          tenantId={tenantId}
-          onCreated={(edu) => {
-            setEducationOptions((prev) => [...prev, edu]);
-            setValue('education', edu);
-          }}
-        />
-      )}
     </>
   );
 }

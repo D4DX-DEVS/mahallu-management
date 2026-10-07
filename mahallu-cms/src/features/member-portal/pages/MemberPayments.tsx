@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { memberPortalService, PaymentRecord } from '@/services/memberPortalService';
+import { fetchAllPages } from '@/services/api';
 import { downloadPaymentReceiptPdf } from '@/utils/paymentReceiptPdf';
 import { useAuthStore } from '@/store/authStore';
 import Card from '@/components/ui/Card';
@@ -30,8 +31,9 @@ export default function MemberPayments() {
     const load = async () => {
       try {
         setLoading(true);
-        const result = await memberPortalService.getOwnPayments(undefined, 1, 100);
-        setPayments(result.data || []);
+        // Every payment, so the Varisangya / Zakat totals below are not just the first 100 rows.
+        const all = await fetchAllPages<PaymentRecord>((p) => memberPortalService.getOwnPayments(undefined, p.page, p.limit));
+        setPayments(all);
       } catch (err: any) {
         setError(loadErrorMessage(err, 'payment records'));
       } finally {
@@ -121,7 +123,7 @@ export default function MemberPayments() {
       ) : (
         <Card>
           <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
+            <table className="data-table min-w-full text-sm">
               <thead>
                 <tr className="text-left border-b border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-400">
                   <SortableTh sortKey="receiptNo" sort={sort} onSort={toggleSort} className="py-2 pr-4">
