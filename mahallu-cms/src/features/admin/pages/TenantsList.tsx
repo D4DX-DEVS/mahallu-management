@@ -22,8 +22,10 @@ import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
 import { toast } from '@/store/toastStore';
 import { errorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { useServerCounts } from '@/hooks/useServerCounts';
 import { toTitleCase } from '@/utils/format';
 import StatusBadge from '@/components/ui/StatusBadge';
+import { logError } from '@/utils/safeLog';
 
 export default function TenantsList() {
   const { isSuperAdmin } = useAuthStore();
@@ -64,7 +66,7 @@ export default function TenantsList() {
       setTenants(response.data || []);
       setPagination(response.pagination);
     } catch (error) {
-      console.error('Error loading tenants:', error);
+      logError('Error loading tenants', error);
       setTenants([]);
       setPagination(null);
     } finally {
@@ -95,11 +97,11 @@ export default function TenantsList() {
           exportToJSON(columns, dataToExport, filename);
           break;
         case 'pdf':
-          exportToPDF(columns, dataToExport, filename, title);
+          await exportToPDF(columns, dataToExport, filename, title);
           break;
       }
     } catch (error: any) {
-      console.error('Export error:', error);
+      logError('Export error', error);
       toast.error(errorMessage(error, { action: 'export data' }));
     } finally {
       setIsExporting(false);
@@ -236,21 +238,32 @@ export default function TenantsList() {
     },
   ];
 
+  // Whole-list counts from the server: these cards used to count only the rows on this page.
+  const countBase = debouncedSearch ? { search: debouncedSearch } : {};
+  const statusCounts = useServerCounts(
+    {
+      active: () =>
+        isSuperAdmin ? tenantService.getAll({ ...countBase, status: 'active', page: 1, limit: 1 }) : Promise.resolve({ pagination: null }),
+      suspended: () =>
+        isSuperAdmin ? tenantService.getAll({ ...countBase, status: 'suspended', page: 1, limit: 1 }) : Promise.resolve({ pagination: null }),
+    },
+    [tenants, isSuperAdmin]
+  );
+
   const stats = [
     {
       title: 'Total Tenants',
-      // ponytail: total from server; Active/Suspended still count the current page
       value: pagination?.total ?? tenants.length,
       icon: <FiGlobe className="h-5 w-5" />,
     },
     {
       title: 'Active Tenants',
-      value: tenants.filter((t) => t.status === 'active').length,
+      value: statusCounts.active ?? tenants.filter((t) => t.status === 'active').length,
       icon: <FiCheckCircle className="h-5 w-5" />,
     },
     {
       title: 'Suspended',
-      value: tenants.filter((t) => t.status === 'suspended').length,
+      value: statusCounts.suspended ?? tenants.filter((t) => t.status === 'suspended').length,
       icon: <FiAlertCircle className="h-5 w-5" />,
     },
   ];

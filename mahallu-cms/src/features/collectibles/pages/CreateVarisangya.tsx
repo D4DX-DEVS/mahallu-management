@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -22,6 +22,8 @@ import { toast } from '@/store/toastStore';
 import { useAuthStore } from '@/store/authStore';
 import { getTenantId as extractTenantId } from '@/utils/tenantHelper';
 import { errorMessage } from '@/utils/errors';
+import { requestIdFor, RequestIdStore } from '@/utils/clientRequestId';
+import { logError } from '@/utils/safeLog';
 import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
 
@@ -37,6 +39,13 @@ const varisangyaSchema = z.object({
 
 type VarisangyaFormData = z.infer<typeof varisangyaSchema>;
 
+/** Outcome of a bulk save that did not fully succeed. */
+interface SaveSummary {
+  saved: number;
+  total: number;
+  failed: { name: string; message: string }[];
+}
+
 export default function CreateVarisangya() {
   const navigate = useNavigate();
   const { currentTenantId, user, isSuperAdmin } = useAuthStore();
@@ -51,6 +60,17 @@ export default function CreateVarisangya() {
   const [nextReceiptNo, setNextReceiptNo] = useState<string>('Loading...');
   const [tenantData, setTenantData] = useState<Tenant | null>(null);
   const [loadingTenant, setLoadingTenant] = useState(true);
+  const [saveSummary, setSaveSummary] = useState<SaveSummary | null>(null);
+  /* One idempotency key per (payer, payment date). Kept across submits, so
+   * retrying the same selection after a failure re-sends the same ids and the
+   * server returns the payments it already saved instead of creating them
+   * again. A key is replaced if the amount changes (the server refuses one id
+   * reused for a different amount) and dropped once a payment is known to be saved. */
+  const requestIdsRef = useRef<RequestIdStore>(new Map());
+  /* True while a partial failure is waiting for a retry: the failed payers stay
+   * selected, and the amount must not be rewritten by the suggestion logic. */
+  const retryPendingRef = useRef(false);
+  const submittingRef = useRef(false);
   const {
     register,
     handleSubmit,
@@ -88,7 +108,7 @@ export default function CreateVarisangya() {
       families.length > 0
     ) {
       clearErrors('familyIds');
-      setSuggestedAmount();
+      if (!retryPendingRef.current) setSuggestedAmount();
     }
   }, [selectedFamilyIds, selectedMemberIds, tenantData, loadingTenant, families, members]);
 
@@ -102,7 +122,7 @@ export default function CreateVarisangya() {
         setTenantData(tenant);
       }
     } catch (err) {
-      console.error('Error fetching tenant data:', err);
+      logError('Error fetching tenant data', err);
     } finally {
       setLoadingTenant(false);
     }
@@ -115,7 +135,7 @@ export default function CreateVarisangya() {
       const all = await fetchAllPages<Family>((p) => familyService.getAll(p));
       setFamilies(all);
     } catch (err) {
-      console.error('Error fetching families:', err);
+      logError('Error fetching families', err);
       toast.error(errorMessage(err, { action: 'load families' }));
       setFamilies([]);
     }
@@ -128,7 +148,7 @@ export default function CreateVarisangya() {
       const all = await fetchAllPages<Member>((p) => memberService.getAll(p));
       setMembers(all);
     } catch (err) {
-      console.error('Error fetching members:', err);
+      logError('Error fetching members', err);
       toast.error(errorMessage(err, { action: 'load members' }));
     }
   };
@@ -138,7 +158,7 @@ export default function CreateVarisangya() {
       const receiptNo = await collectibleService.getNextReceiptNo('varisangya');
       setNextReceiptNo(receiptNo || 'Auto-generated');
     } catch (err) {
-      console.error('Error fetching receipt number:', err);
+      logError('Error fetching receipt number', err);
       setNextReceiptNo('Auto-generated');
     }
   };
@@ -189,10 +209,15 @@ export default function CreateVarisangya() {
       return;
     }
 
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     try {
       setSubmitError(null);
       clearErrors('familyIds');
-      setCreatedInvoices([]);
+      setSaveSummary(null);
+      // A retry keeps the receipts already issued on screen; a fresh attempt starts clean.
+      const isRetry = retryPendingRef.current;
+      if (!isRetry) setCreatedInvoices([]);
 
       const payloadBase = {
         tenantId,
@@ -203,48 +228,95 @@ export default function CreateVarisangya() {
         remarksMl: data.remarksMl,
       };
 
-      const payloads = [
-        ...familyIds.map((familyId) => ({ ...payloadBase, familyId })),
-        ...memberIds.map((memberId) => ({ ...payloadBase, memberId })),
-      ];
-
-      const results = [];
-      for (const payload of payloads) {
-        results.push(await collectibleService.createVarisangya(payload));
-      }
-
       const familyMap = new Map(families.map((f) => [f.id, f]));
       const memberMap = new Map(members.map((m) => [m.id, m]));
 
-      const invoices: InvoiceDetails[] = results.map((entry) => {
-        const member = entry.memberId ? memberMap.get(entry.memberId) : undefined;
-        const family = entry.familyId ? familyMap.get(entry.familyId) : undefined;
-        return {
-          title: 'Varisangya Invoice',
-          receiptNo: entry.receiptNo,
-          payerLabel: member ? 'Member' : 'Family',
-          payerName: toTitleCase(member?.name || family?.houseName) || 'Unknown',
-          amount: entry.amount,
-          paymentDate: entry.paymentDate,
-          paymentMethod: entry.paymentMethod,
-          remarks: entry.remarks,
-        };
-      });
+      const items = [
+        ...familyIds.map((familyId) => ({
+          kind: 'family' as const,
+          id: familyId,
+          name: toTitleCase(familyMap.get(familyId)?.houseName) || 'Unknown family',
+          key: `family:${familyId}|${data.paymentDate}`,
+          payload: { ...payloadBase, familyId },
+        })),
+        ...memberIds.map((memberId) => ({
+          kind: 'member' as const,
+          id: memberId,
+          name: toTitleCase(memberMap.get(memberId)?.name) || 'Unknown member',
+          key: `member:${memberId}|${data.paymentDate}`,
+          payload: { ...payloadBase, memberId },
+        })),
+      ];
 
-      setCreatedInvoices(invoices);
-      fetchNextReceiptNo();
-      reset({
-        familyIds: [],
-        memberIds: [],
-        amount: undefined as unknown as number,
-        paymentDate: new Date().toISOString().split('T')[0],
-        paymentMethod: '',
-        remarks: '',
-        remarksMl: '',
+      // One at a time, so receipt numbers stay in selection order. A failure
+      // is recorded against its item and the rest still run.
+      const invoices: InvoiceDetails[] = [];
+      const failed: (typeof items[number] & { message: string })[] = [];
+      for (const item of items) {
+        try {
+          const entry = await collectibleService.createVarisangya({
+            ...item.payload,
+            clientRequestId: requestIdFor(requestIdsRef.current, item.key, data.amount),
+          });
+          requestIdsRef.current.delete(item.key);
+          const member = entry.memberId ? memberMap.get(entry.memberId as string) : undefined;
+          const family = entry.familyId ? familyMap.get(entry.familyId as string) : undefined;
+          invoices.push({
+            title: 'Varisangya Invoice',
+            receiptNo: entry.receiptNo,
+            payerLabel: item.kind === 'member' || member ? 'Member' : 'Family',
+            payerName: toTitleCase(member?.name || family?.houseName) || item.name,
+            amount: entry.amount,
+            paymentDate: entry.paymentDate,
+            paymentMethod: entry.paymentMethod,
+            remarks: entry.remarks,
+          });
+        } catch (err: any) {
+          logError(`Error creating varisangya for ${item.kind} ${item.id}`, err);
+          failed.push({ ...item, message: errorMessage(err, { action: 'save this payment' }) });
+        }
+      }
+
+      if (invoices.length > 0) setCreatedInvoices((prev) => (isRetry ? [...prev, ...invoices] : invoices));
+
+      if (failed.length === 0) {
+        retryPendingRef.current = false;
+        requestIdsRef.current.clear();
+        fetchNextReceiptNo();
+        reset({
+          familyIds: [],
+          memberIds: [],
+          amount: undefined as unknown as number,
+          paymentDate: new Date().toISOString().split('T')[0],
+          paymentMethod: '',
+          remarks: '',
+          remarksMl: '',
+        });
+        return;
+      }
+
+      // Partial (or total) failure: keep ONLY the payers that did not save
+      // selected, so pressing Create Payment again retries exactly those.
+      retryPendingRef.current = true;
+      setValue(
+        'familyIds',
+        failed.filter((f) => f.kind === 'family').map((f) => f.id)
+      );
+      setValue(
+        'memberIds',
+        failed.filter((f) => f.kind === 'member').map((f) => f.id)
+      );
+      setSaveSummary({
+        saved: items.length - failed.length,
+        total: items.length,
+        failed: failed.map((f) => ({ name: f.name, message: f.message })),
       });
+      if (invoices.length > 0) fetchNextReceiptNo();
     } catch (err: any) {
       setSubmitError(errorMessage(err, { action: 'create varisangya payment. please try again' }));
-      console.error('Error creating varisangya:', err);
+      logError('Error creating varisangya', err);
+    } finally {
+      submittingRef.current = false;
     }
   };
 
@@ -282,6 +354,26 @@ export default function CreateVarisangya() {
             <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm dark:bg-red-900 dark:border-red-700 dark:text-red-200">
               {submitError}
             </div>
+          )}
+
+          {saveSummary && (
+            <Alert
+              variant={saveSummary.saved > 0 ? 'warning' : 'error'}
+              title={`${saveSummary.saved} of ${saveSummary.total} saved`}
+            >
+              <p>
+                {saveSummary.failed.length === 1 ? 'This payment' : 'These payments'} could not be saved and{' '}
+                {saveSummary.failed.length === 1 ? 'is' : 'are'} still selected below. Press Create Payment to
+                retry; payments that were saved will not be created twice.
+              </p>
+              <ul className="mt-2 list-disc space-y-0.5 pl-5">
+                {saveSummary.failed.map((item, index) => (
+                  <li key={`${item.name}-${index}`}>
+                    <span className="font-medium">{item.name}</span>: {item.message}
+                  </li>
+                ))}
+              </ul>
+            </Alert>
           )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

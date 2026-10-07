@@ -12,6 +12,7 @@ import { errorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { useFormValidation } from '@/hooks/useFormValidation';
 import { FieldRule, LIMITS } from '@/utils/validation';
+import { fetchAllPages } from '@/services/api';
 
 /**
  * The same limits the API applies, so a form that passes here is not
@@ -50,10 +51,9 @@ export default function EditMahalluLedger() {
       });
       setLoading(false);
     } else if (id) {
-      masterAccountService
-        .getAllLedgers({ limit: 1000, scope: 'mahallu' })
+      fetchAllPages((page) => masterAccountService.getAllLedgers({ ...page, scope: 'mahallu' }))
         .then((r) => {
-          const found = r.data.find((l: Ledger) => l.id === id);
+          const found = r.find((l: Ledger) => l.id === id);
           if (found) {
             setForm({
               name: found.name,

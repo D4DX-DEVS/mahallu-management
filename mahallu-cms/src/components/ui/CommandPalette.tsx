@@ -5,7 +5,6 @@ import { FiFile, FiSearch, FiX } from 'react-icons/fi';
 import { menuItems } from '@/constants/menuItems';
 import { getRegisteredPages, RegisteredPage } from '@/constants/routeRegistry';
 import { flattenMenuItems, isMenuItemAccessible, FlatMenuItem, UserRole } from '@/utils/menuAccess';
-import { humanizePageName } from '@/utils/pageLabel';
 import { useAuthStore } from '@/store/authStore';
 import { useModuleAccess } from '@/hooks/useModuleAccess';
 import { cn } from '@/utils/cn';
@@ -88,14 +87,14 @@ function useSearchableItems(): FlatMenuItem[] {
     );
 
     const extraItems: FlatMenuItem[] = registeredPages
-      .filter((page) => !menuPaths.has(page.path) && page.componentName)
+      .filter((page) => !menuPaths.has(page.path) && page.label)
       .filter((page) => !isHiddenByPath(page.path))
       .map((page) => {
         const owner = findOwningMenuItem(page.path, menuLeaves);
         // If the owning menu item is hidden, the route is hidden too — don't surface it via search.
         if (owner?.hidden) return null;
         if (owner && isHiddenByPath(owner.path)) return null;
-        const label = humanizePageName(page.componentName!);
+        const label = page.label;
         return {
           id: `route:${page.path}`,
           label,

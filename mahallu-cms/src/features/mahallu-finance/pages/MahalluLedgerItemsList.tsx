@@ -12,13 +12,14 @@ import Pagination from '@/components/ui/Pagination';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import TableToolbar from '@/components/ui/TableToolbar';
 import { TableColumn, Pagination as PaginationType } from '@/types';
-import { masterAccountService, LedgerItem, Ledger } from '@/services/masterAccountService';
+import { masterAccountService, LedgerItem, Ledger, LedgerItemsSummary } from '@/services/masterAccountService';
 import { formatDate, toTitleCase } from '@/utils/format';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
 import { ROUTES } from '@/constants/routes';
 import { toast } from '@/store/toastStore';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { fetchAllPages } from '@/services/api';
 
 export default function MahalluLedgerItemsList() {
   const navigate = useNavigate();
@@ -30,6 +31,8 @@ export default function MahalluLedgerItemsList() {
   const [ledgerFilter, setLedgerFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
+  /* Income / expense across every entry matching the filter (all pages), from the server. */
+  const [summary, setSummary] = useState<LedgerItemsSummary>({ totalIncome: 0, totalExpense: 0, net: 0, count: 0 });
   const [isExporting, setIsExporting] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selected, setSelected] = useState<LedgerItem | null>(null);
@@ -38,9 +41,8 @@ export default function MahalluLedgerItemsList() {
 
   useEffect(() => {
     // Fetch mahallu-level ledgers (no instituteId) for the dropdown
-    masterAccountService
-      .getAllLedgers({ limit: 1000, scope: 'mahallu' })
-      .then((r) => setLedgers(Array.isArray(r.data) ? r.data : []))
+    fetchAllPages((page) => masterAccountService.getAllLedgers({ ...page, scope: 'mahallu' }))
+      .then((r) => setLedgers(r))
       .catch(() => {});
   }, []);
 
@@ -56,6 +58,12 @@ export default function MahalluLedgerItemsList() {
       if (ledgerFilter !== 'all') params.ledgerId = ledgerFilter;
       const result = await masterAccountService.getLedgerItems(params);
       setItems(Array.isArray(result.data) ? result.data : []);
+      setSummary({
+        totalIncome: Number(result.summary?.totalIncome) || 0,
+        totalExpense: Number(result.summary?.totalExpense) || 0,
+        net: Number(result.summary?.net) || 0,
+        count: Number(result.summary?.count) || 0,
+      });
       if (result.pagination) setPagination(result.pagination);
     } catch (err: any) {
       setError(loadErrorMessage(err, 'ledger items'));
@@ -83,15 +91,18 @@ export default function MahalluLedgerItemsList() {
   const handleExport = async (type: 'csv' | 'json' | 'pdf') => {
     try {
       setIsExporting(true);
-      const result = await masterAccountService.getLedgerItems({ limit: 10000, scope: 'mahallu' });
-      const data = Array.isArray(result.data) ? result.data : [];
+      // Same ledger filter as the visible list (it used to export every ledger whatever was selected).
+      const exportFilters: { scope: string; ledgerId?: string } = { scope: 'mahallu' };
+      if (ledgerFilter !== 'all') exportFilters.ledgerId = ledgerFilter;
+      const allRows = await fetchAllPages((page) => masterAccountService.getLedgerItems({ ...exportFilters, ...page }));
+      const data = Array.isArray(allRows) ? allRows : [];
       if (!data.length) {
         toast.info('No ledger entries to export');
         return;
       }
       if (type === 'csv') exportToCSV(columns, data, 'mahallu-ledger-items');
       else if (type === 'json') exportToJSON(columns, data, 'mahallu-ledger-items');
-      else exportToPDF(columns, data, 'mahallu-ledger-items', 'Mahallu Ledger Items');
+      else await exportToPDF(columns, data, 'mahallu-ledger-items', 'Mahallu Ledger Items');
     } catch (err: any) {
       toast.error(err?.message || "Couldn't export ledger entries");
     } finally {
@@ -102,9 +113,6 @@ export default function MahalluLedgerItemsList() {
   const filtered = items.filter(
     (i) => !searchQuery || (i.description || '').toLowerCase().includes(searchQuery.toLowerCase())
   );
-
-  const totalIncome = items.filter((i) => i.type === 'income').reduce((s, i) => s + i.amount, 0);
-  const totalExpense = items.filter((i) => i.type === 'expense').reduce((s, i) => s + i.amount, 0);
 
   const columns: TableColumn<LedgerItem>[] = [
     { key: 'id', label: 'No.', width: '6rem', render: (_, __, idx) => idx + 1 },
@@ -170,11 +178,11 @@ export default function MahalluLedgerItemsList() {
       />
 
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        <StatCard title="Total Income" value={<>₹{totalIncome.toLocaleString()}</>} tone="success" />
-        <StatCard title="Total Expense" value={<>₹{totalExpense.toLocaleString()}</>} tone="destructive" />
+        <StatCard title="Total Income" value={<>₹{summary.totalIncome.toLocaleString()}</>} tone="success" />
+        <StatCard title="Total Expense" value={<>₹{summary.totalExpense.toLocaleString()}</>} tone="destructive" />
         <StatCard
           title="Net Balance"
-          value={<>₹{(totalIncome - totalExpense).toLocaleString()}</>}
+          value={<>₹{summary.net.toLocaleString()}</>}
           tone="info"
         />
       </div>

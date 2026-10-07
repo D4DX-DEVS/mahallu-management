@@ -11,6 +11,8 @@ import { LedgerItem } from '../models/MasterAccount';
 import { MadrasaClass, StudentEnrollment } from '../models/Madrasa';
 import { JobVacancy, SkillTraining } from '../models/Employment';
 import { DevelopmentProject } from '../models/DevelopmentProject';
+import { sendFailure } from '../utils/userMessages';
+import { isValidId } from '../utils/scope';
 import { computeAnnualReport } from './annualReportController';
 import { computeDevelopmentIndex } from './developmentIndexController';
 
@@ -275,9 +277,13 @@ export const toolSchema = () =>
     function: { name: t.name, description: t.description, parameters: t.parameters },
   }));
 
+/** One call to the AI provider never waits longer than this. */
+export const MODEL_TIMEOUT_MS = 30_000;
+
 const callModel = async (apiKey: string, model: string, messages: any[]) => {
   const res = await fetch(OPENROUTER_URL(), {
     method: 'POST',
+    signal: AbortSignal.timeout(MODEL_TIMEOUT_MS),
     headers: {
       Authorization: `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
@@ -311,7 +317,7 @@ export const queryAssistant = async (req: AuthRequest, res: Response) => {
     }
 
     const tenantId = req.tenantId || (req.isSuperAdmin ? (req.query.tenantId as string) : undefined);
-    if (!tenantId) {
+    if (!tenantId || !isValidId(String(tenantId))) {
       return res.status(400).json({ success: false, message: 'Please select a Mahallu before continuing.' });
     }
 
@@ -378,7 +384,9 @@ export const queryAssistant = async (req: AuthRequest, res: Response) => {
           try {
             result = await tool.run(tid, args);
           } catch (err: any) {
-            result = { error: err.message };
+            // The detail stays in the server log: the model (and so the user) only learns it failed.
+            console.error('Assistant tool failed:', tool.name, err?.message);
+            result = { error: 'tool_failed' };
           }
         }
         messages.push({
@@ -401,6 +409,14 @@ export const queryAssistant = async (req: AuthRequest, res: Response) => {
         message: 'AI service is temporarily unavailable. Please try again later. — AI സേവനം താൽക്കാലികമായി ലഭ്യമല്ല, പിന്നീട് ശ്രമിക്കൂ.',
       });
     }
-    res.status(500).json({ success: false, message: msg });
+    if (error?.name === 'TimeoutError' || error?.name === 'AbortError') {
+      console.error('Assistant provider timed out after', MODEL_TIMEOUT_MS, 'ms');
+      return res.status(504).json({
+        success: false,
+        code: 'provider_timeout',
+        message: "The assistant took too long to answer. Please try again, or ask a simpler question.",
+      });
+    }
+    sendFailure(res, error, "The assistant couldn't answer that. Please try again.");
   }
 };

@@ -9,6 +9,7 @@ import { getPaginationParams, createPaginationResponse } from '../utils/paginati
 import { sendFailure } from '../utils/userMessages';
 import { regexLiteral } from '../utils/queryGuard';
 import { verifyTenantOwnership } from '../utils/tenantCheck';
+import { stripImmutable } from '../utils/sanitizeUpdate';
 
 // ==================== CEMETERY CRUD ====================
 
@@ -123,7 +124,7 @@ export const updateCemetery = async (req: AuthRequest, res: Response) => {
       return;
     }
 
-    const cemetery = await Cemetery.findByIdAndUpdate(req.params.id, req.body, {
+    const cemetery = await Cemetery.findByIdAndUpdate(req.params.id, stripImmutable(req.body), {
       new: true,
       runValidators: true,
     });
@@ -338,7 +339,8 @@ export const updateGraveRecord = async (req: AuthRequest, res: Response) => {
     }
 
     // Prevent changing cemeteryId or graveNo (would break uniqueness)
-    const { cemeteryId, graveNo, ...safeData } = req.body;
+    // tenantId / _id are stripped too so an update can never move the record to another Mahallu.
+    const { cemeteryId, graveNo, ...safeData } = stripImmutable(req.body);
 
     const record = await GraveRecord.findByIdAndUpdate(req.params.id, safeData, {
       new: true,

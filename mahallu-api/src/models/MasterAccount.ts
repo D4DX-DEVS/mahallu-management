@@ -1,4 +1,5 @@
 import mongoose, { Schema, Document } from 'mongoose';
+import { registerIndexMonitor } from '../utils/indexMonitor';
 
 export interface IMahalluAccount extends Document {
   tenantId: mongoose.Types.ObjectId;
@@ -52,6 +53,8 @@ export interface ILedger extends Document {
   nameMl?: string;
   description?: string;
   type: 'income' | 'expense';
+  /** Set only on ledgers created by auto-posting (postLedgerEntry); a manually created ledger never has it. */
+  auto?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -69,6 +72,9 @@ export interface ILedgerItem extends Document {
   referenceNo?: string;
   source?: 'manual' | 'salary' | 'varisangya' | 'zakat' | 'petty_cash' | 'welfare' | 'zakat_distribution';
   sourceId?: mongoose.Types.ObjectId;
+  /** The bank account whose balance this entry moved (pinned at posting so a reversal hits the same one). */
+  accountId?: mongoose.Types.ObjectId;
+  accountType?: 'institute' | 'mahallu';
   projectId?: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
@@ -167,6 +173,7 @@ const LedgerSchema = new Schema<ILedger>(
       enum: ['income', 'expense'],
       required: true,
     },
+    auto: { type: Boolean },
   },
   { timestamps: true }
 );
@@ -206,9 +213,34 @@ const LedgerItemSchema = new Schema<ILedgerItem>(
       default: 'manual',
     },
     sourceId: { type: Schema.Types.ObjectId },
+    accountId: { type: Schema.Types.ObjectId },
+    accountType: { type: String, enum: ['institute', 'mahallu'] },
     projectId: { type: Schema.Types.ObjectId, ref: 'DevelopmentProject', index: true },
   },
   { timestamps: true }
+);
+
+/*
+ * Indexes. The unique ones are PARTIAL and are not needed for correctness: postLedgerEntry upserts by
+ * (source, sourceId) in code, and findOrCreateLedger upserts by its key. If old duplicate data stops an
+ * index from building, Mongoose reports it on the 'index' event (logged below) and the code-level guard
+ * keeps working; clean the duplicates and restart to get the index.
+ */
+// An auto-posted entry exists at most once per source document.
+LedgerItemSchema.index(
+  { source: 1, sourceId: 1 },
+  { unique: true, partialFilterExpression: { source: { $type: 'string' }, sourceId: { $type: 'objectId' } } }
+);
+// reverseLedgerEntry looks entries up by (source, sourceId) within a tenant.
+LedgerItemSchema.index({ source: 1, sourceId: 1, tenantId: 1 });
+LedgerItemSchema.index({ tenantId: 1, date: -1 });
+
+// Auto-created ledgers: one per (tenant, institute-or-Mahallu, name, type). Only ledgers flagged
+// `auto` are covered, so a ledger a person creates by hand (and older auto ledgers, which carry no
+// flag) can never make the index fail to build or make a manual create fail.
+LedgerSchema.index(
+  { tenantId: 1, instituteId: 1, name: 1, type: 1 },
+  { unique: true, partialFilterExpression: { auto: true } }
 );
 
 const MahalluAccountSchema = new Schema<IMahalluAccount>(
@@ -240,4 +272,6 @@ export const Category = mongoose.model<ICategory>('Category', CategorySchema);
 export const MasterWallet = mongoose.model<IMasterWallet>('MasterWallet', MasterWalletSchema);
 export const Ledger = mongoose.model<ILedger>('Ledger', LedgerSchema);
 export const LedgerItem = mongoose.model<ILedgerItem>('LedgerItem', LedgerItemSchema);
+
+for (const model of [Ledger, LedgerItem]) registerIndexMonitor(model);
 

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -16,6 +16,7 @@ import { Member } from '@/types';
 import { downloadInvoicePdf, InvoiceDetails } from '@/utils/invoiceUtils';
 import { toast } from '@/store/toastStore';
 import { errorMessage } from '@/utils/errors';
+import { requestIdFor, RequestIdStore } from '@/utils/clientRequestId';
 import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
 
@@ -40,6 +41,11 @@ export default function CreateZakat() {
   const [members, setMembers] = useState<Member[]>([]);
   const [createdInvoices, setCreatedInvoices] = useState<InvoiceDetails[]>([]);
   const [nextReceiptNo, setNextReceiptNo] = useState<string>('Loading...');
+  /* One idempotency key per (payer, payment date), kept across submits so a retry
+   * after a failure or timeout gets back the payments that did save instead of
+   * creating them twice. Replaced if the amount changes (the server refuses one
+   * id reused for a different amount) and dropped once the whole batch is saved. */
+  const requestIdsRef = useRef<RequestIdStore>(new Map());
   const {
     register,
     handleSubmit,
@@ -108,8 +114,18 @@ export default function CreateZakat() {
 
       const results = [];
       for (const payload of payloads) {
-        results.push(await collectibleService.createZakat(payload));
+        const key = `${payload.payerId}|${payload.paymentDate}`;
+        results.push(
+          await collectibleService.createZakat({
+            ...payload,
+            clientRequestId: requestIdFor(requestIdsRef.current, key, payload.amount),
+          })
+        );
       }
+      // Every payment is saved. Keys are only dropped now, not one by one: if a later
+      // payer fails, the whole selection stays on screen, and the payers that did
+      // save must send the same key again to be recognised rather than re-created.
+      requestIdsRef.current.clear();
       const invoices: InvoiceDetails[] = results.map((entry) => {
         const member = entry.payerId ? memberMap.get(entry.payerId) : undefined;
         return {

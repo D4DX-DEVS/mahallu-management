@@ -11,7 +11,7 @@ export interface Announcement {
   channels: string[];
   deliveryResults?: Record<string, string>;
   sentAt?: string;
-  status: 'draft' | 'sent';
+  status: 'draft' | 'sending' | 'sent';
   createdAt: string;
 }
 

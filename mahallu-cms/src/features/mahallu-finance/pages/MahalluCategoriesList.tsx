@@ -17,6 +17,7 @@ import { ROUTES } from '@/constants/routes';
 import { toast } from '@/store/toastStore';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { fetchAllPages } from '@/services/api';
 
 export default function MahalluCategoriesList() {
   const navigate = useNavigate();
@@ -73,15 +74,15 @@ export default function MahalluCategoriesList() {
   const handleExport = async (type: 'csv' | 'json' | 'pdf') => {
     try {
       setIsExporting(true);
-      const result = await masterAccountService.getAllCategories({ limit: 10000, scope: 'mahallu' });
-      const data = Array.isArray(result.data) ? result.data : [];
+      const allRows = await fetchAllPages((page) => masterAccountService.getAllCategories({ ...page, scope: 'mahallu' }));
+      const data = Array.isArray(allRows) ? allRows : [];
       if (!data.length) {
         toast.info('No categories to export');
         return;
       }
       if (type === 'csv') exportToCSV(columns, data, 'mahallu-categories');
       else if (type === 'json') exportToJSON(columns, data, 'mahallu-categories');
-      else exportToPDF(columns, data, 'mahallu-categories', 'Mahallu Categories');
+      else await exportToPDF(columns, data, 'mahallu-categories', 'Mahallu Categories');
     } catch (err: any) {
       toast.error(err?.message || "Couldn't export categories");
     } finally {

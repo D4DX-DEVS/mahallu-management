@@ -28,6 +28,7 @@ import { toast } from '@/store/toastStore';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import { toTitleCase } from '@/utils/format';
 import PageHeader from '@/components/layout/PageHeader';
+import { logError } from '@/utils/safeLog';
 
 export default function MembersList() {
   const navigate = useNavigate();
@@ -112,7 +113,7 @@ export default function MembersList() {
       }
     } catch (err: any) {
       setError(loadErrorMessage(err, 'members'));
-      console.error('Error fetching members:', err);
+      logError('Error fetching members', err);
     } finally {
       setLoading(false);
     }
@@ -140,11 +141,11 @@ export default function MembersList() {
           exportToCSV(exportColumns, dataToExport, filename);
           break;
         case 'pdf':
-          exportToPDF(exportColumns, dataToExport, filename, title);
+          await exportToPDF(exportColumns, dataToExport, filename, title);
           break;
       }
     } catch (error: any) {
-      console.error('Export error:', error);
+      logError('Export error', error);
       toast.error(errorMessage(error, { action: 'export data' }));
     } finally {
       setIsExporting(false);
@@ -333,7 +334,7 @@ export default function MembersList() {
                   {
                     label: 'Export as PDF',
                     icon: <FiFile />,
-                    onClick: () => exportToPDF(exportColumns, members.filter((member) => selectedIds.includes(member.id)), 'members', 'Members'),
+                    onClick: () => void exportToPDF(exportColumns, members.filter((member) => selectedIds.includes(member.id)), 'members', 'Members'),
                   },
                 ]}
               />

@@ -30,6 +30,12 @@ interface AuthState {
   setCurrentTenant: (tenantId: string | null) => void;
   setCurrentInstitute: (instituteId: string | null) => void;
   setImpersonation: (context: ImpersonationContext | null) => void;
+  /**
+   * Called whenever a DIFFERENT account signs in on this browser (OTP sign-in, role selection, account
+   * switch). Without it, the previous session's "Viewing as ..." banner and its tenant's module flags
+   * survived into the new account until something refetched them.
+   */
+  resetSessionContext: () => void;
   logout: () => void;
 }
 
@@ -85,6 +91,7 @@ export const useAuthStore = create<AuthState>()(
       setCurrentTenant: (tenantId) => set({ currentTenantId: tenantId }),
       setCurrentInstitute: (instituteId) => set({ currentInstituteId: instituteId }),
       setImpersonation: (context) => set({ isImpersonating: !!context, impersonationContext: context }),
+      resetSessionContext: () => set({ isImpersonating: false, impersonationContext: null, tenantFeatures: null }),
       logout: () => {
         localStorage.removeItem('token');
         clearUserScopedStorage();

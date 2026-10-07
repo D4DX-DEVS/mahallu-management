@@ -5,6 +5,8 @@ import { AuthRequest } from '../middleware/authMiddleware';
 import {
   DOCUMENT_ALLOWED_MIME_TYPES,
   uploadPrivateDocument,
+  discardPrivateObject,
+  reportOrphanedObject,
   getSignedDownloadUrl,
 } from '../services/uploadService';
 import { getPaginationParams, createPaginationResponse } from '../utils/pagination';
@@ -69,7 +71,11 @@ export const uploadDocument = async (req: AuthRequest, res: Response) => {
 
     const fileKey = await uploadPrivateDocument(req.file, req.tenantId);
 
-    const doc = await DocumentFile.create({
+    // The object is already in storage: if the record cannot be saved, take the object back out (only this
+    // request's own key, and only if nothing references it) so it is not left orphaned in the bucket.
+    let doc;
+    try {
+      doc = await DocumentFile.create({
       tenantId: req.tenantId,
       ownerType,
       documentType,
@@ -82,7 +88,12 @@ export const uploadDocument = async (req: AuthRequest, res: Response) => {
       uploadedByUserId: req.user._id,
       uploadedByMemberId: req.user.memberId || undefined,
       status: 'pending',
-    });
+      });
+    } catch (saveError) {
+      const outcome = await discardPrivateObject(fileKey);
+      if (outcome !== 'deleted' && outcome !== 'kept-referenced') reportOrphanedObject(fileKey, `document-save-failed:${outcome}`, { tenantId: req.tenantId });
+      throw saveError;
+    }
 
     res.status(201).json({ success: true, data: doc, message: 'Document uploaded' });
   } catch (error: any) {

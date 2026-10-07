@@ -6,7 +6,7 @@ import {
   updateMeeting,
   deleteMeeting,
 } from '../controllers/meetingController';
-import { authMiddleware } from '../middleware/authMiddleware';
+import { authMiddleware, requireAdmin } from '../middleware/authMiddleware';
 import { tenantMiddleware, tenantFilter } from '../middleware/tenantMiddleware';
 import { validationHandler } from '../middleware/validationHandler';
 import {
@@ -22,6 +22,8 @@ const router = express.Router();
 router.use(authMiddleware);
 router.use(tenantMiddleware);
 router.use(tenantFilter);
+// Committee meetings (minutes, attendance) are run by the Mahallu admin.
+router.use(requireAdmin);
 
 /**
  * @swagger

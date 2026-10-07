@@ -28,11 +28,17 @@
     --primary-foreground: 0 0% 100%;
 
     /* Neutral supporting surfaces */
-    --secondary: 0 0% 100%;
+    /* secondary/muted/accent used to be pure white (= card), so hover, focus and
+     * selected states built on them (hover:bg-accent, bg-accent/50, the
+     * dashboard ring track) were invisible. Each now carries a faint tint.
+     * accent-foreground on accent is 6.6:1, muted-foreground on accent/muted
+     * is >= 4.5:1. The forced-white `bg-muted`/`bg-secondary`/`bg-gray-*`
+     * surface rules further down are deliberate and unchanged. */
+    --secondary: 220 16% 96%;
     --secondary-foreground: 200 18% 12%;
-    --muted: 0 0% 100%;
-    --muted-foreground: 200 9% 42%;
-    --accent: 0 0% 100%;
+    --muted: 220 16% 96%;
+    --muted-foreground: 200 9% 40%;
+    --accent: 150 26% 93%;
     --accent-foreground: 150 64% 23%;
 
     /* Semantic state — four roles, one ramp each */
@@ -46,8 +52,11 @@
     --info-foreground: 0 0% 100%;
 
     /* Lines and focus */
+    /* --border stays light: it separates cards and table rows. --input is the
+     * boundary of a form control, which WCAG 1.4.11 wants at >= 3:1 against its
+     * surround: 3.5:1 on white, 3.4:1 on --background. */
     --border: 220 16% 89%;
-    --input: 220 16% 84%;
+    --input: 220 9% 55%;
     --ring: 150 54% 35%;
 
     /* Geometry — three radii derived from one value */
@@ -347,7 +356,7 @@
   }
 
   .data-table tbody tr:hover {
-    background: hsl(var(--accent) / 0.3);
+    background: hsl(var(--accent) / 0.6);
   }
 
   @media (max-width: 767px) {

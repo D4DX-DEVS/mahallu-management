@@ -133,7 +133,7 @@ export default function Dashboard() {
               <div
                 className="relative mx-auto flex h-32 w-32 items-center justify-center rounded-full sm:h-36 sm:w-36"
                 style={{
-                  background: `conic-gradient(hsl(var(--primary)) ${approvalPercent}%, hsl(var(--muted)) 0)`,
+                  background: `conic-gradient(hsl(var(--primary)) ${approvalPercent}%, hsl(var(--border)) 0)`,
                 }}
                 role="img"
                 aria-label={`${approvalPercent}% of families approved`}

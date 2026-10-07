@@ -101,12 +101,10 @@ export const sanitizeRequestBody = (body: any, depth = 0): any => {
 
 // Helper function to get client IP address
 const getClientIp = (req: Request): string => {
-  return (
-    (req.headers['x-forwarded-for'] as string)?.split(',')[0] ||
-    (req.headers['x-real-ip'] as string) ||
-    req.socket.remoteAddress ||
-    'unknown'
-  );
+  // `req.ip` follows the app's `trust proxy` setting (TRUST_PROXY): the forwarded address is used
+  // only when a proxy we trust put it there. Reading X-Forwarded-For / X-Real-IP directly let any
+  // client choose the IP written to the audit log.
+  return req.ip || req.socket.remoteAddress || 'unknown';
 };
 
 // Activity logging middleware

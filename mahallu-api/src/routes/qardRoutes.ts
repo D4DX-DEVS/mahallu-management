@@ -10,7 +10,7 @@ import {
   createRepayment,
   getQardSummary,
 } from '../controllers/qardController';
-import { authMiddleware, allowRoles } from '../middleware/authMiddleware';
+import { authMiddleware, allowRoles, requireAdmin } from '../middleware/authMiddleware';
 import { tenantMiddleware, tenantFilter } from '../middleware/tenantMiddleware';
 import { validationHandler } from '../middleware/validationHandler';
 import { idParam, listQuery } from '../validations/common';
@@ -18,6 +18,7 @@ import {
   createQardLoanValidation,
   createQardRepaymentValidation,
   updateQardLoanValidation,
+  updateQardLoanStatusValidation,
 } from '../validations/moduleValidation';
 
 const router = express.Router();
@@ -25,6 +26,8 @@ const router = express.Router();
 router.use(authMiddleware);
 router.use(tenantMiddleware);
 router.use(tenantFilter);
+// Mahallu-admin module (the CMS menu and routes are Mahallu-admin only). Reads used to be open to every staff role while every write already needed the admin.
+router.use(requireAdmin);
 
 /**
  * @swagger
@@ -352,6 +355,6 @@ router.delete('/loans/:id', idParam('id', 'loan'), validationHandler, allowRoles
  *       404:
  *         description: Loan not found
  */
-router.put('/loans/:id/status', idParam('id', 'loan'), validationHandler, allowRoles(['mahall']), updateLoanStatus);
+router.put('/loans/:id/status', updateQardLoanStatusValidation, validationHandler, allowRoles(['mahall']), updateLoanStatus);
 
 export default router;

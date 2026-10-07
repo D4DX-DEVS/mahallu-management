@@ -1,7 +1,7 @@
 import { jsPDF } from 'jspdf';
 import { autoTable } from 'jspdf-autotable';
 import { TableColumn } from '@/types';
-import { PDF_FONT_FAMILY, registerPdfFont } from '@/utils/pdfFonts';
+import { PDF_FONT_FAMILY, hasUnsupportedPdfChars, registerPdfFont, toPdfSafeText } from '@/utils/pdfFonts';
 
 /**
  * Recursively extract text from React elements
@@ -51,10 +51,11 @@ function extractTextFromReactElement(element: any): string {
 /**
  * Extract text value from a cell, handling render functions
  */
-function extractCellValue<T>(value: any, row: T, column: TableColumn<T>): string {
+function extractCellValue<T>(value: any, row: T, column: TableColumn<T>, rowIndex: number): string {
   if (column.render) {
     try {
-      const rendered = column.render(value, row, 0);
+      // The real row index: a "No." column renders `index + 1`.
+      const rendered = column.render(value, row, rowIndex);
 
       // Handle primitive types directly
       if (typeof rendered === 'string' || typeof rendered === 'number') {
@@ -123,6 +124,36 @@ export function toCsvField(text: string): string {
 }
 
 /**
+ * Columns that hold row controls (the three-dot menu, buttons), not data. Exporting one wrote an
+ * "Actions" column that was "-" on every row.
+ */
+export function exportableColumns<T>(columns: TableColumn<T>[]): TableColumn<T>[] {
+  return columns.filter((column) => column.key !== 'actions');
+}
+
+/**
+ * Hand a Blob to the browser as a file download, then clean up after it: the
+ * temporary link is removed and the object URL revoked, otherwise every export
+ * keeps its whole file in memory until the tab closes. Revoking is deferred
+ * because some browsers start the download asynchronously after click().
+ */
+export function downloadBlob(blob: Blob, filename: string): void {
+  const link = document.createElement('a');
+  const url = URL.createObjectURL(blob);
+
+  link.setAttribute('href', url);
+  link.setAttribute('download', filename);
+  link.style.visibility = 'hidden';
+  document.body.appendChild(link);
+  try {
+    link.click();
+  } finally {
+    document.body.removeChild(link);
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+}
+
+/**
  * Export table data to CSV
  */
 export function exportToCSV<T extends Record<string, any>>(
@@ -130,14 +161,16 @@ export function exportToCSV<T extends Record<string, any>>(
   data: T[],
   filename: string = 'export'
 ): void {
+  const cols = exportableColumns(columns);
+
   // Extract headers
-  const headers = columns.map((col) => toCsvField(col.label));
+  const headers = cols.map((col) => toCsvField(col.label));
 
   // Extract rows
-  const rows = data.map((row) =>
-    columns.map((column) => {
+  const rows = data.map((row, rowIndex) =>
+    cols.map((column) => {
       const value = row[column.key];
-      return toCsvField(extractCellValue(value, row, column));
+      return toCsvField(extractCellValue(value, row, column, rowIndex));
     })
   );
 
@@ -148,15 +181,7 @@ export function exportToCSV<T extends Record<string, any>>(
   // UTF-8 bytes of "₹" (E2 82 B9) read as "â‚¹". The BOM tells it the file is
   // UTF-8; every other app that reads UTF-8 skips it.
   const blob = new Blob(['﻿', csvContent], { type: 'text/csv;charset=utf-8;' });
-  const link = document.createElement('a');
-  const url = URL.createObjectURL(blob);
-
-  link.setAttribute('href', url);
-  link.setAttribute('download', `${filename}.csv`);
-  link.style.visibility = 'hidden';
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+  downloadBlob(blob, `${filename}.csv`);
 }
 
 /**
@@ -168,11 +193,12 @@ export function exportToJSON<T extends Record<string, any>>(
   filename: string = 'export'
 ): void {
   // Transform data to include only column keys with extracted values
-  const jsonData = data.map((row) => {
+  const cols = exportableColumns(columns);
+  const jsonData = data.map((row, rowIndex) => {
     const obj: Record<string, any> = {};
-    columns.forEach((column) => {
+    cols.forEach((column) => {
       const value = row[column.key];
-      const textValue = extractCellValue(value, row, column);
+      const textValue = extractCellValue(value, row, column, rowIndex);
       obj[column.label] = textValue;
     });
     return obj;
@@ -180,22 +206,14 @@ export function exportToJSON<T extends Record<string, any>>(
 
   const jsonContent = JSON.stringify(jsonData, null, 2);
   const blob = new Blob([jsonContent], { type: 'application/json;charset=utf-8;' });
-  const link = document.createElement('a');
-  const url = URL.createObjectURL(blob);
-
-  link.setAttribute('href', url);
-  link.setAttribute('download', `${filename}.json`);
-  link.style.visibility = 'hidden';
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+  downloadBlob(blob, `${filename}.json`);
 }
 
 /**
  * Export table data to PDF
  *
- * Async because the Unicode font is fetched on first use. Callers that don't
- * await it are fine - the file is saved when the promise settles - and the
+ * Async because the Unicode font is fetched on first use. Callers should await
+ * it (an `isExporting` spinner otherwise stops before the file is saved). The
  * promise never rejects over the font: it falls back to the built-in one.
  */
 export async function exportToPDF<T extends Record<string, any>>(
@@ -210,7 +228,14 @@ export async function exportToPDF<T extends Record<string, any>>(
   const unicodeFont = await registerPdfFont(doc);
   const fontFamily = unicodeFont ? PDF_FONT_FAMILY : 'helvetica';
   // Only if the font could not be loaded: "Rs." is readable, "¹" is not.
-  const printable = (text: string) => (unicodeFont ? text : text.replace(/₹/g, 'Rs. '));
+  // Characters the font has no glyph for (Malayalam and other Indic scripts)
+  // become a visible "?" instead of silently vanishing - see pdfFonts.ts.
+  let replacedUnsupported = false;
+  const printable = (text: string) => {
+    const base = unicodeFont ? text : text.replace(/₹/g, 'Rs. ');
+    if (hasUnsupportedPdfChars(base)) replacedUnsupported = true;
+    return toPdfSafeText(base);
+  };
 
   // Add title if provided
   if (title) {
@@ -219,11 +244,12 @@ export async function exportToPDF<T extends Record<string, any>>(
   }
 
   // Extract headers and rows
-  const headers = columns.map((col) => printable(col.label));
-  const rows = data.map((row) =>
-    columns.map((column) => {
+  const cols = exportableColumns(columns);
+  const headers = cols.map((col) => printable(col.label));
+  const rows = data.map((row, rowIndex) =>
+    cols.map((column) => {
       const value = row[column.key];
-      return printable(extractCellValue(value, row, column));
+      return printable(extractCellValue(value, row, column, rowIndex));
     })
   );
 
@@ -250,6 +276,10 @@ export async function exportToPDF<T extends Record<string, any>>(
     },
     margin: { top: startY, left: 14, right: 14 },
   });
+
+  if (replacedUnsupported) {
+    console.warn('PDF export: some text uses characters the PDF font cannot draw (e.g. Malayalam) and was replaced with "?".');
+  }
 
   // Save PDF
   doc.save(`${filename}.pdf`);

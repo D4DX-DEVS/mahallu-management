@@ -20,6 +20,8 @@ import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
 import { toast } from '@/store/toastStore';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { useServerCounts } from '@/hooks/useServerCounts';
+import { logError } from '@/utils/safeLog';
 
 export default function BannersList() {
   const navigate = useNavigate();
@@ -67,7 +69,7 @@ export default function BannersList() {
       }
     } catch (err: any) {
       setError(loadErrorMessage(err, 'banners'));
-      console.error('Error fetching banners:', err);
+      logError('Error fetching banners', err);
     } finally {
       setLoading(false);
     }
@@ -97,11 +99,11 @@ export default function BannersList() {
           exportToJSON(columns, dataToExport, filename);
           break;
         case 'pdf':
-          exportToPDF(columns, dataToExport, filename, title);
+          await exportToPDF(columns, dataToExport, filename, title);
           break;
       }
     } catch (error: any) {
-      console.error('Export error:', error);
+      logError('Export error', error);
       toast.error(errorMessage(error, { action: 'export data' }));
     } finally {
       setIsExporting(false);
@@ -179,6 +181,12 @@ export default function BannersList() {
     },
   ];
 
+  // Whole-list counts from the server: these cards used to count only the rows on this page.
+  const statusCounts = useServerCounts(
+    { active: () => socialService.getAllBanners({ status: 'active', page: 1, limit: 1 }) },
+    [banners]
+  );
+
   const stats = [
     {
       title: 'Total Banners',
@@ -187,7 +195,7 @@ export default function BannersList() {
     },
     {
       title: 'Active',
-      value: banners.filter((b) => b.status === 'active' || !b.status).length,
+      value: statusCounts.active ?? banners.filter((b) => b.status === 'active' || !b.status).length,
       icon: <FiCheckCircle className="h-5 w-5" />,
     },
   ];

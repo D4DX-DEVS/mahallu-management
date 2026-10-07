@@ -11,6 +11,8 @@ import { loadErrorInfo, LoadErrorInfo } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { errorMessage } from '@/utils/errors';
 import { toTitleCase } from '@/utils/format';
+import { downloadBlob } from '@/utils/exportUtils';
+import { logError } from '@/utils/safeLog';
 
 interface DataQualityStat {
   label: string;
@@ -53,7 +55,7 @@ export default function DataQualityPage() {
       setDuplicates(duplicatesRes.data.data);
     } catch (err: any) {
       setError(loadErrorInfo(err, 'data quality report'));
-      console.error('Error fetching data quality:', err);
+      logError('Error fetching data quality', err);
     } finally {
       setLoading(false);
     }
@@ -67,15 +69,7 @@ export default function DataQualityPage() {
       });
 
       const blob = new Blob([response.data], { type: 'text/csv;charset=utf-8;' });
-      const link = document.createElement('a');
-      const url = URL.createObjectURL(blob);
-
-      link.setAttribute('href', url);
-      link.setAttribute('download', `${entity}-${new Date().toISOString().split('T')[0]}.csv`);
-      link.style.visibility = 'hidden';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      downloadBlob(blob, `${entity}-${new Date().toISOString().split('T')[0]}.csv`);
     } catch (err: any) {
       setError({
         title: "Couldn't export data",

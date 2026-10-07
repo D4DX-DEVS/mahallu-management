@@ -1,11 +1,12 @@
 import { Request, Response } from 'express';
 import Certificate from '../models/Certificate';
 import { AuthRequest } from '../middleware/authMiddleware';
-import { issueCertificate } from '../services/certificateService';
+import { issueCertificate, wasIssuedNow, CertificateIssueInProgressError } from '../services/certificateService';
 import { getSignedDownloadUrl } from '../services/uploadService';
 import { getPaginationParams, createPaginationResponse } from '../utils/pagination';
 
 import { sendFailure } from '../utils/userMessages';
+import { isValidId } from '../utils/scope';
 
 const isAdmin = (req: AuthRequest): boolean =>
   req.isSuperAdmin === true || req.user?.role === 'mahall';
@@ -14,7 +15,7 @@ const isAdmin = (req: AuthRequest): boolean =>
 export const issueCertificateHandler = async (req: AuthRequest, res: Response) => {
   try {
     const { type, registrationId } = req.body;
-    if (!['nikah', 'death', 'noc'].includes(type) || !registrationId) {
+    if (!['nikah', 'death', 'noc'].includes(type) || !isValidId(registrationId)) {
       return res.status(400).json({ success: false, message: 'Please choose a registration type and a registration.' });
     }
     if (!req.tenantId) {
@@ -22,11 +23,26 @@ export const issueCertificateHandler = async (req: AuthRequest, res: Response) =
     }
 
     const cert = await issueCertificate(type, registrationId, req.tenantId, req.user?.name || 'Mahall Admin');
-    res.status(201).json({ success: true, data: cert, message: `Certificate ${cert.certificateNo} issued` });
+    const created = wasIssuedNow(cert);
+    // Idempotent: a registration that already has a valid certificate answers 200 with that same certificate
+    // (nothing new is issued), a newly issued one answers 201.
+    if (!created) {
+      return res.status(200).json({
+        success: true,
+        data: cert,
+        alreadyIssued: true,
+        message: `Certificate ${cert.certificateNo} was already issued`,
+      });
+    }
+    res.status(201).json({ success: true, data: cert, alreadyIssued: false, message: `Certificate ${cert.certificateNo} issued` });
   } catch (error: any) {
-    const message = error?.message || 'Failed to issue certificate';
-    const status = /not found|must be approved/.test(message) ? 400 : 500;
-    res.status(status).json({ success: false, message });
+    // Another request is issuing this same certificate right now: ask the caller to retry shortly.
+    if (error instanceof CertificateIssueInProgressError) {
+      return res.status(409).json({ success: false, code: error.code, retryAfterSeconds: error.retryAfterSeconds, message: error.message });
+    }
+    // Rules the person broke (not found / not approved) reach them word for word as 400s; anything
+    // else (storage, database) is logged and answered with plain copy, never the raw exception text.
+    sendFailure(res, error, "We couldn't issue the certificate. Please try again.");
   }
 };
 
@@ -45,8 +61,13 @@ export const listCertificates = async (req: AuthRequest, res: Response) => {
       return res.status(403).json({ success: false, message: "You don't have permission to do this. Please contact your Mahallu admin." });
     }
 
+    // A member never needs the storage key (the download endpoint signs it server-side) or the internal
+    // issue key; admin responses are unchanged.
+    const finder = Certificate.find(query);
+    if (!isAdmin(req)) finder.select('-pdfKey -issueKey');
+
     const [certs, total] = await Promise.all([
-      Certificate.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit),
+      finder.sort({ createdAt: -1 }).skip(skip).limit(limit),
       Certificate.countDocuments(query),
     ]);
 
@@ -92,7 +113,9 @@ export const revokeCertificate = async (req: AuthRequest, res: Response) => {
 
     const cert = await Certificate.findOneAndUpdate(
       { _id: req.params.id, tenantId: req.tenantId, status: 'valid' },
-      { status: 'revoked', revokedReason: reason },
+      // issueKey is cleared so the registration can be issued a new certificate afterwards (the unique
+      // index only covers valid certificates).
+      { $set: { status: 'revoked', revokedReason: reason }, $unset: { issueKey: 1 } },
       { new: true }
     );
 

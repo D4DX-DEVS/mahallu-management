@@ -11,11 +11,13 @@ import {
   updateZakat,
   deleteZakat,
   getWallet,
+  listWallets,
   getWalletTransactions,
+  getCollectionsSummary,
   verifyVarisangya,
   verifyZakat,
 } from '../controllers/collectibleController';
-import { authMiddleware, allowRoles } from '../middleware/authMiddleware';
+import { authMiddleware, allowRoles, requireAdmin } from '../middleware/authMiddleware';
 import { tenantMiddleware, tenantFilter } from '../middleware/tenantMiddleware';
 import { validationHandler } from '../middleware/validationHandler';
 import {
@@ -23,6 +25,10 @@ import {
   updateVarisangyaValidation,
   createZakatValidation,
   getWalletTransactionsValidation,
+  updateZakatValidation,
+  collectionsSummaryValidation,
+  walletQueryValidation,
+  walletListValidation,
 } from '../validations/collectibleValidation';
 import { idParam, listQuery } from '../validations/common';
 
@@ -31,7 +37,9 @@ const router = express.Router();
 router.use(authMiddleware);
 router.use(tenantMiddleware);
 router.use(tenantFilter);
-router.use(allowRoles(['super_admin', 'mahall', 'institute']));
+// Varisangya, zakat and wallets are the Mahallu's own collections (CMS: Collections menu is Mahallu-admin only).
+// An institute admin used to be let in here and could create, edit and delete them.
+router.use(requireAdmin);
 
 /**
  * @swagger
@@ -302,7 +310,7 @@ router.get('/zakat', listQuery(), validationHandler, getAllZakats);
  */
 router.post('/zakat', createZakatValidation, validationHandler, createZakat);
 router.put('/zakat/:id/verify', idParam('id', 'payment'), validationHandler, allowRoles(['super_admin', 'mahall']), verifyZakat);
-router.put('/zakat/:id', idParam('id', 'payment'), validationHandler, updateZakat);
+router.put('/zakat/:id', updateZakatValidation, validationHandler, updateZakat);
 router.delete('/zakat/:id', idParam('id', 'payment'), validationHandler, deleteZakat);
 
 /**
@@ -347,7 +355,46 @@ router.delete('/zakat/:id', idParam('id', 'payment'), validationHandler, deleteZ
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  */
-router.get('/wallet', listQuery(), validationHandler, getWallet);
+router.get('/wallet', walletQueryValidation, validationHandler, getWallet);
+
+/**
+ * @swagger
+ * /collectibles/wallets:
+ *   get:
+ *     summary: Paginated wallet balances for every family or member
+ *     tags: [Collectibles]
+ *     description: |
+ *       One row per family (or member) of the caller's Mahallu, whether or not it has a wallet yet
+ *       (no wallet = balance 0), ordered by balance (highest first). `summary` covers the WHOLE filtered
+ *       set, not the page. **Access:** Super Admin (with a Mahallu selected) and Mahallu admin.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: type
+ *         required: true
+ *         schema: { type: string, enum: [family, member] }
+ *       - in: query
+ *         name: page
+ *         schema: { type: integer, minimum: 1, default: 1 }
+ *       - in: query
+ *         name: limit
+ *         schema: { type: integer, minimum: 1, maximum: 100, default: 10 }
+ *       - in: query
+ *         name: search
+ *         schema: { type: string, maxLength: 100 }
+ *         description: Matches the family house name / head or the member name, and the Mahall ID (literal text, not a pattern)
+ *     responses:
+ *       200:
+ *         description: "{ success, data: [{ walletId?, familyId | memberId, name, mahallId?, balance, lastTransactionDate }], pagination, summary: { totalBalance, count, walletCount, activeCount } }"
+ *       403:
+ *         description: No Mahallu selected for this account
+ */
+// Registered before '/wallet/:walletId/transactions' so the plural path never reaches a param route.
+router.get('/wallets', walletListValidation, validationHandler, listWallets);
+
+// Whole-set totals for the Collections overview (instead of summing a page of rows in the browser).
+router.get('/summary', collectionsSummaryValidation, validationHandler, getCollectionsSummary);
 
 /**
  * @swagger

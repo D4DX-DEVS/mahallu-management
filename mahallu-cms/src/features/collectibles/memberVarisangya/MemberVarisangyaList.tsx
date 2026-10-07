@@ -12,7 +12,12 @@ import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
 import { TableColumn, Pagination as PaginationType, Member } from '@/types';
 import { memberService } from '@/services/memberService';
-import { collectibleService, Varisangya } from '@/services/collectibleService';
+import {
+  collectibleService,
+  Varisangya,
+  CollectionSummary,
+  EMPTY_COLLECTION_SUMMARY,
+} from '@/services/collectibleService';
 import { fetchAllPages } from '@/services/api';
 import { useDebounce } from '@/hooks/useDebounce';
 import { formatDate, toTitleCase } from '@/utils/format';
@@ -45,6 +50,8 @@ export default function MemberVarisangyaList() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
+  /* Payments and amount across every member payment (all pages), from the server. */
+  const [summary, setSummary] = useState<CollectionSummary>(EMPTY_COLLECTION_SUMMARY);
 
   const debouncedSearch = useDebounce(searchQuery, 500);
 
@@ -69,6 +76,13 @@ export default function MemberVarisangyaList() {
       // /collectibles/varisangya defaults to 10 rows with no limit passed - fetch every
       // page so per-member totals aren't computed off an arbitrary slice.
       const allVarisangyas = await fetchAllPages<Varisangya>((p) => collectibleService.getAllVarisangyas(p));
+      // The cards total every member payment, not just the members on this page.
+      const { summary: memberSummary } = await collectibleService.getAllVarisangyas({
+        hasMember: true,
+        page: 1,
+        limit: 1,
+      });
+      setSummary(memberSummary);
       const membersWithVarisangya = membersData.map((member) => {
         const memberVarisangyas = allVarisangyas.filter((v) => getMemberId(v) === member.id);
         const totalVarisangya = memberVarisangyas.reduce((sum, v) => sum + (v.amount || 0), 0);
@@ -271,18 +285,16 @@ export default function MemberVarisangyaList() {
     },
   ];
 
-  const totalAmount = members.reduce((sum, m) => sum + (m.totalVarisangya || 0), 0);
-  const totalPayments = members.reduce((sum, m) => sum + (m.varisangyaCount || 0), 0);
   const stats = [
     {
       title: 'Total Members',
       value: pagination?.total || members.length,
       icon: <FiUsers className="h-5 w-5" />,
     },
-    { title: 'Total Payments', value: totalPayments, icon: <FiCreditCard className="h-5 w-5" /> },
+    { title: 'Total Payments', value: summary.count, icon: <FiCreditCard className="h-5 w-5" /> },
     {
       title: 'Total Amount',
-      value: `₹${totalAmount.toLocaleString()}`,
+      value: `₹${summary.totalAmount.toLocaleString()}`,
       icon: <FiDollarSign className="h-5 w-5" />,
     },
   ];

@@ -3,7 +3,7 @@ import Member from '../models/Member';
 import Family from '../models/Family';
 import { Varisangya, Zakat, Wallet, Transaction } from '../models/Collectible';
 import { NikahRegistration, DeathRegistration, NOC } from '../models/Registration';
-import Notification from '../models/Notification';
+import Notification, { notificationForViewer } from '../models/Notification';
 import Institute from '../models/Institute';
 import { Banner, Feed } from '../models/Social';
 import { AuthRequest } from '../middleware/authMiddleware';
@@ -12,6 +12,13 @@ import User from '../models/User';
 import DocumentFile from '../models/DocumentFile';
 
 import { sendFailure } from '../utils/userMessages';
+import { parseAmountInRange } from '../utils/money';
+import { isDuplicateKeyError } from '../utils/idCounter';
+import { findOrCreateWallet, findWallet } from '../services/walletService';
+import { sanitizeRichText } from '../utils/htmlSanitizer';
+import { activeBannerFilter } from '../utils/bannerWindow';
+import Certificate from '../models/Certificate';
+import { getSignedDownloadUrl } from '../services/uploadService';
 
 /**
  * Validates that the given document ids were uploaded by this member,
@@ -57,6 +64,30 @@ const attachOwnDocuments = async (
     await DocumentFile.updateMany({ _id: { $in: validIds } }, { ownerType, ownerId });
   }
   return validIds;
+};
+
+/**
+ * Fields a member may set when submitting a nikah or death registration (the same
+ * per-type list a resubmit may edit). The submit handlers build the saved document from
+ * these only: workflow, tenant, ownership and linkage fields (status, tenantId,
+ * submittedByMemberId, mahallId, remarks, documents, graveRecordId, the other side's
+ * groomId/brideId, approvedBy ...) are always set by the server and never read from the body.
+ */
+const NIKAH_SUBMIT_FIELDS = [
+  'groomName', 'groomNameMl', 'groomAge', 'brideName', 'brideNameMl', 'brideAge',
+  'nikahDate', 'venue', 'waliName', 'witness1', 'witness2', 'mahrAmount', 'mahrDescription',
+] as const;
+const DEATH_SUBMIT_FIELDS = [
+  'deathDate', 'placeOfDeath', 'causeOfDeath', 'informantName', 'informantRelation', 'informantPhone',
+] as const;
+
+const pickSubmittedFields = (body: unknown, fields: readonly string[]): Record<string, unknown> => {
+  const source = (body && typeof body === 'object' ? body : {}) as Record<string, unknown>;
+  const picked: Record<string, unknown> = {};
+  for (const key of fields) {
+    if (source[key] !== undefined) picked[key] = source[key];
+  }
+  return picked;
 };
 
 // Get own profile
@@ -227,8 +258,10 @@ export const updateOwnProfile = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    // Only allow updating specific fields
-    const allowedFields = ['phone', 'email'];
+    // Only allow updating specific fields. The phone number is deliberately NOT one of them: it is
+    // the key to the member's login and account switching, so changing it requires the OTP-verified
+    // change-request flow (POST /api/change-requests), never a plain profile edit.
+    const allowedFields = ['email'];
     const updateData: any = {};
 
     allowedFields.forEach((field) => {
@@ -266,8 +299,8 @@ export const getOwnPayments = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    const { type, page, limit } = req.query;
-    const { skip } = getPaginationParams(req);
+    const { type } = req.query;
+    const { page, limit, skip } = getPaginationParams(req);
 
     const member = await Member.findById(req.user.memberId);
     if (!member) {
@@ -277,78 +310,34 @@ export const getOwnPayments = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    const query: any = {
-      tenantId: member.tenantId,
-      $or: [
-        { memberId: member._id },
-        { familyId: member.familyId },
-      ],
-    };
+    const wantVarisangya = !type || type === 'varisangya';
+    const wantZakat = !type || type === 'zakat';
+    const varisangyaFilter = { tenantId: member.tenantId, memberId: member._id };
+    const zakatFilter = { tenantId: member.tenantId, payerId: member._id };
 
-    let payments: any[] = [];
-    let total = 0;
+    // Two collections are merged into one date-ordered list. Applying skip/limit to each collection
+    // separately (as before) returned up to 2x the page size and made later pages skip or repeat rows.
+    // Instead each source is read up to the END of the requested page, merged, and the page is sliced
+    // from the merged list, so page N really is the N-th slice of the combined history.
+    const upTo = skip + limit;
+    const [varisangyas, varisangyaTotal, zakats, zakatTotal] = await Promise.all([
+      wantVarisangya
+        ? Varisangya.find(varisangyaFilter).populate('familyId', 'houseName').sort({ paymentDate: -1, _id: -1 }).limit(upTo)
+        : Promise.resolve([] as any[]),
+      wantVarisangya ? Varisangya.countDocuments(varisangyaFilter) : Promise.resolve(0),
+      wantZakat ? Zakat.find(zakatFilter).sort({ paymentDate: -1, _id: -1 }).limit(upTo) : Promise.resolve([] as any[]),
+      wantZakat ? Zakat.countDocuments(zakatFilter) : Promise.resolve(0),
+    ]);
 
-    if (!type || type === 'varisangya') {
-      const varisangyas = await Varisangya.find({
-        ...query,
-        memberId: member._id,
-      })
-        .populate('familyId', 'houseName')
-        .sort({ paymentDate: -1 })
-        .skip(skip)
-        .limit(Number(limit) || 10);
+    const when = (p: any) => new Date(p.paymentDate || p.createdAt).getTime();
+    const merged = [
+      ...varisangyas.map((v: any) => ({ ...v.toObject(), type: 'varisangya' })),
+      ...zakats.map((z: any) => ({ ...z.toObject(), type: 'zakat' })),
+    ].sort((a, b) => when(b) - when(a) || String(b._id).localeCompare(String(a._id)));
 
-      const varisangyaTotal = await Varisangya.countDocuments({
-        ...query,
-        memberId: member._id,
-      });
-
-      payments = varisangyas.map((v) => ({
-        ...v.toObject(),
-        type: 'varisangya',
-      }));
-      total = varisangyaTotal;
-    }
-
-    if (!type || type === 'zakat') {
-      const zakats = await Zakat.find({
-        tenantId: member.tenantId,
-        payerId: member._id,
-      })
-        .sort({ paymentDate: -1 })
-        .skip(skip)
-        .limit(Number(limit) || 10);
-
-      const zakatTotal = await Zakat.countDocuments({
-        tenantId: member.tenantId,
-        payerId: member._id,
-      });
-
-      if (type === 'zakat') {
-        payments = zakats.map((z) => ({
-          ...z.toObject(),
-          type: 'zakat',
-        }));
-        total = zakatTotal;
-      } else {
-        payments = [
-          ...payments,
-          ...zakats.map((z) => ({
-            ...z.toObject(),
-            type: 'zakat',
-          })),
-        ];
-        total += zakatTotal;
-      }
-    }
-
-    payments.sort((a, b) => {
-      const dateA = a.paymentDate || a.createdAt;
-      const dateB = b.paymentDate || b.createdAt;
-      return new Date(dateB).getTime() - new Date(dateA).getTime();
-    });
-
-    res.json(createPaginationResponse(payments, total, Number(page) || 1, Number(limit) || 10));
+    // Each row carries its own `status` ('pending' until an admin verifies it), so the app can tell
+    // submitted payments from received ones.
+    res.json(createPaginationResponse(merged.slice(skip, upTo), varisangyaTotal + zakatTotal, page, limit));
   } catch (error: any) {
     sendFailure(res, error, 'We couldn\'t load your payments right now. Please try again.');
   }
@@ -397,19 +386,31 @@ export const getOwnVarisangya = async (req: AuthRequest, res: Response) => {
         : Promise.resolve([]),
     ]);
 
-    const memberTotal = memberVarisangya.reduce((sum: number, v: any) => sum + (v.amount || 0), 0);
-    const familyTotal = familyVarisangya.reduce((sum: number, v: any) => sum + (v.amount || 0), 0);
+    // Only a verified payment is 'paid' and counts towards the totals; a submission still waiting for
+    // an admin is 'pending' and is reported separately. (No status = an older, received payment.)
+    const isPending = (v: any) => v.status === 'pending';
+    const received = (rows: any[]) => rows.filter((v) => !isPending(v));
+    const sum = (rows: any[]) => rows.reduce((total: number, v: any) => total + (v.amount || 0), 0);
+    const memberReceived = received(memberVarisangya);
+    const familyReceived = received(familyVarisangya);
+    const memberPending = memberVarisangya.filter(isPending);
+    const familyPending = familyVarisangya.filter(isPending);
+    const label = (v: any) => ({ ...v, status: isPending(v) ? 'pending' : 'paid' });
 
     res.json({
       success: true,
       data: {
-        memberVarisangya: memberVarisangya.map((v: any) => ({ ...v, status: 'paid' })),
-        familyVarisangya: familyVarisangya.map((v: any) => ({ ...v, status: 'paid' })),
+        memberVarisangya: memberVarisangya.map(label),
+        familyVarisangya: familyVarisangya.map(label),
         summary: {
-          memberTotal,
-          memberCount: memberVarisangya.length,
-          familyTotal,
-          familyCount: familyVarisangya.length,
+          memberTotal: sum(memberReceived),
+          memberCount: memberReceived.length,
+          familyTotal: sum(familyReceived),
+          familyCount: familyReceived.length,
+          memberPendingTotal: sum(memberPending),
+          memberPendingCount: memberPending.length,
+          familyPendingTotal: sum(familyPending),
+          familyPendingCount: familyPending.length,
         },
       },
     });
@@ -436,19 +437,9 @@ export const getOwnWallet = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    let wallet = await Wallet.findOne({
-      tenantId: member.tenantId,
-      memberId: member._id,
-    });
-
-    if (!wallet) {
-      wallet = new Wallet({
-        tenantId: member.tenantId,
-        memberId: member._id,
-        balance: 0,
-      });
-      await wallet.save();
-    }
+    // The same wallet an admin verification credits (member wallet, one atomic find-or-create), so the
+    // member can never be shown a different, empty duplicate.
+    const wallet = await findOrCreateWallet({ tenantId: member.tenantId, memberId: member._id });
 
     res.json({ success: true, data: wallet });
   } catch (error: any) {
@@ -474,36 +465,54 @@ export const getOwnWalletTransactions = async (req: AuthRequest, res: Response) 
       });
     }
 
-    let wallet = await Wallet.findOne({
-      tenantId: member.tenantId,
-      memberId: member._id,
-    });
+    const { page, limit, skip } = getPaginationParams(req);
 
+    // Same wallet as getOwnWallet / admin verification. A read does not need to create one: with no
+    // wallet there are simply no transactions.
+    const wallet = await findWallet({ tenantId: member.tenantId, memberId: member._id });
     if (!wallet) {
-      wallet = new Wallet({
-        tenantId: member.tenantId,
-        memberId: member._id,
-        balance: 0,
-      });
-      await wallet.save();
+      return res.json(createPaginationResponse([], 0, page, limit));
     }
-
-    const { page, limit } = req.query;
-    const { skip } = getPaginationParams(req);
 
     const [transactions, total] = await Promise.all([
       Transaction.find({ walletId: wallet._id })
-        .sort({ createdAt: -1 })
+        .sort({ createdAt: -1, _id: -1 })
         .skip(skip)
-        .limit(Number(limit) || 10),
+        .limit(limit),
       Transaction.countDocuments({ walletId: wallet._id }),
     ]);
 
-    res.json(createPaginationResponse(transactions, total, Number(page) || 1, Number(limit) || 10));
+    res.json(createPaginationResponse(transactions, total, page, limit));
   } catch (error: any) {
     sendFailure(res, error, 'We couldn\'t load your wallet transactions right now. Please try again.');
   }
 };
+
+const MEMBER_CLIENT_REQUEST_ID = /^[A-Za-z0-9_\-:.]{8,64}$/;
+
+/**
+ * The fields a member may put on a payment submission. Everything else (status, source, receiptNo,
+ * tenant, verifier, ids) is set by the server, so a member cannot submit a payment as verified or choose
+ * its receipt number.
+ */
+function parseMemberPayment(body: any): { data: Record<string, any> } | { error: string } {
+  const src = body && typeof body === 'object' ? body : {};
+  const amount = parseAmountInRange(src.amount, 0.01);
+  if (amount === null) return { error: 'Please enter an amount greater than zero (at most two decimal places).' };
+  const paymentDate = typeof src.paymentDate === 'string' ? new Date(src.paymentDate) : null;
+  if (!paymentDate || Number.isNaN(paymentDate.getTime())) return { error: 'Please choose a valid payment date.' };
+  const data: Record<string, any> = { amount, paymentDate };
+  for (const field of ['paymentMethod', 'remarks', 'remarksMl'] as const) {
+    if (typeof src[field] === 'string') data[field] = src[field].trim().slice(0, field === 'paymentMethod' ? 100 : 2000);
+  }
+  if (src.clientRequestId !== undefined && src.clientRequestId !== null && src.clientRequestId !== '') {
+    if (typeof src.clientRequestId !== 'string' || !MEMBER_CLIENT_REQUEST_ID.test(src.clientRequestId)) {
+      return { error: 'The request id must be 8 to 64 letters, numbers, dashes or underscores.' };
+    }
+    data.clientRequestId = src.clientRequestId;
+  }
+  return { data };
+}
 
 // Request Varisangya payment (creates pending payment request)
 export const requestVarisangyaPayment = async (req: AuthRequest, res: Response) => {
@@ -523,18 +532,47 @@ export const requestVarisangyaPayment = async (req: AuthRequest, res: Response) 
       });
     }
 
-    const varisangyaData = {
-      ...req.body,
+    const parsed = parseMemberPayment(req.body);
+    if ('error' in parsed) return res.status(400).json({ success: false, message: parsed.error });
+
+    const varisangyaData: Record<string, any> = {
+      ...parsed.data,
       tenantId: member.tenantId,
       memberId: member._id,
       familyId: member.familyId,
-      receiptNo: undefined, // assigned when the admin verifies
-      status: 'pending',
+      status: 'pending', // no wallet, ledger or receipt number until an admin verifies it
       source: 'member',
     };
 
+    // The same clientRequestId again (a double tap, a retry after a timeout) returns the first submission.
+    const existingFor = async () =>
+      varisangyaData.clientRequestId
+        ? Varisangya.findOne({ tenantId: member.tenantId, clientRequestId: varisangyaData.clientRequestId })
+        : null;
+    const replay = async (existing: any) => {
+      if (String(existing.memberId) !== String(member._id)) {
+        return res.status(409).json({ success: false, message: 'That request id was already used. Please try again.' });
+      }
+      return res.status(200).json({
+        success: true,
+        data: existing,
+        idempotent: true,
+        message: 'Varisangya payment request submitted',
+      });
+    };
+    const earlier = await existingFor();
+    if (earlier) return await replay(earlier);
+
     const varisangya = new Varisangya(varisangyaData);
-    await varisangya.save();
+    try {
+      await varisangya.save();
+    } catch (err) {
+      if (varisangyaData.clientRequestId && isDuplicateKeyError(err, 'clientRequestId')) {
+        const winner = await existingFor();
+        if (winner) return await replay(winner);
+      }
+      throw err;
+    }
 
     res.status(201).json({
       success: true,
@@ -564,18 +602,47 @@ export const requestZakatPayment = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    const zakatData = {
-      ...req.body,
+    const parsed = parseMemberPayment(req.body);
+    if ('error' in parsed) return res.status(400).json({ success: false, message: parsed.error });
+    if (typeof req.body?.category === 'string') parsed.data.category = req.body.category.trim().slice(0, 100);
+
+    const zakatData: Record<string, any> = {
+      ...parsed.data,
       tenantId: member.tenantId,
       payerId: member._id,
       payerName: member.name,
-      receiptNo: undefined, // assigned when the admin verifies
-      status: 'pending',
+      status: 'pending', // no ledger entry or receipt number until an admin verifies it
       source: 'member',
     };
 
+    const existingFor = async () =>
+      zakatData.clientRequestId
+        ? Zakat.findOne({ tenantId: member.tenantId, clientRequestId: zakatData.clientRequestId })
+        : null;
+    const replay = async (existing: any) => {
+      if (String(existing.payerId) !== String(member._id)) {
+        return res.status(409).json({ success: false, message: 'That request id was already used. Please try again.' });
+      }
+      return res.status(200).json({
+        success: true,
+        data: existing,
+        idempotent: true,
+        message: 'Zakat payment request submitted',
+      });
+    };
+    const earlier = await existingFor();
+    if (earlier) return await replay(earlier);
+
     const zakat = new Zakat(zakatData);
-    await zakat.save();
+    try {
+      await zakat.save();
+    } catch (err) {
+      if (zakatData.clientRequestId && isDuplicateKeyError(err, 'clientRequestId')) {
+        const winner = await existingFor();
+        if (winner) return await replay(winner);
+      }
+      throw err;
+    }
 
     res.status(201).json({
       success: true,
@@ -586,6 +653,36 @@ export const requestZakatPayment = async (req: AuthRequest, res: Response) => {
     sendFailure(res, error, 'We couldn\'t save the zakat payment. Please try again.');
   }
 };
+
+/**
+ * Which registrations are a member's own. The ONE definition: GET /member-user/registrations lists
+ * them and the member certificate endpoints derive certificate ownership from them, so the two
+ * screens can never disagree about what belongs to a member.
+ */
+const ownRegistrationQueries = (member: { _id: unknown; tenantId: unknown }) => ({
+  nikah: {
+    tenantId: member.tenantId,
+    $or: [
+      { groomId: member._id },
+      { brideId: member._id },
+      { submittedByMemberId: member._id },
+    ],
+  },
+  death: {
+    tenantId: member.tenantId,
+    $or: [
+      { deceasedId: member._id },
+      { submittedByMemberId: member._id },
+    ],
+  },
+  noc: {
+    tenantId: member.tenantId,
+    $or: [
+      { applicantId: member._id },
+      { submittedByMemberId: member._id },
+    ],
+  },
+});
 
 // Get own registrations
 export const getOwnRegistrations = async (req: AuthRequest, res: Response) => {
@@ -611,14 +708,7 @@ export const getOwnRegistrations = async (req: AuthRequest, res: Response) => {
     const registrations: any = {};
 
     if (!type || type === 'nikah') {
-      const nikahQuery = {
-        tenantId: member.tenantId,
-        $or: [
-          { groomId: member._id },
-          { brideId: member._id },
-          { submittedByMemberId: member._id },
-        ],
-      };
+      const nikahQuery = ownRegistrationQueries(member).nikah;
       const nikahRegs = await NikahRegistration.find(nikahQuery)
         .populate('documents', 'fileName documentType status')
         .sort({ createdAt: -1 })
@@ -633,13 +723,7 @@ export const getOwnRegistrations = async (req: AuthRequest, res: Response) => {
     }
 
     if (!type || type === 'death') {
-      const deathQuery = {
-        tenantId: member.tenantId,
-        $or: [
-          { deceasedId: member._id },
-          { submittedByMemberId: member._id },
-        ],
-      };
+      const deathQuery = ownRegistrationQueries(member).death;
       const deathRegs = await DeathRegistration.find(deathQuery)
         .populate('documents', 'fileName documentType status')
         .sort({ createdAt: -1 })
@@ -654,13 +738,7 @@ export const getOwnRegistrations = async (req: AuthRequest, res: Response) => {
     }
 
     if (!type || type === 'noc') {
-      const nocQuery = {
-        tenantId: member.tenantId,
-        $or: [
-          { applicantId: member._id },
-          { submittedByMemberId: member._id },
-        ],
-      };
+      const nocQuery = ownRegistrationQueries(member).noc;
       const nocs = await NOC.find(nocQuery)
         .populate({
           path: 'nikahRegistrationId',
@@ -772,7 +850,7 @@ export const requestNikahRegistration = async (req: AuthRequest, res: Response) 
     const enteredBrideName = typeof req.body.brideName === 'string' ? req.body.brideName.trim() : '';
 
     const nikahData = {
-      ...req.body,
+      ...pickSubmittedFields(req.body, NIKAH_SUBMIT_FIELDS),
       tenantId: member.tenantId,
       mahallMemberType: side,
       submittedByMemberId: member._id,
@@ -849,7 +927,7 @@ export const requestDeathRegistration = async (req: AuthRequest, res: Response) 
     }
 
     const deathData = {
-      ...req.body,
+      ...pickSubmittedFields(req.body, DEATH_SUBMIT_FIELDS),
       tenantId: member.tenantId,
       deceasedId: deceased._id,
       deceasedName: deceased.name,
@@ -983,7 +1061,7 @@ export const requestNOC = async (req: AuthRequest, res: Response) => {
       applicantPhone: member.phone || req.user.phone,
       type: type || 'common',
       purposeTitle,
-      purposeDescription,
+      purposeDescription: sanitizeRichText(purposeDescription),
       remarks,
       submittedByMemberId: member._id,
       status: 'pending',
@@ -1064,7 +1142,10 @@ export const resubmitRegistration = async (req: AuthRequest, res: Response) => {
     };
     editableFields[type].forEach((key) => {
       if (req.body[key] !== undefined) {
-        (reg as any)[key] = req.body[key];
+        // NOC purpose / description are rendered as HTML by the CMS: keep only allow-listed markup.
+        (reg as any)[key] = type === 'noc' && (key === 'purposeDescription' || key === 'purpose')
+          ? sanitizeRichText(req.body[key])
+          : req.body[key];
       }
     });
 
@@ -1168,13 +1249,16 @@ export const getOwnNotifications = async (req: AuthRequest, res: Response) => {
 
     const [notifications, total] = await Promise.all([
       Notification.find(query)
+        .select('+readBy')
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit),
       Notification.countDocuments(query),
     ]);
 
-    res.json(createPaginationResponse(notifications, total, page, limit));
+    // A broadcast is read per user: show this member's own state and never the list of other readers.
+    const viewerId = req.user?._id;
+    res.json(createPaginationResponse(notifications.map((n: any) => notificationForViewer(n, viewerId)), total, page, limit));
   } catch (error: any) {
     sendFailure(res, error, 'We couldn\'t load your notifications right now. Please try again.');
   }
@@ -1240,24 +1324,9 @@ export const getPublicBanners = async (req: AuthRequest, res: Response) => {
 
     const { page, limit, skip } = getPaginationParams(req);
 
-    const now = new Date();
     const query: any = {
       tenantId: member.tenantId,
-      status: 'active',
-      $or: [
-        { startDate: { $exists: false } },
-        { startDate: null },
-        { startDate: { $lte: now } },
-      ],
-      $and: [
-        {
-          $or: [
-            { endDate: { $exists: false } },
-            { endDate: null },
-            { endDate: { $gte: now } },
-          ],
-        },
-      ],
+      ...activeBannerFilter(),
     };
 
     const [banners, total] = await Promise.all([
@@ -1361,6 +1430,108 @@ export const getOwnFamilyMembers = async (req: AuthRequest, res: Response) => {
     res.json(createPaginationResponse(familyMembers, total, page, limit));
   } catch (error: any) {
     sendFailure(res, error, 'We couldn\'t load your family members right now. Please try again.');
+  }
+};
+
+const REGISTRATION_MODELS = { nikah: NikahRegistration, death: DeathRegistration, noc: NOC } as const;
+type RegistrationType = keyof typeof REGISTRATION_MODELS;
+const REGISTRATION_TYPES = Object.keys(REGISTRATION_MODELS) as RegistrationType[];
+
+/** Fields of a certificate a member may see. The storage key and the internal issue key never leave the server. */
+const MEMBER_CERTIFICATE_FIELDS = 'certificateNo type status issueDate issuedBy revokedReason registrationId createdAt';
+
+// GET /api/member-user/certificates?page&limit&type
+// A certificate is the member's when its registration is one GET /member-user/registrations returns to
+// them (same ownership queries). Revoked certificates are included so the screen can show them as such.
+export const getOwnCertificates = async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.user?.memberId) {
+      return res.status(404).json({
+        success: false,
+        message: "Your profile isn't linked to a member record yet. Please contact your Mahallu admin.",
+      });
+    }
+
+    const member = await Member.findById(req.user.memberId);
+    if (!member) {
+      return res.status(404).json({
+        success: false,
+        message: "We couldn't find that member. It may have been removed.",
+      });
+    }
+
+    const { page, limit, skip } = getPaginationParams(req);
+    const requested = req.query.type as RegistrationType | undefined;
+    const types = requested ? REGISTRATION_TYPES.filter((t) => t === requested) : REGISTRATION_TYPES;
+    const queries = ownRegistrationQueries(member);
+
+    const owned = await Promise.all(
+      types.map(async (type) => {
+        const rows: any[] = await (REGISTRATION_MODELS[type] as any).find(queries[type]).select('_id').lean();
+        return { type, ids: rows.map((r) => r._id) };
+      })
+    );
+    const clauses = owned.filter((o) => o.ids.length > 0).map((o) => ({ type: o.type, registrationId: { $in: o.ids } }));
+    if (clauses.length === 0) {
+      return res.json(createPaginationResponse([], 0, page, limit));
+    }
+
+    const query = { tenantId: member.tenantId, $or: clauses };
+    const [certs, total] = await Promise.all([
+      Certificate.find(query).select(MEMBER_CERTIFICATE_FIELDS).sort({ createdAt: -1 }).skip(skip).limit(limit),
+      Certificate.countDocuments(query),
+    ]);
+
+    res.json(createPaginationResponse(certs, total, page, limit));
+  } catch (error: any) {
+    sendFailure(res, error, "We couldn't load your certificates right now. Please try again.");
+  }
+};
+
+// GET /api/member-user/certificates/:id/download — a short-lived link to the PDF.
+// Not the member's certificate (or not in their Mahallu) answers 404, exactly like one that doesn't
+// exist; a revoked one answers 403.
+export const downloadOwnCertificate = async (req: AuthRequest, res: Response) => {
+  try {
+    const notFound = () =>
+      res.status(404).json({ success: false, message: "We couldn't find that certificate. It may have been removed." });
+
+    if (!req.user?.memberId) {
+      return res.status(404).json({
+        success: false,
+        message: "Your profile isn't linked to a member record yet. Please contact your Mahallu admin.",
+      });
+    }
+
+    const member = await Member.findById(req.user.memberId);
+    if (!member) {
+      return res.status(404).json({
+        success: false,
+        message: "We couldn't find that member. It may have been removed.",
+      });
+    }
+
+    const cert = await Certificate.findOne({ _id: req.params.id, tenantId: member.tenantId });
+    if (!cert || !REGISTRATION_TYPES.includes(cert.type as RegistrationType)) return notFound();
+
+    const ownership = ownRegistrationQueries(member)[cert.type as RegistrationType];
+    const isOwn = await (REGISTRATION_MODELS[cert.type as RegistrationType] as any).exists({
+      ...ownership,
+      _id: cert.registrationId,
+    });
+    if (!isOwn) return notFound();
+
+    if (cert.status === 'revoked') {
+      return res.status(403).json({
+        success: false,
+        message: 'This certificate has been revoked and can no longer be downloaded.',
+      });
+    }
+
+    const url = await getSignedDownloadUrl(cert.pdfKey);
+    res.json({ success: true, data: { url, fileName: `${cert.certificateNo}.pdf`, expiresIn: 300 } });
+  } catch (error: any) {
+    sendFailure(res, error, "We couldn't prepare the certificate for download. Please try again.");
   }
 };
 

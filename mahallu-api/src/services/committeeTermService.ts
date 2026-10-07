@@ -51,16 +51,19 @@ export const runCommitteeTermExpiryCheck = async (): Promise<number> => {
   return created;
 };
 
-export const startCommitteeTermScheduler = (): void => {
+export const startCommitteeTermScheduler = (): (() => void) => {
   // ponytail: setInterval like the varisangya reminder; idempotent check replaces a cron dep
   const DAY_MS = 24 * 60 * 60 * 1000;
   runCommitteeTermExpiryCheck().catch((err) =>
     console.error('[CommitteeTerm] check failed:', err?.message || err)
   );
-  setInterval(() => {
+  const timer = setInterval(() => {
     runCommitteeTermExpiryCheck().catch((err) =>
       console.error('[CommitteeTerm] check failed:', err?.message || err)
     );
   }, DAY_MS);
+  // Never keep the process alive on its own, and hand back a stop function for graceful shutdown.
+  timer.unref?.();
   console.info(`[CommitteeTerm] expiry scheduler started (${TERM_WARNING_DAYS}-day window)`);
+  return () => clearInterval(timer);
 };

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { FiDollarSign, FiCreditCard, FiCheckCircle } from 'react-icons/fi';
 import TableCard from '@/components/ui/TableCard';
@@ -6,16 +6,27 @@ import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
 import EmptyState from '@/components/ui/EmptyState';
 import { PageSkeleton } from '@/components/ui/Skeleton';
+import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
-import { TableColumn } from '@/types';
-import { collectibleService, Wallet } from '@/services/collectibleService';
+import { TableColumn, Pagination as PaginationType } from '@/types';
+import { collectibleService } from '@/services/collectibleService';
 import { familyService } from '@/services/familyService';
+import { fetchAllPages } from '@/services/api';
+import { useDebounce } from '@/hooks/useDebounce';
 import { formatDate, toTitleCase } from '@/utils/format';
 import { ROUTES } from '@/constants/routes';
 import { exportToCSV, exportToJSON } from '@/utils/exportUtils';
 import { exportInvoicesToPdf, InvoiceDetails } from '@/utils/invoiceUtils';
 import { toast } from '@/store/toastStore';
 import { loadErrorMessage } from '@/utils/errors';
+import {
+  EMPTY_WALLET_SUMMARY,
+  WALLET_PAGE_SIZE,
+  singleWalletRow,
+  summarizeWalletRows,
+  type WalletListRow,
+  type WalletListSummary,
+} from '@/utils/walletList';
 
 const FAMILY_BASE = ROUTES.COLLECTIBLES.FAMILY_VARISANGYA.BASE;
 
@@ -24,81 +35,105 @@ export default function FamilyVarisangyaWallet() {
   const [searchParams] = useSearchParams();
   const familyId = searchParams.get('familyId');
 
-  const [wallets, setWallets] = useState<(Wallet & { family?: any })[]>([]);
+  /* One page of rows from the server: every families (with or without a wallet), not just those with a payment. */
+  const [wallets, setWallets] = useState<WalletListRow[]>([]);
+  /* Totals over the whole filtered set (all pages), from the server. */
+  const [summary, setSummary] = useState<WalletListSummary>(EMPTY_WALLET_SUMMARY);
+  const [pagination, setPagination] = useState<PaginationType | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isFilterVisible, setIsFilterVisible] = useState(false);
+  // A slow response for an old page/search must not overwrite a newer one.
+  const latestRequest = useRef(0);
+
+  const debouncedSearch = useDebounce(searchQuery, 500);
+
+  // A page number that only made sense for the previous search must not survive into the new one.
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearch]);
 
   useEffect(() => {
     fetchWallets();
-  }, [familyId]);
+  }, [familyId, debouncedSearch, currentPage]);
 
   const fetchWallets = async () => {
+    const requestId = ++latestRequest.current;
     try {
       setLoading(true);
       setError(null);
       if (familyId) {
-        const walletData = await collectibleService.getWallet({ familyId });
-        const familyData = await familyService.getById(familyId);
-        setWallets([{ ...walletData, family: familyData }]);
+        const [walletData, familyData] = await Promise.all([
+          collectibleService.getWallet({ familyId }),
+          familyService.getById(familyId),
+        ]);
+        if (requestId !== latestRequest.current) return;
+        const rows = [
+          singleWalletRow(
+            'family',
+            { id: familyId, name: familyData?.houseName, mahallId: familyData?.mahallId },
+            walletData
+          ),
+        ];
+        setWallets(rows);
+        setSummary(summarizeWalletRows(rows));
+        setPagination(null);
       } else {
-        const familiesResult = await familyService.getAll();
-        const families = familiesResult.data;
-        const walletsData: (Wallet & { family?: any })[] = [];
-        for (const family of families) {
-          try {
-            const walletData = await collectibleService.getWallet({ familyId: family.id });
-            if (walletData && walletData.balance !== undefined) {
-              walletsData.push({ ...walletData, family });
-            }
-          } catch (err) {
-            // Skip if wallet doesn't exist
-          }
-        }
-        setWallets(walletsData.sort((a, b) => (b.balance || 0) - (a.balance || 0)));
+        const result = await collectibleService.listWallets('family', {
+          page: currentPage,
+          limit: WALLET_PAGE_SIZE,
+          search: debouncedSearch,
+        });
+        if (requestId !== latestRequest.current) return;
+        setWallets(result.data);
+        setSummary(result.summary);
+        setPagination(result.pagination);
       }
     } catch (err: any) {
+      if (requestId !== latestRequest.current) return;
       setError(loadErrorMessage(err, 'wallets'));
       console.error('Error fetching wallets:', err);
     } finally {
-      setLoading(false);
+      if (requestId === latestRequest.current) setLoading(false);
     }
   };
 
   const handleExport = async (type: 'csv' | 'json' | 'pdf') => {
     try {
       setIsExporting(true);
-      if (wallets.length === 0) {
+      // The export is every row of the list the user is looking at (same search), not just this page.
+      const rows = familyId
+        ? wallets
+        : await fetchAllPages<WalletListRow>((p) =>
+            collectibleService.listWallets('family', { ...p, search: debouncedSearch })
+          );
+      if (rows.length === 0) {
         toast.info('No wallet data to export');
         return;
       }
       const filename = `family-varisangya-wallets${familyId ? `-${familyId}` : ''}`;
       switch (type) {
         case 'csv':
-          exportToCSV(columns, wallets, filename);
+          exportToCSV(columns, rows, filename);
           break;
         case 'json':
-          exportToJSON(columns, wallets, filename);
+          exportToJSON(columns, rows, filename);
           break;
         case 'pdf':
           {
-            const invoices: InvoiceDetails[] = [];
-            for (const wallet of wallets) {
-              if (wallet.family) {
-                invoices.push({
-                  title: 'Family Varisangya Wallet',
-                  receiptNo: '-',
-                  payerLabel: 'Family',
-                  payerName: toTitleCase(wallet.family.houseName) || '-',
-                  amount: wallet.balance || 0,
-                  paymentDate: wallet.lastTransactionDate || new Date().toISOString(),
-                  paymentMethod: '-',
-                  remarks: `Wallet Balance as of ${formatDate(new Date().toISOString())}`,
-                });
-              }
-            }
+            const invoices: InvoiceDetails[] = rows.map((wallet) => ({
+              title: 'Family Varisangya Wallet',
+              receiptNo: '-',
+              payerLabel: 'Family',
+              payerName: toTitleCase(wallet.name) || '-',
+              amount: wallet.balance || 0,
+              paymentDate: wallet.lastTransactionDate || new Date().toISOString(),
+              paymentMethod: '-',
+              remarks: `Wallet Balance as of ${formatDate(new Date().toISOString())}`,
+            }));
             await exportInvoicesToPdf(invoices, filename);
           }
           break;
@@ -111,18 +146,18 @@ export default function FamilyVarisangyaWallet() {
     }
   };
 
-  const columns: TableColumn<Wallet & { family?: any }>[] = [
+  const columns: TableColumn<WalletListRow>[] = [
     {
-      key: 'family',
+      key: 'name',
       label: 'Family',
       width: '7.25rem',
-      render: (family) =>
-        family ? (
+      render: (name, row) =>
+        row.familyId ? (
           <Link
-            to={ROUTES.FAMILIES.DETAIL(family.id)}
+            to={ROUTES.FAMILIES.DETAIL(row.familyId)}
             className="text-primary-600 hover:text-primary-700 dark:text-primary-400"
           >
-            {toTitleCase(family.houseName)}
+            {toTitleCase(name)}
           </Link>
         ) : (
           '-'
@@ -147,14 +182,12 @@ export default function FamilyVarisangyaWallet() {
     },
   ];
 
-  const totalBalance = wallets.reduce((sum, w) => sum + (w.balance || 0), 0);
-  const activeWallets = wallets.filter((w) => (w.balance || 0) > 0).length;
   const stats = [
-    { title: 'Total Wallets', value: wallets.length, icon: <FiCreditCard className="h-5 w-5" /> },
-    { title: 'Active Wallets', value: activeWallets, icon: <FiCheckCircle className="h-5 w-5" /> },
+    { title: 'Total Wallets', value: summary.count, icon: <FiCreditCard className="h-5 w-5" /> },
+    { title: 'Active Wallets', value: summary.activeCount, icon: <FiCheckCircle className="h-5 w-5" /> },
     {
       title: 'Total Balance',
-      value: `₹${totalBalance.toLocaleString()}`,
+      value: `₹${summary.totalBalance.toLocaleString()}`,
       icon: <FiDollarSign className="h-5 w-5" />,
     },
   ];
@@ -164,7 +197,7 @@ export default function FamilyVarisangyaWallet() {
       <div>
         <h2 className="text-lg font-semibold text-foreground">
           Family Varisangya Wallets
-          {wallets[0]?.family && ` - ${toTitleCase(wallets[0].family.houseName)}`}
+          {familyId && wallets[0]?.name && ` - ${toTitleCase(wallets[0].name)}`}
         </h2>
         <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">View wallet balances for families</p>
       </div>
@@ -201,8 +234,21 @@ export default function FamilyVarisangyaWallet() {
             data={wallets}
             emptyMessage="No wallets found"
             showExport={false}
-            onRowClick={(row) => navigate(`${FAMILY_BASE}?view=transactions&familyId=${row.family?.id || ''}`)}
+            rowKey={(row, index) => row.familyId || String(index)}
+            onRowClick={(row) => navigate(`${FAMILY_BASE}?view=transactions&familyId=${row.familyId || ''}`)}
           />
+        )}
+        {pagination && !familyId && (
+          <div className="mt-4">
+            <Pagination
+              currentPage={pagination.page}
+              totalPages={pagination.totalPages}
+              totalItems={pagination.total}
+              itemsPerPage={pagination.limit}
+              entity="families"
+              onPageChange={(page) => setCurrentPage(page)}
+            />
+          </div>
         )}
       </TableCard>
     </div>

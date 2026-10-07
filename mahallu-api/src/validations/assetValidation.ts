@@ -1,4 +1,5 @@
 import { body, param } from 'express-validator';
+import { amountField } from './common';
 
 export const createAssetValidation = [
   body('mosqueId').optional({ nullable: true, checkFalsy: true }).isMongoId().withMessage('Please select a valid mosque.'),
@@ -20,16 +21,7 @@ export const createAssetValidation = [
       }
       return true;
     }),
-  body('estimatedValue')
-    .notEmpty()
-    .withMessage('Please enter the estimated value.')
-    .custom((value) => {
-      const num = Number(value);
-      if (isNaN(num) || num < 0) {
-        throw new Error('Estimated value must be a positive number');
-      }
-      return true;
-    }),
+  amountField('estimatedValue', 'estimated value', { required: true }),
   body('category')
     .notEmpty()
     .withMessage('Please select the category.')
@@ -62,15 +54,7 @@ export const updateAssetValidation = [
       }
       return true;
     }),
-  body('estimatedValue')
-    .optional()
-    .custom((value) => {
-      const num = Number(value);
-      if (isNaN(num) || num < 0) {
-        throw new Error('Estimated value must be a positive number');
-      }
-      return true;
-    }),
+  amountField('estimatedValue', 'estimated value'),
   body('category')
     .optional()
     .isIn(['furniture', 'electronics', 'vehicle', 'building', 'land', 'equipment', 'other'])
@@ -109,15 +93,7 @@ export const createMaintenanceValidation = [
     .withMessage('Please enter the description.')
     .isLength({ min: 2, max: 500 })
     .withMessage('Please keep the description between 2 and 500 characters.'),
-  body('cost')
-    .optional()
-    .custom((value) => {
-      const num = Number(value);
-      if (isNaN(num) || num < 0) {
-        throw new Error('Cost must be a positive number');
-      }
-      return true;
-    }),
+  amountField('cost', 'cost'),
   body('performedBy').optional().trim(),
   body('nextMaintenanceDate')
     .optional()
@@ -151,15 +127,7 @@ export const updateMaintenanceValidation = [
     .trim()
     .isLength({ min: 2, max: 500 })
     .withMessage('Please keep the description between 2 and 500 characters.'),
-  body('cost')
-    .optional()
-    .custom((value) => {
-      const num = Number(value);
-      if (isNaN(num) || num < 0) {
-        throw new Error('Cost must be a positive number');
-      }
-      return true;
-    }),
+  amountField('cost', 'cost'),
   body('performedBy').optional().trim(),
   body('nextMaintenanceDate')
     .optional()

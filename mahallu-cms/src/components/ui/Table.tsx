@@ -1,4 +1,4 @@
-import { ReactNode, useId, useMemo, useState } from 'react';
+import { KeyboardEvent, MouseEvent, ReactNode, useId, useMemo, useState } from 'react';
 import { FiChevronUp, FiChevronDown, FiChevronRight } from 'react-icons/fi';
 import { TableColumn, SortState } from '@/types';
 import { cn } from '@/utils/cn';
@@ -121,6 +121,33 @@ const PRIORITY_CLASS: Record<NonNullable<TableColumn['priority']>, string> = {
 /* Aligns with design tokens: label 13 for headings/meta, sm 14 for body. Central fix for literal 15/14 drift. */
 const HEAD_FONT = { fontSize: '0.8125rem' }; // label 13
 const CELL_FONT = { fontSize: '0.875rem' }; // sm 14
+
+/**
+ * Keep activation keys and clicks that happen inside a row's controls (actions
+ * menu, selection checkbox) from reaching the row's own handler. React
+ * synthetic events also bubble out of portalled children, so Enter on an item
+ * of a three-dot menu would otherwise run the action *and* navigate to the row.
+ * Only Enter and Space are stopped: other keys (Tab, Escape, Ctrl+K) must keep
+ * reaching global shortcuts.
+ */
+const isActivationKey = (event: KeyboardEvent<HTMLElement>) =>
+  event.key === 'Enter' || event.key === ' ' || event.key === 'Spacebar';
+
+const rowControlEvents = {
+  onClick: (event: MouseEvent<HTMLElement>) => event.stopPropagation(),
+  onKeyDown: (event: KeyboardEvent<HTMLElement>) => {
+    if (isActivationKey(event)) event.stopPropagation();
+  },
+};
+
+/** Enter/Space activate a row only when the row itself has focus. */
+const activateRowOnKey = (event: KeyboardEvent<HTMLElement>, activate: () => void) => {
+  if (event.target !== event.currentTarget) return;
+  if (isActivationKey(event)) {
+    event.preventDefault();
+    activate();
+  }
+};
 
 const ALIGN_CLASS = {
   left: 'text-left',
@@ -370,19 +397,10 @@ function Table<T extends Record<string, any>>({
                 role={onRowClick ? 'button' : undefined}
                 tabIndex={onRowClick ? 0 : undefined}
                 onClick={onRowClick ? () => onRowClick(row) : undefined}
-                onKeyDown={
-                  onRowClick
-                    ? (event) => {
-                        if (event.key === 'Enter' || event.key === ' ') {
-                          event.preventDefault();
-                          onRowClick(row);
-                        }
-                      }
-                    : undefined
-                }
+                onKeyDown={onRowClick ? (event) => activateRowOnKey(event, () => onRowClick(row)) : undefined}
                 className={cn(
                   'min-w-0 rounded-xl border border-border/80 bg-card p-2.5 transition-colors sm:p-3',
-                  selected && 'border-primary bg-accent/50',
+                  selected && 'border-primary bg-accent',
                   onRowClick &&
                     'cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
                 )}
@@ -393,7 +411,7 @@ function Table<T extends Record<string, any>>({
                       type="checkbox"
                       checked={selected}
                       onChange={() => toggleOne(key)}
-                      onClick={(e) => e.stopPropagation()}
+                      {...rowControlEvents}
                       aria-label={'Select row ' + (rowIndex + 1)}
                       className="mt-0.5 h-4 w-4 flex-shrink-0 rounded-sm border-input accent-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     />
@@ -417,14 +435,11 @@ function Table<T extends Record<string, any>>({
                          * height a phone list carried, and it pushed a row's actions
                          * onto their own line instead of staying level with the record
                          * they act on. */
-                        <div
-                          className="flex-shrink-0"
-                          onClick={(e) => e.stopPropagation()}
-                          /* Only the click was stopped, so Enter on a row action ran the
-                           * action and then the row's own click handler — deleting a
-                           * record and navigating to it in one keystroke. */
-                          onKeyDown={(e) => e.stopPropagation()}
-                        >
+                        /* Click and Enter/Space are both stopped: with only the click
+                         * stopped, Enter on a row action ran the action and then the
+                         * row's own handler — deleting a record and navigating to it
+                         * in one keystroke. */
+                        <div className="flex-shrink-0" {...rowControlEvents}>
                           {cellValue(actionsColumn, row, rowIndex)}
                         </div>
                       )}
@@ -571,30 +586,21 @@ function Table<T extends Record<string, any>>({
                   tabIndex={onRowClick ? 0 : undefined}
                   role={onRowClick ? 'button' : undefined}
                   onClick={onRowClick ? () => onRowClick(row) : undefined}
-                  onKeyDown={
-                    onRowClick
-                      ? (event) => {
-                          if (event.key === 'Enter' || event.key === ' ') {
-                            event.preventDefault();
-                            onRowClick(row);
-                          }
-                        }
-                      : undefined
-                  }
+                  onKeyDown={onRowClick ? (event) => activateRowOnKey(event, () => onRowClick(row)) : undefined}
                   className={cn(
                     'transition-colors',
                     /* Selection, then the stripe, then hover - written as one
                      * class rather than an `even:` variant, whose extra
                      * specificity would have outranked the selected tint. */
                     selected
-                      ? 'bg-accent/50'
-                      : cn(striped && rowIndex % 2 === 1 && 'bg-muted/40', 'hover:bg-accent/30'),
+                      ? 'bg-accent'
+                      : cn(striped && rowIndex % 2 === 1 && 'bg-muted/40', 'hover:bg-accent/60'),
                     onRowClick &&
                       'cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring'
                   )}
                 >
                   {selectable && (
-                    <td className="w-10 px-3 py-3" onClick={(e) => e.stopPropagation()}>
+                    <td className="w-10 px-3 py-3" {...rowControlEvents}>
                       <input
                         type="checkbox"
                         checked={selected}
@@ -608,6 +614,8 @@ function Table<T extends Record<string, any>>({
                     <td
                       key={column.key}
                       style={CELL_FONT}
+                      /* The actions cell must not leak clicks or Enter/Space to the row. */
+                      {...(column.key === 'actions' ? rowControlEvents : {})}
                       /* The actions cell holds controls, not text - clipping it
                        * would cut a menu button in half. */
                       title={

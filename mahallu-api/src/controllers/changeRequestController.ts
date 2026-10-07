@@ -2,7 +2,7 @@ import { Response } from 'express';
 import ChangeRequest from '../models/ChangeRequest';
 import Member from '../models/Member';
 import Family from '../models/Family';
-import OTP from '../models/OTP';
+import { verifyAndConsumeOtp } from '../services/otpService';
 import { normalizeIndianPhone } from '../services/dxingService';
 import { AuthRequest } from '../middleware/authMiddleware';
 import { getPaginationParams, createPaginationResponse } from '../utils/pagination';
@@ -81,17 +81,15 @@ export const createChangeRequest = async (req: AuthRequest, res: Response) => {
         });
       }
       const { normalized } = normalizeIndianPhone(String(phoneChange.newValue));
-      const otpRecord = await OTP.findOne({
-        phone: normalized,
-        code: String(phoneOtp),
-        isUsed: false,
-        expiresAt: { $gt: new Date() },
-      });
-      if (!otpRecord) {
+      // Same atomic, attempt-limited check as sign-in: this endpoint used to accept unlimited guesses
+      // at the 6-digit code for as long as it was valid.
+      const otpCheck = await verifyAndConsumeOtp(normalized, String(phoneOtp));
+      if (otpCheck === 'locked') {
+        return res.status(429).json({ success: false, message: 'Too many incorrect attempts. Please request a new OTP for the new phone number.' });
+      }
+      if (otpCheck !== 'ok') {
         return res.status(400).json({ success: false, message: 'That OTP is incorrect or has expired. Please request a new one for the new phone number.' });
       }
-      otpRecord.isUsed = true;
-      await otpRecord.save();
     }
 
     const changeRequest = await ChangeRequest.create({

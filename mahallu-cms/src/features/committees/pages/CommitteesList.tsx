@@ -21,8 +21,10 @@ import { formatDate, toTitleCase } from '@/utils/format';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { useServerCounts } from '@/hooks/useServerCounts';
 import ActionsMenu from '@/components/ui/ActionsMenu';
 import StatusBadge from '@/components/ui/StatusBadge';
+import { logError } from '@/utils/safeLog';
 
 export default function CommitteesList() {
   const navigate = useNavigate();
@@ -63,7 +65,7 @@ export default function CommitteesList() {
       }
     } catch (err: any) {
       setError(loadErrorMessage(err, 'committees'));
-      console.error('Error fetching committees:', err);
+      logError('Error fetching committees', err);
     } finally {
       setLoading(false);
     }
@@ -96,11 +98,11 @@ export default function CommitteesList() {
           exportToJSON(columns, dataToExport, filename);
           break;
         case 'pdf':
-          exportToPDF(columns, dataToExport, filename, title);
+          await exportToPDF(columns, dataToExport, filename, title);
           break;
       }
     } catch (error: any) {
-      console.error('Export error:', error);
+      logError('Export error', error);
       toast.error(error?.message || "Couldn't export committees");
     } finally {
       setIsExporting(false);
@@ -216,6 +218,16 @@ export default function CommitteesList() {
     },
   ];
 
+  // Whole-list counts from the server: these cards used to count only the rows on this page.
+  const countBase = debouncedSearch ? { search: debouncedSearch } : {};
+  const statusCounts = useServerCounts(
+    {
+      active: () => committeeService.getAll({ ...countBase, status: 'active', page: 1, limit: 1 }),
+      inactive: () => committeeService.getAll({ ...countBase, status: 'inactive', page: 1, limit: 1 }),
+    },
+    [committees]
+  );
+
   const stats = [
     {
       title: 'Total Committees',
@@ -224,12 +236,12 @@ export default function CommitteesList() {
     },
     {
       title: 'Active',
-      value: committees.filter((c) => c.status === 'active' || !c.status).length,
+      value: statusCounts.active ?? committees.filter((c) => c.status === 'active' || !c.status).length,
       icon: <FiCheckCircle className="h-5 w-5" />,
     },
     {
       title: 'Inactive',
-      value: committees.filter((c) => c.status === 'inactive').length,
+      value: statusCounts.inactive ?? committees.filter((c) => c.status === 'inactive').length,
       icon: <FiXCircle className="h-5 w-5" />,
     },
   ];

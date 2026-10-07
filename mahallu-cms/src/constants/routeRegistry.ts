@@ -1,9 +1,13 @@
 import { isValidElement, ReactElement } from 'react';
-import type { AppRole } from '@/routes/routeHelpers';
+import type { AppRole, RouteRegistration } from '@/routes/routeHelpers';
+import { labelFromPath } from '@/utils/pageLabel';
 
 export interface RegisteredPage {
   path: string;
-  componentName?: string;
+  /** Display label, from the route's own registration (never a component name). */
+  label: string;
+  /** Opens as a form modal rather than a page. */
+  modal: boolean;
   allowedRoles?: AppRole[];
   superAdminOnly?: boolean;
 }
@@ -17,39 +21,30 @@ function isDynamicPath(path: string) {
  * the router itself renders) rather than a hand-maintained list, so a route
  * added without updating any menu can never silently disappear from here.
  *
- * Only static paths are kept — a Detail/Edit route needs a specific record id
+ * Everything is read from the `handle` that `route()` attaches to each route
+ * (see routeHelpers.tsx). Nothing is read from React element types or function
+ * names: production builds minify those, and the route() helper wraps the page
+ * element, so the layout child is no longer the page component anyway.
+ *
+ * Only static paths are kept - a Detail/Edit route needs a specific record id
  * to go anywhere, so it isn't a destination a name search can resolve to.
  */
-function extractRegisteredPages(appRoutes: ReactElement[]): RegisteredPage[] {
+export function extractRegisteredPages(appRoutes: ReactElement[]): RegisteredPage[] {
   const pages: RegisteredPage[] = [];
 
   for (const routeEl of appRoutes) {
     if (!isValidElement(routeEl)) continue;
-    const routeProps = routeEl.props as { path?: string; element?: ReactElement };
+    const routeProps = routeEl.props as { path?: string; handle?: Partial<RouteRegistration> };
     const path = routeProps.path;
     if (!path || isDynamicPath(path)) continue;
 
-    // element is <ProtectedRoute allowedRoles superAdminOnly><MainLayout>{page}</MainLayout></ProtectedRoute>
-    const protectedEl = routeProps.element;
-    const guardProps = isValidElement(protectedEl)
-      ? (protectedEl.props as { allowedRoles?: AppRole[]; superAdminOnly?: boolean; children?: ReactElement })
-      : undefined;
-
-    const mainLayoutEl = guardProps?.children;
-    const pageEl = isValidElement(mainLayoutEl)
-      ? ((mainLayoutEl.props as { children?: ReactElement }).children)
-      : undefined;
-    const componentName =
-      isValidElement(pageEl) && typeof pageEl.type === 'function'
-        ? (pageEl.type as { displayName?: string; name?: string }).displayName ||
-          (pageEl.type as { name?: string }).name
-        : undefined;
-
+    const handle = routeProps.handle ?? {};
     pages.push({
       path,
-      componentName,
-      allowedRoles: guardProps?.allowedRoles,
-      superAdminOnly: guardProps?.superAdminOnly,
+      label: handle.label ?? labelFromPath(path),
+      modal: handle.modal ?? false,
+      allowedRoles: handle.allowedRoles,
+      superAdminOnly: handle.superAdminOnly,
     });
   }
 

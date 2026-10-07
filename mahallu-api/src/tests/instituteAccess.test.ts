@@ -1,9 +1,13 @@
-import { test } from 'node:test';
+import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import mongoose from 'mongoose';
 import Institute from '../models/Institute';
 import { getAllInstitutes, getInstituteById, updateInstitute, deleteInstitute } from '../controllers/instituteController';
 import { tenantFilter } from '../middleware/tenantMiddleware';
+
+// Wrapped in one root suite so the stubs installed by this file's hooks only apply to its own tests
+// when every suite is imported into the single `npm test` process.
+describe('[isolated] instituteAccess', () => {
 
 /**
  * Who can list, open, edit and delete an institute.
@@ -218,4 +222,5 @@ test('super admin is unchanged: every Mahallu, or one chosen by tenantId', async
     (await call(updateInstitute, reqFor(sa, { params: { id: FOREIGN.toString() }, body: { name: 'x' } }))).status,
     200
   );
+});
 });

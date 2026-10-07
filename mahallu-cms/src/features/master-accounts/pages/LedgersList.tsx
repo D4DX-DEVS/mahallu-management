@@ -22,6 +22,8 @@ import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
 import { toast } from '@/store/toastStore';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { fetchAllPages } from '@/services/api';
+import { logError } from '@/utils/safeLog';
 
 export default function LedgersList() {
   const { currentInstituteId: userInstituteId } = useAuthStore();
@@ -74,7 +76,7 @@ export default function LedgersList() {
       }
     } catch (err: any) {
       setError(loadErrorMessage(err, 'ledgers'));
-      console.error('Error fetching ledgers:', err);
+      logError('Error fetching ledgers', err);
       setLedgers([]);
     } finally {
       setLoading(false);
@@ -85,10 +87,11 @@ export default function LedgersList() {
     try {
       setIsExporting(true);
 
-      const params: any = { limit: 10000 };
+      const params: any = {};
       if (instituteFilter !== 'all') params.instituteId = instituteFilter;
-      const result = await masterAccountService.getAllLedgers(params);
-      const dataToExport = Array.isArray(result.data) ? result.data : [];
+      const dataToExport = await fetchAllPages((page) =>
+        masterAccountService.getAllLedgers({ ...params, ...page })
+      );
 
       if (dataToExport.length === 0) {
         toast.info('No ledgers to export');
@@ -106,11 +109,11 @@ export default function LedgersList() {
           exportToJSON(columns, dataToExport, filename);
           break;
         case 'pdf':
-          exportToPDF(columns, dataToExport, filename, title);
+          await exportToPDF(columns, dataToExport, filename, title);
           break;
       }
     } catch (error: any) {
-      console.error('Export error:', error);
+      logError('Export error', error);
       toast.error(error?.message || "Couldn't export ledgers");
     } finally {
       setIsExporting(false);

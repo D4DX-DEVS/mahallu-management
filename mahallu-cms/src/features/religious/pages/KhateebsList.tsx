@@ -23,6 +23,8 @@ import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
 import StatusBadge from '@/components/ui/StatusBadge';
 import { optionalPhoneSchema, sanitizeDigits } from '@/utils/validation';
+import { fetchAllPages } from '@/services/api';
+import { logError } from '@/utils/safeLog';
 
 const khateebSchema = z.object({
   name: z.string().max(200, 'Please keep the name to 200 characters or less.').min(1, 'Name is required'),
@@ -75,10 +77,10 @@ export default function KhateebsList() {
   const fetchMembers = async () => {
     try {
       setLoadingMembers(true);
-      const result = await memberService.getAll({ limit: 1000 });
-      setMembers(result.data || []);
+      const allRows = await fetchAllPages((page) => memberService.getAll(page));
+      setMembers(allRows || []);
     } catch (err) {
-      console.error('Error fetching members:', err);
+      logError('Error fetching members', err);
     } finally {
       setLoadingMembers(false);
     }
@@ -102,7 +104,7 @@ export default function KhateebsList() {
       }
     } catch (err: any) {
       setError(loadErrorMessage(err, 'khateebs'));
-      console.error('Error fetching khateebs:', err);
+      logError('Error fetching khateebs', err);
     } finally {
       setLoading(false);
     }

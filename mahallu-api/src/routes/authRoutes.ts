@@ -10,10 +10,11 @@ import {
   switchAccount,
   startImpersonation,
   exitImpersonation,
+  logout,
 } from '../controllers/authController';
 import { sendOTP, verifyOTP } from '../controllers/otpController';
 import { authMiddleware, superAdminOnly } from '../middleware/authMiddleware';
-import { verifyOtpRateLimiter, loginRateLimiter, sendOtpRateLimiter, switchAccountRateLimiter } from '../middleware/rateLimit';
+import { verifyOtpRateLimiter, loginRateLimiter, sendOtpRateLimiter, switchAccountRateLimiter, selectAccountRateLimiter } from '../middleware/rateLimit';
 import { validationHandler } from '../middleware/validationHandler';
 import {
   loginValidation,
@@ -341,7 +342,7 @@ router.put('/register-device', authMiddleware, registerDeviceValidation, validat
  */
 router.put('/two-factor', authMiddleware, twoFactorValidation, validationHandler, setTwoFactor);
 
-router.post('/select-account', selectAccountValidation, validationHandler, selectAccount);
+router.post('/select-account', selectAccountValidation, validationHandler, selectAccountRateLimiter, selectAccount);
 
 /**
  * @swagger
@@ -366,6 +367,21 @@ router.post('/select-account', selectAccountValidation, validationHandler, selec
  *         $ref: '#/components/responses/Unauthorized'
  */
 router.get('/available-accounts', authMiddleware, getAvailableAccounts);
+
+/**
+ * @swagger
+ * /auth/logout:
+ *   post:
+ *     summary: Sign out of every session of this account
+ *     tags: [Authentication]
+ *     description: Revokes all existing tokens of the signed-in account (all devices).
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Signed out
+ */
+router.post('/logout', authMiddleware, logout);
 
 /**
  * @swagger

@@ -8,33 +8,9 @@ import jwt from 'jsonwebtoken';
 import { AuthRequest } from '../middleware/authMiddleware';
 
 import { sendFailure } from '../utils/userMessages';
-
-const getPhoneVariants = (input: string): string[] => {
-  const variants = new Set<string>();
-  const raw = (input || '').trim();
-
-  if (raw) {
-    variants.add(raw);
-  }
-
-  const digits = raw.replace(/\D/g, '');
-  if (digits) {
-    variants.add(digits);
-  }
-
-  let local = digits;
-  if (local.startsWith('91') && local.length === 12) {
-    local = local.slice(2);
-  }
-
-  if (local.length === 10) {
-    variants.add(local);
-    variants.add(`91${local}`);
-    variants.add(`+91${local}`);
-  }
-
-  return Array.from(variants);
-};
+import { getPhoneVariants, samePhone } from '../utils/phone';
+import { signSessionToken, signImpersonationToken, toPublicUser } from '../utils/sessionToken';
+import { isTenantActive, TENANT_SUSPENDED_MESSAGE } from '../services/tenantStatusService';
 
 export const login = async (req: Request, res: Response) => {
   try {
@@ -95,6 +71,11 @@ export const login = async (req: Request, res: Response) => {
       });
     }
 
+    // A suspended Mahallu cannot start new sessions either (super admins are platform staff).
+    if (!user.isSuperAdmin && !(await isTenantActive(user.tenantId))) {
+      return res.status(403).json({ success: false, code: 'TENANT_SUSPENDED', message: TENANT_SUSPENDED_MESSAGE });
+    }
+
     // Task C5 — optional 2FA. The password checked out, but the token is
     // withheld until the caller completes the existing send-otp/verify-otp pair.
     if (user.twoFactorEnabled) {
@@ -109,12 +90,12 @@ export const login = async (req: Request, res: Response) => {
     user.lastLogin = new Date();
     await user.save();
 
-    // Generate JWT token
-    const token = jwt.sign(
-      { userId: user._id, isSuperAdmin: user.isSuperAdmin },
-      process.env.JWT_SECRET || 'your-secret-key',
-      { expiresIn: '7d' }
-    );
+    // Password sign-in proves knowledge of the password only. It carries no "proven phone" claim, so
+    // this session cannot be used to enumerate or switch into other accounts (those need an OTP).
+    if (!process.env.JWT_SECRET) {
+      return res.status(500).json({ success: false, message: 'Something went wrong on our side. Please try again in a moment.' });
+    }
+    const token = signSessionToken(user);
 
     // Fetch user without populating to keep tenantId as string
     const userResponse = await User.findById(user._id).select('-password');
@@ -122,7 +103,7 @@ export const login = async (req: Request, res: Response) => {
     res.json({
       success: true,
       data: {
-        user: userResponse,
+        user: toPublicUser(userResponse),
         token,
       },
     });
@@ -136,7 +117,7 @@ export const getCurrentUser = async (req: AuthRequest, res: Response) => {
     // Fetch user without populating to keep tenantId/memberId as strings
     const user = await User.findById(req.user?._id).select('-password');
     
-    res.json({ success: true, data: user });
+    res.json({ success: true, data: toPublicUser(user) });
   } catch (error: any) {
     sendFailure(res, error, 'We couldn\'t load the current user right now. Please try again.');
   }
@@ -170,9 +151,11 @@ export const setTwoFactor = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ success: false, message: 'Please turn this setting on or off.' });
     }
 
+    // A security setting changed: end every other session of this account. The caller keeps working
+    // on a fresh token returned below.
     const user = await User.findByIdAndUpdate(
       req.user?._id,
-      { twoFactorEnabled: enabled },
+      { twoFactorEnabled: enabled, $inc: { tokenVersion: 1 } },
       { new: true }
     ).select('-password');
 
@@ -180,7 +163,13 @@ export const setTwoFactor = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ success: false, message: "We couldn't find that user. It may have been removed." });
     }
 
-    res.json({ success: true, data: { twoFactorEnabled: user.twoFactorEnabled } });
+    res.json({
+      success: true,
+      data: {
+        twoFactorEnabled: user.twoFactorEnabled,
+        token: signSessionToken(user, { provenPhone: req.provenPhone }),
+      },
+    });
   } catch (error: any) {
     sendFailure(res, error, 'We couldn\'t update the two factor. Please try again.');
   }
@@ -200,7 +189,7 @@ export const selectAccount = async (req: Request, res: Response) => {
 
     let decoded: any;
     try {
-      decoded = jwt.verify(preAuthToken, process.env.JWT_SECRET);
+      decoded = jwt.verify(preAuthToken, process.env.JWT_SECRET, { algorithms: ['HS256'] });
     } catch {
       return res.status(401).json({ success: false, message: 'That sign-in step has expired. Please sign in again.' });
     }
@@ -210,17 +199,17 @@ export const selectAccount = async (req: Request, res: Response) => {
     }
 
     const tokenPhone: string = decoded.phone;
-    const phoneVariants = Array.from(
-      new Set([...getPhoneVariants(tokenPhone), tokenPhone])
-    );
+    if (typeof tokenPhone !== 'string' || !tokenPhone) {
+      return res.status(401).json({ success: false, message: 'Your session has ended. Please sign in again to continue.' });
+    }
 
     const user = await User.findById(userId).select('-password');
     if (!user) {
       return res.status(404).json({ success: false, message: "We couldn't find that user account. It may have been removed." });
     }
 
-    // Verify user's phone matches the token's phone (prevents cross-account hijacking)
-    if (!phoneVariants.includes(user.phone)) {
+    // Verify user's phone matches the OTP-proven phone in the token (prevents cross-account hijacking)
+    if (!samePhone(user.phone, tokenPhone)) {
       return res.status(401).json({ success: false, message: "We couldn't match your account. Please sign in again." });
     }
 
@@ -228,18 +217,20 @@ export const selectAccount = async (req: Request, res: Response) => {
       return res.status(403).json({ success: false, message: 'Your account is inactive. Please contact your Mahallu admin.' });
     }
 
+    if (!user.isSuperAdmin && !(await isTenantActive(user.tenantId))) {
+      return res.status(403).json({ success: false, code: 'TENANT_SUSPENDED', message: TENANT_SUSPENDED_MESSAGE });
+    }
+
     user.lastLogin = new Date();
     await user.save();
 
-    const token = jwt.sign(
-      { userId: user._id, isSuperAdmin: user.isSuperAdmin },
-      process.env.JWT_SECRET,
-      { expiresIn: '7d' }
-    );
+    // The phone was proven by OTP in the step before this one: carry it so this session may switch
+    // between the person's own accounts.
+    const token = signSessionToken(user, { provenPhone: tokenPhone });
 
     res.json({
       success: true,
-      data: { user, token },
+      data: { user: toPublicUser(user), token },
     });
   } catch (error: any) {
     sendFailure(res, error, 'We couldn\'t switch to that account. Please try again.');
@@ -262,8 +253,26 @@ export const getAvailableAccounts = async (req: AuthRequest, res: Response) => {
       return res.status(401).json({ success: false, message: 'Please sign in to continue.' });
     }
 
-    const phoneVariants = Array.from(new Set([...getPhoneVariants(currentUser.phone), currentUser.phone]));
-    const siblings = await User.find({ phone: { $in: phoneVariants }, status: 'active' });
+    // Only a session that proved its phone with an OTP may list sibling accounts. The phone stored on
+    // the CURRENT account is not evidence: an admin can type any number onto a user they control.
+    // Super Admin accounts are never offered here, and neither are accounts of a suspended Mahallu.
+    if (!req.provenPhone) {
+      return res.json({ success: true, data: { accounts: [] } });
+    }
+
+    const phoneVariants = Array.from(new Set(getPhoneVariants(req.provenPhone)));
+    const candidates = await User.find({
+      phone: { $in: phoneVariants },
+      status: 'active',
+      isSuperAdmin: { $ne: true },
+      role: { $ne: 'super_admin' },
+    });
+    const siblings: typeof candidates = [];
+    for (const candidate of candidates) {
+      if (samePhone(candidate.phone, req.provenPhone) && (await isTenantActive(candidate.tenantId))) {
+        siblings.push(candidate);
+      }
+    }
 
     const tenantMap = new Map<string, string>();
     const instituteMap = new Map<string, string>();
@@ -319,6 +328,17 @@ export const switchAccount = async (req: AuthRequest, res: Response) => {
       return res.status(500).json({ success: false, message: 'Something went wrong on our side. Please try again in a moment.' });
     }
 
+    // Switching needs an OTP-proven phone on THIS session. "The target has the same phone as my
+    // account" is not proof: phone numbers on accounts are editable by tenant admins, so an attacker
+    // could put a victim's number on an account they control and switch into the victim's.
+    if (!req.provenPhone) {
+      return res.status(403).json({
+        success: false,
+        code: 'OTP_REQUIRED',
+        message: 'For your security, please sign in with an OTP to switch accounts.',
+      });
+    }
+
     const { targetUserId } = req.body;
 
     const targetUser = await User.findById(targetUserId).select('-password');
@@ -326,30 +346,52 @@ export const switchAccount = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ success: false, message: "We couldn't find that account. It may have been removed." });
     }
 
+    // Never a Super Admin account: those are reached only by signing in to them directly.
+    if (targetUser.isSuperAdmin || targetUser.role === 'super_admin') {
+      return res.status(403).json({ success: false, message: "You're not authorized to switch to that account." });
+    }
+
     if (targetUser.status !== 'active') {
       return res.status(403).json({ success: false, message: 'That account is inactive. Please contact your Mahallu admin.' });
     }
 
-    const phoneVariants = Array.from(new Set([...getPhoneVariants(currentUser.phone), currentUser.phone]));
-    if (!phoneVariants.includes(targetUser.phone)) {
+    if (!samePhone(targetUser.phone, req.provenPhone)) {
       return res.status(403).json({ success: false, message: "You're not authorized to switch to that account." });
+    }
+
+    if (!(await isTenantActive(targetUser.tenantId))) {
+      return res.status(403).json({ success: false, code: 'TENANT_SUSPENDED', message: TENANT_SUSPENDED_MESSAGE });
     }
 
     targetUser.lastLogin = new Date();
     await targetUser.save();
 
-    const token = jwt.sign(
-      { userId: targetUser._id, isSuperAdmin: targetUser.isSuperAdmin },
-      process.env.JWT_SECRET,
-      { expiresIn: '7d' }
-    );
+    // The proven phone stays on the new session, so the person can keep switching between their accounts.
+    const token = signSessionToken(targetUser, { provenPhone: req.provenPhone });
 
     res.json({
       success: true,
-      data: { user: targetUser, token },
+      data: { user: toPublicUser(targetUser), token },
     });
   } catch (error: any) {
     sendFailure(res, error, "We couldn't switch accounts. Please try again.");
+  }
+};
+
+/**
+ * Sign out of every session of this account (all devices): the account's tokenVersion moves on, so
+ * every token issued before this call stops working. A Super Admin "View As" session just ends on the
+ * client — bumping the version would sign the real super admin out everywhere — and that token
+ * expires on its own within hours.
+ */
+export const logout = async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.impersonation?.isImpersonating) {
+      await User.findByIdAndUpdate(req.user?._id, { $inc: { tokenVersion: 1 } });
+    }
+    res.json({ success: true, message: 'Signed out' });
+  } catch (error: any) {
+    sendFailure(res, error, "We couldn't sign you out cleanly. Please try again.");
   }
 };
 
@@ -371,9 +413,15 @@ export const changePassword = async (req: AuthRequest, res: Response) => {
     }
 
     user.password = await bcrypt.hash(newPassword, 10);
+    // Every other session of this account ends; the caller gets a fresh token so they are not signed out.
+    user.tokenVersion = (user.tokenVersion ?? 0) + 1;
     await user.save();
 
-    res.json({ success: true, message: 'Password changed' });
+    res.json({
+      success: true,
+      message: 'Password changed',
+      data: { token: signSessionToken(user, { provenPhone: req.provenPhone }) },
+    });
   } catch (error: any) {
     sendFailure(res, error, 'We couldn\'t change your password. Please try again.');
   }
@@ -445,23 +493,15 @@ export const startImpersonation = async (req: AuthRequest, res: Response) => {
 
     const tenantIdStr = (tenant._id as any).toString();
 
-    const token = jwt.sign(
-      {
-        // Always the REAL Super Admin's own id — there is no target User
-        // document to point to, and every future request re-resolves this id
-        // fresh from the database (see authMiddleware) before trusting `imp`.
-        userId: req.user._id,
-        isSuperAdmin: true,
-        imp: {
-          role: targetRole,
-          tenantId: tenantIdStr,
-          instituteId: resolvedInstituteId,
-          memberId: resolvedMemberId,
-        },
-      },
-      process.env.JWT_SECRET,
-      { expiresIn: '7d' }
-    );
+    // Always the REAL Super Admin's own id — there is no target User document to point to, and
+    // every future request re-resolves this id fresh from the database (see authMiddleware) before
+    // trusting `imp`. Short-lived: a "View As" session does not need a week.
+    const token = signImpersonationToken(req.user, {
+      role: targetRole,
+      tenantId: tenantIdStr,
+      instituteId: resolvedInstituteId,
+      memberId: resolvedMemberId,
+    });
 
     // Smallest safe audit trail: who, what role/scope, when. No PII beyond
     // ids already visible to this Super Admin, no secrets, no request body
@@ -525,15 +565,11 @@ export const exitImpersonation = async (req: AuthRequest, res: Response) => {
     });
 
     // A normal, unmarked session token — identical in shape to a fresh login.
-    const token = jwt.sign(
-      { userId: realUser._id, isSuperAdmin: realUser.isSuperAdmin },
-      process.env.JWT_SECRET,
-      { expiresIn: '7d' }
-    );
+    const token = signSessionToken(realUser);
 
     res.json({
       success: true,
-      data: { user: realUser, token },
+      data: { user: toPublicUser(realUser), token },
     });
   } catch (error: any) {
     sendFailure(res, error, "We couldn't exit that role. Please try again.");

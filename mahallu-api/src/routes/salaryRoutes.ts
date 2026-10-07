@@ -8,8 +8,8 @@ import {
   getSalarySummary,
   getEmployeeSalaryHistory,
 } from '../controllers/salaryController';
-import { authMiddleware } from '../middleware/authMiddleware';
-import { tenantMiddleware, tenantFilter } from '../middleware/tenantMiddleware';
+import { authMiddleware, requireInstituteStaff } from '../middleware/authMiddleware';
+import { tenantMiddleware, tenantFilter, instituteFilter } from '../middleware/tenantMiddleware';
 import { validationHandler } from '../middleware/validationHandler';
 import {
   createSalaryPaymentValidation,
@@ -25,6 +25,9 @@ const router = express.Router();
 router.use(authMiddleware);
 router.use(tenantMiddleware);
 router.use(tenantFilter);
+// Salary is payroll: Super Admin, Mahallu admin, and an institute admin (bound to their own institute).
+router.use(requireInstituteStaff);
+router.use(instituteFilter);
 
 /**
  * @swagger

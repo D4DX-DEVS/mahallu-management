@@ -1,4 +1,5 @@
 import mongoose, { Schema, Document } from 'mongoose';
+import { sanitizeRichText } from '../utils/htmlSanitizer';
 
 export interface INikahRegistration extends Document {
   tenantId: mongoose.Types.ObjectId;
@@ -158,8 +159,10 @@ const NOCSchema = new Schema<INOC>(
     applicantPhone: String,
     purposeTitle: { type: String, trim: true },
     purposeTitleMl: { type: String, trim: true },
-    purposeDescription: { type: String },
-    purpose: { type: String, trim: true },
+    // Rendered as HTML by the CMS (NOCDetail), so the schema itself refuses to hold anything
+    // outside the editor's allow-list — covers create, save and findByIdAndUpdate alike.
+    purposeDescription: { type: String, set: sanitizeRichText },
+    purpose: { type: String, trim: true, set: sanitizeRichText },
     type: {
       type: String,
       enum: ['common', 'nikah'],

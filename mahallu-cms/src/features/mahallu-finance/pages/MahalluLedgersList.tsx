@@ -17,6 +17,7 @@ import { ROUTES } from '@/constants/routes';
 import { toast } from '@/store/toastStore';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { fetchAllPages } from '@/services/api';
 
 export default function MahalluLedgersList() {
   const navigate = useNavigate();
@@ -75,15 +76,15 @@ export default function MahalluLedgersList() {
   const handleExport = async (type: 'csv' | 'json' | 'pdf') => {
     try {
       setIsExporting(true);
-      const result = await masterAccountService.getAllLedgers({ limit: 10000, scope: 'mahallu' });
-      const data = Array.isArray(result.data) ? result.data : [];
+      const allRows = await fetchAllPages((page) => masterAccountService.getAllLedgers({ ...page, scope: 'mahallu' }));
+      const data = Array.isArray(allRows) ? allRows : [];
       if (!data.length) {
         toast.info('No ledgers to export');
         return;
       }
       if (type === 'csv') exportToCSV(columns, data, 'mahallu-ledgers');
       else if (type === 'json') exportToJSON(columns, data, 'mahallu-ledgers');
-      else exportToPDF(columns, data, 'mahallu-ledgers', 'Mahallu Ledgers');
+      else await exportToPDF(columns, data, 'mahallu-ledgers', 'Mahallu Ledgers');
     } catch (err: any) {
       toast.error(err?.message || "Couldn't export ledgers");
     } finally {

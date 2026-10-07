@@ -10,6 +10,16 @@ export type MarriageAssistanceType = (typeof MARRIAGE_ASSISTANCE_TYPES)[number];
 export const MARRIAGE_ASSISTANCE_STATUSES = ['requested', 'approved', 'completed'] as const;
 export type MarriageAssistanceStatus = (typeof MARRIAGE_ASSISTANCE_STATUSES)[number];
 
+/** Every request starts here, whatever the request body says. */
+export const MARRIAGE_ASSISTANCE_INITIAL_STATUS: MarriageAssistanceStatus = 'requested';
+
+/** Legal status moves. Enforced only by the status endpoint; a generic update never touches status. */
+export const MARRIAGE_ASSISTANCE_TRANSITIONS: Record<MarriageAssistanceStatus, MarriageAssistanceStatus[]> = {
+  requested: ['approved'],
+  approved: ['completed'],
+  completed: [],
+};
+
 export interface IMarriageAssistance extends Document {
   tenantId: mongoose.Types.ObjectId;
   memberId?: mongoose.Types.ObjectId;

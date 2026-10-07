@@ -1,10 +1,14 @@
-import { test } from 'node:test';
+import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import mongoose from 'mongoose';
 import Member from '../models/Member';
 import DocumentFile from '../models/DocumentFile';
 import { NikahRegistration, NOC } from '../models/Registration';
 import { requestNikahRegistration, requestNOC } from '../controllers/memberUserController';
+
+// Wrapped in one root suite so the stubs installed by this file's hooks only apply to its own tests
+// when every suite is imported into the single `npm test` process.
+describe('[isolated] memberNikahGroomName', () => {
 
 /**
  * Member Portal -> Nikah -> New Nikah Registration.
@@ -168,4 +172,5 @@ test('nikah NOC, bride side: the entered bride name is the one saved', async () 
   assert.equal(record.brideName, 'Typed Bride');
   assert.equal(record.groomName, 'Other Groom');
   assert.equal(String(record.brideId), String(SIGNED_IN._id));
+});
 });

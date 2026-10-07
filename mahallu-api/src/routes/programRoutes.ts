@@ -10,7 +10,7 @@ import {
   setProgramAttendance,
   removeProgramRegistration,
 } from '../controllers/programController';
-import { authMiddleware } from '../middleware/authMiddleware';
+import { authMiddleware, requireAdmin } from '../middleware/authMiddleware';
 import { tenantMiddleware, tenantFilter } from '../middleware/tenantMiddleware';
 import { validationHandler } from '../middleware/validationHandler';
 import {
@@ -26,6 +26,8 @@ const router = express.Router();
 router.use(authMiddleware);
 router.use(tenantMiddleware);
 router.use(tenantFilter);
+// Programs have no institute link (no instituteId on the model, no instituteFilter): Mahallu admin only.
+router.use(requireAdmin);
 
 /**
  * @swagger

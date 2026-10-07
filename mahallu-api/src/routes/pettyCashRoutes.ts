@@ -8,20 +8,23 @@ import {
   recordExpense,
   replenishPettyCash,
 } from '../controllers/pettyCashController';
-import { authMiddleware } from '../middleware/authMiddleware';
+import { authMiddleware, requireInstituteStaff } from '../middleware/authMiddleware';
 import { tenantMiddleware, tenantFilter, instituteFilter } from '../middleware/tenantMiddleware';
 import { validationHandler } from '../middleware/validationHandler';
 import { idParam, listQuery } from '../validations/common';
 import {
   createPettyCashValidation,
   updatePettyCashValidation,
-} from '../validations/moduleValidation';
+  recordExpenseValidation,
+} from '../validations/pettyCashValidation';
 
 const router = express.Router();
 
 router.use(authMiddleware);
 router.use(tenantMiddleware);
 router.use(tenantFilter);
+// Petty cash is money handling: Super Admin, Mahallu admin and institute admin only (survey excluded).
+router.use(requireInstituteStaff);
 router.use(instituteFilter);
 
 // Petty Cash Funds
@@ -32,7 +35,7 @@ router.put('/:id', updatePettyCashValidation, validationHandler, updatePettyCash
 
 // Petty Cash Transactions
 router.get('/:id/transactions', idParam('id', 'entry'), validationHandler, getPettyCashTransactions);
-router.post('/:id/expense', idParam('id', 'entry'), validationHandler, recordExpense);
+router.post('/:id/expense', recordExpenseValidation, validationHandler, recordExpense);
 router.post('/:id/replenish', idParam('id', 'entry'), validationHandler, replenishPettyCash);
 
 export default router;

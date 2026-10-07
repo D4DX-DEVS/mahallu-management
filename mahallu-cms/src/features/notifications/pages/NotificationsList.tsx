@@ -22,6 +22,8 @@ export default function NotificationsList() {
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
+  /* Unread across every page of the current filter (server total); null until known, then the page's own count is used. */
+  const [unreadTotal, setUnreadTotal] = useState<number | null>(null);
   const { fetchUnreadCount } = useNotificationStore();
   const currentUserId = useAuthStore((s) => s.user?.id);
 
@@ -61,6 +63,20 @@ export default function NotificationsList() {
         await Promise.allSettled(unreadIds.map((id) => notificationService.markAsRead(id)));
         fetchUnreadCount();
       }
+
+      // The Unread / Read cards must cover every page of this filter, not just the 20 rows loaded. One
+      // cheap count request (limit 1) with the same filter; if it fails the cards fall back to the page.
+      try {
+        const unread = await notificationService.getAll({
+          ...(typeFilter !== 'all' ? { recipientType: typeFilter } : {}),
+          isRead: false,
+          page: 1,
+          limit: 1,
+        });
+        setUnreadTotal(typeof unread.pagination?.total === 'number' ? unread.pagination.total : null);
+      } catch {
+        setUnreadTotal(null);
+      }
     } catch (err: any) {
       setError(loadErrorMessage(err, 'notifications'));
       console.error('Error fetching notifications:', err);
@@ -89,16 +105,17 @@ export default function NotificationsList() {
     }
   };
 
-  const unreadCount = notifications.filter((n) => !n.isRead).length;
+  const totalCount = pagination?.total ?? notifications.length;
+  const unreadCount = unreadTotal ?? notifications.filter((n) => !n.isRead).length;
 
   const stats = [
     {
       title: 'Total Notifications',
-      value: pagination?.total ?? notifications.length,
+      value: totalCount,
       icon: <FiBell className="h-5 w-5" />,
     },
     { title: 'Unread', value: unreadCount, icon: <FiInbox className="h-5 w-5" /> },
-    { title: 'Read', value: notifications.length - unreadCount, icon: <FiMail className="h-5 w-5" /> },
+    { title: 'Read', value: Math.max(0, totalCount - unreadCount), icon: <FiMail className="h-5 w-5" /> },
   ];
 
   return (

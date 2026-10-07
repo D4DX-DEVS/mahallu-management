@@ -57,3 +57,15 @@ test("an admin can still edit a colleague's details, including their phone", asy
   assert.equal(out.status, 200);
   assert.equal(updates[0].data.phone, '9222222222');
 });
+
+test("changing a colleague's phone ends that account's sessions (tokenVersion moves on)", async () => {
+  await call(COLLEAGUE._id, { phone: '9333333333' });
+  assert.deepEqual(updates[0].data.$inc, { tokenVersion: 1 });
+});
+
+test('edits that leave the phone unchanged do not end anyone\'s sessions', async () => {
+  await call(COLLEAGUE._id, { name: 'Renamed' });
+  assert.equal(updates[0].data.$inc, undefined);
+  await call(COLLEAGUE._id, { phone: COLLEAGUE.phone });
+  assert.equal(updates[0].data.$inc, undefined);
+});

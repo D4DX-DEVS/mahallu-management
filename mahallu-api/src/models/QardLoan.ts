@@ -22,6 +22,17 @@ export const QARD_STATUSES = [
 ] as const;
 export type QardStatus = (typeof QARD_STATUSES)[number];
 
+/** Where every loan starts. Amount and term are only editable while it is still here. */
+export const QARD_INITIAL_STATUS: QardStatus = 'applied';
+
+/** States in which money has gone out: the loan can no longer be deleted or re-priced. */
+export const QARD_MONEY_OUT_STATUSES: readonly QardStatus[] = [
+  'disbursed',
+  'repaying',
+  'closed',
+  'defaulted',
+];
+
 /** Legal moves through the loan lifecycle; anything else is a 400. */
 export const QARD_TRANSITIONS: Record<QardStatus, QardStatus[]> = {
   applied: ['under_review', 'rejected'],
@@ -131,6 +142,25 @@ export const applyRepayment = (
 export const markOverdue = (schedule: IInstallment[], asOf: Date): IInstallment[] =>
   schedule.map((installment) => ({ ...installment, status: statusFor(installment, asOf) }));
 
+/**
+ * The schedule is always a waterfall: payments fill the oldest installment first, so its state is a
+ * pure function of the total paid so far. Rebuilding it from `totalPaid` (instead of patching the
+ * stored copy) makes a repayment - and the compensation of a failed one - exact and repeatable.
+ */
+export const rebuildSchedule = (
+  schedule: IInstallment[],
+  totalPaid: number,
+  asOf: Date
+): IInstallment[] => {
+  const cleared: IInstallment[] = schedule.map((installment) => ({
+    ...installment,
+    paidAmount: 0,
+    status: 'due',
+  }));
+  if (!(totalPaid > 0)) return markOverdue(cleared, asOf);
+  return applyRepayment(cleared, totalPaid, asOf).schedule;
+};
+
 export interface IQardLoan extends Document {
   tenantId: mongoose.Types.ObjectId;
   applicantMemberId?: mongoose.Types.ObjectId;
@@ -200,6 +230,8 @@ export interface IQardRepayment extends Document {
   paymentDate: Date;
   receiptNo?: string;
   remarks?: string;
+  /** Client-generated id that makes a retried POST apply once. Unique per Mahallu when present. */
+  clientRequestId?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -222,11 +254,18 @@ const QardRepaymentSchema = new Schema<IQardRepayment>(
     paymentDate: { type: Date, default: Date.now },
     receiptNo: { type: String, trim: true },
     remarks: { type: String, trim: true },
+    clientRequestId: { type: String, trim: true, maxlength: 100 },
   },
   { timestamps: true }
 );
 
 QardRepaymentSchema.index({ tenantId: 1, loanId: 1 });
+// Partial, not sparse: a compound sparse index still indexes rows that only have tenantId, which
+// would make every repayment without a clientRequestId collide with the next one.
+QardRepaymentSchema.index(
+  { tenantId: 1, clientRequestId: 1 },
+  { unique: true, partialFilterExpression: { clientRequestId: { $type: 'string' } } }
+);
 
 export const QardLoan = mongoose.model<IQardLoan>('QardLoan', QardLoanSchema);
 export const QardRepayment = mongoose.model<IQardRepayment>('QardRepayment', QardRepaymentSchema);

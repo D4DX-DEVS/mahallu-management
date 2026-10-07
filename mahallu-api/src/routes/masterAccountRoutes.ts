@@ -25,7 +25,7 @@ import {
   updateLedgerItem,
   deleteLedgerItem,
 } from '../controllers/masterAccountController';
-import { authMiddleware } from '../middleware/authMiddleware';
+import { authMiddleware, requireAdmin, requireInstituteStaff } from '../middleware/authMiddleware';
 import { tenantMiddleware, tenantFilter, instituteFilter } from '../middleware/tenantMiddleware';
 import { validationHandler } from '../middleware/validationHandler';
 import {
@@ -52,6 +52,22 @@ const router = express.Router();
 router.use(authMiddleware);
 router.use(tenantMiddleware);
 router.use(tenantFilter);
+// Institute books (accounts, ledgers, ledger items, categories): Super Admin, Mahallu admin, institute admin.
+// Survey workers are excluded from all of it.
+router.use(requireInstituteStaff);
+// Mahallu-level money is the Mahallu admin's alone. Wallets are tenant-wide (the controller never scopes
+// them by institute and the only CMS page for them sits in the Mahallu admin's finance menu), so they
+// are not an institute resource either.
+router.use('/mahallu-accounts', requireAdmin);
+router.use('/wallets', requireAdmin);
+// `scope=mahallu` makes the list controllers drop the institute filter, so an institute admin could read
+// the Mahallu's own ledgers by asking for that scope. Their scope is fixed to their institute.
+router.use((req, _res, next) => {
+  if ((req as any).user?.role === 'institute' && req.query) {
+    delete req.query.scope;
+  }
+  next();
+});
 router.use(instituteFilter);
 
 /**

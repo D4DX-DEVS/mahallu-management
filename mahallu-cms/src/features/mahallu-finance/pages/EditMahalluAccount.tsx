@@ -16,8 +16,8 @@ import {
   LIMITS,
   accountNumberMessage,
   digitsOnlyInputProps,
-  sanitizeAmountInput,
 } from '@/utils/validation';
+import { fetchAllPages } from '@/services/api';
 
 /**
  * The same limits the API applies, so a form that passes here is not
@@ -28,7 +28,6 @@ const RULES: Record<string, FieldRule> = {
   accountNumber: { label: 'account number', type: 'digits', maxLength: 34 },
   bankName: { label: 'bank name', maxLength: LIMITS.title.max },
   ifscCode: { label: 'IFSC code', maxLength: 11 },
-  balance: { label: 'balance', type: 'number', min: 0, max: LIMITS.amount.max },
   status: { label: 'status', maxLength: LIMITS.shortText.max },
 };
 
@@ -63,10 +62,9 @@ export default function EditMahalluAccount() {
       });
       setLoading(false);
     } else if (id) {
-      masterAccountService
-        .getAllMahalluAccounts({ limit: 1000 })
+      fetchAllPages((page) => masterAccountService.getAllMahalluAccounts(page))
         .then((r) => {
-          const found = r.data.find((a: MahalluAccount) => a.id === id);
+          const found = r.find((a: MahalluAccount) => a.id === id);
           if (found) {
             setForm({
               accountName: found.accountName,
@@ -95,7 +93,11 @@ export default function EditMahalluAccount() {
     try {
       setSaving(true);
       setError(null);
-      await masterAccountService.updateMahalluAccount(id, { ...form, balance: Number(form.balance) || 0 });
+      // The balance is not sent: it is set when the account is created and then only
+      // moves through transactions, so the API ignores it on update.
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { balance: _balance, ...updates } = form;
+      await masterAccountService.updateMahalluAccount(id, updates);
       navigate(ROUTES.MAHALLU_FINANCE.ACCOUNTS);
     } catch (err: any) {
       setError(errorMessage(err, { action: 'update account. please try again' }));
@@ -175,8 +177,9 @@ export default function EditMahalluAccount() {
               type="number"
               inputMode="decimal"
               value={form.balance}
-              error={errors.balance}
-              onChange={(e) => setForm((f) => ({ ...f, balance: sanitizeAmountInput(e.target.value) }))}
+              disabled
+              readOnly
+              helperText="Balance changes through transactions"
               placeholder="0.00"
             />
             <Select

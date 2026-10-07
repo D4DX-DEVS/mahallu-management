@@ -1,4 +1,5 @@
 import mongoose, { Schema, Document } from 'mongoose';
+import { MAX_AMOUNT } from '../utils/money';
 
 export interface ISalaryPayment extends Document {
   tenantId: mongoose.Types.ObjectId;
@@ -54,21 +55,25 @@ const SalaryPaymentSchema = new Schema<ISalaryPayment>(
       type: Number,
       required: [true, 'Base salary is required'],
       min: 0,
+      max: MAX_AMOUNT,
     },
     allowances: {
       type: Number,
       default: 0,
       min: 0,
+      max: MAX_AMOUNT,
     },
     deductions: {
       type: Number,
       default: 0,
       min: 0,
+      max: MAX_AMOUNT,
     },
     netAmount: {
       type: Number,
       required: [true, 'Net amount is required'],
       min: 0,
+      max: MAX_AMOUNT * 2,
     },
     paymentDate: {
       type: Date,

@@ -1,74 +1,20 @@
-﻿// First import on purpose: this registers a global Mongoose plugin, and a
+// First import on purpose: this registers a global Mongoose plugin, and a
 // plugin only reaches schemas compiled after it is registered.
 import './config/schemaGuards';
-import express from 'express';
-import cors from 'cors';
 import dotenv from 'dotenv';
-import * as swaggerUi from 'swagger-ui-express';
+import path from 'path';
+import mongoose from 'mongoose';
+import type { Server } from 'http';
 import { connectDatabase } from './config/database';
-import { errorHandler } from './middleware/errorHandler';
-import { sanitizeRequest } from './middleware/sanitizeRequest';
-import { activityLogger } from './middleware/activityLogger';
-import { swaggerSpec } from './config/swagger';
-import authRoutes from './routes/authRoutes';
-import dashboardRoutes from './routes/dashboardRoutes';
-import userRoutes from './routes/userRoutes';
-import familyRoutes from './routes/familyRoutes';
-import memberRoutes from './routes/memberRoutes';
-import instituteRoutes from './routes/instituteRoutes';
-import programRoutes from './routes/programRoutes';
-import employeeRoutes from './routes/employeeRoutes';
-import salaryRoutes from './routes/salaryRoutes';
-import accountingReportRoutes from './routes/accountingReportRoutes';
-import committeeRoutes from './routes/committeeRoutes';
-import meetingRoutes from './routes/meetingRoutes';
-import registrationRoutes from './routes/registrationRoutes';
-import collectibleRoutes from './routes/collectibleRoutes';
-import socialRoutes from './routes/socialRoutes';
-import reportRoutes from './routes/reportRoutes';
-import notificationRoutes from './routes/notificationRoutes';
-import masterAccountRoutes from './routes/masterAccountRoutes';
-import tenantRoutes from './routes/tenantRoutes';
-import memberUserRoutes from './routes/memberUserRoutes';
-import assetRoutes from './routes/assetRoutes';
-import categoryRoutes from './routes/categoryRoutes';
-import pettyCashRoutes from './routes/pettyCashRoutes';
-import uploadRoutes from './routes/uploadRoutes';
-import documentRoutes from './routes/documentRoutes';
-import certificateRoutes from './routes/certificateRoutes';
-import changeRequestRoutes from './routes/changeRequestRoutes';
-import exportRoutes from './routes/exportRoutes';
-import { verifyCertificate } from './controllers/certificateController';
-import registerRoutes from './routes/registerRoutes';
-import surveyRoutes from './routes/surveyRoutes';
-import localityFacilityRoutes from './routes/localityFacilityRoutes';
-import clusterRoutes from './routes/clusterRoutes';
-import clusterVisitRoutes from './routes/clusterVisitRoutes';
-import welfareRoutes from './routes/welfareRoutes';
-import mosqueRoutes from './routes/mosqueRoutes';
-import announcementRoutes from './routes/announcementRoutes';
-import zakatDistributionRoutes from './routes/zakatDistributionRoutes';
-import qardRoutes from './routes/qardRoutes';
-import reliefRoutes from './routes/reliefRoutes';
-import madrasaRoutes from './routes/madrasaRoutes';
-import attendanceRoutes from './routes/attendanceRoutes';
-import examRoutes from './routes/examRoutes';
-import { scholarshipsRouter, awardsRouter, supportRouter } from './routes/scholarshipRoutes';
-import { employersRouter, vacanciesRouter, trainingsRouter, summaryRouter } from './routes/employmentRoutes';
-import { volunteersRouter, assignmentsRouter } from './routes/volunteerRoutes';
-import healthRoutes from './routes/healthRoutes';
-import khutbahRoutes from './routes/khutbahRoutes';
-import { counsellingRouter, disputeRouter, inheritanceRouter } from './routes/counsellingRoutes';
-import marriageAssistanceRoutes from './routes/marriageAssistanceRoutes';
-import { cemeteriesRouter, gravesRouter } from './routes/cemeteryRoutes';
-import { booksRouter, issuesRouter } from './routes/libraryRoutes';
-import developmentRoutes from './routes/developmentRoutes';
-import developmentIndexRoutes from './routes/developmentIndexRoutes';
-import assistantRoutes from './routes/assistantRoutes';
+import { createApp, appState } from './app';
+import { checkBootEnvironment } from './config/security';
+import { createShutdown } from './utils/gracefulShutdown';
+import { prepareIndexBuild, runStartupIndexStep } from './services/indexBuild';
+import { runStartupSequence } from './services/startupSequence';
+import { logTransactionMode } from './utils/transaction';
 import { seedCategories } from './utils/seedCategories';
 import { startVarisangyaReminderScheduler } from './services/varisangyaNotificationService';
 import { startCommitteeTermScheduler } from './services/committeeTermService';
-import path from 'path';
 
 // Load environment variables from the correct path
 // When running with ts-node, __dirname is src/, so go up one level
@@ -87,16 +33,36 @@ if (missingEnv.length > 0) {
   process.exit(1);
 }
 
+// Refuse to start with a configuration that is unsafe outside development; warn about the rest.
+const bootCheck = checkBootEnvironment(process.env);
+bootCheck.warnings.forEach((warning) => console.warn(`⚠️  ${warning}`));
+if (bootCheck.fatal.length > 0) {
+  bootCheck.fatal.forEach((problem) => console.error(`❌ ${problem}`));
+  process.exit(1);
+}
+
 // Log environment presence (without secrets)
 console.info('🔍 Environment check:');
 console.info('NODE_ENV:', process.env.NODE_ENV);
 console.info('MONGODB_URI exists:', !!process.env.MONGODB_URI);
 
-const app = express();
 const PORT = process.env.PORT || 5000;
 
 /** Assigned once the HTTP server is listening; used to shut down cleanly. */
-let server: import('http').Server | undefined;
+let server: Server | undefined;
+const stopJobs: Array<() => void> = [];
+
+const lifecycle = createShutdown({
+  get server() {
+    return server;
+  },
+  stopJobs,
+  closeDatabase: () => mongoose.connection.close(),
+  markNotReady: () => {
+    appState.shuttingDown = true;
+  },
+  timeoutMs: Number(process.env.SHUTDOWN_TIMEOUT_MS) || 10_000,
+});
 
 /*
  * Nothing used to catch a promise that rejected outside a request.
@@ -114,198 +80,74 @@ process.on('uncaughtException', (error) => {
   // An exception this far out leaves the process in an unknown state, so the
   // only safe move is to stop taking new work and let the supervisor restart.
   console.error('[uncaughtException]', error);
-  server?.close(() => process.exit(1));
+  void lifecycle.shutdown('uncaughtException').finally(() => process.exit(1));
   setTimeout(() => process.exit(1), 10000).unref();
 });
 
-// Middleware
-app.use(cors());
-// An explicit cap, rather than body-parser's default, so the limit is a
-// decision recorded here: forms and bulk-import payloads fit well inside 1 MB,
-// and anything larger is answered 413 instead of being buffered.
-app.use(express.json({ limit: '1mb' }));
-app.use(express.urlencoded({ extended: true, limit: '1mb', parameterLimit: 1000 }));
-
-/*
- * A truncated or malformed body used to answer with the parser's own words —
- * "Unexpected end of JSON input" — which reads as a bug in the app rather than
- * a bad request. Body-parser failures are caught here, before any route sees
- * them, so the caller gets one sentence it can act on.
- */
-app.use((err: any, _req: express.Request, res: express.Response, next: express.NextFunction) => {
-  if (err && (err.type === 'entity.parse.failed' || err instanceof SyntaxError) && 'body' in err) {
-    return res.status(400).json({
-      success: false,
-      message: "We couldn't read that request. Please try again.",
-    });
-  }
-  if (err && err.type === 'entity.too.large') {
-    return res.status(413).json({
-      success: false,
-      message: 'That request is too large. Please send less data at a time.',
-    });
-  }
-  return next(err);
-});
-
-// Swagger Documentation
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
-  customCss: '.swagger-ui .topbar { display: none }',
-  customSiteTitle: 'Mahallu API Documentation',
-}));
-
-// Mongo operator syntax out of query, body and params before any route runs.
-app.use(sanitizeRequest);
-
-// Activity logging middleware (must be after body parsers, before routes)
-app.use(activityLogger);
-
-// Routes
-/**
- * @swagger
- * /api/health:
- *   get:
- *     summary: Health check endpoint
- *     tags: [Public]
- *     description: |
- *       Check if the API is running.
- *       **Public access - no authentication required**
- *     security: []
- *     responses:
- *       200:
- *         description: API is running
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: ok
- *                   description: API status
- *                 message:
- *                   type: string
- *                   example: Mahallu API is running
- *                   description: Status message
- *             example:
- *               status: ok
- *               message: Mahallu API is running
- */
-app.get('/api/health', (_req, res) => {
-  res.json({ status: 'ok', message: 'Mahallu API is running' });
-});
-
-// API Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/dashboard', dashboardRoutes);
-app.use('/api/tenants', tenantRoutes); // Super admin only
-app.use('/api/users', userRoutes);
-app.use('/api/families', familyRoutes);
-app.use('/api/members', memberRoutes);
-app.use('/api/institutes', instituteRoutes);
-app.use('/api/programs', programRoutes);
-app.use('/api/employees', employeeRoutes);
-app.use('/api/salary-payments', salaryRoutes);
-app.use('/api/accounting-reports', accountingReportRoutes);
-app.use('/api/committees', committeeRoutes);
-app.use('/api/meetings', meetingRoutes);
-app.use('/api/registrations', registrationRoutes);
-app.use('/api/collectibles', collectibleRoutes);
-app.use('/api/social', socialRoutes);
-app.use('/api/reports', reportRoutes);
-app.use('/api/notifications', notificationRoutes);
-app.use('/api/master-accounts', masterAccountRoutes);
-app.use('/api/member-user', memberUserRoutes);
-app.use('/api/assets', assetRoutes);
-app.use('/api/categories', categoryRoutes);
-app.use('/api/petty-cash', pettyCashRoutes);
-app.use('/api/upload', uploadRoutes);
-app.use('/api/documents', documentRoutes);
-app.use('/api/certificates', certificateRoutes);
-app.get('/api/verify/:certificateNo', verifyCertificate); // public certificate verification
-app.use('/api/change-requests', changeRequestRoutes);
-app.use('/api/export', exportRoutes);
-app.use('/api/registers', registerRoutes);
-app.use('/api/surveys', surveyRoutes);
-app.use('/api/locality-facilities', localityFacilityRoutes);
-app.use('/api/clusters', clusterRoutes);
-app.use('/api/cluster-visits', clusterVisitRoutes);
-app.use('/api/welfare', welfareRoutes);
-app.use('/api/mosques', mosqueRoutes);
-app.use('/api/announcements', announcementRoutes);
-app.use('/api/zakat', zakatDistributionRoutes);
-app.use('/api/qard', qardRoutes);
-app.use('/api/relief', reliefRoutes);
-app.use('/api/madrasa', madrasaRoutes);
-app.use('/api/class-attendance', attendanceRoutes);
-app.use('/api/exams', examRoutes);
-app.use('/api/scholarships', scholarshipsRouter);
-app.use('/api/scholarship-awards', awardsRouter);
-app.use('/api/academic-support', supportRouter);
-app.use('/api/employers', employersRouter);
-app.use('/api/job-vacancies', vacanciesRouter);
-app.use('/api/skill-trainings', trainingsRouter);
-app.use('/api/employment', summaryRouter);
-app.use('/api/volunteers', volunteersRouter);
-app.use('/api/volunteer-assignments', assignmentsRouter);
-// healthRoutes defines its own '/health-resources/...' and '/medical-camps/...' paths.
-app.use('/api', healthRoutes);
-app.use('/api', khutbahRoutes);
-// counsellingRoutes with sensitiveAccess middleware
-app.use('/api', counsellingRouter);
-app.use('/api', disputeRouter);
-app.use('/api', inheritanceRouter);
-app.use('/api/marriage-assistance', marriageAssistanceRoutes);
-app.use('/api/cemeteries', cemeteriesRouter);
-app.use('/api/grave-records', gravesRouter);
-app.use('/api/library-books', booksRouter);
-app.use('/api/book-issues', issuesRouter);
-app.use('/api/development-projects', developmentRoutes);
-app.use('/api/development-index', developmentIndexRoutes);
-app.use('/api/assistant', assistantRoutes);
-
-// Unmatched routes: answer in JSON, never Express's default HTML page (it
-// echoes the request path back to whoever asked).
-app.use((_req, res) => {
-  res.status(404).json({
-    success: false,
-    message: "We couldn't find what you were looking for. It may have been removed.",
+// A deploy or restart sends SIGTERM (Ctrl+C sends SIGINT): drain, stop jobs, close the database, exit.
+['SIGTERM', 'SIGINT'].forEach((signal) => {
+  process.on(signal, () => {
+    void lifecycle.shutdownAndExit(signal);
   });
 });
 
-// Error handling middleware (must be last)
-app.use(errorHandler);
+const start = async () => {
+  // The order is fixed in services/startupSequence.ts (and pinned by a test):
+  //   1. attach the index monitors and fix the index build mode (before connecting)
+  //   2. connect (connectDatabase() exits the process if it fails). Outside development/test autoIndex is
+  //      OFF, so connecting builds no index: the server used to build them all at once, concurrently with
+  //      the duplicate preflight, so the preflight gated nothing.
+  //   3. say once which money-flow mode is active (no hosts or URIs in the message)
+  //   4. read-only duplicate preflight, then build every index it cleared (duplicates are logged with their
+  //      ids and their unique index is NOT built); bounded by INDEX_BUILD_WAIT_MS, never throws or exits
+  //   5. seed inert reference data (upsert-only, never overwrites an edit)
+  //   6. only now listen, so /api/ready never claims uniqueness that is not verified
+  await runStartupSequence({
+    registerMonitors: () => {
+      prepareIndexBuild(process.env);
+    },
+    connect: connectDatabase,
+    logTopology: () => {
+      logTransactionMode();
+    },
+    indexes: () => runStartupIndexStep(process.env),
+    seed: () => {
+      if (process.env.SEED_ON_STARTUP !== 'false') {
+        seedCategories().catch((err) => console.error('Category seeding failed:', err.message));
+      }
+    },
+    listen: listenForRequests,
+  });
+};
 
-// Connect to database
-connectDatabase()
-  .then(() => {
-    // Inert shared reference data every dropdown in the app depends on —
-    // safe to re-run on every boot (upsert-only, never overwrites an edit).
-    if (process.env.SEED_ON_STARTUP !== 'false') {
-      seedCategories().catch((err) => console.error('Category seeding failed:', err.message));
+const listenForRequests = () => {
+  const app = createApp();
+
+  server = app.listen(PORT, () => {
+    console.log(`🚀 Server running on http://localhost:${PORT}`);
+
+    // Background jobs start only once the API is actually serving. Run them on ONE instance:
+    // set BACKGROUND_JOBS_ENABLED=false on every other instance (see docs/OPS_RUNBOOK.md).
+    if (process.env.BACKGROUND_JOBS_ENABLED !== 'false') {
+      // Monthly varisangya WhatsApp reminders
+      stopJobs.push(startVarisangyaReminderScheduler());
+      // Daily committee term-expiry notifications
+      stopJobs.push(startCommitteeTermScheduler());
     }
-  })
-  .catch((err) => console.error('Database startup failed:', err));
+  });
 
-// Monthly varisangya WhatsApp reminders
-if (process.env.BACKGROUND_JOBS_ENABLED !== 'false') {
-  startVarisangyaReminderScheduler();
+  // A port already in use used to surface as a bare stack trace and a dead process.
+  server.on('error', (error: NodeJS.ErrnoException) => {
+    if (error.code === 'EADDRINUSE') {
+      console.error(`❌ Port ${PORT} is already in use. Stop the other process or set a different PORT.`);
+    } else {
+      console.error('❌ Server failed to start:', error);
+    }
+    process.exit(1);
+  });
+};
 
-  // Daily committee term-expiry notifications
-  startCommitteeTermScheduler();
-}
-
-// Start server
-server = app.listen(PORT, () => {
-  console.log(`🚀 Server running on http://localhost:${PORT}`);
-});
-
-// A port already in use used to surface as a bare stack trace and a dead process.
-server.on('error', (error: NodeJS.ErrnoException) => {
-  if (error.code === 'EADDRINUSE') {
-    console.error(`❌ Port ${PORT} is already in use. Stop the other process or set a different PORT.`);
-  } else {
-    console.error('❌ Server failed to start:', error);
-  }
+start().catch((err) => {
+  console.error('❌ Startup failed:', err);
   process.exit(1);
 });

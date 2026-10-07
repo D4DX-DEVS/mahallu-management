@@ -8,6 +8,7 @@ import Modal from '@/components/ui/Modal';
 import { ROUTES } from '@/constants/routes';
 import { memberService } from '@/services/memberService';
 import { instituteService } from '@/services/instituteService';
+import { fetchAllPages } from '@/services/api';
 import { Member } from '@/types';
 import { formatDate, toTitleCase } from '@/utils/format';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
@@ -57,9 +58,8 @@ export default function MemberDetail() {
     if (id) {
       fetchMember();
     }
-    instituteService
-      .getAll()
-      .then((res) => setInstitutes(res.data || []))
+    fetchAllPages((p) => instituteService.getAll(p))
+      .then((all) => setInstitutes(all))
       .catch(() => setInstitutes([]));
   }, [id]);
 

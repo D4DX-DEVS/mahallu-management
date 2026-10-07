@@ -3,6 +3,7 @@ import { Banner, Feed, ActivityLog, Support } from '../models/Social';
 import { AuthRequest } from '../middleware/authMiddleware';
 import { verifyTenantOwnership } from '../utils/tenantCheck';
 import mongoose from 'mongoose';
+import { activeBannerFilter } from '../utils/bannerWindow';
 import { getPaginationParams, createPaginationResponse } from '../utils/pagination';
 
 import { sendFailure } from '../utils/userMessages';
@@ -12,16 +13,27 @@ export const getAllBanners = async (req: AuthRequest, res: Response) => {
   try {
     const { status, tenantId } = req.query;
     const { page, limit, skip } = getPaginationParams(req);
+    const isAdmin = req.isSuperAdmin === true || req.user?.role === 'mahall';
     const query: any = {};
 
-    // Apply tenant filter - req.tenantId includes x-tenant-id header for super admin viewing as tenant
-    if (req.tenantId) {
-      query.tenantId = req.tenantId;
-    } else if (tenantId && req.isSuperAdmin) {
-      query.tenantId = tenantId;
-    }
+    if (!isAdmin) {
+      // Members (and the other non-admin roles) see only live banners of their OWN Mahallu. The
+      // Mahallu comes from the signed-in account (tenantMiddleware ignores x-tenant-id for them),
+      // and `status` / `tenantId` in the query string are never honoured.
+      if (!req.tenantId) {
+        return res.json(createPaginationResponse([], 0, page, limit));
+      }
+      Object.assign(query, { tenantId: req.tenantId }, activeBannerFilter());
+    } else {
+      // Apply tenant filter - req.tenantId includes x-tenant-id header for super admin viewing as tenant
+      if (req.tenantId) {
+        query.tenantId = req.tenantId;
+      } else if (tenantId && req.isSuperAdmin) {
+        query.tenantId = tenantId;
+      }
 
-    if (status) query.status = status;
+      if (status) query.status = status;
+    }
 
     const [banners, total] = await Promise.all([
       Banner.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit),
@@ -30,7 +42,7 @@ export const getAllBanners = async (req: AuthRequest, res: Response) => {
 
     res.json(createPaginationResponse(banners, total, page, limit));
   } catch (error: any) {
-    sendFailure(res, error, 'We couldn\'t load the banners right now. Please try again.');
+    sendFailure(res, error, "We couldn't load the banners right now. Please try again.");
   }
 };
 
@@ -182,6 +194,32 @@ export const createFeed = async (req: AuthRequest, res: Response) => {
   }
 };
 
+// DELETE /api/social/feeds/:id — super admin or Mahallu admin (the route enforces the role).
+// A hard delete, so every list and count (Gallery, super feeds, Home, web admin) stops showing the
+// post with no extra filter. A Mahallu admin can only reach their own Mahallu's posts; anything else
+// is a plain 404, exactly like a post that doesn't exist.
+export const deleteFeed = async (req: AuthRequest, res: Response) => {
+  try {
+    const query: any = { _id: req.params.id };
+
+    if (req.tenantId) {
+      query.tenantId = req.tenantId;
+    } else if (!req.isSuperAdmin) {
+      // A non-super account with no Mahallu has no posts to delete; never fall back to an unscoped query.
+      return res.status(404).json({ success: false, message: "We couldn't find that post. It may have been removed." });
+    }
+
+    const feed = await Feed.findOneAndDelete(query);
+    if (!feed) {
+      return res.status(404).json({ success: false, message: "We couldn't find that post. It may have been removed." });
+    }
+
+    res.json({ success: true, message: 'Feed deleted' });
+  } catch (error: any) {
+    sendFailure(res, error, "We couldn't delete the post. Please try again.");
+  }
+};
+
 // Activity Logs
 export const getActivityLogs = async (req: AuthRequest, res: Response) => {
   try {
@@ -262,6 +300,12 @@ export const getAllSupport = async (req: AuthRequest, res: Response) => {
       query.tenantId = tenantId;
     }
 
+    // Tickets can contain anything a member typed: only an admin reads the whole queue, everyone
+    // else sees the tickets they raised themselves.
+    if (!req.isSuperAdmin && !['mahall'].includes(String(req.user?.role))) {
+      query.userId = req.user?._id;
+    }
+
     if (status) query.status = status;
     if (priority) query.priority = priority;
 
@@ -282,10 +326,13 @@ export const getAllSupport = async (req: AuthRequest, res: Response) => {
 
 export const createSupport = async (req: AuthRequest, res: Response) => {
   try {
+    // The ticket's owner and Mahallu come from the session, never the body; a non-super user cannot
+    // choose another tenant, and the workflow fields (status, response) are not theirs to set.
+    const { status: _status, response: _response, userId: _userId, tenantId: bodyTenantId, ...fields } = req.body || {};
     const supportData = {
-      ...req.body,
+      ...fields,
       userId: req.user?._id,
-      tenantId: req.tenantId || req.body.tenantId,
+      tenantId: req.tenantId || (req.isSuperAdmin ? bodyTenantId : undefined),
     };
 
     if (!supportData.tenantId && !req.isSuperAdmin) {

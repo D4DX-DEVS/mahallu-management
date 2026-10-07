@@ -24,6 +24,18 @@ export interface IFeed extends Document {
   updatedAt: Date;
 }
 
+export const DEFAULT_ACTIVITY_LOG_RETENTION_DAYS = 180;
+
+/** Days an activity-log entry is kept: ACTIVITY_LOG_RETENTION_DAYS, default 180 (a bad value falls back to it). */
+export const activityLogRetentionDays = (env: NodeJS.ProcessEnv = process.env): number => {
+  const days = Number(env.ACTIVITY_LOG_RETENTION_DAYS);
+  return Number.isFinite(days) && days >= 1 ? Math.floor(days) : DEFAULT_ACTIVITY_LOG_RETENTION_DAYS;
+};
+
+/** When an entry written `now` expires. */
+export const activityLogExpiry = (now: Date = new Date(), env: NodeJS.ProcessEnv = process.env): Date =>
+  new Date(now.getTime() + activityLogRetentionDays(env) * 24 * 60 * 60 * 1000);
+
 export interface IActivityLog extends Document {
   tenantId?: mongoose.Types.ObjectId;
   userId?: mongoose.Types.ObjectId;
@@ -39,6 +51,8 @@ export interface IActivityLog extends Document {
   responseData?: Record<string, any>;
   errorMessage?: string;
   details?: Record<string, any>;
+  /** When the entry is deleted by the database (TTL). Entries written before this field existed have none and are kept. */
+  expiresAt?: Date;
   createdAt: Date;
 }
 
@@ -126,9 +140,15 @@ const ActivityLogSchema = new Schema<IActivityLog>(
     responseData: Schema.Types.Mixed,
     errorMessage: String,
     details: Schema.Types.Mixed,
+    // Retention: new entries expire after ACTIVITY_LOG_RETENTION_DAYS (default 180).
+    expiresAt: { type: Date, default: () => activityLogExpiry() },
   },
   { timestamps: true }
 );
+
+// TTL on its OWN field. The existing createdAt index is non-TTL: giving the same key a TTL option
+// would raise IndexOptionsConflict at startup. Entries without expiresAt (older ones) never expire.
+ActivityLogSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 // Add indexes for common queries
 ActivityLogSchema.index({ createdAt: -1 });

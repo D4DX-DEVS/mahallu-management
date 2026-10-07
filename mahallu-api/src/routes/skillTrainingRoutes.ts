@@ -9,7 +9,7 @@ import {
   updateParticipant,
   removeParticipant,
 } from '../controllers/employmentController';
-import { authMiddleware, allowRoles } from '../middleware/authMiddleware';
+import { authMiddleware, allowRoles, requireAdmin } from '../middleware/authMiddleware';
 import { tenantMiddleware, tenantFilter } from '../middleware/tenantMiddleware';
 import { validationHandler } from '../middleware/validationHandler';
 import { idParam, listQuery } from '../validations/common';
@@ -22,6 +22,8 @@ const trainingsRouter = express.Router();
 trainingsRouter.use(authMiddleware);
 trainingsRouter.use(tenantMiddleware);
 trainingsRouter.use(tenantFilter);
+// Mahallu-admin module (the CMS menu and routes are Mahallu-admin only). Reads used to be open to every staff role while every write already needed the admin.
+trainingsRouter.use(requireAdmin);
 
 // ============= SKILL TRAINING ENDPOINTS =============
 

@@ -52,7 +52,7 @@ export default function DeathRegistrationDetail() {
     try {
       setIssuingCert(true);
       const cert = await registrationService.issueCertificate('death', registration.id);
-      toast.success(`Certificate ${cert.certificateNo} issued`);
+      toast.success(`Certificate ${cert.certificateNo} ${cert.alreadyIssued ? 'was already issued' : 'issued'}`);
       setShowCertModal(false);
       await fetchRegistration();
     } catch (err: any) {

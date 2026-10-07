@@ -11,6 +11,7 @@ import { registrationService, NOC } from '@/services/registrationService';
 import { formatDate, toTitleCase } from '@/utils/format';
 import { toast } from '@/store/toastStore';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import { sanitizeHtml } from '@/utils/sanitizeHtml';
 import StatusBadge from '@/components/ui/StatusBadge';
 import PageHeader from '@/components/layout/PageHeader';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
@@ -52,7 +53,7 @@ export default function NOCDetail() {
     try {
       setIssuingCert(true);
       const cert = await registrationService.issueCertificate('noc', noc.id);
-      toast.success(`Certificate ${cert.certificateNo} issued`);
+      toast.success(`Certificate ${cert.certificateNo} ${cert.alreadyIssued ? 'was already issued' : 'issued'}`);
       setShowCertModal(false);
       await fetchNOC();
     } catch (err: any) {
@@ -195,7 +196,7 @@ export default function NOCDetail() {
                 <span className="text-sm text-gray-500 dark:text-gray-400">Purpose Description</span>
                 <div
                   className="prose prose-sm max-w-none text-gray-900 dark:text-gray-100"
-                  dangerouslySetInnerHTML={{ __html: noc.purposeDescription || noc.purpose || '' }}
+                  dangerouslySetInnerHTML={{ __html: sanitizeHtml(noc.purposeDescription || noc.purpose || '') }}
                 />
               </div>
             )}

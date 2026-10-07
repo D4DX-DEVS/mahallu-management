@@ -11,3 +11,38 @@
 
 [build.environment]
   NODE_VERSION = "20"
+
+# Security headers (see DEPLOYMENT.md before changing the CSP).
+#
+# !!! BEFORE DEPLOYING: replace https://REPLACE_WITH_API_ORIGIN in connect-src below with the
+# !!! origin of the backend (the scheme + host[:port] of VITE_API_URL, no path), e.g.
+# !!! https://api.example.com. Left as is, the browser blocks every API call.
+# !!! The production build ENFORCES this: vite.config.ts (src/config/cspGuard.ts) fails the build while the
+# !!! placeholder is still in a non-comment line, or while connect-src does not allow the origin of VITE_API_URL.
+# !!! Local verification builds only: set VITE_ALLOW_CSP_PLACEHOLDER=true (see DEPLOYMENT.md).
+#
+# CSP notes:
+#  - script-src: only our own bundle (Vite emits no inline scripts) plus OneSignal's page SDK,
+#    loaded from index.html and used by src/services/oneSignalService.ts. The same policy
+#    also governs /OneSignalSDKWorker.js, which importScripts() from cdn.onesignal.com.
+#  - style-src 'unsafe-inline': React inline style props, Tailwind arbitrary values and the
+#    OneSignal prompt inject inline styles. Google Fonts CSS comes from fonts.googleapis.com.
+#  - font-src: Google Fonts files (fonts.gstatic.com); the jsPDF fonts are same-origin /fonts.
+#  - img-src https: data: blob: because member/banner/feed images are served from the
+#    storage/CDN host and previews use blob: URLs.
+#  - frame-src: OneSignal opens its subscription helper in an iframe on onesignal.com.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Content-Security-Policy = "default-src 'self'; script-src 'self' https://cdn.onesignal.com https://onesignal.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://REPLACE_WITH_API_ORIGIN https://onesignal.com https://*.onesignal.com; frame-src https://onesignal.com https://*.onesignal.com; worker-src 'self' blob:; manifest-src 'self'; media-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()"
+    Strict-Transport-Security = "max-age=31536000; includeSubDomains"
+
+# Vite fingerprints everything in /assets, so it can be cached forever.
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"

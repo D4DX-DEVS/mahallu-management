@@ -20,6 +20,7 @@ import { useDebounce } from '@/hooks/useDebounce';
 import { toast } from '@/store/toastStore';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { useServerCounts } from '@/hooks/useServerCounts';
 import StatusBadge from '@/components/ui/StatusBadge';
 import { toTitleCase } from '@/utils/format';
 
@@ -184,6 +185,18 @@ export default function MarriageAssistanceList() {
     },
   ];
 
+  // Whole-list counts from the server: these cards used to count only the rows on this page.
+  const countBase: { search?: string; type?: string } = {};
+  if (debouncedSearch) countBase.search = debouncedSearch;
+  if (typeFilter !== 'all') countBase.type = typeFilter;
+  const statusCounts = useServerCounts(
+    {
+      requested: () => marriageAssistanceService.getAll({ ...countBase, status: 'requested', page: 1, limit: 1 }),
+      completed: () => marriageAssistanceService.getAll({ ...countBase, status: 'completed', page: 1, limit: 1 }),
+    },
+    [records]
+  );
+
   const stats = [
     {
       title: 'Total Requests',
@@ -192,12 +205,12 @@ export default function MarriageAssistanceList() {
     },
     {
       title: 'Pending',
-      value: records.filter((r) => r.status === 'requested').length,
+      value: statusCounts.requested ?? records.filter((r) => r.status === 'requested').length,
       icon: <FiClock className="h-5 w-5" />,
     },
     {
       title: 'Completed',
-      value: records.filter((r) => r.status === 'completed').length,
+      value: statusCounts.completed ?? records.filter((r) => r.status === 'completed').length,
       icon: <FiCheckCircle className="h-5 w-5" />,
     },
   ];

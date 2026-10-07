@@ -5,6 +5,9 @@ import { authService } from '@/services/authService';
 import { ROUTES } from '@/constants/routes';
 import { toTitleCase } from '@/utils/format';
 import { roleLabel } from '@/utils/roleLabels';
+import { errorMessage } from '@/utils/errors';
+import { toast } from '@/store/toastStore';
+import { logError } from '@/utils/safeLog';
 
 /**
  * Rendered once, full-bleed above the entire app shell — same placement as
@@ -17,7 +20,7 @@ import { roleLabel } from '@/utils/roleLabels';
  * this is an expected, authorized testing tool, not an error state.
  */
 export default function ImpersonationBanner() {
-  const { impersonationContext, setUser, setToken, setImpersonation } = useAuthStore();
+  const { impersonationContext, setUser, setToken, resetSessionContext } = useAuthStore();
   const [isExiting, setIsExiting] = useState(false);
 
   if (!impersonationContext) {
@@ -34,9 +37,13 @@ export default function ImpersonationBanner() {
       const response = await authService.exitImpersonation();
       setUser(response.user);
       setToken(response.token);
-      setImpersonation(null);
+      // Also drops the impersonated Mahallu's module flags, which would otherwise survive the reload.
+      resetSessionContext();
       window.location.href = ROUTES.DASHBOARD;
-    } catch {
+    } catch (err) {
+      // Staying silent left the banner looking stuck: say that the exit failed.
+      logError('Exit role switch failed', err);
+      toast.error(errorMessage(err, { action: 'exit role switch' }));
       setIsExiting(false);
     }
   };

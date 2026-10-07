@@ -136,7 +136,7 @@ export default function SalaryDetail() {
               <div>
                 <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Payment Method</label>
                 <p className="mt-1 text-gray-900 dark:text-gray-100 capitalize">
-                  {payment.paymentMethod.replace('_', ' ')}
+                  {payment.paymentMethod === 'bank' ? 'bank transfer' : payment.paymentMethod.replace('_', ' ')}
                 </p>
               </div>
             )}

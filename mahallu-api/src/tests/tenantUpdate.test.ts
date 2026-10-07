@@ -1,7 +1,11 @@
-import { test } from 'node:test';
+import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import Tenant from '../models/Tenant';
 import { updateTenant } from '../controllers/tenantController';
+
+// Wrapped in one root suite so the stubs installed by this file's hooks only apply to its own tests
+// when every suite is imported into the single `npm test` process.
+describe('[isolated] tenantUpdate', () => {
 
 /**
  * PUT /tenants/:id is open to every role of the tenant itself. It used to write the raw body,
@@ -55,4 +59,5 @@ test('a Super Admin can still change every field', async () => {
   const { written } = await call('super_admin', { status: 'suspended', subscription: { plan: 'pro' } }, true);
   assert.equal(written.status, 'suspended');
   assert.equal(written.subscription.plan, 'pro');
+});
 });

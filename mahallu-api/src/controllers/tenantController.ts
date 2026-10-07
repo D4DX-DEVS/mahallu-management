@@ -6,6 +6,7 @@ import { getPaginationParams, createPaginationResponse } from '../utils/paginati
 import { defaultFeaturesFor } from '../config/moduleFeatures';
 
 import { sendFailure } from '../utils/userMessages';
+import { invalidateTenantStatus } from '../services/tenantStatusService';
 import { regexLiteral } from '../utils/queryGuard';
 
 export const getAllTenants = async (req: AuthRequest, res: Response) => {
@@ -170,6 +171,7 @@ export const deleteTenant = async (req: AuthRequest, res: Response) => {
     if (!tenant) {
       return res.status(404).json({ success: false, message: "We couldn't find that Mahallu. It may have been removed." });
     }
+    invalidateTenantStatus(req.params.id);
 
     // Optionally: Delete all related data or mark as deleted
     res.json({ success: true, message: 'Mahallu deleted' });
@@ -217,6 +219,9 @@ export const suspendTenant = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ success: false, message: "We couldn't find that Mahallu. It may have been removed." });
     }
 
+    // authMiddleware caches tenant status briefly; make the suspension effective immediately here.
+    invalidateTenantStatus(req.params.id);
+
     res.json({ success: true, data: tenant });
   } catch (error: any) {
     sendFailure(res, error, 'We couldn\'t update the Mahallu. Please try again.');
@@ -234,6 +239,8 @@ export const activateTenant = async (req: AuthRequest, res: Response) => {
     if (!tenant) {
       return res.status(404).json({ success: false, message: "We couldn't find that Mahallu. It may have been removed." });
     }
+
+    invalidateTenantStatus(req.params.id);
 
     res.json({ success: true, data: tenant });
   } catch (error: any) {

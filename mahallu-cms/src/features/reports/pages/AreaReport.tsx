@@ -7,12 +7,14 @@ import Alert from '@/components/ui/Alert';
 import Dropdown, { DropdownItem } from '@/components/ui/Dropdown';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import { reportService, AreaReport } from '@/services/reportService';
-import { exportToPDF } from '@/utils/exportUtils';
+import { exportToCSV, exportToPDF } from '@/utils/exportUtils';
+import { TableColumn } from '@/types';
 import { loadErrorInfo, LoadErrorInfo } from '@/utils/errors';
 import { toTitleCase } from '@/utils/format';
 import PageHeader from '@/components/layout/PageHeader';
 import SortableTh from '@/components/ui/SortableTh';
 import { useSortableRows } from '@/hooks/useSortableRows';
+import { logError } from '@/utils/safeLog';
 
 export default function AreaReportPage() {
   const [report, setReport] = useState<AreaReport | null>(null);
@@ -31,60 +33,36 @@ export default function AreaReportPage() {
       setReport(data);
     } catch (err: any) {
       setError(loadErrorInfo(err, 'area report'));
-      console.error('Error fetching report:', err);
+      logError('Error fetching report', err);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleExportCSV = () => {
-    if (!report) return;
-    const csvData = report.families.map((family) => ({
-      'House Name': family.houseName,
-      Area: family.area || '-',
-      Members: family.memberCount,
-    }));
+  const exportColumns: TableColumn[] = [
+    { key: 'houseName', label: 'House Name' },
+    { key: 'area', label: 'Area' },
+    { key: 'memberCount', label: 'Members' },
+  ];
 
-    const headers = ['House Name', 'Area', 'Members'];
-    const csvRows = [headers.join(',')];
-
-    csvData.forEach((row) => {
-      const values = headers.map((header) => {
-        const value = row[header as keyof typeof row] ?? '';
-        const escaped = String(value).replace(/"/g, '""');
-        return escaped.includes(',') ? `"${escaped}"` : escaped;
-      });
-      csvRows.push(values.join(','));
-    });
-
-    const csvContent = csvRows.join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-
-    link.setAttribute('href', url);
-    link.setAttribute('download', `area-report-${new Date().toISOString().split('T')[0]}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  const handlePrintPDF = () => {
-    if (!report) return;
-    const columns = [
-      { key: 'houseName', label: 'House Name' },
-      { key: 'area', label: 'Area' },
-      { key: 'memberCount', label: 'Members' },
-    ];
-
-    const data = report.families.map((family) => ({
+  const exportRows = () =>
+    (report?.families ?? []).map((family) => ({
       houseName: family.houseName,
       area: family.area || '-',
       memberCount: family.memberCount,
     }));
 
-    exportToPDF(columns, data, `area-report-${new Date().toISOString().split('T')[0]}`, 'Area Report');
+  const exportFilename = () => `area-report-${new Date().toISOString().split('T')[0]}`;
+
+  // exportToCSV applies the shared CSV safeguards (BOM, quoting, formula guard).
+  const handleExportCSV = () => {
+    if (!report) return;
+    exportToCSV(exportColumns, exportRows(), exportFilename());
+  };
+
+  const handlePrintPDF = async () => {
+    if (!report) return;
+    await exportToPDF(exportColumns, exportRows(), exportFilename(), 'Area Report');
   };
 
   const {

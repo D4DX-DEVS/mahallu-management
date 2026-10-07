@@ -23,8 +23,10 @@ import { toast } from '@/store/toastStore';
 import { errorMessage } from '@/utils/errors';
 import StatusBadge from '@/components/ui/StatusBadge';
 import PageHeader from '@/components/layout/PageHeader';
+import { useServerCounts } from '@/hooks/useServerCounts';
 import ActionsMenu from '@/components/ui/ActionsMenu';
 import { toTitleCase } from '@/utils/format';
+import { logError } from '@/utils/safeLog';
 
 const categoryLabels: Record<string, string> = {
   furniture: 'Furniture',
@@ -102,7 +104,7 @@ export default function AssetsList() {
         setPagination(result.pagination);
       }
     } catch (err: any) {
-      console.error('Error fetching assets:', err);
+      logError('Error fetching assets', err);
       // Don't show error - just show empty state
       setAssets([]);
       setPagination(null);
@@ -142,11 +144,11 @@ export default function AssetsList() {
           exportToJSON(columns, dataToExport, filename);
           break;
         case 'pdf':
-          exportToPDF(columns, dataToExport, filename, title);
+          await exportToPDF(columns, dataToExport, filename, title);
           break;
       }
     } catch (error: any) {
-      console.error('Export error:', error);
+      logError('Export error', error);
       toast.error(errorMessage(error, { action: 'export data' }));
     } finally {
       setIsExporting(false);
@@ -250,6 +252,25 @@ export default function AssetsList() {
     },
   ];
 
+  // Whole-list counts from the server: these cards used to count only the rows on this page.
+  const countBase: { search?: string; category?: string; mosqueId?: string } = {};
+  if (debouncedSearch) countBase.search = debouncedSearch;
+  if (categoryFilter) countBase.category = categoryFilter;
+  if (mosqueFilter) countBase.mosqueId = mosqueFilter;
+  const countOf = (status: string) => assetService.getAll({ ...countBase, status, page: 1, limit: 1 });
+  const statusCounts = useServerCounts(
+    {
+      active: () => countOf('active'),
+      inUse: () => countOf('in_use'),
+      maintenance: () => countOf('under_maintenance'),
+      disposed: () => countOf('disposed'),
+      damaged: () => countOf('damaged'),
+    },
+    [assets]
+  );
+  const sumCounts = (...values: (number | undefined)[]) =>
+    values.every((v) => v !== undefined) ? values.reduce<number>((sum, v) => sum + (v as number), 0) : undefined;
+
   const stats = [
     {
       title: 'Total Assets',
@@ -258,17 +279,17 @@ export default function AssetsList() {
     },
     {
       title: 'Active',
-      value: assets.filter((a) => a.status === 'active' || a.status === 'in_use').length,
+      value: sumCounts(statusCounts.active, statusCounts.inUse) ?? assets.filter((a) => a.status === 'active' || a.status === 'in_use').length,
       icon: <FiCheckCircle className="h-5 w-5" />,
     },
     {
       title: 'Under Maintenance',
-      value: assets.filter((a) => a.status === 'under_maintenance').length,
+      value: statusCounts.maintenance ?? assets.filter((a) => a.status === 'under_maintenance').length,
       icon: <FiAlertTriangle className="h-5 w-5" />,
     },
     {
       title: 'Disposed / Damaged',
-      value: assets.filter((a) => a.status === 'disposed' || a.status === 'damaged').length,
+      value: sumCounts(statusCounts.disposed, statusCounts.damaged) ?? assets.filter((a) => a.status === 'disposed' || a.status === 'damaged').length,
       icon: <FiXCircle className="h-5 w-5" />,
     },
   ];

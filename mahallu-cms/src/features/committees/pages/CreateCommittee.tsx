@@ -11,6 +11,7 @@ import Select from '@/components/ui/Select';
 import { ROUTES } from '@/constants/routes';
 import { committeeService } from '@/services/committeeService';
 import { memberService } from '@/services/memberService';
+import { fetchAllPages } from '@/services/api';
 import { Member } from '@/types';
 import { errorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
@@ -63,8 +64,9 @@ export default function CreateCommittee() {
   const fetchMembers = async () => {
     try {
       setLoadingMembers(true);
-      const result = await memberService.getAll();
-      setMembers(result.data || []);
+      // Every member, not just the API's default page of 10.
+      const all = await fetchAllPages((p) => memberService.getAll(p));
+      setMembers(all);
     } catch (err) {
       console.error('Error fetching members:', err);
       setMembers([]);

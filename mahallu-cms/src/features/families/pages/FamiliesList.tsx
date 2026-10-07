@@ -175,13 +175,14 @@ export default function FamiliesList() {
         search: debouncedSearch || undefined,
         area: areaFilter || undefined,
         sortBy: sort?.key,
+        sortOrder: sort?.direction,
       });
       if (rows.length === 0) {
         toast.info('Nothing to export');
         return;
       }
       if (type === 'csv') exportToCSV(columns, rows, 'families');
-      else exportToPDF(columns, rows, 'families', 'Families');
+      else await exportToPDF(columns, rows, 'families', 'Families');
     } catch (err: any) {
       toast.error(errorMessage(err, { action: 'export this list' }));
     } finally {
@@ -416,7 +417,7 @@ export default function FamiliesList() {
                       label: 'Export as PDF',
                       icon: <FiFile />,
                       onClick: () =>
-                        exportToPDF(
+                        void exportToPDF(
                           columns,
                           families.filter((f) => selectedIds.includes(f.id)),
                           'families',

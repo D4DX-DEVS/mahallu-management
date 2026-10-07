@@ -14,7 +14,7 @@ import Pagination from '@/components/ui/Pagination';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import TableToolbar from '@/components/ui/TableToolbar';
 import { TableColumn, Pagination as PaginationType } from '@/types';
-import { masterAccountService, InstituteAccount } from '@/services/masterAccountService';
+import { masterAccountService, InstituteAccount, BalanceSummary } from '@/services/masterAccountService';
 import { instituteService } from '@/services/instituteService';
 import { useAuthStore } from '@/store/authStore';
 import { formatDate, formatRupees, toTitleCase } from '@/utils/format';
@@ -23,6 +23,10 @@ import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
 import { toast } from '@/store/toastStore';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { fetchAllPages } from '@/services/api';
+import { logError } from '@/utils/safeLog';
+import { useDebounce } from '@/hooks/useDebounce';
+import { buildInstituteAccountParams } from '@/utils/instituteAccountFilters';
 
 export default function InstituteAccountsList() {
   const { currentInstituteId: userInstituteId } = useAuthStore();
@@ -36,6 +40,8 @@ export default function InstituteAccountsList() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
+  /* Total balance across every account matching the filter (all pages), from the server. */
+  const [summary, setSummary] = useState<BalanceSummary>({ totalBalance: 0, count: 0 });
   const [isExporting, setIsExporting] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState<InstituteAccount | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -63,27 +69,37 @@ export default function InstituteAccountsList() {
     }
   }, []);
 
+  const debouncedSearch = useDebounce(searchQuery, 500);
+  // The list and the export are built from this one object, so they always use the same filters.
+  const activeFilters = { instituteId: instituteFilter, search: debouncedSearch };
+
+  // A page number that only made sense for the previous search must not survive into the new one.
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearch]);
+
   useEffect(() => {
     fetchAccounts();
-  }, [currentPage, instituteFilter]);
+  }, [currentPage, instituteFilter, debouncedSearch]);
 
   const fetchAccounts = async () => {
     try {
       setLoading(true);
       setError(null);
-      const params: any = {
-        page: currentPage,
-        limit: itemsPerPage,
-      };
-      if (instituteFilter !== 'all') params.instituteId = instituteFilter;
-      const result = await masterAccountService.getAllInstituteAccounts(params);
+      const result = await masterAccountService.getAllInstituteAccounts(
+        buildInstituteAccountParams(activeFilters, { page: currentPage, limit: itemsPerPage })
+      );
       setAccounts(Array.isArray(result.data) ? result.data : []);
+      setSummary({
+        totalBalance: Number(result.summary?.totalBalance) || 0,
+        count: Number(result.summary?.count) || 0,
+      });
       if (result.pagination) {
         setPagination(result.pagination);
       }
     } catch (err: any) {
       setError(loadErrorMessage(err, 'institute accounts'));
-      console.error('Error fetching accounts:', err);
+      logError('Error fetching accounts', err);
       setAccounts([]);
     } finally {
       setLoading(false);
@@ -93,9 +109,10 @@ export default function InstituteAccountsList() {
   const handleExport = async (type: 'csv' | 'json' | 'pdf') => {
     try {
       setIsExporting(true);
-      const params = { limit: 10000 };
-      const result = await masterAccountService.getAllInstituteAccounts(params);
-      const dataToExport = Array.isArray(result.data) ? result.data : [];
+      // Every page of the list the user is looking at: same institute and search, not the whole Mahallu.
+      const dataToExport = await fetchAllPages((page) =>
+        masterAccountService.getAllInstituteAccounts(buildInstituteAccountParams(activeFilters, page))
+      );
       if (dataToExport.length === 0) {
         toast.info('No institute accounts to export');
         return;
@@ -114,7 +131,7 @@ export default function InstituteAccountsList() {
           break;
       }
     } catch (error: any) {
-      console.error('Export error:', error);
+      logError('Export error', error);
       toast.error(error?.message || "Couldn't export institute accounts");
     } finally {
       setIsExporting(false);
@@ -164,7 +181,11 @@ export default function InstituteAccountsList() {
       return;
     }
     try {
-      await masterAccountService.updateInstituteAccount(selectedAccount.id, { ...editForm, accountNumber });
+      // The balance is not sent: it is set when the account is created and then only
+      // moves through transactions, so the API ignores it on update.
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { balance: _balance, ...updates } = editForm;
+      await masterAccountService.updateInstituteAccount(selectedAccount.id, { ...updates, accountNumber });
       await fetchAccounts();
       setShowEditModal(false);
       setSelectedAccount(null);
@@ -190,25 +211,15 @@ export default function InstituteAccountsList() {
     }
   };
 
-  // The list endpoint has no `search` query param, so — same as the Mahallu
-  // Finance accounts screen — the search box filters the page already loaded.
-  const filteredAccounts = accounts.filter(
-    (a) =>
-      !searchQuery ||
-      (a.accountName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (a.bankName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (a.accountNumber || '').toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
   const stats = [
     {
       title: 'Total Accounts',
-      value: pagination?.total || accounts.length,
+      value: pagination?.total || summary.count || accounts.length,
       icon: <FiCreditCard className="h-5 w-5" />,
     },
     {
       title: 'Total Balance',
-      value: formatRupees(accounts.reduce((sum, a) => sum + (a.balance || 0), 0)),
+      value: formatRupees(summary.totalBalance),
       icon: <FiDollarSign className="h-5 w-5" />,
     },
   ];
@@ -274,7 +285,7 @@ export default function InstituteAccountsList() {
               fixedLayout
               striped
               columns={columns}
-              data={filteredAccounts}
+              data={accounts}
               emptyMessage="No institute accounts found"
               showExport={false}
               onRowClick={(row) => {
@@ -445,7 +456,9 @@ export default function InstituteAccountsList() {
             label="Balance"
             type="number"
             value={editForm.balance}
-            onChange={(e) => setEditForm({ ...editForm, balance: parseFloat(e.target.value) || 0 })}
+            disabled
+            readOnly
+            helperText="Balance changes through transactions"
           />
           <Select
             label="Status"

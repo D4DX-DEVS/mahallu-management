@@ -1,4 +1,4 @@
-import { test } from 'node:test';
+import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import mongoose from 'mongoose';
 import { Asset, AssetMaintenance } from '../models/Asset';
@@ -11,6 +11,10 @@ import { updateNOC } from '../controllers/registrationController';
 import { getMembersByFamily } from '../controllers/memberController';
 import { getCommitteeMeetings } from '../controllers/committeeController';
 import { updateSupport } from '../controllers/socialController';
+
+// Wrapped in one root suite so the stubs installed by this file's hooks only apply to its own tests
+// when every suite is imported into the single `npm test` process.
+describe('[isolated] tenantIsolation', () => {
 
 /**
  * By-id handlers that looked a record up without the caller's Mahallu in the query: any signed-in
@@ -88,4 +92,5 @@ test("another Mahallu's committee meetings and support tickets are refused", asy
 
 test('a Super Admin is unaffected', async () => {
   assert.equal((await run(updateNOC, { tenantId: undefined, isSuperAdmin: true, body: { status: 'approved' } })).status !== 403, true);
+});
 });

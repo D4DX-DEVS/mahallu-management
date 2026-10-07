@@ -23,6 +23,7 @@ import PageHeader from '@/components/layout/PageHeader';
 import ActionsMenu from '@/components/ui/ActionsMenu';
 import StatusBadge from '@/components/ui/StatusBadge';
 import { toTitleCase } from '@/utils/format';
+import { logError } from '@/utils/safeLog';
 
 export default function AllUsersList() {
   const navigate = useNavigate();
@@ -73,7 +74,7 @@ export default function AllUsersList() {
       }
     } catch (err: any) {
       setError(loadErrorMessage(err, 'users'));
-      console.error('Error fetching users:', err);
+      logError('Error fetching users', err);
     } finally {
       setLoading(false);
     }
@@ -107,11 +108,11 @@ export default function AllUsersList() {
           exportToJSON(columns, dataToExport, filename);
           break;
         case 'pdf':
-          exportToPDF(columns, dataToExport, filename, title);
+          await exportToPDF(columns, dataToExport, filename, title);
           break;
       }
     } catch (error: any) {
-      console.error('Export error:', error);
+      logError('Export error', error);
       toast.error(errorMessage(error, { action: 'export data' }));
     } finally {
       setIsExporting(false);

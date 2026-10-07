@@ -16,6 +16,7 @@ import PageHeader from '@/components/layout/PageHeader';
 import { useFormValidation } from '@/hooks/useFormValidation';
 import { FieldRule, LIMITS, sanitizeAmountInput } from '@/utils/validation';
 import { toTitleCase } from '@/utils/format';
+import { fetchAllPages } from '@/services/api';
 
 const RULES: Record<string, FieldRule> = {
   ledgerId: { label: 'ledger', required: true, type: 'id' },
@@ -50,9 +51,8 @@ export default function CreateMahalluLedgerItem() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    masterAccountService
-      .getAllLedgers({ limit: 1000, scope: 'mahallu' })
-      .then((r) => setLedgers(Array.isArray(r.data) ? r.data : []))
+    fetchAllPages((page) => masterAccountService.getAllLedgers({ ...page, scope: 'mahallu' }))
+      .then((r) => setLedgers(r))
       .catch(() => {})
       .finally(() => setLoadingLedgers(false));
   }, []);

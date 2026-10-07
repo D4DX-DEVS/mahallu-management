@@ -1,14 +1,27 @@
 import { Response } from 'express';
 import { Exam } from '../models/Attendance';
-import { MadrasaClass, StudentEnrollment } from '../models/Madrasa';
+import { StudentEnrollment } from '../models/Madrasa';
 import { AuthRequest } from '../middleware/authMiddleware';
 import { getPaginationParams, createPaginationResponse } from '../utils/pagination';
-import { stripImmutable, refBelongsToTenant } from '../utils/sanitizeUpdate';
+import { stripImmutable } from '../utils/sanitizeUpdate';
+import { requireScope, requireWriteScope } from '../utils/scope';
+import {
+  tenantScope,
+  classAccessForRecord,
+  ownClassIds,
+  limitToClasses,
+  classIdFilter,
+  classRefInScope,
+  CLASS_REF_MESSAGE,
+} from '../utils/educationScope';
 
 import { sendFailure } from '../utils/userMessages';
 
-const tenantScope = (req: AuthRequest): Record<string, any> =>
-  req.tenantId ? { tenantId: req.tenantId } : {};
+/**
+ * Institute scoping (utils/educationScope.ts): an exam belongs to its class, so an institute account
+ * only reaches exams of its own institute's classes. Exams of Mahallu-level classes (no instituteId)
+ * are not visible to it. Super admin / Mahallu admin keep the whole Mahallu.
+ */
 
 /**
  * @swagger
@@ -47,12 +60,16 @@ const tenantScope = (req: AuthRequest): Record<string, any> =>
  */
 export const listExams = async (req: AuthRequest, res: Response) => {
   try {
+    const caller = requireScope(req, res);
+    if (!caller) return;
+    const classFilter = classIdFilter(req, res);
+    if (!classFilter) return;
+
     const { page, limit, skip } = getPaginationParams(req);
     const query: any = { ...tenantScope(req) };
 
-    if (req.query.classId) {
-      query.classId = req.query.classId;
-    }
+    // An institute account only sees exams of its own classes; ?classId= can only pick one of them.
+    limitToClasses(query, await ownClassIds(req, caller), classFilter.value);
     if (req.query.status) {
       query.status = req.query.status;
     }
@@ -94,6 +111,8 @@ export const listExams = async (req: AuthRequest, res: Response) => {
  */
 export const getExamById = async (req: AuthRequest, res: Response) => {
   try {
+    const caller = requireScope(req, res);
+    if (!caller) return;
     const exam = await Exam.findOne({ _id: req.params.id, ...tenantScope(req) })
       .populate('classId', 'name')
       .populate('results.enrollmentId', 'rollNo memberId');
@@ -101,6 +120,9 @@ export const getExamById = async (req: AuthRequest, res: Response) => {
     if (!exam) {
       return res.status(404).json({ success: false, message: "We couldn't find that exam. It may have been removed." });
     }
+    // classId is populated here; classAccessForRecord needs the id of the parent class.
+    const parentClassId = (exam.classId as any)?._id ?? exam.classId;
+    if (!(await classAccessForRecord(req, res, caller, parentClassId, 'Exam'))) return;
 
     // Populate student details
     const enrollmentIds = exam.results.map((r) => r.enrollmentId);
@@ -169,6 +191,8 @@ export const getExamById = async (req: AuthRequest, res: Response) => {
  */
 export const createExam = async (req: AuthRequest, res: Response) => {
   try {
+    const caller = requireWriteScope(req, res);
+    if (!caller) return;
     const { classId, name, examDate, maxMarks } = req.body;
 
     if (!classId || !name || !examDate || maxMarks === undefined) {
@@ -177,13 +201,13 @@ export const createExam = async (req: AuthRequest, res: Response) => {
         .json({ success: false, message: 'Please enter the class, name, date and maximum marks.' });
     }
 
-    // Validate classId belongs to tenant
-    if (!(await refBelongsToTenant(MadrasaClass, classId, req.tenantId))) {
-      return res.status(400).json({ success: false, message: 'This class belongs to another Mahallu.' });
+    // The class must be in this Mahallu and, for an institute account, one of that institute's own.
+    if (!(await classRefInScope(caller, caller.tenantId, classId))) {
+      return res.status(400).json({ success: false, message: CLASS_REF_MESSAGE });
     }
 
     const exam = new Exam({
-      tenantId: req.tenantId,
+      tenantId: caller.tenantId,
       classId,
       name,
       examDate,
@@ -233,14 +257,23 @@ export const createExam = async (req: AuthRequest, res: Response) => {
  */
 export const updateExam = async (req: AuthRequest, res: Response) => {
   try {
+    const caller = requireScope(req, res);
+    if (!caller) return;
     const exam = await Exam.findOne({ _id: req.params.id, ...tenantScope(req) });
     if (!exam) {
       return res.status(404).json({ success: false, message: "We couldn't find that exam. It may have been removed." });
     }
+    if (!(await classAccessForRecord(req, res, caller, exam.classId, 'Exam'))) return;
 
     const updates = stripImmutable(req.body);
     // Don't allow updating results via this endpoint
     delete updates.results;
+    // Moving the exam to another class is allowed only to a class the caller could have created it in.
+    if (updates.classId !== undefined && String(updates.classId) !== String(exam.classId)) {
+      if (!(await classRefInScope(caller, String(exam.tenantId), updates.classId))) {
+        return res.status(400).json({ success: false, message: CLASS_REF_MESSAGE });
+      }
+    }
     Object.assign(exam, updates);
     await exam.save();
     await exam.populate('classId', 'name');
@@ -276,6 +309,14 @@ export const updateExam = async (req: AuthRequest, res: Response) => {
  */
 export const deleteExam = async (req: AuthRequest, res: Response) => {
   try {
+    const caller = requireScope(req, res);
+    if (!caller) return;
+    const found = await Exam.findOne({ _id: req.params.id, ...tenantScope(req) });
+    if (!found) {
+      return res.status(404).json({ success: false, message: "We couldn't find that exam. It may have been removed." });
+    }
+    if (!(await classAccessForRecord(req, res, caller, found.classId, 'Exam'))) return;
+
     const exam = await Exam.findOneAndDelete({ _id: req.params.id, ...tenantScope(req) });
     if (!exam) {
       return res.status(404).json({ success: false, message: "We couldn't find that exam. It may have been removed." });
@@ -333,12 +374,15 @@ export const deleteExam = async (req: AuthRequest, res: Response) => {
  */
 export const updateExamResults = async (req: AuthRequest, res: Response) => {
   try {
+    const caller = requireScope(req, res);
+    if (!caller) return;
     const { results } = req.body;
 
     const exam = await Exam.findOne({ _id: req.params.id, ...tenantScope(req) });
     if (!exam) {
       return res.status(404).json({ success: false, message: "We couldn't find that exam. It may have been removed." });
     }
+    if (!(await classAccessForRecord(req, res, caller, exam.classId, 'Exam'))) return;
 
     if (!Array.isArray(results)) {
       return res.status(400).json({ success: false, message: 'Please add at least one result.' });
@@ -358,7 +402,7 @@ export const updateExamResults = async (req: AuthRequest, res: Response) => {
       const enrollment = await StudentEnrollment.findOne({
         _id: enrollmentId,
         classId: exam.classId,
-        tenantId: req.tenantId,
+        tenantId: exam.tenantId,
       });
       if (!enrollment) {
         return res

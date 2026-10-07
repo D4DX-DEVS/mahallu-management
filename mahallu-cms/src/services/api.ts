@@ -1,9 +1,17 @@
 import axios from 'axios';
 import { useAuthStore } from '@/store/authStore';
+import { resolveApiBaseUrl } from '@/config/apiUrl';
+import { toast } from '@/store/toastStore';
+import { setAuthNotice } from '@/utils/authNotice';
 
 const API_MAX_LIST_LIMIT = 100;
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
+// Throws in a production bundle that has no (or a local) API URL, instead of silently calling localhost.
+const API_BASE_URL = resolveApiBaseUrl({
+  VITE_API_URL: import.meta.env.VITE_API_URL,
+  VITE_ALLOW_LOCAL_API: import.meta.env.VITE_ALLOW_LOCAL_API,
+  PROD: import.meta.env.PROD,
+});
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
@@ -152,6 +160,32 @@ const CREDENTIAL_CHECK_PATHS = [
 const isCredentialCheck = (url?: string): boolean =>
   !!url && CREDENTIAL_CHECK_PATHS.some((p) => url.startsWith(p) || url.includes(p));
 
+/**
+ * True when the request went out with a token that is no longer the stored one: a password change or an
+ * account switch replaced it while the request was in flight. Its 401 describes the OLD session and must
+ * not sign out the new one.
+ */
+const sentWithReplacedToken = (config?: { headers?: unknown }): boolean => {
+  const headers = config?.headers as { Authorization?: unknown } | undefined;
+  const sent = String(headers?.Authorization ?? '').replace(/^Bearer\s+/i, '');
+  const current = localStorage.getItem('token');
+  return !!sent && !!current && sent !== current;
+};
+
+const SUSPENDED_FALLBACK = 'This Mahallu is currently suspended. Please contact the platform administrator.';
+
+/** Ends this tab's session and shows the sign-in page (with `notice`, when there is one to show). */
+const endSession = (notice?: string) => {
+  localStorage.removeItem('token');
+  useAuthStore.getState().logout();
+  // Already on the sign-in screen: let the page show its own message
+  // instead of reloading it out from under the user.
+  if (window.location.pathname !== '/login') {
+    if (notice) setAuthNotice(notice);
+    window.location.href = '/login';
+  }
+};
+
 // Response interceptor for error handling and data transformation
 api.interceptors.response.use(
   (response) => {
@@ -162,13 +196,15 @@ api.interceptors.response.use(
     return response;
   },
   (error) => {
-    if (error.response?.status === 401 && !isCredentialCheck(error.config?.url)) {
-      localStorage.removeItem('token');
-      useAuthStore.getState().logout();
-      // Already on the sign-in screen: let the page show its own message
-      // instead of reloading it out from under the user.
-      if (window.location.pathname !== '/login') {
-        window.location.href = '/login';
+    const status = error.response?.status;
+    if (!isCredentialCheck(error.config?.url) && !sentWithReplacedToken(error.config)) {
+      if (status === 401) {
+        endSession();
+      } else if (status === 403 && error.response?.data?.code === 'TENANT_SUSPENDED') {
+        // The whole Mahallu was suspended: every call from this session is refused from now on, so it
+        // is ended like an expired one, and the sign-in page says why.
+        const message = error.response?.data?.message;
+        endSession(typeof message === 'string' && message.length <= 200 ? message : SUSPENDED_FALLBACK);
       }
     }
     return Promise.reject(error);
@@ -205,6 +241,9 @@ export const MAX_PAGE_LIMIT = 100;
  * Use where a screen genuinely needs the whole set — a picker, an export, a
  * total. `fetchPage` receives `{ page, limit }` and returns whatever the
  * service returns, so it composes with any extra filters the caller adds.
+ *
+ * At most `maxPages` pages are read (200 x 100 = 20,000 rows). If that cap is reached while the list
+ * still has more, the person is told: an export or picker that is silently cut short looks complete.
  */
 export const fetchAllPages = async <T,>(
   fetchPage: (params: { page: number; limit: number }) => Promise<{
@@ -214,14 +253,26 @@ export const fetchAllPages = async <T,>(
   maxPages = 200
 ): Promise<T[]> => {
   const all: T[] = [];
+  let capped = true;
   for (let page = 1; page <= maxPages; page += 1) {
     const result = await fetchPage({ page, limit: MAX_PAGE_LIMIT });
     const rows = asList(result?.data);
     all.push(...rows);
     // A short page is the last page, whether or not the endpoint paginates.
-    if (rows.length < MAX_PAGE_LIMIT) break;
+    if (rows.length < MAX_PAGE_LIMIT) {
+      capped = false;
+      break;
+    }
     const totalPages = result?.pagination?.totalPages;
-    if (totalPages != null && page >= totalPages) break;
+    if (totalPages != null && page >= totalPages) {
+      capped = false;
+      break;
+    }
+  }
+  if (capped) {
+    toast.warning(
+      `Only the first ${all.length.toLocaleString()} rows were loaded and there are more. Narrow the filters and try again to get the rest.`
+    );
   }
   return all;
 };

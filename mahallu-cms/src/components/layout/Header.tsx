@@ -12,6 +12,7 @@ import {
 } from 'react-icons/fi';
 import { useThemeStore } from '@/store/themeStore';
 import { useAuthStore } from '@/store/authStore';
+import { authService } from '@/services/authService';
 import { useLayoutStore } from '@/store/layoutStore';
 import { applyTheme } from '@/utils/theme';
 import { useState, useEffect, useRef } from 'react';
@@ -32,6 +33,11 @@ export default function Header() {
   const { setMobileSidebarOpen } = useLayoutStore();
   const isCommandPaletteOpen = useLayoutStore((s) => s.isCommandPaletteOpen);
   const openCommandPalette = useLayoutStore((s) => s.openCommandPalette);
+  // The sidebar's brand row is 80px (h-20) when the sidebar is expanded and 64px (h-16) when it is the collapsed
+  // rail. From md the navbar sits right beside it, so it takes the same height and the two bottom edges line up.
+  // Below md the navbar keeps its own 64px (the sidebar is a drawer there). Keep this in step with the brand
+  // row in Sidebar.tsx.
+  const isDesktopSidebarCollapsed = useLayoutStore((s) => s.isDesktopSidebarCollapsed);
   const closeCommandPalette = useLayoutStore((s) => s.closeCommandPalette);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
@@ -74,7 +80,14 @@ export default function Header() {
       document.removeEventListener('keydown', handleEscape);
     };
   }, [showUserMenu]);
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    // Revoke the session server-side first (best effort, bounded wait): clearing local storage alone
+    // left the token valid for its full lifetime. The local sign-out happens whatever the outcome.
+    try {
+      await Promise.race([authService.logout(), new Promise((resolve) => setTimeout(resolve, 2000))]);
+    } catch {
+      /* already signed out, offline, or the API is down - still sign out locally */
+    }
     logout();
     window.location.href = '/login';
   };
@@ -94,7 +107,12 @@ export default function Header() {
   return (
     <>
       <CommandPalette isOpen={isCommandPaletteOpen} onClose={closeCommandPalette} />
-      <header className="sticky top-0 z-30 flex h-16 flex-shrink-0 items-center gap-3 border-b border-border/80 bg-card/95 px-4 shadow-[0_1px_0_hsl(var(--border)/0.55)] backdrop-blur md:px-8">
+      <header
+        className={cn(
+          'sticky top-0 z-30 flex h-16 flex-shrink-0 items-center gap-3 border-b border-border/80 bg-card/95 px-4 shadow-[0_1px_0_hsl(var(--border)/0.55)] backdrop-blur md:px-8',
+          !isDesktopSidebarCollapsed && 'md:h-20'
+        )}
+      >
         <button
           onClick={() => setMobileSidebarOpen(true)}
           className={cn(iconButton, 'flex-shrink-0 md:hidden')}

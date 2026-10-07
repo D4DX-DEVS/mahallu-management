@@ -5,17 +5,23 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import Alert from '@/components/ui/Alert';
+import Pagination from '@/components/ui/Pagination';
 import { PageSkeleton } from '@/components/ui/Skeleton';
-import { accountingReportService } from '@/services/accountingReportService';
+import { accountingReportService, LedgerReportResult } from '@/services/accountingReportService';
 import { masterAccountService, Ledger } from '@/services/masterAccountService';
 import { loadErrorInfo, LoadErrorInfo } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
+import { fetchAllPages } from '@/services/api';
 
 export default function MahalluLedgerReport() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<LoadErrorInfo | null>(null);
-  const [reportData, setReportData] = useState<any>(null);
+  const [reportData, setReportData] = useState<LedgerReportResult | null>(null);
+  /* The filters the report was generated with: paging must not pick up later edits to the inputs. */
+  const [applied, setApplied] = useState<{ ledgerId: string; startDate: string; endDate: string } | null>(null);
+  const [pageSize, setPageSize] = useState(50);
+  const [paging, setPaging] = useState(false);
   const [ledgers, setLedgers] = useState<Ledger[]>([]);
   const [ledgerId, setLedgerId] = useState('');
   const [startDate, setStartDate] = useState(() => {
@@ -26,30 +32,53 @@ export default function MahalluLedgerReport() {
   const [endDate, setEndDate] = useState(() => new Date().toISOString().split('T')[0]);
 
   useEffect(() => {
-    masterAccountService
-      .getAllLedgers({ limit: 1000, scope: 'mahallu' })
-      .then((r) => setLedgers(Array.isArray(r.data) ? r.data : []))
+    fetchAllPages((page) => masterAccountService.getAllLedgers({ ...page, scope: 'mahallu' }))
+      .then((r) => setLedgers(r))
       .catch(() => {});
   }, []);
 
-  const fetchData = async () => {
-    if (!ledgerId) return;
+  const loadPage = async (
+    filters: { ledgerId: string; startDate: string; endDate: string },
+    page: number,
+    limit: number,
+    isNewReport: boolean
+  ) => {
     try {
-      setLoading(true);
+      if (isNewReport) setLoading(true);
+      else setPaging(true);
       setError(null);
       const result = await accountingReportService.getLedgerReport({
-        ledgerId,
-        startDate,
-        endDate,
+        ...filters,
         scope: 'mahallu',
+        page,
+        limit,
       });
       setReportData(result);
     } catch (err: any) {
       setError(loadErrorInfo(err, 'ledger report'));
     } finally {
       setLoading(false);
+      setPaging(false);
     }
   };
+
+  const fetchData = async () => {
+    if (!ledgerId) return;
+    const filters = { ledgerId, startDate, endDate };
+    setApplied(filters);
+    await loadPage(filters, 1, pageSize, true);
+  };
+
+  const changePage = (page: number) => {
+    if (applied) loadPage(applied, page, pageSize, false);
+  };
+
+  const changePageSize = (size: number) => {
+    setPageSize(size);
+    if (applied) loadPage(applied, 1, size, false);
+  };
+
+  const pagination = reportData?.pagination;
 
   return (
     <div className="space-y-4">
@@ -131,7 +160,7 @@ export default function MahalluLedgerReport() {
               />
             </div>
 
-            <div className="overflow-x-auto">
+            <div className={paging ? 'overflow-x-auto opacity-60 pointer-events-none' : 'overflow-x-auto'}>
               <table className="data-table min-w-full divide-y divide-border">
                 <thead className="bg-muted">
                   <tr>
@@ -146,7 +175,7 @@ export default function MahalluLedgerReport() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {(reportData.entries || []).map((entry: any, i: number) => (
+                  {(reportData.entries || []).map((entry, i) => (
                     <tr key={i} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
                       <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap">
                         {new Date(entry.date).toLocaleDateString()}
@@ -171,6 +200,19 @@ export default function MahalluLedgerReport() {
                 </tbody>
               </table>
             </div>
+            {pagination && (
+              <div className="mt-4">
+                <Pagination
+                  currentPage={pagination.page}
+                  totalPages={pagination.totalPages}
+                  totalItems={pagination.total}
+                  itemsPerPage={pagination.limit}
+                  onPageChange={changePage}
+                  onItemsPerPageChange={changePageSize}
+                  entity="entries"
+                />
+              </div>
+            )}
           </>
         )}
       </Card>

@@ -22,6 +22,8 @@ import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
 import { toast } from '@/store/toastStore';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { fetchAllPages } from '@/services/api';
+import { logError } from '@/utils/safeLog';
 
 export default function CategoriesList() {
   const { currentInstituteId: userInstituteId } = useAuthStore();
@@ -74,7 +76,7 @@ export default function CategoriesList() {
       }
     } catch (err: any) {
       setError(loadErrorMessage(err, 'categories'));
-      console.error('Error fetching categories:', err);
+      logError('Error fetching categories', err);
       setCategories([]);
     } finally {
       setLoading(false);
@@ -84,10 +86,11 @@ export default function CategoriesList() {
   const handleExport = async (type: 'csv' | 'json' | 'pdf') => {
     try {
       setIsExporting(true);
-      const params: any = { limit: 10000 };
+      const params: any = {};
       if (instituteFilter !== 'all') params.instituteId = instituteFilter;
-      const result = await masterAccountService.getAllCategories(params);
-      const dataToExport = Array.isArray(result.data) ? result.data : [];
+      const dataToExport = await fetchAllPages((page) =>
+        masterAccountService.getAllCategories({ ...params, ...page })
+      );
       if (dataToExport.length === 0) {
         toast.info('No categories to export');
         return;
@@ -102,11 +105,11 @@ export default function CategoriesList() {
           exportToJSON(columns, dataToExport, filename);
           break;
         case 'pdf':
-          exportToPDF(columns, dataToExport, filename, title);
+          await exportToPDF(columns, dataToExport, filename, title);
           break;
       }
     } catch (error: any) {
-      console.error('Export error:', error);
+      logError('Export error', error);
       toast.error(error?.message || "Couldn't export categories");
     } finally {
       setIsExporting(false);

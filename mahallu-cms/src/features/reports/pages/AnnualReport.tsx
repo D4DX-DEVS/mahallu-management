@@ -63,7 +63,7 @@ export default function AnnualReport() {
 
   // ponytail: flat metric/value rows through the existing exportToPDF helper.
   // No bespoke PDF layout until someone asks for one.
-  const downloadPdf = () => {
+  const downloadPdf = async () => {
     if (!data) return;
     const rows = [
       { metric: 'Total families', value: String(data.demographics.totalFamilies) },
@@ -87,7 +87,7 @@ export default function AnnualReport() {
       { metric: 'Projects completed', value: String(data.projects.completed) },
       { metric: 'Project estimated cost', value: money(data.projects.totalEstimatedCost) },
     ];
-    exportToPDF(
+    await exportToPDF(
       [
         { key: 'metric', label: 'Metric' },
         { key: 'value', label: 'Value' },

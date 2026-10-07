@@ -89,7 +89,6 @@ export default function CreateSurveyUser() {
       await userService.create({
         ...data,
         role: 'survey',
-        password: '123456', // Default password
         tenantId: isSuperAdmin ? data.tenantId : undefined,
       });
       navigate(ROUTES.USERS.SURVEY);

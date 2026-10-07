@@ -1,6 +1,34 @@
 import { body, param, query } from 'express-validator';
 import { EMAIL_KEEP_AS_TYPED } from './common';
 
+/** The restricted modules a grant can name. Mirrors the User.permissions.sensitiveModules enum. */
+export const SENSITIVE_MODULE_NAMES = ['counselling', 'maslahat', 'inheritance', 'health', 'welfare'] as const;
+
+/**
+ * `permissions` as the user forms send it. The four flags were only checked on create, so an update
+ * with `"permissions": {"view": "maybe"}` reached Mongoose as a cast error (a 500). `sensitiveModules`
+ * is a list of the five known names, at most one of each: bad input is a 400 here rather than a
+ * Mongoose enum failure. This only checks the shape; who may grant a module is a separate decision
+ * (see docs/AUTHORIZATION_POLICY.md, D6).
+ */
+const permissionsValidation = [
+  body('permissions').optional().isObject().withMessage('Please send the permissions as an object.'),
+  body('permissions.view').optional().isBoolean().withMessage('Please choose yes or no for the view permission.'),
+  body('permissions.add').optional().isBoolean().withMessage('Please choose yes or no for the add permission.'),
+  body('permissions.edit').optional().isBoolean().withMessage('Please choose yes or no for the edit permission.'),
+  body('permissions.delete').optional().isBoolean().withMessage('Please choose yes or no for the delete permission.'),
+  body('permissions.sensitiveModules')
+    .optional()
+    .isArray({ max: SENSITIVE_MODULE_NAMES.length })
+    .withMessage('Please send the restricted modules as a list of up to 5 names.')
+    .bail()
+    .custom((value: unknown[]) => new Set(value).size === value.length)
+    .withMessage('Please list each restricted module only once.'),
+  body('permissions.sensitiveModules.*')
+    .isIn([...SENSITIVE_MODULE_NAMES])
+    .withMessage('Please choose valid restricted modules.'),
+];
+
 export const createUserValidation = [
   body('name')
     .trim()
@@ -39,10 +67,7 @@ export const createUserValidation = [
     .optional()
     .isMongoId()
     .withMessage('Please select a valid member.'),
-  body('permissions.view').optional().isBoolean().withMessage('Please choose yes or no for the view permission.'),
-  body('permissions.add').optional().isBoolean().withMessage('Please choose yes or no for the add permission.'),
-  body('permissions.edit').optional().isBoolean().withMessage('Please choose yes or no for the edit permission.'),
-  body('permissions.delete').optional().isBoolean().withMessage('Please choose yes or no for the delete permission.'),
+  ...permissionsValidation,
 ];
 
 export const updateUserValidation = [
@@ -68,6 +93,7 @@ export const updateUserValidation = [
     .optional()
     .isIn(['active', 'inactive'])
     .withMessage('Please choose a valid status.'),
+  ...permissionsValidation,
 ];
 
 export const getUserValidation = [

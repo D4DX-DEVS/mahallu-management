@@ -9,9 +9,10 @@ import {
   getAwardsByScholarship,
   createAward,
   updateAward,
+  updateAwardStatus,
   deleteAward,
 } from '../controllers/scholarshipController';
-import { authMiddleware, allowRoles } from '../middleware/authMiddleware';
+import { authMiddleware, allowRoles, requireAdmin } from '../middleware/authMiddleware';
 import { tenantMiddleware, tenantFilter } from '../middleware/tenantMiddleware';
 import { supportRouter } from './academicSupportRoutes';
 import { validationHandler } from '../middleware/validationHandler';
@@ -21,6 +22,7 @@ import {
   createAwardValidation,
   updateScholarshipValidation,
   updateAwardValidation,
+  updateAwardStatusValidation,
 } from '../validations/moduleValidation';
 
 // Middleware stack
@@ -28,6 +30,8 @@ const applyAuth = (router: express.Router) => {
   router.use(authMiddleware);
   router.use(tenantMiddleware);
   router.use(tenantFilter);
+  // Mahallu-admin module (the CMS menu and routes are Mahallu-admin only). Reads used to be open to every staff role while every write already needed the admin.
+  router.use(requireAdmin);
 };
 
 // Create separate routers for each resource (academic support lives in academicSupportRoutes.ts)
@@ -349,6 +353,7 @@ awardsRouter.post('/', createAwardValidation, validationHandler, allowRoles(['ma
  *         description: Award not found
  */
 awardsRouter.put('/:id', updateAwardValidation, validationHandler, allowRoles(['mahall']), updateAward);
+awardsRouter.put('/:id/status', updateAwardStatusValidation, validationHandler, allowRoles(['mahall']), updateAwardStatus);
 awardsRouter.delete('/:id', idParam('id', 'award'), validationHandler, allowRoles(['mahall']), deleteAward);
 
 

@@ -34,6 +34,7 @@ import { familyService } from '@/services/familyService';
 import { tenantService } from '@/services/tenantService';
 import { instituteService } from '@/services/instituteService';
 import { facilityService } from '@/services/surveyService';
+import { fetchAllPages } from '@/services/api';
 import { Family } from '@/types';
 import { useAuthStore } from '@/store/authStore';
 import { getTenantId as extractTenantId } from '@/utils/tenantHelper';
@@ -149,14 +150,15 @@ export default function CreateMember() {
   const fetchFamilies = async () => {
     try {
       setLoadingFamilies(true);
-      const [familyResult, instituteResult, facilityResult] = await Promise.all([
-        familyService.getAll(),
-        instituteService.getAll(),
-        facilityService.getAll(),
+      // Every family, institute and facility, not just the API's default page of 10 of each.
+      const [allFamilies, allInstitutes, allFacilities] = await Promise.all([
+        fetchAllPages((p) => familyService.getAll(p)),
+        fetchAllPages((p) => instituteService.getAll(p)),
+        fetchAllPages((p) => facilityService.getAll(p)),
       ]);
-      setFamilies(familyResult.data || []);
-      setInstitutes(instituteResult.data || []);
-      setFacilities(facilityResult.data || []);
+      setFamilies(allFamilies);
+      setInstitutes(allInstitutes);
+      setFacilities(allFacilities);
 
       const { currentTenantId, user } = useAuthStore.getState();
       const tid = extractTenantId(user, currentTenantId);

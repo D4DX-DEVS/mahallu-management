@@ -21,6 +21,7 @@ import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import StatusBadge from '@/components/ui/StatusBadge';
 import { toTitleCase } from '@/utils/format';
+import { logError } from '@/utils/safeLog';
 
 export default function MahallUsersList() {
   const navigate = useNavigate();
@@ -64,7 +65,7 @@ export default function MahallUsersList() {
       }
     } catch (err: any) {
       setError(loadErrorMessage(err, 'users'));
-      console.error('Error fetching users:', err);
+      logError('Error fetching users', err);
     } finally {
       setLoading(false);
     }
@@ -96,11 +97,11 @@ export default function MahallUsersList() {
           exportToJSON(columns, dataToExport, filename);
           break;
         case 'pdf':
-          exportToPDF(columns, dataToExport, filename, title);
+          await exportToPDF(columns, dataToExport, filename, title);
           break;
       }
     } catch (error: any) {
-      console.error('Export error:', error);
+      logError('Export error', error);
       toast.error(errorMessage(error, { action: 'export data' }));
     } finally {
       setIsExporting(false);

@@ -19,6 +19,7 @@ import { toast } from '@/store/toastStore';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import { logError } from '@/utils/safeLog';
 
 export default function UnapprovedFamiliesList() {
   const navigate = useNavigate();
@@ -58,7 +59,7 @@ export default function UnapprovedFamiliesList() {
       setPagination(result.pagination);
     } catch (err: any) {
       setError(loadErrorMessage(err, 'unapproved families'));
-      console.error('Error fetching families:', err);
+      logError('Error fetching families', err);
     } finally {
       setLoading(false);
     }
@@ -85,11 +86,11 @@ export default function UnapprovedFamiliesList() {
           exportToJSON(columns, dataToExport, filename);
           break;
         case 'pdf':
-          exportToPDF(columns, dataToExport, filename, title);
+          await exportToPDF(columns, dataToExport, filename, title);
           break;
       }
     } catch (error: any) {
-      console.error('Export error:', error);
+      logError('Export error', error);
       toast.error(errorMessage(error, { action: 'export data' }));
     } finally {
       setIsExporting(false);

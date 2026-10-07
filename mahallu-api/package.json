@@ -12,7 +12,8 @@
     "restore-test-accounts": "ts-node src/scripts/restoreTestAccounts.ts",
     "migrate-multi-mosque": "ts-node src/scripts/migrateMultiMosque.ts",
     "seed-categories": "ts-node src/scripts/seedCategories.ts",
-    "cleanup-health-status": "ts-node src/scripts/cleanupHealthStatus.ts"
+    "cleanup-health-status": "ts-node src/scripts/cleanupHealthStatus.ts",
+    "check:indexes": "ts-node src/scripts/checkIndexes.ts"
   },
   "keywords": [],
   "author": "",
@@ -27,11 +28,13 @@
     "dotenv": "^16.6.1",
     "express": "^4.18.2",
     "express-validator": "^7.0.1",
+    "helmet": "^8.3.0",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.20.2",
     "multer": "^2.1.1",
     "pdfkit": "^0.19.1",
     "qrcode": "^1.5.4",
+    "sanitize-html": "^2.18.0",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.0"
   },
@@ -44,6 +47,7 @@
     "@types/node": "^20.10.4",
     "@types/pdfkit": "^0.17.6",
     "@types/qrcode": "^1.5.6",
+    "@types/sanitize-html": "^2.16.2",
     "@types/swagger-jsdoc": "^6.0.4",
     "@types/swagger-ui-express": "^4.1.6",
     "nodemon": "^3.1.11",

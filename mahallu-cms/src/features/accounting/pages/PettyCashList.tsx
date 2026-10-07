@@ -15,6 +15,7 @@ import { errorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
 import StatusBadge from '@/components/ui/StatusBadge';
+import { fetchAllPages } from '@/services/api';
 
 export default function PettyCashList() {
   const navigate = useNavigate();
@@ -34,8 +35,8 @@ export default function PettyCashList() {
 
   const fetchInstitutes = async () => {
     try {
-      const result = await instituteService.getAll({ limit: 1000 });
-      setInstitutes(result.data.map((i: any) => ({ id: i.id, name: i.name })));
+      const allRows = await fetchAllPages((page) => instituteService.getAll(page));
+      setInstitutes(allRows.map((i: any) => ({ id: i.id, name: i.name })));
     } catch (err) {
       console.error(err);
     }

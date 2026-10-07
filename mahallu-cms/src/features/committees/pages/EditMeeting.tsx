@@ -16,6 +16,8 @@ import { Committee, Member } from '@/types';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
+import { fetchAllPages } from '@/services/api';
+import { logError } from '@/utils/safeLog';
 const meetingSchema = z.object({
   committeeId: z.string().max(200, 'Please keep the committee to 200 characters or less.').min(1, 'Committee is required'),
   title: z.string().max(200, 'Please keep the title to 200 characters or less.').min(1, 'Meeting title is required'),
@@ -72,11 +74,11 @@ export default function EditMeeting() {
       if (!id) return;
       try {
         setLoading(true);
-        const [committeeResult, meeting] = await Promise.all([
-          committeeService.getAll({ limit: 1000 }),
+        const [allCommittees, meeting] = await Promise.all([
+          fetchAllPages((page) => committeeService.getAll(page)),
           meetingService.getById(id),
         ]);
-        setCommittees(committeeResult.data || []);
+        setCommittees(allCommittees || []);
         reset({
           committeeId:
             typeof meeting.committeeId === 'string'
@@ -110,7 +112,7 @@ export default function EditMeeting() {
         const committee = await committeeService.getById(selectedCommitteeId);
         setCommitteeMembers((committee.members as Member[]) || []);
       } catch (err) {
-        console.error('Error fetching committee members:', err);
+        logError('Error fetching committee members', err);
         setCommitteeMembers([]);
       } finally {
         setLoadingMembers(false);
@@ -152,7 +154,7 @@ export default function EditMeeting() {
       navigate(ROUTES.COMMITTEES.MEETINGS);
     } catch (err: any) {
       setError(errorMessage(err, { action: 'update meeting. please try again' }));
-      console.error('Error updating meeting:', err);
+      logError('Error updating meeting', err);
     }
   };
   if (loading) {

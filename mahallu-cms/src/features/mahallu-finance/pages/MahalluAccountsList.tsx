@@ -11,13 +11,14 @@ import Pagination from '@/components/ui/Pagination';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import TableToolbar from '@/components/ui/TableToolbar';
 import { TableColumn, Pagination as PaginationType } from '@/types';
-import { masterAccountService, MahalluAccount } from '@/services/masterAccountService';
+import { masterAccountService, MahalluAccount, BalanceSummary } from '@/services/masterAccountService';
 import { formatDate, formatRupees, toTitleCase } from '@/utils/format';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
 import { ROUTES } from '@/constants/routes';
 import { toast } from '@/store/toastStore';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { fetchAllPages } from '@/services/api';
 
 export default function MahalluAccountsList() {
   const navigate = useNavigate();
@@ -27,6 +28,8 @@ export default function MahalluAccountsList() {
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
+  /* Total balance across every account (all pages), from the server. */
+  const [summary, setSummary] = useState<BalanceSummary>({ totalBalance: 0, count: 0 });
   const [isExporting, setIsExporting] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState<MahalluAccount | null>(null);
@@ -47,6 +50,10 @@ export default function MahalluAccountsList() {
         limit: itemsPerPage,
       });
       setAccounts(Array.isArray(result.data) ? result.data : []);
+      setSummary({
+        totalBalance: Number(result.summary?.totalBalance) || 0,
+        count: Number(result.summary?.count) || 0,
+      });
       if (result.pagination) setPagination(result.pagination);
     } catch (err: any) {
       setError(loadErrorMessage(err, 'accounts'));
@@ -74,8 +81,8 @@ export default function MahalluAccountsList() {
   const handleExport = async (type: 'csv' | 'json' | 'pdf') => {
     try {
       setIsExporting(true);
-      const result = await masterAccountService.getAllMahalluAccounts({ limit: 10000 });
-      const data = Array.isArray(result.data) ? result.data : [];
+      const allRows = await fetchAllPages((page) => masterAccountService.getAllMahalluAccounts(page));
+      const data = Array.isArray(allRows) ? allRows : [];
       if (!data.length) {
         toast.info('No accounts to export');
         return;
@@ -97,8 +104,6 @@ export default function MahalluAccountsList() {
       a.accountName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (a.bankName || '').toLowerCase().includes(searchQuery.toLowerCase())
   );
-
-  const totalBalance = accounts.reduce((s, a) => s + (a.balance || 0), 0);
 
   const columns: TableColumn<MahalluAccount>[] = [
     { key: 'id', label: 'No.', width: '6rem', render: (_, __, i) => i + 1 },
@@ -159,8 +164,8 @@ export default function MahalluAccountsList() {
       />
 
       <div className="grid grid-cols-2 sm:grid-cols-2 gap-3">
-        <StatCard title="Total Accounts" value={accounts.length} tone="info" />
-        <StatCard title="Total Balance" value={formatRupees(totalBalance)} tone="success" />
+        <StatCard title="Total Accounts" value={pagination?.total ?? summary.count} tone="info" />
+        <StatCard title="Total Balance" value={formatRupees(summary.totalBalance)} tone="success" />
       </div>
 
       <TableCard borderless>

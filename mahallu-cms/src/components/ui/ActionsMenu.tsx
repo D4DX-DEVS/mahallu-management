@@ -1,4 +1,4 @@
-import { ReactNode, useEffect, useRef, useState } from 'react';
+import { KeyboardEvent as ReactKeyboardEvent, ReactNode, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
   FiMoreHorizontal,
@@ -66,6 +66,12 @@ const VARIANT_TEXT: Record<RowActionVariant, string> = {
   default: 'text-foreground hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent',
   danger: 'text-foreground hover:bg-destructive/10 hover:text-destructive focus-visible:bg-destructive/10 focus-visible:text-destructive',
   warning: 'text-foreground hover:bg-warning/10 hover:text-warning focus-visible:bg-warning/10 focus-visible:text-warning',
+};
+
+/* Enter/Space on the trigger or a menu item must not also activate the
+ * surrounding row. Other keys keep bubbling so global shortcuts still work. */
+const stopActivationKeys = (event: ReactKeyboardEvent<HTMLElement>) => {
+  if (event.key === 'Enter' || event.key === ' ' || event.key === 'Spacebar') event.stopPropagation();
 };
 
 const VIEWPORT_MARGIN = 8;
@@ -149,13 +155,17 @@ export default function ActionsMenu({ items, className, label = 'Actions' }: Act
     };
     const handleReposition = () => computePosition();
 
+    /* Capture on window: the menu is portalled and React stops Enter/Space
+     * bubbling out of it, so a bubble-phase document listener could miss
+     * keys. Capturing also lets Escape close just this menu before an
+     * enclosing Modal's own Escape handler runs. */
     document.addEventListener('mousedown', handlePointerDown);
-    document.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown, true);
     window.addEventListener('resize', handleReposition);
     window.addEventListener('scroll', handleReposition, true);
     return () => {
       document.removeEventListener('mousedown', handlePointerDown);
-      document.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keydown', handleKeyDown, true);
       window.removeEventListener('resize', handleReposition);
       window.removeEventListener('scroll', handleReposition, true);
     };
@@ -173,6 +183,7 @@ export default function ActionsMenu({ items, className, label = 'Actions' }: Act
         aria-expanded={isOpen}
         aria-label={label}
         title={label}
+        onKeyDown={stopActivationKeys}
         onClick={(event) => {
           event.stopPropagation();
           if (isOpen) {
@@ -193,6 +204,11 @@ export default function ActionsMenu({ items, className, label = 'Actions' }: Act
             ref={menuRef}
             role="menu"
             aria-label={label}
+            /* React events bubble out of portals through the React tree, so
+             * without these an Enter/click inside the menu would also reach
+             * the table row that owns the trigger. */
+            onClick={(event) => event.stopPropagation()}
+            onKeyDown={stopActivationKeys}
             style={{ position: 'fixed', top: position.top, left: position.left, width: MENU_WIDTH }}
             className="z-[70] max-h-[360px] overflow-y-auto rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-md"
           >

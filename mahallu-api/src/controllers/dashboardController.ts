@@ -7,9 +7,28 @@ import { AuthRequest } from '../middleware/authMiddleware';
 import mongoose from 'mongoose';
 
 import { sendFailure } from '../utils/userMessages';
+import { requireScope } from '../utils/scope';
+
+/** The longest window the activity timeline will compute; it loops once per day and aggregates over it. */
+export const MAX_TIMELINE_DAYS = 90;
+const DEFAULT_TIMELINE_DAYS = 7;
+const INVALID_DAYS_MESSAGE = `Please choose a number of days between 1 and ${MAX_TIMELINE_DAYS}.`;
+
+/**
+ * `?days=`: missing -> 7; a whole number 1..90 -> that number; anything else (0, negative, decimal,
+ * text, exponent form like 1e9, more than 90, repeated params / arrays, objects) -> null (answer 400).
+ * It used to be parseInt with no ceiling, so ?days=1000000000 held the event loop in a billion-step loop.
+ */
+export const parseTimelineDays = (value: unknown): number | null => {
+  if (value === undefined) return DEFAULT_TIMELINE_DAYS;
+  if (typeof value !== 'string' || !/^[0-9]{1,3}$/.test(value)) return null;
+  const days = parseInt(value, 10);
+  return days >= 1 && days <= MAX_TIMELINE_DAYS ? days : null;
+};
 
 export const getDashboardStats = async (req: AuthRequest, res: Response) => {
   try {
+    if (!requireScope(req, res)) return;
     const tenantId = req.tenantId; // Now includes x-tenant-id header for super admin viewing as tenant
     const isSuperAdmin = req.isSuperAdmin;
 
@@ -79,8 +98,15 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
 
 export const getRecentFamilies = async (req: AuthRequest, res: Response) => {
   try {
+    if (!requireScope(req, res)) return;
     const tenantId = req.tenantId; // Now includes x-tenant-id header for super admin viewing as tenant
-    const limit = parseInt(req.query.limit as string) || 5;
+    // An institute account has no access to family records (house names, Mahallu ids), so the dashboard
+    // widget gets an empty list rather than the whole Mahallu's latest registrations. Empty (not 403)
+    // because the dashboard loads this alongside the other widgets and must still render.
+    if (req.user?.role === 'institute' && !req.isSuperAdmin) {
+      return res.json({ success: true, data: [] });
+    }
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 5));
 
     const query: any = {};
     // Apply tenant filter
@@ -105,8 +131,13 @@ export const getRecentFamilies = async (req: AuthRequest, res: Response) => {
 
 export const getActivityTimeline = async (req: AuthRequest, res: Response) => {
   try {
+    // Validate before any query runs: a bad `days` costs nothing.
+    const days = parseTimelineDays(req.query.days);
+    if (days === null) {
+      return res.status(400).json({ success: false, message: INVALID_DAYS_MESSAGE });
+    }
+    if (!requireScope(req, res)) return;
     const tenantId = req.tenantId; // Now includes x-tenant-id header for super admin viewing as tenant
-    const days = parseInt(req.query.days as string) || 7;
 
     const query: any = {};
     // Apply tenant filter — aggregate $match bypasses Mongoose's automatic
@@ -171,9 +202,14 @@ export const getActivityTimeline = async (req: AuthRequest, res: Response) => {
 
 export const getFinancialSummary = async (req: AuthRequest, res: Response) => {
   try {
+    // Fails closed without a Mahallu; an institute account sees only its own institute's books
+    // (never the Mahallu-level ledger or other institutes' balances), whatever the query says.
+    const caller = requireScope(req, res);
+    if (!caller) return;
     const tenantId = req.tenantId;
     const matchQuery: any = {};
     if (tenantId) matchQuery.tenantId = new mongoose.Types.ObjectId(tenantId);
+    if (caller.isInstitute) matchQuery.instituteId = new mongoose.Types.ObjectId(caller.instituteId as string);
 
     // Current month range
     const now = new Date();
@@ -236,6 +272,7 @@ export const getFinancialSummary = async (req: AuthRequest, res: Response) => {
     // Bank balance
     const bankQuery: any = { status: 'active' };
     if (tenantId) bankQuery.tenantId = new mongoose.Types.ObjectId(tenantId);
+    if (caller.isInstitute) bankQuery.instituteId = new mongoose.Types.ObjectId(caller.instituteId as string);
 
     const bankResult = await InstituteAccount.aggregate([
       { $match: bankQuery },

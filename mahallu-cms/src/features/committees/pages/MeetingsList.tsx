@@ -22,6 +22,8 @@ import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
 import { loadErrorMessage } from '@/utils/errors';
 import StatusBadge from '@/components/ui/StatusBadge';
 import PageHeader from '@/components/layout/PageHeader';
+import { useServerCounts } from '@/hooks/useServerCounts';
+import { logError } from '@/utils/safeLog';
 
 export default function MeetingsList() {
   const navigate = useNavigate();
@@ -44,10 +46,11 @@ export default function MeetingsList() {
 
   const fetchCommittees = async () => {
     try {
-      const result = await committeeService.getAll();
-      setCommittees(result.data || []);
+      // Every committee, not just the API's default page of 10.
+      const all = await fetchAllPages((p) => committeeService.getAll(p));
+      setCommittees(all);
     } catch (err) {
-      console.error('Error fetching committees:', err);
+      logError('Error fetching committees', err);
       setCommittees([]);
     }
   };
@@ -70,7 +73,7 @@ export default function MeetingsList() {
       }
     } catch (err: any) {
       setError(loadErrorMessage(err, 'meetings'));
-      console.error('Error fetching meetings:', err);
+      logError('Error fetching meetings', err);
     } finally {
       setLoading(false);
     }
@@ -103,11 +106,11 @@ export default function MeetingsList() {
           exportToJSON(columns, dataToExport, filename);
           break;
         case 'pdf':
-          exportToPDF(columns, dataToExport, filename, title);
+          await exportToPDF(columns, dataToExport, filename, title);
           break;
       }
     } catch (error: any) {
-      console.error('Export error:', error);
+      logError('Export error', error);
       toast.error(error?.message || "Couldn't export meetings");
     } finally {
       setIsExporting(false);
@@ -144,6 +147,16 @@ export default function MeetingsList() {
     },
   ];
 
+  // Whole-list counts from the server: these cards used to count only the rows on this page.
+  const countBase = committeeFilter !== 'all' ? { committeeId: committeeFilter } : {};
+  const statusCounts = useServerCounts(
+    {
+      scheduled: () => meetingService.getAll({ ...countBase, status: 'scheduled', page: 1, limit: 1 }),
+      completed: () => meetingService.getAll({ ...countBase, status: 'completed', page: 1, limit: 1 }),
+    },
+    [meetings]
+  );
+
   const stats = [
     {
       title: 'Total Meetings',
@@ -152,12 +165,12 @@ export default function MeetingsList() {
     },
     {
       title: 'Scheduled',
-      value: meetings.filter((m) => m.status === 'scheduled' || !m.status).length,
+      value: statusCounts.scheduled ?? meetings.filter((m) => m.status === 'scheduled' || !m.status).length,
       icon: <FiClock className="h-5 w-5" />,
     },
     {
       title: 'Completed',
-      value: meetings.filter((m) => m.status === 'completed').length,
+      value: statusCounts.completed ?? meetings.filter((m) => m.status === 'completed').length,
       icon: <FiCheckCircle className="h-5 w-5" />,
     },
   ];

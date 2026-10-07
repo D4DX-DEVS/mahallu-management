@@ -7,7 +7,7 @@ import {
   getIncomeExpenditure,
   getConsolidatedReport,
 } from '../controllers/accountingReportController';
-import { authMiddleware } from '../middleware/authMiddleware';
+import { authMiddleware, requireAdmin, requireInstituteStaff } from '../middleware/authMiddleware';
 import { tenantMiddleware, tenantFilter, instituteFilter } from '../middleware/tenantMiddleware';
 import { validationHandler } from '../middleware/validationHandler';
 import { idParam, listQuery } from '../validations/common';
@@ -17,6 +17,20 @@ const router = express.Router();
 router.use(authMiddleware);
 router.use(tenantMiddleware);
 router.use(tenantFilter);
+// Statements are for Super Admin, Mahallu admin and institute admin (survey excluded).
+router.use(requireInstituteStaff);
+// The consolidated report adds up every institute and the Mahallu itself.
+router.use('/consolidated', requireAdmin);
+// `scope=mahallu|combined` (+ includeEntities) makes the report controllers ignore the institute filter, so
+// an institute admin could read the Mahallu's books or a sibling institute's by asking for that scope.
+// Their scope is fixed to their own institute.
+router.use((req, _res, next) => {
+  if ((req as any).user?.role === 'institute' && req.query) {
+    delete req.query.scope;
+    delete req.query.includeEntities;
+  }
+  next();
+});
 router.use(instituteFilter);
 
 /**

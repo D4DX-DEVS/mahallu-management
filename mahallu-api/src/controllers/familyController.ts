@@ -7,7 +7,25 @@ import mongoose from 'mongoose';
 
 import { sendFailure } from '../utils/userMessages';
 import { regexLiteral } from '../utils/queryGuard';
-import { verifyTenantOwnership } from '../utils/tenantCheck';
+import { verifyTenantOwnership, checkTenantOwnership } from '../utils/tenantCheck';
+import { refBelongsToTenant, stripImmutable } from '../utils/sanitizeUpdate';
+import { isValidId, MSG, tenantFilterFor } from '../utils/scope';
+import { createWithSequence, maxNumericSuffix, reserveBlock } from '../utils/idCounter';
+import Cluster from '../models/Cluster';
+
+const FAMILY_ID = /^FID(\d+)$/;
+
+/** Counter key for family ids: one sequence per Mahallu. */
+const familyKey = (tenantId: string) => `family:${tenantId}`;
+/** First use of a Mahallu's counter starts after the highest FID already in that Mahallu. */
+const familySeed = (tenantId: string) => () => maxNumericSuffix(Family, { tenantId }, 'mahallId', FAMILY_ID);
+
+/** The Mahallu a new family is written into: the caller's own; only a super admin may name one in the body. */
+const writeTenantOf = (req: AuthRequest): string | undefined => {
+  const raw = req.isSuperAdmin ? req.tenantId || req.body?.tenantId : req.tenantId;
+  const text = typeof raw === 'string' ? raw : raw ? String(raw) : '';
+  return isValidId(text) ? text : undefined;
+};
 
 export const getAllFamilies = async (req: AuthRequest, res: Response) => {
   try {
@@ -15,14 +33,11 @@ export const getAllFamilies = async (req: AuthRequest, res: Response) => {
     const { page, limit, skip } = getPaginationParams(req);
     const query: any = {};
 
-    // Apply tenant filter
-    // req.tenantId is set by authMiddleware and includes x-tenant-id header for super admin viewing as tenant
-    if (req.tenantId) {
-      query.tenantId = req.tenantId;
-    } else if (tenantId && req.isSuperAdmin) {
-      query.tenantId = tenantId;
-    }
-    // If neither, super admin sees all families
+    // Tenant filter from the server-derived identity (a super admin with no Mahallu picked sees all);
+    // a non-super user with no Mahallu is refused instead of being given an unscoped query.
+    const scopeFilter = tenantFilterFor(req, res);
+    if (!scopeFilter) return;
+    Object.assign(query, scopeFilter);
 
     if (status) query.status = status;
     if (area) query.area = area;
@@ -63,7 +78,8 @@ export const getFamilyById = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ success: false, message: "We couldn't find that family. It may have been removed." });
     }
 
-    if (!req.isSuperAdmin && req.tenantId && family.tenantId.toString() !== req.tenantId) {
+    // Fails closed: a non-super caller with no Mahallu is refused too.
+    if (!checkTenantOwnership(req, family.tenantId, 'Family')) {
       return res.status(403).json({
         success: false,
         message: "This family belongs to another Mahallu, so you can't view it.",
@@ -79,36 +95,33 @@ export const getFamilyById = async (req: AuthRequest, res: Response) => {
 
 export const createFamily = async (req: AuthRequest, res: Response) => {
   try {
-    // Ensure tenantId is set
-    const familyData = {
-      ...req.body,
-      tenantId: req.tenantId || req.body.tenantId,
-    };
-
-    if (!familyData.tenantId && !req.isSuperAdmin) {
+    const tenantId = writeTenantOf(req);
+    if (!tenantId) {
       return res.status(400).json({
         success: false,
         message: 'Please select a Mahallu before continuing.',
       });
     }
 
-    // Auto-generate mahallId (Family ID) in format FID{number}
-    const lastFamily = await Family.findOne({ tenantId: familyData.tenantId })
-      .sort({ createdAt: -1 })
-      .select('mahallId');
-    
-    let nextNumber = 1;
-    if (lastFamily && lastFamily.mahallId) {
-      // Extract number from last family ID (e.g., "FID123" -> 123)
-      const match = lastFamily.mahallId.match(/FID(\d+)/);
-      if (match) {
-        nextNumber = parseInt(match[1]) + 1;
-      }
+    if (req.body.clusterId && !isValidId(req.body.clusterId)) {
+      return res.status(400).json({ success: false, message: MSG.badId });
     }
-    familyData.mahallId = `FID${nextNumber}`;
+    if (req.body.clusterId && !(await refBelongsToTenant(Cluster, req.body.clusterId, tenantId))) {
+      return res.status(404).json({ success: false, message: "We couldn't find that cluster in this Mahallu." });
+    }
 
-    const family = new Family(familyData);
-    await family.save();
+    // Auto-generate mahallId (Family ID) in format FID{number} from the atomic per-Mahallu counter,
+    // so concurrent creates (and deletes) can never be handed the same number. If the database
+    // still reports the id as taken (unique index on tenantId + mahallId), the next number is used.
+    const family = await createWithSequence(
+      familyKey(tenantId),
+      { seed: familySeed(tenantId), field: 'mahallId' },
+      async (n) => {
+        const doc = new Family({ ...stripImmutable(req.body), tenantId, mahallId: `FID${n}` });
+        await doc.save();
+        return doc;
+      }
+    );
     res.status(201).json({ success: true, data: family });
   } catch (error: any) {
     sendFailure(res, error, 'We couldn\'t save the family. Please try again.');
@@ -133,6 +146,16 @@ export const updateFamily = async (req: AuthRequest, res: Response) => {
     const { tenantId: _ignoredTenantId, ...updateData } = req.body;
     if (req.isSuperAdmin && req.body.tenantId) {
       updateData.tenantId = req.body.tenantId;
+    }
+
+    // A cluster link must stay inside the family's own Mahallu.
+    if (updateData.clusterId) {
+      if (!isValidId(updateData.clusterId)) {
+        return res.status(400).json({ success: false, message: MSG.badId });
+      }
+      if (!(await refBelongsToTenant(Cluster, updateData.clusterId, String(existingFamily.tenantId)))) {
+        return res.status(404).json({ success: false, message: "We couldn't find that cluster in this Mahallu." });
+      }
     }
 
     const family = await Family.findByIdAndUpdate(
@@ -173,11 +196,9 @@ export const getFamilyStats = async (req: AuthRequest, res: Response) => {
     const { tenantId: queryTenantId } = req.query;
     const query: any = { status: { $ne: 'deleted' }, isDead: { $ne: true } };
 
-    if (req.tenantId) {
-      query.tenantId = req.tenantId;
-    } else if (queryTenantId && req.isSuperAdmin) {
-      query.tenantId = queryTenantId;
-    }
+    const scopeFilter = tenantFilterFor(req, res);
+    if (!scopeFilter) return;
+    Object.assign(query, scopeFilter);
 
     const [totalMembers, maleCount, femaleCount] = await Promise.all([
       Member.countDocuments(query),
@@ -205,18 +226,9 @@ export const bulkImportFamilies = async (req: AuthRequest, res: Response) => {
     const errors: { row: number; message: string }[] = [];
     const docs: any[] = [];
 
-    // Get highest existing mahallId to auto-generate new ones
-    const lastFamily = await Family.findOne({ tenantId: req.tenantId })
-      .sort({ createdAt: -1 })
-      .select('mahallId')
-      .lean();
-
-    let nextNumber = 1;
-    if (lastFamily && lastFamily.mahallId) {
-      const match = lastFamily.mahallId.match(/FID(\d+)/);
-      if (match) {
-        nextNumber = parseInt(match[1]) + 1;
-      }
+    const tenantId = writeTenantOf(req);
+    if (!tenantId) {
+      return res.status(400).json({ success: false, message: 'Please select a Mahallu before continuing.' });
     }
 
     families.forEach((f: any, i: number) => {
@@ -236,15 +248,25 @@ export const bulkImportFamilies = async (req: AuthRequest, res: Response) => {
         place: f.place || undefined,
         placeMl: f.placeMl || f.place_ml || undefined,
         varisangyaGrade: f.varisangyaGrade || f.varisangyaGrade_grade || undefined,
-        tenantId: req.tenantId,
+        tenantId,
         status: 'approved',
-        mahallId: `FID${nextNumber + docs.length}`,
       });
     });
 
     if (errors.length) {
       return res.status(400).json({ success: false, message: 'Some details are missing or incorrect. Please check the form and try again.', errors });
     }
+
+    // Reserve one block of consecutive ids from the atomic counter (after validation, so a rejected
+    // file burns no numbers). A block that overlaps an id already in use is discarded for a new one.
+    const first = await reserveBlock(familyKey(tenantId), docs.length, {
+      seed: familySeed(tenantId),
+      taken: async (start, count) => {
+        const ids = Array.from({ length: count }, (_, i) => `FID${start + i}`);
+        return !!(await Family.exists({ tenantId, mahallId: { $in: ids } }));
+      },
+    });
+    docs.forEach((doc, i) => { doc.mahallId = `FID${first + i}`; });
 
     const created = await Family.insertMany(docs);
     res.status(201).json({ success: true, data: { imported: created.length } });

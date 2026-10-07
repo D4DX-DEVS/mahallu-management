@@ -5,28 +5,17 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import Alert from '@/components/ui/Alert';
+import Pagination from '@/components/ui/Pagination';
 import { PageSkeleton } from '@/components/ui/Skeleton';
-import { accountingReportService } from '@/services/accountingReportService';
+import { accountingReportService, LedgerReportResult } from '@/services/accountingReportService';
 import { masterAccountService } from '@/services/masterAccountService';
 import { instituteService } from '@/services/instituteService';
 import { useAuthStore } from '@/store/authStore';
 import { loadErrorInfo, LoadErrorInfo } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
-
-interface LedgerReportEntry {
-  id: string;
-  date: string;
-  description: string;
-  category?: string;
-  institute?: string;
-  debit: number;
-  credit: number;
-  balance: number;
-  paymentMethod?: string;
-  referenceNo?: string;
-  source?: string;
-}
+import { fetchAllPages } from '@/services/api';
+import { logError } from '@/utils/safeLog';
 
 export default function LedgerReport() {
   const { currentInstituteId: userInstituteId } = useAuthStore();
@@ -42,7 +31,11 @@ export default function LedgerReport() {
     return d.toISOString().split('T')[0];
   });
   const [endDate, setEndDate] = useState(() => new Date().toISOString().split('T')[0]);
-  const [reportData, setReportData] = useState<any>(null);
+  const [reportData, setReportData] = useState<LedgerReportResult | null>(null);
+  /* The filters the report was generated with: paging must not pick up later edits to the inputs. */
+  const [appliedParams, setAppliedParams] = useState<Record<string, string> | null>(null);
+  const [pageSize, setPageSize] = useState(50);
+  const [paging, setPaging] = useState(false);
 
   useEffect(() => {
     fetchLedgers();
@@ -51,39 +44,67 @@ export default function LedgerReport() {
 
   const fetchLedgers = async () => {
     try {
-      const result = await masterAccountService.getAllLedgers({ limit: 1000 });
-      setLedgers(result.data.map((l: any) => ({ id: l.id || l._id, name: l.name, type: l.type })));
+      const allRows = await fetchAllPages((page) => masterAccountService.getAllLedgers(page));
+      setLedgers(allRows.map((l: any) => ({ id: l.id || l._id, name: l.name, type: l.type })));
     } catch (err) {
-      console.error('Error fetching ledgers:', err);
+      logError('Error fetching ledgers', err);
     }
   };
 
   const fetchInstitutes = async () => {
     try {
-      const result = await instituteService.getAll({ limit: 1000 });
-      setInstitutes(result.data.map((i: any) => ({ id: i.id, name: i.name })));
+      const allRows = await fetchAllPages((page) => instituteService.getAll(page));
+      setInstitutes(allRows.map((i: any) => ({ id: i.id, name: i.name })));
     } catch (err) {
-      console.error('Error:', err);
+      logError('Error', err);
     }
   };
 
-  const fetchReport = async () => {
-    if (!selectedLedger) return;
+  const loadPage = async (params: Record<string, string>, page: number, limit: number, isNewReport: boolean) => {
     try {
-      setLoading(true);
+      if (isNewReport) setLoading(true);
+      else setPaging(true);
       setError(null);
-      const params: any = { ledgerId: selectedLedger, startDate, endDate };
-      if (instituteFilter !== 'all') params.instituteId = instituteFilter;
-      const data = await accountingReportService.getLedgerReport(params);
+      const data = await accountingReportService.getLedgerReport({
+        ledgerId: params.ledgerId,
+        startDate: params.startDate,
+        endDate: params.endDate,
+        instituteId: params.instituteId,
+        page,
+        limit,
+      });
       setReportData(data);
     } catch (err: any) {
       setError(loadErrorInfo(err, 'ledger report'));
     } finally {
       setLoading(false);
+      setPaging(false);
     }
   };
 
-  const entries: LedgerReportEntry[] = reportData?.entries || [];
+  const fetchReport = async () => {
+    if (!selectedLedger) return;
+    const params: Record<string, string> = { ledgerId: selectedLedger, startDate, endDate };
+    if (instituteFilter !== 'all') params.instituteId = instituteFilter;
+    setAppliedParams(params);
+    await loadPage(params, 1, pageSize, true);
+  };
+
+  const changePage = (page: number) => {
+    if (appliedParams) loadPage(appliedParams, page, pageSize, false);
+  };
+
+  const changePageSize = (size: number) => {
+    setPageSize(size);
+    if (appliedParams) loadPage(appliedParams, 1, size, false);
+  };
+
+  const entries = reportData?.entries || [];
+  const pagination = reportData?.pagination;
+  // The opening row belongs above the first page and the closing row below the last: the
+  // balances on a page between them carry on from the previous page, not from the opening.
+  const isFirstPage = !pagination || pagination.page <= 1;
+  const isLastPage = !pagination || pagination.page >= pagination.totalPages;
 
   return (
     <div className="space-y-4">
@@ -184,7 +205,8 @@ export default function LedgerReport() {
             {entries.length === 0 ? (
               <div className="text-center py-8 text-gray-500">No transactions found for this period</div>
             ) : (
-              <div className="overflow-x-auto">
+              <>
+              <div className={paging ? 'overflow-x-auto opacity-60 pointer-events-none' : 'overflow-x-auto'}>
                 <table className="data-table min-w-full divide-y divide-border">
                   <thead className="bg-muted">
                     <tr>
@@ -209,20 +231,22 @@ export default function LedgerReport() {
                     </tr>
                   </thead>
                   <tbody className="bg-white dark:bg-gray-900 divide-y divide-border">
-                    {/* Opening Balance Row */}
-                    <tr className="bg-blue-50/50 dark:bg-blue-900/10">
-                      <td
-                        className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300"
-                        colSpan={5}
-                      >
-                        Opening Balance
-                      </td>
-                      <td className="px-4 py-2 text-sm text-right font-semibold text-blue-700 dark:text-blue-300">
-                        ₹{(reportData.openingBalance || 0).toLocaleString()}
-                      </td>
-                    </tr>
-                    {entries.map((entry) => (
-                      <tr key={entry.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
+                    {/* Opening Balance Row (first page only) */}
+                    {isFirstPage && (
+                      <tr className="bg-blue-50/50 dark:bg-blue-900/10">
+                        <td
+                          className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300"
+                          colSpan={5}
+                        >
+                          Opening Balance
+                        </td>
+                        <td className="px-4 py-2 text-sm text-right font-semibold text-blue-700 dark:text-blue-300">
+                          ₹{(reportData.openingBalance || 0).toLocaleString()}
+                        </td>
+                      </tr>
+                    )}
+                    {entries.map((entry, index) => (
+                      <tr key={entry.id ?? index} className="hover:bg-gray-50 dark:hover:bg-gray-800">
                         <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap">
                           {new Date(entry.date).toLocaleDateString()}
                         </td>
@@ -249,27 +273,43 @@ export default function LedgerReport() {
                         </td>
                       </tr>
                     ))}
-                    {/* Closing Balance Row */}
-                    <tr className="bg-purple-50/50 dark:bg-purple-900/10">
-                      <td
-                        className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300"
-                        colSpan={3}
-                      >
-                        Closing Balance
-                      </td>
-                      <td className="px-4 py-2 text-sm text-right font-semibold text-red-700 dark:text-red-300">
-                        ₹{(reportData.totalDebit || 0).toLocaleString()}
-                      </td>
-                      <td className="px-4 py-2 text-sm text-right font-semibold text-green-700 dark:text-green-300">
-                        ₹{(reportData.totalCredit || 0).toLocaleString()}
-                      </td>
-                      <td className="px-4 py-2 text-sm text-right font-semibold text-purple-700 dark:text-purple-300">
-                        ₹{(reportData.closingBalance || 0).toLocaleString()}
-                      </td>
-                    </tr>
+                    {/* Closing Balance Row (last page only; totals cover the whole range) */}
+                    {isLastPage && (
+                      <tr className="bg-purple-50/50 dark:bg-purple-900/10">
+                        <td
+                          className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300"
+                          colSpan={3}
+                        >
+                          Closing Balance
+                        </td>
+                        <td className="px-4 py-2 text-sm text-right font-semibold text-red-700 dark:text-red-300">
+                          ₹{(reportData.totalDebit || 0).toLocaleString()}
+                        </td>
+                        <td className="px-4 py-2 text-sm text-right font-semibold text-green-700 dark:text-green-300">
+                          ₹{(reportData.totalCredit || 0).toLocaleString()}
+                        </td>
+                        <td className="px-4 py-2 text-sm text-right font-semibold text-purple-700 dark:text-purple-300">
+                          ₹{(reportData.closingBalance || 0).toLocaleString()}
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>
+              {pagination && (
+                <div className="mt-4">
+                  <Pagination
+                    currentPage={pagination.page}
+                    totalPages={pagination.totalPages}
+                    totalItems={pagination.total}
+                    itemsPerPage={pagination.limit}
+                    onPageChange={changePage}
+                    onItemsPerPageChange={changePageSize}
+                    entity="entries"
+                  />
+                </div>
+              )}
+              </>
             )}
           </>
         )}

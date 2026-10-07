@@ -22,8 +22,10 @@ import { formatDate, toTitleCase } from '@/utils/format';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { useServerCounts } from '@/hooks/useServerCounts';
 import ActionsMenu from '@/components/ui/ActionsMenu';
 import StatusBadge from '@/components/ui/StatusBadge';
+import { logError } from '@/utils/safeLog';
 
 export default function InstitutesList() {
   const navigate = useNavigate();
@@ -73,7 +75,7 @@ export default function InstitutesList() {
       }
     } catch (err: any) {
       setError(loadErrorMessage(err, 'institutes'));
-      console.error('Error fetching institutes:', err);
+      logError('Error fetching institutes', err);
     } finally {
       setLoading(false);
     }
@@ -101,11 +103,11 @@ export default function InstitutesList() {
           exportToJSON(columns, dataToExport, filename);
           break;
         case 'pdf':
-          exportToPDF(columns, dataToExport, filename, title);
+          await exportToPDF(columns, dataToExport, filename, title);
           break;
       }
     } catch (error: any) {
-      console.error('Export error:', error);
+      logError('Export error', error);
       toast.error(errorMessage(error, { action: 'export the institutes' }));
     } finally {
       setIsExporting(false);
@@ -199,6 +201,18 @@ export default function InstitutesList() {
     },
   ];
 
+  // Whole-list counts from the server: these cards used to count only the rows on this page.
+  const countBase: { search?: string; type?: string } = {};
+  if (debouncedSearch) countBase.search = debouncedSearch;
+  if (typeFilter !== 'all') countBase.type = typeFilter;
+  const statusCounts = useServerCounts(
+    {
+      active: () => instituteService.getAll({ ...countBase, status: 'active', page: 1, limit: 1 }),
+      inactive: () => instituteService.getAll({ ...countBase, status: 'inactive', page: 1, limit: 1 }),
+    },
+    [institutes]
+  );
+
   const stats = [
     {
       title: 'Total Institutes',
@@ -207,12 +221,12 @@ export default function InstitutesList() {
     },
     {
       title: 'Active',
-      value: institutes.filter((i) => i.status === 'active' || !i.status).length,
+      value: statusCounts.active ?? institutes.filter((i) => i.status === 'active' || !i.status).length,
       icon: <FiCheckCircle className="h-5 w-5" />,
     },
     {
       title: 'Inactive',
-      value: institutes.filter((i) => i.status === 'inactive').length,
+      value: statusCounts.inactive ?? institutes.filter((i) => i.status === 'inactive').length,
       icon: <FiXCircle className="h-5 w-5" />,
     },
   ];
