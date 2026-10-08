@@ -1,6 +1,6 @@
 import { ReactNode, useCallback, useEffect, useId, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { FiX } from 'react-icons/fi';
+import { RiCloseLine } from 'react-icons/ri';
 import { cn } from '@/utils/cn';
 import { getModalPortalTarget } from '@/utils/modalPortal';
 import Button from './Button';
@@ -23,6 +23,10 @@ export interface ModalProps {
 
 const FOCUSABLE =
   'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+/* The first thing a user fills in, when the dialog has fields. */
+const FIRST_FIELD =
+  'input:not([disabled]):not([type="hidden"]):not([type="checkbox"]):not([type="radio"]):not([tabindex="-1"]), textarea:not([disabled]), [role="combobox"]:not([disabled])';
 
 /*
  * Nested modals must not fight over body scroll: the lock is reference counted,
@@ -110,7 +114,11 @@ export default function Modal({
 
     /* Move focus into the dialog so the keyboard lands where the eye does. */
     const frame = window.requestAnimationFrame(() => {
-      const target = panelRef.current?.querySelector<HTMLElement>(FOCUSABLE) ?? panelRef.current ?? null;
+      const body = panelRef.current?.querySelector<HTMLElement>('.modal-body');
+      const field = Array.from(body?.querySelectorAll<HTMLElement>(FIRST_FIELD) ?? []).find(
+        (node) => node.offsetParent !== null
+      );
+      const target = field ?? panelRef.current?.querySelector<HTMLElement>(FOCUSABLE) ?? panelRef.current ?? null;
       target?.focus();
     });
 
@@ -137,8 +145,8 @@ export default function Modal({
     <div
       className={cn(
         scoped ? 'absolute inset-0' : 'fixed inset-0',
-        'z-50 flex items-end justify-center p-2 sm:items-center sm:p-4',
-        overlay && 'bg-foreground/25'
+        'z-50 flex items-end justify-center p-2 animate-fade-in sm:items-center sm:p-4',
+        overlay && 'bg-foreground/30'
       )}
       onMouseDown={(event) => {
         if (disableBackdropClose) return;
@@ -154,11 +162,24 @@ export default function Modal({
         aria-label={title ? undefined : 'Dialog'}
         tabIndex={-1}
         className={cn(
-          'flex max-h-[90vh] max-h-[90dvh] w-full flex-col rounded-lg border border-border bg-card text-card-foreground shadow-md',
+          'relative flex max-h-[92vh] max-h-[92dvh] w-full flex-col overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-md',
           sizeClasses[size]
         )}
       >
-        {(title || showCloseButton) && (
+        {/* Untitled dialogs (create/edit forms bring their own header) get a
+            floating close control instead of an empty header bar. */}
+        {!title && showCloseButton && (
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={onClose}
+            aria-label="Close dialog"
+            className="absolute right-3 top-3 z-10 sm:right-4 sm:top-4"
+          >
+            <RiCloseLine className="h-[18px] w-[18px]" />
+          </Button>
+        )}
+        {title && (
           <div className="flex items-start justify-between gap-3 border-b border-border p-4 sm:p-5">
             <div className="min-w-0">
               {title && (
@@ -179,12 +200,12 @@ export default function Modal({
               aria-label="Close dialog"
               className="flex-shrink-0"
             >
-              <FiX className="h-4 w-4" />
+              <RiCloseLine className="h-[18px] w-[18px]" />
             </Button>
           </div>
         )}
 
-        <div className="min-w-0 flex-1 overflow-y-auto p-4 sm:p-5">{children}</div>
+        <div className="modal-body min-w-0 flex-1 overflow-y-auto p-5 sm:p-6">{children}</div>
 
         {footer && (
           <div className="flex flex-col-reverse items-stretch gap-2 border-t border-border p-4 sm:flex-row sm:items-center sm:justify-end sm:gap-3 sm:p-5">

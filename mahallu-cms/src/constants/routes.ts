@@ -92,6 +92,7 @@ export const ROUTES = {
   // Committees
   COMMITTEES: {
     LIST: '/committees',
+    MAHALLU: '/committees/mahallu',
     MEETINGS: '/committees/meetings',
     DETAIL: (id: string) => `/committees/${id}`,
   },

@@ -1,10 +1,19 @@
-import { ReactNode } from 'react';
-import { FiFilter, FiRefreshCw, FiDownload, FiFileText, FiFile, FiSliders } from 'react-icons/fi';
+import { ReactNode, useEffect } from 'react';
+import {
+  RiArrowDownSLine,
+  RiCheckLine,
+  RiDownload2Line,
+  RiFile3Line,
+  RiFileTextLine,
+  RiFilter3Line,
+  RiRefreshLine,
+  RiSortDesc,
+} from 'react-icons/ri';
 import Button from './Button';
 import ExpandableSearch from './ExpandableSearch';
 import ActionBar from './ActionBar';
-import Badge from './Badge';
 import Dropdown, { DropdownItem } from './Dropdown';
+import { useTableSlot } from './tableSlot';
 import { cn } from '@/utils/cn';
 interface TableToolbarProps {
   searchQuery: string;
@@ -25,17 +34,50 @@ interface TableToolbarProps {
   isExporting?: boolean;
   /**
    * The page's own actions, e.g. "New Family". Give every one of them an
-   * `icon` and `collapseLabel` so the row still fits a 320px phone — the
-   * toolbar no longer wraps, so a named button that cannot shrink is a button
-   * that pushes the row past the viewport.
+   * `icon` and `collapseLabel` so the row still fits a 320px phone.
    */
   actionButtons?: ReactNode;
   tabs?: ReactNode;
+  /** A server-side sort owned by the page. Without it, the Table's own sort sits here. */
   sortOptions?: Array<{ value: string; label: string }>;
   sortValue?: string;
   onSortChange?: (value: string) => void;
   className?: string;
 }
+
+/** The "Sort by" trigger, shared with the Table's own sort control. */
+export function SortTrigger({ activeLabel }: { activeLabel?: string }) {
+  return (
+    <Button
+      variant="outline"
+      icon={<RiSortDesc />}
+      collapseLabel
+      trailing={
+        <span className="hidden items-center gap-1 sm:flex">
+          {activeLabel && <span className="max-w-[9rem] truncate text-xs font-normal text-muted-foreground">{activeLabel}</span>}
+          <RiArrowDownSLine className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+        </span>
+      }
+    >
+      Sort by
+    </Button>
+  );
+}
+
+/** Menu items with a check against the current choice. */
+export function sortMenuItems(
+  options: Array<{ value: string; label: string }>,
+  current: string | undefined,
+  onSelect: (value: string) => void
+): DropdownItem[] {
+  return options.map((option) => ({
+    label: option.label,
+    icon: option.value === current ? <RiCheckLine className="h-4 w-4 text-primary" /> : <span />,
+    onClick: () => onSelect(option.value),
+    className: option.value === current ? 'font-medium' : undefined,
+  }));
+}
+
 export default function TableToolbar({
   searchQuery,
   onSearchChange,
@@ -54,52 +96,53 @@ export default function TableToolbar({
   onSortChange,
   className,
 }: TableToolbarProps) {
+  const slot = useTableSlot();
+  const ownsSort = Boolean(sortOptions && sortOptions.length > 0);
+  const setToolbarSorts = slot?.setToolbarSorts;
+  useEffect(() => {
+    setToolbarSorts?.(ownsSort);
+  }, [ownsSort, setToolbarSorts]);
+
   const exportItems: DropdownItem[] = [
-    { label: 'Export as CSV', icon: <FiFileText />, onClick: () => onExport?.('csv'), disabled: isExporting },
-    { label: 'Export as PDF', icon: <FiFile />, onClick: () => onExport?.('pdf'), disabled: isExporting },
+    { label: 'Export as CSV', icon: <RiFileTextLine />, onClick: () => onExport?.('csv'), disabled: isExporting },
+    { label: 'Export as PDF', icon: <RiFile3Line />, onClick: () => onExport?.('pdf'), disabled: isExporting },
   ];
   const selectedSort = sortOptions?.find((option) => option.value === sortValue);
-  const sortItems: DropdownItem[] = (sortOptions ?? []).map((option) => ({
-    label: option.label,
-    onClick: () => onSortChange?.(option.value),
-    className: option.value === sortValue ? 'bg-accent text-accent-foreground' : undefined,
-  }));
+
   return (
-    /* One row at every width, one right-aligned cluster.
-     *
-     * Search used to sit in a `flex-1` group at the far left with Export and
-     * the page's "+ New" button pinned to the far right, so on a wide screen
-     * the search icon was a full table-width away from the button it belongs
-     * with. Everything is now one cluster (see ActionBar): search, filter,
-     * refresh, sort, export, then the page's actions. `tabs` (status filters) sit at
-     * the start of the bar and the cluster stays at the end.
-     *
-     * Nothing wraps — the labelled controls collapse to their glyph below `sm`
-     * (see `Button.collapseLabel`), which is what makes six controls fit across
-     * 320px: 6 x 40px plus five 8px gaps is 280px, inside the 296px a 320px
-     * phone leaves after the page's own gutters. Search is the one control that
-     * gives up width when it opens. */
+    /* One row: status tabs at the start; search, filter, sort, refresh,
+     * export and the page's actions together at the end. Labelled controls
+     * collapse to their glyph below `sm` so the row never wraps. */
     <ActionBar className={cn('mb-4', className)} leading={tabs}>
-      {/* Search rests as an icon and opens into a field. The collapsed state
-          is a real button with an accessible name, so it stays in the tab
-          order; a query holds the field open so no filter is ever hidden. */}
       <ExpandableSearch value={searchQuery} onChange={onSearchChange} entity={searchEntity} />
       {hasFilters && onFilterClick && (
         <Button
           variant="outline"
           onClick={onFilterClick}
           aria-expanded={isFilterVisible}
-          className="flex-shrink-0"
-          icon={<FiFilter />}
+          className={cn('flex-shrink-0', isFilterVisible && 'border-primary/40 bg-primary/5 text-primary hover:bg-primary/10')}
+          icon={<RiFilter3Line />}
           collapseLabel
-          /* The count survives the collapse: "filtered" is the one thing the
-           * funnel glyph cannot say by itself. */
           trailing={
-            activeFilterCount > 0 ? <Badge variant="primary">{activeFilterCount}</Badge> : undefined
+            activeFilterCount > 0 ? (
+              <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[11px] font-semibold tabular-nums text-primary-foreground">
+                {activeFilterCount}
+              </span>
+            ) : undefined
           }
         >
           Filter
         </Button>
+      )}
+      {ownsSort ? (
+        <Dropdown
+          label="Sort records"
+          items={sortMenuItems(sortOptions!, sortValue, (value) => onSortChange?.(value))}
+          trigger={<SortTrigger activeLabel={selectedSort?.label} />}
+        />
+      ) : (
+        /* The Table below portals its own sort control in here. */
+        <div ref={slot?.setSlot} className="contents" />
       )}
       {onRefresh && (
         <Button
@@ -107,35 +150,21 @@ export default function TableToolbar({
           size="icon"
           onClick={onRefresh}
           aria-label="Refresh list"
+          title="Refresh list"
           className="flex-shrink-0"
         >
-          <FiRefreshCw className="h-4 w-4" />
+          <RiRefreshLine className="h-4 w-4" />
         </Button>
-      )}
-      {sortOptions && sortOptions.length > 0 && (
-        <Dropdown
-          label="Sort records"
-          items={sortItems}
-          trigger={
-            <Button
-              variant="outline"
-              icon={<FiSliders />}
-              collapseLabel
-              trailing={selectedSort ? <span className="hidden text-xs text-muted-foreground sm:inline">{selectedSort.label}</span> : undefined}
-            >
-              Sort by
-            </Button>
-          }
-        />
       )}
       {onExport && (
         <Dropdown
+          label="Export"
           trigger={
             <Button
               variant="outline"
               isLoading={isExporting}
               loadingText="Exporting"
-              icon={<FiDownload />}
+              icon={<RiDownload2Line />}
               collapseLabel
             >
               Export

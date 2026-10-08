@@ -16,7 +16,8 @@ export interface ExpandableSearchProps {
   placeholder?: string;
   /**
    * Width of the expanded field. The compact state is one control wide on a
-   * phone; desktop lists keep the field visible at 18rem by default.
+   * phone; desktop lists keep the field visible and let it fill the free
+   * width of the toolbar.
    */
   expandedClassName?: string;
   className?: string;
@@ -75,6 +76,25 @@ export default function ExpandableSearch({
     setIsExpanded(true);
   }, [value]);
 
+  /* "/" jumps to the list search from anywhere on the page, unless the user
+   * is already typing in a field. */
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== '/' || event.metaKey || event.ctrlKey || event.altKey) return;
+      const target = event.target as HTMLElement | null;
+      if (target?.closest('input, textarea, select, [contenteditable="true"], [role="dialog"]')) return;
+      event.preventDefault();
+      if (inputRef.current && inputRef.current.offsetParent !== null) {
+        inputRef.current.focus();
+      } else {
+        shouldFocus.current = true;
+        setIsExpanded(true);
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, []);
+
   const collapse = (returnFocus: boolean) => {
     onChange('');
     setIsExpanded(false);
@@ -92,7 +112,14 @@ export default function ExpandableSearch({
     <div
       className={cn(
         'relative flex items-center transition-[width] duration-200 ease-out motion-reduce:transition-none',
-        desktopAlwaysVisible ? 'w-10 flex-none sm:w-72' : isExpanded ? expandedClassName : 'w-10 flex-none',
+        /* From `sm` the field takes all the free width in its row, so the
+         * toolbar reads as one full line rather than a short field floating
+         * beside the buttons. */
+        desktopAlwaysVisible
+          ? 'w-10 flex-none sm:w-auto sm:min-w-[12rem] sm:flex-1'
+          : isExpanded
+            ? expandedClassName
+            : 'w-10 flex-none',
         className
       )}
     >
@@ -127,9 +154,9 @@ export default function ExpandableSearch({
             }}
             placeholder={placeholder ?? label}
             className={cn(
-              'h-10 w-full rounded-lg border border-input bg-background pl-9 pr-9 text-sm text-foreground',
-              'placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2',
-              'focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+              'peer h-10 w-full rounded-lg border border-border bg-card pl-9 pr-10 text-sm text-foreground shadow-sm transition-colors',
+              'placeholder:text-muted-foreground hover:border-input/60 focus-visible:border-primary/60 focus-visible:outline-none',
+              'focus-visible:ring-4 focus-visible:ring-primary/10',
               // type="search" grows its own native clear icon in Chromium/WebKit once the
               // field has a value, sitting right on top of the custom FiX button below —
               // two X's while typing. Only the native one needs hiding.
@@ -137,14 +164,24 @@ export default function ExpandableSearch({
               desktopAlwaysVisible && !isExpanded && 'hidden sm:block'
             )}
           />
+          {!value && (
+            <kbd
+              aria-hidden="true"
+              className="pointer-events-none absolute right-2.5 top-1/2 hidden h-5 min-w-5 -translate-y-1/2 items-center justify-center rounded border border-border bg-subtle px-1 font-sans text-[11px] font-medium text-muted-foreground peer-focus:opacity-0 sm:inline-flex"
+            >
+              /
+            </kbd>
+          )}
           <button
             type="button"
             onMouseDown={(event) => event.preventDefault()} // Beat the input's blur.
             onClick={() => collapse(true)}
             aria-label={value ? 'Clear search' : 'Close search'}
             className={cn(
-              'absolute right-1 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-              desktopAlwaysVisible && !isExpanded && 'hidden sm:flex'
+              'absolute right-1 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-subtle hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+              desktopAlwaysVisible && !isExpanded && 'hidden',
+              // On desktop the empty field has nothing to clear; the "/" hint sits there instead.
+              !value && 'sm:hidden'
             )}
           >
             <FiX className="h-4 w-4" aria-hidden="true" />
@@ -162,7 +199,7 @@ export default function ExpandableSearch({
           aria-label={label}
           aria-expanded={false}
           className={cn(
-            'flex h-10 w-10 items-center justify-center rounded-lg border border-input bg-background text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+            'flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground shadow-sm transition-colors hover:bg-subtle hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
             desktopAlwaysVisible && 'sm:hidden'
           )}
         >

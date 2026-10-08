@@ -345,7 +345,7 @@ export default function LedgerItemsList() {
         </div>
       </div>
 
-      <TableCard borderless>
+      <TableCard>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}

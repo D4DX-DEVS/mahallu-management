@@ -113,7 +113,7 @@ export default function MosquesList() {
       {/* No border/padding below `md` here — each mosque/cluster
        * below is already its own bordered card, and a second frame
        * around the whole list drew a box around boxes on a phone. */}
-      <TableCard borderless>
+      <TableCard>
         <ActionBar>
           <ExpandableSearch
             value={searchQuery}

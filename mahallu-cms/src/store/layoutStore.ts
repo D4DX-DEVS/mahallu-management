@@ -1,8 +1,6 @@
 import { create } from 'zustand';
 
 interface LayoutState {
-  isSubmenuOpen: boolean;
-  setSubmenuOpen: (open: boolean) => void;
   isMobileSidebarOpen: boolean;
   setMobileSidebarOpen: (open: boolean) => void;
   isDesktopSidebarCollapsed: boolean;
@@ -19,12 +17,9 @@ interface LayoutState {
 }
 
 export const useLayoutStore = create<LayoutState>((set) => ({
-  isSubmenuOpen: false,
-  setSubmenuOpen: (open) => set({ isSubmenuOpen: open }),
   isMobileSidebarOpen: false,
   setMobileSidebarOpen: (open) => set({ isMobileSidebarOpen: open }),
-  // The desktop shell opens expanded. Groups reveal a compact right-side
-  // flyout so the main rail stays stable instead of growing inline.
+  // The desktop shell opens expanded; branches open their submenu inline.
   isDesktopSidebarCollapsed: false,
   toggleDesktopSidebarCollapsed: () =>
     set((state) => ({ isDesktopSidebarCollapsed: !state.isDesktopSidebarCollapsed })),

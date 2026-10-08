@@ -199,7 +199,7 @@ export default function BeneficiariesList() {
         breadcrumbs={[{ label: 'Zakat' }]}
       />
 
-      <TableCard borderless>
+      <TableCard>
         <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div className="grid grid-cols-4 gap-1.5 sm:flex">
             {STATUS_TABS.map((tab) => (

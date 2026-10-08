@@ -16,7 +16,7 @@
      * sat on — every panel read as a flat rectangle rather than a surface
      * raised off the page. One subtle tint, still in the product's own
      * neutral hue, gives white cards something to be white against. */
-    --background: 180 14% 98%;
+    --background: 0 0% 100%;
     --foreground: 200 18% 12%;
     --card: 0 0% 100%;
     --card-foreground: 200 18% 12%;
@@ -40,6 +40,11 @@
     --muted-foreground: 200 9% 40%;
     --accent: 150 26% 93%;
     --accent-foreground: 150 64% 23%;
+
+    /* Neutral weak surface: table header bar, nav hover/active, segmented
+     * controls. Gray, not green, so it reads as structure rather than state. */
+    --subtle: 220 14% 96.5%;
+    --subtle-foreground: 220 10% 46%;
 
     /* Semantic state — four roles, one ramp each */
     --destructive: 0 72% 46%;
@@ -87,6 +92,9 @@
     --muted-foreground: 195 8% 64%;
     --accent: 150 30% 18%;
     --accent-foreground: 150 66% 72%;
+
+    --subtle: 200 16% 15%;
+    --subtle-foreground: 195 8% 64%;
 
     --destructive: 0 72% 64%;
     --destructive-foreground: 200 24% 8%;
@@ -232,7 +240,7 @@
   }
 
   /* Create/edit pages are hosted in one consistent, white modal workspace. */
-  .form-modal-single form .grid {
+  .form-modal-single form .grid:not(.radio-card-grid) {
     grid-template-columns: minmax(0, 1fr) !important;
   }
 
@@ -240,18 +248,208 @@
     grid-column: span 1 / span 1 !important;
   }
 
-  .form-modal-double form .grid {
+  .form-modal-double form .grid:not(.radio-card-grid) {
     grid-template-columns: minmax(0, 1fr) !important;
   }
 
   @media (min-width: 640px) {
-    .form-modal-double form .grid {
+    .form-modal-double form .grid:not(.radio-card-grid) {
       grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
     }
   }
 
   .form-modal-double form .grid > [class*='col-span-'] {
     grid-column: span 2 / span 2 !important;
+  }
+
+  /* ---- Create / edit workspace (FormModalRoute) ----------------------
+   * Forms come in two shapes — a Card wrapping the <form>, or a <form>
+   * wrapping a Card — and either way the page's own Card is a second frame
+   * inside the modal's frame. Drop it so the form sits on the dialog. */
+  .form-modal-content [class*='rounded-xl']:has(> form),
+  .form-modal-content form > [class*='rounded-xl'] {
+    border: 0;
+    box-shadow: none;
+    padding: 0;
+    background: transparent;
+  }
+
+  /* Each section of a form is its own soft panel with a marked heading, so
+   * a long form reads as a few clear groups instead of one sheet. */
+  .form-modal-content form section:not(section section) {
+    border: 1px solid hsl(var(--border));
+    border-radius: calc(var(--radius) + 4px);
+    padding: 1.25rem;
+    background: hsl(var(--card));
+    box-shadow: var(--shadow-sm);
+  }
+
+  .form-modal-content form section:not(section section) + section {
+    margin-top: 1rem;
+  }
+
+  .form-modal-content form section > h2:first-child,
+  .form-modal-content form section > h3:first-child {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.25rem;
+    padding-bottom: 0.875rem;
+    border-bottom: 1px solid hsl(var(--border));
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: hsl(var(--foreground));
+  }
+
+  .form-modal-content form section > h2:first-child::before,
+  .form-modal-content form section > h3:first-child::before {
+    content: '';
+    width: 3px;
+    height: 0.875rem;
+    border-radius: 9999px;
+    background: hsl(var(--primary));
+  }
+
+  /* ---- Form footer -------------------------------------------------
+   * Every create/edit form ends in one footer bar pinned to the dialog's
+   * bottom edge, so Save and Cancel are always in reach. The dialog body's
+   * bottom padding moves inside the content: a sticky bar inside a padded
+   * scroller stops one padding short of the edge, and the form showed
+   * through in the strip below it. A page that pinned its own bar to the
+   * viewport (`fixed`) is brought back into the dialog. Page-level spacing,
+   * direction and borders on the row are normalised so every form gets the
+   * same bar whatever utilities it was written with. */
+  .modal-body:has(> .form-modal-content) {
+    padding-bottom: 0;
+  }
+
+  .form-modal-content {
+    padding-bottom: var(--modal-pad);
+  }
+
+  .form-modal-content form div:has(> button[type='submit']):last-child:not(.fixed *),
+  .form-modal-content form > .fixed:last-child {
+    position: sticky;
+    inset: auto 0 0 0;
+    z-index: 5;
+    margin: 1.5rem calc(var(--modal-pad) * -1) calc(var(--modal-pad) * -1);
+    padding: 0.875rem var(--modal-pad);
+    border: 0;
+    border-top: 1px solid hsl(var(--border));
+    background: hsl(var(--subtle));
+    box-shadow: 0 -8px 16px -14px hsl(220 24% 12% / 0.3);
+    backdrop-filter: none;
+  }
+
+  /* The row that holds the buttons (the bar itself, or the row inside a
+   * `fixed` bar): one line, actions at the end. */
+  .form-modal-content form div:has(> button[type='submit']):last-child {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    max-width: none;
+  }
+
+  .form-modal-content form > .fixed:last-child > div {
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+
+  /* Phones: Cancel and Save share the row as two equal buttons. */
+  .form-modal-content form div:has(> button[type='submit']):last-child > * {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .form-modal-content form div:has(> button[type='submit']):last-child > a > button {
+    width: 100%;
+  }
+
+  @media (min-width: 640px) {
+    .form-modal-content form div:has(> button[type='submit']):last-child > * {
+      flex: 0 0 auto;
+      min-width: 7rem;
+    }
+
+    .form-modal-content form div:has(> button[type='submit']):last-child::before {
+      content: 'Ctrl / \2318  + Enter to save';
+      margin-right: auto;
+      align-self: center;
+      font-size: 0.75rem;
+      color: hsl(var(--muted-foreground));
+    }
+  }
+
+  /* Room a page left under its own fixed bar is not needed in the dialog. */
+  .form-modal-content form {
+    padding-bottom: 0;
+  }
+
+  /* ---- Detail views (MainLayout tags routes ending in a record id) -----
+   * Record pages were built one by one with roomy stacked fields, cards
+   * stretched to their neighbour's height and generous gaps, so a short
+   * record filled two screens. These rules compact them as a group. */
+  .detail-view .grid > [class*='rounded-xl'] {
+    align-self: start;
+  }
+
+  .detail-view .space-y-5 > :not([hidden]) ~ :not([hidden]),
+  .detail-view .space-y-4 > :not([hidden]) ~ :not([hidden]) {
+    margin-top: 0.75rem;
+  }
+
+  .detail-view [class*='rounded-xl'] > :is(h2, h3):first-child {
+    margin-bottom: 0.625rem;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+  }
+
+  /* A card holding only stacked label/value pairs flows them into columns. */
+  .detail-view [class*='rounded-xl'] > :is(.space-y-2, .space-y-3, .space-y-4):not(:has(> :not(div))):has(> div > :is(p, span, dt):first-child) {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(10.5rem, 1fr));
+    gap: 0.75rem 1.5rem;
+  }
+
+  .detail-view [class*='rounded-xl'] > :is(.space-y-2, .space-y-3, .space-y-4):not(:has(> :not(div))):has(> div > :is(p, span, dt):first-child) > * {
+    margin-top: 0 !important;
+    min-width: 0;
+  }
+
+  /* Two-column field grids get as many columns as the width allows. */
+  .detail-view [class*='rounded-xl'] > .grid.sm\:grid-cols-2:not(:has(> :not(div))),
+  .detail-view [class*='rounded-xl'] > .grid.md\:grid-cols-2:has(> div > :is(p, span, dt).text-sm:first-child):not(:has(> :not(div))) {
+    grid-template-columns: repeat(auto-fill, minmax(10.5rem, 1fr));
+    gap: 0.75rem 1.5rem;
+  }
+
+  /* Field label and value at the compact detail scale. */
+  .detail-view [class*='rounded-xl'] div > :is(p, span).text-sm:first-child:is(.text-gray-500, .text-muted-foreground) {
+    display: block;
+    font-size: 0.75rem;
+    line-height: 1rem;
+  }
+
+  .detail-view [class*='rounded-xl'] div > :is(p, span).text-sm:first-child + :is(p, div, a) {
+    margin-top: 0.125rem;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    font-weight: 500;
+    overflow-wrap: anywhere;
+  }
+
+  .modal-body {
+    --modal-pad: 1.25rem;
+  }
+
+  @media (min-width: 640px) {
+    .modal-body {
+      --modal-pad: 1.5rem;
+    }
   }
 
   /* Neutral utility backgrounds are presentation surfaces, not state. Keep
@@ -310,37 +508,43 @@
      row separators identical to the shared list surface. */
   .data-table {
     min-width: 42rem;
-    border-collapse: collapse;
+    /* Separate borders so the header bar can carry rounded ends. */
+    border-collapse: separate;
+    border-spacing: 0;
     color: hsl(var(--foreground));
   }
 
   .data-table thead {
-    /* The legacy `bg-muted` utility is intentionally forced to white by the
-       product-wide surface rule. Keep the table header's one controlled tint
-       explicit so the header still reads as a separate row. */
-    background: hsl(210 20% 98%) !important;
-  }
-
-  .dark .data-table thead {
-    background: hsl(var(--muted)) !important;
+    /* The header is a soft rounded bar; the cells paint it, not the group. */
+    background: transparent !important;
   }
 
   .data-table th {
-    height: 2.625rem;
-    padding: 0.625rem 0.75rem;
-    border-bottom: 1px solid hsl(var(--border));
+    height: 2.25rem;
+    padding: 0.5rem 0.75rem;
+    background: hsl(var(--subtle));
     color: hsl(var(--muted-foreground));
     font-size: 0.8125rem;
-    font-weight: 600;
+    font-weight: 500;
     line-height: 1.125rem;
     text-align: left;
     vertical-align: middle;
     white-space: nowrap;
   }
 
+  .data-table th:first-child {
+    border-top-left-radius: 0.5rem;
+    border-bottom-left-radius: 0.5rem;
+  }
+
+  .data-table th:last-child {
+    border-top-right-radius: 0.5rem;
+    border-bottom-right-radius: 0.5rem;
+  }
+
   .data-table td {
-    min-height: 2.75rem;
-    padding: 0.6875rem 0.75rem;
+    min-height: 3.5rem;
+    padding: 0.875rem 0.75rem;
     border-bottom: 1px solid hsl(var(--border));
     font-size: 0.875rem;
     line-height: 1.375rem;
@@ -356,7 +560,7 @@
   }
 
   .data-table tbody tr:hover {
-    background: hsl(var(--accent) / 0.6);
+    background: hsl(var(--subtle) / 0.7);
   }
 
   @media (max-width: 767px) {
@@ -406,12 +610,33 @@
   select:not(.sr-only) {
     height: 2.5rem;
     border-radius: var(--radius);
-    border: 1px solid hsl(var(--input));
-    background-color: hsl(var(--background));
+    border: 1px solid hsl(var(--input) / 0.4);
+    background-color: hsl(var(--card));
+    box-shadow: var(--shadow-sm);
     color: hsl(var(--foreground));
     padding-inline: 0.75rem;
     font-size: 0.875rem;
     font-family: inherit;
+    transition: border-color 150ms ease, box-shadow 150ms ease;
+  }
+
+  /* Native selects draw the same chevron as the custom Select. */
+  select:not(.sr-only):not([multiple]) {
+    appearance: none;
+    padding-right: 2.25rem;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%236b7280'%3E%3Cpath d='M12 13.172l4.95-4.95 1.414 1.414L12 16 5.636 9.636 7.05 8.222z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.625rem center;
+    background-size: 1.125rem;
+    cursor: pointer;
+  }
+
+  input[type='date']:hover,
+  input[type='datetime-local']:hover,
+  input[type='time']:hover,
+  input[type='month']:hover,
+  select:not(.sr-only):hover {
+    border-color: hsl(var(--input) / 0.7);
   }
 
   input[type='date']:focus-visible,
@@ -419,9 +644,9 @@
   input[type='time']:focus-visible,
   input[type='month']:focus-visible,
   select:not(.sr-only):focus-visible {
-    outline: 2px solid hsl(var(--ring));
-    outline-offset: 2px;
-    border-color: hsl(var(--ring));
+    outline: none;
+    border-color: hsl(var(--primary));
+    box-shadow: 0 0 0 4px hsl(var(--primary) / 0.1);
   }
 
   input[type='date']:disabled,
@@ -433,27 +658,77 @@
 
 
   /*
-   * Checkboxes and radios. 35 raw inputs render at ~16px with no focus ring
-   * and a light-only border. 20px clears the minimum target size, and the ring
-   * matches every other control.
+   * Checkboxes and radios.
+   *
+   * Wrapped in :where() so they carry zero specificity: an attribute selector
+   * outranks a utility class, so the old `input[type='checkbox']` rule beat
+   * every `h-4 w-4` and pinned all checkboxes at 20px. A size class on the
+   * element now wins; a bare checkbox still defaults to a 20px target.
+   *
+   * Checkboxes are drawn rather than native: a soft hairline box at rest,
+   * brand fill with a white tick when checked, a dash when partly selected.
    */
-  input[type='checkbox'],
-  input[type='radio'] {
+  :where(input[type='checkbox']) {
+    appearance: none;
+    display: inline-grid;
+    place-content: center;
+    flex-shrink: 0;
+    width: 1.25rem;
+    height: 1.25rem;
+    margin: 0;
+    border: 1.5px solid hsl(var(--input) / 0.45);
+    border-radius: 0.3125rem;
+    background-color: hsl(var(--card));
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: 80%;
+    box-shadow: var(--shadow-sm);
+    cursor: pointer;
+    transition: background-color 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+  }
+
+  :where(input[type='checkbox']):hover {
+    border-color: hsl(var(--input) / 0.8);
+  }
+
+  :where(input[type='checkbox']:checked),
+  :where(input[type='checkbox']:indeterminate) {
+    border-color: hsl(var(--primary));
+    background-color: hsl(var(--primary));
+  }
+
+  :where(input[type='checkbox']:checked) {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='white' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3.5 8.5l3 3 6-7'/%3E%3C/svg%3E");
+  }
+
+  :where(input[type='checkbox']:indeterminate) {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='white' stroke-width='2.25' stroke-linecap='round'%3E%3Cpath d='M4 8h8'/%3E%3C/svg%3E");
+  }
+
+  /* Guards that must beat page utilities: a page's `rounded` would turn a
+   * 16px box into a circle, and `dark:bg-*` would hide the checked fill. */
+  input[type='checkbox'][class*='rounded'] {
+    border-radius: 0.3125rem;
+  }
+
+  input[type='checkbox']:is(:checked, :indeterminate) {
+    border-color: hsl(var(--primary));
+    background-color: hsl(var(--primary));
+  }
+
+  :where(input[type='radio']) {
     width: 1.25rem;
     height: 1.25rem;
     accent-color: hsl(var(--primary));
-    border-color: hsl(var(--input));
     cursor: pointer;
   }
 
-  input[type='checkbox']:focus-visible,
-  input[type='radio']:focus-visible {
+  :where(input[type='checkbox'], input[type='radio']):focus-visible {
     outline: 2px solid hsl(var(--ring));
     outline-offset: 2px;
   }
 
-  input[type='checkbox']:disabled,
-  input[type='radio']:disabled {
+  :where(input[type='checkbox'], input[type='radio']):disabled {
     cursor: not-allowed;
     opacity: 0.5;
   }

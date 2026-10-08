@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { FiSave } from 'react-icons/fi';
+import { RiHome5Line, RiLock2Line } from 'react-icons/ri';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -102,6 +103,13 @@ export default function CreateMember() {
   const [addFamilyOpen, setAddFamilyOpen] = useState(false);
   const [studyPlace, setStudyPlace] = useState('');
 
+  /* Opened from a family's page ("Add member"), the family is already known:
+   * it is filled in and locked rather than asked for again. */
+  const [searchParams] = useSearchParams();
+  const presetFamilyId = searchParams.get('familyId');
+  /* Where to go when done: back to that family, or to the members list. */
+  const returnPath = presetFamilyId ? ROUTES.FAMILIES.DETAIL(presetFamilyId) : ROUTES.MEMBERS.LIST;
+
   const {
     register,
     handleSubmit,
@@ -110,6 +118,7 @@ export default function CreateMember() {
     formState: { errors, isSubmitting, isDirty },
   } = useForm<MemberFormData>({
     resolver: zodResolver(memberSchema),
+    defaultValues: presetFamilyId ? { familyId: presetFamilyId } : undefined,
   });
 
   const selectedFamilyId = watch('familyId');
@@ -214,16 +223,14 @@ export default function CreateMember() {
       await memberService.create(memberData);
       // Creating a family toasts; creating a member used to navigate silently.
       toast.success('Member saved');
-      navigate(ROUTES.MEMBERS.LIST);
+      navigate(returnPath);
     } catch (err: any) {
       setError(errorMessage(err, { action: 'save this member' }));
     }
   };
 
-  const handleCancel = () => {
-    if (isDirty && !window.confirm('Discard this member? Anything you have entered will be lost.')) return;
-    navigate(ROUTES.MEMBERS.LIST);
-  };
+  /* Unsaved edits are confirmed by the form modal's discard dialog (FormModalRoute). */
+  const handleCancel = () => navigate(returnPath);
 
   const genderOptions = [
     { value: 'male', label: 'Male' },
@@ -310,23 +317,47 @@ export default function CreateMember() {
             alwaysOpen
           >
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div className="md:col-span-2">
-                <Select
-                  label="Family"
-                  options={familyOptions}
-                  value={watch('familyId') || ''}
-                  onAddNew={() => setAddFamilyOpen(true)}
-                  addNewLabel="Add family"
-                  {...register('familyId')}
-                  error={errors.familyId?.message}
-                  required
-                  disabled={loadingFamilies}
-                />
-              </div>
+              {presetFamilyId ? (
+                <div className="md:col-span-2">
+                  <input type="hidden" {...register('familyId')} />
+                  <p className="mb-1.5 text-label font-medium text-foreground/90">Family</p>
+                  <div className="flex items-center gap-3 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2.5">
+                    <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-card text-primary shadow-sm">
+                      <RiHome5Line className="h-[18px] w-[18px]" aria-hidden="true" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold text-foreground">
+                        {selectedFamily ? toTitleCase(selectedFamily.houseName) : loadingFamilies ? 'Loading family…' : 'Selected family'}
+                      </p>
+                      <p className="truncate text-xs text-muted-foreground">
+                        {[selectedFamily?.mahallId, selectedFamily?.area && toTitleCase(selectedFamily.area)]
+                          .filter(Boolean)
+                          .join(' · ') || 'Adding a member to this household'}
+                      </p>
+                    </div>
+                    <RiLock2Line className="h-4 w-4 flex-shrink-0 text-muted-foreground" aria-label="Set from the family page" />
+                  </div>
+                  {errors.familyId?.message && <p className="mt-1.5 text-xs text-destructive">{errors.familyId.message}</p>}
+                </div>
+              ) : (
+                <div className="md:col-span-2">
+                  <Select
+                    label="Family"
+                    options={familyOptions}
+                    value={watch('familyId') || ''}
+                    onAddNew={() => setAddFamilyOpen(true)}
+                    addNewLabel="Add family"
+                    {...register('familyId')}
+                    error={errors.familyId?.message}
+                    required
+                    disabled={loadingFamilies}
+                  />
+                </div>
+              )}
 
               {/* Derived from the chosen family — read-only text, not a disabled
                   required input carrying a red asterisk nobody can satisfy. */}
-              {selectedFamilyName && (
+              {selectedFamilyName && !presetFamilyId && (
                 <div className="rounded-md border border-border bg-muted/40 px-3 py-2 md:col-span-2">
                   <p className="text-xs text-muted-foreground">Household</p>
                   <p className="text-sm font-medium text-foreground">{toTitleCase(selectedFamilyName)}</p>
@@ -402,16 +433,14 @@ export default function CreateMember() {
                 maxLength={10}
               />
 
-              <div className="md:col-span-2">
-                <RadioCardGroup
-                  label="Gender"
-                  options={genderOptions}
-                  value={watch('gender') || ''}
-                  onChange={(value) => setValue('gender', value as 'male' | 'female')}
-                  error={errors.gender?.message}
-                  columns={2}
-                />
-              </div>
+              <RadioCardGroup
+                label="Gender"
+                options={genderOptions}
+                value={watch('gender') || ''}
+                onChange={(value) => setValue('gender', value as 'male' | 'female')}
+                error={errors.gender?.message}
+                columns={2}
+              />
             </div>
           </FormSection>
 
@@ -482,7 +511,7 @@ export default function CreateMember() {
                   value={watch('bloodGroup') || ''}
                   onChange={(value) => setValue('bloodGroup', value as any)}
                   error={errors.bloodGroup?.message}
-                  columns={4}
+                  columns={8}
                 />
               </div>
 

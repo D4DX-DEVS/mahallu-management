@@ -278,7 +278,7 @@ export default function NOCList() {
         </div>
       </div>
 
-      <TableCard borderless>
+      <TableCard>
         <div className="mb-4">
           <Button variant="outline" onClick={() => setShowCreate(!showCreate)}>
             {showCreate ? 'Close NOC Form' : '+ Create NOC'}

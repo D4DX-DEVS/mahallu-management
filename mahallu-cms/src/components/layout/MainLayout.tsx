@@ -10,6 +10,10 @@ import { useAuthStore } from '@/store/authStore';
 import { useLocation } from 'react-router-dom';
 import { RouteErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { cn } from '@/utils/cn';
+/* A route ending in a record id (Mongo ObjectId or UUID) is a detail view;
+ * index.css tightens those pages under `.detail-view`. */
+const DETAIL_ROUTE = /\/(?:[0-9a-f]{24}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/?$/i;
+
 interface MainLayoutProps {
   children: ReactNode;
 }
@@ -18,7 +22,6 @@ export default function MainLayout({ children }: MainLayoutProps) {
   useTenant();
   const isMobileSidebarOpen = useLayoutStore((s) => s.isMobileSidebarOpen);
   const isDesktopSidebarCollapsed = useLayoutStore((s) => s.isDesktopSidebarCollapsed);
-  const isSubmenuOpen = useLayoutStore((s) => s.isSubmenuOpen);
   const setMobileSidebarOpen = useLayoutStore((s) => s.setMobileSidebarOpen);
   const { isSuperAdmin, currentTenantId, isImpersonating } = useAuthStore();
   // Single source of truth for the top-shell offset: the sidebar and the
@@ -67,13 +70,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
           // Parenthesised through cn(): `'base ' + collapsed ? a : b` binds as `('base ' + collapsed) ? a : b`
           // and threw the base classes (flex-1, flex-col, overflow-hidden) away, so the content column
           // shrank to its content and slid under the sidebar.
-          isDesktopSidebarCollapsed
-            ? isSubmenuOpen
-              ? 'md:ml-rail-flyout-content'
-              : 'md:ml-rail-content'
-            : isSubmenuOpen
-              ? 'md:ml-expanded-flyout-content'
-              : 'md:ml-60'
+          isDesktopSidebarCollapsed ? 'md:ml-rail' : 'md:ml-sidebar'
         )}
       >
         <a
@@ -93,7 +90,10 @@ export default function MainLayout({ children }: MainLayoutProps) {
               the chrome stays up and the boundary clears on the next route. */}
           <div className="mx-auto w-full max-w-content">
             <RouteErrorBoundary>
-              <div key={location.pathname} className="page-enter">
+              <div
+                key={location.pathname}
+                className={cn('page-enter', DETAIL_ROUTE.test(location.pathname) && 'detail-view')}
+              >
                 {children}
               </div>
             </RouteErrorBoundary>

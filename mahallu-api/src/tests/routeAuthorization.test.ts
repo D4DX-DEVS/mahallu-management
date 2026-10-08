@@ -565,18 +565,30 @@ describe('social and uploads', () => {
 });
 
 describe('welfare', () => {
-  test('every welfare route demands the welfare sensitive module and excludes institute admins', () => {
-    expectAll(welfareRoutes, FIELD_STAFF, [['get', '/schemes'], ['get', '/summary'], ['get', '/applications'], ['get', '/applications/x1'], ['get', '/schemes/x1'], ['post', '/applications']], ['welfare']);
+  const RECORD_ROUTES: Array<[string, string]> = [
+    ['get', '/summary'],
+    ['get', '/applications'],
+    ['get', '/applications/x1'],
+    ['post', '/applications'],
+  ];
+
+  test('welfare records demand the welfare sensitive module and exclude institute admins', () => {
+    expectAll(welfareRoutes, FIELD_STAFF, RECORD_ROUTES, ['welfare']);
   });
 
-  test('scheme changes and application edits stay Mahallu admin only on top of the sensitive module', () => {
+  test('the scheme catalogue is not sensitive: field staff read it without the welfare module', () => {
+    expectAll(welfareRoutes, FIELD_STAFF, [['get', '/schemes'], ['get', '/schemes/x1']]);
+  });
+
+  test('scheme changes stay Mahallu admin only, without the welfare module', () => {
+    expectAll(welfareRoutes, ADMIN, [['post', '/schemes'], ['put', '/schemes/x1'], ['delete', '/schemes/x1']]);
+  });
+
+  test('application edits, workflow moves and deletes stay Mahallu admin only on top of the sensitive module', () => {
     expectAll(
       welfareRoutes,
       ADMIN,
       [
-        ['post', '/schemes'],
-        ['put', '/schemes/x1'],
-        ['delete', '/schemes/x1'],
         ['put', '/applications/x1'],
         ['put', '/applications/x1/status'],
         ['delete', '/applications/x1'],
@@ -587,9 +599,10 @@ describe('welfare', () => {
 
   test('the sensitive guard refuses a non-super-admin who lacks the module and admits one who holds it', () => {
     const probe = (user: any, isSuperAdmin: boolean) => {
-      const stack = welfareRoutes.stack.map((l: any) => l.handle).filter((h: any) => isSensitiveGuard(h));
-      assert.equal(stack.length, 1);
-      return runMiddleware(stack[0], user, isSuperAdmin);
+      const layer: any = welfareRoutes.stack.find((l: any) => l.route?.path === '/applications' && l.route.methods.get);
+      const guards = layer.route.stack.map((l: any) => l.handle).filter((h: any) => isSensitiveGuard(h));
+      assert.equal(guards.length, 1);
+      return runMiddleware(guards[0], user, isSuperAdmin);
     };
     assert.equal(probe({ role: 'mahall', permissions: {} }, false).status, 403);
     assert.equal(probe({ role: 'mahall', permissions: { sensitiveModules: ['health'] } }, false).status, 403);
@@ -597,6 +610,7 @@ describe('welfare', () => {
     assert.equal(probe({ role: 'mahall', permissions: {} }, true).nextCalled, true);
   });
 });
+
 
 describe('dashboard and notifications', () => {
   test('the financial summary is Mahallu admin only', () => {

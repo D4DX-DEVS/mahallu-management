@@ -34,6 +34,10 @@ export default {
           DEFAULT: 'hsl(var(--accent) / <alpha-value>)',
           foreground: 'hsl(var(--accent-foreground) / <alpha-value>)',
         },
+        subtle: {
+          DEFAULT: 'hsl(var(--subtle) / <alpha-value>)',
+          foreground: 'hsl(var(--subtle-foreground) / <alpha-value>)',
+        },
         destructive: {
           DEFAULT: 'hsl(var(--destructive) / <alpha-value>)',
           foreground: 'hsl(var(--destructive-foreground) / <alpha-value>)',
@@ -94,15 +98,13 @@ export default {
 
       width: {
         /* The collapsed navigation rail. Paired with `ml-rail` on the content. */
-        rail: '5.625rem',
+        rail: '4.5rem',
+        /* The expanded navigation panel. Paired with `ml-sidebar`. */
+        sidebar: '17rem',
       },
       margin: {
-        rail: '5.625rem',
-        /* Five-pixel visual inset keeps the 90px rail aligned with the page. */
-        'rail-content': '5.9375rem',
-        /* Content offsets while a 14rem submenu flyout remains visible. */
-        'rail-flyout-content': '19.9375rem',
-        'expanded-flyout-content': '29rem',
+        rail: '4.5rem',
+        sidebar: '17rem',
       },
       padding: {
         /* The iOS home-indicator inset, under the mobile tab bar. */

@@ -28,6 +28,7 @@ import EditCommittee from '@/features/committees/pages/EditCommittee';
 import MeetingsList from '@/features/committees/pages/MeetingsList';
 import CreateMeeting from '@/features/committees/pages/CreateMeeting';
 import MeetingDetail from '@/features/committees/pages/MeetingDetail';
+import MahalluCommittee from '@/features/committees/pages/MahalluCommittee';
 import AssetsList from '@/features/assets/pages/AssetsList';
 import CreateAsset from '@/features/assets/pages/CreateAsset';
 import EditAsset from '@/features/assets/pages/EditAsset';
@@ -85,6 +86,7 @@ export const communityRoutes = [
   // Committees & meetings
   route(ROUTES.COMMITTEES.LIST, <CommitteesList />),
   route('/committees/create', <CreateCommittee />, {}, { label: 'New Committee' }),
+  route(ROUTES.COMMITTEES.MAHALLU, <MahalluCommittee />, {}, { label: 'Mahallu Committee' }),
   route(ROUTES.COMMITTEES.MEETINGS, <MeetingsList />),
   route('/committees/meetings/create', <CreateMeeting />, {}, { label: 'New Meeting' }),
   route('/committees/meetings/:id', <MeetingDetail />),

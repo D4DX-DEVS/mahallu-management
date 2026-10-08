@@ -1,5 +1,5 @@
 import api, { asList } from './api';
-import { Committee } from '@/types';
+import { Committee, CommitteeOfficeBearer } from '@/types';
 
 export const committeeService = {
   getAll: async (params?: {
@@ -36,6 +36,17 @@ export const committeeService = {
 
   update: async (id: string, committeeData: Partial<Committee>) => {
     const response = await api.put<{ success: boolean; data: Committee }>(`/committees/${id}`, committeeData);
+    return response.data.data;
+  },
+
+  /** The Mahallu's governing committee, or null when it has not been set up yet. */
+  getMahallu: async () => {
+    const response = await api.get<{ success: boolean; data: Committee | null }>('/committees/mahallu');
+    return response.data.data;
+  },
+
+  saveMahallu: async (data: Partial<Omit<Committee, 'officeBearers'>> & { officeBearers: CommitteeOfficeBearer[] }) => {
+    const response = await api.put<{ success: boolean; data: Committee }>('/committees/mahallu', data);
     return response.data.data;
   },
 

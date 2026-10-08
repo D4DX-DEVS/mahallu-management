@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FiCalendar, FiCheckCircle, FiEdit2, FiEye, FiPlus, FiTrash2, FiUsers, FiXCircle } from 'react-icons/fi';
+import { FiAward, FiCalendar, FiCheckCircle, FiEdit2, FiEye, FiPlus, FiTrash2, FiUsers, FiXCircle } from 'react-icons/fi';
 import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import StatCard from '@/components/ui/StatCard';
@@ -131,7 +131,14 @@ export default function CommitteesList() {
       label: 'Name',
       width: '6.75rem',
       sortable: true,
-      render: (v) => <span>{toTitleCase(v)}</span>,
+      render: (v, row) => (
+        <span className="inline-flex flex-wrap items-center gap-1.5">
+          {toTitleCase(v)}
+          {row.kind === 'mahallu' && (
+            <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">Mahallu committee</span>
+          )}
+        </span>
+      ),
     },
     {
       key: 'members',
@@ -258,7 +265,7 @@ export default function CommitteesList() {
         </div>
       </div>
 
-      <TableCard borderless>
+      <TableCard>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -270,6 +277,9 @@ export default function CommitteesList() {
           isExporting={isExporting}
           actionButtons={
             <>
+              <Link to={ROUTES.COMMITTEES.MAHALLU}>
+                <Button variant="outline" size="md" icon={<FiAward />} collapseLabel>Mahallu committee</Button>
+              </Link>
               <Link to={ROUTES.COMMITTEES.MEETINGS}>
                 <Button variant="outline" size="md" icon={<FiCalendar />} collapseLabel>Meetings</Button>
               </Link>

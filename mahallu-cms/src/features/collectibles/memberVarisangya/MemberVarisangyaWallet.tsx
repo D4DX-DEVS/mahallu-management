@@ -206,7 +206,7 @@ export default function MemberVarisangyaWallet() {
           <StatCard key={index} {...stat} />
         ))}
       </div>
-      <TableCard borderless>
+      <TableCard>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}

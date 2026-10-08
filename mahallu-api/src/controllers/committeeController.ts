@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import Committee from '../models/Committee';
 import Meeting from '../models/Meeting';
+import Member from '../models/Member';
 import { AuthRequest } from '../middleware/authMiddleware';
 import { getPaginationParams, createPaginationResponse } from '../utils/pagination';
 import { termWarningCutoff } from '../services/committeeTermService';
@@ -66,8 +67,10 @@ export const getCommitteeById = async (req: AuthRequest, res: Response) => {
 
 export const createCommittee = async (req: AuthRequest, res: Response) => {
   try {
+    // The Mahallu committee is managed only through /committees/mahallu.
+    const { kind: _kind, officeBearers: _officeBearers, ...body } = req.body;
     const committeeData = {
-      ...req.body,
+      ...body,
       tenantId: req.tenantId || req.body.tenantId,
     };
 
@@ -98,9 +101,10 @@ export const updateCommittee = async (req: AuthRequest, res: Response) => {
       return;
     }
 
+    const { kind: _kind, officeBearers: _officeBearers, ...body } = req.body;
     const committee = await Committee.findByIdAndUpdate(
       req.params.id,
-      req.body,
+      body,
       { new: true, runValidators: true }
     ).populate('members', 'name');
     if (!committee) {
@@ -151,3 +155,75 @@ export const getCommitteeMeetings = async (req: AuthRequest, res: Response) => {
   }
 };
 
+
+/** Roles that only one person can hold at a time. */
+const SINGLE_HOLDER_ROLES = ['president', 'secretary', 'treasurer'];
+
+const populateBearers = (query: any) =>
+  query.populate('officeBearers.member', 'name phone familyName').populate('members', 'name');
+
+// GET /committees/mahallu — the tenant's governing committee, or null when not set up yet
+export const getMahalluCommittee = async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.tenantId) {
+      return res.status(400).json({ success: false, message: 'Please select a Mahallu before continuing.' });
+    }
+    const committee = await populateBearers(Committee.findOne({ tenantId: req.tenantId, kind: 'mahallu' }));
+    res.json({ success: true, data: committee });
+  } catch (error: any) {
+    sendFailure(res, error, "We couldn't load the Mahallu committee right now. Please try again.");
+  }
+};
+
+// PUT /committees/mahallu — create or update the tenant's governing committee and its office bearers
+export const saveMahalluCommittee = async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.tenantId) {
+      return res.status(400).json({ success: false, message: 'Please select a Mahallu before continuing.' });
+    }
+    const { name, nameMl, description, termStartDate, termEndDate, status } = req.body;
+    const officeBearers: Array<{ member: string; role: string }> = (req.body.officeBearers || []).map(
+      (b: any) => ({ member: String(b.member), role: String(b.role).trim() })
+    );
+
+    for (const role of SINGLE_HOLDER_ROLES) {
+      if (officeBearers.filter((b) => b.role.toLowerCase() === role).length > 1) {
+        return res.status(400).json({
+          success: false,
+          message: `Only one person can be ${role.charAt(0).toUpperCase() + role.slice(1)}.`,
+        });
+      }
+    }
+
+    const memberIds = [...new Set(officeBearers.map((b) => b.member))];
+    if (memberIds.length) {
+      const owned = await Member.countDocuments({ _id: { $in: memberIds }, tenantId: req.tenantId });
+      if (owned !== memberIds.length) {
+        return res.status(400).json({ success: false, message: 'Please choose members of this Mahallu only.' });
+      }
+    }
+
+    const update: any = {
+      name: name?.trim() || 'Mahallu Committee',
+      officeBearers,
+      // Office bearers are the committee's members, so counts and meeting attendance stay in step.
+      members: memberIds,
+    };
+    if (nameMl !== undefined) update.nameMl = nameMl;
+    if (description !== undefined) update.description = description;
+    if (status !== undefined) update.status = status;
+    update.termStartDate = termStartDate || null;
+    update.termEndDate = termEndDate || null;
+
+    const committee = await populateBearers(
+      Committee.findOneAndUpdate(
+        { tenantId: req.tenantId, kind: 'mahallu' },
+        { $set: update, $setOnInsert: { tenantId: req.tenantId, kind: 'mahallu' } },
+        { new: true, upsert: true, runValidators: true, setDefaultsOnInsert: true }
+      )
+    );
+    res.json({ success: true, data: committee, message: 'Mahallu committee saved' });
+  } catch (error: any) {
+    sendFailure(res, error, "We couldn't save the Mahallu committee. Please try again.");
+  }
+};

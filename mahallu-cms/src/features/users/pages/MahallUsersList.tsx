@@ -181,7 +181,7 @@ export default function MahallUsersList() {
       </div>
 
       {/* Actions and Table */}
-      <TableCard borderless>
+      <TableCard>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}

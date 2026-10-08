@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { FiEdit2, FiEye, FiFile, FiFileText, FiPlus, FiUser, FiUserCheck, FiUsers } from 'react-icons/fi';
+import { FiEdit2, FiEye, FiFile, FiFileText, FiPlus, FiUsers } from 'react-icons/fi';
+import { RiMenLine, RiWomenLine } from 'react-icons/ri';
 import TableCard from '@/components/ui/TableCard';
 import FilterPanel from '@/components/ui/FilterPanel';
 import Button from '@/components/ui/Button';
@@ -163,7 +164,7 @@ export default function MembersList() {
         <div className="flex min-w-0 items-center gap-3">
           <Avatar name={name} size="md" />
           <div className="min-w-0">
-            <div className="truncate font-semibold">{toTitleCase(name)}</div>
+            <div className="truncate font-medium text-foreground">{toTitleCase(name)}</div>
             <div className="truncate text-xs text-muted-foreground">{row.phone || 'No phone added'}</div>
           </div>
         </div>
@@ -220,17 +221,17 @@ export default function MembersList() {
     {
       title: 'Total Males',
       value: memberStats.maleCount,
-      icon: <FiUser className="h-5 w-5" />,
+      icon: <RiMenLine />,
     },
     {
       title: 'Total Females',
       value: memberStats.femaleCount,
-      icon: <FiUserCheck className="h-5 w-5" />,
+      icon: <RiWomenLine />,
     },
   ];
 
   return (
-    <div className="space-y-4">
+    <div>
       <PageHeader
         title="Members"
         description="People registered across all families"
@@ -241,13 +242,13 @@ export default function MembersList() {
         }
       />
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
         {stats.map((stat, index) => (
           <StatCard key={index} {...stat} size="compact" />
         ))}
       </div>
 
-      <TableCard borderless padding="lg">
+      <TableCard>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -268,6 +269,7 @@ export default function MembersList() {
           onSortChange={(value) => { setSortBy(value); setCurrentPage(1); }}
           tabs={
             <Tabs
+              variant="segmented"
               ariaLabel="Member status"
               value={activeTab}
               onChange={(value) => { setActiveTab(value); setCurrentPage(1); }}
@@ -281,7 +283,7 @@ export default function MembersList() {
         />
 
           {isFilterVisible && (
-            <div className="mt-4">
+            <div>
               <FilterPanel onClose={() => setIsFilterVisible(false)}>
                 <div className="w-full sm:w-40">
                   <Select
@@ -314,7 +316,6 @@ export default function MembersList() {
         ) : (
           <Table
             fixedLayout
-            striped
             columns={columns}
             data={members}
             entity="members"

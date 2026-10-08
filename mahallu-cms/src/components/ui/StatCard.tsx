@@ -1,5 +1,19 @@
 import { ReactNode } from 'react';
-import { FiArrowUp, FiArrowDown } from 'react-icons/fi';
+import {
+  RiArrowDownLine,
+  RiArrowUpLine,
+  RiBarChartBoxLine,
+  RiCalendarLine,
+  RiCheckboxCircleLine,
+  RiErrorWarningLine,
+  RiFileTextLine,
+  RiGroupLine,
+  RiHome5Line,
+  RiMenLine,
+  RiTimeLine,
+  RiWallet3Line,
+  RiWomenLine,
+} from 'react-icons/ri';
 import Card from './Card';
 import { cn } from '@/utils/cn';
 /*
@@ -46,24 +60,38 @@ export interface StatCardProps {
   className?: string;
 }
 
-/* Callers pass their glyph at whatever size their page happened to use —
- * h-5, h-6, occasionally unsized. The child selector outranks the class on
- * the svg itself, so every stat icon is a fixed size without touching a call site. */
+/* Every stat carries a glyph. Callers that pass none get one chosen from the
+ * title, so a row of four cards never mixes iconned and bare tiles. */
+const FALLBACK_ICONS: Array<[RegExp, ReactNode]> = [
+  [/\bfemale|women|girl/i, <RiWomenLine />],
+  [/\bmale|\bmen\b|boy/i, <RiMenLine />],
+  [/famil|house|household|home/i, <RiHome5Line />],
+  [/member|people|user|person|volunteer|staff|employee|student|beneficiar/i, <RiGroupLine />],
+  [/pending|due|await|waiting|scheduled|upcoming/i, <RiTimeLine />],
+  [/reject|overdue|fail|unpaid|missing|error|critical|expired/i, <RiErrorWarningLine />],
+  [/approv|active|complete|verified|paid|issued|resolved|done/i, <RiCheckboxCircleLine />],
+  [/amount|total|₹|income|collect|balance|fund|revenue|expense|salary|payment|cash|zakat|loan|donat/i, <RiWallet3Line />],
+  [/event|meeting|date|month|year|today|week/i, <RiCalendarLine />],
+  [/certificate|document|file|record|request|application|noc/i, <RiFileTextLine />],
+];
+
+function fallbackIcon(title: string): ReactNode {
+  return FALLBACK_ICONS.find(([pattern]) => pattern.test(title))?.[1] ?? <RiBarChartBoxLine />;
+}
+
+/* Callers pass their glyph at whatever size; the child selector fixes it. */
 const ICON_BOX = {
-  default: 'flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md [&>svg]:h-4 [&>svg]:w-4',
-  compact: 'flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md [&>svg]:h-3.5 [&>svg]:w-3.5',
+  default: 'flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg border [&>svg]:h-5 [&>svg]:w-5',
+  compact: 'flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border [&>svg]:h-[18px] [&>svg]:w-[18px]',
 };
 
-/* The icon tile carries the tone too, not just the number under it — a
- * warning stat should read as attention-worthy at a glance, before the
- * figure is even read. `default` stays neutral: colour is reserved for a
- * number that means something is wrong or worth acting on. */
+/* The tile carries the tone too, so a warning stat reads as one at a glance. */
 const ICON_TONE_CLASS = {
-  default: 'bg-muted text-muted-foreground',
-  success: 'bg-success/10 text-success',
-  warning: 'bg-warning/10 text-warning',
-  destructive: 'bg-destructive/10 text-destructive',
-  info: 'bg-info/10 text-info',
+  default: 'border-primary/15 bg-primary/5 text-primary',
+  success: 'border-success/20 bg-success/10 text-success',
+  warning: 'border-warning/20 bg-warning/10 text-warning',
+  destructive: 'border-destructive/20 bg-destructive/10 text-destructive',
+  info: 'border-info/20 bg-info/10 text-info',
 } as const;
 
 const TONE_CLASS = {
@@ -86,47 +114,44 @@ export default function StatCard({
   className,
 }: StatCardProps) {
   const compact = size === 'compact';
+  /* One row: icon tile, then label over value. About 64px tall. */
   const body = (
-    <>
-      <div className="flex items-start justify-between gap-2">
-        <p className="min-w-0 text-label font-medium text-muted-foreground">{title}</p>
-        {icon && (
-          <span className={cn(ICON_BOX[size], ICON_TONE_CLASS[tone])} aria-hidden="true">
-            {icon}
-          </span>
-        )}
-      </div>
-      <p
-        className={cn(
-          'mt-1 truncate font-semibold leading-none tabular-nums tracking-tight',
-          compact ? 'text-lg' : 'text-2xl',
-          TONE_CLASS[tone]
-        )}
-      >
-        {value}
-      </p>
-      {(hint || trend) && (
-        <div className="mt-1.5 flex items-center gap-2">
-          {hint && <span className="truncate text-xs text-muted-foreground">{hint}</span>}
+    <div className="flex items-center gap-3">
+      <span className={cn(ICON_BOX[size], ICON_TONE_CLASS[tone])} aria-hidden="true">
+        {icon ?? fallbackIcon(title)}
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-xs font-medium text-muted-foreground">{title}</p>
+        <div className="mt-0.5 flex items-baseline gap-2">
+          <p
+            className={cn(
+              'truncate font-semibold leading-tight tabular-nums tracking-tight',
+              compact ? 'text-base' : 'text-lg',
+              TONE_CLASS[tone]
+            )}
+          >
+            {value}
+          </p>
           {trend && (
             <span
               className={cn(
-                'inline-flex items-center gap-0.5 text-xs font-medium tabular-nums',
+                'inline-flex flex-shrink-0 items-center gap-0.5 text-xs font-medium tabular-nums',
                 trend.isPositive ? 'text-success' : 'text-destructive'
               )}
             >
               {trend.isPositive ? (
-                <FiArrowUp className="h-3 w-3" aria-hidden="true" />
+                <RiArrowUpLine className="h-3 w-3" aria-hidden="true" />
               ) : (
-                <FiArrowDown className="h-3 w-3" aria-hidden="true" />
+                <RiArrowDownLine className="h-3 w-3" aria-hidden="true" />
               )}
               {Math.abs(trend.value)}%
               <span className="sr-only">{trend.isPositive ? 'increase' : 'decrease'}</span>
             </span>
           )}
         </div>
-      )}
-    </>
+        {hint && <p className="mt-0.5 truncate text-xs text-muted-foreground">{hint}</p>}
+      </div>
+    </div>
   );
   /*
    * Clickable stats are real buttons: focusable, keyboard-operable and
@@ -137,9 +162,9 @@ export default function StatCard({
         type="button"
         onClick={onClick}
         className={cn(
-          'w-full rounded-xl border border-border/80 bg-card text-left shadow-sm transition-all',
-          compact ? 'p-2.5' : 'p-3.5',
-          'hover:-translate-y-px hover:shadow-md',
+          'w-full rounded-xl border border-border bg-card text-left shadow-sm transition-all',
+          compact ? 'px-3 py-2.5' : 'px-3.5 py-3',
+          'hover:border-primary/30 hover:shadow-md',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
           className
         )}
@@ -150,7 +175,7 @@ export default function StatCard({
   }
 
   return (
-    <Card padding="none" className={cn(compact ? 'p-2.5' : 'p-3.5', className)}>
+    <Card padding="none" className={cn(compact ? 'px-3 py-2.5' : 'px-3.5 py-3', className)}>
       {body}
     </Card>
   );

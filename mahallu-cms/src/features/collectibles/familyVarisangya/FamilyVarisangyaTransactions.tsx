@@ -246,7 +246,7 @@ export default function FamilyVarisangyaTransactions() {
         </Card>
       )}
 
-      <TableCard borderless>
+      <TableCard>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}

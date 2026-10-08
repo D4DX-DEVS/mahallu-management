@@ -168,7 +168,7 @@ export default function MahalluAccountsList() {
         <StatCard title="Total Balance" value={formatRupees(summary.totalBalance)} tone="success" />
       </div>
 
-      <TableCard borderless>
+      <TableCard>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
