@@ -129,7 +129,14 @@ export const registerDevice = async (req: AuthRequest, res: Response) => {
     if (!oneSignalPlayerId) {
       return res.status(400).json({ success: false, message: "We couldn't set up notifications on this device. Please try again." });
     }
-    await User.findByIdAndUpdate(req.user?._id, { oneSignalPlayerId });
+    // Saved on the account the session token belongs to. A device belongs to one signed-in account at a
+    // time, so any other account still holding this id (an earlier sign-in or role on the same phone)
+    // lets go of it and stops receiving this device's pushes.
+    const saved = await User.findByIdAndUpdate(req.user?._id, { oneSignalPlayerId }, { new: true });
+    if (!saved) {
+      return res.status(404).json({ success: false, message: "We couldn't find your account. Please sign in again." });
+    }
+    await User.updateMany({ oneSignalPlayerId, _id: { $ne: saved._id } }, { $set: { oneSignalPlayerId: null } });
     res.json({ success: true, message: 'Notifications are on for this device' });
   } catch (error: any) {
     sendFailure(res, error, 'We couldn\'t save the device. Please try again.');

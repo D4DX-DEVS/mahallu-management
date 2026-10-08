@@ -143,7 +143,8 @@ export const getAllFeeds = async (req: AuthRequest, res: Response) => {
   try {
     const { status, isSuperFeed, tenantId } = req.query;
     const { page, limit, skip } = getPaginationParams(req);
-    const query: any = {};
+    // A deleted post is never listed.
+    const query: any = { isDeleted: { $ne: true } };
 
     // Apply tenant filter - req.tenantId includes x-tenant-id header for super admin viewing as tenant
     if (req.tenantId) {
@@ -198,21 +199,36 @@ export const createFeed = async (req: AuthRequest, res: Response) => {
 // A hard delete, so every list and count (Gallery, super feeds, Home, web admin) stops showing the
 // post with no extra filter. A Mahallu admin can only reach their own Mahallu's posts; anything else
 // is a plain 404, exactly like a post that doesn't exist.
+// DELETE /social/feeds/:id - the post's author, or a Mahallu admin of the post's Mahallu, may delete it.
+// Soft delete: the post is kept (isDeleted, deletedAt, deletedBy) and drops out of every feed list.
 export const deleteFeed = async (req: AuthRequest, res: Response) => {
   try {
-    const query: any = { _id: req.params.id };
+    const notFound = () =>
+      res.status(404).json({ success: false, message: "We couldn't find that post. It may have been removed." });
+    const query: any = { _id: req.params.id, isDeleted: { $ne: true } };
 
     if (req.tenantId) {
       query.tenantId = req.tenantId;
     } else if (!req.isSuperAdmin) {
       // A non-super account with no Mahallu has no posts to delete; never fall back to an unscoped query.
-      return res.status(404).json({ success: false, message: "We couldn't find that post. It may have been removed." });
+      return notFound();
     }
 
-    const feed = await Feed.findOneAndDelete(query);
-    if (!feed) {
-      return res.status(404).json({ success: false, message: "We couldn't find that post. It may have been removed." });
+    const feed = await Feed.findOne(query).select('authorId tenantId');
+    if (!feed) return notFound();
+
+    const isAuthor = !!req.user?._id && String(feed.authorId) === String(req.user._id);
+    const isAdmin = !!req.isSuperAdmin || req.user?.role === 'super_admin' || req.user?.role === 'mahall';
+    if (!isAuthor && !isAdmin) {
+      return res.status(403).json({ success: false, message: "You can only delete your own posts." });
     }
+
+    const deleted = await Feed.findOneAndUpdate(
+      { _id: feed._id, tenantId: feed.tenantId, isDeleted: { $ne: true } },
+      { $set: { isDeleted: true, deletedAt: new Date(), ...(req.user?._id ? { deletedBy: req.user._id } : {}) } },
+      { new: true }
+    );
+    if (!deleted) return notFound();
 
     res.json({ success: true, message: 'Feed deleted' });
   } catch (error: any) {

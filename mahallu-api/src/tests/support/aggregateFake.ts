@@ -41,6 +41,7 @@ const evalExpr = (expr: any, doc: Doc): any => {
     switch (op) {
       case '$cond': return ev(arg[0]) ? ev(arg[1]) : ev(arg[2]);
       case '$eq': return idText(ev(arg[0])) === idText(ev(arg[1]));
+      case '$in': { const v = idText(ev(arg[0])); return (ev(arg[1]) as any[]).some((x) => idText(x) === v); }
       case '$ifNull': { const v = ev(arg[0]); return v === undefined || v === null ? ev(arg[1]) : v; }
       case '$subtract': return Number(ev(arg[0])) - Number(ev(arg[1]));
       case '$multiply': return (arg as any[]).reduce((p, e) => p * Number(ev(e)), 1);

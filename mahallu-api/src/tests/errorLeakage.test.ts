@@ -212,7 +212,7 @@ describe('controllers do not echo exception text', () => {
       const accepted = await sendPushNotification({ title: 't', message: 'm', playerIds: ['a', 'b'] });
       assert.equal(accepted, 2);
       assert.equal(calls[0].config.timeout, 10_000);
-      assert.deepEqual(calls[0].body.include_player_ids, ['a', 'b']);
+      assert.deepEqual(calls[0].body.include_subscription_ids, ['a', 'b']);
 
       // nobody to send to: nothing is sent, and nothing claims it was
       calls.length = 0;
