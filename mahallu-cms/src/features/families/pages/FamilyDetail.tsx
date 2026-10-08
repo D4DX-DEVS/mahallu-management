@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { FiEdit2, FiTrash2, FiPlus, FiEye, FiUpload } from 'react-icons/fi';
 import Card from '@/components/ui/Card';
-import TableCard from '@/components/ui/TableCard';
+import DetailSection from '@/components/ui/DetailSection';
+import { RiBarChartBoxLine, RiGroupLine, RiHome5Line, RiMapPin2Line } from 'react-icons/ri';
 import Button from '@/components/ui/Button';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import Modal from '@/components/ui/Modal';
@@ -130,6 +131,14 @@ export default function FamilyDetail() {
     return memberService.bulkImportMembers(id!, rows);
   };
 
+  const socio = family as Family & {
+    economicStatus?: string;
+    welfareStatus?: string;
+    housingType?: string;
+    specialRequirements?: string;
+  };
+  const humanise = (value?: string) => (value ? toTitleCase(String(value).replace(/_/g, ' ')) : undefined);
+
   const memberColumns: TableColumn<Member>[] = [
     { key: 'name', label: 'Name', width: '6.75rem', render: (v) => <span>{toTitleCase(v)}</span> },
     {
@@ -182,7 +191,7 @@ export default function FamilyDetail() {
   ];
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <PageHeader
         title={toTitleCase(family.houseName)}
         description={`Family • ${family.mahallId || '—'} • ${toTitleCase(family.area || family.place || '')}`}
@@ -198,196 +207,84 @@ export default function FamilyDetail() {
         }
       />
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <Card padding="lg">
-          <h2 className="mb-4 text-sm font-semibold text-foreground">Household</h2>
-          <dl className="space-y-3">
-            {family.mahallId && (
-              <div className="flex justify-between gap-4 py-1 text-sm">
-                <dt className="text-muted-foreground">Mahall ID</dt>
-                <dd className="font-medium tabular-nums text-foreground">{family.mahallId}</dd>
-              </div>
-            )}
-            <div className="flex justify-between gap-4 py-1 text-sm">
-              <dt className="text-muted-foreground">House name</dt>
-              <dd className="font-medium text-foreground">{toTitleCase(family.houseName)}</dd>
-            </div>
-            {family.houseNameMl && (
-              <div className="flex justify-between gap-4 py-1 text-sm">
-                <dt className="text-muted-foreground">House name (Malayalam)</dt>
-                <dd className="font-medium font-malayalam text-foreground">{family.houseNameMl}</dd>
-              </div>
-            )}
-            {family.familyHead && (
-              <div className="flex justify-between gap-4 py-1 text-sm">
-                <dt className="text-muted-foreground">Family head</dt>
-                <dd className="font-medium text-foreground">{toTitleCase(family.familyHead)}</dd>
-              </div>
-            )}
-            {family.familyHeadMl && (
-              <div className="flex justify-between gap-4 py-1 text-sm">
-                <dt className="text-muted-foreground">Family head (Malayalam)</dt>
-                <dd className="font-medium font-malayalam text-foreground">{family.familyHeadMl}</dd>
-              </div>
-            )}
-            {family.contactNo && (
-              <div className="flex justify-between gap-4 py-1 text-sm">
-                <dt className="text-muted-foreground">Contact</dt>
-                <dd className="font-medium tabular-nums text-foreground">{family.contactNo}</dd>
-              </div>
-            )}
-            {family.varisangyaGrade && (
-              <div className="flex justify-between gap-4 py-1 text-sm">
-                <dt className="text-muted-foreground">Varisangya</dt>
-                <dd className="font-medium text-foreground">{toTitleCase(family.varisangyaGrade)}</dd>
-              </div>
-            )}
-            {family.status && (
-              <div className="flex justify-between gap-4 py-1 text-sm">
-                <dt className="text-muted-foreground">Status</dt>
-                <dd>
-                  <StatusBadge status={family.status} />
-                </dd>
-              </div>
-            )}
-          </dl>
-        </Card>
+      {/* One compact record panel: label-over-value fields flowing across the
+          width, empty fields left out, so the members list sits in the first
+          screenful instead of below three half-empty cards. */}
+      <Card padding="none" className="divide-y divide-border">
+        <DetailSection
+          title="Household"
+          icon={RiHome5Line}
+          items={[
+            { label: 'Mahall ID', value: family.mahallId },
+            { label: 'House name', value: toTitleCase(family.houseName) },
+            { label: 'House name (Malayalam)', value: family.houseNameMl, malayalam: true },
+            { label: 'Family head', value: family.familyHead && toTitleCase(family.familyHead) },
+            { label: 'Family head (Malayalam)', value: family.familyHeadMl, malayalam: true },
+            { label: 'Contact', value: family.contactNo },
+            { label: 'Varisangya', value: family.varisangyaGrade && toTitleCase(family.varisangyaGrade) },
+            { label: 'Status', value: family.status && <StatusBadge status={family.status} /> },
+          ]}
+        />
+        <DetailSection
+          title="Location"
+          icon={RiMapPin2Line}
+          items={[
+            { label: 'House no.', value: family.houseNo },
+            { label: 'Ward number', value: family.wardNumber },
+            { label: 'Area', value: family.area && toTitleCase(family.area) },
+            { label: 'Area (Malayalam)', value: family.areaMl, malayalam: true },
+            { label: 'Village', value: family.village && toTitleCase(family.village) },
+            { label: 'LSG', value: family.lsgName && toTitleCase(family.lsgName) },
+            { label: 'District', value: family.district && toTitleCase(family.district) },
+            { label: 'State', value: family.state && toTitleCase(family.state) },
+            { label: 'Post office', value: family.postOffice && toTitleCase(family.postOffice) },
+            { label: 'PIN code', value: family.pinCode },
+            { label: 'Address', value: family.place && toTitleCase(family.place), wide: true },
+            { label: 'Address (Malayalam)', value: family.placeMl, malayalam: true, wide: true },
+          ]}
+        />
+        <DetailSection
+          title="Socio-economic"
+          icon={RiBarChartBoxLine}
+          emptyText="No socio-economic details recorded."
+          items={[
+            { label: 'Economic status', value: humanise(socio.economicStatus) },
+            { label: 'Welfare status', value: humanise(socio.welfareStatus) },
+            { label: 'Housing type', value: humanise(socio.housingType) },
+            { label: 'Special requirements', value: socio.specialRequirements, wide: true },
+          ]}
+        />
+      </Card>
 
-        <Card padding="lg">
-          <h2 className="mb-4 text-sm font-semibold text-foreground">Location</h2>
-          <dl className="space-y-3">
-            <div className="flex justify-between gap-4 py-1 text-sm">
-              <dt className="text-muted-foreground">State</dt>
-              <dd className="font-medium text-foreground">{toTitleCase(family.state)}</dd>
-            </div>
-            <div className="flex justify-between gap-4 py-1 text-sm">
-              <dt className="text-muted-foreground">District</dt>
-              <dd className="font-medium text-foreground">{toTitleCase(family.district)}</dd>
-            </div>
-            <div className="flex justify-between gap-4 py-1 text-sm">
-              <dt className="text-muted-foreground">LSG</dt>
-              <dd className="font-medium text-foreground">{toTitleCase(family.lsgName)}</dd>
-            </div>
-            <div className="flex justify-between gap-4 py-1 text-sm">
-              <dt className="text-muted-foreground">Village</dt>
-              <dd className="font-medium text-foreground">{toTitleCase(family.village)}</dd>
-            </div>
-            {family.pinCode && (
-              <div className="flex justify-between gap-4 py-1 text-sm">
-                <dt className="text-muted-foreground">Pin code</dt>
-                <dd className="font-medium tabular-nums text-foreground">{family.pinCode}</dd>
-              </div>
-            )}
-            {family.postOffice && (
-              <div className="flex justify-between gap-4 py-1 text-sm">
-                <dt className="text-muted-foreground">Post office</dt>
-                <dd className="font-medium text-foreground">{toTitleCase(family.postOffice)}</dd>
-              </div>
-            )}
-            {family.houseNo && (
-              <div className="flex justify-between gap-4 py-1 text-sm">
-                <dt className="text-muted-foreground">House no.</dt>
-                <dd className="font-medium text-foreground">{family.houseNo}</dd>
-              </div>
-            )}
-            {family.wardNumber && (
-              <div className="flex justify-between gap-4 py-1 text-sm">
-                <dt className="text-muted-foreground">Ward number</dt>
-                <dd className="font-medium tabular-nums text-foreground">{family.wardNumber}</dd>
-              </div>
-            )}
-            {family.area && (
-              <div className="flex justify-between gap-4 py-1 text-sm">
-                <dt className="text-muted-foreground">Area</dt>
-                <dd className="font-medium text-foreground">{toTitleCase(family.area)}</dd>
-              </div>
-            )}
-            {family.areaMl && (
-              <div className="flex justify-between gap-4 py-1 text-sm">
-                <dt className="text-muted-foreground">Area (Malayalam)</dt>
-                <dd className="font-medium font-malayalam text-foreground">{family.areaMl}</dd>
-              </div>
-            )}
-            {family.place && (
-              <div className="flex justify-between gap-4 py-1 text-sm">
-                <dt className="text-muted-foreground">Address</dt>
-                <dd className="font-medium text-foreground">{toTitleCase(family.place)}</dd>
-              </div>
-            )}
-            {family.placeMl && (
-              <div className="flex justify-between gap-4 py-1 text-sm">
-                <dt className="text-muted-foreground">Address (Malayalam)</dt>
-                <dd className="font-medium font-malayalam text-foreground">{family.placeMl}</dd>
-              </div>
-            )}
-          </dl>
-        </Card>
-
-        <Card padding="lg">
-          <h2 className="mb-4 text-sm font-semibold text-foreground">Socio-economic details</h2>
-          <dl className="space-y-3">
-            {(family as any).economicStatus && (
-              <div className="flex justify-between gap-4 py-1 text-sm">
-                <dt className="text-muted-foreground">Economic status</dt>
-                <dd className="font-medium capitalize text-foreground">{String((family as any).economicStatus).replace(/_/g, ' ')}</dd>
-              </div>
-            )}
-            {(family as any).welfareStatus && (
-              <div className="flex justify-between gap-4 py-1 text-sm">
-                <dt className="text-muted-foreground">Welfare status</dt>
-                <dd className="font-medium capitalize text-foreground">{String((family as any).welfareStatus).replace(/_/g, ' ')}</dd>
-              </div>
-            )}
-            {(family as any).housingType && (
-              <div className="flex justify-between gap-4 py-1 text-sm">
-                <dt className="text-muted-foreground">Housing type</dt>
-                <dd className="font-medium capitalize text-foreground">{(family as any).housingType}</dd>
-              </div>
-            )}
-            {(family as any).specialRequirements && (
-              <div className="flex justify-between gap-4 py-1 text-sm">
-                <dt className="text-muted-foreground">Special requirements</dt>
-                <dd className="font-medium text-foreground">{(family as any).specialRequirements}</dd>
-              </div>
-            )}
-            {!(family as any).economicStatus &&
-              !(family as any).welfareStatus &&
-              !(family as any).housingType &&
-              !(family as any).specialRequirements && (
-                <p className="text-sm text-muted-foreground">No socio-economic details recorded.</p>
-              )}
-          </dl>
-        </Card>
-
-        <TableCard className="lg:col-span-2">
-          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <h2 className="text-sm font-semibold text-foreground">
-              Members <span className="font-normal tabular-nums text-muted-foreground">· {members.length}</span>
-            </h2>
-            <div className="flex items-center gap-2">
-              <Button size="sm" variant="outline" onClick={() => setIsImportOpen(true)} icon={<FiUpload />} collapseLabel>
-                Import
-              </Button>
-              <Link to={ROUTES.MEMBERS.CREATE}>
-                <Button size="sm" icon={<FiPlus />} collapseLabel>Add member</Button>
-              </Link>
-            </div>
+      <section>
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <h2 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+            <RiGroupLine className="h-4 w-4 text-primary" aria-hidden="true" />
+            Members <span className="font-normal tabular-nums text-muted-foreground">· {members.length}</span>
+          </h2>
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="outline" onClick={() => setIsImportOpen(true)} icon={<FiUpload />} collapseLabel>
+              Import
+            </Button>
+            {/* The new member belongs to this family: the form opens with it filled in and locked. */}
+            <Link to={`${ROUTES.MEMBERS.CREATE}?familyId=${family.id}`}>
+              <Button size="sm" icon={<FiPlus />} collapseLabel>Add member</Button>
+            </Link>
           </div>
-          {members.length > 0 ? (
-            <Table
-              fixedLayout
-              striped
-              columns={memberColumns}
-              data={members}
-              onRowClick={(row) => navigate(ROUTES.MEMBERS.DETAIL(row.id))}
-            />
-          ) : (
-            <p className="text-gray-500 dark:text-gray-400 text-center py-8">
-              No members found. Add a member to get started.
-            </p>
-          )}
-        </TableCard>
-      </div>
+        </div>
+        {members.length > 0 ? (
+          <Table
+            fixedLayout
+            columns={memberColumns}
+            data={members}
+            onRowClick={(row) => navigate(ROUTES.MEMBERS.DETAIL(row.id))}
+          />
+        ) : (
+          <p className="rounded-xl border border-dashed border-border py-6 text-center text-sm text-muted-foreground">
+            No members yet. Add the first member of this household.
+          </p>
+        )}
+      </section>
 
       <Modal
         isOpen={showDeleteModal}

@@ -194,7 +194,7 @@ export default function FacilitiesList() {
         breadcrumbs={[{ label: 'Survey', path: '/survey' }]}
       />
 
-      <TableCard borderless>
+      <TableCard>
         <ActionBar>
           <ExpandableSearch
             value={searchQuery}

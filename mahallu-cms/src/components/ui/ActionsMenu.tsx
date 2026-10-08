@@ -1,7 +1,6 @@
 import { KeyboardEvent as ReactKeyboardEvent, ReactNode, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  FiMoreHorizontal,
   FiEye,
   FiEdit2,
   FiTrash2,
@@ -17,6 +16,7 @@ import {
   FiRefreshCw,
   FiExternalLink,
 } from 'react-icons/fi';
+import { RiMore2Fill } from 'react-icons/ri';
 import { cn } from '@/utils/cn';
 import { ROW_ACTION_BASE, RowActionVariant } from './rowAction';
 
@@ -194,7 +194,7 @@ export default function ActionsMenu({ items, className, label = 'Actions' }: Act
         }}
         className={cn(ROW_ACTION_BASE, 'hover:bg-accent hover:text-accent-foreground', className)}
       >
-        <FiMoreHorizontal aria-hidden="true" />
+        <RiMore2Fill aria-hidden="true" />
       </button>
 
       {isOpen &&

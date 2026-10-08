@@ -64,7 +64,7 @@ export default function Field({
     <div className={cn('w-full', className)}>
       {label && (
         <div className="mb-1.5 flex items-center justify-between gap-2">
-          <label htmlFor={ids.id} className="block text-label font-medium text-foreground">
+          <label htmlFor={ids.id} className="block text-label font-medium text-foreground/90">
             {label}
             {required && (
               <span className="ml-1 text-destructive" aria-hidden="true">
@@ -77,12 +77,15 @@ export default function Field({
       )}
       {children}
       {error && (
-        <p id={ids.errorId} className="mt-1.5 text-label text-destructive">
+        <p id={ids.errorId} role="alert" className="mt-1.5 flex items-center gap-1.5 text-xs font-medium text-destructive animate-fade-in">
+          <span aria-hidden="true" className="flex h-3.5 w-3.5 flex-shrink-0 items-center justify-center rounded-full bg-destructive text-[10px] font-bold leading-none text-destructive-foreground">
+            !
+          </span>
           {error}
         </p>
       )}
       {helperText && !error && (
-        <p id={ids.helperId} className="mt-1.5 text-label text-muted-foreground">
+        <p id={ids.helperId} className="mt-1.5 text-xs text-muted-foreground">
           {helperText}
         </p>
       )}

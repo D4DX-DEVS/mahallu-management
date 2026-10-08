@@ -150,7 +150,7 @@ export default function MahalluLedgersList() {
         breadcrumbs={[{ label: 'Mahallu Finance', path: '/mahallu-finance/accounts' }]}
       />
 
-      <TableCard borderless>
+      <TableCard>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}

@@ -210,7 +210,7 @@ export default function ActivityLogsList() {
     <div className="space-y-4">
       <PageHeader title="Activity Logs" />
 
-      <TableCard borderless>
+      <TableCard>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}

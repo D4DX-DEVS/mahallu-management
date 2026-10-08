@@ -93,7 +93,7 @@ export default function SurveyList() {
         </Card>
       )}
 
-      <TableCard borderless>
+      <TableCard>
         <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-xs text-gray-500 dark:text-gray-400">{pagination?.total ?? 0} snapshot(s)</p>
           <Button size="md" onClick={() => setGenerateOpen(true)}>

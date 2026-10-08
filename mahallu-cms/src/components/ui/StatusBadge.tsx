@@ -1,3 +1,11 @@
+import { IconType } from 'react-icons';
+import {
+  RiCheckboxCircleFill,
+  RiCloseCircleFill,
+  RiIndeterminateCircleFill,
+  RiLoader2Line,
+  RiTimeFill,
+} from 'react-icons/ri';
 import { cn } from '@/utils/cn';
 
 /**
@@ -90,22 +98,15 @@ const STATUS_MAP: Record<string, StatusDef> = {
   resigned: { label: 'Resigned', tone: 'neutral' },
 };
 
-const TONE_CLASSES: Record<StatusTone, string> = {
-  neutral: 'bg-muted text-muted-foreground ring-border',
-  pending: 'bg-warning/10 text-warning ring-warning/25',
-  progress: 'bg-info/10 text-info ring-info/25',
-  positive: 'bg-success/10 text-success ring-success/25',
-  negative: 'bg-destructive/10 text-destructive ring-destructive/25',
-  done: 'bg-success/5 text-success ring-success/20',
-};
-
-const DOT_CLASSES: Record<StatusTone, string> = {
-  neutral: 'bg-muted-foreground',
-  pending: 'bg-warning',
-  progress: 'bg-info',
-  positive: 'bg-success',
-  negative: 'bg-destructive',
-  done: 'bg-success',
+/* A neutral outlined pill; the tone lives in the glyph, so a column of
+ * statuses reads as one calm list with the exceptions standing out. */
+const TONE_ICON: Record<StatusTone, { Icon: IconType; className: string }> = {
+  neutral: { Icon: RiIndeterminateCircleFill, className: 'text-muted-foreground/70' },
+  pending: { Icon: RiTimeFill, className: 'text-warning' },
+  progress: { Icon: RiLoader2Line, className: 'text-info' },
+  positive: { Icon: RiCheckboxCircleFill, className: 'text-success' },
+  negative: { Icon: RiCloseCircleFill, className: 'text-destructive' },
+  done: { Icon: RiCheckboxCircleFill, className: 'text-muted-foreground' },
 };
 
 /** Turns any raw status value into its display label. Never renders snake_case. */
@@ -138,16 +139,17 @@ export default function StatusBadge({ status, label, size = 'sm', className }: S
   const tone = statusTone(status);
   const text = label ?? statusLabel(status);
 
+  const { Icon, className: iconClass } = TONE_ICON[tone];
+
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1.5 rounded-sm font-medium ring-1 ring-inset',
-        size === 'sm' ? 'px-2 py-0.5 text-xs' : 'px-2.5 py-1 text-sm',
-        TONE_CLASSES[tone],
+        'inline-flex items-center gap-1 whitespace-nowrap rounded-md border border-border bg-card font-medium text-foreground/80 shadow-sm',
+        size === 'sm' ? 'h-6 px-1.5 text-xs' : 'h-7 px-2 text-sm',
         className
       )}
     >
-      <span className={cn('h-1.5 w-1.5 flex-shrink-0 rounded-full', DOT_CLASSES[tone])} aria-hidden="true" />
+      <Icon className={cn('flex-shrink-0', size === 'sm' ? 'h-3.5 w-3.5' : 'h-4 w-4', iconClass)} aria-hidden="true" />
       {text}
     </span>
   );

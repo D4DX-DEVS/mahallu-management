@@ -42,10 +42,8 @@ export interface PageHeaderProps {
  * always read as the same destination. Detail and form routes inherit their
  * module's icon.
  *
- * The title uses the shared 16px page-heading step with a 44px icon tile beside it.
- * The page title and the application it belongs to now read as one line across
- * the top of the window rather than as two competing headings. The description
- * stays at the body-sm step so the pair keeps a visible hierarchy.
+ * The title sits at 18px beside a 48px outlined icon disc, with the description
+ * under it and a hairline closing the header off from the page body.
  *
  * There is no breadcrumb. The trail it printed — "Dashboard › Families" above
  * an <h1> reading "Families" — restated the page title under a link to a
@@ -57,31 +55,26 @@ export default function PageHeader({ title, eyebrow, description, icon, actions,
   const Icon = icon === undefined ? resolveNavIcon(pathname) : icon;
 
   return (
-    <div className={cn('mb-5', className)}>
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
-        <div className="flex min-w-0 items-start gap-3">
+    <div className={cn('mb-6 border-b border-border pb-5', className)}>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
+        <div className="flex min-w-0 items-center gap-3.5">
           {Icon && (
             <span
               aria-hidden="true"
-              className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary shadow-sm"
+              className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full border border-border bg-card text-foreground/80 shadow-sm"
             >
-              <Icon className="h-5 w-5" />
+              <Icon className="h-[22px] w-[22px]" />
             </span>
           )}
           <div className="min-w-0">
-            {/* No `truncate`: a page title that does not fit wraps. Cutting
-                it off is how a phone ends up headed "Family Varisangya Tran…". */}
-            {eyebrow && <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-primary">{eyebrow}</p>}
-            <h1 className="text-base font-semibold leading-tight tracking-tight text-foreground">
-              {title}
-            </h1>
+            {/* No `truncate`: a page title that does not fit wraps. */}
+            {eyebrow && <p className="mb-0.5 text-xs font-medium uppercase tracking-wider text-primary">{eyebrow}</p>}
+            <h1 className="text-lg font-semibold leading-tight tracking-tight text-foreground">{title}</h1>
             {description && <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{description}</p>}
           </div>
         </div>
-        {/* One row, at every width. A header's actions are two or three
-            controls; wrapping them turned a phone header into three lines of
-            chrome. Pass them as `Button`s with `icon` + `collapseLabel` so
-            they collapse to their glyphs instead of folding onto a new row. */}
+        {/* Pass actions as `Button`s with `icon` + `collapseLabel` so they
+            collapse to their glyphs on a phone instead of folding. */}
         {actions && (
           <div className="flex min-w-0 flex-shrink-0 flex-wrap items-center justify-start gap-2 sm:justify-end">
             {actions}

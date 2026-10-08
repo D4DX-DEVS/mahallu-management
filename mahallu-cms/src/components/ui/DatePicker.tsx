@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { format, parse } from 'date-fns';
-import { FiCalendar } from 'react-icons/fi';
+import { RiCalendarLine } from 'react-icons/ri';
 import * as PopoverPrimitive from '@radix-ui/react-popover';
 import { DayPicker } from 'react-day-picker';
 import 'react-day-picker/dist/style.css';
@@ -72,12 +72,12 @@ const DatePicker = React.forwardRef<HTMLButtonElement, DatePickerProps>(
               <span className={cn('truncate', !displayValue && 'text-muted-foreground')}>
                 {displayValue || placeholder}
               </span>
-              <FiCalendar className="ml-2 h-4 w-4 flex-shrink-0 text-muted-foreground" aria-hidden="true" />
+              <RiCalendarLine className="ml-2 h-4 w-4 flex-shrink-0 text-muted-foreground" aria-hidden="true" />
             </button>
           </PopoverPrimitive.Trigger>
           <PopoverPrimitive.Portal>
             <PopoverPrimitive.Content
-              className="z-[100] max-w-[calc(100vw-16px)] rounded-lg border border-border bg-popover p-2 text-popover-foreground shadow-md sm:p-3"
+              className="z-[100] max-w-[calc(100vw-16px)] rounded-xl border border-border bg-popover p-2 text-popover-foreground shadow-lg animate-fade-in sm:p-3"
               align="start"
               sideOffset={8}
               collisionPadding={8}

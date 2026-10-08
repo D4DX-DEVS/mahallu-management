@@ -82,6 +82,8 @@ export default defineConfig([
     },
     rules: {
       'no-restricted-syntax': ['warn', ...DESIGN_SYSTEM_RULES],
+      // Native alert/confirm/prompt dialogs are banned: use ConfirmDialog or a toast.
+      'no-alert': 'error',
     },
   },
   {

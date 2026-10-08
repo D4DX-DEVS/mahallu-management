@@ -1,7 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { FiEye, FiEdit2, FiTrash2, FiHome, FiUsers, FiUpload, FiPlus, FiFileText, FiFile } from 'react-icons/fi';
+import { RiMenLine, RiWomenLine } from 'react-icons/ri';
 import TableCard from '@/components/ui/TableCard';
+import FilterPanel from '@/components/ui/FilterPanel';
+import Avatar from '@/components/ui/Avatar';
 import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
 import StatCard from '@/components/ui/StatCard';
@@ -181,8 +184,8 @@ export default function FamiliesList() {
         toast.info('Nothing to export');
         return;
       }
-      if (type === 'csv') exportToCSV(columns, rows, 'families');
-      else await exportToPDF(columns, rows, 'families', 'Families');
+      if (type === 'csv') exportToCSV(exportColumns, rows, 'families');
+      else await exportToPDF(exportColumns, rows, 'families', 'Families');
     } catch (err: any) {
       toast.error(errorMessage(err, { action: 'export this list' }));
     } finally {
@@ -212,8 +215,19 @@ export default function FamiliesList() {
       key: 'houseName',
       label: 'House name',
       sortable: true,
-      render: (name) => <span className="font-medium">{toTitleCase(name)}</span>,
-      width: '10rem',
+      render: (name, row) => (
+        <div className="flex min-w-0 items-center gap-3">
+          <Avatar name={name} size="md" />
+          <div className="min-w-0">
+            <div className="truncate font-medium text-foreground">{toTitleCase(name)}</div>
+            <div className="truncate text-xs text-muted-foreground">
+              {[row.houseNo && `No. ${row.houseNo}`, row.place && toTitleCase(row.place)].filter(Boolean).join(' · ') ||
+                'No address added'}
+            </div>
+          </div>
+        </div>
+      ),
+      width: '15rem',
     },
     {
       key: 'familyHead',
@@ -269,6 +283,14 @@ export default function FamiliesList() {
     },
   ];
 
+  // CSV/PDF get plain values: the house-name cell is an avatar + two-line block,
+  // and the actions column carries no data.
+  const exportColumns: TableColumn<Family>[] = columns
+    .filter((column) => column.key !== 'actions')
+    .map((column) =>
+      column.key === 'houseName' ? { ...column, render: (name: string) => toTitleCase(name) } : column
+    );
+
   // Prefer tenant-wide area options; fallback to visible page values if settings empty.
   const areaOptions = [
     { value: '', label: 'All areas' },
@@ -287,13 +309,11 @@ export default function FamiliesList() {
         description="Households registered in this mahallu."
         actions={
           <>
-            <Button variant="outline" onClick={() => setIsImportOpen(true)}>
-              <FiUpload className="h-4 w-4" aria-hidden="true" />
+            <Button variant="outline" icon={<FiUpload />} collapseLabel onClick={() => setIsImportOpen(true)}>
               Import CSV
             </Button>
             <Link to={ROUTES.FAMILIES.CREATE}>
-              <Button>
-                <FiPlus className="h-4 w-4" aria-hidden="true" />
+              <Button icon={<FiPlus />} collapseLabel>
                 New family
               </Button>
             </Link>
@@ -301,7 +321,7 @@ export default function FamiliesList() {
         }
       />
 
-      <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard
           title="Families"
           value={pagination?.total ?? families.length}
@@ -310,11 +330,11 @@ export default function FamiliesList() {
         <StatCard title="Members" value={memberStats.totalMembers} icon={<FiUsers className="h-4 w-4" />} />
         {/* Male and female used to share one card as the string "342 - 318",
             which cannot be read at a glance. Two figures, two cards. */}
-        <StatCard title="Male" value={memberStats.maleCount} />
-        <StatCard title="Female" value={memberStats.femaleCount} />
+        <StatCard title="Male" value={memberStats.maleCount} icon={<RiMenLine />} />
+        <StatCard title="Female" value={memberStats.femaleCount} icon={<RiWomenLine />} />
       </div>
 
-      <TableCard borderless padding="lg">
+      <TableCard>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -329,7 +349,7 @@ export default function FamiliesList() {
         />
 
         {isFilterVisible && (
-          <div className="mb-4 flex flex-wrap items-end gap-3 rounded-md border border-border bg-muted/40 p-3">
+          <FilterPanel onClose={() => setIsFilterVisible(false)}>
             <div className="w-full sm:w-52">
               <Select
                 label="Area"
@@ -352,7 +372,7 @@ export default function FamiliesList() {
                 Clear filters
               </Button>
             )}
-          </div>
+          </FilterPanel>
         )}
 
         {error ? (
@@ -373,7 +393,6 @@ export default function FamiliesList() {
                * to them: a long family head name now clips to an ellipsis
                * instead of stealing width from the columns beside it. */
               fixedLayout
-              striped
               emptyVariant={isFiltered ? 'no-results' : 'empty'}
               emptyAction={
                 isFiltered
@@ -408,7 +427,7 @@ export default function FamiliesList() {
                       icon: <FiFileText />,
                       onClick: () =>
                         exportToCSV(
-                          columns,
+                          exportColumns,
                           families.filter((f) => selectedIds.includes(f.id)),
                           'families'
                         ),
@@ -418,7 +437,7 @@ export default function FamiliesList() {
                       icon: <FiFile />,
                       onClick: () =>
                         void exportToPDF(
-                          columns,
+                          exportColumns,
                           families.filter((f) => selectedIds.includes(f.id)),
                           'families',
                           'Families'

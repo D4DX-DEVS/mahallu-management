@@ -243,7 +243,7 @@ export default function InstitutesList() {
         </div>
       </div>
 
-      <TableCard borderless>
+      <TableCard>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}

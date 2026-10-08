@@ -236,7 +236,7 @@ export default function InstituteAccountsList() {
         </div>
       </div>
 
-      <TableCard borderless>
+      <TableCard>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}

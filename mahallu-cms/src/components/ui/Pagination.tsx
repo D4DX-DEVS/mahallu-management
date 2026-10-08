@@ -1,4 +1,4 @@
-import { FiChevronLeft, FiChevronRight } from 'react-icons/fi';
+import { RiArrowLeftDoubleLine, RiArrowLeftSLine, RiArrowRightDoubleLine, RiArrowRightSLine } from 'react-icons/ri';
 import { cn } from '@/utils/cn';
 export interface PaginationProps {
   currentPage: number;
@@ -49,79 +49,87 @@ export default function Pagination({
   const safeCurrentPage = Math.min(Math.max(1, Math.floor(currentPage) || 1), safeTotalPages);
   const startItem = (safeCurrentPage - 1) * safePerPage + 1;
   const endItem = Math.min(safeCurrentPage * safePerPage, safeTotalItems);
-  const btn =
-    'inline-flex h-9 min-w-9 items-center justify-center rounded-lg px-2 text-sm transition-colors ' +
-    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-40 disabled:pointer-events-none';
+  const pageBtn =
+    'inline-flex h-8 min-w-8 items-center justify-center rounded-lg px-2 text-sm font-medium tabular-nums transition-colors ' +
+    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
+  const arrowBtn =
+    'inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-subtle ' +
+    'hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-40';
+  const go = (page: number) => onPageChange(Math.min(Math.max(1, page), safeTotalPages));
   return (
+    /* Reference layout: page position on the left, the pager centred, page
+     * size on the right. On a phone the pager takes its own row underneath. */
     <nav
       aria-label="Pagination"
-      className={cn('flex w-full flex-col items-center justify-between gap-3 sm:flex-row', className)}
+      className={cn(
+        'flex w-full flex-wrap items-center justify-between gap-3 sm:grid sm:grid-cols-[1fr_auto_1fr] sm:gap-4',
+        className
+      )}
     >
-      <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
-        <p className="text-label text-muted-foreground tabular-nums">
-          {startItem}–{endItem} of {safeTotalItems} {entity}
-        </p>
-        {onItemsPerPageChange && (
-          <label className="flex items-center gap-1.5 text-label text-muted-foreground">
-            <span>Rows</span>
-            <select
-              aria-label="Rows per page"
-              value={safePerPage}
-              onChange={(e) => onItemsPerPageChange(Number(e.target.value))}
-              className="h-9 rounded-md border border-input bg-background px-2 text-label text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              {PAGE_SIZES.map((size) => (
-                <option key={size} value={size}>
-                  {size}
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
-      </div>
-      <div className="flex max-w-full flex-wrap items-center justify-center gap-1">
-        <button
-          type="button"
-          className={cn(btn, 'text-muted-foreground hover:bg-accent hover:text-accent-foreground')}
-          onClick={() => onPageChange(safeCurrentPage - 1)}
-          disabled={safeCurrentPage <= 1}
-          aria-label="Previous page"
-        >
-          <FiChevronLeft className="h-4 w-4" aria-hidden="true" />
+      <p className="text-sm text-muted-foreground tabular-nums" title={`${startItem}–${endItem} of ${safeTotalItems} ${entity}`}>
+        Page <span className="font-medium text-foreground">{safeCurrentPage}</span> of {safeTotalPages}
+        <span className="hidden lg:inline"> · {safeTotalItems.toLocaleString()} {entity}</span>
+      </p>
+
+      <div className="order-last flex w-full flex-wrap items-center justify-center gap-1 sm:order-none sm:w-auto">
+        <button type="button" className={cn(arrowBtn, 'hidden sm:inline-flex')} onClick={() => go(1)} disabled={safeCurrentPage <= 1} aria-label="First page">
+          <RiArrowLeftDoubleLine className="h-[18px] w-[18px]" aria-hidden="true" />
+        </button>
+        <button type="button" className={arrowBtn} onClick={() => go(safeCurrentPage - 1)} disabled={safeCurrentPage <= 1} aria-label="Previous page">
+          <RiArrowLeftSLine className="h-[18px] w-[18px]" aria-hidden="true" />
         </button>
         {pageWindow(safeCurrentPage, safeTotalPages).map((page, index) =>
           page === 'gap' ? (
-            <span key={'gap-' + index} className="px-1 text-label text-muted-foreground" aria-hidden="true">
+            <span
+              key={'gap-' + index}
+              className="inline-flex h-8 min-w-8 items-center justify-center rounded-lg border border-border text-sm text-muted-foreground"
+              aria-hidden="true"
+            >
               …
             </span>
           ) : (
             <button
               key={page}
               type="button"
-              onClick={() => onPageChange(page)}
+              onClick={() => go(page)}
               aria-label={'Page ' + page}
               aria-current={page === safeCurrentPage ? 'page' : undefined}
               className={cn(
-                btn,
-                'tabular-nums',
+                pageBtn,
                 page === safeCurrentPage
-                  ? 'bg-primary font-medium text-primary-foreground'
-                  : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                  ? 'border border-foreground/15 bg-subtle text-foreground shadow-sm'
+                  : 'border border-border text-muted-foreground hover:bg-subtle hover:text-foreground'
               )}
             >
               {page}
             </button>
           )
         )}
-        <button
-          type="button"
-          className={cn(btn, 'text-muted-foreground hover:bg-accent hover:text-accent-foreground')}
-          onClick={() => onPageChange(safeCurrentPage + 1)}
-          disabled={safeCurrentPage >= safeTotalPages}
-          aria-label="Next page"
-        >
-          <FiChevronRight className="h-4 w-4" aria-hidden="true" />
+        <button type="button" className={arrowBtn} onClick={() => go(safeCurrentPage + 1)} disabled={safeCurrentPage >= safeTotalPages} aria-label="Next page">
+          <RiArrowRightSLine className="h-[18px] w-[18px]" aria-hidden="true" />
         </button>
+        <button type="button" className={cn(arrowBtn, 'hidden sm:inline-flex')} onClick={() => go(safeTotalPages)} disabled={safeCurrentPage >= safeTotalPages} aria-label="Last page">
+          <RiArrowRightDoubleLine className="h-[18px] w-[18px]" aria-hidden="true" />
+        </button>
+      </div>
+
+      <div className="flex justify-end">
+        {onItemsPerPageChange && (
+          <select
+            aria-label="Rows per page"
+            value={safePerPage}
+            onChange={(e) => onItemsPerPageChange(Number(e.target.value))}
+            className="!h-8 rounded-lg !border-border bg-card !px-2.5 text-sm text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            {Array.from(new Set([...PAGE_SIZES, safePerPage]))
+              .sort((a, b) => a - b)
+              .map((size) => (
+                <option key={size} value={size}>
+                  {size} / page
+                </option>
+              ))}
+          </select>
+        )}
       </div>
     </nav>
   );

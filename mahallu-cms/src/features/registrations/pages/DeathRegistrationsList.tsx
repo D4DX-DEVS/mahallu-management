@@ -179,7 +179,7 @@ export default function DeathRegistrationsList() {
         </div>
       </div>
 
-      <TableCard borderless>
+      <TableCard>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}

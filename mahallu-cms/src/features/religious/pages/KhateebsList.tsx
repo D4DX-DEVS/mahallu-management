@@ -213,7 +213,7 @@ export default function KhateebsList() {
         <Button onClick={() => handleOpenModal()} icon={<FiPlus />} collapseLabel>New Khateeb</Button>
       </ActionBar>
 
-      <TableCard borderless>
+      <TableCard>
         <Table fixedLayout striped columns={columns} data={khateebs} onRowClick={(row) => handleOpenModal(row)} />
       </TableCard>
 

@@ -218,7 +218,7 @@ export default function SalaryList() {
         </div>
       </div>
 
-      <TableCard borderless>
+      <TableCard>
         <TableToolbar
           searchQuery=""
           onSearchChange={() => {}}

@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useId } from 'react';
+import { cn } from '@/utils/cn';
 
 interface RadioCardOption {
   value: string;
@@ -13,8 +14,19 @@ interface RadioCardGroupProps {
   onChange: (value: string) => void;
   error?: string;
   required?: boolean;
-  columns?: 2 | 3 | 4;
+  /** Chips per row. 8 is for a short code list (blood groups): 4 on a phone, one row from `md` up. */
+  columns?: 2 | 3 | 4 | 8;
 }
+
+/* Compact, control-height chips. The grid carries `radio-card-grid` so the
+ * create/edit modal's "every .grid is one or two columns" rule (index.css)
+ * leaves it alone; without it every chip became a full-width row. */
+const GRID_COLS = {
+  2: 'grid-cols-2',
+  3: 'grid-cols-3',
+  4: 'grid-cols-4',
+  8: 'grid-cols-4 md:grid-cols-8',
+};
 
 export default function RadioCardGroup({
   label,
@@ -25,63 +37,44 @@ export default function RadioCardGroup({
   required,
   columns = 2,
 }: RadioCardGroupProps) {
-  /* One card per row on a phone. Four options across a 320px screen gave each
-   * card ~68px, which truncated every label it was meant to make readable. */
-  const gridCols = {
-    2: 'grid-cols-1 sm:grid-cols-2',
-    3: 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3',
-    4: 'grid-cols-1 sm:grid-cols-2 md:grid-cols-4',
-  };
+  const labelId = useId();
 
   return (
-    <div className="space-y-1">
-      <label className="block text-label font-medium text-foreground">
+    <div className="w-full">
+      <p id={labelId} className="mb-1.5 block text-label font-medium text-foreground/90">
         {label}
-        {required && <span className="ml-1 text-destructive">*</span>}
-      </label>
-      <div className={`grid ${gridCols[columns]} gap-2`}>
-        {options.map((option) => (
-          <button
-            key={option.value}
-            type="button"
-            onClick={() => onChange(option.value)}
-            className={`
-              relative flex min-h-11 w-full items-center justify-center rounded-md border-2 px-4 py-2 pr-8 text-sm transition-colors
-              ${
-                value === option.value
-                  ? 'border-primary bg-accent'
-                  : 'border-input bg-background hover:bg-accent/40'
-              }
-              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
-              cursor-pointer
-            `}
-          >
-            <span
-              className={`min-w-0 break-words text-center font-medium ${
-                value === option.value ? 'text-primary' : 'text-foreground'
-              }`}
+        {required && (
+          <span className="ml-1 text-destructive" aria-hidden="true">
+            *
+          </span>
+        )}
+      </p>
+      <div role="radiogroup" aria-labelledby={labelId} className={cn('radio-card-grid grid gap-2', GRID_COLS[columns])}>
+        {options.map((option) => {
+          const selected = value === option.value;
+          return (
+            <button
+              key={option.value}
+              type="button"
+              role="radio"
+              aria-checked={selected}
+              onClick={() => onChange(option.value)}
+              className={cn(
+                'flex h-10 min-w-0 items-center justify-center gap-1.5 rounded-lg border px-2 text-sm font-medium shadow-sm',
+                'transition-[border-color,background-color,color] duration-150 cursor-pointer',
+                'focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/10 focus-visible:border-primary',
+                selected
+                  ? 'border-primary bg-primary/10 text-primary'
+                  : 'border-input/40 bg-card text-foreground hover:border-input/70 hover:bg-accent/40'
+              )}
             >
-              {option.label}
-            </span>
-            {value === option.value && (
-              <div className="absolute right-2 top-1/2 -translate-y-1/2">
-                <svg
-                  className="h-4 w-4 text-primary"
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-              </div>
-            )}
-          </button>
-        ))}
+              {option.icon}
+              <span className="truncate">{option.label}</span>
+            </button>
+          );
+        })}
       </div>
-      {error && <p className="mt-1 text-label text-destructive">{error}</p>}
+      {error && <p className="mt-1.5 text-xs font-medium text-destructive">{error}</p>}
     </div>
   );
 }

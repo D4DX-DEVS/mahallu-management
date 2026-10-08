@@ -180,7 +180,16 @@ export interface Committee {
   termStartDate?: string;
   termEndDate?: string;
   maxTermYears?: number;
+  /** 'mahallu' is the Mahallu's own governing committee (one per Mahallu). */
+  kind?: 'general' | 'mahallu';
+  officeBearers?: CommitteeOfficeBearer[];
   createdAt: string;
+}
+
+export interface CommitteeOfficeBearer {
+  /** Populated member on read; a member id when saving. */
+  member: Member | string;
+  role: string;
 }
 
 export interface Meeting {

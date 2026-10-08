@@ -1,10 +1,15 @@
-import { KeyboardEvent, MouseEvent, ReactNode, useId, useMemo, useState } from 'react';
-import { FiChevronUp, FiChevronDown, FiChevronRight } from 'react-icons/fi';
+import { KeyboardEvent, MouseEvent, ReactNode, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { FiChevronRight } from 'react-icons/fi';
+import { RiArrowDownSFill, RiArrowUpSFill, RiExpandUpDownFill } from 'react-icons/ri';
 import { TableColumn, SortState } from '@/types';
 import { cn } from '@/utils/cn';
 import { nextSortState, sortRows, valueKind } from '@/utils/sort';
 import Skeleton, { TableSkeleton } from './Skeleton';
 import EmptyState, { EmptyStateVariant } from './EmptyState';
+import Dropdown from './Dropdown';
+import { SortTrigger, sortMenuItems } from './TableToolbar';
+import { useTableSlot } from './tableSlot';
 
 /**
  * Three states, one glyph. Unsorted shows both chevrons at low contrast so the
@@ -13,11 +18,12 @@ import EmptyState, { EmptyStateVariant } from './EmptyState';
  * screen reader announces.
  */
 function SortIndicator({ direction }: { direction: 'asc' | 'desc' | null }) {
+  const Glyph = direction === 'asc' ? RiArrowUpSFill : direction === 'desc' ? RiArrowDownSFill : RiExpandUpDownFill;
   return (
-    <span className="inline-flex flex-shrink-0 flex-col items-center gap-px leading-none" aria-hidden="true">
-      <FiChevronUp className={cn('h-3 w-3', direction === 'asc' ? 'opacity-100' : 'opacity-60')} />
-      <FiChevronDown className={cn('h-3 w-3', direction === 'desc' ? 'opacity-100' : 'opacity-60')} />
-    </span>
+    <Glyph
+      className={cn('h-4 w-4 flex-shrink-0', direction ? 'text-foreground' : 'text-muted-foreground/60')}
+      aria-hidden="true"
+    />
   );
 }
 
@@ -94,7 +100,7 @@ export interface TableProps<T = any> {
    */
   fixedLayout?: boolean;
 
-  /** Tints alternate rows, so the eye tracks a row across a wide table. */
+  /** @deprecated Rows are separated by hairlines; stripes are no longer drawn. */
   striped?: boolean;
 
   /* ---- Removed ---------------------------------------------------------
@@ -176,7 +182,6 @@ function Table<T extends Record<string, any>>({
   className,
   minWidth = '48rem',
   fixedLayout = false,
-  striped = false,
 }: TableProps<T>) {
   /* A list endpoint that answers with something other than an array — a 200
    * missing its `data`, an error envelope, a shape change — used to reach
@@ -187,7 +192,7 @@ function Table<T extends Record<string, any>>({
   /* A page that passes `sort` owns the state; every other list keeps it here,
    * so a table gets a working sort without the page threading state for it. */
   const [ownSort, setOwnSort] = useState<SortState | null>(null);
-  const sortFieldId = useId();
+  const toolbarSlot = useTableSlot();
   const isControlled = sort !== undefined;
   const activeSort = isControlled ? (sort ?? null) : ownSort;
 
@@ -283,31 +288,21 @@ function Table<T extends Record<string, any>>({
     return options;
   };
 
-  const renderSortMenu = (sortColumns: TableColumn<T>[], id: string, className: string) => {
+  const renderSortMenu = (sortColumns: TableColumn<T>[], className: string) => {
     const options = sortOptions(sortColumns);
     if (options.length === 0) return null;
+    const current = activeSort ? activeSort.key + ':' + activeSort.direction : '';
+    const activeLabel = options.find((option) => option.value === current)?.label;
     return (
-      <div className={cn('items-center gap-2', className)}>
-        <label htmlFor={id} style={CELL_FONT} className="flex-shrink-0 text-muted-foreground">
-          Sort by
-        </label>
-        <select
-          id={id}
-          value={activeSort ? activeSort.key + ':' + activeSort.direction : ''}
-          onChange={(event) => {
-            const [key, direction] = event.target.value.split(':');
-            applySort(key ? { key, direction: direction as SortState['direction'] } : null);
-          }}
-          className="min-w-0 flex-1 text-sm md:w-56 md:flex-none"
-        >
-          <option value="">Default order</option>
-          {options.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-      </div>
+      <Dropdown
+        label="Sort records"
+        className={className}
+        items={sortMenuItems([{ value: '', label: 'Default order' }, ...options], current, (value) => {
+          const [key, direction] = value.split(':');
+          applySort(key ? { key, direction: direction as SortState['direction'] } : null);
+        })}
+        trigger={<SortTrigger activeLabel={activeLabel} />}
+      />
     );
   };
 
@@ -337,7 +332,7 @@ function Table<T extends Record<string, any>>({
             </li>
           ))}
         </ul>
-        <div className="hidden rounded-lg border border-border md:block">
+        <div className="hidden md:block">
           <TableSkeleton columns={columns.length + (selectable ? 1 : 0)} />
         </div>
       </div>
@@ -359,7 +354,7 @@ function Table<T extends Record<string, any>>({
   return (
     <div className={cn('space-y-3', className)}>
       {selectable && selectedKeys.length > 0 && (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border bg-accent/40 px-3 py-2">
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-primary/20 bg-primary/5 px-4 py-2 animate-fade-in">
           <p className="text-sm font-medium tabular-nums text-foreground">{selectedKeys.length} selected</p>
           <div className="flex items-center gap-2">
             {bulkActions}
@@ -375,16 +370,26 @@ function Table<T extends Record<string, any>>({
       )}
 
       {/* ---- Sort control ------------------------------------------------
-          One "Sort by" menu with the standard options, at every width. Below
-          `md` the header row is replaced by cards, so it is the only way to
-          sort there and offers just the columns the cards show; from `md` up
-          it sits beside the clickable headers and offers every sortable one. */}
-      {(!serverSorted || onSortChange) && (
-        <>
-          {renderSortMenu(mobileSortColumns, sortFieldId, 'flex md:hidden')}
-          {renderSortMenu(desktopSortColumns, sortFieldId + '-md', 'hidden md:flex md:justify-end')}
-        </>
-      )}
+          One "Sort by" menu. Inside a TableCard it sits in the toolbar row
+          (portalled into the slot the toolbar leaves for it); elsewhere it
+          sits right-aligned above the table. Below `md` it offers just the
+          columns the phone cards show. A toolbar with its own server sort
+          takes precedence and this one is not drawn. */}
+      {(!serverSorted || onSortChange) &&
+        !toolbarSlot?.toolbarSorts &&
+        (() => {
+          const controls = (
+            <>
+              {renderSortMenu(mobileSortColumns, 'md:hidden')}
+              {renderSortMenu(desktopSortColumns, 'hidden md:inline-block')}
+            </>
+          );
+          return toolbarSlot?.slot ? (
+            createPortal(controls, toolbarSlot.slot)
+          ) : (
+            <div className="flex justify-end">{controls}</div>
+          );
+        })()}
 
       {/* ---- Phone: one card per record ---------------------------------- */}
       <ul className="space-y-2 sm:space-y-3 md:hidden">
@@ -399,8 +404,8 @@ function Table<T extends Record<string, any>>({
                 onClick={onRowClick ? () => onRowClick(row) : undefined}
                 onKeyDown={onRowClick ? (event) => activateRowOnKey(event, () => onRowClick(row)) : undefined}
                 className={cn(
-                  'min-w-0 rounded-xl border border-border/80 bg-card p-2.5 transition-colors sm:p-3',
-                  selected && 'border-primary bg-accent',
+                  'min-w-0 rounded-xl border border-border bg-card p-3 shadow-sm transition-colors',
+                  selected && 'border-primary/40 bg-primary/5',
                   onRowClick &&
                     'cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
                 )}
@@ -413,7 +418,7 @@ function Table<T extends Record<string, any>>({
                       onChange={() => toggleOne(key)}
                       {...rowControlEvents}
                       aria-label={'Select row ' + (rowIndex + 1)}
-                      className="mt-0.5 h-4 w-4 flex-shrink-0 rounded-sm border-input accent-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      className="mt-0.5 h-4 w-4 flex-shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     />
                   )}
 
@@ -475,15 +480,15 @@ function Table<T extends Record<string, any>>({
       </ul>
 
       {/* ---- Tablet and up: the table ------------------------------------ */}
-      <div className="data-table-surface hidden overflow-x-auto rounded-xl border border-border/80 md:block">
+      <div className="hidden overflow-x-auto md:block">
         <table
-          className="data-table w-full border-collapse"
+          className="data-table w-full"
           style={{ minWidth, ...(fixedLayout ? { tableLayout: 'fixed' as const } : {}) }}
         >
-          <thead className="sticky top-0 z-10 bg-muted/60">
-            <tr className="border-b border-border">
+          <thead>
+            <tr>
               {selectable && (
-                <th scope="col" className="w-10 px-3 py-2.5">
+                <th scope="col" className="w-11">
                   <input
                     type="checkbox"
                     checked={allSelected}
@@ -492,7 +497,7 @@ function Table<T extends Record<string, any>>({
                     }}
                     onChange={toggleAll}
                     aria-label={allSelected ? 'Clear selection' : 'Select all rows on this page'}
-                    className="h-4 w-4 rounded-sm border-input accent-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="h-4 w-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   />
                 </th>
               )}
@@ -527,7 +532,7 @@ function Table<T extends Record<string, any>>({
                     className={cn(
                       /* Size comes from HEAD_FONT. `whitespace-nowrap` stops
                        * a two-word heading folding into its neighbour. */
-                      'whitespace-nowrap bg-muted/60 px-4 py-2.5 font-semibold text-muted-foreground',
+                      'whitespace-nowrap font-medium text-muted-foreground',
                       ALIGN_CLASS[column.headerAlign ?? column.align ?? 'left'],
                       PRIORITY_CLASS[column.priority ?? 'primary']
                     )}
@@ -551,9 +556,9 @@ function Table<T extends Record<string, any>>({
                          * spacer that squared the centring off against the
                          * digits made that column's gap read as the odd one. */
                         className={cn(
-                          'flex w-full items-center gap-1.5 rounded-sm transition-colors',
+                          'flex w-full items-center gap-1 rounded-sm transition-colors',
                           'hover:text-foreground focus-visible:outline-none focus-visible:ring-2',
-                          'focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-muted',
+                          'focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-subtle',
                           headAlign === 'right'
                             ? 'flex-row-reverse justify-start'
                             : headAlign === 'center'
@@ -574,7 +579,7 @@ function Table<T extends Record<string, any>>({
             </tr>
           </thead>
 
-          <tbody className="divide-y divide-border bg-card">
+          <tbody>
             {rows.map((row, rowIndex) => {
               const key = keyOf(row, rowIndex);
               const selected = selectedKeys.includes(key);
@@ -592,21 +597,19 @@ function Table<T extends Record<string, any>>({
                     /* Selection, then the stripe, then hover - written as one
                      * class rather than an `even:` variant, whose extra
                      * specificity would have outranked the selected tint. */
-                    selected
-                      ? 'bg-accent'
-                      : cn(striped && rowIndex % 2 === 1 && 'bg-muted/40', 'hover:bg-accent/60'),
+                    selected ? 'bg-primary/5' : 'hover:bg-subtle/70',
                     onRowClick &&
                       'cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring'
                   )}
                 >
                   {selectable && (
-                    <td className="w-10 px-3 py-3" {...rowControlEvents}>
+                    <td className="w-11" {...rowControlEvents}>
                       <input
                         type="checkbox"
                         checked={selected}
                         onChange={() => toggleOne(key)}
                         aria-label={'Select row ' + (rowIndex + 1)}
-                        className="h-4 w-4 rounded-sm border-input accent-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        className="h-4 w-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       />
                     </td>
                   )}
@@ -624,7 +627,7 @@ function Table<T extends Record<string, any>>({
                           : undefined
                       }
                       className={cn(
-                        'px-4 py-3.5 text-foreground',
+                        'text-foreground',
                         ALIGN_CLASS[column.align ?? 'left'],
                         PRIORITY_CLASS[column.priority ?? 'primary']
                       )}
