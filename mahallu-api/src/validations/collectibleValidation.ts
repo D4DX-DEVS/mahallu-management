@@ -107,6 +107,12 @@ export const updateZakatValidation = [
   optionalText('remarksMl', 'remarks', 2000),
 ];
 
+/** PUT /varisangya/:id/reject and /zakat/:id/reject. */
+export const rejectPaymentValidation = [
+  body('rejectionReason').optional({ values: 'falsy' }).isString().withMessage('Please enter the reason as text.'),
+  optionalText('rejectionReason', 'reason', 500),
+];
+
 // Summary (Collections overview)
 export const collectionsSummaryValidation = [
   query('dateFrom').optional({ values: 'falsy' }).isString().isLength({ max: 10 }).withMessage('Please choose a valid start date.'),

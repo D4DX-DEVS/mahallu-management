@@ -2,8 +2,15 @@ import mongoose, { Schema, Document } from 'mongoose';
 
 export interface INotification extends Document {
   tenantId: mongoose.Types.ObjectId;
-  recipientId?: mongoose.Types.ObjectId; // User or Member ID
-  recipientType: 'user' | 'member' | 'all';
+  /** User or Member id for a single recipient; the Family / Committee id for those targets. */
+  recipientId?: mongoose.Types.ObjectId;
+  recipientType: 'user' | 'member' | 'all' | 'family' | 'committee';
+  /**
+   * Group audience (several users/members, a family, a committee), resolved when sent: the user AND member
+   * ids of everyone in it. A group notification is read per user (readBy), like a broadcast.
+   * Not selected by default: ask for it with .select('+recipientIds').
+   */
+  recipientIds?: mongoose.Types.ObjectId[];
   title: string;
   titleMl?: string;
   message: string;
@@ -15,6 +22,12 @@ export interface INotification extends Document {
   readBy?: mongoose.Types.ObjectId[];
   link?: string;
   imageUrl?: string;
+  /** Outcome of the OneSignal push sent on create. */
+  pushStatus?: 'pending' | 'sent' | 'partial' | 'failed' | 'skipped';
+  pushIds?: string[];
+  pushRecipients?: number;
+  pushError?: string;
+  pushedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -30,7 +43,7 @@ const NotificationSchema = new Schema<INotification>(
     recipientId: Schema.Types.ObjectId,
     recipientType: {
       type: String,
-      enum: ['user', 'member', 'all'],
+      enum: ['user', 'member', 'all', 'family', 'committee'],
       default: 'all',
     },
     title: { type: String, required: true, trim: true },
@@ -44,8 +57,14 @@ const NotificationSchema = new Schema<INotification>(
     },
     isRead: { type: Boolean, default: false },
     readBy: { type: [Schema.Types.ObjectId], default: undefined, select: false },
+    recipientIds: { type: [Schema.Types.ObjectId], default: undefined, select: false },
     link: String,
     imageUrl: { type: String },
+    pushStatus: { type: String, enum: ['pending', 'sent', 'partial', 'failed', 'skipped'] },
+    pushIds: { type: [String], default: undefined },
+    pushRecipients: Number,
+    pushError: String,
+    pushedAt: Date,
   },
   {
     timestamps: true,
@@ -53,6 +72,13 @@ const NotificationSchema = new Schema<INotification>(
 );
 
 NotificationSchema.index({ tenantId: 1, createdAt: -1 });
+
+/** Read per user (readBy) rather than by the notification's own flag: a broadcast or any group notification. */
+export const readsPerUser = (doc: { recipientType?: string; recipientIds?: unknown[] }): boolean =>
+  doc.recipientType === 'all' ||
+  doc.recipientType === 'family' ||
+  doc.recipientType === 'committee' ||
+  (Array.isArray(doc.recipientIds) && doc.recipientIds.length > 0);
 
 /** Has this viewer read it? A broadcast is read per user (readBy), anything else by its own flag. */
 export const isReadBy = (doc: { isRead?: boolean; readBy?: unknown[] }, viewerId?: unknown): boolean => {
@@ -69,6 +95,7 @@ export const notificationForViewer = (doc: any, viewerId?: unknown): Record<stri
   const plain = typeof doc?.toJSON === 'function' ? doc.toJSON() : { ...doc };
   const read = isReadBy(doc, viewerId);
   delete plain.readBy;
+  delete plain.recipientIds;
   plain.isRead = read;
   return plain;
 };

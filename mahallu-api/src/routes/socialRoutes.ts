@@ -286,7 +286,8 @@ router.get('/feeds', listQuery(), validationHandler, getAllFeeds);
  *         $ref: '#/components/responses/Unauthorized'
  */
 router.post('/feeds', requireAdmin,createFeedValidation, validationHandler, createFeed);
-router.delete('/feeds/:id', requireAdmin, idParam('id', 'post'), validationHandler, deleteFeed);
+// The post's author or a Mahallu admin (checked in deleteFeed); members are refused by the staff guard above.
+router.delete('/feeds/:id', idParam('id', 'post'), validationHandler, deleteFeed);
 
 /**
  * @swagger

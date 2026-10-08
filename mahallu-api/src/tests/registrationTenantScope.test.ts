@@ -41,6 +41,7 @@ let memberUpdates: Array<{ filter: any; update: any }> = [];
 let regUpdates: Array<{ filter: any; update: any }> = [];
 let existingDeath: any;
 let existingNikah: any;
+let openDeathExists = false;
 
 const restore: Array<[any, string, any]> = [];
 const stub = (target: any, key: string, impl: any) => { restore.push([target, key, target[key]]); target[key] = impl; };
@@ -64,11 +65,16 @@ describe('registration records stay inside their Mahallu', () => {
       stub(model.prototype, 'save', async function (this: any) { saved.push(this); return this; });
     }
     stub(DeathRegistration, 'findById', async () => existingDeath);
+    stub(DeathRegistration, 'exists', async () => (openDeathExists ? { _id: oid() } : null));
+    stub(DeathRegistration, 'updateOne', async () => ({}));
+    stub(Member, 'updateOne', async () => ({}));
     stub(NikahRegistration, 'findById', (id: any) => Object.assign(Promise.resolve(existingNikah), { select: lookup(id).select }));
     for (const model of [DeathRegistration, NikahRegistration] as any[]) {
       stub(model, 'findOneAndUpdate', (filter: any, update: any) => {
         regUpdates.push({ filter, update });
-        const chain: any = { populate: () => chain, then: (r: any) => r({}) };
+        const saved: any = { ...existingDeath, ...Object.fromEntries(Object.entries(update).filter(([, v]) => v !== undefined)) };
+        saved.populate = async () => saved;
+        const chain: any = { populate: () => chain, then: (r: any) => r(saved) };
         return chain;
       });
     }
@@ -78,8 +84,9 @@ describe('registration records stay inside their Mahallu', () => {
     saved = [];
     memberUpdates = [];
     regUpdates = [];
-    existingDeath = { _id: oid(), tenantId: MINE };
+    existingDeath = { _id: oid(), tenantId: MINE, status: 'pending' };
     existingNikah = { _id: oid(), tenantId: MINE };
+    openDeathExists = false;
   });
 
   const death = (extra: Record<string, any> = {}) => ({ deceasedName: 'X', deathDate: '2026-01-01', ...extra });
@@ -114,14 +121,53 @@ describe('registration records stay inside their Mahallu', () => {
     assert.equal(saved.length, 0);
   });
 
-  test('own member: registered, and the status change is scoped by id AND Mahallu', async () => {
-    const out = await call(createDeathRegistration, { ...asMine, body: death({ deceasedId: String(myMember), familyId: String(myFamily) }) });
+  test('own member: registered as pending, and the member is NOT changed until approval', async () => {
+    const out = await call(createDeathRegistration, { ...asMine, body: death({ deceasedId: String(myMember), familyId: String(myFamily), status: 'approved' }) });
     assert.equal(out.status, 201);
     assert.equal(saved.length, 1);
+    assert.equal(saved[0].status, 'pending', 'a body status is ignored on create');
+    assert.equal(memberUpdates.length, 0);
+  });
+
+  test('a second open death record for the same member is a 409', async () => {
+    openDeathExists = true;
+    const out = await call(createDeathRegistration, { ...asMine, body: death({ deceasedId: String(myMember) }) });
+    assert.equal(out.status, 409);
+    assert.equal(saved.length, 0);
+  });
+
+  test('approve marks the member deceased (scoped by id AND Mahallu); reject leaves them alone', async () => {
+    existingDeath = { ...existingDeath, deceasedId: myMember, deathDate: new Date('2026-01-01') };
+    const rejected = await call(updateDeathRegistration, { ...asMine, params: { id: String(existingDeath._id) }, body: { status: 'rejected' } });
+    assert.equal(rejected.status, 200);
+    assert.equal(memberUpdates.length, 0);
+
+    const approved = await call(updateDeathRegistration, { ...asMine, params: { id: String(existingDeath._id) }, body: { status: 'approved' } });
+    assert.equal(approved.status, 200);
     assert.equal(memberUpdates.length, 1);
     assert.equal(String(memberUpdates[0].filter._id), String(myMember));
     assert.equal(String(memberUpdates[0].filter.tenantId), String(MINE));
-    assert.deepEqual(memberUpdates[0].update, { isDead: true, status: 'inactive' });
+    assert.deepEqual(memberUpdates[0].update.$set, {
+      isDead: true, status: 'inactive', dateOfDeath: existingDeath.deathDate, deathRecordId: existingDeath._id,
+    });
+  });
+
+  test('reverting an approved record reactivates the member, only if it is the record that marked them', async () => {
+    existingDeath = { ...existingDeath, deceasedId: myMember, status: 'approved' };
+    const out = await call(updateDeathRegistration, { ...asMine, params: { id: String(existingDeath._id) }, body: { status: 'pending' } });
+    assert.equal(out.status, 200);
+    assert.equal(memberUpdates.length, 1);
+    assert.equal(String(memberUpdates[0].filter.deathRecordId), String(existingDeath._id));
+    assert.deepEqual(memberUpdates[0].update.$set, { isDead: false, status: 'active' });
+  });
+
+  test('approving while another open record exists for the member is a 409 and changes nothing', async () => {
+    existingDeath = { ...existingDeath, deceasedId: myMember };
+    openDeathExists = true;
+    const out = await call(updateDeathRegistration, { ...asMine, params: { id: String(existingDeath._id) }, body: { status: 'approved' } });
+    assert.equal(out.status, 409);
+    assert.equal(regUpdates.length, 0);
+    assert.equal(memberUpdates.length, 0);
   });
 
   test('a registration without a deceased member changes no member', async () => {
@@ -155,7 +201,7 @@ describe('registration records stay inside their Mahallu', () => {
     assert.equal(wrong.status, 404);
     const right = await call(createDeathRegistration, { ...asSuper, body: death({ tenantId: String(THEIRS), deceasedId: String(foreignMember) }) });
     assert.equal(right.status, 201);
-    assert.equal(String(memberUpdates[0].filter.tenantId), String(THEIRS));
+    assert.equal(String(saved[0].tenantId), String(THEIRS));
     const none = await call(createDeathRegistration, { ...asSuper, body: death({ deceasedId: String(myMember) }) });
     assert.equal(none.status, 400);
   });

@@ -1,6 +1,6 @@
 import { Response } from 'express';
 import mongoose, { ClientSession } from 'mongoose';
-import { Varisangya, Zakat, Wallet, Transaction } from '../models/Collectible';
+import { Varisangya, Zakat, Wallet, Transaction, RECEIVED_PAYMENT_STATUS, isReceivedPayment } from '../models/Collectible';
 import Family from '../models/Family';
 import Member from '../models/Member';
 import { AuthRequest } from '../middleware/authMiddleware';
@@ -335,6 +335,7 @@ const castIds = (filter: Record<string, any>): Record<string, any> => {
 };
 
 const isPending = { $eq: ['$status', 'pending'] };
+const notReceived = { $in: ['$status', ['pending', 'rejected']] };
 
 /** One aggregation that totals the WHOLE filtered set (not a page). */
 export const buildSummaryPipeline = (match: Record<string, any>) => [
@@ -344,7 +345,7 @@ export const buildSummaryPipeline = (match: Record<string, any>) => [
       _id: null,
       count: { $sum: 1 },
       totalAmount: { $sum: '$amount' },
-      verifiedAmount: { $sum: { $cond: [isPending, 0, '$amount'] } },
+      verifiedAmount: { $sum: { $cond: [notReceived, 0, '$amount'] } },
       pendingAmount: { $sum: { $cond: [isPending, '$amount', 0] } },
       pendingCount: { $sum: { $cond: [isPending, 1, 0] } },
     },
@@ -800,6 +801,57 @@ export const verifyZakat = async (req: AuthRequest, res: Response) => {
 };
 
 // ---------------------------------------------------------------------------
+// Reject
+// ---------------------------------------------------------------------------
+
+/** pending -> rejected. Nothing was received, so there are no effects and no receipt number. */
+async function rejectPayment(spec: KindSpec, req: AuthRequest, res: Response) {
+  const scope = tenantFilterFor(req, res);
+  if (!scope) return;
+  const id = toObjectId(req.params.id);
+  if (!id || !isValidId(req.params.id)) return sendBadRequest(res, MSG.badId);
+
+  const reason = typeof req.body?.rejectionReason === 'string' ? req.body.rejectionReason.trim() : '';
+  const actor = actorId(req);
+  const rejected = await spec.Model.findOneAndUpdate(
+    { _id: id, status: 'pending', ...scope },
+    {
+      $set: {
+        status: 'rejected',
+        rejectedAt: new Date(),
+        ...(reason ? { rejectionReason: reason } : {}),
+        ...(actor ? { rejectedBy: actor } : {}),
+      },
+    },
+    { new: true }
+  );
+  if (!rejected) {
+    return (await spec.Model.exists({ _id: id, ...scope }))
+      ? sendConflict(res, 'This payment has already been processed.')
+      : res.status(404).json({ success: false, message: "We couldn't find a pending payment. It may have been removed." });
+  }
+  res.json({ success: true, data: rejected, message: 'Payment rejected' });
+}
+
+// PUT /collectibles/varisangya/:id/reject - { rejectionReason? }
+export const rejectVarisangya = async (req: AuthRequest, res: Response) => {
+  try {
+    await rejectPayment(VARISANGYA, req, res);
+  } catch (error: any) {
+    sendFailure(res, error, 'We couldn\'t reject the varisangya. Please try again.');
+  }
+};
+
+// PUT /collectibles/zakat/:id/reject - { rejectionReason? }
+export const rejectZakat = async (req: AuthRequest, res: Response) => {
+  try {
+    await rejectPayment(ZAKAT, req, res);
+  } catch (error: any) {
+    sendFailure(res, error, 'We couldn\'t reject the zakat. Please try again.');
+  }
+};
+
+// ---------------------------------------------------------------------------
 // Update
 // ---------------------------------------------------------------------------
 
@@ -841,6 +893,9 @@ async function updatePayment(spec: KindSpec, req: AuthRequest, res: Response) {
 
   if (Object.keys(changes).length === 0) return respondWith(id);
 
+  // REJECTED: closed; nothing was received and nothing may change.
+  if (existing.status === 'rejected') return sendConflict(res, "A rejected payment can't be changed.");
+
   // PENDING: nothing has been received, so only the stored fields change. No wallet, journal or ledger.
   if (existing.status === 'pending') {
     const updated: any = await Model.findOneAndUpdate(
@@ -866,7 +921,7 @@ async function updatePayment(spec: KindSpec, req: AuthRequest, res: Response) {
       // Optimistic claim on the amount we read: a concurrent amount change makes this miss (409) instead
       // of both edits applying their own difference to the wallet.
       const updated: any = await Model.findOneAndUpdate(
-        { _id: id, ...scope, status: { $ne: 'pending' }, amount: oldDoc.amount },
+        { _id: id, ...scope, status: RECEIVED_PAYMENT_STATUS, amount: oldDoc.amount },
         { $set: changes },
         { new: true, runValidators: true, session }
       );
@@ -977,8 +1032,8 @@ async function deletePayment(spec: KindSpec, req: AuthRequest, res: Response) {
         await Model.create([plain]);
       });
 
-      // A pending payment never had any effect: removing the row is all there is to do.
-      if (removedDoc.status === 'pending') return 'deleted' as const;
+      // A pending or rejected payment never had any effect: removing the row is all there is to do.
+      if (!isReceivedPayment(removedDoc)) return 'deleted' as const;
 
       if (hasWalletOwner(spec, removedDoc) && (await hasPaymentCredit(removedDoc.tenantId, spec.name, id, session))) {
         const wallet = await findOrCreateWallet(walletOwnerOf(removedDoc));

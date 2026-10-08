@@ -59,6 +59,7 @@ import './memberRegistrationAllowList.test';
 import './migrationGuard.test';
 import './moduleAmountValidation.test';
 import './multiRoleEndToEnd.test';
+import './notificationPush.test';
 import './notificationVisibility.test';
 import './permissionFlagsNotEnforced.test';
 import './pettyCashIntegrity.test';

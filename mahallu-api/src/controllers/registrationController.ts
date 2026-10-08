@@ -14,6 +14,14 @@ import { verifyTenantOwnership } from '../utils/tenantCheck';
 import { sanitizeRichText } from '../utils/htmlSanitizer';
 import { refBelongsToTenant, stripImmutable } from '../utils/sanitizeUpdate';
 import { isValidId, MSG, tenantFilterFor } from '../utils/scope';
+import { runAtomic } from '../utils/transaction';
+import {
+  DUPLICATE_DEATH_MESSAGE,
+  OPEN_DEATH_STATUSES,
+  applyDeathToMember,
+  hasOpenDeathRecord,
+  revertDeathOnMember,
+} from '../services/deathRecordService';
 
 type RefProblem = { status: number; message: string };
 type RefSpec = [model: mongoose.Model<any>, id: unknown, label: string];
@@ -252,16 +260,14 @@ export const createDeathRegistration = async (req: AuthRequest, res: Response) =
       [Member, req.body.submittedByMemberId, 'member'],
     ], req.body.documents))) return;
 
-    const registration = new DeathRegistration({ ...stripImmutable(req.body), tenantId });
-    await registration.save();
-
-    if (registration.deceasedId) {
-      // Scoped by the registration's Mahallu as well as the id, so it can never touch another Mahallu's member.
-      await Member.findOneAndUpdate(
-        { _id: registration.deceasedId, tenantId: registration.tenantId },
-        { isDead: true, status: 'inactive' }
-      );
+    if (await hasOpenDeathRecord(tenantId, req.body.deceasedId)) {
+      return res.status(409).json({ success: false, message: DUPLICATE_DEATH_MESSAGE });
     }
+
+    // Always saved as pending: the member is only marked deceased when the record is approved
+    // (updateDeathRegistration), never on create.
+    const registration = new DeathRegistration({ ...stripImmutable(req.body), tenantId, status: 'pending' });
+    await registration.save();
     res.status(201).json({ success: true, data: registration });
   } catch (error: any) {
     sendFailure(res, error, 'We couldn\'t save the death registration. Please try again.');
@@ -292,17 +298,75 @@ export const updateDeathRegistration = async (req: AuthRequest, res: Response) =
       [Family, familyId, 'family'],
     ]))) return;
 
-    const updated = await DeathRegistration.findOneAndUpdate(
-      { _id: id, tenantId: registration.tenantId },
-      {
-        deceasedName, deceasedId, deathDate, placeOfDeath, causeOfDeath,
-        mahallId, familyId, informantName, informantRelation, informantPhone,
-        status, remarks,
+    const wasApproved = registration.status === 'approved';
+    const nextStatus = status ?? registration.status;
+    const nextDeceased = deceasedId ?? registration.deceasedId;
+    const deceasedChanged = deceasedId !== undefined && String(deceasedId) !== String(registration.deceasedId ?? '');
+
+    // One open death record per member: moving this record onto a member, reopening or approving it
+    // must not leave a second one.
+    if (
+      nextDeceased &&
+      (OPEN_DEATH_STATUSES as readonly string[]).includes(nextStatus) &&
+      (deceasedChanged || nextStatus !== registration.status) &&
+      (await hasOpenDeathRecord(registration.tenantId, nextDeceased, registration._id))
+    ) {
+      return res.status(409).json({ success: false, message: DUPLICATE_DEATH_MESSAGE });
+    }
+
+    // The record and the member change together: approve marks the member deceased, leaving 'approved'
+    // (or moving an approved record to another member) reactivates the member this record had marked.
+    const updated = await runAtomic(
+      async (session, comp) => {
+        const saved: any = await DeathRegistration.findOneAndUpdate(
+          { _id: id, tenantId: registration.tenantId },
+          {
+            deceasedName, deceasedId, deathDate, placeOfDeath, causeOfDeath,
+            mahallId, familyId, informantName, informantRelation, informantPhone,
+            status, remarks,
+          },
+          { new: true, runValidators: true, session }
+        );
+        if (!saved) return null;
+        comp.push('death registration', () =>
+          DeathRegistration.updateOne(
+            { _id: id, tenantId: registration.tenantId },
+            {
+              $set: {
+                deceasedName: registration.deceasedName, deceasedId: registration.deceasedId,
+                deathDate: registration.deathDate, placeOfDeath: registration.placeOfDeath,
+                causeOfDeath: registration.causeOfDeath, mahallId: registration.mahallId,
+                familyId: registration.familyId, informantName: registration.informantName,
+                informantRelation: registration.informantRelation, informantPhone: registration.informantPhone,
+                status: registration.status, remarks: registration.remarks,
+              },
+            }
+          )
+        );
+
+        const isApproved = saved.status === 'approved';
+        if (wasApproved && (!isApproved || deceasedChanged)) {
+          await revertDeathOnMember(registration, session, comp);
+        }
+        if (isApproved) {
+          await applyDeathToMember(saved, session, comp);
+        }
+        return saved;
       },
-      { new: true, runValidators: true }
-    )
-      .populate('deceasedId', 'name')
-      .populate('familyId', 'houseName');
+      {
+        description: 'death registration update',
+        reconcile: { entity: 'DeathRegistration', entityId: id, tenantId: registration.tenantId },
+      }
+    );
+    if (!updated) {
+      return res.status(404).json({ success: false, message: "We couldn't find that death registration. It may have been removed." });
+    }
+
+    updated.$session?.(null); // the transaction's session has ended; populate must not reuse it
+    await updated.populate([
+      { path: 'deceasedId', select: 'name' },
+      { path: 'familyId', select: 'houseName' },
+    ]);
 
     res.json({ success: true, data: updated });
   } catch (error: any) {

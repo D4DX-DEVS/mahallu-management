@@ -13,7 +13,9 @@
     "migrate-multi-mosque": "ts-node src/scripts/migrateMultiMosque.ts",
     "seed-categories": "ts-node src/scripts/seedCategories.ts",
     "cleanup-health-status": "ts-node src/scripts/cleanupHealthStatus.ts",
-    "check:indexes": "ts-node src/scripts/checkIndexes.ts"
+    "check:indexes": "ts-node src/scripts/checkIndexes.ts",
+    "fix-death-members": "ts-node src/scripts/fixDeathRecordMembers.ts",
+    "fix-payment-status": "ts-node src/scripts/fixPaymentStatus.ts"
   },
   "keywords": [],
   "author": "",

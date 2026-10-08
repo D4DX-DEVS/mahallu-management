@@ -13,6 +13,8 @@ import jwt from 'jsonwebtoken';
  *                by the OTP flows and carried through switch-account; password sign-in never sets
  *                it, because knowing a password proves nothing about owning the phone number an
  *                admin may have typed onto that account.
+ *  - `instituteId` the institute of an institute account, for the client. The server never trusts it:
+ *                authMiddleware reads the institute from the account record on every request.
  */
 export const SESSION_TTL = '7d';
 /** "View As" sessions are a support/testing tool and are not worth a week of validity. */
@@ -22,7 +24,13 @@ interface SessionUser {
   _id: unknown;
   isSuperAdmin?: boolean;
   tokenVersion?: number;
+  role?: string;
+  instituteId?: unknown;
 }
+
+/** The institute of an institute account, as a string; null for every other account. */
+const instituteIdOf = (user: SessionUser): string | null =>
+  user.role === 'institute' && user.instituteId ? String((user.instituteId as any)?._id ?? user.instituteId) : null;
 
 const secret = (): string => {
   if (!process.env.JWT_SECRET) {
@@ -38,6 +46,7 @@ export const signSessionToken = (user: SessionUser, opts: { provenPhone?: string
       isSuperAdmin: user.isSuperAdmin,
       tv: user.tokenVersion ?? 0,
       ...(opts.provenPhone ? { pp: opts.provenPhone } : {}),
+      ...(instituteIdOf(user) ? { instituteId: instituteIdOf(user) } : {}),
     },
     secret(),
     { expiresIn: SESSION_TTL, algorithm: 'HS256' }
@@ -56,10 +65,12 @@ export const signImpersonationToken = (
 /**
  * The account as the client may see it. `tokenVersion` is the server's session-revocation counter and
  * means nothing to a client, so it is dropped from every user payload sent back after sign-in.
+ * An institute account always carries its `instituteId` (as a string), whichever sign-in route built it.
  */
 export const toPublicUser = (user: any): any => {
   if (!user) return user;
   const plain = typeof user.toObject === 'function' ? user.toObject() : { ...user };
   delete plain.tokenVersion;
+  if (plain.role === 'institute') plain.instituteId = instituteIdOf(plain);
   return plain;
 };

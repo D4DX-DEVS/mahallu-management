@@ -1,7 +1,7 @@
 import { Response } from 'express';
 import mongoose from 'mongoose';
 import { ZakatBeneficiary, ZakatDistribution } from '../models/Zakat';
-import { Zakat } from '../models/Collectible';
+import { Zakat, RECEIVED_PAYMENT_STATUS } from '../models/Collectible';
 import { AuthRequest } from '../middleware/authMiddleware';
 import { getPaginationParams, createPaginationResponse } from '../utils/pagination';
 import { stripImmutable, refBelongsToTenant } from '../utils/sanitizeUpdate';
@@ -587,7 +587,7 @@ export const getZakatSummary = async (req: AuthRequest, res: Response) => {
 
     const [collectedAgg, pendingAgg, distributedAgg, byType, beneficiaryCounts] = await Promise.all([
       Zakat.aggregate([
-        { $match: { ...tenantMatch, status: { $ne: 'pending' }, paymentDate: { $gte: from, $lt: to } } },
+        { $match: { ...tenantMatch, status: RECEIVED_PAYMENT_STATUS, paymentDate: { $gte: from, $lt: to } } },
         { $group: { _id: null, total: { $sum: '$amount' }, count: { $sum: 1 } } },
       ]),
       Zakat.aggregate([

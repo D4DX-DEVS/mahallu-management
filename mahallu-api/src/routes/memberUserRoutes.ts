@@ -306,8 +306,8 @@ router.get('/registrations', registrationsQueryValidation, validationHandler, ge
  *     summary: Get own certificates
  *     tags: [Member User]
  *     description: |
- *       Certificates issued for the member's own registrations (the same ones /member-user/registrations
- *       returns), revoked ones included. **Access:** Member User only
+ *       Issued (not revoked) certificates of the member and their family/house:
+ *       `{ _id, type, certificateNo, issuedAt, subjectName, status: 'issued' }`. **Access:** Member User only
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -334,10 +334,10 @@ router.get('/registrations', registrationsQueryValidation, validationHandler, ge
  *     responses:
  *       200:
  *         description: Link returned in data.url
- *       403:
- *         description: The certificate has been revoked
  *       404:
- *         description: Not found, or not the member's certificate
+ *         description: Not found, or not a certificate of the member or their family
+ *       410:
+ *         description: The certificate has been revoked
  */
 router.get('/certificates', certificatesQueryValidation, validationHandler, getOwnCertificates);
 router.get('/certificates/:id/download', ownCertificateParamValidation, validationHandler, downloadOwnCertificate);

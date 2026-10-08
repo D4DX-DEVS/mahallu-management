@@ -1,11 +1,13 @@
 import { Response } from 'express';
 import mongoose from 'mongoose';
-import Notification, { notificationForViewer } from '../models/Notification';
+import Notification, { notificationForViewer, readsPerUser } from '../models/Notification';
 import User from '../models/User';
 import Member from '../models/Member';
+import Family from '../models/Family';
+import Committee from '../models/Committee';
 import { AuthRequest } from '../middleware/authMiddleware';
 import { getPaginationParams, createPaginationResponse } from '../utils/pagination';
-import { sendPushSilent } from '../services/oneSignalService';
+import { sendPushToUsers } from '../services/oneSignalService';
 
 import { sendFailure } from '../utils/userMessages';
 import { isValidId, requireScope, requireWriteScope, tenantFilterFor } from '../utils/scope';
@@ -28,9 +30,9 @@ const viewerOf = (req: AuthRequest) => {
   return { id, ids, isAdmin: req.isSuperAdmin === true || role === 'super_admin' || role === 'mahall' };
 };
 
-/** Notifications in the viewer's own inbox: addressed to them, or a broadcast to the whole Mahallu. */
+/** Notifications in the viewer's own inbox: addressed to them, to a group they are in, or a broadcast. */
 const inboxCondition = (viewer: ReturnType<typeof viewerOf>) => ({
-  $or: [{ recipientId: { $in: viewer.ids } }, { recipientType: 'all' }],
+  $or: [{ recipientId: { $in: viewer.ids } }, { recipientIds: { $in: viewer.ids } }, { recipientType: 'all' }],
 });
 
 /** Read / unread for ONE viewer: the notification's own flag, or the viewer being in a broadcast's readBy. */
@@ -77,6 +79,62 @@ export const getAllNotifications = async (req: AuthRequest, res: Response) => {
   }
 };
 
+type Audience = { userIds: mongoose.Types.ObjectId[]; memberIds: mongoose.Types.ObjectId[] };
+
+const toIds = (values: unknown[]): mongoose.Types.ObjectId[] =>
+  values.map((v: any) => v?._id ?? v).filter((v) => v && isValidId(String(v))).map((v) => new mongoose.Types.ObjectId(String(v)));
+
+/**
+ * Who a notification is for, inside ONE Mahallu. Answers null when a named target (user, member,
+ * family, committee) is not in that Mahallu. `all` resolves to every active user of the Mahallu.
+ */
+const resolveAudience = async (
+  tenantId: unknown,
+  recipientType: string,
+  recipientId: string | undefined,
+  recipientIds: string[] | undefined
+): Promise<Audience | 'all' | null> => {
+  if (recipientType === 'all') return 'all';
+
+  if (recipientType === 'user') {
+    const wanted = recipientIds?.length ? recipientIds : recipientId ? [recipientId] : [];
+    const users = await User.find({ _id: { $in: wanted }, tenantId }).select('_id memberId');
+    if (wanted.length === 0 || users.length !== new Set(wanted.map(String)).size) return null;
+    return { userIds: toIds(users), memberIds: toIds(users.map((u: any) => u.memberId).filter(Boolean)) };
+  }
+
+  if (recipientType === 'member') {
+    const wanted = recipientIds?.length ? recipientIds : recipientId ? [recipientId] : [];
+    const members = await Member.find({ _id: { $in: wanted }, tenantId }).select('_id');
+    if (wanted.length === 0 || members.length !== new Set(wanted.map(String)).size) return null;
+    return { userIds: [], memberIds: toIds(members) };
+  }
+
+  if (recipientType === 'family') {
+    if (!recipientId || !(await Family.exists({ _id: recipientId, tenantId }))) return null;
+    const members = await Member.find({ tenantId, familyId: recipientId, status: { $ne: 'deleted' }, isDead: { $ne: true } }).select('_id');
+    return { userIds: [], memberIds: toIds(members) };
+  }
+
+  if (recipientType === 'committee') {
+    const committee: any = recipientId ? await Committee.findOne({ _id: recipientId, tenantId }).select('members') : null;
+    if (!committee) return null;
+    return { userIds: [], memberIds: toIds(committee.members || []) };
+  }
+
+  return null;
+};
+
+/** Active users of the Mahallu to push to: everyone (`all`), or the audience's users and members' users. */
+const pushTargets = (tenantId: unknown, audience: Audience | 'all') => {
+  const base = { tenantId, status: 'active' };
+  const query =
+    audience === 'all'
+      ? base
+      : { ...base, $or: [{ _id: { $in: audience.userIds } }, { memberId: { $in: audience.memberIds } }] };
+  return User.find(query).select('_id oneSignalPlayerId');
+};
+
 export const createNotification = async (req: AuthRequest, res: Response) => {
   try {
     // The Mahallu is the caller's own; only a super admin may name one in the body.
@@ -91,46 +149,71 @@ export const createNotification = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    // Read state is server-owned.
-    const { isRead: _isRead, readBy: _readBy, ...fields } = stripImmutable(req.body) as Record<string, any>;
+    // Read state, the resolved audience and the push outcome are server-owned.
+    const {
+      isRead: _isRead, readBy: _readBy, recipientIds: requestedIds,
+      pushStatus: _ps, pushIds: _pi, pushRecipients: _pr, pushError: _pe, pushedAt: _pa,
+      ...fields
+    } = stripImmutable(req.body) as Record<string, any>;
     const notificationData: Record<string, any> = { ...fields, tenantId };
 
-    // A targeted notification must target someone in the same Mahallu (a user, or a member).
-    if (notificationData.recipientId) {
-      const recipient =
-        (await User.findOne({ _id: notificationData.recipientId, tenantId }).select('_id')) ||
-        (await Member.findOne({ _id: notificationData.recipientId, tenantId }).select('_id'));
-      if (!recipient) {
-        return res.status(404).json({ success: false, message: "We couldn't find that recipient." });
-      }
+    // Every target must be in the same Mahallu (users, members, a family, a committee).
+    const audience = await resolveAudience(tenantId, notificationData.recipientType, notificationData.recipientId, requestedIds);
+    if (!audience) {
+      return res.status(404).json({ success: false, message: "We couldn't find that recipient." });
     }
+    // A group (several people, a family, a committee) is stored resolved, so each person's inbox finds it.
+    const isGroup = audience !== 'all' && (Boolean(requestedIds?.length) || ['family', 'committee'].includes(notificationData.recipientType));
+    if (isGroup) {
+      notificationData.recipientIds = [...audience.userIds, ...audience.memberIds];
+      if (requestedIds?.length) delete notificationData.recipientId;
+    }
+    notificationData.pushStatus = 'pending';
 
     const notification = new Notification(notificationData);
     await notification.save();
 
-    // Fire-and-forget OneSignal push
-    (async () => {
-      try {
-        // Always inside this Mahallu, whether it goes to one person or to everyone.
-        const userQuery: any = { oneSignalPlayerId: { $exists: true, $ne: null }, tenantId: notification.tenantId };
-        if (notification.recipientId) {
-          userQuery._id = notification.recipientId;
+    // The record is kept whatever happens to the push; the outcome is stored on it.
+    try {
+      const users = await pushTargets(notification.tenantId, audience);
+      const result = await sendPushToUsers(users as any[], {
+        title: notification.title,
+        message: notification.message,
+        imageUrl: notification.imageUrl,
+        data: {
+          type: 'notification',
+          notificationId: String(notification._id),
+          notificationType: notification.type,
+          ...(notification.link ? { link: notification.link } : {}),
+        },
+      });
+      notification.pushStatus = result.status;
+      notification.pushIds = result.ids;
+      notification.pushRecipients = result.recipients;
+      notification.pushError = result.error;
+      notification.pushedAt = new Date();
+      if (result.status === 'failed') console.error('[OneSignal] Push failed:', result.error);
+    } catch (err: any) {
+      notification.pushStatus = 'failed';
+      notification.pushError = String(err?.message || 'error').slice(0, 200);
+      console.error('[OneSignal] Push failed:', err?.message);
+    }
+    try {
+      await Notification.updateOne(
+        { _id: notification._id },
+        {
+          $set: {
+            pushStatus: notification.pushStatus,
+            pushIds: notification.pushIds,
+            pushRecipients: notification.pushRecipients,
+            pushError: notification.pushError,
+            pushedAt: notification.pushedAt,
+          },
         }
-        const users = await User.find(userQuery).select('oneSignalPlayerId');
-        const playerIds = users
-          .map((u: any) => u.oneSignalPlayerId)
-          .filter((id: any): id is string => Boolean(id));
-
-        sendPushSilent({
-          title: notification.title,
-          message: notification.message,
-          imageUrl: notification.imageUrl,
-          playerIds,
-        });
-      } catch (err: any) {
-        console.error('[OneSignal] Player ID lookup failed:', err.message);
-      }
-    })();
+      );
+    } catch (err: any) {
+      console.error('[OneSignal] Could not store the push result:', err?.message);
+    }
 
     res.status(201).json({ success: true, data: notificationForViewer(notification, req.user?._id) });
   } catch (error: any) {
@@ -153,14 +236,14 @@ export const markAsRead = async (req: AuthRequest, res: Response) => {
       ],
     };
 
-    const existing = await Notification.findOne(filter).select('recipientType');
+    const existing = await Notification.findOne(filter).select('recipientType +recipientIds');
     if (!existing) {
       return res.status(404).json({ success: false, message: NOT_FOUND });
     }
 
-    // A broadcast is read per user; marking it must not mark it read for everyone else.
+    // A broadcast or group notification is read per user; marking it must not mark it read for everyone else.
     const update =
-      existing.recipientType === 'all'
+      readsPerUser(existing)
         ? viewer.id
           ? { $addToSet: { readBy: new mongoose.Types.ObjectId(viewer.id) } }
           : null
@@ -187,7 +270,8 @@ export const markAllAsRead = async (req: AuthRequest, res: Response) => {
     if (!caller) return;
     const viewer = viewerOf(req);
 
-    // Individual notifications addressed to this person: their own flag.
+    // Individual notifications addressed to this person: their own flag. (A family/committee
+    // notification's recipientId is the group's id, never a viewer id.)
     if (viewer.ids.length > 0) {
       await Notification.updateMany(
         { tenantId: caller.tenantId, recipientType: { $ne: 'all' }, recipientId: { $in: viewer.ids }, isRead: { $ne: true } },
@@ -195,13 +279,19 @@ export const markAllAsRead = async (req: AuthRequest, res: Response) => {
       );
     }
 
-    // Broadcasts: only this person's read state changes.
+    // Broadcasts and groups this person is in: only this person's read state changes.
     if (viewer.id) {
       const me = new mongoose.Types.ObjectId(viewer.id);
       await Notification.updateMany(
         { tenantId: caller.tenantId, recipientType: 'all', isRead: { $ne: true }, readBy: { $ne: me } },
         { $addToSet: { readBy: me } }
       );
+      if (viewer.ids.length > 0) {
+        await Notification.updateMany(
+          { tenantId: caller.tenantId, recipientIds: { $in: viewer.ids }, isRead: { $ne: true }, readBy: { $ne: me } },
+          { $addToSet: { readBy: me } }
+        );
+      }
     }
 
     res.json({ success: true, message: 'All notifications marked as read' });
