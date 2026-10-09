@@ -8,7 +8,6 @@ import Select from '@/components/ui/Select';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
 import EmptyState from '@/components/ui/EmptyState';
-import { PageSkeleton } from '@/components/ui/Skeleton';
 import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
 import { toast } from '@/store/toastStore';
@@ -27,7 +26,6 @@ import { logError } from '@/utils/safeLog';
 
 export default function MeetingsList() {
   const navigate = useNavigate();
-  const [searchQuery, setSearchQuery] = useState('');
   const [isFilterVisible, setIsFilterVisible] = useState(false);
   const [committeeFilter, setCommitteeFilter] = useState('all');
   const [meetings, setMeetings] = useState<Meeting[]>([]);
@@ -35,14 +33,14 @@ export default function MeetingsList() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
   const [isExporting, setIsExporting] = useState(false);
 
   useEffect(() => {
     fetchCommittees();
     fetchMeetings();
-  }, [committeeFilter, currentPage]);
+  }, [committeeFilter, currentPage, itemsPerPage]);
 
   const fetchCommittees = async () => {
     try {
@@ -118,23 +116,24 @@ export default function MeetingsList() {
   };
 
   const columns: TableColumn<Meeting>[] = [
-    { key: 'title', label: 'Title', width: '6.25rem', sortable: true, render: (v) => toTitleCase(v) },
+    { key: 'title', label: 'Title', width: '16rem', sortable: true, render: (v) => <span className="font-medium text-foreground">{toTitleCase(v)}</span> },
     {
       key: 'committeeName',
       label: 'Committee',
-      width: '9.25rem',
+      width: '12rem',
       render: (name, row) => toTitleCase(name || (row.committeeId as any)?.name) || '-',
     },
     {
       key: 'meetingDate',
       label: 'Date',
-      width: '6.25rem',
+      sortable: true,
+      width: '8rem',
       render: (date) => formatDate(date),
     },
     {
       key: 'status',
       label: 'Status',
-      width: '7.25rem',
+      width: '8rem',
       render: (status) => {
         return <StatusBadge status={status} />;
       },
@@ -142,7 +141,9 @@ export default function MeetingsList() {
     {
       key: 'attendancePercent',
       label: 'Attendance',
-      width: '9.25rem',
+      align: 'center',
+      priority: 'secondary',
+      width: '8rem',
       render: (percent) => `${percent || 0}%`,
     },
   ];
@@ -175,41 +176,44 @@ export default function MeetingsList() {
     },
   ];
 
-  return (
-    <div className="space-y-4">
-      <div className="space-y-3">
-        <PageHeader title="Meetings" description="Manage committee meetings" />
+  const isFiltered = committeeFilter !== 'all';
 
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          {stats.map((stat, index) => (
-            <StatCard key={index} {...stat} />
-          ))}
-        </div>
+  return (
+    <>
+      <PageHeader
+        title="Meetings"
+        description="Manage committee meetings."
+        actions={
+          <Link to="/committees/meetings/create">
+            <Button icon={<FiPlus />} collapseLabel>New meeting</Button>
+          </Link>
+        }
+      />
+
+      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
+        {stats.map((stat, index) => (
+          <StatCard key={index} {...stat} />
+        ))}
       </div>
 
       <TableCard>
         <TableToolbar
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-          onFilterClick={() => setIsFilterVisible(!isFilterVisible)}
+          onFilterClick={() => setIsFilterVisible((open) => !open)}
           isFilterVisible={isFilterVisible}
-          hasFilters={true}
+          hasFilters
+          activeFilterCount={isFiltered ? 1 : 0}
           onRefresh={fetchMeetings}
           onExport={handleExport}
           isExporting={isExporting}
-          actionButtons={
-            <Link to="/committees/meetings/create">
-              <Button size="md" icon={<FiPlus />} collapseLabel>New Meeting</Button>
-            </Link>
-          }
         />
 
         {isFilterVisible && (
           <FilterPanel onClose={() => setIsFilterVisible(false)}>
             <div className="w-full sm:w-64">
               <Select
+                label="Committee"
                 options={[
-                  { value: 'all', label: 'All Committees' },
+                  { value: 'all', label: 'All committees' },
                   ...(Array.isArray(committees) ? committees : []).map((c) => ({
                     value: c.id,
                     label: toTitleCase(c.name),
@@ -222,45 +226,58 @@ export default function MeetingsList() {
                 }}
               />
             </div>
+            {isFiltered && (
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setCommitteeFilter('all');
+                  setCurrentPage(1);
+                }}
+              >
+                Clear filters
+              </Button>
+            )}
           </FilterPanel>
         )}
 
-        {loading ? (
-          <PageSkeleton variant="section" />
-        ) : error ? (
-          <EmptyState
-            variant="error"
-            entity="meetings"
-            description={error}
-            action={{ label: 'Retry', onClick: fetchMeetings }}
-          />
+        {error ? (
+          <EmptyState variant="error" entity="meetings" description={error} action={{ label: 'Try again', onClick: fetchMeetings }} />
         ) : (
-          <Table
-            fixedLayout
-            striped
-            columns={columns}
-            data={meetings}
-            emptyMessage="No meetings found"
-            showExport={false}
-            onRowClick={(row) => navigate(`/committees/meetings/${row.id}`)}
-          />
-        )}
-
-        {/* Pagination */}
-        {pagination && (
-          <div className="mt-4">
-            <Pagination
-              currentPage={pagination.page}
-              totalPages={pagination.totalPages}
-              totalItems={pagination.total}
-              itemsPerPage={pagination.limit}
-              onPageChange={(page) => {
-                setCurrentPage(page);
-              }}
+          <>
+            <Table
+              fixedLayout
+              columns={columns}
+              data={meetings}
+              isLoading={loading}
+              entity="meetings"
+              emptyVariant={isFiltered ? 'no-results' : 'empty'}
+              emptyAction={
+                isFiltered
+                  ? { label: 'Clear filters', onClick: () => { setCommitteeFilter('all'); setCurrentPage(1); } }
+                  : { label: 'Add meeting', onClick: () => navigate('/committees/meetings/create') }
+              }
+              onRowClick={(row) => navigate(`/committees/meetings/${row.id}`)}
             />
-          </div>
+
+            {pagination && (
+              <div className="mt-4">
+                <Pagination
+                  currentPage={pagination.page}
+                  totalPages={pagination.totalPages}
+                  totalItems={pagination.total}
+                  itemsPerPage={pagination.limit}
+                  entity="meetings"
+                  onPageChange={setCurrentPage}
+                  onItemsPerPageChange={(size) => {
+                    setItemsPerPage(size);
+                    setCurrentPage(1);
+                  }}
+                />
+              </div>
+            )}
+          </>
         )}
       </TableCard>
-    </div>
+    </>
   );
 }

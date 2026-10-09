@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { FiCreditCard, FiDollarSign, FiPlus, FiX } from 'react-icons/fi';
+import { Link, useNavigate } from 'react-router-dom';
+import { FiCreditCard, FiDollarSign, FiPlus } from 'react-icons/fi';
 import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
+import FilterPanel from '@/components/ui/FilterPanel';
+import { useDebounce } from '@/hooks/useDebounce';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
 import EmptyState from '@/components/ui/EmptyState';
-import { PageSkeleton } from '@/components/ui/Skeleton';
 import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
 import Modal from '@/components/ui/Modal';
@@ -34,16 +35,19 @@ import PageHeader from '@/components/layout/PageHeader';
 import { logError } from '@/utils/safeLog';
 
 export default function VarisangyaList() {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [isFilterVisible, setIsFilterVisible] = useState(false);
+  // The toolbar search is the payer-name filter. It runs in the browser over every row, so it is debounced.
+  const debouncedSearch = useDebounce(searchQuery, 500);
+  const familyNameFilter = debouncedSearch;
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
-  const [familyNameFilter, setFamilyNameFilter] = useState('');
   const [varisangyas, setVarisangyas] = useState<Varisangya[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
   /* Totals for the whole filtered set (every page), from the server. */
   const [summary, setSummary] = useState<CollectionSummary>(EMPTY_COLLECTION_SUMMARY);
@@ -57,8 +61,12 @@ export default function VarisangyaList() {
   const [verifying, setVerifying] = useState(false);
 
   useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearch]);
+
+  useEffect(() => {
     fetchVarisangyas();
-  }, [currentPage, dateFrom, dateTo, familyNameFilter]);
+  }, [currentPage, dateFrom, dateTo, familyNameFilter, itemsPerPage]);
 
   const fetchVarisangyas = async () => {
     try {
@@ -335,58 +343,46 @@ export default function VarisangyaList() {
     },
   ];
 
-  return (
-    <div className="space-y-4">
-      <div className="space-y-3">
-        <PageHeader title="Varisangyas" description="Manage varisangya payments" />
+  const activeFilterCount = [dateFrom, dateTo].filter(Boolean).length;
+  const isFiltered = Boolean(debouncedSearch) || activeFilterCount > 0;
 
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-2">
-          {stats.map((stat, index) => (
-            <StatCard key={index} {...stat} />
-          ))}
-        </div>
+  return (
+    <>
+      <PageHeader
+        title="Varisangyas"
+        description="Manage varisangya payments."
+        actions={
+          <Link to="/collectibles/varisangya/create">
+            <Button icon={<FiPlus />} collapseLabel>New payment</Button>
+          </Link>
+        }
+      />
+
+      <div className="mb-6 grid grid-cols-2 gap-3">
+        {stats.map((stat, index) => (
+          <StatCard key={index} {...stat} />
+        ))}
       </div>
 
       <TableCard>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
-          onFilterClick={() => setIsFilterVisible(!isFilterVisible)}
+          searchEntity="payers"
+          onFilterClick={() => setIsFilterVisible((open) => !open)}
           isFilterVisible={isFilterVisible}
-          hasFilters={true}
+          hasFilters
+          activeFilterCount={activeFilterCount}
           onRefresh={fetchVarisangyas}
           onExport={handleExport}
           isExporting={isExporting}
-          actionButtons={
-            <Link to="/collectibles/varisangya/create">
-              <Button size="md" icon={<FiPlus />} collapseLabel>New Payment</Button>
-            </Link>
-          }
         />
 
         {isFilterVisible && (
-          <div className="relative flex flex-wrap items-end gap-4 p-4 mb-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800/50">
-            <button
-              type="button"
-              onClick={() => setIsFilterVisible(false)}
-              className="absolute right-4 top-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 sm:relative sm:right-0 sm:top-0 order-last sm:order-none"
-              aria-label="Close filter"
-            >
-              <FiX className="h-4 w-4" />
-            </button>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 flex-1">
+          <FilterPanel onClose={() => setIsFilterVisible(false)}>
+            <div className="w-full sm:w-44">
               <Input
-                label="Family name"
-                type="text"
-                value={familyNameFilter}
-                onChange={(e) => {
-                  setFamilyNameFilter(e.target.value);
-                  setCurrentPage(1);
-                }}
-                placeholder="Filter by name"
-              />
-              <Input
-                label="From Date"
+                label="From date"
                 type="date"
                 value={dateFrom}
                 onChange={(e) => {
@@ -394,8 +390,10 @@ export default function VarisangyaList() {
                   setCurrentPage(1);
                 }}
               />
+            </div>
+            <div className="w-full sm:w-44">
               <Input
-                label="To Date"
+                label="To date"
                 type="date"
                 value={dateTo}
                 onChange={(e) => {
@@ -404,88 +402,91 @@ export default function VarisangyaList() {
                 }}
               />
             </div>
-            <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                const now = new Date();
+                const first = new Date(now.getFullYear(), now.getMonth(), 1);
+                const toLocal = (d: Date) =>
+                  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                setDateFrom(toLocal(first));
+                setDateTo(toLocal(now));
+                setCurrentPage(1);
+              }}
+            >
+              This month
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                const now = new Date();
+                const first = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+                const last = new Date(now.getFullYear(), now.getMonth(), 0);
+                const toLocal = (d: Date) =>
+                  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                setDateFrom(toLocal(first));
+                setDateTo(toLocal(last));
+                setCurrentPage(1);
+              }}
+            >
+              Last month
+            </Button>
+            {activeFilterCount > 0 && (
               <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  const now = new Date();
-                  const first = new Date(now.getFullYear(), now.getMonth(), 1);
-                  const toLocal = (d: Date) =>
-                    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-                  setDateFrom(toLocal(first));
-                  setDateTo(toLocal(now));
-                  setCurrentPage(1);
-                }}
-              >
-                This month
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  const now = new Date();
-                  const first = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-                  const last = new Date(now.getFullYear(), now.getMonth(), 0);
-                  const toLocal = (d: Date) =>
-                    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-                  setDateFrom(toLocal(first));
-                  setDateTo(toLocal(last));
-                  setCurrentPage(1);
-                }}
-              >
-                Last month
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
+                variant="ghost"
                 onClick={() => {
                   setDateFrom('');
                   setDateTo('');
-                  setFamilyNameFilter('');
                   setCurrentPage(1);
                 }}
               >
-                Clear
+                Clear filters
               </Button>
-            </div>
-          </div>
+            )}
+          </FilterPanel>
         )}
 
-        {loading ? (
-          <PageSkeleton variant="section" />
-        ) : error ? (
+        {error ? (
           <EmptyState
             variant="error"
             entity="varisangya payments"
             description={error}
-            action={{ label: 'Retry', onClick: fetchVarisangyas }}
+            action={{ label: 'Try again', onClick: fetchVarisangyas }}
           />
         ) : (
-          <Table
-            fixedLayout
-            striped
-            columns={columns}
-            data={varisangyas}
-            emptyMessage="No varisangya payments found"
-            showExport={false}
-            onRowClick={(row) => openEdit(row)}
-          />
-        )}
-
-        {/* Pagination */}
-        {pagination && (
-          <div className="mt-4">
-            <Pagination
-              currentPage={pagination.page}
-              totalPages={pagination.totalPages}
-              totalItems={pagination.total}
-              itemsPerPage={pagination.limit}
-              onPageChange={(page) => {
-                setCurrentPage(page);
-              }}
+          <>
+            <Table
+              fixedLayout
+              columns={columns}
+              data={varisangyas}
+              isLoading={loading}
+              entity="varisangya payments"
+              emptyVariant={isFiltered ? 'no-results' : 'empty'}
+              emptyAction={
+                isFiltered
+                  ? { label: 'Clear filters', onClick: () => { setSearchQuery(''); setDateFrom(''); setDateTo(''); setCurrentPage(1); } }
+                  : { label: 'New payment', onClick: () => navigate('/collectibles/varisangya/create') }
+              }
+              onRowClick={(row) => openEdit(row)}
             />
-          </div>
+
+            {pagination && (
+              <div className="mt-4">
+                <Pagination
+                  currentPage={pagination.page}
+                  totalPages={pagination.totalPages}
+                  totalItems={pagination.total}
+                  itemsPerPage={pagination.limit}
+                  entity="varisangya payments"
+                  onPageChange={setCurrentPage}
+                  onItemsPerPageChange={(size) => {
+                    setItemsPerPage(size);
+                    setCurrentPage(1);
+                  }}
+                />
+              </div>
+            )}
+          </>
         )}
       </TableCard>
 
@@ -542,28 +543,17 @@ export default function VarisangyaList() {
         )}
       </Modal>
 
-      {/* Delete Modal */}
-      <Modal
+      <ConfirmDialog
         isOpen={!!deleteConfirm}
-        onClose={() => setDeleteConfirm(null)}
-        title="Delete Payment"
-        footer={
-          <>
-            <Button variant="outline" onClick={() => setDeleteConfirm(null)}>
-              Cancel
-            </Button>
-            <Button variant="danger" onClick={handleDeleteConfirm} isLoading={deleting}>
-              Delete
-            </Button>
-          </>
-        }
-      >
-        <p className="text-gray-600 dark:text-gray-400">
-          Are you sure you want to delete this payment (
-          <strong>₹{deleteConfirm?.amount?.toLocaleString()}</strong> - {deleteConfirm && toTitleCase(getPayerName(deleteConfirm))}
-          )? This action cannot be undone.
-        </p>
-      </Modal>
+        title={deleteConfirm ? `Delete payment from ${toTitleCase(getPayerName(deleteConfirm))}?` : 'Delete this payment?'}
+        message={`This permanently removes the ₹${(deleteConfirm?.amount ?? 0).toLocaleString('en-IN')} payment and cannot be undone.`}
+        confirmLabel="Delete payment"
+        variant="danger"
+        isLoading={deleting}
+        onConfirm={handleDeleteConfirm}
+        onCancel={() => setDeleteConfirm(null)}
+      />
+
       <ConfirmDialog
         isOpen={!!verifyConfirm}
         title="Verify this payment?"
@@ -574,6 +564,6 @@ export default function VarisangyaList() {
         onConfirm={handleVerify}
         onCancel={() => setVerifyConfirm(null)}
       />
-    </div>
+    </>
   );
 }

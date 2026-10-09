@@ -13,7 +13,6 @@ import RichTextEditor from '@/components/ui/RichTextEditor';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
 import EmptyState from '@/components/ui/EmptyState';
-import { PageSkeleton } from '@/components/ui/Skeleton';
 import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
 import { toast } from '@/store/toastStore';
@@ -53,7 +52,7 @@ export default function NOCList() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
@@ -96,7 +95,7 @@ export default function NOCList() {
 
   useEffect(() => {
     fetchNOCs();
-  }, [debouncedSearch, typeFilter, statusFilter, currentPage]);
+  }, [debouncedSearch, typeFilter, statusFilter, currentPage, itemsPerPage]);
 
   useEffect(() => {
     const fetchMembers = async () => {
@@ -256,151 +255,145 @@ export default function NOCList() {
     },
   ];
 
-  return (
-    <div className="space-y-4">
-      <div className="space-y-3">
-        <PageHeader
-          title={isNikahNOC ? 'Nikah NOC' : isCommonNOC ? 'Common NOC' : 'NOC (No Objection Certificate)'}
-          description={
-            isNikahNOC
-              ? 'Manage Nikah NOC requests'
-              : isCommonNOC
-                ? 'Manage Common NOC requests'
-                : 'Manage NOC requests'
-          }
-          breadcrumbs={[{ label: 'Registrations', path: ROUTES.REGISTRATIONS.NIKAH }]}
-        />
+  const activeFilterCount =
+    (statusFilter !== 'all' ? 1 : 0) + (!isNikahNOC && !isCommonNOC && typeFilter !== 'all' ? 1 : 0);
+  const isFiltered = Boolean(debouncedSearch) || statusFilter !== 'all' || (!isNikahNOC && !isCommonNOC && typeFilter !== 'all');
 
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          {stats.map((stat, index) => (
-            <StatCard key={index} {...stat} />
-          ))}
-        </div>
+  return (
+    <>
+      <PageHeader
+        title={isNikahNOC ? 'Nikah NOC' : isCommonNOC ? 'Common NOC' : 'NOC (No Objection Certificate)'}
+        description={isNikahNOC ? 'Manage nikah NOC requests.' : isCommonNOC ? 'Manage common NOC requests.' : 'Manage NOC requests.'}
+        actions={
+          <Button icon={<FiPlus />} collapseLabel onClick={() => setShowCreate((open) => !open)}>
+            {showCreate ? 'Close form' : 'New NOC'}
+          </Button>
+        }
+      />
+
+      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
+        {stats.map((stat, index) => (
+          <StatCard key={index} {...stat} />
+        ))}
       </div>
 
-      <TableCard>
-        <div className="mb-4">
-          <Button variant="outline" onClick={() => setShowCreate(!showCreate)}>
-            {showCreate ? 'Close NOC Form' : '+ Create NOC'}
-          </Button>
+      {showCreate && (
+        <div className="mb-6 rounded-xl border border-border bg-card p-4 shadow-sm">
+          <form onSubmit={handleSubmit(handleCreateNoc)} className="space-y-4">
+            {createError && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm dark:bg-red-900 dark:border-red-700 dark:text-red-200">
+                {createError}
+              </div>
+            )}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Select
+                label="Applicant"
+                options={[
+                  { value: '', label: 'Select applicant...' },
+                  ...members.map((member) => ({
+                    value: member.id,
+                    label: `${toTitleCase(member.name)} (${toTitleCase(member.familyName)})`,
+                  })),
+                ]}
+                {...register('applicantId')}
+                className="md:col-span-2"
+              />
+              <Input
+                label="Applicant Name"
+                {...register('applicantName')}
+                error={createErrors.applicantName?.message}
+                required
+                placeholder="Applicant Name"
+              />
+              <div className="hidden">
+                <Input
+                  label="Applicant Name (Malayalam)"
+                  {...register('applicantNameMl')}
+                  placeholder="അപേക്ഷകന്റെ പേര്"
+                  className="font-malayalam"
+                />
+              </div>
+              <Input
+                label="Applicant Phone"
+                type="tel"
+                inputMode="numeric"
+                maxLength={10}
+                {...register('applicantPhone')}
+                onChange={(e) => setValue('applicantPhone', sanitizeDigits(e.target.value, 10), { shouldValidate: true, shouldDirty: true })}
+                placeholder="Phone Number"
+                error={createErrors.applicantPhone?.message}
+              />
+              <Input
+                label="Purpose Title"
+                {...register('purposeTitle')}
+                error={createErrors.purposeTitle?.message}
+                required
+                placeholder="Purpose Title"
+                className="md:col-span-2"
+              />
+              <div className="hidden">
+                <Input
+                  label="Purpose Title (Malayalam)"
+                  {...register('purposeTitleMl')}
+                  placeholder="ഉദ്ദേശ്യം"
+                  className="md:col-span-2 font-malayalam"
+                />
+              </div>
+              <Select
+                label="NOC Type"
+                options={[
+                  { value: 'common', label: 'Common' },
+                  { value: 'nikah', label: 'Nikah' },
+                ]}
+                {...register('type')}
+                error={createErrors.type?.message}
+                required
+              />
+              <div className="md:col-span-2">
+                <RichTextEditor
+                  label="Purpose Description"
+                  value={purposeDescription || DEFAULT_NOC_DESCRIPTION}
+                  onChange={(val) => setValue('purposeDescription', val)}
+                  error={createErrors.purposeDescription?.message}
+                />
+              </div>
+            </div>
+            <div className="flex gap-2 flex-col-reverse sm:flex-row sm:justify-end sm:gap-3 pt-2">
+              <Button type="button" variant="outline" onClick={() => setShowCreate(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" isLoading={isCreating}>
+                Create NOC
+              </Button>
+            </div>
+          </form>
         </div>
+      )}
 
-        {showCreate && (
-          <div className="mb-4 p-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800">
-            <form onSubmit={handleSubmit(handleCreateNoc)} className="space-y-4">
-              {createError && (
-                <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm dark:bg-red-900 dark:border-red-700 dark:text-red-200">
-                  {createError}
-                </div>
-              )}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Select
-                  label="Applicant"
-                  options={[
-                    { value: '', label: 'Select applicant...' },
-                    ...members.map((member) => ({
-                      value: member.id,
-                      label: `${toTitleCase(member.name)} (${toTitleCase(member.familyName)})`,
-                    })),
-                  ]}
-                  {...register('applicantId')}
-                  className="md:col-span-2"
-                />
-                <Input
-                  label="Applicant Name"
-                  {...register('applicantName')}
-                  error={createErrors.applicantName?.message}
-                  required
-                  placeholder="Applicant Name"
-                />
-                <div className="hidden">
-                  <Input
-                    label="Applicant Name (Malayalam)"
-                    {...register('applicantNameMl')}
-                    placeholder="അപേക്ഷകന്റെ പേര്"
-                    className="font-malayalam"
-                  />
-                </div>
-                <Input
-                  label="Applicant Phone"
-                  type="tel"
-                  inputMode="numeric"
-                  maxLength={10}
-                  {...register('applicantPhone')}
-                  onChange={(e) => setValue('applicantPhone', sanitizeDigits(e.target.value, 10), { shouldValidate: true, shouldDirty: true })}
-                  placeholder="Phone Number"
-                  error={createErrors.applicantPhone?.message}
-                />
-                <Input
-                  label="Purpose Title"
-                  {...register('purposeTitle')}
-                  error={createErrors.purposeTitle?.message}
-                  required
-                  placeholder="Purpose Title"
-                  className="md:col-span-2"
-                />
-                <div className="hidden">
-                  <Input
-                    label="Purpose Title (Malayalam)"
-                    {...register('purposeTitleMl')}
-                    placeholder="ഉദ്ദേശ്യം"
-                    className="md:col-span-2 font-malayalam"
-                  />
-                </div>
-                <Select
-                  label="NOC Type"
-                  options={[
-                    { value: 'common', label: 'Common' },
-                    { value: 'nikah', label: 'Nikah' },
-                  ]}
-                  {...register('type')}
-                  error={createErrors.type?.message}
-                  required
-                />
-                <div className="md:col-span-2">
-                  <RichTextEditor
-                    label="Purpose Description"
-                    value={purposeDescription || DEFAULT_NOC_DESCRIPTION}
-                    onChange={(val) => setValue('purposeDescription', val)}
-                    error={createErrors.purposeDescription?.message}
-                  />
-                </div>
-              </div>
-              <div className="flex gap-2 flex-col-reverse sm:flex-row sm:justify-end sm:gap-3 pt-2">
-                <Button type="button" variant="outline" onClick={() => setShowCreate(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit" isLoading={isCreating}>
-                  Create NOC
-                </Button>
-              </div>
-            </form>
-          </div>
-        )}
+      <TableCard>
+
 
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
-          onFilterClick={() => setIsFilterVisible(!isFilterVisible)}
+          searchEntity="NOCs"
+          onFilterClick={() => setIsFilterVisible((open) => !open)}
           isFilterVisible={isFilterVisible}
-          hasFilters={true}
+          hasFilters
+          activeFilterCount={activeFilterCount}
           onRefresh={fetchNOCs}
           onExport={handleExport}
           isExporting={isExporting}
-          actionButtons={
-            <Button size="md" onClick={() => setShowCreate(true)} icon={<FiPlus />} collapseLabel>
-              New NOC
-            </Button>
-          }
         />
 
         {isFilterVisible && (
           <FilterPanel onClose={() => setIsFilterVisible(false)}>
             {!isNikahNOC && !isCommonNOC && (
-              <div className="w-full sm:w-32">
+              <div className="w-full sm:w-44">
                 <Select
+                  label="Type"
                   options={[
-                    { value: 'all', label: 'All Types' },
+                    { value: 'all', label: 'All types' },
                     { value: 'common', label: 'Common' },
                     { value: 'nikah', label: 'Nikah' },
                   ]}
@@ -412,12 +405,13 @@ export default function NOCList() {
                 />
               </div>
             )}
-            <div className="w-full sm:w-32">
+            <div className="w-full sm:w-52">
               <Select
+                label="Status"
                 options={[
-                  { value: 'all', label: 'All Status' },
+                  { value: 'all', label: 'All statuses' },
                   { value: 'pending', label: 'Pending' },
-                  { value: 'correction_required', label: 'Correction Required' },
+                  { value: 'correction_required', label: 'Correction required' },
                   { value: 'approved', label: 'Approved' },
                   { value: 'rejected', label: 'Rejected' },
                 ]}
@@ -428,45 +422,64 @@ export default function NOCList() {
                 }}
               />
             </div>
+            {activeFilterCount > 0 && (
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  if (!isNikahNOC && !isCommonNOC) setTypeFilter('all');
+                  setStatusFilter('all');
+                  setCurrentPage(1);
+                }}
+              >
+                Clear filters
+              </Button>
+            )}
           </FilterPanel>
         )}
 
-        {loading ? (
-          <PageSkeleton variant="section" />
-        ) : error ? (
+        {error ? (
           <EmptyState
             variant="error"
             entity="NOCs"
             description={error}
-            action={{ label: 'Retry', onClick: fetchNOCs }}
+            action={{ label: 'Try again', onClick: fetchNOCs }}
           />
         ) : (
-          <Table
-            fixedLayout
-            striped
-            columns={columns}
-            data={nocs}
-            emptyMessage="No NOCs found"
-            showExport={false}
-            onRowClick={(row) => navigate(`/registrations/noc/${row.id}`)}
-          />
-        )}
-
-        {/* Pagination */}
-        {pagination && (
-          <div className="mt-4">
-            <Pagination
-              currentPage={pagination.page}
-              totalPages={pagination.totalPages}
-              totalItems={pagination.total}
-              itemsPerPage={pagination.limit}
-              onPageChange={(page) => {
-                setCurrentPage(page);
-              }}
+          <>
+            <Table
+              fixedLayout
+              columns={columns}
+              data={nocs}
+              isLoading={loading}
+              entity="NOCs"
+              emptyVariant={isFiltered ? 'no-results' : 'empty'}
+              emptyAction={
+                isFiltered
+                  ? { label: 'Clear filters', onClick: () => { setSearchQuery(''); if (!isNikahNOC && !isCommonNOC) setTypeFilter('all'); setStatusFilter('all'); setCurrentPage(1); } }
+                  : { label: 'Add NOC', onClick: () => setShowCreate(true) }
+              }
+              onRowClick={(row) => navigate(`/registrations/noc/${row.id}`)}
             />
-          </div>
+
+            {pagination && (
+              <div className="mt-4">
+                <Pagination
+                  currentPage={pagination.page}
+                  totalPages={pagination.totalPages}
+                  totalItems={pagination.total}
+                  itemsPerPage={pagination.limit}
+                  entity="NOCs"
+                  onPageChange={setCurrentPage}
+                  onItemsPerPageChange={(size) => {
+                    setItemsPerPage(size);
+                    setCurrentPage(1);
+                  }}
+                />
+              </div>
+            )}
+          </>
         )}
       </TableCard>
-    </div>
+    </>
   );
 }

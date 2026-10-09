@@ -1,8 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import { FiTrash2 } from 'react-icons/fi';
 import { useNavigate, useParams } from 'react-router-dom';
+import { FiPlus } from 'react-icons/fi';
 import Button from '@/components/ui/Button';
-import Card from '@/components/ui/Card';
+import TableCard from '@/components/ui/TableCard';
+import TableToolbar from '@/components/ui/TableToolbar';
+import FilterPanel from '@/components/ui/FilterPanel';
+import Select from '@/components/ui/Select';
+import EmptyState from '@/components/ui/EmptyState';
+import StatusBadge from '@/components/ui/StatusBadge';
 import Table from '@/components/ui/Table';
 import ActionsMenu from '@/components/ui/ActionsMenu';
 import Pagination from '@/components/ui/Pagination';
@@ -16,7 +22,7 @@ import {
   awardStatusLabel,
   memberName,
 } from '@/services/scholarshipService';
-import { errorMessage } from '@/utils/errors';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
 import { TableColumn } from '@/types';
@@ -27,8 +33,11 @@ export default function AwardsList() {
   const [awards, setAwards] = useState<ScholarshipAward[]>([]);
   const [pagination, setPagination] = useState<any>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
   const [status, setStatus] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [isFilterVisible, setIsFilterVisible] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [scholarship, setScholarship] = useState<any>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -39,12 +48,16 @@ export default function AwardsList() {
     {
       key: 'student',
       label: 'Student',
-      render: (_v, award) => toTitleCase(memberName(award.memberId)),
+      sortable: false,
+      width: '16rem',
+      render: (_v, award) => <span className="font-medium text-foreground">{toTitleCase(memberName(award.memberId))}</span>,
     },
     {
       key: 'awardedDate',
-      label: 'Awarded Date',
+      label: 'Awarded date',
+      sortable: true,
       priority: 'secondary',
+      width: '10rem',
       render: (_v, award) => new Date(award.awardedDate).toLocaleDateString(),
     },
     {
@@ -52,21 +65,23 @@ export default function AwardsList() {
       label: 'Amount',
       priority: 'secondary',
       align: 'right',
-      render: (_v, award) => '₹' + award.amount,
+      sortable: true,
+      width: '9rem',
+      render: (_v, award) => <span className="tabular-nums">₹{Number(award.amount ?? 0).toLocaleString('en-IN')}</span>,
     },
     {
       key: 'status',
       label: 'Status',
       sortable: true,
-      render: (_v, award) => (
-        <span className="rounded bg-muted px-2 py-1 text-xs">{awardStatusLabel(award.status)}</span>
-      ),
+      width: '8rem',
+      render: (_v, award) => <StatusBadge status={award.status} label={awardStatusLabel(award.status)} />,
     },
     {
       key: 'actions',
-      label: 'Actions',
+      label: '',
       align: 'right',
       sortable: false,
+      width: '6.5rem',
       render: (_v, award) => (
         <ActionsMenu
           label={'Actions for ' + toTitleCase(memberName(award.memberId))}
@@ -86,11 +101,12 @@ export default function AwardsList() {
   const fetchAwards = useCallback(async () => {
     if (!scholarshipId) return;
     setLoading(true);
+    setError(null);
     try {
       const [awardsData, scholData] = await Promise.all([
         scholarshipService.getAwardsByScholarship(scholarshipId, {
           page: currentPage,
-          limit: 10,
+          limit: itemsPerPage,
           status: status || undefined,
         }),
         scholarshipService.getScholarship(scholarshipId),
@@ -98,12 +114,12 @@ export default function AwardsList() {
       setAwards(awardsData.data);
       setPagination(awardsData.pagination);
       setScholarship(scholData);
-    } catch (error) {
-      console.error("Couldn't load:", error);
+    } catch (err) {
+      setError(loadErrorMessage(err, 'awards'));
     } finally {
       setLoading(false);
     }
-  }, [currentPage, status, scholarshipId]);
+  }, [currentPage, itemsPerPage, status, scholarshipId]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -128,77 +144,104 @@ export default function AwardsList() {
     }
   };
 
+  const description = scholarship
+    ? [
+        toTitleCase(scholarship.name) + (scholarship.nameMl ? ` (${scholarship.nameMl})` : ''),
+        scholarship.academicYear,
+        scholarship.criteria,
+      ]
+        .filter(Boolean)
+        .join(' · ')
+    : 'Awards granted under this scholarship.';
+
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <PageHeader title="Scholarship Awards" />
-          {scholarship && (
-            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-              <span>{toTitleCase(scholarship.name)}</span>
-              {scholarship.nameMl && <span> ({scholarship.nameMl})</span>} ({scholarship.academicYear})
-              {scholarship.criteria && <span> &middot; {scholarship.criteria}</span>}
-            </p>
-          )}
-        </div>
-        <Button onClick={() => navigate(`/education/scholarships/${scholarshipId}/awards/create`)}>
-          New Award
-        </Button>
-      </div>
+    <>
+      <PageHeader
+        title="Scholarship awards"
+        description={description}
+        actions={
+          <Button
+            icon={<FiPlus />}
+            collapseLabel
+            onClick={() => navigate(`/education/scholarships/${scholarshipId}/awards/create`)}
+          >
+            New award
+          </Button>
+        }
+      />
 
-      <Card>
-        <div className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <select
-              aria-label="Filter"
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
-              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700"
-            >
-              <option value="">All statuses</option>
-              {AWARD_STATUS_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-            <Button onClick={() => fetchAwards()}>Refresh</Button>
-          </div>
+      <TableCard>
+        <TableToolbar
+          onFilterClick={() => setIsFilterVisible((open) => !open)}
+          isFilterVisible={isFilterVisible}
+          hasFilters
+          activeFilterCount={status ? 1 : 0}
+          onRefresh={fetchAwards}
+        />
 
-          <Table
-            columns={columns}
-            data={awards}
-            isLoading={loading}
-            entity="awards"
-            emptyVariant={status ? 'no-results' : 'empty'}
-            emptyAction={
-              !status
-                ? {
-                    label: 'New Award',
-                    onClick: () => navigate(`/education/scholarships/${scholarshipId}/awards/create`),
-                  }
-                : undefined
-            }
-            rowKey={(award) => award.id}
-            onRowClick={(award) => {
-              setSelectedAward(award);
-              setShowViewModal(true);
-            }}
-          />
-
-          {!loading && pagination && awards.length > 0 && (
-            <div className="mt-4">
-              <Pagination
-                currentPage={pagination.page}
-                totalPages={pagination.totalPages}
-                totalItems={pagination.total}
-                itemsPerPage={10}
-                onPageChange={setCurrentPage}
+        {isFilterVisible && (
+          <FilterPanel onClose={() => setIsFilterVisible(false)}>
+            <div className="w-full sm:w-52">
+              <Select
+                label="Status"
+                options={[{ value: '', label: 'All statuses' }, ...AWARD_STATUS_OPTIONS]}
+                value={status}
+                onChange={(e) => setStatus(e.target.value)}
               />
             </div>
-          )}
-        </div>
-      </Card>
+            {status && (
+              <Button variant="ghost" onClick={() => setStatus('')}>
+                Clear filters
+              </Button>
+            )}
+          </FilterPanel>
+        )}
+
+        {error ? (
+          <EmptyState variant="error" entity="awards" description={error} action={{ label: 'Try again', onClick: fetchAwards }} />
+        ) : (
+          <>
+            <Table
+              fixedLayout
+              columns={columns}
+              data={awards}
+              isLoading={loading}
+              entity="awards"
+              emptyVariant={status ? 'no-results' : 'empty'}
+              emptyAction={
+                status
+                  ? { label: 'Clear filters', onClick: () => setStatus('') }
+                  : {
+                      label: 'Add award',
+                      onClick: () => navigate(`/education/scholarships/${scholarshipId}/awards/create`),
+                    }
+              }
+              rowKey={(award) => award.id}
+              onRowClick={(award) => {
+                setSelectedAward(award);
+                setShowViewModal(true);
+              }}
+            />
+
+            {pagination && (
+              <div className="mt-4">
+                <Pagination
+                  currentPage={pagination.page}
+                  totalPages={pagination.totalPages}
+                  totalItems={pagination.total}
+                  itemsPerPage={pagination.limit}
+                  entity="awards"
+                  onPageChange={setCurrentPage}
+                  onItemsPerPageChange={(size) => {
+                    setItemsPerPage(size);
+                    setCurrentPage(1);
+                  }}
+                />
+              </div>
+            )}
+          </>
+        )}
+      </TableCard>
 
       {/* View Modal */}
       <Modal
@@ -271,15 +314,14 @@ export default function AwardsList() {
 
       <ConfirmDialog
         isOpen={deleteConfirm !== null}
-        title="Delete Award"
-        message={deleteConfirm ? `Delete the award for ${toTitleCase(deleteConfirm.name)}?` : ''}
-        consequence="This action cannot be undone."
+        title={deleteConfirm ? `Delete the award for ${toTitleCase(deleteConfirm.name)}?` : 'Delete this award?'}
+        message="This permanently removes the award and cannot be undone."
         isLoading={deleting}
         variant="danger"
-        confirmLabel="Delete"
+        confirmLabel="Delete award"
         onConfirm={handleDelete}
         onCancel={() => setDeleteConfirm(null)}
       />
-    </div>
+    </>
   );
 }

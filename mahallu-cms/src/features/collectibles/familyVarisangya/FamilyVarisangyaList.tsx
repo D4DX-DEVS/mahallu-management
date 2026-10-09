@@ -7,7 +7,6 @@ import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
 import EmptyState from '@/components/ui/EmptyState';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
-import { PageSkeleton } from '@/components/ui/Skeleton';
 import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
 import { TableColumn, Pagination as PaginationType, Family } from '@/types';
@@ -41,14 +40,13 @@ const getFamilyId = (v: any) =>
 export default function FamilyVarisangyaList() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
-  const [isFilterVisible, setIsFilterVisible] = useState(false);
   const [families, setFamilies] = useState<FamilyVarisangyaData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [exportingRowId, setExportingRowId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
   /* Payments and amount across every family payment (all pages), from the server. */
   const [summary, setSummary] = useState<CollectionSummary>(EMPTY_COLLECTION_SUMMARY);
@@ -63,7 +61,7 @@ export default function FamilyVarisangyaList() {
 
   useEffect(() => {
     fetchFamilies();
-  }, [debouncedSearch, currentPage]);
+  }, [debouncedSearch, currentPage, itemsPerPage]);
 
   const fetchFamilies = async () => {
     try {
@@ -229,8 +227,9 @@ export default function FamilyVarisangyaList() {
   const columns: TableColumn<FamilyVarisangyaData>[] = [
     {
       key: 'houseName',
-      label: 'House Name',
-      width: '9.75rem',
+      label: 'House name',
+      sortable: true,
+      width: '14rem',
       render: (name, row) => (
         <Link
           to={ROUTES.FAMILIES.DETAIL(row.id)}
@@ -240,32 +239,37 @@ export default function FamilyVarisangyaList() {
         </Link>
       ),
     },
-    { key: 'mahallId', label: 'Mahall ID', width: '8.75rem' },
+    { key: 'mahallId', label: 'Mahall ID', sortable: true, priority: 'secondary', width: '8rem' },
     {
       key: 'varisangyaCount',
       label: 'Payments',
-      width: '10.25rem',
+      width: '8rem',
       align: 'center',
+      sortable: true,
       render: (count) => count || 0,
     },
     {
       key: 'totalVarisangya',
-      label: 'Total Amount',
-      width: '12rem',
-      align: 'center',
-      render: (amount) => `₹${(amount || 0).toLocaleString()}`,
+      label: 'Total amount',
+      width: '10rem',
+      align: 'right',
+      sortable: true,
+      render: (amount) => `₹${(amount || 0).toLocaleString('en-IN')}`,
     },
     {
       key: 'lastPaymentDate',
-      label: 'Last Payment',
-      width: '10.75rem',
-      render: (date) => (date ? formatDate(date) : '-'),
+      label: 'Last payment',
+      width: '9rem',
+      priority: 'secondary',
+      sortable: true,
+      render: (date) => (date ? formatDate(date) : '—'),
     },
     {
       key: 'actions',
-      label: 'Actions',
-      width: '8rem',
-      align: 'center',
+      label: '',
+      width: '6.5rem',
+      align: 'right',
+      sortable: false,
       render: (_, row) => (
         <div onClick={(e) => e.stopPropagation()}>
           <ActionsMenu
@@ -323,9 +327,11 @@ export default function FamilyVarisangyaList() {
     },
   ];
 
+  const isFiltered = Boolean(debouncedSearch);
+
   return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+    <>
+      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
         {stats.map((stat, index) => (
           <StatCard key={index} {...stat} />
         ))}
@@ -334,45 +340,50 @@ export default function FamilyVarisangyaList() {
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
-          onFilterClick={() => setIsFilterVisible(!isFilterVisible)}
-          isFilterVisible={isFilterVisible}
-          hasFilters={false}
+          searchEntity="families"
           onRefresh={fetchFamilies}
           onExport={handleExport}
           isExporting={isExporting}
         />
-        {loading ? (
-          <PageSkeleton variant="section" />
-        ) : error ? (
+        {error ? (
           <EmptyState
             variant="error"
             entity="families"
             description={error}
-            action={{ label: 'Retry', onClick: fetchFamilies }}
+            action={{ label: 'Try again', onClick: fetchFamilies }}
           />
         ) : (
-          <Table
-            fixedLayout
-            striped
-            columns={columns}
-            data={families}
-            emptyMessage="No families found"
-            showExport={false}
-            onRowClick={(row) => navigate(`${FAMILY_BASE}?view=transactions&familyId=${row.id}`)}
-          />
-        )}
-        {pagination && (
-          <div className="mt-4">
-            <Pagination
-              currentPage={pagination.page}
-              totalPages={pagination.totalPages}
-              totalItems={pagination.total}
-              itemsPerPage={pagination.limit}
-              onPageChange={(page) => setCurrentPage(page)}
+          <>
+            <Table
+              fixedLayout
+              columns={columns}
+              data={families}
+              isLoading={loading}
+              entity="families"
+              emptyVariant={isFiltered ? 'no-results' : 'empty'}
+              emptyAction={isFiltered ? { label: 'Clear filters', onClick: () => { setSearchQuery(''); setCurrentPage(1); } } : undefined}
+              onRowClick={(row) => navigate(`${FAMILY_BASE}?view=transactions&familyId=${row.id}`)}
             />
-          </div>
+
+            {pagination && (
+              <div className="mt-4">
+                <Pagination
+                  currentPage={pagination.page}
+                  totalPages={pagination.totalPages}
+                  totalItems={pagination.total}
+                  itemsPerPage={pagination.limit}
+                  entity="families"
+                  onPageChange={setCurrentPage}
+                  onItemsPerPageChange={(size) => {
+                    setItemsPerPage(size);
+                    setCurrentPage(1);
+                  }}
+                />
+              </div>
+            )}
+          </>
         )}
       </TableCard>
-    </div>
+    </>
   );
 }

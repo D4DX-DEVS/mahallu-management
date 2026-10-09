@@ -7,8 +7,9 @@ import Modal from '@/components/ui/Modal';
 import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import Table from '@/components/ui/Table';
-import ExpandableSearch from '@/components/ui/ExpandableSearch';
-import { PageSkeleton } from '@/components/ui/Skeleton';
+import Tabs from '@/components/ui/Tabs';
+import StatusBadge from '@/components/ui/StatusBadge';
+import TableToolbar from '@/components/ui/TableToolbar';
 import Pagination from '@/components/ui/Pagination';
 import EmptyState from '@/components/ui/EmptyState';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
@@ -45,6 +46,7 @@ export default function BeneficiariesList() {
   const [statusFilter, setStatusFilter] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [rejectConfirm, setRejectConfirm] = useState<ZakatBeneficiary | null>(null);
@@ -65,13 +67,13 @@ export default function BeneficiariesList() {
 
   useEffect(() => {
     fetchRows();
-  }, [statusFilter, debouncedSearch, currentPage]);
+  }, [statusFilter, debouncedSearch, currentPage, itemsPerPage]);
 
   const fetchRows = async () => {
     try {
       setLoading(true);
       setError(null);
-      const params: Record<string, any> = { page: currentPage, limit: 10 };
+      const params: Record<string, any> = { page: currentPage, limit: itemsPerPage };
       if (statusFilter) params.verificationStatus = statusFilter;
       if (debouncedSearch) params.search = debouncedSearch;
       const result = await zakatDistributionService.getBeneficiaries(params);
@@ -139,22 +141,37 @@ export default function BeneficiariesList() {
   };
 
   const columns: TableColumn<ZakatBeneficiary>[] = [
-    { key: 'name', label: 'Beneficiary', width: '9.25rem', render: (_v, row) => beneficiaryName(row) },
+    {
+      key: 'name',
+      label: 'Beneficiary',
+      width: '16rem',
+      sortable: false,
+      render: (_v, row) => <span className="font-medium text-foreground">{beneficiaryName(row)}</span>,
+    },
     {
       key: 'category',
       label: 'Category',
-      width: '8.25rem',
+      sortable: true,
+      width: '12rem',
       render: (v) => ZAKAT_CATEGORY_OPTIONS.find((o) => o.value === v)?.label || v,
     },
-    { key: 'priorityArea', label: 'Priority', width: '7.75rem', render: (v) => v || '-' },
-    { key: 'verificationStatus', label: 'Verification', width: '9.5rem' },
+    { key: 'priorityArea', label: 'Priority', sortable: true, priority: 'secondary', width: '10rem', render: (v) => v || '—' },
+    {
+      key: 'verificationStatus',
+      label: 'Verification',
+      sortable: true,
+      width: '9rem',
+      render: (v) => <StatusBadge status={v} />,
+    },
     {
       key: 'actions',
-      label: 'Actions',
-      width: '8rem',
-      align: 'center',
+      label: '',
+      width: '6.5rem',
+      align: 'right',
+      sortable: false,
       render: (_v, row) => (
         <ActionsMenu
+          label={`Actions for ${beneficiaryName(row)}`}
           items={[
             ...(row.verificationStatus === 'verified'
               ? [
@@ -191,85 +208,85 @@ export default function BeneficiariesList() {
     },
   ];
 
+  const isFiltered = Boolean(statusFilter || debouncedSearch);
+
   return (
-    <div className="space-y-3">
+    <>
       <PageHeader
-        title="Zakat Beneficiaries"
-        description="Only verified beneficiaries can receive distributions"
-        breadcrumbs={[{ label: 'Zakat' }]}
+        title="Zakat beneficiaries"
+        description="Only verified beneficiaries can receive distributions."
+        actions={
+          <Link to="/zakat/beneficiaries/create">
+            <Button icon={<FiPlus />} collapseLabel>
+              New beneficiary
+            </Button>
+          </Link>
+        }
       />
 
       <TableCard>
-        <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div className="grid grid-cols-4 gap-1.5 sm:flex">
-            {STATUS_TABS.map((tab) => (
-              <button
-                key={tab.value || 'all'}
-                onClick={() => {
-                  setStatusFilter(tab.value);
-                  setCurrentPage(1);
-                }}
-                className={[
-                  'rounded-lg border px-2 py-1.5 text-xs font-medium transition-colors',
-                  statusFilter === tab.value
-                    ? 'border-primary/30 bg-primary/10 text-primary'
-                    : 'border-border bg-background text-muted-foreground hover:bg-accent hover:text-accent-foreground',
-                ].join(' ')}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-          <div className="flex min-w-0 items-center justify-end gap-2">
-            <ExpandableSearch
-              value={searchQuery}
-              onChange={setSearchQuery}
-              entity="beneficiaries"
-              placeholder="Search by name"
+        <TableToolbar
+          tabs={
+            <Tabs
+              variant="segmented"
+              ariaLabel="Verification status"
+              value={statusFilter}
+              onChange={(value) => {
+                setStatusFilter(value);
+                setCurrentPage(1);
+              }}
+              items={STATUS_TABS}
             />
-            <Link to="/zakat/beneficiaries/create" className="flex-shrink-0">
-              <Button size="md" icon={<FiPlus />} collapseLabel>
-                New Beneficiary
-              </Button>
-            </Link>
-          </div>
-        </div>
+          }
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          searchEntity="beneficiaries"
+          onRefresh={fetchRows}
+        />
 
-        {loading ? (
-          <PageSkeleton variant="section" />
-        ) : error ? (
-          <EmptyState
-            variant="error"
-            entity="beneficiaries"
-            description={error}
-            action={{ label: 'Retry', onClick: fetchRows }}
-          />
-        ) : rows.length === 0 ? (
-          <EmptyState
-            title="No beneficiaries yet"
-            description="Start by registering a beneficiary"
-            action={{ label: '+ New Beneficiary', onClick: () => navigate('/zakat/beneficiaries/create') }}
-          />
+        {error ? (
+          <EmptyState variant="error" entity="beneficiaries" description={error} action={{ label: 'Try again', onClick: fetchRows }} />
         ) : (
-          <Table
-            fixedLayout
-            striped
-            columns={columns}
-            data={rows}
-            onRowClick={(row) => setViewing(row)}
-          />
-        )}
-
-        {pagination && (
-          <div className="mt-4">
-            <Pagination
-              currentPage={pagination.page}
-              totalPages={pagination.totalPages}
-              totalItems={pagination.total}
-              itemsPerPage={pagination.limit}
-              onPageChange={setCurrentPage}
+          <>
+            <Table
+              fixedLayout
+              columns={columns}
+              data={rows}
+              isLoading={loading}
+              entity="beneficiaries"
+              emptyVariant={isFiltered ? 'no-results' : 'empty'}
+              emptyAction={
+                isFiltered
+                  ? {
+                      label: 'Clear filters',
+                      onClick: () => {
+                        setSearchQuery('');
+                        setStatusFilter('');
+                        setCurrentPage(1);
+                      },
+                    }
+                  : { label: 'Add beneficiary', onClick: () => navigate('/zakat/beneficiaries/create') }
+              }
+              onRowClick={(row) => setViewing(row)}
             />
-          </div>
+
+            {pagination && (
+              <div className="mt-4">
+                <Pagination
+                  currentPage={pagination.page}
+                  totalPages={pagination.totalPages}
+                  totalItems={pagination.total}
+                  itemsPerPage={pagination.limit}
+                  entity="beneficiaries"
+                  onPageChange={setCurrentPage}
+                  onItemsPerPageChange={(size) => {
+                    setItemsPerPage(size);
+                    setCurrentPage(1);
+                  }}
+                />
+              </div>
+            )}
+          </>
         )}
       </TableCard>
 
@@ -368,6 +385,6 @@ export default function BeneficiariesList() {
         onConfirm={handleDeleteConfirm}
         onCancel={() => setDeleteConfirm(null)}
       />
-    </div>
+    </>
   );
 }

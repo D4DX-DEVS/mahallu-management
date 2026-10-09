@@ -1,150 +1,132 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { memberPortalService, Certificate } from '@/services/memberPortalService';
-import Card from '@/components/ui/Card';
-import { PageSkeleton } from '@/components/ui/Skeleton';
+import TableCard from '@/components/ui/TableCard';
+import TableToolbar from '@/components/ui/TableToolbar';
+import Table from '@/components/ui/Table';
+import EmptyState from '@/components/ui/EmptyState';
 import Pagination from '@/components/ui/Pagination';
-import { errorMessage, loadErrorMessage } from '@/utils/errors';
-import PageHeader from '@/components/layout/PageHeader';
-import SortableTh from '@/components/ui/SortableTh';
-import { useSortableRows } from '@/hooks/useSortableRows';
 import StatusBadge from '@/components/ui/StatusBadge';
+import PageHeader from '@/components/layout/PageHeader';
+import { TableColumn } from '@/types';
+import { toast } from '@/store/toastStore';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import { toTitleCase } from '@/utils/format';
 
 export default function MemberCertificates() {
   const [certificates, setCertificates] = useState<Certificate[]>([]);
   const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(25);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [downloading, setDownloading] = useState<string | null>(null);
 
-  const limit = 10;
+  const load = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const result = await memberPortalService.getCertificates(page, limit);
+      setCertificates(result.data || []);
+      const total = result.pagination?.total || 0;
+      setTotalItems(total);
+      setTotalPages(Math.max(1, Math.ceil(total / limit)));
+    } catch (err) {
+      setError(loadErrorMessage(err, 'certificates'));
+    } finally {
+      setLoading(false);
+    }
+  }, [page, limit]);
 
   useEffect(() => {
-    const load = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const result = await memberPortalService.getCertificates(page, limit);
-        setCertificates(result.data || []);
-        const total = result.pagination?.total || 0;
-        setTotalItems(total);
-        setTotalPages(Math.ceil(total / limit));
-      } catch (err: any) {
-        setError(loadErrorMessage(err, 'certificates'));
-      } finally {
-        setLoading(false);
-      }
-    };
-
     load();
-  }, [page]);
+  }, [load]);
 
   const handleDownload = async (cert: Certificate) => {
     setDownloading(cert.id);
     try {
       const urlData = await memberPortalService.getCertificateUrl(cert.id);
       window.open(urlData.url, '_blank');
-    } catch (err: any) {
-      setError(errorMessage(err, { action: 'download certificate' }));
+    } catch (err) {
+      toast.error(errorMessage(err, { action: 'download this certificate' }));
     } finally {
       setDownloading(null);
     }
   };
 
-  const {
-    rows: sortedCertificates,
-    sort,
-    toggleSort,
-  } = useSortableRows(certificates);
-
-  if (loading) {
-    return <PageSkeleton />;
-  }
+  const columns: TableColumn<Certificate>[] = [
+    {
+      key: 'certificateNo',
+      label: 'Certificate no.',
+      sortable: true,
+      width: '16rem',
+      render: (v) => <span className="font-medium text-foreground">{v}</span>,
+    },
+    { key: 'type', label: 'Type', sortable: true, width: '10rem', render: (v) => (v ? toTitleCase(String(v)) : '—') },
+    {
+      key: 'issueDate',
+      label: 'Issue date',
+      sortable: true,
+      priority: 'secondary',
+      width: '10rem',
+      render: (v) => new Date(v).toLocaleDateString('en-IN'),
+    },
+    { key: 'status', label: 'Status', sortable: true, width: '8rem', render: (v) => <StatusBadge status={v} /> },
+    {
+      key: 'download',
+      label: 'Download',
+      sortable: false,
+      width: '9rem',
+      render: (_v, cert) => (
+        <button
+          type="button"
+          onClick={() => handleDownload(cert)}
+          disabled={downloading === cert.id}
+          className="text-xs font-medium text-primary hover:underline disabled:opacity-50"
+        >
+          {downloading === cert.id ? 'Downloading…' : 'Download'}
+        </button>
+      ),
+    },
+  ];
 
   return (
-    <div className="space-y-4 max-w-4xl w-full mx-auto">
-      <PageHeader title="My Certificates" />
-      {error && (
-        <Card>
-          <p className="text-red-600 dark:text-red-400 text-sm">{error}</p>
-        </Card>
-      )}
+    <>
+      <PageHeader title="My certificates" description="Certificates issued once your requests are approved." />
 
-      {certificates.length === 0 ? (
-        <Card>
-          <div className="text-center py-10 space-y-3">
-            <p className="text-gray-500 dark:text-gray-400">No certificates found.</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400">
-              Certificates will appear here once your requests are approved.
-            </p>
-          </div>
-        </Card>
-      ) : (
-        <div className="space-y-4">
-          <Card>
-            <div className="overflow-x-auto">
-              <table className="data-table min-w-full text-sm">
-                <thead>
-                  <tr className="text-left border-b border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-400">
-                    <SortableTh sortKey="certificateNo" sort={sort} onSort={toggleSort} className="py-2 pr-4">
-                      Certificate Number
-                    </SortableTh>
-                    <SortableTh sortKey="type" sort={sort} onSort={toggleSort} className="py-2 pr-4">
-                      Type
-                    </SortableTh>
-                    <SortableTh sortKey="issueDate" sort={sort} onSort={toggleSort} className="py-2 pr-4">
-                      Issue Date
-                    </SortableTh>
-                    <SortableTh sortKey="status" sort={sort} onSort={toggleSort} className="py-2 pr-4">
-                      Status
-                    </SortableTh>
-                    <th className="py-2 text-label font-semibold text-muted-foreground">Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {sortedCertificates.map((cert, index) => (
-                    <tr
-                      key={cert.id || index}
-                      className="border-b border-gray-100 dark:border-gray-900 text-gray-900 dark:text-gray-100"
-                    >
-                      <td className="py-3 pr-4 font-medium">{cert.certificateNo}</td>
-                      <td className="py-3 pr-4 text-gray-500 dark:text-gray-400">{cert.type}</td>
-                      <td className="py-3 pr-4 text-xs text-gray-500 dark:text-gray-400">
-                        {new Date(cert.issueDate).toLocaleDateString('en-IN')}
-                      </td>
-                      <td className="py-3 pr-4">
-                        <StatusBadge status={cert.status} />
-                      </td>
-                      <td className="py-3">
-                        <button
-                          onClick={() => handleDownload(cert)}
-                          disabled={downloading === cert.id}
-                          className="text-xs text-primary-600 dark:text-primary-400 hover:underline disabled:opacity-50"
-                        >
-                          {downloading === cert.id ? 'Downloading…' : 'Download'}
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </Card>
+      <TableCard>
+        <TableToolbar onRefresh={load} />
 
-          {totalPages > 1 && (
-            <div className="flex justify-center pt-4">
+        {error ? (
+          <EmptyState variant="error" entity="certificates" description={error} action={{ label: 'Try again', onClick: load }} />
+        ) : (
+          <>
+            <Table
+              fixedLayout
+              columns={columns}
+              data={certificates}
+              isLoading={loading}
+              entity="certificates"
+              rowKey={(cert, index) => cert.id || String(index)}
+            />
+
+            <div className="mt-4">
               <Pagination
                 currentPage={page}
                 totalPages={totalPages}
                 totalItems={totalItems}
                 itemsPerPage={limit}
+                entity="certificates"
                 onPageChange={setPage}
+                onItemsPerPageChange={(size) => {
+                  setLimit(size);
+                  setPage(1);
+                }}
               />
             </div>
-          )}
-        </div>
-      )}
-    </div>
+          </>
+        )}
+      </TableCard>
+    </>
   );
 }

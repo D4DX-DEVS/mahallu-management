@@ -8,9 +8,9 @@ import Button from '@/components/ui/Button';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
 import EmptyState from '@/components/ui/EmptyState';
-import { PageSkeleton } from '@/components/ui/Skeleton';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import Pagination from '@/components/ui/Pagination';
+import StatusBadge from '@/components/ui/StatusBadge';
 import TableToolbar from '@/components/ui/TableToolbar';
 import { TableColumn, Pagination as PaginationType } from '@/types';
 import { socialService, Banner } from '@/services/socialService';
@@ -27,7 +27,6 @@ export default function BannersList() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchQuery, setSearchQuery] = useState('');
-  const [isFilterVisible, setIsFilterVisible] = useState(false);
   const [banners, setBanners] = useState<Banner[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -39,7 +38,7 @@ export default function BannersList() {
     const page = Number(searchParams.get('page'));
     return page > 0 ? page : 1;
   });
-  const [itemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
   const [isExporting, setIsExporting] = useState(false);
 
@@ -48,7 +47,7 @@ export default function BannersList() {
     const next = new URLSearchParams();
     if (currentPage > 1) next.set('page', String(currentPage));
     setSearchParams(next, { replace: true });
-  }, [currentPage, setSearchParams]);
+  }, [currentPage, setSearchParams, itemsPerPage]);
 
   useEffect(() => {
     fetchBanners();
@@ -127,34 +126,32 @@ export default function BannersList() {
   };
 
   const columns: TableColumn<Banner>[] = [
-    { key: 'title', label: 'Title', width: '6.25rem', sortable: true },
+    {
+      key: 'title',
+      label: 'Title',
+      width: '18rem',
+      sortable: true,
+      render: (title) => <span className="font-medium text-foreground">{title}</span>,
+    },
     {
       key: 'status',
       label: 'Status',
-      width: '7.25rem',
-      render: (status) => (
-        <span
-          className={`px-2 py-1 text-xs font-medium rounded-full ${
-            status === 'active'
-              ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-              : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
-          }`}
-        >
-          {status || 'active'}
-        </span>
-      ),
+      width: '8rem',
+      sortable: true,
+      render: (status) => <StatusBadge status={status || 'active'} />,
     },
     {
-      key: 'createdAt',
+      key: 'createdAt', sortable: true, priority: 'secondary',
       label: 'Created',
-      width: '7.75rem',
+      width: '9rem',
       render: (date) => formatDate(date),
     },
     {
       key: 'actions',
-      label: 'Actions',
-      width: '8rem',
-      align: 'center',
+      label: '',
+      width: '6.5rem',
+      align: 'right',
+      sortable: false,
       render: (_, row) => (
         <div onClick={(e) => e.stopPropagation()}>
           <ActionsMenu
@@ -200,72 +197,85 @@ export default function BannersList() {
     },
   ];
 
-  return (
-    <div className="space-y-4">
-      <div className="space-y-3">
-        <PageHeader title="Banners" description="Manage banners" />
+  // The API has no banner search, so this narrows the page already loaded.
+  const visibleBanners = banners.filter((banner) =>
+    (banner.title || '').toLowerCase().includes(searchQuery.trim().toLowerCase())
+  );
 
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-2">
-          {stats.map((stat, index) => (
-            <StatCard key={index} {...stat} />
-          ))}
-        </div>
+  const isFiltered = Boolean(searchQuery);
+
+  return (
+    <>
+      <PageHeader
+        title="Banners"
+        description="Manage banners."
+        actions={
+          <Link to="/social/banners/create">
+            <Button icon={<FiPlus />} collapseLabel>New banner</Button>
+          </Link>
+        }
+      />
+
+      <div className="mb-6 grid grid-cols-2 gap-3">
+        {stats.map((stat, index) => (
+          <StatCard key={index} {...stat} />
+        ))}
       </div>
 
       <TableCard>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
-          onFilterClick={() => setIsFilterVisible(!isFilterVisible)}
-          isFilterVisible={isFilterVisible}
-          hasFilters={false}
+          searchEntity="banners"
           onRefresh={fetchBanners}
           onExport={handleExport}
           isExporting={isExporting}
-          actionButtons={
-            <Link to="/social/banners/create">
-              <Button size="md" icon={<FiPlus />} collapseLabel>New Banner</Button>
-            </Link>
-          }
         />
 
-        {loading ? (
-          <PageSkeleton variant="section" />
-        ) : error ? (
+        {error ? (
           <EmptyState
             variant="error"
             entity="banners"
             description={error}
-            action={{ label: 'Retry', onClick: fetchBanners }}
+            action={{ label: 'Try again', onClick: fetchBanners }}
           />
         ) : (
-          <Table
-            fixedLayout
-            striped
-            columns={columns}
-            data={banners}
-            emptyMessage="No banners found"
-            showExport={false}
-            onRowClick={(row) => {
+          <>
+            <Table
+              fixedLayout
+              columns={columns}
+              data={visibleBanners}
+              isLoading={loading}
+              entity="banners"
+              emptyVariant={isFiltered ? 'no-results' : 'empty'}
+              emptyAction={
+                isFiltered
+                  ? { label: 'Clear filters', onClick: () => { setSearchQuery(''); } }
+                  : { label: 'Add banner', onClick: () => navigate('/social/banners/create') }
+              }
+              onRowClick={(row) => {
               setSelectedBanner(row);
               setShowViewModal(true);
             }}
-          />
-        )}
-
-        {/* Pagination */}
-        {pagination && (
-          <div className="mt-4">
-            <Pagination
-              currentPage={pagination.page}
-              totalPages={pagination.totalPages}
-              totalItems={pagination.total}
-              itemsPerPage={pagination.limit}
-              onPageChange={(page) => {
-                setCurrentPage(page);
-              }}
             />
-          </div>
+
+            {pagination && (
+              <div className="mt-4">
+                <Pagination
+                  currentPage={pagination.page}
+                  totalPages={pagination.totalPages}
+                  totalItems={pagination.total}
+                  itemsPerPage={pagination.limit}
+                  entity="banners"
+                  onPageChange={setCurrentPage}
+                  onItemsPerPageChange={(size) => {
+                    setItemsPerPage(size);
+                    setCurrentPage(1);
+                  }}
+                />
+              </div>
+            )}
+          </>
         )}
       </TableCard>
 
@@ -361,6 +371,6 @@ export default function BannersList() {
           setDeleting(false);
         }}
       />
-    </div>
+    </>
   );
 }

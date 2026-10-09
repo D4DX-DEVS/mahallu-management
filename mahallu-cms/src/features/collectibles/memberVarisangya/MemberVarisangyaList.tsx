@@ -7,7 +7,6 @@ import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
 import EmptyState from '@/components/ui/EmptyState';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
-import { PageSkeleton } from '@/components/ui/Skeleton';
 import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
 import { TableColumn, Pagination as PaginationType, Member } from '@/types';
@@ -41,14 +40,13 @@ const getMemberId = (v: any) =>
 export default function MemberVarisangyaList() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
-  const [isFilterVisible, setIsFilterVisible] = useState(false);
   const [members, setMembers] = useState<MemberVarisangyaData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [exportingRowId, setExportingRowId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
   /* Payments and amount across every member payment (all pages), from the server. */
   const [summary, setSummary] = useState<CollectionSummary>(EMPTY_COLLECTION_SUMMARY);
@@ -63,7 +61,7 @@ export default function MemberVarisangyaList() {
 
   useEffect(() => {
     fetchMembers();
-  }, [debouncedSearch, currentPage]);
+  }, [debouncedSearch, currentPage, itemsPerPage]);
 
   const fetchMembers = async () => {
     try {
@@ -216,8 +214,9 @@ export default function MemberVarisangyaList() {
   const columns: TableColumn<MemberVarisangyaData>[] = [
     {
       key: 'name',
-      label: 'Member Name',
-      width: '10.75rem',
+      label: 'Member name',
+      sortable: true,
+      width: '14rem',
       render: (name, row) => (
         <Link
           to={ROUTES.MEMBERS.DETAIL(row.id)}
@@ -227,21 +226,23 @@ export default function MemberVarisangyaList() {
         </Link>
       ),
     },
-    { key: 'familyName', label: 'Family', width: '7.25rem', render: (name) => toTitleCase(name) },
-    { key: 'varisangyaCount', label: 'Payments', width: '8.75rem', render: (count) => count || 0 },
+    { key: 'familyName', label: 'Family', sortable: true, priority: 'secondary', width: '12rem', render: (name) => toTitleCase(name) },
+    { key: 'varisangyaCount', label: 'Payments', align: 'center', sortable: true, width: '8rem', render: (count) => count || 0 },
     {
       key: 'totalVarisangya',
-      label: 'Total Amount',
-      width: '12rem',
-      align: 'center',
-      render: (amount) => `₹${(amount || 0).toLocaleString()}`,
+      label: 'Total amount',
+      width: '10rem',
+      align: 'right',
+      sortable: true,
+      render: (amount) => `₹${(amount || 0).toLocaleString('en-IN')}`,
     },
-    { key: 'lastPaymentDate', label: 'Last Payment', width: '10.75rem', render: (date) => (date ? formatDate(date) : '-') },
+    { key: 'lastPaymentDate', label: 'Last payment', sortable: true, priority: 'secondary', width: '9rem', render: (date) => (date ? formatDate(date) : '—') },
     {
       key: 'actions',
-      label: 'Actions',
-      width: '8rem',
-      align: 'center',
+      label: '',
+      width: '6.5rem',
+      align: 'right',
+      sortable: false,
       render: (_, row) => (
         <div onClick={(e) => e.stopPropagation()}>
           <ActionsMenu
@@ -299,9 +300,11 @@ export default function MemberVarisangyaList() {
     },
   ];
 
+  const isFiltered = Boolean(debouncedSearch);
+
   return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+    <>
+      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
         {stats.map((stat, index) => (
           <StatCard key={index} {...stat} />
         ))}
@@ -310,45 +313,50 @@ export default function MemberVarisangyaList() {
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
-          onFilterClick={() => setIsFilterVisible(!isFilterVisible)}
-          isFilterVisible={isFilterVisible}
-          hasFilters={false}
+          searchEntity="members"
           onRefresh={fetchMembers}
           onExport={handleExport}
           isExporting={isExporting}
         />
-        {loading ? (
-          <PageSkeleton variant="section" />
-        ) : error ? (
+        {error ? (
           <EmptyState
             variant="error"
             entity="members"
             description={error}
-            action={{ label: 'Retry', onClick: fetchMembers }}
+            action={{ label: 'Try again', onClick: fetchMembers }}
           />
         ) : (
-          <Table
-            fixedLayout
-            striped
-            columns={columns}
-            data={members}
-            emptyMessage="No members found"
-            showExport={false}
-            onRowClick={(row) => navigate(`${MEMBER_BASE}?view=transactions&memberId=${row.id}`)}
-          />
-        )}
-        {pagination && (
-          <div className="mt-4">
-            <Pagination
-              currentPage={pagination.page}
-              totalPages={pagination.totalPages}
-              totalItems={pagination.total}
-              itemsPerPage={pagination.limit}
-              onPageChange={(page) => setCurrentPage(page)}
+          <>
+            <Table
+              fixedLayout
+              columns={columns}
+              data={members}
+              isLoading={loading}
+              entity="members"
+              emptyVariant={isFiltered ? 'no-results' : 'empty'}
+              emptyAction={isFiltered ? { label: 'Clear filters', onClick: () => { setSearchQuery(''); setCurrentPage(1); } } : undefined}
+              onRowClick={(row) => navigate(`${MEMBER_BASE}?view=transactions&memberId=${row.id}`)}
             />
-          </div>
+
+            {pagination && (
+              <div className="mt-4">
+                <Pagination
+                  currentPage={pagination.page}
+                  totalPages={pagination.totalPages}
+                  totalItems={pagination.total}
+                  itemsPerPage={pagination.limit}
+                  entity="members"
+                  onPageChange={setCurrentPage}
+                  onItemsPerPageChange={(size) => {
+                    setItemsPerPage(size);
+                    setCurrentPage(1);
+                  }}
+                />
+              </div>
+            )}
+          </>
         )}
       </TableCard>
-    </div>
+    </>
   );
 }

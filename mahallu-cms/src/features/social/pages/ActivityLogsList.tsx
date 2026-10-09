@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import EmptyState from '@/components/ui/EmptyState';
 import TableCard from '@/components/ui/TableCard';
 import Table from '@/components/ui/Table';
 import Pagination from '@/components/ui/Pagination';
@@ -17,18 +18,17 @@ import { logError } from '@/utils/safeLog';
 
 export default function ActivityLogsList() {
   const [searchQuery, setSearchQuery] = useState('');
-  const [isFilterVisible, setIsFilterVisible] = useState(false);
   const [logs, setLogs] = useState<ActivityLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
   const [isExporting, setIsExporting] = useState(false);
 
   useEffect(() => {
     fetchLogs();
-  }, [currentPage]);
+  }, [currentPage, itemsPerPage]);
 
   const fetchLogs = async () => {
     try {
@@ -91,7 +91,7 @@ export default function ActivityLogsList() {
     {
       key: 'httpMethod',
       label: 'Method',
-      width: '7.5rem',
+      width: '8rem',
       render: (method) => {
         const methodColors: Record<string, string> = {
           GET: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
@@ -115,7 +115,7 @@ export default function ActivityLogsList() {
     {
       key: 'statusCode',
       label: 'Status',
-      width: '7.25rem',
+      width: '8rem',
       render: (statusCode) => {
         if (!statusCode) return '-';
         const statusRange =
@@ -134,7 +134,7 @@ export default function ActivityLogsList() {
     {
       key: 'action',
       label: 'Action',
-      width: '7rem',
+      width: '16rem',
       render: (action, row) => (
         <div>
           <div className="font-medium text-gray-900 dark:text-gray-100">{action}</div>
@@ -143,33 +143,33 @@ export default function ActivityLogsList() {
       ),
     },
     {
-      key: 'endpoint',
+      key: 'endpoint', priority: 'secondary',
       label: 'Endpoint',
-      width: '8rem',
+      width: '16rem',
       render: (endpoint) => (
         <span className="font-mono text-xs text-gray-600 dark:text-gray-400">{endpoint || '-'}</span>
       ),
     },
     {
-      key: 'userName',
+      key: 'userName', priority: 'secondary',
       label: 'User',
-      width: '6.25rem',
+      width: '10rem',
       render: (userName) => (
         <span className="text-sm text-gray-900 dark:text-gray-100">{userName ? toTitleCase(userName) : '-'}</span>
       ),
     },
     {
-      key: 'ipAddress',
+      key: 'ipAddress', priority: 'tertiary',
       label: 'IP Address',
-      width: '9.5rem',
+      width: '10rem',
       render: (ipAddress) => (
         <span className="font-mono text-xs text-gray-600 dark:text-gray-400">{ipAddress || '-'}</span>
       ),
     },
     {
-      key: 'details',
+      key: 'details', priority: 'tertiary',
       label: 'Response Time',
-      width: '11rem',
+      width: '10rem',
       render: (details) => (
         <span className="text-xs text-gray-600 dark:text-gray-400">{details?.responseTime || '-'}</span>
       ),
@@ -177,13 +177,13 @@ export default function ActivityLogsList() {
     {
       key: 'createdAt',
       label: 'Timestamp',
-      width: '9.25rem',
+      width: '10rem',
       render: (date) => <span className="text-sm text-gray-600 dark:text-gray-400">{formatDate(date)}</span>,
     },
     {
-      key: 'errorMessage',
+      key: 'errorMessage', priority: 'tertiary',
       label: 'Error',
-      width: '6.75rem',
+      width: '12rem',
       render: (errorMessage) => {
         if (!errorMessage) return '-';
         return (
@@ -206,43 +206,73 @@ export default function ActivityLogsList() {
     );
   }
 
+  // The API has no log search, so this narrows the page already loaded.
+  const needle = searchQuery.trim().toLowerCase();
+  const visibleLogs = needle
+    ? logs.filter((log) =>
+        [log.action, log.entityType, log.endpoint, log.userName].some((value) =>
+          String(value ?? '').toLowerCase().includes(needle)
+        )
+      )
+    : logs;
+
+  const isFiltered = Boolean(searchQuery);
+
   return (
-    <div className="space-y-4">
-      <PageHeader title="Activity Logs" />
+    <>
+      <PageHeader
+        title="Activity logs"
+        description="Who did what, and when."
+      />
 
       <TableCard>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
-          onFilterClick={() => setIsFilterVisible(!isFilterVisible)}
-          isFilterVisible={isFilterVisible}
-          hasFilters={false}
+          searchEntity="activity logs"
           onRefresh={fetchLogs}
           onExport={handleExport}
           isExporting={isExporting}
         />
 
-        <Table
-          fixedLayout
-          striped
-          columns={columns}
-          data={logs}
-          isLoading={loading}
-          emptyMessage="No activity logs found"
-          showExport={false}
-        />
-        {pagination && pagination.totalPages > 1 && (
-          <div className="mt-4">
-            <Pagination
-              currentPage={currentPage}
-              totalPages={pagination.totalPages}
-              totalItems={pagination.total}
-              itemsPerPage={itemsPerPage}
-              onPageChange={setCurrentPage}
+        {error ? (
+          <EmptyState
+            variant="error"
+            entity="activity logs"
+            description={error}
+            action={{ label: 'Try again', onClick: fetchLogs }}
+          />
+        ) : (
+          <>
+            <Table
+              fixedLayout
+              columns={columns}
+              data={visibleLogs}
+              isLoading={loading}
+              entity="activity logs"
+              emptyVariant={isFiltered ? 'no-results' : 'empty'}
+              emptyAction={isFiltered ? { label: 'Clear filters', onClick: () => { setSearchQuery(''); } } : undefined}
             />
-          </div>
+
+            {pagination && (
+              <div className="mt-4">
+                <Pagination
+                  currentPage={pagination.page}
+                  totalPages={pagination.totalPages}
+                  totalItems={pagination.total}
+                  itemsPerPage={pagination.limit}
+                  entity="activity logs"
+                  onPageChange={setCurrentPage}
+                  onItemsPerPageChange={(size) => {
+                    setItemsPerPage(size);
+                    setCurrentPage(1);
+                  }}
+                />
+              </div>
+            )}
+          </>
         )}
       </TableCard>
-    </div>
+    </>
   );
 }

@@ -6,8 +6,9 @@ import Button from '@/components/ui/Button';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
 import EmptyState from '@/components/ui/EmptyState';
-import { PageSkeleton } from '@/components/ui/Skeleton';
-import Modal from '@/components/ui/Modal';
+import FilterPanel from '@/components/ui/FilterPanel';
+import Select from '@/components/ui/Select';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
 import { toast } from '@/store/toastStore';
@@ -37,7 +38,7 @@ export default function ProgramsList() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [selectedAudience, setSelectedAudience] = useState<string>('');
@@ -47,7 +48,7 @@ export default function ProgramsList() {
 
   useEffect(() => {
     fetchPrograms();
-  }, [debouncedSearch, currentPage, selectedAudience, selectedProgramType]);
+  }, [debouncedSearch, currentPage, itemsPerPage, selectedAudience, selectedProgramType]);
 
   const fetchPrograms = async () => {
     try {
@@ -124,11 +125,13 @@ export default function ProgramsList() {
     try {
       setDeleting(true);
       await programService.delete(selectedProgram.id);
-      await fetchPrograms();
+      toast.success('Program deleted');
       setShowDeleteModal(false);
       setSelectedProgram(null);
+      await fetchPrograms();
     } catch (err: any) {
-      setError(errorMessage(err, { action: 'delete program' }));
+      toast.error(errorMessage(err, { action: 'delete program' }));
+    } finally {
       setDeleting(false);
     }
   };
@@ -137,15 +140,16 @@ export default function ProgramsList() {
     {
       key: 'name',
       label: 'Name',
-      width: '6.75rem',
+      width: '16rem',
       sortable: true,
-      render: (v) => <span>{toTitleCase(v)}</span>,
+      render: (v) => <span className="font-medium text-foreground">{toTitleCase(v)}</span>,
     },
-    { key: 'place', label: 'Place', width: '6.5rem', render: (place) => toTitleCase(place) },
+    { key: 'place', label: 'Place', width: '10rem', priority: 'secondary', render: (place) => (place ? toTitleCase(place) : '—') },
     {
       key: 'audience',
       label: 'Audience',
       width: '8rem',
+      priority: 'secondary',
       render: (audience) => (
         <span className="text-sm">
           {audience ? audience.charAt(0).toUpperCase() + audience.slice(1) : '—'}
@@ -155,7 +159,8 @@ export default function ProgramsList() {
     {
       key: 'programType',
       label: 'Type',
-      width: '6.25rem',
+      width: '9rem',
+      priority: 'secondary',
       render: (type) => (
         <span className="text-sm">
           {type
@@ -170,23 +175,26 @@ export default function ProgramsList() {
     },
     {
       key: 'joinDate',
-      label: 'Join Date',
-      width: '8.75rem',
+      label: 'Join date',
+      width: '8rem',
+      priority: 'tertiary',
       render: (date) => formatDate(date),
     },
     {
       key: 'status',
       label: 'Status',
-      width: '7.25rem',
+      width: '7rem',
       render: (status) => <StatusBadge status={status || 'active'} />,
     },
     {
       key: 'actions',
-      label: 'Actions',
-      width: '8rem',
-      align: 'center',
+      label: '',
+      width: '6.5rem',
+      align: 'right',
+      sortable: false,
       render: (_, row) => (
         <ActionsMenu
+          label={`Actions for ${toTitleCase(row.name)}`}
           items={[
             {
               label: 'View',
@@ -248,146 +256,148 @@ export default function ProgramsList() {
     },
   ];
 
-  return (
-    <div className="space-y-4">
-      <div className="space-y-3">
-        <PageHeader title="Programs" description="Manage programs" />
+  const activeFilterCount = (selectedAudience ? 1 : 0) + (selectedProgramType ? 1 : 0);
+  const isFiltered = Boolean(debouncedSearch) || activeFilterCount > 0;
+  const titleCase = (value: string) =>
+    value
+      .replace(/_/g, ' ')
+      .split(' ')
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+      .join(' ');
+  const clearFilters = () => {
+    setSelectedAudience('');
+    setSelectedProgramType('');
+    setCurrentPage(1);
+  };
 
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          {stats.map((stat, index) => (
-            <StatCard key={index} {...stat} />
-          ))}
-        </div>
+  return (
+    <>
+      <PageHeader
+        title="Programs"
+        description="Manage programs."
+        actions={
+          <Link to={ROUTES.PROGRAMS.CREATE}>
+            <Button icon={<FiPlus />} collapseLabel>New program</Button>
+          </Link>
+        }
+      />
+
+      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
+        {stats.map((stat, index) => (
+          <StatCard key={index} {...stat} />
+        ))}
       </div>
 
       <TableCard>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
-          onFilterClick={() => setIsFilterVisible(!isFilterVisible)}
+          searchEntity="programs"
+          onFilterClick={() => setIsFilterVisible((open) => !open)}
           isFilterVisible={isFilterVisible}
-          hasFilters={!!selectedAudience || !!selectedProgramType}
+          hasFilters
+          activeFilterCount={activeFilterCount}
           onRefresh={fetchPrograms}
           onExport={handleExport}
           isExporting={isExporting}
-          actionButtons={
-            <Link to={ROUTES.PROGRAMS.CREATE}>
-              <Button size="md" icon={<FiPlus />} collapseLabel>New Program</Button>
-            </Link>
-          }
         />
 
         {isFilterVisible && (
-          <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 space-y-3">
-            <div className="flex flex-wrap gap-2">
-              {['all', 'men', 'women', 'youth', 'children', 'families'].map((audience) => (
-                <button
-                  key={audience}
-                  onClick={() => {
-                    setSelectedAudience(selectedAudience === audience ? '' : audience);
-                    setCurrentPage(1);
-                  }}
-                  className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
-                    selectedAudience === audience
-                      ? 'bg-blue-600 text-white dark:bg-blue-500'
-                      : 'bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
-                  }`}
-                >
-                  {audience.charAt(0).toUpperCase() + audience.slice(1)}
-                </button>
-              ))}
+          <FilterPanel onClose={() => setIsFilterVisible(false)}>
+            <div className="w-full sm:w-52">
+              <Select
+                label="Audience"
+                options={[
+                  { value: '', label: 'All audiences' },
+                  ...['all', 'men', 'women', 'youth', 'children', 'families'].map((audience) => ({
+                    value: audience,
+                    label: titleCase(audience),
+                  })),
+                ]}
+                value={selectedAudience}
+                onChange={(e) => {
+                  setSelectedAudience(e.target.value);
+                  setCurrentPage(1);
+                }}
+              />
             </div>
-            <div className="flex flex-wrap gap-2">
-              {['quran_class', 'hadith', 'fiqh', 'lecture', 'family', 'other'].map((type) => (
-                <button
-                  key={type}
-                  onClick={() => {
-                    setSelectedProgramType(selectedProgramType === type ? '' : type);
-                    setCurrentPage(1);
-                  }}
-                  className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
-                    selectedProgramType === type
-                      ? 'bg-green-600 text-white dark:bg-green-500'
-                      : 'bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
-                  }`}
-                >
-                  {type
-                    .replace(/_/g, ' ')
-                    .split(' ')
-                    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-                    .join(' ')}
-                </button>
-              ))}
+            <div className="w-full sm:w-52">
+              <Select
+                label="Type"
+                options={[
+                  { value: '', label: 'All types' },
+                  ...['quran_class', 'hadith', 'fiqh', 'lecture', 'family', 'other'].map((type) => ({
+                    value: type,
+                    label: titleCase(type),
+                  })),
+                ]}
+                value={selectedProgramType}
+                onChange={(e) => {
+                  setSelectedProgramType(e.target.value);
+                  setCurrentPage(1);
+                }}
+              />
             </div>
-          </div>
+            {activeFilterCount > 0 && (
+              <Button variant="ghost" onClick={clearFilters}>
+                Clear filters
+              </Button>
+            )}
+          </FilterPanel>
         )}
 
-        {loading ? (
-          <PageSkeleton variant="section" />
-        ) : error ? (
-          <EmptyState
-            variant="error"
-            entity="programs"
-            description={error}
-            action={{ label: 'Retry', onClick: fetchPrograms }}
-          />
+        {error ? (
+          <EmptyState variant="error" entity="programs" description={error} action={{ label: 'Try again', onClick: fetchPrograms }} />
         ) : (
-          <Table
-            fixedLayout
-            striped
-            columns={columns}
-            data={programs}
-            emptyMessage="No programs found"
-            showExport={false}
-            onRowClick={(row) => navigate(`/programs/${row.id}`)}
-          />
-        )}
-
-        {/* Pagination */}
-        {pagination && (
-          <div className="mt-4">
-            <Pagination
-              currentPage={pagination.page}
-              totalPages={pagination.totalPages}
-              totalItems={pagination.total}
-              itemsPerPage={pagination.limit}
-              onPageChange={(page) => {
-                setCurrentPage(page);
-              }}
+          <>
+            <Table
+              fixedLayout
+              columns={columns}
+              data={programs}
+              isLoading={loading}
+              entity="programs"
+              emptyVariant={isFiltered ? 'no-results' : 'empty'}
+              emptyAction={
+                isFiltered
+                  ? { label: 'Clear filters', onClick: () => { setSearchQuery(''); clearFilters(); } }
+                  : { label: 'Add program', onClick: () => navigate(ROUTES.PROGRAMS.CREATE) }
+              }
+              onRowClick={(row) => navigate(`/programs/${row.id}`)}
             />
-          </div>
+
+            {pagination && (
+              <div className="mt-4">
+                <Pagination
+                  currentPage={pagination.page}
+                  totalPages={pagination.totalPages}
+                  totalItems={pagination.total}
+                  itemsPerPage={pagination.limit}
+                  entity="programs"
+                  onPageChange={setCurrentPage}
+                  onItemsPerPageChange={(size) => {
+                    setItemsPerPage(size);
+                    setCurrentPage(1);
+                  }}
+                />
+              </div>
+            )}
+          </>
         )}
       </TableCard>
 
-      <Modal
+      <ConfirmDialog
         isOpen={showDeleteModal}
-        onClose={() => {
+        title={`Delete ${selectedProgram?.name ? toTitleCase(selectedProgram.name) : 'this program'}?`}
+        message="This permanently removes the program and cannot be undone."
+        confirmLabel="Delete program"
+        variant="danger"
+        isLoading={deleting}
+        onConfirm={handleDelete}
+        onCancel={() => {
           setShowDeleteModal(false);
           setSelectedProgram(null);
         }}
-        title="Delete Program"
-        footer={
-          <>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setShowDeleteModal(false);
-                setSelectedProgram(null);
-              }}
-            >
-              Cancel
-            </Button>
-            <Button variant="danger" onClick={handleDelete} isLoading={deleting}>
-              Delete
-            </Button>
-          </>
-        }
-      >
-        <p className="text-gray-600 dark:text-gray-400">
-          Are you sure you want to delete <strong>{toTitleCase(selectedProgram?.name)}</strong>? This action cannot be
-          undone.
-        </p>
-      </Modal>
-    </div>
+      />
+    </>
   );
 }

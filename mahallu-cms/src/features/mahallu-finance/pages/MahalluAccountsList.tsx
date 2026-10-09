@@ -1,14 +1,16 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiEdit2, FiTrash2, FiBriefcase } from 'react-icons/fi';
+import { FiEdit2, FiTrash2, FiPlus } from 'react-icons/fi';
 import TableCard from '@/components/ui/TableCard';
 import ActionsMenu from '@/components/ui/ActionsMenu';
 import StatCard from '@/components/ui/StatCard';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import Table from '@/components/ui/Table';
+import StatusBadge from '@/components/ui/StatusBadge';
 import Pagination from '@/components/ui/Pagination';
-import { PageSkeleton } from '@/components/ui/Skeleton';
+import EmptyState from '@/components/ui/EmptyState';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import TableToolbar from '@/components/ui/TableToolbar';
 import { TableColumn, Pagination as PaginationType } from '@/types';
 import { masterAccountService, MahalluAccount, BalanceSummary } from '@/services/masterAccountService';
@@ -35,11 +37,11 @@ export default function MahalluAccountsList() {
   const [selectedAccount, setSelectedAccount] = useState<MahalluAccount | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
-  const itemsPerPage = 10;
+  const [itemsPerPage, setItemsPerPage] = useState(25);
 
   useEffect(() => {
     fetchAccounts();
-  }, [currentPage]);
+  }, [currentPage, itemsPerPage]);
 
   const fetchAccounts = async () => {
     try {
@@ -106,30 +108,18 @@ export default function MahalluAccountsList() {
   );
 
   const columns: TableColumn<MahalluAccount>[] = [
-    { key: 'id', label: 'No.', width: '6rem', render: (_, __, i) => i + 1 },
-    { key: 'accountName', label: 'Account Name', width: '10.75rem', render: (v) => toTitleCase(v) },
-    { key: 'accountNumber', label: 'Account Number', width: '11.75rem' },
-    { key: 'bankName', label: 'Bank Name', width: '9.25rem', render: (v) => toTitleCase(v) },
-    { key: 'ifscCode', label: 'IFSC Code', width: '9.25rem' },
-    { key: 'balance', label: 'Balance', width: '7.5rem', render: (b) => formatRupees(b) },
-    {
-      key: 'status',
-      label: 'Status',
-      width: '7.25rem',
-      render: (s) => (
-        <span
-          className={`px-2 py-0.5 rounded-full text-xs font-medium ${s === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}
-        >
-          {s}
-        </span>
-      ),
-    },
-    { key: 'createdAt', label: 'Created', width: '7.75rem', render: (d) => formatDate(d) },
+    { key: 'accountName', label: 'Account name', sortable: true, width: '14rem', render: (v) => <span className="font-medium text-foreground">{toTitleCase(v)}</span> },
+    { key: 'accountNumber', label: 'Account number', priority: 'secondary', width: '12rem' },
+    { key: 'bankName', label: 'Bank', sortable: true, priority: 'secondary', width: '10rem', render: (v) => toTitleCase(v) },
+    { key: 'ifscCode', label: 'IFSC code', priority: 'tertiary', width: '9rem' },
+    { key: 'balance', label: 'Balance', align: 'right', sortable: true, width: '9rem', render: (b) => formatRupees(b) },
+    { key: 'status', label: 'Status', sortable: true, width: '8rem', render: (s) => <StatusBadge status={s} /> },
     {
       key: 'actions',
-      label: 'Actions',
-      width: '8rem',
-      align: 'center',
+      label: '',
+      width: '6.5rem',
+      align: 'right',
+      sortable: false,
       render: (_, row) => (
         <ActionsMenu
           label={`Actions for ${toTitleCase(row.accountName)}`}
@@ -155,15 +145,21 @@ export default function MahalluAccountsList() {
     },
   ];
 
+  const isFiltered = Boolean(searchQuery);
+
   return (
-    <div className="space-y-4">
+    <>
       <PageHeader
-        title="Mahallu Bank Accounts"
-        description="Manage the Mahallu's own bank accounts"
-        breadcrumbs={[{ label: 'Mahallu Finance', path: '/mahallu-finance/accounts' }]}
+        title="Mahallu bank accounts"
+        description="Manage the mahallu's own bank accounts."
+        actions={
+          <Button icon={<FiPlus />} collapseLabel onClick={() => navigate(ROUTES.MAHALLU_FINANCE.ACCOUNTS_CREATE)}>
+            Add account
+          </Button>
+        }
       />
 
-      <div className="grid grid-cols-2 sm:grid-cols-2 gap-3">
+      <div className="mb-6 grid grid-cols-2 sm:grid-cols-2 gap-3">
         <StatCard title="Total Accounts" value={pagination?.total ?? summary.count} tone="info" />
         <StatCard title="Total Balance" value={formatRupees(summary.totalBalance)} tone="success" />
       </div>
@@ -172,44 +168,53 @@ export default function MahalluAccountsList() {
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
+          searchEntity="accounts"
+          onRefresh={fetchAccounts}
           onExport={handleExport}
           isExporting={isExporting}
-          actionButtons={
-            <Button
-              onClick={() => navigate(ROUTES.MAHALLU_FINANCE.ACCOUNTS_CREATE)}
-              size="sm"
-              icon={<FiBriefcase />}
-              collapseLabel
-            >
-              Add Account
-            </Button>
-          }
         />
-        {loading ? (
-          <PageSkeleton variant="section" />
-        ) : error ? (
-          <p className="text-center py-8 text-red-600">{error}</p>
+        {error ? (
+          <EmptyState
+            variant="error"
+            entity="accounts"
+            description={error}
+            action={{ label: 'Try again', onClick: fetchAccounts }}
+          />
         ) : (
           <>
             <Table
               fixedLayout
-              striped
               columns={columns}
               data={filteredAccounts}
-              emptyMessage="No accounts found"
+              isLoading={loading}
+              entity="accounts"
+              emptyVariant={isFiltered ? 'no-results' : 'empty'}
+              emptyAction={
+                isFiltered
+                  ? { label: 'Clear filters', onClick: () => { setSearchQuery(''); setCurrentPage(1); } }
+                  : { label: 'Add account', onClick: () => navigate(ROUTES.MAHALLU_FINANCE.ACCOUNTS_CREATE) }
+              }
               onRowClick={(row) => {
                 setSelectedAccount(row);
                 setShowViewModal(true);
               }}
             />
+
             {pagination && (
-              <Pagination
-                currentPage={currentPage}
-                totalPages={pagination.totalPages || 1}
-                totalItems={pagination.total || 0}
-                itemsPerPage={itemsPerPage}
-                onPageChange={setCurrentPage}
-              />
+              <div className="mt-4">
+                <Pagination
+                  currentPage={pagination.page}
+                  totalPages={pagination.totalPages}
+                  totalItems={pagination.total}
+                  itemsPerPage={pagination.limit}
+                  entity="accounts"
+                  onPageChange={setCurrentPage}
+                  onItemsPerPageChange={(size) => {
+                    setItemsPerPage(size);
+                    setCurrentPage(1);
+                  }}
+                />
+              </div>
             )}
           </>
         )}
@@ -292,19 +297,16 @@ export default function MahalluAccountsList() {
         )}
       </Modal>
 
-      <Modal isOpen={showDeleteModal} onClose={() => setShowDeleteModal(false)} title="Delete Account">
-        <p className="text-gray-600 dark:text-gray-400 mb-4">
-          Are you sure you want to delete <strong>{toTitleCase(selectedAccount?.accountName)}</strong>?
-        </p>
-        <div className="flex gap-2 flex-col-reverse sm:flex-row sm:justify-end sm:gap-3">
-          <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>
-            Cancel
-          </Button>
-          <Button variant="danger" onClick={handleDelete} disabled={deleting}>
-            {deleting ? 'Deleting...' : 'Delete'}
-          </Button>
-        </div>
-      </Modal>
-    </div>
+      <ConfirmDialog
+        isOpen={showDeleteModal}
+        title={`Delete ${toTitleCase(selectedAccount?.accountName) || 'this account'}?`}
+        message="This permanently removes the account and cannot be undone."
+        confirmLabel="Delete account"
+        variant="danger"
+        isLoading={deleting}
+        onConfirm={handleDelete}
+        onCancel={() => setShowDeleteModal(false)}
+      />
+    </>
   );
 }

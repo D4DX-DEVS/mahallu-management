@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Button from '@/components/ui/Button';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   memberPortalService,
   NikahRegistration,
@@ -8,8 +8,13 @@ import {
   NOCRecord,
 } from '@/services/memberPortalService';
 import { ROUTES } from '@/constants/routes';
-import Card from '@/components/ui/Card';
-import { PageSkeleton } from '@/components/ui/Skeleton';
+import TableCard from '@/components/ui/TableCard';
+import TableToolbar from '@/components/ui/TableToolbar';
+import Tabs from '@/components/ui/Tabs';
+import Table from '@/components/ui/Table';
+import EmptyState from '@/components/ui/EmptyState';
+import ActionsMenu from '@/components/ui/ActionsMenu';
+import { TableColumn } from '@/types';
 import Pagination from '@/components/ui/Pagination';
 import RequestDetailModal, { RequestType } from '../components/RequestDetailModal';
 import { FiAlertCircle, FiEdit2, FiEye, FiFileText, FiHeart, FiPlus } from 'react-icons/fi';
@@ -17,16 +22,16 @@ import { loadErrorMessage } from '@/utils/errors';
 import { toTitleCase } from '@/utils/format';
 import StatusBadge from '@/components/ui/StatusBadge';
 import PageHeader from '@/components/layout/PageHeader';
-import SortableTh from '@/components/ui/SortableTh';
-import { useSortableRows } from '@/hooks/useSortableRows';
 
 type TabType = 'nikah' | 'death' | 'noc';
 type RequestRecord = NikahRegistration | DeathRegistration | NOCRecord;
 
 export default function MemberRequests() {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<TabType>('nikah');
   const [requests, setRequests] = useState<RequestRecord[]>([]);
   const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(25);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -65,9 +70,7 @@ export default function MemberRequests() {
     return status === 'pending' || status === 'correction_required';
   };
 
-  const limit = 10;
-
-  const load = async () => {
+  const load = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -77,24 +80,21 @@ export default function MemberRequests() {
       setRequests(Array.isArray(rows) ? rows : ((rows as Record<string, never[]>)?.[activeTab] ?? []));
       const total = result.pagination?.total || 0;
       setTotalItems(total);
-      setTotalPages(Math.ceil(total / limit));
-    } catch (err: any) {
+      setTotalPages(Math.max(1, Math.ceil(total / limit)));
+    } catch (err) {
       setError(loadErrorMessage(err, 'requests'));
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeTab, page, limit]);
 
   useEffect(() => {
     load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, page]);
+  }, [load]);
 
   const handleTabChange = (tab: TabType) => {
     setActiveTab(tab);
     setPage(1);
-    // The columns mean something different per tab, so the sort does not carry.
-    setSort(null);
   };
 
   const getDisplayName = (req: NikahRegistration | DeathRegistration): string => {
@@ -104,214 +104,148 @@ export default function MemberRequests() {
     return 'Death Registration';
   };
 
-  /* The first two columns are built per tab — a nikah row's title is the two
-     names, a death row's is the deceased, an NOC row's is its purpose — so
-     both sort on the same expression the cell renders. */
-  const {
-    rows: sortedRequests,
-    sort,
-    toggleSort,
-    setSort,
-  } = useSortableRows(requests, null, {
-    label: (req) => {
-      const record = req as unknown as Record<string, string | undefined>;
-      const nikahDetail = (req as any).nikahRegistrationId;
-      if (activeTab === 'nikah') return `${record.groomName} & ${record.brideName}`;
-      if (activeTab === 'death') return record.deceasedName || 'Death Registration';
-      return (
-        record.purposeTitle ||
-        record.purpose ||
-        (nikahDetail && typeof nikahDetail === 'object' ? `Nikah with ${nikahDetail.brideName}` : '')
-      );
-    },
-    date: (req) => {
-      const record = req as unknown as Record<string, string | undefined>;
-      if (activeTab === 'nikah') return record.nikahDate;
-      if (activeTab === 'death') return record.deathDate;
-      return record.createdAt;
-    },
-  });
+  const labelOf = (req: RequestRecord) => {
+    const record = req as unknown as Record<string, string | undefined>;
+    const nikahDetail = (req as any).nikahRegistrationId;
+    if (activeTab === 'nikah') return `${record.groomName} & ${record.brideName}`;
+    if (activeTab === 'death') return record.deceasedName || 'Death Registration';
+    return (
+      record.purposeTitle ||
+      record.purpose ||
+      (nikahDetail && typeof nikahDetail === 'object' ? `Nikah with ${nikahDetail.brideName}` : 'NOC Request')
+    );
+  };
 
-  if (loading) {
-    return <PageSkeleton />;
-  }
+  const dateOf = (req: RequestRecord) => {
+    const record = req as unknown as Record<string, string | undefined>;
+    if (activeTab === 'nikah') return record.nikahDate;
+    if (activeTab === 'death') return record.deathDate;
+    return record.createdAt;
+  };
+
+  /* The columns mean something different per tab, so the table is rebuilt on a
+     tab change (the `key` below) and its sort starts fresh. The title and date
+     are computed per row, so they sort on the text the cell shows. */
+  const columns: TableColumn<RequestRecord>[] = [
+    {
+      key: 'label',
+      label: activeTab === 'nikah' ? 'Names' : activeTab === 'death' ? 'Deceased' : 'Purpose',
+      sortable: false,
+      width: '18rem',
+      render: (_v, req) => <span className="font-medium text-foreground">{toTitleCase(labelOf(req))}</span>,
+    },
+    {
+      key: 'date',
+      label: activeTab === 'noc' ? 'Submitted' : 'Date',
+      sortable: false,
+      priority: 'secondary',
+      width: '9rem',
+      render: (_v, req) => {
+        const value = dateOf(req);
+        return value ? new Date(value).toLocaleDateString('en-IN') : '—';
+      },
+    },
+    { key: 'status', label: 'Status', sortable: true, width: '9rem', render: (_v, req) => <StatusBadge status={req.status} /> },
+    { key: 'remarks', label: 'Remarks', sortable: false, priority: 'secondary', width: '16rem', render: (v) => v || '—' },
+    {
+      key: 'actions',
+      label: '',
+      width: '6.5rem',
+      align: 'right',
+      sortable: false,
+      render: (_v, req) => (
+        <ActionsMenu
+          label="Actions for this request"
+          items={[
+            ...(isEditable(req)
+              ? [{ label: 'Edit & resubmit', icon: <FiEdit2 className="h-4 w-4" />, onClick: () => openModal(req, 'edit') }]
+              : []),
+            { label: 'View', icon: <FiEye className="h-4 w-4" />, onClick: () => openModal(req, 'view') },
+          ]}
+        />
+      ),
+    },
+  ];
+
+  const createPath =
+    activeTab === 'nikah' ? ROUTES.MEMBER.NIKAH_REQUEST : activeTab === 'death' ? ROUTES.MEMBER.DEATH_REQUEST : null;
 
   return (
-    <div className="space-y-4 max-w-4xl w-full mx-auto">
-      <div className="flex flex-wrap gap-2 items-center justify-between">
-        <PageHeader title="My Requests" />
-        <div className="flex items-center gap-2">
-          {activeTab === 'nikah' && (
-            <Link to={ROUTES.MEMBER.NIKAH_REQUEST} className="flex-shrink-0">
-              <Button icon={<FiPlus />} collapseLabel>
-                New Nikah Registration
-              </Button>
-            </Link>
-          )}
-          {activeTab === 'death' && (
-            <Link to={ROUTES.MEMBER.DEATH_REQUEST} className="flex-shrink-0">
-              <Button icon={<FiPlus />} collapseLabel>
-                Report Death
-              </Button>
-            </Link>
-          )}
-        </div>
-      </div>
-
-      {/* Tabs */}
-      <div className="flex gap-1 border-b border-gray-200 dark:border-gray-800">
-        {(['nikah', 'death', 'noc'] as const).map((tab) => (
-          <button
-            key={tab}
-            onClick={() => handleTabChange(tab)}
-            className={`px-4 py-2 font-medium text-sm transition-colors border-b-2 ${
-              activeTab === tab
-                ? 'text-primary-600 dark:text-primary-400 border-primary-600 dark:border-primary-400'
-                : 'text-gray-600 dark:text-gray-400 border-transparent hover:text-gray-900 dark:hover:text-gray-100'
-            }`}
-          >
-            <span className="inline-flex items-center gap-1.5">
-              {tab === 'nikah' ? (
-                <FiHeart className="h-4 w-4" />
-              ) : tab === 'death' ? (
-                <FiAlertCircle className="h-4 w-4" />
-              ) : (
-                <FiFileText className="h-4 w-4" />
-              )}
-              {tab === 'nikah' ? 'Nikah' : tab === 'death' ? 'Death' : 'NOC'}
-            </span>
-          </button>
-        ))}
-      </div>
-
-      {error && (
-        <Card>
-          <p className="text-red-600 dark:text-red-400 text-sm">{error}</p>
-        </Card>
-      )}
-
-      {requests.length === 0 ? (
-        <Card>
-          <div className="text-center py-10 space-y-3">
-            <p className="text-gray-500 dark:text-gray-400">No {activeTab} registrations found.</p>
+    <>
+      <PageHeader
+        title="My requests"
+        description="Registrations and NOCs you have submitted, and where they stand."
+        actions={
+          <>
             {activeTab === 'nikah' && (
-              <Link
-                to={ROUTES.MEMBER.NIKAH_REQUEST}
-                className="text-primary-600 dark:text-primary-400 text-sm font-medium hover:underline inline-block"
-              >
-                Submit your first nikah registration →
+              <Link to={ROUTES.MEMBER.NIKAH_REQUEST}>
+                <Button icon={<FiPlus />} collapseLabel>
+                  New nikah registration
+                </Button>
               </Link>
             )}
             {activeTab === 'death' && (
-              <Link
-                to={ROUTES.MEMBER.DEATH_REQUEST}
-                className="text-primary-600 dark:text-primary-400 text-sm font-medium hover:underline inline-block"
-              >
-                Report a death →
+              <Link to={ROUTES.MEMBER.DEATH_REQUEST}>
+                <Button icon={<FiPlus />} collapseLabel>
+                  Report a death
+                </Button>
               </Link>
             )}
-          </div>
-        </Card>
-      ) : (
-        <div className="space-y-4">
-          <Card>
-            <div className="overflow-x-auto">
-              <table className="data-table min-w-full text-sm">
-                <thead>
-                  <tr className="text-left border-b border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-400">
-                    <SortableTh sortKey="label" sort={sort} onSort={toggleSort} className="py-2 pr-4">
-                      {activeTab === 'nikah' ? 'Names' : activeTab === 'death' ? 'Type' : 'Purpose'}
-                    </SortableTh>
-                    <SortableTh sortKey="date" sort={sort} onSort={toggleSort} className="py-2 pr-4">
-                      {activeTab === 'nikah' ? 'Date' : activeTab === 'death' ? 'Date' : 'Submitted'}
-                    </SortableTh>
-                    <SortableTh sortKey="status" sort={sort} onSort={toggleSort} className="py-2 pr-4">
-                      Status
-                    </SortableTh>
-                    <SortableTh sortKey="remarks" sort={sort} onSort={toggleSort} className="py-2 pr-4">
-                      Remarks
-                    </SortableTh>
-                    <th className="py-2 text-label font-semibold text-muted-foreground">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {sortedRequests.map((req, index) => {
-                    const record = req as unknown as Record<string, string | undefined>;
-                    const nikahDetail = (req as any).nikahRegistrationId;
-                    const label =
-                      activeTab === 'nikah'
-                        ? `${record.groomName} & ${record.brideName}`
-                        : activeTab === 'death'
-                          ? record.deceasedName || 'Death Registration'
-                          : record.purposeTitle ||
-                            record.purpose ||
-                            (nikahDetail && typeof nikahDetail === 'object'
-                              ? `Nikah with ${nikahDetail.brideName}`
-                              : 'NOC Request');
-                    const dateValue =
-                      activeTab === 'nikah'
-                        ? record.nikahDate
-                        : activeTab === 'death'
-                          ? record.deathDate
-                          : record.createdAt;
-                    return (
-                      <tr
-                        key={req.id || index}
-                        className="border-b border-gray-100 dark:border-gray-900 text-gray-900 dark:text-gray-100"
-                      >
-                        <td className="py-3 pr-4">{toTitleCase(label)}</td>
-                        <td className="py-3 pr-4 text-gray-500 dark:text-gray-400 text-xs">
-                          {dateValue ? new Date(dateValue).toLocaleDateString('en-IN') : '—'}
-                        </td>
-                        <td className="py-3 pr-4">
-                          <StatusBadge status={req.status} />
-                        </td>
-                        <td className="py-3 pr-4 text-xs text-gray-500 dark:text-gray-400">
-                          {req.remarks || '—'}
-                        </td>
-                        <td className="py-3">
-                          <div className="flex items-center gap-1">
-                            {isEditable(req) && (
-                              <button
-                                onClick={() => openModal(req, 'edit')}
-                                title="Edit & resubmit"
-                                aria-label="Edit and resubmit"
-                                className="p-2 rounded-lg text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors"
-                              >
-                                <FiEdit2 size={15} />
-                              </button>
-                            )}
-                            <button
-                              onClick={() => openModal(req, 'view')}
-                              title="View"
-                              aria-label="View details"
-                              className="p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-                            >
-                              <FiEye size={15} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </Card>
+          </>
+        }
+      />
 
-          {totalPages > 1 && (
-            <div className="flex justify-center pt-4">
+      <TableCard>
+        <TableToolbar
+          tabs={
+            <Tabs
+              variant="segmented"
+              ariaLabel="Request type"
+              value={activeTab}
+              onChange={(value) => handleTabChange(value as TabType)}
+              items={[
+                { value: 'nikah', label: 'Nikah', icon: <FiHeart className="h-4 w-4" /> },
+                { value: 'death', label: 'Death', icon: <FiAlertCircle className="h-4 w-4" /> },
+                { value: 'noc', label: 'NOC', icon: <FiFileText className="h-4 w-4" /> },
+              ]}
+            />
+          }
+          onRefresh={load}
+        />
+
+        {error ? (
+          <EmptyState variant="error" entity="requests" description={error} action={{ label: 'Try again', onClick: load }} />
+        ) : (
+          <>
+            <Table
+              key={activeTab}
+              fixedLayout
+              columns={columns}
+              data={requests}
+              isLoading={loading}
+              entity={`${activeTab} requests`}
+              emptyAction={createPath ? { label: activeTab === 'death' ? 'Report a death' : 'Add registration', onClick: () => navigate(createPath) } : undefined}
+              rowKey={(req, index) => req.id || String(index)}
+              onRowClick={(req) => openModal(req, 'view')}
+            />
+
+            <div className="mt-4">
               <Pagination
                 currentPage={page}
                 totalPages={totalPages}
                 totalItems={totalItems}
                 itemsPerPage={limit}
+                entity="requests"
                 onPageChange={setPage}
+                onItemsPerPageChange={(size) => {
+                  setLimit(size);
+                  setPage(1);
+                }}
               />
             </div>
-          )}
-        </div>
-      )}
+          </>
+        )}
+      </TableCard>
 
       {modalState && (
         <RequestDetailModal
@@ -325,6 +259,6 @@ export default function MemberRequests() {
           }}
         />
       )}
-    </div>
+    </>
   );
 }

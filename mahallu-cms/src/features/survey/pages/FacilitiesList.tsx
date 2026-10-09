@@ -7,9 +7,8 @@ import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import Table from '@/components/ui/Table';
 import Modal from '@/components/ui/Modal';
-import ExpandableSearch from '@/components/ui/ExpandableSearch';
-import ActionBar from '@/components/ui/ActionBar';
-import { PageSkeleton } from '@/components/ui/Skeleton';
+import FilterPanel from '@/components/ui/FilterPanel';
+import TableToolbar from '@/components/ui/TableToolbar';
 import EmptyState from '@/components/ui/EmptyState';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import Pagination from '@/components/ui/Pagination';
@@ -50,7 +49,9 @@ export default function FacilitiesList() {
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
+  const [isFilterVisible, setIsFilterVisible] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
   const [isFormOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -60,19 +61,20 @@ export default function FacilitiesList() {
   const [isConfirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deletingName, setDeletingName] = useState<string>('');
+  const [isDeleting, setIsDeleting] = useState(false);
   const [viewing, setViewing] = useState<LocalityFacility | null>(null);
 
   const debouncedSearch = useDebounce(searchQuery, 500);
 
   useEffect(() => {
     fetchRows();
-  }, [debouncedSearch, typeFilter, currentPage]);
+  }, [debouncedSearch, typeFilter, currentPage, itemsPerPage]);
 
   const fetchRows = async () => {
     try {
       setLoading(true);
       setError(null);
-      const params: Record<string, any> = { page: currentPage, limit: 10 };
+      const params: Record<string, any> = { page: currentPage, limit: itemsPerPage };
       if (debouncedSearch) params.search = debouncedSearch;
       if (typeFilter) params.type = typeFilter;
       const result = await facilityService.getAll(params);
@@ -144,6 +146,7 @@ export default function FacilitiesList() {
   const confirmDelete = async () => {
     if (!deletingId) return;
     try {
+      setIsDeleting(true);
       await facilityService.remove(deletingId);
       toast.success('Facility deleted');
       setConfirmDeleteOpen(false);
@@ -152,26 +155,37 @@ export default function FacilitiesList() {
       fetchRows();
     } catch (err: any) {
       toast.error(errorMessage(err, { action: 'delete facility' }));
+    } finally {
+      setIsDeleting(false);
     }
   };
 
   const columns: TableColumn<LocalityFacility>[] = [
-    { key: 'name', label: 'Name', width: '6.75rem', render: (v) => <span>{toTitleCase(v)}</span> },
+    {
+      key: 'name',
+      label: 'Name',
+      sortable: true,
+      width: '14rem',
+      render: (v) => <span className="font-medium text-foreground">{toTitleCase(v)}</span>,
+    },
     {
       key: 'type',
       label: 'Type',
-      width: '6.25rem',
-      render: (v) => TYPE_OPTIONS.find((option) => option.value === v)?.label || v || '-',
+      sortable: true,
+      width: '10rem',
+      render: (v) => TYPE_OPTIONS.find((option) => option.value === v)?.label || v || '—',
     },
-    { key: 'address', label: 'Address', width: '7.75rem', render: (v) => (v ? toTitleCase(v) : '-') },
-    { key: 'contactNo', label: 'Contact', width: '7.75rem', render: (v) => v || '-' },
+    { key: 'address', label: 'Address', priority: 'secondary', width: '16rem', render: (v) => (v ? toTitleCase(v) : '—') },
+    { key: 'contactNo', label: 'Contact', priority: 'secondary', width: '8rem', render: (v) => v || '—' },
     {
       key: 'actions',
-      label: 'Actions',
-      width: '8rem',
-      align: 'center',
+      label: '',
+      width: '6.5rem',
+      align: 'right',
+      sortable: false,
       render: (_v, row) => (
         <ActionsMenu
+          label={`Actions for ${toTitleCase(row.name)}`}
           items={[
             { label: 'Edit', icon: <FiEdit2 className="h-4 w-4" />, onClick: () => openEdit(row) },
             {
@@ -186,72 +200,105 @@ export default function FacilitiesList() {
     },
   ];
 
+  const isFiltered = Boolean(debouncedSearch || typeFilter);
+
   return (
-    <div className="space-y-3">
+    <>
       <PageHeader
-        title="Locality Facilities"
-        description="Schools, hospitals and institutions serving the Mahallu"
-        breadcrumbs={[{ label: 'Survey', path: '/survey' }]}
+        title="Locality facilities"
+        description="Schools, hospitals and institutions serving the mahallu."
+        actions={
+          <Button icon={<FiPlus />} collapseLabel onClick={openCreate}>
+            New facility
+          </Button>
+        }
       />
 
       <TableCard>
-        <ActionBar>
-          <ExpandableSearch
-            value={searchQuery}
-            onChange={(value) => {
-              setSearchQuery(value);
-              setCurrentPage(1);
-            }}
-            entity="facilities"
-          />
-          <div className="min-w-0 flex-1 sm:w-48 sm:flex-none">
-            <Select
-              options={[{ value: '', label: 'All types' }, ...TYPE_OPTIONS]}
-              value={typeFilter}
-              onChange={(e) => {
-                setTypeFilter(e.target.value);
-                setCurrentPage(1);
-              }}
-            />
-          </div>
-          <Button size="md" onClick={openCreate} icon={<FiPlus />} collapseLabel className="flex-shrink-0">New Facility</Button>
-        </ActionBar>
+        <TableToolbar
+          searchQuery={searchQuery}
+          onSearchChange={(value) => {
+            setSearchQuery(value);
+            setCurrentPage(1);
+          }}
+          searchEntity="facilities"
+          onFilterClick={() => setIsFilterVisible((open) => !open)}
+          isFilterVisible={isFilterVisible}
+          hasFilters
+          activeFilterCount={typeFilter ? 1 : 0}
+          onRefresh={fetchRows}
+        />
 
-        {loading ? (
-          <PageSkeleton variant="section" />
-        ) : error ? (
-          <EmptyState variant="error" entity="facilities" description={error} action={{ label: 'Retry', onClick: fetchRows }} />
-        ) : rows.length === 0 ? (
-          <EmptyState
-            title="No facilities recorded"
-            description="Add locality facilities like schools, hospitals, and institutions"
-            action={{
-              label: 'Add First Facility',
-              onClick: openCreate,
-            }}
-          />
-        ) : (
-          <Table
-            fixedLayout
-            striped
-            columns={columns}
-            data={rows}
-            emptyMessage="No facilities recorded"
-            showExport={false}
-            onRowClick={(row) => setViewing(row)}
-          />
+        {isFilterVisible && (
+          <FilterPanel onClose={() => setIsFilterVisible(false)}>
+            <div className="w-full sm:w-52">
+              <Select
+                label="Type"
+                options={[{ value: '', label: 'All types' }, ...TYPE_OPTIONS]}
+                value={typeFilter}
+                onChange={(e) => {
+                  setTypeFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
+              />
+            </div>
+            {typeFilter && (
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setTypeFilter('');
+                  setCurrentPage(1);
+                }}
+              >
+                Clear filters
+              </Button>
+            )}
+          </FilterPanel>
         )}
 
-        {pagination && (
-          <div className="mt-4">
-            <Pagination
-              currentPage={pagination.page}
-              totalPages={pagination.totalPages}
-              totalItems={pagination.total}
-              itemsPerPage={pagination.limit}
-              onPageChange={setCurrentPage}
+        {error ? (
+          <EmptyState variant="error" entity="facilities" description={error} action={{ label: 'Try again', onClick: fetchRows }} />
+        ) : (
+          <>
+            <Table
+              fixedLayout
+              columns={columns}
+              data={rows}
+              isLoading={loading}
+              entity="facilities"
+              emptyVariant={isFiltered ? 'no-results' : 'empty'}
+              emptyAction={
+                isFiltered
+                  ? {
+                      label: 'Clear filters',
+                      onClick: () => {
+                        setSearchQuery('');
+                        setTypeFilter('');
+                        setCurrentPage(1);
+                      },
+                    }
+                  : { label: 'Add facility', onClick: openCreate }
+              }
+              onRowClick={(row) => setViewing(row)}
             />
-          </div>
+
+            {pagination && (
+              <div className="mt-4">
+                <Pagination
+                  currentPage={pagination.page}
+                  totalPages={pagination.totalPages}
+                  totalItems={pagination.total}
+                  itemsPerPage={pagination.limit}
+                  entity="facilities"
+                  onPageChange={setCurrentPage}
+                  onItemsPerPageChange={(size) => {
+                    setItemsPerPage(size);
+                    setCurrentPage(1);
+                  }}
+                />
+              </div>
+            )}
+          </>
         )}
       </TableCard>
 
@@ -414,12 +461,12 @@ export default function FacilitiesList() {
       </Modal>
 
       <ConfirmDialog
-        isLoading={saving}
+        isLoading={isDeleting}
         isOpen={isConfirmDeleteOpen}
-        title="Delete Facility"
-        message={`Delete the facility "${toTitleCase(deletingName)}"?`}
+        title={`Delete ${deletingName ? toTitleCase(deletingName) : 'this facility'}?`}
+        message="This permanently removes the facility and cannot be undone."
         variant="danger"
-        confirmLabel="Delete"
+        confirmLabel="Delete facility"
         onConfirm={confirmDelete}
         onCancel={() => {
           setConfirmDeleteOpen(false);
@@ -427,6 +474,6 @@ export default function FacilitiesList() {
           setDeletingName('');
         }}
       />
-    </div>
+    </>
   );
 }

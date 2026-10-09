@@ -1,12 +1,15 @@
 import { useState, useEffect } from 'react';
 import { FiList, FiPlus } from 'react-icons/fi';
 import { Link, useNavigate } from 'react-router-dom';
-import Card from '@/components/ui/Card';
 import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
+import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
-import { PageSkeleton } from '@/components/ui/Skeleton';
+import Tabs from '@/components/ui/Tabs';
+import StatusBadge from '@/components/ui/StatusBadge';
+import FilterPanel from '@/components/ui/FilterPanel';
+import TableToolbar from '@/components/ui/TableToolbar';
 import EmptyState from '@/components/ui/EmptyState';
 import Pagination from '@/components/ui/Pagination';
 import { Pagination as PaginationType, TableColumn } from '@/types';
@@ -35,12 +38,14 @@ export default function ApplicationsList() {
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState('');
   const [schemeFilter, setSchemeFilter] = useState('');
+  const [isFilterVisible, setIsFilterVisible] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
 
   useEffect(() => {
     fetchRows();
-  }, [statusFilter, schemeFilter, currentPage]);
+  }, [statusFilter, schemeFilter, currentPage, itemsPerPage]);
 
   useEffect(() => {
     welfareService
@@ -57,7 +62,7 @@ export default function ApplicationsList() {
     try {
       setLoading(true);
       setError(null);
-      const params: Record<string, any> = { page: currentPage, limit: 10 };
+      const params: Record<string, any> = { page: currentPage, limit: itemsPerPage };
       if (statusFilter) params.status = statusFilter;
       if (schemeFilter) params.schemeId = schemeFilter;
       const result = await welfareService.getApplications(params);
@@ -71,120 +76,174 @@ export default function ApplicationsList() {
   };
 
   const columns: TableColumn<WelfareApplication>[] = [
-    { key: 'schemeId', label: 'Scheme', width: '7.75rem', render: (v) => toTitleCase(nameOf(v, 'name')) },
-    { key: 'familyId', label: 'Family', width: '7.25rem', render: (v) => toTitleCase(nameOf(v, 'houseName')) },
-    { key: 'requestedAmount', label: 'Requested', width: '8.75rem', render: (v) => `Rs ${v ?? 0}` },
-    { key: 'approvedAmount', label: 'Approved', width: '8.25rem', render: (v) => (v ? `Rs ${v}` : '-') },
-    { key: 'priority', label: 'Priority', width: '7.75rem' },
-    { key: 'status', label: 'Status', width: '7.25rem' },
+    {
+      key: 'schemeId',
+      label: 'Scheme',
+      width: '14rem',
+      sortable: false,
+      render: (v) => <span className="font-medium text-foreground">{toTitleCase(nameOf(v, 'name'))}</span>,
+    },
+    { key: 'familyId', label: 'Family', width: '12rem', sortable: false, render: (v) => toTitleCase(nameOf(v, 'houseName')) },
+    {
+      key: 'requestedAmount',
+      label: 'Requested',
+      align: 'right',
+      sortable: true,
+      width: '9rem',
+      render: (v) => <span className="tabular-nums">₹{(v ?? 0).toLocaleString('en-IN')}</span>,
+    },
+    {
+      key: 'approvedAmount',
+      label: 'Approved',
+      align: 'right',
+      sortable: true,
+      priority: 'secondary',
+      width: '9rem',
+      render: (v) => (v ? <span className="tabular-nums">₹{v.toLocaleString('en-IN')}</span> : '—'),
+    },
+    {
+      key: 'priority',
+      label: 'Priority',
+      sortable: true,
+      priority: 'secondary',
+      width: '8rem',
+      render: (v) => (v ? toTitleCase(v) : '—'),
+    },
+    { key: 'status', label: 'Status', sortable: true, width: '8rem', render: (v) => <StatusBadge status={v} /> },
   ];
 
   const summaryCards = [
-    { label: 'Total', value: summary?.total ?? 0 },
-    { label: 'Pending', value: summary?.pending ?? 0 },
-    { label: 'Approved', value: summary?.approved ?? 0 },
-    { label: 'Disbursed', value: `Rs ${summary?.disbursedAmount ?? 0}` },
+    { title: 'Total', value: summary?.total ?? 0 },
+    { title: 'Pending', value: summary?.pending ?? 0 },
+    { title: 'Approved', value: summary?.approved ?? 0 },
+    { title: 'Disbursed', value: `₹${(summary?.disbursedAmount ?? 0).toLocaleString('en-IN')}` },
   ];
 
+  const isFiltered = Boolean(statusFilter || schemeFilter);
+
   return (
-    <div className="space-y-3">
-      <PageHeader title="Welfare Applications" description="Assistance requests and their approval trail" />
-
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {summaryCards.map((card) => (
-          <Card key={card.label}>
-            <p className="text-xs font-medium text-gray-500 dark:text-gray-400 sm:text-sm">{card.label}</p>
-            <p className="mt-1 text-base font-semibold text-gray-900 dark:text-gray-100 sm:text-xl">
-              {card.value}
-            </p>
-          </Card>
-        ))}
-      </div>
-
-      <TableCard>
-        <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div className="grid grid-cols-3 gap-1.5 sm:flex sm:flex-wrap sm:items-center">
-            {STATUS_TABS.map((tab) => (
-              <button
-                key={tab.value || 'all'}
-                onClick={() => {
-                  setStatusFilter(tab.value);
-                  setCurrentPage(1);
-                }}
-                className={[
-                  'rounded-lg border px-2 py-1.5 text-xs font-medium',
-                  statusFilter === tab.value
-                    ? 'border-primary-300 bg-primary-50 text-primary-900'
-                    : 'border-gray-200 bg-white text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300',
-                ].join(' ')}
-              >
-                {tab.label}
-              </button>
-            ))}
-            <Select
-              options={[
-                { value: '', label: 'All schemes' },
-                ...schemes.map((s) => ({ value: s.id, label: toTitleCase(s.name) })),
-              ]}
-              value={schemeFilter}
-              onChange={(e) => {
-                setSchemeFilter(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="text-xs"
-            />
-          </div>
-          <div className="flex flex-shrink-0 items-center gap-2">
+    <>
+      <PageHeader
+        title="Welfare applications"
+        description="Assistance requests and their approval trail."
+        actions={
+          <>
             <Link to="/welfare/schemes">
-              <Button variant="outline" size="md" icon={<FiList />} collapseLabel>
+              <Button variant="outline" icon={<FiList />} collapseLabel>
                 Schemes
               </Button>
             </Link>
             <Link to="/welfare/applications/create">
-              <Button size="md" icon={<FiPlus />} collapseLabel>
-                New Application
+              <Button icon={<FiPlus />} collapseLabel>
+                New application
               </Button>
             </Link>
-          </div>
-        </div>
+          </>
+        }
+      />
 
-        {loading ? (
-          <PageSkeleton variant="section" />
-        ) : error ? (
-          <EmptyState variant="error" entity="applications" description={error} action={{ label: 'Retry', onClick: fetchRows }} />
-        ) : rows.length === 0 ? (
-          <EmptyState
-            title="No applications found"
-            description="Create a welfare application to get started"
-            action={{
-              label: 'Create Application',
-              onClick: () => navigate('/welfare/applications/create'),
-            }}
-          />
-        ) : (
-          <Table
-            fixedLayout
-            striped
-            columns={columns}
-            data={rows}
-            emptyMessage="No applications found"
-            showExport={false}
-            onRowClick={(row) => navigate(`/welfare/applications/${row.id}`)}
-          />
+      <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {summaryCards.map((card) => (
+          <StatCard key={card.title} {...card} />
+        ))}
+      </div>
+
+      <TableCard>
+        <TableToolbar
+          tabs={
+            <Tabs
+              variant="segmented"
+              ariaLabel="Application status"
+              value={statusFilter}
+              onChange={(value) => {
+                setStatusFilter(value);
+                setCurrentPage(1);
+              }}
+              items={STATUS_TABS}
+            />
+          }
+          onFilterClick={() => setIsFilterVisible((open) => !open)}
+          isFilterVisible={isFilterVisible}
+          hasFilters
+          activeFilterCount={schemeFilter ? 1 : 0}
+          onRefresh={fetchRows}
+        />
+
+        {isFilterVisible && (
+          <FilterPanel onClose={() => setIsFilterVisible(false)}>
+            <div className="w-full sm:w-64">
+              <Select
+                label="Scheme"
+                options={[
+                  { value: '', label: 'All schemes' },
+                  ...schemes.map((s) => ({ value: s.id, label: toTitleCase(s.name) })),
+                ]}
+                value={schemeFilter}
+                onChange={(e) => {
+                  setSchemeFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
+              />
+            </div>
+            {schemeFilter && (
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setSchemeFilter('');
+                  setCurrentPage(1);
+                }}
+              >
+                Clear filters
+              </Button>
+            )}
+          </FilterPanel>
         )}
 
-        {pagination && (
-          <div className="mt-4">
-            <Pagination
-              currentPage={pagination.page}
-              totalPages={pagination.totalPages}
-              totalItems={pagination.total}
-              itemsPerPage={pagination.limit}
-              onPageChange={setCurrentPage}
+        {error ? (
+          <EmptyState variant="error" entity="applications" description={error} action={{ label: 'Try again', onClick: fetchRows }} />
+        ) : (
+          <>
+            <Table
+              fixedLayout
+              columns={columns}
+              data={rows}
+              isLoading={loading}
+              entity="applications"
+              emptyVariant={isFiltered ? 'no-results' : 'empty'}
+              emptyAction={
+                isFiltered
+                  ? {
+                      label: 'Clear filters',
+                      onClick: () => {
+                        setStatusFilter('');
+                        setSchemeFilter('');
+                        setCurrentPage(1);
+                      },
+                    }
+                  : { label: 'Add application', onClick: () => navigate('/welfare/applications/create') }
+              }
+              onRowClick={(row) => navigate(`/welfare/applications/${row.id}`)}
             />
-          </div>
+
+            {pagination && (
+              <div className="mt-4">
+                <Pagination
+                  currentPage={pagination.page}
+                  totalPages={pagination.totalPages}
+                  totalItems={pagination.total}
+                  itemsPerPage={pagination.limit}
+                  entity="applications"
+                  onPageChange={setCurrentPage}
+                  onItemsPerPageChange={(size) => {
+                    setItemsPerPage(size);
+                    setCurrentPage(1);
+                  }}
+                />
+              </div>
+            )}
+          </>
         )}
       </TableCard>
-    </div>
+    </>
   );
 }

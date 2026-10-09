@@ -9,7 +9,6 @@ import Select from '@/components/ui/Select';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
 import EmptyState from '@/components/ui/EmptyState';
-import { PageSkeleton } from '@/components/ui/Skeleton';
 import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
@@ -34,7 +33,7 @@ export default function MarriageAssistanceList() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; label: string } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -49,7 +48,7 @@ export default function MarriageAssistanceList() {
 
   useEffect(() => {
     fetchRecords();
-  }, [debouncedSearch, typeFilter, statusFilter, currentPage]);
+  }, [debouncedSearch, typeFilter, statusFilter, currentPage, itemsPerPage]);
 
   const fetchRecords = async () => {
     try {
@@ -117,38 +116,45 @@ export default function MarriageAssistanceList() {
   const columns: TableColumn<MarriageAssistance>[] = [
     {
       key: 'memberId',
-      label: 'Member/Family',
-      width: '11.25rem',
+      label: 'Member / family',
+      width: '16rem',
+      sortable: false,
       render: (_, row) => {
         const member = typeof row.memberId === 'object' ? row.memberId?.name : '—';
         const family = typeof row.familyId === 'object' ? row.familyId?.houseName : '—';
-        return toTitleCase(member !== '—' ? member : family) || '—';
+        return (
+          <span className="font-medium text-foreground">{toTitleCase(member !== '—' ? member : family) || '—'}</span>
+        );
       },
     },
     {
       key: 'type',
       label: 'Type',
-      width: '6.25rem',
+      sortable: true,
+      width: '12rem',
       render: (type) => getTypeLabel(type as string),
     },
     {
       key: 'amount',
       label: 'Amount',
-      width: '9.25rem',
-      align: 'center',
-      render: (amount) => (amount ? `₹${amount.toLocaleString()}` : '—'),
+      width: '9rem',
+      align: 'right',
+      sortable: true,
+      render: (amount) => (amount ? `₹${amount.toLocaleString('en-IN')}` : '—'),
     },
     {
       key: 'status',
       label: 'Status',
-      width: '7.25rem',
+      sortable: true,
+      width: '9rem',
       render: (status) => <StatusBadge status={status as string} />,
     },
     {
       key: 'actions',
-      label: 'Actions',
-      width: '8rem',
-      align: 'center',
+      label: '',
+      width: '6.5rem',
+      align: 'right',
+      sortable: false,
       render: (_, row) => {
         const label = toTitleCase(
           typeof row.memberId === 'object'
@@ -215,47 +221,54 @@ export default function MarriageAssistanceList() {
     },
   ];
 
-  return (
-    <div className="space-y-4">
-      <div className="space-y-3">
-        <PageHeader title="Marriage Assistance" description="Manage marriage assistance requests" />
+  const activeFilterCount = (typeFilter !== 'all' ? 1 : 0) + (statusFilter !== 'all' ? 1 : 0);
+  const isFiltered = Boolean(debouncedSearch) || typeFilter !== 'all' || statusFilter !== 'all';
 
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          {stats.map((stat, index) => (
-            <StatCard key={index} {...stat} />
-          ))}
-        </div>
+  return (
+    <>
+      <PageHeader
+        title="Marriage assistance"
+        description="Manage marriage assistance requests."
+        actions={
+          <>
+            <Link to="/registers/marriageable">
+              <Button variant="outline" icon={<FiList />} collapseLabel>Marriageable register</Button>
+            </Link>
+            <Link to="/registrations/marriage-assistance/create">
+              <Button icon={<FiPlus />} collapseLabel>New request</Button>
+            </Link>
+          </>
+        }
+      />
+
+      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
+        {stats.map((stat, index) => (
+          <StatCard key={index} {...stat} />
+        ))}
       </div>
 
       <TableCard>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
-          onFilterClick={() => setIsFilterVisible(!isFilterVisible)}
+          searchEntity="marriage assistance records"
+          onFilterClick={() => setIsFilterVisible((open) => !open)}
           isFilterVisible={isFilterVisible}
-          hasFilters={true}
+          hasFilters
+          activeFilterCount={activeFilterCount}
           onRefresh={fetchRecords}
-          actionButtons={
-            <div className="flex items-center gap-2">
-              <Link to="/registers/marriageable">
-                <Button variant="outline" size="md" icon={<FiList />} collapseLabel>View Marriageable Register</Button>
-              </Link>
-              <Link to="/registrations/marriage-assistance/create">
-                <Button size="md" icon={<FiPlus />} collapseLabel>New Request</Button>
-              </Link>
-            </div>
-          }
         />
 
         {isFilterVisible && (
           <FilterPanel onClose={() => setIsFilterVisible(false)}>
-            <div className="w-full sm:w-40">
+            <div className="w-full sm:w-52">
               <Select
+                label="Type"
                 options={[
-                  { value: 'all', label: 'All Types' },
-                  { value: 'proposal_support', label: 'Proposal Support' },
-                  { value: 'financial_assistance', label: 'Financial Assistance' },
-                  { value: 'premarital_counselling', label: 'Premarital Counselling' },
+                  { value: 'all', label: 'All types' },
+                  { value: 'proposal_support', label: 'Proposal support' },
+                  { value: 'financial_assistance', label: 'Financial assistance' },
+                  { value: 'premarital_counselling', label: 'Premarital counselling' },
                 ]}
                 value={typeFilter}
                 onChange={(e) => {
@@ -264,10 +277,11 @@ export default function MarriageAssistanceList() {
                 }}
               />
             </div>
-            <div className="w-full sm:w-40">
+            <div className="w-full sm:w-52">
               <Select
+                label="Status"
                 options={[
-                  { value: 'all', label: 'All Status' },
+                  { value: 'all', label: 'All statuses' },
                   { value: 'requested', label: 'Requested' },
                   { value: 'approved', label: 'Approved' },
                   { value: 'completed', label: 'Completed' },
@@ -279,43 +293,65 @@ export default function MarriageAssistanceList() {
                 }}
               />
             </div>
+            {activeFilterCount > 0 && (
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setTypeFilter('all');
+                  setStatusFilter('all');
+                  setCurrentPage(1);
+                }}
+              >
+                Clear filters
+              </Button>
+            )}
           </FilterPanel>
         )}
 
-        {loading ? (
-          <PageSkeleton variant="section" />
-        ) : error ? (
+        {error ? (
           <EmptyState
             variant="error"
             entity="marriage assistance records"
             description={error}
-            action={{ label: 'Retry', onClick: fetchRecords }}
+            action={{ label: 'Try again', onClick: fetchRecords }}
           />
         ) : (
-          <Table
-            fixedLayout
-            striped
-            columns={columns}
-            data={records}
-            emptyMessage="No marriage assistance records found"
-            showExport={false}
-            onRowClick={(row) => {
-              setSelectedRecord(row);
-              setShowViewModal(true);
-            }}
-          />
-        )}
-
-        {pagination && (
-          <div className="mt-4">
-            <Pagination
-              currentPage={pagination.page}
-              totalPages={pagination.totalPages}
-              totalItems={pagination.total}
-              itemsPerPage={pagination.limit}
-              onPageChange={(page) => setCurrentPage(page)}
+          <>
+            <Table
+              fixedLayout
+              columns={columns}
+              data={records}
+              isLoading={loading}
+              entity="marriage assistance records"
+              emptyVariant={isFiltered ? 'no-results' : 'empty'}
+              emptyAction={
+                isFiltered
+                  ? { label: 'Clear filters', onClick: () => { setSearchQuery(''); setTypeFilter('all'); setStatusFilter('all'); setCurrentPage(1); } }
+                  : { label: 'New request', onClick: () => navigate('/registrations/marriage-assistance/create') }
+              }
+              onRowClick={(row) => {
+                setSelectedRecord(row);
+                setShowViewModal(true);
+              }}
             />
-          </div>
+
+            {pagination && (
+              <div className="mt-4">
+                <Pagination
+                  currentPage={pagination.page}
+                  totalPages={pagination.totalPages}
+                  totalItems={pagination.total}
+                  itemsPerPage={pagination.limit}
+                  entity="marriage assistance records"
+                  onPageChange={setCurrentPage}
+                  onItemsPerPageChange={(size) => {
+                    setItemsPerPage(size);
+                    setCurrentPage(1);
+                  }}
+                />
+              </div>
+            )}
+          </>
         )}
       </TableCard>
 
@@ -397,16 +433,15 @@ export default function MarriageAssistanceList() {
 
       <ConfirmDialog
         isOpen={deleteConfirm !== null}
-        title="Delete Record"
-        message={deleteConfirm ? `Delete marriage assistance record for ${deleteConfirm.label}?` : ''}
-        consequence="This action cannot be undone."
-        confirmLabel="Delete"
+        title={deleteConfirm ? `Delete record for ${deleteConfirm.label}?` : 'Delete this record?'}
+        message="This permanently removes the marriage assistance record and cannot be undone."
+        confirmLabel="Delete record"
         cancelLabel="Cancel"
         isLoading={isDeleting}
         variant="danger"
         onConfirm={handleConfirmDelete}
         onCancel={handleCancelDelete}
       />
-    </div>
+    </>
   );
 }

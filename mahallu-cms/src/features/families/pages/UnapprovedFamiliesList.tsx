@@ -24,14 +24,13 @@ import { logError } from '@/utils/safeLog';
 export default function UnapprovedFamiliesList() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
-  const [isFilterVisible, setIsFilterVisible] = useState(false);
   const [families, setFamilies] = useState<Family[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
   const [approveId, setApproveId] = useState<string | null>(null);
   const [approving, setApproving] = useState(false);
 
@@ -174,8 +173,8 @@ export default function UnapprovedFamiliesList() {
     <div className="space-y-4">
       <div className="space-y-3">
         <PageHeader
-          title="Unapproved Families"
-          description="Review and approve pending family registrations"
+          title="Unapproved families"
+          description="Review and approve pending family registrations."
         />
 
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-2">
@@ -189,9 +188,7 @@ export default function UnapprovedFamiliesList() {
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
-          onFilterClick={() => setIsFilterVisible(!isFilterVisible)}
-          isFilterVisible={isFilterVisible}
-          hasFilters={false}
+          searchEntity="families"
           onRefresh={fetchFamilies}
           onExport={handleExport}
           isExporting={isExporting}
@@ -208,21 +205,22 @@ export default function UnapprovedFamiliesList() {
           <>
             <Table
               fixedLayout
-              striped
               columns={columns}
               data={families}
               isLoading={loading}
-              emptyMessage="No unapproved families found"
-              showExport={false}
+              entity="unapproved families"
+              emptyVariant={debouncedSearch ? 'no-results' : 'empty'}
+              emptyAction={debouncedSearch ? { label: 'Clear filters', onClick: () => setSearchQuery('') } : undefined}
               onRowClick={(row) => navigate(ROUTES.FAMILIES.DETAIL(row.id))}
             />
-            {pagination && pagination.totalPages > 1 && (
+            {pagination && (
               <div className="mt-4">
                 <Pagination
                   currentPage={pagination.page}
                   totalPages={pagination.totalPages}
                   totalItems={pagination.total}
                   itemsPerPage={pagination.limit}
+                  entity="families"
                   onPageChange={setCurrentPage}
                   onItemsPerPageChange={(items) => {
                     setItemsPerPage(items);

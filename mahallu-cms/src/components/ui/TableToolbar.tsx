@@ -16,8 +16,9 @@ import Dropdown, { DropdownItem } from './Dropdown';
 import { useTableSlot } from './tableSlot';
 import { cn } from '@/utils/cn';
 interface TableToolbarProps {
-  searchQuery: string;
-  onSearchChange: (value: string) => void;
+  /** Omit both for a list with nothing to search; the rest of the row is unchanged. */
+  searchQuery?: string;
+  onSearchChange?: (value: string) => void;
   /*
    * What is being searched, e.g. "families". Written into the placeholder. */
   searchEntity?: string;
@@ -114,7 +115,9 @@ export default function TableToolbar({
      * export and the page's actions together at the end. Labelled controls
      * collapse to their glyph below `sm` so the row never wraps. */
     <ActionBar className={cn('mb-4', className)} leading={tabs}>
-      <ExpandableSearch value={searchQuery} onChange={onSearchChange} entity={searchEntity} />
+      {onSearchChange && (
+        <ExpandableSearch value={searchQuery ?? ''} onChange={onSearchChange} entity={searchEntity} />
+      )}
       {hasFilters && onFilterClick && (
         <Button
           variant="outline"

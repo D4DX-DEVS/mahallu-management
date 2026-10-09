@@ -1,9 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { FiAlertCircle, FiCheckCircle, FiDollarSign, FiHome } from 'react-icons/fi';
 import TableCard from '@/components/ui/TableCard';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
 import Pagination from '@/components/ui/Pagination';
+import FilterPanel from '@/components/ui/FilterPanel';
+import Checkbox from '@/components/ui/Checkbox';
+import EmptyState from '@/components/ui/EmptyState';
+import Button from '@/components/ui/Button';
 import TableToolbar from '@/components/ui/TableToolbar';
 import { TableColumn, Pagination as PaginationType } from '@/types';
 import { collectibleService, FamilyDue } from '@/services/collectibleService';
@@ -30,8 +34,9 @@ export default function LiveDues() {
   const [error, setError] = useState<string | null>(null);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(20);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
   const [isExporting, setIsExporting] = useState(false);
+  const [isFilterVisible, setIsFilterVisible] = useState(false);
 
   const debouncedSearch = useDebounce(searchQuery, 500);
 
@@ -40,48 +45,50 @@ export default function LiveDues() {
     setCurrentPage(1);
   }, [debouncedSearch, onlyPending]);
 
-  useEffect(() => {
-    const fetchDues = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const result = await collectibleService.getFamilyDues({
-          search: debouncedSearch || undefined,
-          onlyPending,
-          page: currentPage,
-          limit: itemsPerPage,
-        });
-        setDues(result.dues);
-        setSummary(result.summary);
-        setPagination(result.pagination);
-      } catch (err: any) {
-        setError(loadErrorMessage(err, 'dues'));
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchDues();
+  const fetchDues = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const result = await collectibleService.getFamilyDues({
+        search: debouncedSearch || undefined,
+        onlyPending,
+        page: currentPage,
+        limit: itemsPerPage,
+      });
+      setDues(result.dues);
+      setSummary(result.summary);
+      setPagination(result.pagination);
+    } catch (err: any) {
+      setError(loadErrorMessage(err, 'dues'));
+    } finally {
+      setLoading(false);
+    }
   }, [debouncedSearch, onlyPending, currentPage, itemsPerPage]);
+
+  useEffect(() => {
+    fetchDues();
+  }, [fetchDues]);
 
   const columns: TableColumn<FamilyDue>[] = [
     // Row number must account for the page offset, not just the index in the slice
-    { key: 'familyId', label: 'No.', width: '6rem', render: (_, __, index) => (currentPage - 1) * itemsPerPage + index + 1 },
-    { key: 'houseName', label: 'House Name', width: '9.75rem', render: (v) => toTitleCase(v) },
-    { key: 'familyHead', label: 'Family Head', width: '9.75rem', render: (v) => (v ? toTitleCase(v) : '-') },
-    { key: 'varisangyaGrade', label: 'Grade', width: '6.75rem', render: (v) => (v ? toTitleCase(v) : '-') },
-    { key: 'monthlyAmount', label: 'Monthly', width: '7.75rem', render: (v) => `₹${(v || 0).toLocaleString()}` },
-    { key: 'expectedAmount', label: 'Expected (YTD)', width: '11rem', render: (v) => `₹${(v || 0).toLocaleString()}` },
-    { key: 'paidAmount', label: 'Paid', width: '6rem', render: (v) => `₹${(v || 0).toLocaleString()}` },
+    { key: 'familyId', label: 'No.', width: '5rem', sortable: false, priority: 'secondary', render: (_, __, index) => (currentPage - 1) * itemsPerPage + index + 1 },
+    { key: 'houseName', label: 'House name', sortable: true, width: '14rem', render: (v) => <span className="font-medium text-foreground">{toTitleCase(v)}</span> },
+    { key: 'familyHead', label: 'Family head', sortable: true, width: '12rem', render: (v) => (v ? toTitleCase(v) : '—') },
+    { key: 'varisangyaGrade', label: 'Grade', sortable: true, priority: 'secondary', width: '8rem', render: (v) => (v ? toTitleCase(v) : '—') },
+    { key: 'monthlyAmount', label: 'Monthly', align: 'right', sortable: true, priority: 'tertiary', width: '8rem', render: (v) => `₹${(v || 0).toLocaleString('en-IN')}` },
+    { key: 'expectedAmount', label: 'Expected (YTD)', align: 'right', sortable: true, priority: 'secondary', width: '10rem', render: (v) => `₹${(v || 0).toLocaleString('en-IN')}` },
+    { key: 'paidAmount', label: 'Paid', align: 'right', sortable: true, width: '8rem', render: (v) => `₹${(v || 0).toLocaleString('en-IN')}` },
     {
       key: 'dueAmount',
       label: 'Due',
-      width: '7.5rem',
-      align: 'center',
+      width: '8rem',
+      align: 'right',
+      sortable: true,
       render: (v) =>
         v > 0 ? (
-          <span className="font-semibold text-red-600 dark:text-red-400">₹{v.toLocaleString()}</span>
+          <span className="font-semibold text-destructive">₹{v.toLocaleString('en-IN')}</span>
         ) : (
-          <span className="font-medium text-green-600 dark:text-green-400">Paid up</span>
+          <span className="font-medium text-success">Paid up</span>
         ),
     },
   ];
@@ -122,28 +129,28 @@ export default function LiveDues() {
     }
   };
 
+  const isFiltered = Boolean(debouncedSearch) || onlyPending;
+
   return (
-    <div className="space-y-4">
-      <div>
-        <PageHeader title="Live Dues" description="Varisangya expected vs paid for the current year" />
-      </div>
+    <>
+      <PageHeader title="Live dues" description="Varisangya expected vs paid for the current year." />
 
       {summary && (
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
           <StatCard title="Families" value={summary.totalFamilies} icon={<FiHome className="h-5 w-5" />} />
           <StatCard
-            title="With Dues"
+            title="With dues"
             value={summary.familiesWithDues}
             icon={<FiAlertCircle className="h-5 w-5" />}
           />
           <StatCard
-            title="Total Collected"
-            value={`₹${summary.totalPaid.toLocaleString()}`}
+            title="Total collected"
+            value={`₹${summary.totalPaid.toLocaleString('en-IN')}`}
             icon={<FiCheckCircle className="h-5 w-5" />}
           />
           <StatCard
-            title="Total Due"
-            value={`₹${summary.totalDue.toLocaleString()}`}
+            title="Total due"
+            value={`₹${summary.totalDue.toLocaleString('en-IN')}`}
             icon={<FiDollarSign className="h-5 w-5" />}
           />
         </div>
@@ -153,55 +160,67 @@ export default function LiveDues() {
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
+          searchEntity="families"
+          onFilterClick={() => setIsFilterVisible((open) => !open)}
+          isFilterVisible={isFilterVisible}
+          hasFilters
+          activeFilterCount={onlyPending ? 1 : 0}
+          onRefresh={fetchDues}
           onExport={handleExport}
           isExporting={isExporting}
         />
 
-        <div className="mb-4 flex items-center gap-2 px-1">
-          <input
-            aria-label="Select row"
-            id="only-pending"
-            type="checkbox"
-            checked={onlyPending}
-            onChange={(e) => setOnlyPending(e.target.checked)}
-            className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-          />
-          <label htmlFor="only-pending" className="text-sm text-gray-600 dark:text-gray-300">
-            Show only families with pending dues
-          </label>
-        </div>
-
-        {error && (
-          <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-200">
-            {error}
-          </div>
+        {isFilterVisible && (
+          <FilterPanel onClose={() => setIsFilterVisible(false)}>
+            <label className="flex items-center gap-2 text-sm text-foreground">
+              <Checkbox checked={onlyPending} onChange={(e) => setOnlyPending(e.target.checked)} />
+              Show only families with pending dues
+            </label>
+            {onlyPending && (
+              <Button variant="ghost" onClick={() => setOnlyPending(false)}>
+                Clear filters
+              </Button>
+            )}
+          </FilterPanel>
         )}
 
-        <Table
-          fixedLayout
-          striped
-          columns={columns}
-          data={dues}
-          isLoading={loading}
-          emptyMessage="No dues found"
-          showExport={false}
-        />
-        {pagination && pagination.totalPages > 1 && (
-          <div className="mt-4">
-            <Pagination
-              currentPage={pagination.page}
-              totalPages={pagination.totalPages}
-              totalItems={pagination.total}
-              itemsPerPage={pagination.limit}
-              onPageChange={setCurrentPage}
-              onItemsPerPageChange={(items) => {
-                setItemsPerPage(items);
-                setCurrentPage(1);
-              }}
+        {error ? (
+          <EmptyState variant="error" entity="dues" description={error} action={{ label: 'Try again', onClick: fetchDues }} />
+        ) : (
+          <>
+            <Table
+              fixedLayout
+              columns={columns}
+              data={dues}
+              isLoading={loading}
+              entity="families"
+              emptyVariant={isFiltered ? 'no-results' : 'empty'}
+              emptyAction={
+                isFiltered
+                  ? { label: 'Clear filters', onClick: () => { setSearchQuery(''); setOnlyPending(false); } }
+                  : undefined
+              }
             />
-          </div>
+
+            {pagination && (
+              <div className="mt-4">
+                <Pagination
+                  currentPage={pagination.page}
+                  totalPages={pagination.totalPages}
+                  totalItems={pagination.total}
+                  itemsPerPage={pagination.limit}
+                  entity="families"
+                  onPageChange={setCurrentPage}
+                  onItemsPerPageChange={(items) => {
+                    setItemsPerPage(items);
+                    setCurrentPage(1);
+                  }}
+                />
+              </div>
+            )}
+          </>
         )}
       </TableCard>
-    </div>
+    </>
   );
 }

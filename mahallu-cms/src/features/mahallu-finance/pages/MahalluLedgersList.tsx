@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiEdit2, FiTrash2, FiBookOpen } from 'react-icons/fi';
+import { FiEdit2, FiTrash2, FiPlus } from 'react-icons/fi';
 import TableCard from '@/components/ui/TableCard';
 import ActionsMenu from '@/components/ui/ActionsMenu';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import Table from '@/components/ui/Table';
 import Pagination from '@/components/ui/Pagination';
-import { PageSkeleton } from '@/components/ui/Skeleton';
+import Badge from '@/components/ui/Badge';
+import EmptyState from '@/components/ui/EmptyState';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import TableToolbar from '@/components/ui/TableToolbar';
 import { TableColumn, Pagination as PaginationType } from '@/types';
 import { masterAccountService, Ledger } from '@/services/masterAccountService';
@@ -32,11 +34,11 @@ export default function MahalluLedgersList() {
   const [selected, setSelected] = useState<Ledger | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
-  const itemsPerPage = 10;
+  const [itemsPerPage, setItemsPerPage] = useState(25);
 
   useEffect(() => {
     fetchLedgers();
-  }, [currentPage]);
+  }, [currentPage, itemsPerPage]);
 
   const fetchLedgers = async () => {
     try {
@@ -97,27 +99,16 @@ export default function MahalluLedgersList() {
   );
 
   const columns: TableColumn<Ledger>[] = [
-    { key: 'id', label: 'No.', width: '6rem', render: (_, __, i) => i + 1 },
-    { key: 'name', label: 'Name', width: '6.75rem', render: (v) => <span>{toTitleCase(v)}</span> },
-    {
-      key: 'type',
-      label: 'Type',
-      width: '6.25rem',
-      render: (t) => (
-        <span
-          className={`px-2 py-0.5 rounded-full text-xs font-medium ${t === 'income' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}
-        >
-          {t}
-        </span>
-      ),
-    },
-    { key: 'description', label: 'Description', width: '9.25rem' },
-    { key: 'createdAt', label: 'Created', width: '7.75rem', render: (d) => formatDate(d) },
+    { key: 'name', label: 'Name', sortable: true, width: '16rem', render: (v) => <span className="font-medium text-foreground">{toTitleCase(v)}</span> },
+    { key: 'type', label: 'Type', sortable: true, width: '9rem', render: (t) => <Badge variant={t === 'income' ? 'success' : 'danger'} className="capitalize">{t}</Badge> },
+    { key: 'description', label: 'Description', priority: 'secondary', width: '18rem', render: (v) => v || '—' },
+    { key: 'createdAt', label: 'Created', sortable: true, priority: 'tertiary', width: '9rem', render: (d) => formatDate(d) },
     {
       key: 'actions',
-      label: 'Actions',
-      width: '8rem',
-      align: 'center',
+      label: '',
+      width: '6.5rem',
+      align: 'right',
+      sortable: false,
       render: (_, row) => (
         <ActionsMenu
           label={`Actions for ${toTitleCase(row.name)}`}
@@ -125,7 +116,8 @@ export default function MahalluLedgersList() {
             {
               label: 'Edit',
               icon: <FiEdit2 className="h-4 w-4" />,
-              onClick: () => navigate(ROUTES.MAHALLU_FINANCE.LEDGERS_EDIT(row.id), { state: { ledger: row } }),
+              onClick: () =>
+                navigate(ROUTES.MAHALLU_FINANCE.LEDGERS_EDIT(row.id), { state: { ledger: row } }),
             },
             {
               label: 'Delete',
@@ -142,56 +134,72 @@ export default function MahalluLedgersList() {
     },
   ];
 
+  const isFiltered = Boolean(searchQuery);
+
   return (
-    <div className="space-y-4">
+    <>
       <PageHeader
-        title="Mahallu Ledgers"
-        description="Chart of accounts for the Mahallu"
-        breadcrumbs={[{ label: 'Mahallu Finance', path: '/mahallu-finance/accounts' }]}
+        title="Mahallu ledgers"
+        description="Chart of accounts for the mahallu."
+        actions={
+          <Button icon={<FiPlus />} collapseLabel onClick={() => navigate(ROUTES.MAHALLU_FINANCE.LEDGERS_CREATE)}>
+            Add ledger
+          </Button>
+        }
       />
+
 
       <TableCard>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
+          searchEntity="ledgers"
+          onRefresh={fetchLedgers}
           onExport={handleExport}
           isExporting={isExporting}
-          actionButtons={
-            <Button
-              onClick={() => navigate(ROUTES.MAHALLU_FINANCE.LEDGERS_CREATE)}
-              size="sm"
-              icon={<FiBookOpen />}
-              collapseLabel
-            >
-              Add Ledger
-            </Button>
-          }
         />
-        {loading ? (
-          <PageSkeleton variant="section" />
-        ) : error ? (
-          <p className="text-center py-8 text-red-600">{error}</p>
+        {error ? (
+          <EmptyState
+            variant="error"
+            entity="ledgers"
+            description={error}
+            action={{ label: 'Try again', onClick: fetchLedgers }}
+          />
         ) : (
           <>
             <Table
               fixedLayout
-              striped
               columns={columns}
               data={filtered}
-              emptyMessage="No ledgers found"
+              isLoading={loading}
+              entity="ledgers"
+              emptyVariant={isFiltered ? 'no-results' : 'empty'}
+              emptyAction={
+                isFiltered
+                  ? { label: 'Clear filters', onClick: () => { setSearchQuery(''); setCurrentPage(1); } }
+                  : { label: 'Add ledger', onClick: () => navigate(ROUTES.MAHALLU_FINANCE.LEDGERS_CREATE) }
+              }
               onRowClick={(row) => {
                 setSelected(row);
                 setShowViewModal(true);
               }}
             />
+
             {pagination && (
-              <Pagination
-                currentPage={currentPage}
-                totalPages={pagination.totalPages || 1}
-                totalItems={pagination.total || 0}
-                itemsPerPage={itemsPerPage}
-                onPageChange={setCurrentPage}
-              />
+              <div className="mt-4">
+                <Pagination
+                  currentPage={pagination.page}
+                  totalPages={pagination.totalPages}
+                  totalItems={pagination.total}
+                  itemsPerPage={pagination.limit}
+                  entity="ledgers"
+                  onPageChange={setCurrentPage}
+                  onItemsPerPageChange={(size) => {
+                    setItemsPerPage(size);
+                    setCurrentPage(1);
+                  }}
+                />
+              </div>
             )}
           </>
         )}
@@ -260,19 +268,16 @@ export default function MahalluLedgersList() {
         )}
       </Modal>
 
-      <Modal isOpen={showDeleteModal} onClose={() => setShowDeleteModal(false)} title="Delete Ledger">
-        <p className="text-gray-600 dark:text-gray-400 mb-4">
-          Delete ledger <strong>{toTitleCase(selected?.name)}</strong>?
-        </p>
-        <div className="flex gap-2 flex-col-reverse sm:flex-row sm:justify-end sm:gap-3">
-          <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>
-            Cancel
-          </Button>
-          <Button variant="danger" onClick={handleDelete} disabled={deleting}>
-            {deleting ? 'Deleting...' : 'Delete'}
-          </Button>
-        </div>
-      </Modal>
-    </div>
+      <ConfirmDialog
+        isOpen={showDeleteModal}
+        title={`Delete ${toTitleCase(selected?.name) || 'this ledger'}?`}
+        message="This permanently removes the ledger and cannot be undone."
+        confirmLabel="Delete ledger"
+        variant="danger"
+        isLoading={deleting}
+        onConfirm={handleDelete}
+        onCancel={() => setShowDeleteModal(false)}
+      />
+    </>
   );
 }

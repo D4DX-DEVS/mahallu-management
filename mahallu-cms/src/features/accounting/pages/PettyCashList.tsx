@@ -1,17 +1,20 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { FiPlus } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
-import Card from '@/components/ui/Card';
+import TableCard from '@/components/ui/TableCard';
+import TableToolbar from '@/components/ui/TableToolbar';
+import FilterPanel from '@/components/ui/FilterPanel';
+import Table from '@/components/ui/Table';
+import { TableColumn } from '@/types';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
-import { PageSkeleton } from '@/components/ui/Skeleton';
 import EmptyState from '@/components/ui/EmptyState';
 import { pettyCashService, PettyCashFund } from '@/services/pettyCashService';
 import { instituteService } from '@/services/instituteService';
 import { useAuthStore } from '@/store/authStore';
 import { toast } from '@/store/toastStore';
-import { errorMessage } from '@/utils/errors';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
 import StatusBadge from '@/components/ui/StatusBadge';
@@ -21,6 +24,8 @@ export default function PettyCashList() {
   const navigate = useNavigate();
   const { currentInstituteId: userInstituteId } = useAuthStore();
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isFilterVisible, setIsFilterVisible] = useState(false);
   const [funds, setFunds] = useState<PettyCashFund[]>([]);
   const [institutes, setInstitutes] = useState<{ id: string; name: string }[]>([]);
   const [instituteFilter, setInstituteFilter] = useState(userInstituteId || 'all');
@@ -28,10 +33,26 @@ export default function PettyCashList() {
   const [createForm, setCreateForm] = useState({ instituteId: '', custodianName: '', floatAmount: '' });
   const [saving, setSaving] = useState(false);
 
+  const fetchFunds = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const params: any = {};
+      if (instituteFilter !== 'all') params.instituteId = instituteFilter;
+      const data = await pettyCashService.getAll(params);
+      setFunds(data);
+    } catch (err) {
+      setError(loadErrorMessage(err, 'petty cash funds'));
+    } finally {
+      setLoading(false);
+    }
+  }, [instituteFilter]);
+
   useEffect(() => {
     if (!userInstituteId) fetchInstitutes();
     fetchFunds();
-  }, [instituteFilter]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fetchFunds]);
 
   const fetchInstitutes = async () => {
     try {
@@ -39,20 +60,6 @@ export default function PettyCashList() {
       setInstitutes(allRows.map((i: any) => ({ id: i.id, name: i.name })));
     } catch (err) {
       console.error(err);
-    }
-  };
-
-  const fetchFunds = async () => {
-    try {
-      setLoading(true);
-      const params: any = {};
-      if (instituteFilter !== 'all') params.instituteId = instituteFilter;
-      const data = await pettyCashService.getAll(params);
-      setFunds(data);
-    } catch (err) {
-      toast.error(errorMessage(err, { action: 'load petty cash funds' }));
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -81,127 +88,163 @@ export default function PettyCashList() {
     return '-';
   };
 
-  return (
-    <div className="space-y-4">
-      <PageHeader title="Petty Cash" description="Manage petty cash funds for daily expenses" />
+  const columns: TableColumn<PettyCashFund>[] = [
+    {
+      key: 'custodianName',
+      label: 'Custodian',
+      sortable: true,
+      width: '16rem',
+      render: (_v, fund) => (
+        <div className="min-w-0">
+          <div className="truncate font-medium text-foreground">{toTitleCase(fund.custodianName)}</div>
+          <div className="truncate text-xs text-muted-foreground">{getInstituteName(fund)}</div>
+        </div>
+      ),
+    },
+    { key: 'floatAmount', label: 'Float', align: 'right', sortable: true, width: '9rem', render: (v) => `₹${Number(v ?? 0).toLocaleString('en-IN')}` },
+    {
+      key: 'currentBalance',
+      label: 'Balance',
+      align: 'right',
+      sortable: true,
+      width: '9rem',
+      render: (v, fund) => (
+        <span className={fund.currentBalance < fund.floatAmount * 0.2 ? 'font-semibold text-destructive' : 'font-semibold text-success'}>
+          ₹{Number(v ?? 0).toLocaleString('en-IN')}
+        </span>
+      ),
+    },
+    {
+      key: 'spent',
+      label: 'Spent',
+      sortable: false,
+      priority: 'secondary',
+      width: '14rem',
+      render: (_v, fund) => {
+        const spent = fund.floatAmount - fund.currentBalance;
+        const spentPct = fund.floatAmount > 0 ? (spent / fund.floatAmount) * 100 : 0;
+        return (
+          <div className="flex items-center gap-2">
+            <div className="h-1.5 w-20 flex-shrink-0 overflow-hidden rounded-full bg-subtle">
+              <div
+                className={`h-full rounded-full ${spentPct > 80 ? 'bg-destructive' : spentPct > 50 ? 'bg-warning' : 'bg-success'}`}
+                style={{ width: `${Math.min(spentPct, 100)}%` }}
+              />
+            </div>
+            <span className="text-xs tabular-nums text-muted-foreground">{spentPct.toFixed(0)}%</span>
+          </div>
+        );
+      },
+    },
+    { key: 'status', label: 'Status', sortable: true, width: '8rem', render: (_v, fund) => <StatusBadge status={fund.status} /> },
+  ];
 
-      <Card>
-        <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
-          <div className="flex w-full flex-wrap items-center gap-4 sm:w-auto">
+  const isFiltered = instituteFilter !== 'all' && !userInstituteId;
+
+  return (
+    <>
+      <PageHeader
+        title="Petty cash"
+        description="Manage petty cash funds for daily expenses."
+        actions={
+          <Button icon={<FiPlus />} collapseLabel onClick={() => setShowCreate((open) => !open)}>
+            {showCreate ? 'Close form' : 'New fund'}
+          </Button>
+        }
+      />
+
+      {showCreate && (
+        <div className="mb-6 rounded-xl border border-border bg-card p-4 shadow-sm">
+          <h3 className="text-sm font-semibold mb-3">Create Petty Cash Fund</h3>
+          <div className="flex flex-wrap items-end gap-4">
             {!userInstituteId && (
               <div className="w-full sm:w-48">
                 <Select
                   label="Institute"
                   options={[
-                    { value: 'all', label: 'All Institutes' },
+                    { value: '', label: 'Select Institute' },
                     ...institutes.map((i) => ({ value: i.id, label: toTitleCase(i.name) })),
                   ]}
-                  value={instituteFilter}
-                  onChange={(e) => setInstituteFilter(e.target.value)}
+                  value={createForm.instituteId}
+                  onChange={(e) => setCreateForm((f) => ({ ...f, instituteId: e.target.value }))}
                 />
               </div>
             )}
-          </div>
-          <Button onClick={() => setShowCreate(true)} icon={<FiPlus />} collapseLabel>New Fund</Button>
-        </div>
-
-        {/* Create Form */}
-        {showCreate && (
-          <div className="mb-4 p-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800">
-            <h3 className="text-sm font-semibold mb-3">Create Petty Cash Fund</h3>
-            <div className="flex flex-wrap items-end gap-4">
-              {!userInstituteId && (
-                <div className="w-full sm:w-48">
-                  <Select
-                    label="Institute"
-                    options={[
-                      { value: '', label: 'Select Institute' },
-                      ...institutes.map((i) => ({ value: i.id, label: toTitleCase(i.name) })),
-                    ]}
-                    value={createForm.instituteId}
-                    onChange={(e) => setCreateForm((f) => ({ ...f, instituteId: e.target.value }))}
-                  />
-                </div>
-              )}
-              <div className="w-full sm:w-48">
-                <Input
-                  label="Custodian Name"
-                  value={createForm.custodianName}
-                  onChange={(e) => setCreateForm((f) => ({ ...f, custodianName: e.target.value }))}
-                />
-              </div>
-              <div className="w-full sm:w-36">
-                <Input
-                  label="Float Amount (₹)"
-                  type="number"
-                  value={createForm.floatAmount}
-                  onChange={(e) => setCreateForm((f) => ({ ...f, floatAmount: e.target.value }))}
-                />
-              </div>
-              <Button onClick={handleCreate} disabled={saving}>
-                {saving ? 'Creating...' : 'Create'}
-              </Button>
-              <Button variant="outline" onClick={() => setShowCreate(false)}>
-                Cancel
-              </Button>
+            <div className="w-full sm:w-48">
+              <Input
+                label="Custodian Name"
+                value={createForm.custodianName}
+                onChange={(e) => setCreateForm((f) => ({ ...f, custodianName: e.target.value }))}
+              />
             </div>
+            <div className="w-full sm:w-36">
+              <Input
+                label="Float Amount (₹)"
+                type="number"
+                value={createForm.floatAmount}
+                onChange={(e) => setCreateForm((f) => ({ ...f, floatAmount: e.target.value }))}
+              />
+            </div>
+            <Button onClick={handleCreate} disabled={saving}>
+              {saving ? 'Creating...' : 'Create'}
+            </Button>
+            <Button variant="outline" onClick={() => setShowCreate(false)}>
+              Cancel
+            </Button>
           </div>
+        </div>
+      )}
+
+
+      <TableCard>
+        <TableToolbar
+          onFilterClick={() => setIsFilterVisible((open) => !open)}
+          isFilterVisible={isFilterVisible}
+          hasFilters={!userInstituteId}
+          activeFilterCount={isFiltered ? 1 : 0}
+          onRefresh={fetchFunds}
+        />
+
+        {isFilterVisible && !userInstituteId && (
+          <FilterPanel onClose={() => setIsFilterVisible(false)}>
+            <div className="w-full sm:w-52">
+              <Select
+                label="Institute"
+                options={[
+                  { value: 'all', label: 'All institutes' },
+                  ...institutes.map((i) => ({ value: i.id, label: toTitleCase(i.name) })),
+                ]}
+                value={instituteFilter}
+                onChange={(e) => setInstituteFilter(e.target.value)}
+              />
+            </div>
+            {isFiltered && (
+              <Button variant="ghost" onClick={() => setInstituteFilter('all')}>
+                Clear filters
+              </Button>
+            )}
+          </FilterPanel>
         )}
 
-        {loading ? (
-          <PageSkeleton variant="section" />
-        ) : funds.length === 0 ? (
-          <EmptyState
-            entity="petty cash funds"
-            action={{ label: 'New Fund', onClick: () => setShowCreate(true) }}
-          />
+        {error ? (
+          <EmptyState variant="error" entity="petty cash funds" description={error} action={{ label: 'Try again', onClick: fetchFunds }} />
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {funds.map((fund) => {
-              const spent = fund.floatAmount - fund.currentBalance;
-              const spentPct = fund.floatAmount > 0 ? (spent / fund.floatAmount) * 100 : 0;
-              return (
-                <div
-                  key={fund.id}
-                  className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:shadow-md transition-shadow cursor-pointer"
-                  onClick={() => navigate(`/petty-cash/${fund.id}`)}
-                >
-                  <div className="flex justify-between items-start mb-2">
-                    <div>
-                      <h3 className="font-semibold text-foreground">{toTitleCase(fund.custodianName)}</h3>
-                      <p className="text-xs text-gray-500">{getInstituteName(fund)}</p>
-                    </div>
-                    <StatusBadge status={fund.status} />
-                  </div>
-                  <div className="space-y-2 mt-3">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-500">Float</span>
-                      <span className="font-medium">₹{fund.floatAmount.toLocaleString()}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-500">Balance</span>
-                      <span
-                        className={`font-semibold ${fund.currentBalance < fund.floatAmount * 0.2 ? 'text-red-600' : 'text-green-600'}`}
-                      >
-                        ₹{fund.currentBalance.toLocaleString()}
-                      </span>
-                    </div>
-                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                      <div
-                        className={`h-2 rounded-full ${spentPct > 80 ? 'bg-red-500' : spentPct > 50 ? 'bg-yellow-500' : 'bg-green-500'}`}
-                        style={{ width: `${Math.min(spentPct, 100)}%` }}
-                      ></div>
-                    </div>
-                    <p className="text-xs text-gray-500 text-right">
-                      ₹{spent.toLocaleString()} spent ({spentPct.toFixed(0)}%)
-                    </p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+          <Table
+            fixedLayout
+            columns={columns}
+            data={funds}
+            isLoading={loading}
+            entity="petty cash funds"
+            emptyVariant={isFiltered ? 'no-results' : 'empty'}
+            emptyAction={
+              isFiltered
+                ? { label: 'Clear filters', onClick: () => setInstituteFilter('all') }
+                : { label: 'Add fund', onClick: () => setShowCreate(true) }
+            }
+            onRowClick={(fund) => navigate(`/petty-cash/${fund.id}`)}
+          />
         )}
-      </Card>
-    </div>
+      </TableCard>
+    </>
   );
 }

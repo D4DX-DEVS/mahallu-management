@@ -4,6 +4,7 @@ import { NOC } from '@/services/registrationService';
 import { formatDate, toTitleCase } from '@/utils/format';
 import { downloadNocPdf } from '@/utils/nocPdf';
 import StatusBadge from '@/components/ui/StatusBadge';
+import Badge from '@/components/ui/Badge';
 import ActionsMenu from '@/components/ui/ActionsMenu';
 
 interface NocColumnDeps {
@@ -15,47 +16,48 @@ export const buildNocColumns = (_deps: NocColumnDeps): TableColumn<NOC>[] => [
   {
     key: 'applicantName',
     label: 'Applicant',
-    width: '8.25rem',
+    width: '16rem',
     sortable: true,
-    render: (value) => toTitleCase(value),
+    render: (value) => <span className="font-medium text-foreground">{toTitleCase(value)}</span>,
   },
   {
     key: 'purposeTitle',
     label: 'Purpose',
-    width: '7.75rem',
-    render: (value, row) => toTitleCase(value || row.purpose) || '-',
+    width: '14rem',
+    priority: 'secondary',
+    render: (value, row) => toTitleCase(value || row.purpose) || '—',
   },
   {
     key: 'type',
     label: 'Type',
-    width: '6.25rem',
-    render: (type) => (
-      <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 capitalize">
-        {type}
-      </span>
-    ),
+    sortable: true,
+    width: '8rem',
+    render: (type) => <Badge variant="info" className="capitalize">{type}</Badge>,
   },
   {
     key: 'status',
     label: 'Status',
-    width: '7.25rem',
-    render: (status) => {
-      return <StatusBadge status={status} />;
-    },
+    sortable: true,
+    width: '9rem',
+    render: (status) => <StatusBadge status={status} />,
   },
   {
     key: 'createdAt',
     label: 'Created',
-    width: '7.75rem',
+    sortable: true,
+    priority: 'secondary',
+    width: '9rem',
     render: (date) => formatDate(date),
   },
   {
     key: 'actions',
-    label: 'Actions',
-    width: '8rem',
-    align: 'center',
+    label: '',
+    width: '6.5rem',
+    align: 'right',
+    sortable: false,
     render: (_, row) => (
       <ActionsMenu
+        label={`Actions for ${toTitleCase(row.applicantName)}`}
         items={[
           {
             label: 'Download',

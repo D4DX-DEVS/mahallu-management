@@ -6,7 +6,6 @@ import Button from '@/components/ui/Button';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
 import EmptyState from '@/components/ui/EmptyState';
-import { PageSkeleton } from '@/components/ui/Skeleton';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
@@ -29,7 +28,6 @@ import { logError } from '@/utils/safeLog';
 export default function CommitteesList() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
-  const [isFilterVisible, setIsFilterVisible] = useState(false);
   const [committees, setCommittees] = useState<Committee[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -37,7 +35,7 @@ export default function CommitteesList() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
   const [isExporting, setIsExporting] = useState(false);
 
@@ -45,7 +43,7 @@ export default function CommitteesList() {
 
   useEffect(() => {
     fetchCommittees();
-  }, [debouncedSearch, currentPage]);
+  }, [debouncedSearch, currentPage, itemsPerPage]);
 
   const fetchCommittees = async () => {
     try {
@@ -129,7 +127,7 @@ export default function CommitteesList() {
     {
       key: 'name',
       label: 'Name',
-      width: '6.75rem',
+      width: '16rem',
       sortable: true,
       render: (v, row) => (
         <span className="inline-flex flex-wrap items-center gap-1.5">
@@ -143,14 +141,15 @@ export default function CommitteesList() {
     {
       key: 'members',
       label: 'Members',
-      width: '10rem',
+      width: '7rem',
       align: 'center',
       render: (members) => (Array.isArray(members) ? members.length : 0),
     },
     {
       key: 'termEndDate',
-      label: 'Term Ends',
-      width: '9.25rem',
+      label: 'Term ends',
+      width: '10rem',
+      priority: 'secondary',
       render: (value) => {
         if (!value) return '-';
         const endsOn = new Date(value);
@@ -172,22 +171,25 @@ export default function CommitteesList() {
     {
       key: 'status',
       label: 'Status',
-      width: '7.25rem',
+      width: '7rem',
       render: (status) => <StatusBadge status={status || 'active'} />,
     },
     {
       key: 'createdAt',
       label: 'Created',
-      width: '7.75rem',
+      width: '8rem',
+      priority: 'tertiary',
       render: (date) => formatDate(date),
     },
     {
       key: 'actions',
-      label: 'Actions',
-      width: '8rem',
-      align: 'center',
+      label: '',
+      width: '6.5rem',
+      align: 'right',
+      sortable: false,
       render: (_, row) => (
         <ActionsMenu
+          label={`Actions for ${toTitleCase(row.name)}`}
           items={[
             {
               label: 'View',
@@ -254,81 +256,86 @@ export default function CommitteesList() {
   ];
 
   return (
-    <div className="space-y-4">
-      <div className="space-y-3">
-        <PageHeader title="Committees" description="Manage committees and meetings" />
+    <>
+      <PageHeader
+        title="Committees"
+        description="Manage committees and meetings."
+        actions={
+          <>
+            <Link to={ROUTES.COMMITTEES.MAHALLU}>
+              <Button variant="outline" icon={<FiAward />} collapseLabel>Mahallu committee</Button>
+            </Link>
+            <Link to={ROUTES.COMMITTEES.MEETINGS}>
+              <Button variant="outline" icon={<FiCalendar />} collapseLabel>Meetings</Button>
+            </Link>
+            <Link to="/committees/create">
+              <Button icon={<FiPlus />} collapseLabel>New committee</Button>
+            </Link>
+          </>
+        }
+      />
 
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          {stats.map((stat, index) => (
-            <StatCard key={index} {...stat} />
-          ))}
-        </div>
+      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
+        {stats.map((stat, index) => (
+          <StatCard key={index} {...stat} />
+        ))}
       </div>
 
       <TableCard>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
-          onFilterClick={() => setIsFilterVisible(!isFilterVisible)}
-          isFilterVisible={isFilterVisible}
-          hasFilters={false}
+          searchEntity="committees"
           onRefresh={fetchCommittees}
           onExport={handleExport}
           isExporting={isExporting}
-          actionButtons={
-            <>
-              <Link to={ROUTES.COMMITTEES.MAHALLU}>
-                <Button variant="outline" size="md" icon={<FiAward />} collapseLabel>Mahallu committee</Button>
-              </Link>
-              <Link to={ROUTES.COMMITTEES.MEETINGS}>
-                <Button variant="outline" size="md" icon={<FiCalendar />} collapseLabel>Meetings</Button>
-              </Link>
-              <Link to="/committees/create">
-                <Button size="md" icon={<FiPlus />} collapseLabel>New Committee</Button>
-              </Link>
-            </>
-          }
         />
 
-        {loading ? (
-          <PageSkeleton variant="section" />
-        ) : error ? (
-          <EmptyState variant="error" entity="committees" description={error} action={{ label: 'Retry', onClick: fetchCommittees }} />
+        {error ? (
+          <EmptyState variant="error" entity="committees" description={error} action={{ label: 'Try again', onClick: fetchCommittees }} />
         ) : (
-          <Table
-            fixedLayout
-            striped
-            columns={columns}
-            data={committees}
-            entity="committees"
-            emptyMessage="No committees found"
-            showExport={false}
-            onRowClick={(row) => navigate(ROUTES.COMMITTEES.DETAIL(row.id))}
-          />
-        )}
-
-        {/* Pagination */}
-        {pagination && (
-          <div className="mt-4">
-            <Pagination
-              currentPage={pagination.page}
-              totalPages={pagination.totalPages}
-              totalItems={pagination.total}
-              itemsPerPage={pagination.limit}
-              onPageChange={(page) => {
-                setCurrentPage(page);
-              }}
+          <>
+            <Table
+              fixedLayout
+              columns={columns}
+              data={committees}
+              isLoading={loading}
+              entity="committees"
+              emptyVariant={debouncedSearch ? 'no-results' : 'empty'}
+              emptyAction={
+                debouncedSearch
+                  ? { label: 'Clear filters', onClick: () => { setSearchQuery(''); setCurrentPage(1); } }
+                  : { label: 'Add committee', onClick: () => navigate('/committees/create') }
+              }
+              onRowClick={(row) => navigate(ROUTES.COMMITTEES.DETAIL(row.id))}
             />
-          </div>
+
+            {pagination && (
+              <div className="mt-4">
+                <Pagination
+                  currentPage={pagination.page}
+                  totalPages={pagination.totalPages}
+                  totalItems={pagination.total}
+                  itemsPerPage={pagination.limit}
+                  entity="committees"
+                  onPageChange={setCurrentPage}
+                  onItemsPerPageChange={(size) => {
+                    setItemsPerPage(size);
+                    setCurrentPage(1);
+                  }}
+                />
+              </div>
+            )}
+          </>
         )}
       </TableCard>
 
       <ConfirmDialog
         isOpen={showDeleteModal}
-        title="Delete committee"
-        message={`Are you sure you want to delete ${toTitleCase(selectedCommittee?.name) || 'this committee'}? This action cannot be undone.`}
+        title={`Delete ${toTitleCase(selectedCommittee?.name) || 'this committee'}?`}
+        message="This permanently removes the committee and cannot be undone."
         consequence="This will also delete all associated meetings."
-        confirmLabel="Delete"
+        confirmLabel="Delete committee"
         variant="danger"
         isLoading={deleting}
         onConfirm={handleDelete}
@@ -337,6 +344,6 @@ export default function CommitteesList() {
           setSelectedCommittee(null);
         }}
       />
-    </div>
+    </>
   );
 }

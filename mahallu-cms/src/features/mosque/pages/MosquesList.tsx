@@ -1,17 +1,15 @@
 import { useState, useEffect } from 'react';
 import { FiPlus } from 'react-icons/fi';
-import { Link } from 'react-router-dom';
-import Card from '@/components/ui/Card';
+import { useNavigate } from 'react-router-dom';
 import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Modal from '@/components/ui/Modal';
-import ExpandableSearch from '@/components/ui/ExpandableSearch';
-import ActionBar from '@/components/ui/ActionBar';
-import { PageSkeleton } from '@/components/ui/Skeleton';
+import Table from '@/components/ui/Table';
+import TableToolbar from '@/components/ui/TableToolbar';
 import EmptyState from '@/components/ui/EmptyState';
 import Pagination from '@/components/ui/Pagination';
-import { Pagination as PaginationType } from '@/types';
+import { Pagination as PaginationType, TableColumn } from '@/types';
 import { mosqueService, MOSQUE_FACILITY_OPTIONS, MosqueProfile } from '@/services/mosqueService';
 import { useDebounce } from '@/hooks/useDebounce';
 import { toast } from '@/store/toastStore';
@@ -33,11 +31,13 @@ const emptyForm = {
 };
 
 export default function MosquesList() {
+  const navigate = useNavigate();
   const [rows, setRows] = useState<MosqueProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
   const [isFormOpen, setFormOpen] = useState(false);
   const [form, setForm] = useState(emptyForm);
@@ -48,13 +48,13 @@ export default function MosquesList() {
 
   useEffect(() => {
     fetchRows();
-  }, [debouncedSearch, currentPage]);
+  }, [debouncedSearch, currentPage, itemsPerPage]);
 
   const fetchRows = async () => {
     try {
       setLoading(true);
       setError(null);
-      const params: Record<string, any> = { page: currentPage, limit: 12 };
+      const params: Record<string, any> = { page: currentPage, limit: itemsPerPage };
       if (debouncedSearch) params.search = debouncedSearch;
       const result = await mosqueService.getAll(params);
       setRows(result.data);
@@ -106,88 +106,104 @@ export default function MosquesList() {
     }
   };
 
+  const columns: TableColumn<MosqueProfile>[] = [
+    {
+      key: 'name',
+      label: 'Mosque',
+      sortable: true,
+      width: '16rem',
+      render: (name) => <span className="font-medium text-foreground">{toTitleCase(name)}</span>,
+    },
+    {
+      key: 'address',
+      label: 'Address',
+      sortable: true,
+      priority: 'secondary',
+      width: '16rem',
+      render: (address) => (address ? toTitleCase(address) : '—'),
+    },
+    {
+      key: 'capacity',
+      label: 'Capacity',
+      align: 'center',
+      sortable: true,
+      width: '7rem',
+      render: (capacity) => <span className="tabular-nums">{capacity ?? '—'}</span>,
+    },
+    {
+      key: 'imamName',
+      label: 'Imam',
+      sortable: true,
+      width: '12rem',
+      render: (imam) => (imam ? toTitleCase(imam) : '—'),
+    },
+  ];
+
   return (
-    <div className="space-y-3">
-      <PageHeader title="Mosques" description="Capacity, facilities and religious staff for each mosque" />
-
-      {/* No border/padding below `md` here — each mosque/cluster
-       * below is already its own bordered card, and a second frame
-       * around the whole list drew a box around boxes on a phone. */}
-      <TableCard>
-        <ActionBar>
-          <ExpandableSearch
-            value={searchQuery}
-            onChange={(value) => {
-              setSearchQuery(value);
-              setCurrentPage(1);
-            }}
-            entity="mosques"
-          />
-          <Button size="md" onClick={() => setFormOpen(true)} icon={<FiPlus />} collapseLabel>
-            New Mosque
+    <>
+      <PageHeader
+        title="Mosques"
+        description="Capacity, facilities and religious staff for each mosque."
+        actions={
+          <Button icon={<FiPlus />} collapseLabel onClick={() => setFormOpen(true)}>
+            New mosque
           </Button>
-        </ActionBar>
+        }
+      />
 
-        {loading ? (
-          <PageSkeleton variant="section" />
-        ) : error ? (
-          <EmptyState variant="error" entity="mosques" description={error} action={{ label: 'Retry', onClick: fetchRows }} />
-        ) : rows.length === 0 ? (
-          <EmptyState
-            title="No mosques recorded"
-            description="Add the mosques that belong to this Mahallu"
-            action={{ label: 'Add First Mosque', onClick: () => setFormOpen(true) }}
-          />
+      <TableCard>
+        <TableToolbar
+          searchQuery={searchQuery}
+          onSearchChange={(value) => {
+            setSearchQuery(value);
+            setCurrentPage(1);
+          }}
+          searchEntity="mosques"
+          onRefresh={fetchRows}
+        />
+
+        {error ? (
+          <EmptyState variant="error" entity="mosques" description={error} action={{ label: 'Try again', onClick: fetchRows }} />
         ) : (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {rows.map((mosque) => (
-              <Link key={mosque.id} to={`/mosque/${mosque.id}`}>
-                <Card className="h-full transition-shadow hover:shadow-md">
-                  <p className="truncate text-sm font-semibold leading-tight text-gray-900 dark:text-gray-100 sm:text-base">
-                    {toTitleCase(mosque.name)}
-                  </p>
-                  {/* Capacity carries the same weight Clusters gives its
-                   * headline stat (Families) - large and semibold, not a line
-                   * of small print the same size as its own label. That one
-                   * field was what made this card read as smaller. */}
-                  <dl className="mt-2 space-y-1">
-                    {mosque.address && (
-                      <div className="flex items-baseline justify-between gap-2">
-                        <dt className="text-xs text-gray-500 dark:text-gray-400">Address</dt>
-                        <dd className="truncate text-xs font-medium text-gray-700 dark:text-gray-200">
-                          {toTitleCase(mosque.address)}
-                        </dd>
-                      </div>
-                    )}
-                    <div className="flex items-baseline justify-between gap-2">
-                      <dt className="text-xs text-gray-500 dark:text-gray-400">Capacity</dt>
-                      <dd className="text-base font-semibold text-gray-900 dark:text-gray-100 sm:text-xl">
-                        {mosque.capacity ?? '-'}
-                      </dd>
-                    </div>
-                    <div className="flex items-baseline justify-between gap-2">
-                      <dt className="text-xs text-gray-500 dark:text-gray-400">Imam</dt>
-                      <dd className="truncate text-xs font-medium text-gray-700 dark:text-gray-200">
-                        {mosque.imamName ? toTitleCase(mosque.imamName) : '-'}
-                      </dd>
-                    </div>
-                  </dl>
-                </Card>
-              </Link>
-            ))}
-          </div>
-        )}
-
-        {pagination && (
-          <div className="mt-4">
-            <Pagination
-              currentPage={pagination.page}
-              totalPages={pagination.totalPages}
-              totalItems={pagination.total}
-              itemsPerPage={pagination.limit}
-              onPageChange={setCurrentPage}
+          <>
+            <Table
+              fixedLayout
+              columns={columns}
+              data={rows}
+              isLoading={loading}
+              entity="mosques"
+              emptyVariant={debouncedSearch ? 'no-results' : 'empty'}
+              emptyAction={
+                debouncedSearch
+                  ? {
+                      label: 'Clear filters',
+                      onClick: () => {
+                        setSearchQuery('');
+                        setCurrentPage(1);
+                      },
+                    }
+                  : { label: 'Add mosque', onClick: () => setFormOpen(true) }
+              }
+              onRowClick={(row) => navigate(`/mosque/${row.id}`)}
             />
-          </div>
+
+            {pagination && (
+              <div className="mt-4">
+                <Pagination
+                  currentPage={pagination.page}
+                  totalPages={pagination.totalPages}
+                  totalItems={pagination.total}
+                  itemsPerPage={pagination.limit}
+                  entity="mosques"
+                  onPageChange={setCurrentPage}
+                  onItemsPerPageChange={(size) => {
+                    setItemsPerPage(size);
+                    setCurrentPage(1);
+                  }}
+                />
+              </div>
+            )}
+          </>
         )}
       </TableCard>
 
@@ -305,6 +321,6 @@ export default function MosquesList() {
           </Button>
         </div>
       </Modal>
-    </div>
+    </>
   );
 }

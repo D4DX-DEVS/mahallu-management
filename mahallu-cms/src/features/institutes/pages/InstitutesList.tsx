@@ -8,9 +8,9 @@ import Select from '@/components/ui/Select';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
 import EmptyState from '@/components/ui/EmptyState';
-import { PageSkeleton } from '@/components/ui/Skeleton';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import Pagination from '@/components/ui/Pagination';
+import Badge from '@/components/ui/Badge';
 import TableToolbar from '@/components/ui/TableToolbar';
 import { toast } from '@/store/toastStore';
 import { TableColumn, Pagination as PaginationType } from '@/types';
@@ -39,7 +39,7 @@ export default function InstitutesList() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
   const [isExporting, setIsExporting] = useState(false);
 
@@ -52,7 +52,7 @@ export default function InstitutesList() {
 
   useEffect(() => {
     fetchInstitutes();
-  }, [debouncedSearch, typeFilter, currentPage]);
+  }, [debouncedSearch, typeFilter, currentPage, itemsPerPage]);
 
   const fetchInstitutes = async () => {
     try {
@@ -137,40 +137,38 @@ export default function InstitutesList() {
     {
       key: 'name',
       label: 'Name',
-      width: '6.75rem',
+      width: '16rem',
       sortable: true,
-      render: (v) => <span>{toTitleCase(v)}</span>,
+      render: (v) => <span className="font-medium text-foreground">{toTitleCase(v)}</span>,
     },
-    { key: 'place', label: 'Place', width: '6.5rem', render: (v) => toTitleCase(v) },
+    { key: 'place', priority: 'secondary', label: 'Place', width: '10rem', render: (v) => toTitleCase(v) },
     {
       key: 'type',
       label: 'Type',
-      width: '6.25rem',
-      render: (type) => (
-        <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 capitalize">
-          {type}
-        </span>
-      ),
+      width: '9rem',
+      render: (type) => <Badge variant="info" className="capitalize">{type}</Badge>,
     },
     {
-      key: 'joinDate',
+      key: 'joinDate', priority: 'tertiary',
       label: 'Join Date',
-      width: '8.75rem',
+      width: '8rem',
       render: (date) => formatDate(date),
     },
     {
       key: 'status',
       label: 'Status',
-      width: '7.25rem',
+      width: '8rem',
       render: (status) => <StatusBadge status={status || 'active'} />,
     },
     {
       key: 'actions',
-      label: 'Actions',
-      width: '8rem',
-      align: 'center',
+      label: '',
+      width: '6.5rem',
+      align: 'right',
+      sortable: false,
       render: (_, row) => (
         <ActionsMenu
+          label={`Actions for ${toTitleCase(row.name)}`}
           items={[
             {
               label: 'View',
@@ -231,41 +229,48 @@ export default function InstitutesList() {
     },
   ];
 
-  return (
-    <div className="space-y-4">
-      <div className="space-y-3">
-        <PageHeader title="Institutes" description="Manage institutes, madrasas, and other institutions" />
+  const activeFilterCount = typeFilter !== 'all' ? 1 : 0;
+  const isFiltered = Boolean(debouncedSearch) || typeFilter !== 'all';
 
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          {stats.map((stat, index) => (
-            <StatCard key={index} {...stat} />
-          ))}
-        </div>
+  return (
+    <>
+      <PageHeader
+        title="Institutes"
+        description="Manage institutes, madrasas and other institutions."
+        actions={
+          <Link to={ROUTES.INSTITUTES.CREATE}>
+            <Button icon={<FiPlus />} collapseLabel>New institute</Button>
+          </Link>
+        }
+      />
+
+      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
+        {stats.map((stat, index) => (
+          <StatCard key={index} {...stat} />
+        ))}
       </div>
 
       <TableCard>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
-          onFilterClick={() => setIsFilterVisible(!isFilterVisible)}
+          searchEntity="institutes"
+          onFilterClick={() => setIsFilterVisible((open) => !open)}
           isFilterVisible={isFilterVisible}
-          hasFilters={true}
+          hasFilters
+          activeFilterCount={activeFilterCount}
           onRefresh={fetchInstitutes}
           onExport={handleExport}
           isExporting={isExporting}
-          actionButtons={
-            <Link to={ROUTES.INSTITUTES.CREATE}>
-              <Button size="md" icon={<FiPlus />} collapseLabel>New Institute</Button>
-            </Link>
-          }
         />
 
         {isFilterVisible && (
           <FilterPanel onClose={() => setIsFilterVisible(false)}>
-            <div className="w-full sm:w-40">
+            <div className="w-full sm:w-52">
               <Select
+                label="Type"
                 options={[
-                  { value: 'all', label: 'All Types' },
+                  { value: 'all', label: 'All types' },
                   { value: 'institute', label: 'Institute' },
                   { value: 'madrasa', label: 'Madrasa' },
                   { value: 'orphanage', label: 'Orphanage' },
@@ -273,41 +278,67 @@ export default function InstitutesList() {
                   { value: 'other', label: 'Other' },
                 ]}
                 value={typeFilter}
-                onChange={(e) => setTypeFilter(e.target.value)}
+                onChange={(e) => {
+                  setTypeFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
               />
             </div>
+            {typeFilter !== 'all' && (
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setTypeFilter('all');
+                  setCurrentPage(1);
+                }}
+              >
+                Clear filters
+              </Button>
+            )}
           </FilterPanel>
         )}
 
-        {loading ? (
-          <PageSkeleton variant="section" />
-        ) : error ? (
-          <EmptyState variant="error" entity="institutes" description={error} action={{ label: 'Retry', onClick: fetchInstitutes }} />
-        ) : (
-          <Table
-            fixedLayout
-            striped
-            columns={columns}
-            data={institutes}
+        {error ? (
+          <EmptyState
+            variant="error"
             entity="institutes"
-            emptyMessage="No institutes found"
-            onRowClick={(row) => navigate(ROUTES.INSTITUTES.DETAIL(row.id))}
+            description={error}
+            action={{ label: 'Try again', onClick: fetchInstitutes }}
           />
-        )}
-
-        {/* Pagination */}
-        {pagination && (
-          <div className="mt-4">
-            <Pagination
-              currentPage={pagination.page}
-              totalPages={pagination.totalPages}
-              totalItems={pagination.total}
-              itemsPerPage={pagination.limit}
-              onPageChange={(page) => {
-                setCurrentPage(page);
-              }}
+        ) : (
+          <>
+            <Table
+              fixedLayout
+              columns={columns}
+              data={institutes}
+              isLoading={loading}
+              entity="institutes"
+              emptyVariant={isFiltered ? 'no-results' : 'empty'}
+              emptyAction={
+                isFiltered
+                  ? { label: 'Clear filters', onClick: () => { setSearchQuery(''); setTypeFilter('all'); setCurrentPage(1); } }
+                  : { label: 'Add institute', onClick: () => navigate(ROUTES.INSTITUTES.CREATE) }
+              }
+              onRowClick={(row) => navigate(ROUTES.INSTITUTES.DETAIL(row.id))}
             />
-          </div>
+
+            {pagination && (
+              <div className="mt-4">
+                <Pagination
+                  currentPage={pagination.page}
+                  totalPages={pagination.totalPages}
+                  totalItems={pagination.total}
+                  itemsPerPage={pagination.limit}
+                  entity="institutes"
+                  onPageChange={setCurrentPage}
+                  onItemsPerPageChange={(size) => {
+                    setItemsPerPage(size);
+                    setCurrentPage(1);
+                  }}
+                />
+              </div>
+            )}
+          </>
         )}
       </TableCard>
 
@@ -324,6 +355,6 @@ export default function InstitutesList() {
           setSelectedInstitute(null);
         }}
       />
-    </div>
+    </>
   );
 }
