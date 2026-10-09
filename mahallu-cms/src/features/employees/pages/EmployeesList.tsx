@@ -8,7 +8,6 @@ import Select from '@/components/ui/Select';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
 import EmptyState from '@/components/ui/EmptyState';
-import { PageSkeleton } from '@/components/ui/Skeleton';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
@@ -49,7 +48,7 @@ export default function EmployeesList() {
     const page = Number(searchParams.get('page'));
     return page > 0 ? page : 1;
   });
-  const [itemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
 
   const debouncedSearch = useDebounce(searchQuery, 500);
@@ -79,7 +78,7 @@ export default function EmployeesList() {
     if (instituteFilter !== 'all' && instituteFilter !== userInstituteId) next.set('institute', instituteFilter);
     if (currentPage > 1) next.set('page', String(currentPage));
     setSearchParams(next, { replace: true });
-  }, [debouncedSearch, statusFilter, instituteFilter, currentPage, userInstituteId, setSearchParams]);
+  }, [debouncedSearch, statusFilter, instituteFilter, currentPage, userInstituteId, setSearchParams, itemsPerPage]);
 
   useEffect(() => {
     fetchEmployees();
@@ -132,33 +131,35 @@ export default function EmployeesList() {
     {
       key: 'name',
       label: 'Name',
-      width: '6.75rem',
+      width: '16rem',
       sortable: true,
-      render: (v) => <span>{toTitleCase(v)}</span>,
+      render: (v) => <span className="font-medium text-foreground">{toTitleCase(v)}</span>,
     },
-    { key: 'designation', label: 'Designation', width: '9.25rem', render: (v) => toTitleCase(v) },
-    { key: 'department', label: 'Department', width: '9.75rem', render: (v) => toTitleCase(v) },
-    { key: 'phone', label: 'Phone', width: '6.75rem' },
+    { key: 'designation', label: 'Designation', width: '12rem', render: (v) => toTitleCase(v) },
+    { key: 'department', priority: 'secondary', label: 'Department', width: '12rem', render: (v) => toTitleCase(v) },
+    { key: 'phone', priority: 'secondary', label: 'Phone', width: '9rem' },
     {
       key: 'salary',
       label: 'Salary',
-      width: '8.75rem',
-      align: 'center',
+      width: '9rem',
+      align: 'right',
       render: (salary) => (salary ? `₹${Number(salary).toLocaleString()}` : '-'),
     },
     {
       key: 'status',
       label: 'Status',
-      width: '7.25rem',
+      width: '8rem',
       render: (status) => <StatusBadge status={status || 'active'} />,
     },
     {
       key: 'actions',
-      label: 'Actions',
-      width: '8rem',
-      align: 'center',
+      label: '',
+      width: '6.5rem',
+      align: 'right',
+      sortable: false,
       render: (_, row) => (
         <ActionsMenu
+          label={`Actions for ${toTitleCase(row.name)}`}
           items={[
             {
               label: 'View',
@@ -203,40 +204,48 @@ export default function EmployeesList() {
     },
   ];
 
+  const activeFilterCount = (statusFilter !== 'all' ? 1 : 0) + (!userInstituteId && instituteFilter !== 'all' ? 1 : 0);
+  const isFiltered = Boolean(debouncedSearch) || activeFilterCount > 0;
+
   return (
-    <div className="space-y-4">
-      <div className="space-y-3">
-        <PageHeader title="Employees" description="Manage institute employees" />
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          {stats.map((stat, index) => (
-            <StatCard key={index} {...stat} />
-          ))}
-        </div>
+    <>
+      <PageHeader
+        title="Employees"
+        description="Manage institute employees."
+        actions={
+          <Link to={ROUTES.EMPLOYEES.CREATE}>
+            <Button icon={<FiPlus />} collapseLabel>New employee</Button>
+          </Link>
+        }
+      />
+
+      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
+        {stats.map((stat, index) => (
+          <StatCard key={index} {...stat} />
+        ))}
       </div>
 
       <TableCard>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
-          onFilterClick={() => setIsFilterVisible(!isFilterVisible)}
+          searchEntity="employees"
+          onFilterClick={() => setIsFilterVisible((open) => !open)}
           isFilterVisible={isFilterVisible}
-          hasFilters={true}
+          hasFilters
+          activeFilterCount={activeFilterCount}
           onRefresh={fetchEmployees}
-          actionButtons={
-            <Link to={ROUTES.EMPLOYEES.CREATE}>
-              <Button size="md" icon={<FiPlus />} collapseLabel>New Employee</Button>
-            </Link>
-          }
         />
 
         {isFilterVisible && (
           <FilterPanel onClose={() => setIsFilterVisible(false)}>
-            <div className="w-full sm:w-40">
+            <div className="w-full sm:w-52">
               <Select
+                label="Status"
                 options={[
-                  { value: 'all', label: 'All Status' },
+                  { value: 'all', label: 'All statuses' },
                   { value: 'active', label: 'Active' },
-                  { value: 'on_leave', label: 'On Leave' },
+                  { value: 'on_leave', label: 'On leave' },
                   { value: 'resigned', label: 'Resigned' },
                   { value: 'terminated', label: 'Terminated' },
                 ]}
@@ -248,10 +257,11 @@ export default function EmployeesList() {
               />
             </div>
             {!userInstituteId && (
-              <div className="w-full sm:w-48">
+              <div className="w-full sm:w-52">
                 <Select
+                  label="Institute"
                   options={[
-                    { value: 'all', label: 'All Institutes' },
+                    { value: 'all', label: 'All institutes' },
                     ...institutes.map((i) => ({ value: i.id, label: toTitleCase(i.name) })),
                   ]}
                   value={instituteFilter}
@@ -262,35 +272,62 @@ export default function EmployeesList() {
                 />
               </div>
             )}
+            {activeFilterCount > 0 && (
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setStatusFilter('all');
+                  if (!userInstituteId) setInstituteFilter('all');
+                  setCurrentPage(1);
+                }}
+              >
+                Clear filters
+              </Button>
+            )}
           </FilterPanel>
         )}
 
-        {loading ? (
-          <PageSkeleton variant="section" />
-        ) : error ? (
-          <EmptyState variant="error" entity="employees" description={error} action={{ label: 'Retry', onClick: fetchEmployees }} />
-        ) : (
-          <Table
-            fixedLayout
-            striped
-            columns={columns}
-            data={employees}
+        {error ? (
+          <EmptyState
+            variant="error"
             entity="employees"
-            emptyMessage="No employees found"
-            onRowClick={(row) => navigate(ROUTES.EMPLOYEES.DETAIL(row.id))}
+            description={error}
+            action={{ label: 'Try again', onClick: fetchEmployees }}
           />
-        )}
-
-        {pagination && (
-          <div className="mt-4">
-            <Pagination
-              currentPage={pagination.page}
-              totalPages={pagination.totalPages}
-              totalItems={pagination.total}
-              itemsPerPage={pagination.limit}
-              onPageChange={setCurrentPage}
+        ) : (
+          <>
+            <Table
+              fixedLayout
+              columns={columns}
+              data={employees}
+              isLoading={loading}
+              entity="employees"
+              emptyVariant={isFiltered ? 'no-results' : 'empty'}
+              emptyAction={
+                isFiltered
+                  ? { label: 'Clear filters', onClick: () => { setSearchQuery(''); setStatusFilter('all'); if (!userInstituteId) setInstituteFilter('all'); setCurrentPage(1); } }
+                  : { label: 'Add employee', onClick: () => navigate(ROUTES.EMPLOYEES.CREATE) }
+              }
+              onRowClick={(row) => navigate(ROUTES.EMPLOYEES.DETAIL(row.id))}
             />
-          </div>
+
+            {pagination && (
+              <div className="mt-4">
+                <Pagination
+                  currentPage={pagination.page}
+                  totalPages={pagination.totalPages}
+                  totalItems={pagination.total}
+                  itemsPerPage={pagination.limit}
+                  entity="employees"
+                  onPageChange={setCurrentPage}
+                  onItemsPerPageChange={(size) => {
+                    setItemsPerPage(size);
+                    setCurrentPage(1);
+                  }}
+                />
+              </div>
+            )}
+          </>
         )}
       </TableCard>
 
@@ -307,6 +344,6 @@ export default function EmployeesList() {
           setSelectedEmployee(null);
         }}
       />
-    </div>
+    </>
   );
 }

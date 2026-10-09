@@ -4,13 +4,14 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import TableCard from '@/components/ui/TableCard';
-import ExpandableSearch from '@/components/ui/ExpandableSearch';
-import ActionBar from '@/components/ui/ActionBar';
+import TableToolbar from '@/components/ui/TableToolbar';
+import EmptyState from '@/components/ui/EmptyState';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import { toast } from '@/store/toastStore';
 import Button from '@/components/ui/Button';
 import Table from '@/components/ui/Table';
 import Modal from '@/components/ui/Modal';
 import Pagination from '@/components/ui/Pagination';
-import { PageSkeleton } from '@/components/ui/Skeleton';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import { Khateeb, religiousService, KHATEEB_STATUS_OPTIONS } from '@/services/religiousService';
@@ -43,7 +44,7 @@ export default function KhateebsList() {
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
   const [pagination, setPagination] = useState<any>(null);
   const [showModal, setShowModal] = useState(false);
   const [editingKhateeb, setEditingKhateeb] = useState<Khateeb | null>(null);
@@ -72,7 +73,7 @@ export default function KhateebsList() {
   useEffect(() => {
     fetchMembers();
     fetchKhateebs();
-  }, [debouncedSearch, currentPage]);
+  }, [debouncedSearch, currentPage, itemsPerPage]);
 
   const fetchMembers = async () => {
     try {
@@ -130,7 +131,6 @@ export default function KhateebsList() {
 
   const onSubmit = async (data: KhateebFormData) => {
     try {
-      setError(null);
       if (editingKhateeb) {
         await religiousService.updateKhateeb(editingKhateeb.id, data);
       } else {
@@ -140,7 +140,7 @@ export default function KhateebsList() {
       reset();
       fetchKhateebs();
     } catch (err: any) {
-      setError(errorMessage(err, { action: 'save khateeb' }));
+      toast.error(errorMessage(err, { action: 'save khateeb' }));
     }
   };
 
@@ -149,11 +149,12 @@ export default function KhateebsList() {
     try {
       setDeleting(true);
       await religiousService.deleteKhateeb(selectedKhateeb.id);
+      toast.success('Khateeb deleted');
       setShowDeleteModal(false);
       setSelectedKhateeb(null);
       fetchKhateebs();
     } catch (err: any) {
-      setError(errorMessage(err, { action: 'delete khateeb' }));
+      toast.error(errorMessage(err, { action: 'delete khateeb' }));
     } finally {
       setDeleting(false);
     }
@@ -167,66 +168,101 @@ export default function KhateebsList() {
   const columns = [
     {
       key: 'name',
-      label: 'Name',
+      label: 'Khateeb',
+      sortable: true,
+      width: '16rem',
       render: (_: any, khateeb: Khateeb) => (
-        <div>
-          <p className="font-medium">{toTitleCase(khateeb.name)}</p>
-          {khateeb.nameMl && <p className="text-sm text-gray-600">{khateeb.nameMl}</p>}
+        <div className="min-w-0">
+          <p className="truncate font-medium text-foreground">{toTitleCase(khateeb.name)}</p>
+          {khateeb.nameMl && <p className="truncate text-xs text-muted-foreground">{khateeb.nameMl}</p>}
         </div>
       ),
     },
     {
       key: 'qualifications',
       label: 'Qualifications',
+      sortable: false,
+      priority: 'secondary' as const,
+      width: '18rem',
       render: (_: any, khateeb: Khateeb) => khateeb.qualifications || '—',
     },
     {
       key: 'contactNo',
       label: 'Contact',
-      render: (_: any, khateeb: Khateeb) => khateeb.contactNo || '—',
+      sortable: false,
+      width: '9rem',
+      render: (_: any, khateeb: Khateeb) => <span className="tabular-nums">{khateeb.contactNo || '—'}</span>,
     },
     {
       key: 'status',
       label: 'Status',
+      sortable: true,
+      width: '8rem',
       render: (_: any, khateeb: Khateeb) => <StatusBadge status={khateeb.status} />,
     },
   ];
 
-  if (loading) return <PageSkeleton />;
-
   return (
-    <div className="space-y-4">
-      <PageHeader title="Khateebs" />
+    <>
+      <PageHeader
+        title="Khateebs"
+        description="Speakers who deliver the Friday khutbah."
+        actions={
+          <Button icon={<FiPlus />} collapseLabel onClick={() => handleOpenModal()}>
+            New khateeb
+          </Button>
+        }
+      />
 
-      {error && <div className="p-4 bg-red-100 text-red-800 rounded">{error}</div>}
-
-      <ActionBar className="mb-0">
-        <ExpandableSearch
-          value={searchQuery}
-          onChange={(value) => {
+      <TableCard>
+        <TableToolbar
+          searchQuery={searchQuery}
+          onSearchChange={(value) => {
             setSearchQuery(value);
             setCurrentPage(1);
           }}
-          entity="khateebs"
-          placeholder="Search khateebs by name"
+          searchEntity="khateebs"
+          onRefresh={fetchKhateebs}
         />
-        <Button onClick={() => handleOpenModal()} icon={<FiPlus />} collapseLabel>New Khateeb</Button>
-      </ActionBar>
 
-      <TableCard>
-        <Table fixedLayout striped columns={columns} data={khateebs} onRowClick={(row) => handleOpenModal(row)} />
+        {error ? (
+          <EmptyState variant="error" entity="khateebs" description={error} action={{ label: 'Try again', onClick: fetchKhateebs }} />
+        ) : (
+          <>
+            <Table
+              fixedLayout
+              columns={columns}
+              data={khateebs}
+              isLoading={loading}
+              entity="khateebs"
+              emptyVariant={debouncedSearch ? 'no-results' : 'empty'}
+              emptyAction={
+                debouncedSearch
+                  ? { label: 'Clear filters', onClick: () => { setSearchQuery(''); setCurrentPage(1); } }
+                  : { label: 'Add khateeb', onClick: () => handleOpenModal() }
+              }
+              onRowClick={(row) => handleOpenModal(row)}
+            />
+
+            {pagination && (
+              <div className="mt-4">
+                <Pagination
+                  currentPage={pagination.page}
+                  totalPages={pagination.totalPages}
+                  totalItems={pagination.total}
+                  itemsPerPage={pagination.limit}
+                  entity="khateebs"
+                  onPageChange={setCurrentPage}
+                  onItemsPerPageChange={(size) => {
+                    setItemsPerPage(size);
+                    setCurrentPage(1);
+                  }}
+                />
+              </div>
+            )}
+          </>
+        )}
       </TableCard>
-
-      {pagination && (
-        <Pagination
-          currentPage={pagination.page}
-          totalPages={pagination.totalPages}
-          totalItems={pagination.total}
-          itemsPerPage={pagination.limit}
-          entity="khateebs"
-          onPageChange={setCurrentPage}
-        />
-      )}
 
       {/* Create/Edit Modal */}
       <Modal
@@ -311,20 +347,16 @@ export default function KhateebsList() {
         </form>
       </Modal>
 
-      {/* Delete Modal */}
-      <Modal isOpen={showDeleteModal} onClose={() => setShowDeleteModal(false)} title="Confirm Delete">
-        <div className="space-y-4">
-          <p>Are you sure you want to delete this khateeb?</p>
-          <div className="flex gap-2 flex-col-reverse sm:flex-row sm:justify-end sm:gap-3">
-            <Button variant="outline" onClick={() => setShowDeleteModal(false)} disabled={deleting}>
-              Cancel
-            </Button>
-            <Button variant="danger" onClick={handleDelete} disabled={deleting} isLoading={deleting}>
-              Delete
-            </Button>
-          </div>
-        </div>
-      </Modal>
-    </div>
+      <ConfirmDialog
+        isOpen={showDeleteModal}
+        title={`Delete ${selectedKhateeb ? toTitleCase(selectedKhateeb.name) : 'this khateeb'}?`}
+        message="This permanently removes the khateeb and cannot be undone."
+        confirmLabel="Delete khateeb"
+        variant="danger"
+        isLoading={deleting}
+        onConfirm={handleDelete}
+        onCancel={() => setShowDeleteModal(false)}
+      />
+    </>
   );
 }

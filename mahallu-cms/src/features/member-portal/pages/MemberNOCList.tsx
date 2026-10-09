@@ -1,22 +1,25 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { memberPortalService } from '@/services/memberPortalService';
 import { downloadNocPdf } from '@/utils/nocPdf';
 import { ROUTES } from '@/constants/routes';
-import Card from '@/components/ui/Card';
+import Button from '@/components/ui/Button';
+import TableCard from '@/components/ui/TableCard';
+import TableToolbar from '@/components/ui/TableToolbar';
+import Table from '@/components/ui/Table';
+import EmptyState from '@/components/ui/EmptyState';
+import { TableColumn } from '@/types';
 import ActionsMenu from '@/components/ui/ActionsMenu';
-import { PageSkeleton } from '@/components/ui/Skeleton';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import RequestDetailModal, { RequestType } from '../components/RequestDetailModal';
-import { FiHeart, FiFileText, FiEdit2, FiEye, FiTrash2 } from 'react-icons/fi';
+import { FiHeart, FiFileText, FiEdit2, FiEye, FiTrash2, FiPlus } from 'react-icons/fi';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import { toTitleCase } from '@/utils/format';
 import StatusBadge from '@/components/ui/StatusBadge';
 import PageHeader from '@/components/layout/PageHeader';
-import SortableTh from '@/components/ui/SortableTh';
-import { useSortableRows } from '@/hooks/useSortableRows';
 
 export default function MemberNOCList() {
+  const navigate = useNavigate();
   const [nocs, setNocs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -119,178 +122,144 @@ export default function MemberNOCList() {
     }
   };
 
-  /* Both the Type and the Purpose cells are composed from more than one field,
-     so each sorts on the text the row actually shows. */
-  const {
-    rows: sortedNocs,
-    sort,
-    toggleSort,
-  } = useSortableRows(nocs, null, {
-    type: (row) => (row.type === 'nikah' ? 'Nikah' : 'Common'),
-    purposeTitle: (row) =>
-      row.purposeTitle ||
-      (row.nikahRegistrationId?.brideName ? `Nikah with ${row.nikahRegistrationId.brideName}` : ''),
-  });
+  const purposeOf = (noc: any) =>
+    noc.purposeTitle ||
+    (noc.nikahRegistrationId?.brideName ? `Nikah with ${toTitleCase(noc.nikahRegistrationId.brideName)}` : '—');
 
-  if (loading) {
-    return <PageSkeleton />;
-  }
-
-  if (error) {
-    return (
-      <div className="flex flex-col items-center justify-center h-screen-content gap-4">
-        <p className="text-red-600 dark:text-red-400">{error}</p>
-      </div>
-    );
-  }
+  const columns: TableColumn<any>[] = [
+    {
+      key: 'type',
+      label: 'Type',
+      sortable: true,
+      width: '9rem',
+      render: (_v, noc) =>
+        noc.type === 'nikah' ? (
+          <span className="inline-flex items-center gap-1.5">
+            <FiHeart className="h-3.5 w-3.5 text-primary" aria-hidden="true" /> Nikah
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-1.5">
+            <FiFileText className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" /> Common
+          </span>
+        ),
+    },
+    {
+      key: 'purposeTitle',
+      label: 'Purpose / title',
+      sortable: false,
+      width: '18rem',
+      render: (_v, noc) => <span className="font-medium text-foreground">{purposeOf(noc)}</span>,
+    },
+    {
+      key: 'createdAt',
+      label: 'Applied on',
+      sortable: true,
+      priority: 'secondary',
+      width: '9rem',
+      render: (v) => (v ? new Date(v).toLocaleDateString('en-IN') : '—'),
+    },
+    { key: 'status', label: 'Status', sortable: true, width: '9rem', render: (_v, noc) => <StatusBadge status={noc.status} /> },
+    {
+      key: 'certificate',
+      label: 'Certificate',
+      sortable: false,
+      priority: 'secondary',
+      width: '12rem',
+      render: (_v, noc) =>
+        noc.status === 'approved' ? (
+          <button
+            type="button"
+            onClick={() => handleDownload(noc)}
+            disabled={downloading === noc.id}
+            className="text-xs font-medium text-primary hover:underline disabled:opacity-50"
+          >
+            {downloading === noc.id ? 'Generating…' : 'Download certificate'}
+          </button>
+        ) : (
+          <span className="text-xs text-muted-foreground">
+            {noc.status === 'rejected'
+              ? 'Rejected'
+              : noc.status === 'correction_required'
+                ? 'Needs correction'
+                : 'Awaiting approval'}
+          </span>
+        ),
+    },
+    {
+      key: 'actions',
+      label: '',
+      width: '6.5rem',
+      align: 'right',
+      sortable: false,
+      render: (_v, noc) => (
+        <ActionsMenu
+          label="Actions for NOC request"
+          items={[
+            ...(isEditable(noc)
+              ? [
+                  {
+                    label: 'Edit & resubmit',
+                    icon: <FiEdit2 className="h-4 w-4" />,
+                    onClick: () => openModal(noc, 'edit'),
+                  },
+                ]
+              : []),
+            {
+              label: 'View',
+              icon: <FiEye className="h-4 w-4" />,
+              onClick: () => openModal(noc, 'view'),
+            },
+            ...(isDeletable(noc)
+              ? [
+                  {
+                    label: 'Delete',
+                    icon: <FiTrash2 className="h-4 w-4" />,
+                    variant: 'danger' as const,
+                    onClick: () => {
+                      setDeleteError(null);
+                      setDeleteTarget(noc);
+                    },
+                  },
+                ]
+              : []),
+          ]}
+        />
+      ),
+    },
+  ];
 
   return (
-    <div className="space-y-4 max-w-4xl w-full mx-auto">
-      <div className="flex items-center justify-between">
-        <PageHeader title="My NOCs" />
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => setRefreshKey((k) => k + 1)}
-            className="text-sm text-gray-500 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
-            title="Refresh list"
-            aria-label="Refresh list"
-          >
-            ↻ Refresh
-          </button>
-          <Link
-            to={ROUTES.MEMBER.NOC_REQUEST}
-            className="py-2 px-4 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg text-sm transition-colors"
-          >
-            + Request NOC
+    <>
+      <PageHeader
+        title="My NOCs"
+        description="No-objection certificates you have requested."
+        actions={
+          <Link to={ROUTES.MEMBER.NOC_REQUEST}>
+            <Button icon={<FiPlus />} collapseLabel>
+              Request an NOC
+            </Button>
           </Link>
-        </div>
-      </div>
+        }
+      />
 
-      {nocs.length === 0 ? (
-        <Card>
-          <div className="text-center py-10 space-y-3">
-            <p className="text-gray-500 dark:text-gray-400">No NOC requests found.</p>
-            <Link
-              to={ROUTES.MEMBER.NOC_REQUEST}
-              className="text-primary-600 dark:text-primary-400 text-sm font-medium hover:underline"
-            >
-              Submit your first NOC request →
-            </Link>
-          </div>
-        </Card>
-      ) : (
-        <Card>
-          <div className="overflow-x-auto">
-            <table className="data-table min-w-full text-sm">
-              <thead>
-                <tr className="text-left border-b border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-400">
-                  <SortableTh sortKey="type" sort={sort} onSort={toggleSort} className="py-2 pr-4">
-                    Type
-                  </SortableTh>
-                  <SortableTh sortKey="purposeTitle" sort={sort} onSort={toggleSort} className="py-2 pr-4">
-                    Purpose / Title
-                  </SortableTh>
-                  <SortableTh sortKey="createdAt" sort={sort} onSort={toggleSort} className="py-2 pr-4">
-                    Applied On
-                  </SortableTh>
-                  <SortableTh sortKey="status" sort={sort} onSort={toggleSort} className="py-2 pr-4">
-                    Status
-                  </SortableTh>
-                  <th className="py-2 text-label font-semibold text-muted-foreground">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sortedNocs.map((noc: any, index: number) => (
-                  <tr
-                    key={noc.id || index}
-                    onClick={() => openModal(noc, 'view')}
-                    className="cursor-pointer border-b border-gray-100 dark:border-gray-900 text-gray-900 dark:text-gray-100 hover:bg-accent/30"
-                  >
-                    <td className="py-3 pr-4">
-                      {noc.type === 'nikah' ? (
-                        <span className="inline-flex items-center gap-1.5">
-                          <FiHeart className="h-3.5 w-3.5 text-primary-500" /> Nikah
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1.5">
-                          <FiFileText className="h-3.5 w-3.5 text-gray-400" /> Common
-                        </span>
-                      )}
-                    </td>
-                    <td className="py-3 pr-4 max-w-xs truncate">
-                      {noc.purposeTitle ||
-                        (noc.nikahRegistrationId?.brideName
-                          ? `Nikah with ${toTitleCase(noc.nikahRegistrationId.brideName)}`
-                          : '—')}
-                    </td>
-                    <td className="py-3 pr-4 text-gray-500 dark:text-gray-400">
-                      {noc.createdAt ? new Date(noc.createdAt).toLocaleDateString('en-IN') : '—'}
-                    </td>
-                    <td className="py-3 pr-4">
-                      <StatusBadge status={noc.status} />
-                    </td>
-                    <td className="py-3" onClick={(e) => e.stopPropagation()}>
-                      <div className="flex items-center gap-2">
-                        {noc.status === 'approved' ? (
-                          <button
-                            onClick={() => handleDownload(noc)}
-                            disabled={downloading === noc.id}
-                            className="text-xs text-primary-600 dark:text-primary-400 hover:underline disabled:opacity-50"
-                          >
-                            {downloading === noc.id ? 'Generating…' : 'Download Certificate'}
-                          </button>
-                        ) : (
-                          <span className="text-xs text-gray-400 dark:text-gray-600">
-                            {noc.status === 'rejected'
-                              ? 'Rejected'
-                              : noc.status === 'correction_required'
-                                ? 'Needs correction'
-                                : 'Awaiting approval'}
-                          </span>
-                        )}
-                        <div className="ml-auto">
-                          <ActionsMenu
-                            label="Actions for NOC request"
-                            items={[
-                              ...(isEditable(noc)
-                                ? [
-                                    {
-                                      label: 'Edit & resubmit',
-                                      icon: <FiEdit2 className="h-4 w-4" />,
-                                      onClick: () => openModal(noc, 'edit'),
-                                    },
-                                  ]
-                                : []),
-                              {
-                                label: 'View',
-                                icon: <FiEye className="h-4 w-4" />,
-                                onClick: () => openModal(noc, 'view'),
-                              },
-                              ...(isDeletable(noc)
-                                ? [
-                                    {
-                                      label: 'Delete',
-                                      icon: <FiTrash2 className="h-4 w-4" />,
-                                      variant: 'danger' as const,
-                                      onClick: () => {
-                                        setDeleteError(null);
-                                        setDeleteTarget(noc);
-                                      },
-                                    },
-                                  ]
-                                : []),
-                            ]}
-                          />
-                        </div>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Card>
-      )}
+      <TableCard>
+        <TableToolbar onRefresh={() => setRefreshKey((k) => k + 1)} />
+
+        {error ? (
+          <EmptyState variant="error" entity="NOCs" description={error} action={{ label: 'Try again', onClick: () => setRefreshKey((k) => k + 1) }} />
+        ) : (
+          <Table
+            fixedLayout
+            columns={columns}
+            data={nocs}
+            isLoading={loading}
+            entity="NOC requests"
+            emptyAction={{ label: 'Request an NOC', onClick: () => navigate(ROUTES.MEMBER.NOC_REQUEST) }}
+            rowKey={(noc, index) => noc.id || String(index)}
+            onRowClick={(noc) => openModal(noc, 'view')}
+          />
+        )}
+      </TableCard>
 
       {modalState && (
         <RequestDetailModal
@@ -324,7 +293,7 @@ export default function MemberNOCList() {
         title="Delete NOC request?"
         message="This will permanently delete this NOC request. This cannot be undone."
         consequence={deleteError || undefined}
-        confirmLabel="Delete"
+        confirmLabel="Delete request"
         isLoading={deleting}
         onConfirm={handleDelete}
         onCancel={() => {
@@ -332,6 +301,6 @@ export default function MemberNOCList() {
           setDeleteError(null);
         }}
       />
-    </div>
+    </>
   );
 }

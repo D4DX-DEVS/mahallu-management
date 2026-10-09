@@ -1,5 +1,9 @@
 import { useState, useEffect } from 'react';
+import { FiEdit2, FiPlus, FiTrash2 } from 'react-icons/fi';
 import TableCard from '@/components/ui/TableCard';
+import FilterPanel from '@/components/ui/FilterPanel';
+import TableToolbar from '@/components/ui/TableToolbar';
+import ActionsMenu from '@/components/ui/ActionsMenu';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
@@ -7,7 +11,6 @@ import Table from '@/components/ui/Table';
 import Modal from '@/components/ui/Modal';
 import Checkbox from '@/components/ui/Checkbox';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
-import { PageSkeleton } from '@/components/ui/Skeleton';
 import Pagination from '@/components/ui/Pagination';
 import EmptyState from '@/components/ui/EmptyState';
 import { toast } from '@/store/toastStore';
@@ -49,7 +52,9 @@ export default function DistributionsList() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [typeFilter, setTypeFilter] = useState('');
+  const [isFilterVisible, setIsFilterVisible] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
   const [isFormOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -61,7 +66,7 @@ export default function DistributionsList() {
 
   useEffect(() => {
     fetchRows();
-  }, [typeFilter, currentPage]);
+  }, [typeFilter, currentPage, itemsPerPage]);
 
   useEffect(() => {
     // Only verified beneficiaries can be paid, so only those are offered.
@@ -81,7 +86,7 @@ export default function DistributionsList() {
     try {
       setLoading(true);
       setError(null);
-      const params: Record<string, any> = { page: currentPage, limit: 10 };
+      const params: Record<string, any> = { page: currentPage, limit: itemsPerPage };
       if (typeFilter) params.type = typeFilter;
       const result = await zakatDistributionService.getDistributions(params);
       setRows(result.data);
@@ -158,88 +163,150 @@ export default function DistributionsList() {
     }
   };
 
+  const openCreate = () => {
+    setEditingId(null);
+    setForm(emptyForm);
+    setFormOpen(true);
+  };
+
   const columns: TableColumn<ZakatDistribution>[] = [
     {
       key: 'distributionDate',
       label: 'Date',
-      width: '6.25rem',
-      render: (v) => (v ? new Date(v).toLocaleDateString() : '-'),
+      sortable: true,
+      width: '9rem',
+      render: (v) => (v ? new Date(v).toLocaleDateString() : '—'),
     },
-    { key: 'beneficiaryId', label: 'Beneficiary', width: '9.25rem', render: (_v, row) => targetName(row) },
-    { key: 'amount', label: 'Amount', width: '7.75rem', render: (v) => `Rs ${v ?? 0}` },
+    {
+      key: 'beneficiaryId',
+      label: 'Beneficiary',
+      sortable: false,
+      width: '16rem',
+      render: (_v, row) => <span className="font-medium text-foreground">{targetName(row)}</span>,
+    },
+    {
+      key: 'amount',
+      label: 'Amount',
+      align: 'right',
+      sortable: true,
+      width: '9rem',
+      render: (v) => <span className="tabular-nums">₹{(v ?? 0).toLocaleString('en-IN')}</span>,
+    },
     {
       key: 'type',
       label: 'Type',
-      width: '6.25rem',
+      sortable: true,
+      width: '10rem',
       render: (v) => DISTRIBUTION_TYPE_OPTIONS.find((o) => o.value === v)?.label || v,
     },
-    { key: 'receiptNo', label: 'Receipt', width: '7.5rem', render: (v) => v || '-' },
+    { key: 'receiptNo', label: 'Receipt', priority: 'secondary', width: '9rem', render: (v) => v || '—' },
+    {
+      key: 'actions',
+      label: '',
+      width: '6.5rem',
+      align: 'right',
+      sortable: false,
+      render: (_v, row) => (
+        <ActionsMenu
+          label={`Actions for distribution to ${targetName(row)}`}
+          items={[
+            { label: 'Edit', icon: <FiEdit2 className="h-4 w-4" />, onClick: () => openEdit(row) },
+            {
+              label: 'Delete',
+              icon: <FiTrash2 className="h-4 w-4" />,
+              variant: 'danger',
+              onClick: () => setDeleteConfirm(row),
+            },
+          ]}
+        />
+      ),
+    },
   ];
 
   return (
-    <div className="space-y-3">
+    <>
       <PageHeader
-        title="Zakat Distributions"
-        description="Payments made to verified beneficiaries"
-        breadcrumbs={[{ label: 'Zakat' }]}
+        title="Zakat distributions"
+        description="Payments made to verified beneficiaries."
+        actions={
+          <Button icon={<FiPlus />} collapseLabel onClick={openCreate}>
+            Record distribution
+          </Button>
+        }
       />
 
       <TableCard>
-        <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div className="w-full sm:w-48">
-            <Select
-              options={[{ value: '', label: 'All types' }, ...DISTRIBUTION_TYPE_OPTIONS]}
-              value={typeFilter}
-              onChange={(e) => {
-                setTypeFilter(e.target.value);
-                setCurrentPage(1);
-              }}
-            />
-          </div>
-          <Button
-            size="md"
-            onClick={() => {
-              setEditingId(null);
-              setForm(emptyForm);
-              setFormOpen(true);
-            }}
-            className="w-full sm:w-auto"
-          >
-            + Record Distribution
-          </Button>
-        </div>
+        <TableToolbar
+          onFilterClick={() => setIsFilterVisible((open) => !open)}
+          isFilterVisible={isFilterVisible}
+          hasFilters
+          activeFilterCount={typeFilter ? 1 : 0}
+          onRefresh={fetchRows}
+        />
 
-        {loading ? (
-          <PageSkeleton variant="section" />
-        ) : error ? (
-          <EmptyState variant="error" entity="distributions" description={error} action={{ label: 'Retry', onClick: fetchRows }} />
-        ) : rows.length === 0 ? (
-          <EmptyState
-            title="No distributions yet"
-            description="Record a distribution to a verified beneficiary"
-            action={{ label: '+ Record Distribution', onClick: () => setFormOpen(true) }}
-          />
-        ) : (
-          <Table
-            fixedLayout
-            striped
-            columns={columns}
-            data={rows}
-            showExport={false}
-            onRowClick={(row) => setViewing(row)}
-          />
+        {isFilterVisible && (
+          <FilterPanel onClose={() => setIsFilterVisible(false)}>
+            <div className="w-full sm:w-52">
+              <Select
+                label="Type"
+                options={[{ value: '', label: 'All types' }, ...DISTRIBUTION_TYPE_OPTIONS]}
+                value={typeFilter}
+                onChange={(e) => {
+                  setTypeFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
+              />
+            </div>
+            {typeFilter && (
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setTypeFilter('');
+                  setCurrentPage(1);
+                }}
+              >
+                Clear filters
+              </Button>
+            )}
+          </FilterPanel>
         )}
 
-        {pagination && (
-          <div className="mt-4">
-            <Pagination
-              currentPage={pagination.page}
-              totalPages={pagination.totalPages}
-              totalItems={pagination.total}
-              itemsPerPage={pagination.limit}
-              onPageChange={setCurrentPage}
+        {error ? (
+          <EmptyState variant="error" entity="distributions" description={error} action={{ label: 'Try again', onClick: fetchRows }} />
+        ) : (
+          <>
+            <Table
+              fixedLayout
+              columns={columns}
+              data={rows}
+              isLoading={loading}
+              entity="distributions"
+              emptyVariant={typeFilter ? 'no-results' : 'empty'}
+              emptyAction={
+                typeFilter
+                  ? { label: 'Clear filters', onClick: () => { setTypeFilter(''); setCurrentPage(1); } }
+                  : { label: 'Record distribution', onClick: openCreate }
+              }
+              onRowClick={(row) => setViewing(row)}
             />
-          </div>
+
+            {pagination && (
+              <div className="mt-4">
+                <Pagination
+                  currentPage={pagination.page}
+                  totalPages={pagination.totalPages}
+                  totalItems={pagination.total}
+                  itemsPerPage={pagination.limit}
+                  entity="distributions"
+                  onPageChange={setCurrentPage}
+                  onItemsPerPageChange={(size) => {
+                    setItemsPerPage(size);
+                    setCurrentPage(1);
+                  }}
+                />
+              </div>
+            )}
+          </>
         )}
       </TableCard>
 
@@ -415,6 +482,6 @@ export default function DistributionsList() {
         onConfirm={handleDeleteConfirm}
         onCancel={() => setDeleteConfirm(null)}
       />
-    </div>
+    </>
   );
 }

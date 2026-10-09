@@ -8,8 +8,8 @@ import Select from '@/components/ui/Select';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
 import EmptyState from '@/components/ui/EmptyState';
-import { PageSkeleton } from '@/components/ui/Skeleton';
 import Pagination from '@/components/ui/Pagination';
+import Badge from '@/components/ui/Badge';
 import TableToolbar from '@/components/ui/TableToolbar';
 import { TableColumn, Pagination as PaginationType } from '@/types';
 import { User } from '@/types';
@@ -35,7 +35,7 @@ export default function AllUsersList() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
   const [isExporting, setIsExporting] = useState(false);
 
@@ -48,7 +48,7 @@ export default function AllUsersList() {
 
   useEffect(() => {
     fetchUsers();
-  }, [debouncedSearch, roleFilter, statusFilter, currentPage]);
+  }, [debouncedSearch, roleFilter, statusFilter, currentPage, itemsPerPage]);
 
   const fetchUsers = async () => {
     try {
@@ -120,38 +120,36 @@ export default function AllUsersList() {
   };
 
   const columns: TableColumn<User>[] = [
-    { key: 'name', label: 'Name', width: '6.75rem', sortable: true, render: (name) => toTitleCase(name) },
-    { key: 'phone', label: 'Phone', width: '6.75rem' },
-    { key: 'email', label: 'Email', width: '6.75rem', render: (email) => email || '-' },
+    { key: 'name', label: 'Name', width: '16rem', sortable: true, render: (name) => <span className="font-medium text-foreground">{toTitleCase(name)}</span> },
+    { key: 'phone', priority: 'secondary', label: 'Phone', width: '9rem' },
+    { key: 'email', priority: 'secondary', label: 'Email', width: '14rem', render: (email) => email || '-' },
     {
       key: 'role',
       label: 'Role',
-      width: '6rem',
-      render: (role) => (
-        <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 capitalize">
-          {role}
-        </span>
-      ),
+      width: '9rem',
+      render: (role) => <Badge variant="info" className="capitalize">{role}</Badge>,
     },
     {
       key: 'status',
       label: 'Status',
-      width: '7.25rem',
+      width: '8rem',
       render: (status) => <StatusBadge status={status || 'active'} />,
     },
     {
-      key: 'createdAt',
+      key: 'createdAt', priority: 'tertiary',
       label: 'Created',
-      width: '7.75rem',
+      width: '9rem',
       render: (date) => formatDate(date),
     },
     {
       key: 'actions',
-      label: 'Actions',
-      width: '8rem',
-      align: 'center',
+      label: '',
+      width: '6.5rem',
+      align: 'right',
+      sortable: false,
       render: (_, row) => (
         <ActionsMenu
+          label={`Actions for ${toTitleCase(row.name)}`}
           items={[
             {
               label: 'View',
@@ -187,43 +185,50 @@ export default function AllUsersList() {
     },
   ];
 
-  return (
-    <div className="space-y-4">
-      <div className="space-y-3">
-        <PageHeader title="All Users" description="Manage all system users" />
+  const activeFilterCount = (roleFilter !== 'all' ? 1 : 0) + (statusFilter !== 'all' ? 1 : 0);
+  const isFiltered = Boolean(debouncedSearch) || activeFilterCount > 0;
 
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          {stats.map((stat, index) => (
-            <StatCard key={index} {...stat} />
-          ))}
-        </div>
+  return (
+    <>
+      <PageHeader
+        title="All users"
+        description="Manage all system users."
+        actions={
+          <Link to="/admin/users/create">
+            <Button icon={<FiPlus />} collapseLabel>New user</Button>
+          </Link>
+        }
+      />
+
+      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
+        {stats.map((stat, index) => (
+          <StatCard key={index} {...stat} />
+        ))}
       </div>
 
       <TableCard>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
-          onFilterClick={() => setIsFilterVisible(!isFilterVisible)}
+          searchEntity="users"
+          onFilterClick={() => setIsFilterVisible((open) => !open)}
           isFilterVisible={isFilterVisible}
-          hasFilters={true}
+          hasFilters
+          activeFilterCount={activeFilterCount}
           onRefresh={fetchUsers}
           onExport={handleExport}
           isExporting={isExporting}
-          actionButtons={
-            <Link to="/admin/users/create">
-              <Button size="md" icon={<FiPlus />} collapseLabel>New User</Button>
-            </Link>
-          }
         />
 
         {isFilterVisible && (
           <FilterPanel onClose={() => setIsFilterVisible(false)}>
-            <div className="w-full sm:w-40">
+            <div className="w-full sm:w-52">
               <Select
+                label="Role"
                 options={[
-                  { value: 'all', label: 'All Roles' },
-                  { value: 'super_admin', label: 'Super Admin' },
-                  { value: 'mahall', label: 'Mahall' },
+                  { value: 'all', label: 'All roles' },
+                  { value: 'super_admin', label: 'Super admin' },
+                  { value: 'mahall', label: 'Mahallu' },
                   { value: 'survey', label: 'Survey' },
                   { value: 'institute', label: 'Institute' },
                 ]}
@@ -231,10 +236,11 @@ export default function AllUsersList() {
                 onChange={(e) => setRoleFilter(e.target.value)}
               />
             </div>
-            <div className="w-full sm:w-32">
+            <div className="w-full sm:w-52">
               <Select
+                label="Status"
                 options={[
-                  { value: 'all', label: 'All Status' },
+                  { value: 'all', label: 'All statuses' },
                   { value: 'active', label: 'Active' },
                   { value: 'inactive', label: 'Inactive' },
                 ]}
@@ -242,45 +248,63 @@ export default function AllUsersList() {
                 onChange={(e) => setStatusFilter(e.target.value)}
               />
             </div>
+            {activeFilterCount > 0 && (
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setRoleFilter('all');
+                  setStatusFilter('all');
+                }}
+              >
+                Clear filters
+              </Button>
+            )}
           </FilterPanel>
         )}
 
-        {loading ? (
-          <PageSkeleton variant="section" />
-        ) : error ? (
+        {error ? (
           <EmptyState
             variant="error"
             entity="users"
             description={error}
-            action={{ label: 'Retry', onClick: fetchUsers }}
+            action={{ label: 'Try again', onClick: fetchUsers }}
           />
         ) : (
-          <Table
-            fixedLayout
-            striped
-            columns={columns}
-            data={users}
-            emptyMessage="No users found"
-            showExport={false}
-            onRowClick={(row) => navigate(`/admin/users/${row.id}`)}
-          />
-        )}
-
-        {/* Pagination */}
-        {pagination && (
-          <div className="mt-4">
-            <Pagination
-              currentPage={pagination.page}
-              totalPages={pagination.totalPages}
-              totalItems={pagination.total}
-              itemsPerPage={pagination.limit}
-              onPageChange={(page) => {
-                setCurrentPage(page);
-              }}
+          <>
+            <Table
+              fixedLayout
+              columns={columns}
+              data={users}
+              isLoading={loading}
+              entity="users"
+              emptyVariant={isFiltered ? 'no-results' : 'empty'}
+              emptyAction={
+                isFiltered
+                  ? { label: 'Clear filters', onClick: () => { setSearchQuery(''); setRoleFilter('all'); setStatusFilter('all'); } }
+                  : { label: 'Add user', onClick: () => navigate('/admin/users/create') }
+              }
+              onRowClick={(row) => navigate(`/admin/users/${row.id}`)}
             />
-          </div>
+
+            {pagination && (
+              <div className="mt-4">
+                <Pagination
+                  currentPage={pagination.page}
+                  totalPages={pagination.totalPages}
+                  totalItems={pagination.total}
+                  itemsPerPage={pagination.limit}
+                  entity="users"
+                  onPageChange={setCurrentPage}
+                  onItemsPerPageChange={(size) => {
+                    setItemsPerPage(size);
+                    setCurrentPage(1);
+                  }}
+                />
+              </div>
+            )}
+          </>
         )}
       </TableCard>
-    </div>
+    </>
   );
 }

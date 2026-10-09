@@ -1,11 +1,16 @@
 import { useState, useEffect, useCallback } from 'react';
 import { FiEye, FiTrash2 } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
+import { FiPlus } from 'react-icons/fi';
 import Button from '@/components/ui/Button';
-import ExpandableSearch from '@/components/ui/ExpandableSearch';
-import Card from '@/components/ui/Card';
+import TableCard from '@/components/ui/TableCard';
+import TableToolbar from '@/components/ui/TableToolbar';
+import FilterPanel from '@/components/ui/FilterPanel';
+import Select from '@/components/ui/Select';
+import EmptyState from '@/components/ui/EmptyState';
 import Table from '@/components/ui/Table';
 import ActionsMenu from '@/components/ui/ActionsMenu';
+import StatusBadge from '@/components/ui/StatusBadge';
 import Pagination from '@/components/ui/Pagination';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { toast } from '@/store/toastStore';
@@ -15,7 +20,8 @@ import {
   SCHOLARSHIP_STATUS_OPTIONS,
   scholarshipStatusLabel,
 } from '@/services/scholarshipService';
-import { errorMessage } from '@/utils/errors';
+import { useDebounce } from '@/hooks/useDebounce';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
 import { TableColumn } from '@/types';
@@ -25,51 +31,49 @@ export default function ScholarshipsList() {
   const [scholarships, setScholarships] = useState<Scholarship[]>([]);
   const [pagination, setPagination] = useState<any>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [isFilterVisible, setIsFilterVisible] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const debouncedSearch = useDebounce(search, 500);
+  const isFiltered = Boolean(debouncedSearch || status);
 
   const columns: TableColumn<Scholarship>[] = [
     {
       key: 'name',
-      label: 'Name',
-      render: (_v, s) => (
-        <button onClick={() => navigate(`/education/scholarships/${s.id}`)} className="text-primary hover:underline">
-          {toTitleCase(s.name)}
-        </button>
-      ),
+      label: 'Scholarship',
+      sortable: true,
+      width: '16rem',
+      render: (_v, s) => <span className="font-medium text-foreground">{toTitleCase(s.name)}</span>,
     },
-    {
-      key: 'academicYear',
-      label: 'Year',
-      priority: 'secondary',
-    },
+    { key: 'academicYear', label: 'Year', sortable: true, priority: 'secondary', width: '8rem' },
     {
       key: 'amount',
       label: 'Amount',
       priority: 'secondary',
       align: 'right',
-      render: (_v, s) => '₹' + s.amount,
+      sortable: true,
+      width: '9rem',
+      render: (_v, s) => <span className="tabular-nums">₹{Number(s.amount ?? 0).toLocaleString('en-IN')}</span>,
     },
-    {
-      key: 'criteria',
-      label: 'Criteria',
-      priority: 'tertiary',
-      render: (v) => v || '—',
-    },
+    { key: 'criteria', label: 'Criteria', sortable: false, priority: 'tertiary', width: '16rem', render: (v) => v || '—' },
     {
       key: 'status',
       label: 'Status',
       sortable: true,
-      render: (_v, s) => <span className="rounded bg-muted px-2 py-1 text-xs">{scholarshipStatusLabel(s.status)}</span>,
+      width: '8rem',
+      render: (_v, s) => <StatusBadge status={s.status} label={scholarshipStatusLabel(s.status)} />,
     },
     {
       key: 'actions',
-      label: 'Actions',
+      label: '',
       align: 'right',
       sortable: false,
+      width: '6.5rem',
       render: (_v, s) => (
         <ActionsMenu
           label={'Actions for ' + toTitleCase(s.name)}
@@ -93,25 +97,26 @@ export default function ScholarshipsList() {
 
   const fetchScholarships = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const { data, pagination } = await scholarshipService.getScholarships({
         page: currentPage,
-        limit: 10,
-        search: search || undefined,
+        limit: itemsPerPage,
+        search: debouncedSearch || undefined,
         status: status || undefined,
       });
       setScholarships(data);
       setPagination(pagination);
-    } catch (error) {
-      console.error("Couldn't load scholarships:", error);
+    } catch (err) {
+      setError(loadErrorMessage(err, 'scholarships'));
     } finally {
       setLoading(false);
     }
-  }, [currentPage, search, status]);
+  }, [currentPage, itemsPerPage, debouncedSearch, status]);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [search, status]);
+  }, [debouncedSearch, status]);
 
   useEffect(() => {
     fetchScholarships();
@@ -133,76 +138,97 @@ export default function ScholarshipsList() {
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <PageHeader title="Scholarships" />
-        <Button onClick={() => navigate('/education/scholarships/create')}>New Scholarship</Button>
-      </div>
+    <>
+      <PageHeader
+        title="Scholarships"
+        description="Scholarship schemes offered to students."
+        actions={
+          <Button icon={<FiPlus />} collapseLabel onClick={() => navigate('/education/scholarships/create')}>
+            New scholarship
+          </Button>
+        }
+      />
 
-      <Card>
-        <div className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <ExpandableSearch
-              value={search}
-              onChange={(value) => setSearch(value)}
-              entity="scholarships"
-            />
-            <select
-              aria-label="Filter"
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
-              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700"
-            >
-              <option value="">All statuses</option>
-              {SCHOLARSHIP_STATUS_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-            <Button onClick={() => fetchScholarships()}>Refresh</Button>
-          </div>
+      <TableCard>
+        <TableToolbar
+          searchQuery={search}
+          onSearchChange={setSearch}
+          searchEntity="scholarships"
+          onFilterClick={() => setIsFilterVisible((open) => !open)}
+          isFilterVisible={isFilterVisible}
+          hasFilters
+          activeFilterCount={status ? 1 : 0}
+          onRefresh={fetchScholarships}
+        />
 
-          <Table
-            columns={columns}
-            data={scholarships}
-            isLoading={loading}
-            entity="scholarships"
-            emptyVariant={search || status ? 'no-results' : 'empty'}
-            emptyAction={
-              !search && !status
-                ? { label: 'New Scholarship', onClick: () => navigate('/education/scholarships/create') }
-                : undefined
-            }
-            onRowClick={(s) => navigate(`/education/scholarships/${s.id}`)}
-            rowKey={(s) => s.id}
-          />
-
-          {!loading && pagination && scholarships.length > 0 && (
-            <div className="mt-4">
-              <Pagination
-                currentPage={pagination.page}
-                totalPages={pagination.totalPages}
-                totalItems={pagination.total}
-                itemsPerPage={10}
-                onPageChange={setCurrentPage}
+        {isFilterVisible && (
+          <FilterPanel onClose={() => setIsFilterVisible(false)}>
+            <div className="w-full sm:w-52">
+              <Select
+                label="Status"
+                options={[{ value: '', label: 'All statuses' }, ...SCHOLARSHIP_STATUS_OPTIONS]}
+                value={status}
+                onChange={(e) => setStatus(e.target.value)}
               />
             </div>
-          )}
-        </div>
-      </Card>
+            {status && (
+              <Button variant="ghost" onClick={() => setStatus('')}>
+                Clear filters
+              </Button>
+            )}
+          </FilterPanel>
+        )}
+
+        {error ? (
+          <EmptyState variant="error" entity="scholarships" description={error} action={{ label: 'Try again', onClick: fetchScholarships }} />
+        ) : (
+          <>
+            <Table
+              fixedLayout
+              columns={columns}
+              data={scholarships}
+              isLoading={loading}
+              entity="scholarships"
+              emptyVariant={isFiltered ? 'no-results' : 'empty'}
+              emptyAction={
+                isFiltered
+                  ? { label: 'Clear filters', onClick: () => { setSearch(''); setStatus(''); } }
+                  : { label: 'Add scholarship', onClick: () => navigate('/education/scholarships/create') }
+              }
+              onRowClick={(s) => navigate(`/education/scholarships/${s.id}`)}
+              rowKey={(s) => s.id}
+            />
+
+            {pagination && (
+              <div className="mt-4">
+                <Pagination
+                  currentPage={pagination.page}
+                  totalPages={pagination.totalPages}
+                  totalItems={pagination.total}
+                  itemsPerPage={pagination.limit}
+                  entity="scholarships"
+                  onPageChange={setCurrentPage}
+                  onItemsPerPageChange={(size) => {
+                    setItemsPerPage(size);
+                    setCurrentPage(1);
+                  }}
+                />
+              </div>
+            )}
+          </>
+        )}
+      </TableCard>
 
       <ConfirmDialog
         isOpen={deleteConfirm !== null}
-        title="Delete Scholarship"
-        message={deleteConfirm ? `Are you sure you want to delete "${toTitleCase(deleteConfirm.name)}"?` : ''}
-        consequence="This action cannot be undone."
+        title={deleteConfirm ? `Delete ${toTitleCase(deleteConfirm.name)}?` : 'Delete this scholarship?'}
+        message="This permanently removes the scholarship and cannot be undone."
         isLoading={deleting}
         variant="danger"
-        confirmLabel="Delete"
+        confirmLabel="Delete scholarship"
         onConfirm={handleDelete}
         onCancel={() => setDeleteConfirm(null)}
       />
-    </div>
+    </>
   );
 }

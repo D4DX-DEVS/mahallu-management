@@ -5,7 +5,6 @@ import TableCard from '@/components/ui/TableCard';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
 import EmptyState from '@/components/ui/EmptyState';
-import { PageSkeleton } from '@/components/ui/Skeleton';
 import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
 import { TableColumn, Pagination as PaginationType } from '@/types';
@@ -45,7 +44,6 @@ export default function MemberVarisangyaWallet() {
   const [error, setError] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [isFilterVisible, setIsFilterVisible] = useState(false);
   // A slow response for an old page/search must not overwrite a newer one.
   const latestRequest = useRef(0);
 
@@ -210,34 +208,31 @@ export default function MemberVarisangyaWallet() {
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
-          onFilterClick={() => setIsFilterVisible(!isFilterVisible)}
-          isFilterVisible={isFilterVisible}
-          hasFilters={false}
+          searchEntity="wallets"
           onRefresh={fetchWallets}
           onExport={handleExport}
           isExporting={isExporting}
         />
-        {loading ? (
-          <PageSkeleton variant="section" />
-        ) : error ? (
+        {error ? (
           <EmptyState
             variant="error"
             entity="wallets"
             description={error}
-            action={{ label: 'Retry', onClick: fetchWallets }}
+            action={{ label: 'Try again', onClick: fetchWallets }}
           />
         ) : (
           <Table
             fixedLayout
-            striped
             columns={columns}
             data={wallets}
-            emptyMessage="No wallets found"
-            showExport={false}
+            isLoading={loading}
+            entity="wallets"
+            emptyVariant={searchQuery ? 'no-results' : 'empty'}
             rowKey={(row, index) => row.memberId || String(index)}
             onRowClick={(row) => navigate(`${MEMBER_BASE}?view=transactions&memberId=${row.memberId || ''}`)}
           />
         )}
+
         {pagination && !memberId && (
           <div className="mt-4">
             <Pagination

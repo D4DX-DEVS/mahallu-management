@@ -8,7 +8,6 @@ import Select from '@/components/ui/Select';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
 import EmptyState from '@/components/ui/EmptyState';
-import { PageSkeleton } from '@/components/ui/Skeleton';
 import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
@@ -58,6 +57,7 @@ export default function SalaryList() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
   const [summary, setSummary] = useState<SalaryListSummary | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; label: string } | null>(null);
@@ -69,7 +69,7 @@ export default function SalaryList() {
 
   useEffect(() => {
     fetchPayments();
-  }, [statusFilter, monthFilter, yearFilter, instituteFilter, currentPage]);
+  }, [statusFilter, monthFilter, yearFilter, instituteFilter, currentPage, itemsPerPage]);
 
   const fetchInstitutes = async () => {
     try {
@@ -84,7 +84,7 @@ export default function SalaryList() {
     try {
       setLoading(true);
       setError(null);
-      const params: any = { page: currentPage, limit: 10 };
+      const params: any = { page: currentPage, limit: itemsPerPage };
       if (statusFilter !== 'all') params.status = statusFilter;
       if (monthFilter !== 'all') params.month = Number(monthFilter);
       if (yearFilter !== 'all') params.year = Number(yearFilter);
@@ -125,30 +125,35 @@ export default function SalaryList() {
     {
       key: 'employeeId',
       label: 'Employee',
-      width: '8.5rem',
-      render: (emp) => (typeof emp === 'object' && emp?.name ? toTitleCase(emp.name) : emp || '-'),
+      width: '16rem',
+      render: (emp) => (
+        <span className="font-medium text-foreground">
+          {typeof emp === 'object' && emp?.name ? toTitleCase(emp.name) : emp || '—'}
+        </span>
+      ),
     },
-    { key: 'month', label: 'Period', width: '7rem', render: (_, row) => `${getMonthName(row.month)} ${row.year}` },
-    { key: 'baseSalary', label: 'Base', width: '6.25rem', render: (v) => `₹${Number(v || 0).toLocaleString()}` },
+    { key: 'month', label: 'Period', width: '10rem', render: (_, row) => `${getMonthName(row.month)} ${row.year}` },
+    { key: 'baseSalary', priority: 'secondary', label: 'Base', width: '9rem', render: (v) => `₹${Number(v || 0).toLocaleString()}` },
     {
       key: 'netAmount',
-      label: 'Net Amount',
-      width: '11.5rem',
-      align: 'center',
+      label: 'Net amount',
+      width: '10rem',
+      align: 'right',
       render: (v) => <span className="font-semibold">₹{Number(v || 0).toLocaleString()}</span>,
     },
-    { key: 'paymentMethod', label: 'Method', width: '7.5rem', render: (v) => v || '-' },
+    { key: 'paymentMethod', priority: 'tertiary', label: 'Method', width: '9rem', render: (v) => v || '-' },
     {
       key: 'status',
       label: 'Status',
-      width: '7.25rem',
+      width: '8rem',
       render: (status) => <StatusBadge status={status || 'pending'} />,
     },
     {
       key: 'actions',
-      label: 'Actions',
-      width: '8rem',
-      align: 'center',
+      label: '',
+      width: '6.5rem',
+      align: 'right',
+      sortable: false,
       render: (_, row) => {
         const empLabel =
           typeof row.employeeId === 'object' && row.employeeId?.name
@@ -156,6 +161,7 @@ export default function SalaryList() {
             : 'this employee';
         return (
           <ActionsMenu
+            label={`Actions for ${empLabel}`}
             items={[
               {
                 label: 'View',
@@ -195,55 +201,60 @@ export default function SalaryList() {
     label: String(currentYear - i),
   }));
 
+  const activeFilterCount = [statusFilter, monthFilter, yearFilter].filter((v) => v !== 'all').length + (!userInstituteId && instituteFilter !== 'all' ? 1 : 0);
+  const isFiltered = activeFilterCount > 0;
+
   return (
-    <div className="space-y-4">
-      <div className="space-y-3">
-        <PageHeader title="Salary Payments" description="Manage employee salary payments" />
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          <StatCard
-            title="Total Payments"
-            value={pagination?.total || payments.length}
-            icon={<FiDollarSign className="h-5 w-5" />}
-          />
-          <StatCard
-            title="Total Paid"
-            value={`₹${totalPaid.toLocaleString()}`}
-            icon={<FiCheckCircle className="h-5 w-5" />}
-          />
-          <StatCard
-            title="Total Pending"
-            value={`₹${totalPending.toLocaleString()}`}
-            icon={<FiClock className="h-5 w-5" />}
-          />
-        </div>
+    <>
+      <PageHeader
+        title="Salary payments"
+        description="Manage employee salary payments."
+        actions={
+          <>
+            <Link to={ROUTES.SALARY.SUMMARY}>
+              <Button variant="outline" icon={<FiBarChart2 />} collapseLabel>Summary</Button>
+            </Link>
+            <Link to={ROUTES.SALARY.CREATE}>
+              <Button icon={<FiPlus />} collapseLabel>New payment</Button>
+            </Link>
+          </>
+        }
+      />
+
+      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <StatCard
+          title="Total Payments"
+          value={pagination?.total || payments.length}
+          icon={<FiDollarSign className="h-5 w-5" />}
+        />
+        <StatCard
+          title="Total Paid"
+          value={`₹${totalPaid.toLocaleString()}`}
+          icon={<FiCheckCircle className="h-5 w-5" />}
+        />
+        <StatCard
+          title="Total Pending"
+          value={`₹${totalPending.toLocaleString()}`}
+          icon={<FiClock className="h-5 w-5" />}
+        />
       </div>
 
       <TableCard>
         <TableToolbar
-          searchQuery=""
-          onSearchChange={() => {}}
-          onFilterClick={() => setIsFilterVisible(!isFilterVisible)}
+          onFilterClick={() => setIsFilterVisible((open) => !open)}
           isFilterVisible={isFilterVisible}
-          hasFilters={true}
+          hasFilters
+          activeFilterCount={activeFilterCount}
           onRefresh={fetchPayments}
-          actionButtons={
-            <div className="flex items-center gap-2">
-              <Link to={ROUTES.SALARY.SUMMARY}>
-                <Button size="md" variant="outline" icon={<FiBarChart2 />} collapseLabel>Summary</Button>
-              </Link>
-              <Link to={ROUTES.SALARY.CREATE}>
-                <Button size="md" icon={<FiPlus />} collapseLabel>New Payment</Button>
-              </Link>
-            </div>
-          }
         />
 
         {isFilterVisible && (
           <FilterPanel onClose={() => setIsFilterVisible(false)}>
-            <div className="w-full sm:w-36">
+            <div className="w-full sm:w-44">
               <Select
+                label="Status"
                 options={[
-                  { value: 'all', label: 'All Status' },
+                  { value: 'all', label: 'All statuses' },
                   { value: 'paid', label: 'Paid' },
                   { value: 'pending', label: 'Pending' },
                   { value: 'cancelled', label: 'Cancelled' },
@@ -255,9 +266,10 @@ export default function SalaryList() {
                 }}
               />
             </div>
-            <div className="w-full sm:w-36">
+            <div className="w-full sm:w-44">
               <Select
-                options={[{ value: 'all', label: 'All Months' }, ...MONTHS]}
+                label="Month"
+                options={[{ value: 'all', label: 'All months' }, ...MONTHS]}
                 value={monthFilter}
                 onChange={(e) => {
                   setMonthFilter(e.target.value);
@@ -265,9 +277,10 @@ export default function SalaryList() {
                 }}
               />
             </div>
-            <div className="w-28">
+            <div className="w-full sm:w-36">
               <Select
-                options={[{ value: 'all', label: 'All Years' }, ...years]}
+                label="Year"
+                options={[{ value: 'all', label: 'All years' }, ...years]}
                 value={yearFilter}
                 onChange={(e) => {
                   setYearFilter(e.target.value);
@@ -276,10 +289,11 @@ export default function SalaryList() {
               />
             </div>
             {!userInstituteId && (
-              <div className="w-full sm:w-48">
+              <div className="w-full sm:w-52">
                 <Select
+                  label="Institute"
                   options={[
-                    { value: 'all', label: 'All Institutes' },
+                    { value: 'all', label: 'All institutes' },
                     ...institutes.map((i) => ({ value: i.id, label: toTitleCase(i.name) })),
                   ]}
                   value={instituteFilter}
@@ -290,40 +304,64 @@ export default function SalaryList() {
                 />
               </div>
             )}
+            {activeFilterCount > 0 && (
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setStatusFilter('all');
+                  setMonthFilter('all');
+                  setYearFilter('all');
+                  if (!userInstituteId) setInstituteFilter('all');
+                  setCurrentPage(1);
+                }}
+              >
+                Clear filters
+              </Button>
+            )}
           </FilterPanel>
         )}
 
-        {loading ? (
-          <PageSkeleton variant="section" />
-        ) : error ? (
+        {error ? (
           <EmptyState
             variant="error"
             entity="salary payments"
             description={error}
-            action={{ label: 'Retry', onClick: fetchPayments }}
+            action={{ label: 'Try again', onClick: fetchPayments }}
           />
         ) : (
-          <Table
-            fixedLayout
-            striped
-            columns={columns}
-            data={payments}
-            emptyMessage="No salary payments found"
-            showExport={false}
-            onRowClick={(row) => navigate(ROUTES.SALARY.DETAIL(row.id))}
-          />
-        )}
-
-        {pagination && (
-          <div className="mt-4">
-            <Pagination
-              currentPage={pagination.page}
-              totalPages={pagination.totalPages}
-              totalItems={pagination.total}
-              itemsPerPage={pagination.limit}
-              onPageChange={setCurrentPage}
+          <>
+            <Table
+              fixedLayout
+              columns={columns}
+              data={payments}
+              isLoading={loading}
+              entity="salary payments"
+              emptyVariant={isFiltered ? 'no-results' : 'empty'}
+              emptyAction={
+                isFiltered
+                  ? { label: 'Clear filters', onClick: () => { setStatusFilter('all'); setMonthFilter('all'); setYearFilter('all'); if (!userInstituteId) setInstituteFilter('all'); setCurrentPage(1); } }
+                  : { label: 'Record payment', onClick: () => navigate(ROUTES.SALARY.CREATE) }
+              }
+              onRowClick={(row) => navigate(ROUTES.SALARY.DETAIL(row.id))}
             />
-          </div>
+
+            {pagination && (
+              <div className="mt-4">
+                <Pagination
+                  currentPage={pagination.page}
+                  totalPages={pagination.totalPages}
+                  totalItems={pagination.total}
+                  itemsPerPage={pagination.limit}
+                  entity="salary payments"
+                  onPageChange={setCurrentPage}
+                  onItemsPerPageChange={(size) => {
+                    setItemsPerPage(size);
+                    setCurrentPage(1);
+                  }}
+                />
+              </div>
+            )}
+          </>
         )}
       </TableCard>
 
@@ -339,6 +377,6 @@ export default function SalaryList() {
         onConfirm={handleConfirmDelete}
         onCancel={() => setDeleteConfirm(null)}
       />
-    </div>
+    </>
   );
 }

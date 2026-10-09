@@ -5,8 +5,8 @@ import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import Table from '@/components/ui/Table';
 import StatCard from '@/components/ui/StatCard';
-import ExpandableSearch from '@/components/ui/ExpandableSearch';
-import ActionBar from '@/components/ui/ActionBar';
+import Tabs from '@/components/ui/Tabs';
+import TableToolbar from '@/components/ui/TableToolbar';
 import Pagination from '@/components/ui/Pagination';
 import EmptyState from '@/components/ui/EmptyState';
 import { Pagination as PaginationType, TableColumn } from '@/types';
@@ -34,13 +34,14 @@ export default function LoansList() {
   const [statusFilter, setStatusFilter] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
 
   const debouncedSearch = useDebounce(searchQuery, 500);
 
   useEffect(() => {
     fetchRows();
-  }, [statusFilter, debouncedSearch, currentPage]);
+  }, [statusFilter, debouncedSearch, currentPage, itemsPerPage]);
 
   useEffect(() => {
     qardService
@@ -53,7 +54,7 @@ export default function LoansList() {
     try {
       setLoading(true);
       setError(null);
-      const params: Record<string, any> = { page: currentPage, limit: 10 };
+      const params: Record<string, any> = { page: currentPage, limit: itemsPerPage };
       if (statusFilter) params.status = statusFilter;
       if (debouncedSearch) params.search = debouncedSearch;
       const result = await qardService.getLoans(params);
@@ -70,47 +71,55 @@ export default function LoansList() {
     {
       key: 'applicantName',
       label: 'Applicant',
-      width: '8.25rem',
-      render: (_v, row) => toTitleCase(loanApplicantName(row)),
+      sortable: false,
+      width: '16rem',
+      render: (_v, row) => <span className="font-medium text-foreground">{toTitleCase(loanApplicantName(row))}</span>,
     },
     {
       key: 'purpose',
       label: 'Purpose',
-      width: '7.75rem',
+      sortable: true,
+      priority: 'secondary',
+      width: '11rem',
       render: (v) => LOAN_PURPOSE_OPTIONS.find((o) => o.value === v)?.label || v,
     },
     {
       key: 'amount',
       label: 'Amount',
-      width: '9.25rem',
-      align: 'center',
+      width: '9rem',
+      align: 'right',
+      sortable: true,
       render: (v, row) => formatCurrency(row.approvedAmount ?? v),
     },
     {
       key: 'outstandingBalance',
       label: 'Outstanding',
-      width: '11.25rem',
-      align: 'center',
-      render: (v) => (v > 0 ? formatCurrency(v) : '-'),
+      width: '9rem',
+      align: 'right',
+      sortable: true,
+      priority: 'secondary',
+      render: (v) => (v > 0 ? formatCurrency(v) : '—'),
     },
-    { key: 'appliedDate', label: 'Applied', width: '7.25rem', render: (v) => formatDate(v) },
-    { key: 'status', label: 'Status', width: '7.25rem', render: (v) => <LoanStatusBadge status={v} /> },
+    { key: 'appliedDate', label: 'Applied', sortable: true, priority: 'secondary', width: '9rem', render: (v) => formatDate(v) },
+    { key: 'status', label: 'Status', sortable: true, width: '8rem', render: (v) => <LoanStatusBadge status={v} /> },
   ];
 
+  const isFiltered = Boolean(statusFilter || debouncedSearch);
+
   return (
-    <div>
+    <>
       <PageHeader
-        description="Interest-free loans, from application through repayment."
         title="Qard Hasan"
-        breadcrumbs={[{ label: 'Services' }]}
+        description="Interest-free loans, from application through repayment."
+        actions={
+          <Button icon={<FiPlus />} collapseLabel onClick={() => navigate('/loans/create')}>
+            New application
+          </Button>
+        }
       />
 
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <Button onClick={() => navigate('/loans/create')} icon={<FiPlus />} collapseLabel>New application</Button>
-      </div>
-
       {summary && (
-        <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
+        <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
           <StatCard title="Disbursed" value={formatCurrency(summary.totalDisbursed)} />
           <StatCard title="Outstanding" value={formatCurrency(summary.totalOutstanding)} />
           <StatCard title="Repaid" value={formatCurrency(summary.totalRepaid)} />
@@ -120,70 +129,73 @@ export default function LoansList() {
       )}
 
       <TableCard>
-        <ActionBar>
-          <ExpandableSearch
-            value={searchQuery}
-            onChange={(value) => {
-              setSearchQuery(value);
-              setCurrentPage(1);
-            }}
-            entity="loan applications"
-            placeholder="Search by applicant name"
-          />
-        </ActionBar>
-
-        <div className="mb-3 grid grid-cols-4 gap-1.5 sm:flex sm:flex-wrap">
-          {LOAN_STATUS_TABS.map((tab) => (
-            <button
-              key={tab.value || 'all'}
-              onClick={() => {
-                setStatusFilter(tab.value);
+        <TableToolbar
+          tabs={
+            <Tabs
+              variant="segmented"
+              ariaLabel="Application status"
+              value={statusFilter}
+              onChange={(value) => {
+                setStatusFilter(value);
                 setCurrentPage(1);
               }}
-              className={`rounded-md px-2 py-1.5 text-xs font-medium transition-colors sm:px-3 sm:text-sm ${
-                statusFilter === tab.value
-                  ? 'bg-primary-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
+              items={LOAN_STATUS_TABS}
+            />
+          }
+          searchQuery={searchQuery}
+          onSearchChange={(value) => {
+            setSearchQuery(value);
+            setCurrentPage(1);
+          }}
+          searchEntity="loan applications"
+          onRefresh={fetchRows}
+        />
 
-        {error && (
-          <div className="mb-3 rounded-md bg-red-50 p-3 text-sm text-red-700 dark:bg-red-900/20 dark:text-red-300">
-            {error}
-          </div>
-        )}
-
-        {!loading && rows.length === 0 ? (
-          <EmptyState
-            title="No loan applications yet"
-            description="Start by creating a new application"
-            action={{ label: 'New application', onClick: () => navigate('/loans/create') }}
-          />
+        {error ? (
+          <EmptyState variant="error" entity="loans" description={error} action={{ label: 'Try again', onClick: fetchRows }} />
         ) : (
-          <Table
-            fixedLayout
-            striped
-            columns={columns}
-            data={rows}
-            isLoading={loading}
-            onRowClick={(row) => navigate(`/loans/${row.id}`)}
-          />
-        )}
+          <>
+            <Table
+              fixedLayout
+              columns={columns}
+              data={rows}
+              isLoading={loading}
+              entity="loan applications"
+              emptyVariant={isFiltered ? 'no-results' : 'empty'}
+              emptyAction={
+                isFiltered
+                  ? {
+                      label: 'Clear filters',
+                      onClick: () => {
+                        setSearchQuery('');
+                        setStatusFilter('');
+                        setCurrentPage(1);
+                      },
+                    }
+                  : { label: 'New application', onClick: () => navigate('/loans/create') }
+              }
+              onRowClick={(row) => navigate(`/loans/${row.id}`)}
+            />
 
-        {pagination && pagination.totalPages > 1 && (
-          <Pagination
-            currentPage={pagination.page}
-            totalPages={pagination.totalPages}
-            totalItems={pagination.total}
-            itemsPerPage={pagination.limit}
-            onPageChange={setCurrentPage}
-          />
+            {pagination && (
+              <div className="mt-4">
+                <Pagination
+                  currentPage={pagination.page}
+                  totalPages={pagination.totalPages}
+                  totalItems={pagination.total}
+                  itemsPerPage={pagination.limit}
+                  entity="loan applications"
+                  onPageChange={setCurrentPage}
+                  onItemsPerPageChange={(size) => {
+                    setItemsPerPage(size);
+                    setCurrentPage(1);
+                  }}
+                />
+              </div>
+            )}
+          </>
         )}
       </TableCard>
-    </div>
+    </>
   );
 }

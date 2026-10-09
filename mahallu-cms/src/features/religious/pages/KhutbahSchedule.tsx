@@ -1,15 +1,19 @@
-import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { FiTrash2, FiPlus, FiCalendar } from 'react-icons/fi';
 import Card from '@/components/ui/Card';
 import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import Table from '@/components/ui/Table';
+import TableToolbar from '@/components/ui/TableToolbar';
+import FilterPanel from '@/components/ui/FilterPanel';
+import Input from '@/components/ui/Input';
+import EmptyState from '@/components/ui/EmptyState';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import Modal from '@/components/ui/Modal';
 import Pagination from '@/components/ui/Pagination';
-import { PageSkeleton } from '@/components/ui/Skeleton';
+import { toast } from '@/store/toastStore';
 import { Khutbah, religiousService, KHUTBAH_STATUS_OPTIONS } from '@/services/religiousService';
-import { useDebounce } from '@/hooks/useDebounce';
 import { formatDate, toTitleCase } from '@/utils/format';
 import { ROUTES } from '@/constants/routes';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
@@ -23,7 +27,8 @@ export default function KhutbahSchedule() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
+  const [isFilterVisible, setIsFilterVisible] = useState(false);
   const [pagination, setPagination] = useState<any>(null);
   const [selectedKhutbah, setSelectedKhutbah] = useState<Khutbah | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -33,10 +38,8 @@ export default function KhutbahSchedule() {
     new Date().toISOString().split('T')[0].slice(0, 7)
   );
 
-  useEffect(() => {
-    fetchUpcomingKhutbah();
-    fetchKhutbahs();
-  }, [selectedMonth, currentPage]);
+  const thisMonth = new Date().toISOString().split('T')[0].slice(0, 7);
+  const isFiltered = selectedMonth !== thisMonth;
 
   const fetchUpcomingKhutbah = async () => {
     try {
@@ -54,39 +57,46 @@ export default function KhutbahSchedule() {
     }
   };
 
-  const fetchKhutbahs = async () => {
+  const fetchKhutbahs = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      const params: any = {
+      const result = await religiousService.getAllKhutbahs({
         page: currentPage,
         limit: itemsPerPage,
         month: selectedMonth,
-      };
-      const result = await religiousService.getAllKhutbahs(params);
+      });
       setKhutbahs(result.data);
       if (result.pagination) {
         setPagination(result.pagination);
       }
-    } catch (err: any) {
+    } catch (err) {
       setError(loadErrorMessage(err, 'khutbahs'));
-      console.error('Error fetching khutbahs:', err);
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentPage, itemsPerPage, selectedMonth]);
+
+  useEffect(() => {
+    fetchUpcomingKhutbah();
+  }, [selectedMonth, currentPage]);
+
+  useEffect(() => {
+    fetchKhutbahs();
+  }, [fetchKhutbahs]);
 
   const handleDelete = async () => {
     if (!selectedKhutbah) return;
     try {
       setDeleting(true);
       await religiousService.deleteKhutbah(selectedKhutbah.id);
+      toast.success('Khutbah deleted');
       setShowDeleteModal(false);
       setSelectedKhutbah(null);
       fetchKhutbahs();
       fetchUpcomingKhutbah();
     } catch (err: any) {
-      setError(errorMessage(err, { action: 'delete khutbah' }));
+      toast.error(errorMessage(err, { action: 'delete khutbah' }));
     } finally {
       setDeleting(false);
     }
@@ -103,124 +113,148 @@ export default function KhutbahSchedule() {
     {
       key: 'date',
       label: 'Date',
+      sortable: true,
+      width: '10rem',
       render: (_: any, khutbah: Khutbah) => formatDate(khutbah.date),
     },
     {
       key: 'topic',
       label: 'Topic',
-      render: (_: any, khutbah: Khutbah) => toTitleCase(khutbah.topic),
+      sortable: true,
+      width: '20rem',
+      render: (_: any, khutbah: Khutbah) => <span className="font-medium text-foreground">{toTitleCase(khutbah.topic)}</span>,
     },
     {
       key: 'khateebId',
       label: 'Khateeb',
+      sortable: false,
+      priority: 'secondary' as const,
+      width: '14rem',
       render: (_: any, khutbah: Khutbah) => getKhateebName(khutbah),
     },
     {
       key: 'status',
       label: 'Status',
+      sortable: true,
+      width: '8rem',
       render: (_: any, khutbah: Khutbah) => <StatusBadge status={khutbah.status} />,
     },
   ];
 
-  if (loading) return <PageSkeleton />;
-
   return (
-    <div className="space-y-4">
-      <PageHeader title="Khutbah Schedule" />
+    <>
+      <PageHeader
+        title="Khutbah schedule"
+        description="Friday khutbah topics and khateebs, month by month."
+        actions={
+          <Button icon={<FiPlus />} collapseLabel onClick={() => navigate(ROUTES.RELIGIOUS.KHUTBAHS_CREATE)}>
+            New khutbah
+          </Button>
+        }
+      />
 
-      {error && <div className="p-4 bg-red-100 text-red-800 rounded">{error}</div>}
-
-      {/* Upcoming Khutbah Card */}
       {upcomingKhutbah && (
-        <Card className="border-l-4 border-blue-500 bg-blue-50">
-          <div className="space-y-3">
-            <div className="flex items-start justify-between">
-              <div>
-                <h3 className="text-lg font-semibold flex items-center gap-2">
-                  <FiCalendar /> Next Khutbah
-                </h3>
-                <p className="text-sm text-gray-600 mt-1">{formatDate(upcomingKhutbah.date)}</p>
-              </div>
-              <span className="px-3 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded">
-                Upcoming
-              </span>
+        <Card className="mb-6 border-l-4 border-primary">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h3 className="flex items-center gap-2 text-base font-semibold text-foreground">
+                <FiCalendar aria-hidden="true" /> Next khutbah
+              </h3>
+              <p className="mt-0.5 text-sm text-muted-foreground">{formatDate(upcomingKhutbah.date)}</p>
+              <p className="mt-2 font-medium text-foreground">{toTitleCase(upcomingKhutbah.topic)}</p>
+              {upcomingKhutbah.topicMl && <p className="text-sm text-muted-foreground">{upcomingKhutbah.topicMl}</p>}
+              <p className="mt-1 text-sm text-muted-foreground">Khateeb: {getKhateebName(upcomingKhutbah)}</p>
             </div>
-            <div className="space-y-2">
-              <div>
-                <p className="text-sm text-gray-600">Topic</p>
-                <p className="font-medium">{toTitleCase(upcomingKhutbah.topic)}</p>
-                {upcomingKhutbah.topicMl && (
-                  <p className="text-sm text-gray-700">{upcomingKhutbah.topicMl}</p>
-                )}
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Khateeb</p>
-                <p className="font-medium">{getKhateebName(upcomingKhutbah)}</p>
-              </div>
-            </div>
+            <StatusBadge status="upcoming" />
           </div>
         </Card>
       )}
 
-      {/* Filters and Actions */}
-      <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
-        <div className="w-full sm:w-auto">
-          <label className="block text-sm font-medium mb-2">Filter by Month</label>
-          <input
-            aria-label="Filter by Month"
-            type="month"
-            value={selectedMonth}
-            onChange={(e) => {
-              setSelectedMonth(e.target.value);
-              setCurrentPage(1);
-            }}
-            className="px-3 py-2 border rounded w-full sm:w-auto"
-          />
-        </div>
-        <Link to={ROUTES.RELIGIOUS.KHUTBAHS_CREATE}>
-          <Button className="w-full sm:w-auto">
-            <FiPlus className="inline mr-2" />
-            New Khutbah
-          </Button>
-        </Link>
-      </div>
-
-      {/* Khutbahs Table */}
       <TableCard>
-        <Table
-          fixedLayout
-          striped
-          columns={columns}
-          data={khutbahs}
-          onRowClick={(row) => setViewingKhutbah(row)}
+        <TableToolbar
+          onFilterClick={() => setIsFilterVisible((open) => !open)}
+          isFilterVisible={isFilterVisible}
+          hasFilters
+          activeFilterCount={isFiltered ? 1 : 0}
+          onRefresh={fetchKhutbahs}
         />
+
+        {isFilterVisible && (
+          <FilterPanel onClose={() => setIsFilterVisible(false)}>
+            <div className="w-full sm:w-52">
+              <Input
+                label="Month"
+                type="month"
+                value={selectedMonth}
+                onChange={(e) => {
+                  setSelectedMonth(e.target.value);
+                  setCurrentPage(1);
+                }}
+              />
+            </div>
+            {isFiltered && (
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setSelectedMonth(thisMonth);
+                  setCurrentPage(1);
+                }}
+              >
+                This month
+              </Button>
+            )}
+          </FilterPanel>
+        )}
+
+        {error ? (
+          <EmptyState variant="error" entity="khutbahs" description={error} action={{ label: 'Try again', onClick: fetchKhutbahs }} />
+        ) : (
+          <>
+            <Table
+              fixedLayout
+              columns={columns}
+              data={khutbahs}
+              isLoading={loading}
+              entity="khutbahs"
+              emptyVariant={isFiltered ? 'no-results' : 'empty'}
+              emptyAction={
+                isFiltered
+                  ? { label: 'Show this month', onClick: () => { setSelectedMonth(thisMonth); setCurrentPage(1); } }
+                  : { label: 'Add khutbah', onClick: () => navigate(ROUTES.RELIGIOUS.KHUTBAHS_CREATE) }
+              }
+              onRowClick={(row) => setViewingKhutbah(row)}
+            />
+
+            {pagination && (
+              <div className="mt-4">
+                <Pagination
+                  currentPage={pagination.page}
+                  totalPages={pagination.totalPages}
+                  totalItems={pagination.total}
+                  itemsPerPage={pagination.limit}
+                  entity="khutbahs"
+                  onPageChange={setCurrentPage}
+                  onItemsPerPageChange={(size) => {
+                    setItemsPerPage(size);
+                    setCurrentPage(1);
+                  }}
+                />
+              </div>
+            )}
+          </>
+        )}
       </TableCard>
 
-      {pagination && (
-        <Pagination
-          currentPage={pagination.page}
-          totalPages={pagination.totalPages}
-          totalItems={pagination.total}
-          itemsPerPage={pagination.limit}
-          entity="khutbahs"
-          onPageChange={setCurrentPage}
-        />
-      )}
-
-      {/* Delete Modal */}
-      <Modal isOpen={showDeleteModal} onClose={() => setShowDeleteModal(false)} title="Confirm Delete">
-        <div className="space-y-4">
-          <p>Are you sure you want to delete this khutbah?</p>
-          <div className="flex gap-2 flex-col-reverse sm:flex-row sm:justify-end sm:gap-3">
-            <Button variant="outline" onClick={() => setShowDeleteModal(false)} disabled={deleting}>
-              Cancel
-            </Button>
-            <Button variant="danger" onClick={handleDelete} disabled={deleting} isLoading={deleting}>
-              Delete
-            </Button>
-          </div>
-        </div>
-      </Modal>
+      <ConfirmDialog
+        isOpen={showDeleteModal}
+        title={`Delete the khutbah on ${selectedKhutbah ? formatDate(selectedKhutbah.date) : 'this date'}?`}
+        message="This permanently removes the khutbah and cannot be undone."
+        confirmLabel="Delete khutbah"
+        variant="danger"
+        isLoading={deleting}
+        onConfirm={handleDelete}
+        onCancel={() => setShowDeleteModal(false)}
+      />
 
       {/* View Modal */}
       <Modal
@@ -295,6 +329,6 @@ export default function KhutbahSchedule() {
           </div>
         )}
       </Modal>
-    </div>
+    </>
   );
 }

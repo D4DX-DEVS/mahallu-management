@@ -1,15 +1,15 @@
 # Mahallu UI/UX verification report
 
-Generated: 2026-10-05
+Generated: 2026-10-09
 
 This report is generated from the route and page source with `npm run audit:ui`. It verifies the shared page contract after the cross-module alignment pass; it does not claim that live API data is present.
 
 ## Coverage
 
-- Registered protected routes: **257**
-- Feature page files audited: **245**
-- Pages passing the shared contract: **245/245**
-- Hand-written tables using the shared table treatment: **34/34**
+- Registered protected routes: **259**
+- Feature page files audited: **246**
+- Pages passing the shared contract: **246/246**
+- Hand-written tables using the shared table treatment: **22/22**
 - Pages needing a source-level follow-up: **0**
 
 The shared contract is: a `PageHeader` or documented custom header, a consistent surface primitive, loading/error treatment for data-backed screens, and the normalized `.data-table` treatment for hand-written tables. Create/edit routes are covered by `FormModalRoute`, so they are explicitly accepted as modal form surfaces.
@@ -24,7 +24,7 @@ The shared contract is: a `PageHeader` or documented custom header, a consistent
 | `IncomeExpenditure` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `LedgerReport` | PASS | PASS | PASS | PASS | 5 | **PASS** |
 | `PettyCashDetail` | PASS | PASS | PASS | PASS | 3 | **PASS** |
-| `PettyCashList` | PASS | PASS | PASS | N/A | 6 | **PASS** |
+| `PettyCashList` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `TrialBalance` | PASS | PASS | PASS | PASS | 3 | **PASS** |
 | `CategoriesList` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `CategoryDetail` | PASS | PASS | PASS | N/A | 0 | **PASS** |
@@ -34,15 +34,15 @@ The shared contract is: a `PageHeader` or documented custom header, a consistent
 | `EditTenant` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `MahallMain` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `Security` | PASS | PASS | PASS | PASS | 0 | **PASS** |
-| `TenantDetails` | PASS | PASS | PASS | N/A | 2 | **PASS** |
-| `TenantsList` | PASS | PASS | PASS | N/A | 4 | **PASS** |
-| `AssetDetail` | PASS | PASS | PASS | N/A | 7 | **PASS** |
-| `AssetsList` | PASS | PASS | PASS | N/A | 3 | **PASS** |
+| `TenantDetails` | PASS | PASS | PASS | N/A | 0 | **PASS** |
+| `TenantsList` | PASS | PASS | PASS | N/A | 0 | **PASS** |
+| `AssetDetail` | PASS | PASS | PASS | N/A | 6 | **PASS** |
+| `AssetsList` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `CreateAsset` | PASS | PASS | PASS | N/A | 1 | **PASS** |
 | `EditAsset` | PASS | PASS | PASS | N/A | 1 | **PASS** |
 | `Assistant` | PASS | PASS | PASS | N/A | 11 | **PASS** |
 | `Login` | PASS | PASS | PASS | N/A | 0 | **PASS** |
-| `CemeteriesList` | PASS | PASS | PASS | N/A | 2 | **PASS** |
+| `CemeteriesList` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `CemeteryDetail` | PASS | PASS | PASS | PASS | 4 | **PASS** |
 | `CemeteryForm` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `GraveForm` | PASS | PASS | PASS | N/A | 0 | **PASS** |
@@ -54,71 +54,72 @@ The shared contract is: a `PageHeader` or documented custom header, a consistent
 | `CreateVarisangya` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `CreateZakat` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `LiveDues` | PASS | PASS | PASS | N/A | 0 | **PASS** |
-| `VarisangyaList` | PASS | PASS | PASS | N/A | 2 | **PASS** |
+| `VarisangyaList` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `ZakatList` | PASS | PASS | PASS | N/A | 0 | **PASS** |
-| `CommitteeDetail` | PASS | PASS | PASS | N/A | 2 | **PASS** |
-| `CommitteesList` | PASS | PASS | PASS | N/A | 2 | **PASS** |
+| `CommitteeDetail` | PASS | PASS | PASS | N/A | 0 | **PASS** |
+| `CommitteesList` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `CreateCommittee` | PASS | PASS | PASS | N/A | 2 | **PASS** |
 | `CreateMeeting` | PASS | PASS | PASS | N/A | 2 | **PASS** |
 | `EditCommittee` | PASS | PASS | PASS | N/A | 2 | **PASS** |
 | `EditMeeting` | PASS | PASS | PASS | N/A | 2 | **PASS** |
+| `MahalluCommittee` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `MeetingDetail` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `MeetingsList` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `AnnouncementCreate` | PASS | PASS | PASS | N/A | 1 | **PASS** |
 | `AnnouncementDetail` | PASS | PASS | PASS | N/A | 0 | **PASS** |
-| `AnnouncementsList` | PASS | PASS | PASS | N/A | 1 | **PASS** |
+| `AnnouncementsList` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `CounsellingCreate` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `CounsellingDetail` | PASS | PASS | PASS | N/A | 0 | **PASS** |
-| `CounsellingList` | PASS | PASS | PASS | N/A | 1 | **PASS** |
+| `CounsellingList` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `DisputesCreate` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `DisputesDetail` | PASS | PASS | PASS | N/A | 0 | **PASS** |
-| `DisputesList` | PASS | PASS | PASS | N/A | 1 | **PASS** |
+| `DisputesList` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `InheritanceCreate` | PASS | PASS | PASS | N/A | 1 | **PASS** |
 | `InheritanceDetail` | PASS | PASS | PASS | PASS | 1 | **PASS** |
-| `InheritanceList` | PASS | PASS | PASS | N/A | 1 | **PASS** |
+| `InheritanceList` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `Dashboard` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `ProjectCreate` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `ProjectDetail` | PASS | PASS | PASS | PASS | 3 | **PASS** |
 | `ProjectEdit` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `ProjectForm` | PASS | PASS | PASS | N/A | 0 | **PASS** |
-| `ProjectsList` | PASS | PASS | PASS | N/A | 6 | **PASS** |
+| `ProjectsList` | PASS | PASS | PASS | N/A | 3 | **PASS** |
 | `AcademicSupportCreate` | PASS | PASS | PASS | N/A | 5 | **PASS** |
 | `AcademicSupportDetail` | PASS | PASS | PASS | N/A | 3 | **PASS** |
-| `AcademicSupportList` | PASS | PASS | PASS | PASS | 6 | **PASS** |
+| `AcademicSupportList` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `AttendanceSheet` | PASS | PASS | PASS | N/A | 0 | **PASS** |
-| `AwardCreate` | PASS | PASS | PASS | N/A | 3 | **PASS** |
-| `AwardsList` | PASS | PASS | PASS | PASS | 5 | **PASS** |
+| `AwardCreate` | PASS | PASS | PASS | N/A | 2 | **PASS** |
+| `AwardsList` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `ClassCreate` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `ClassDetail` | PASS | PASS | PASS | PASS | 4 | **PASS** |
 | `ClassEdit` | PASS | PASS | PASS | N/A | 0 | **PASS** |
-| `ClassesList` | PASS | PASS | PASS | N/A | 2 | **PASS** |
+| `ClassesList` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `EducationReport` | PASS | PASS | PASS | N/A | 6 | **PASS** |
 | `ExamCreate` | PASS | PASS | PASS | N/A | 4 | **PASS** |
 | `ExamDetail` | PASS | PASS | PASS | PASS | 4 | **PASS** |
 | `ExamsList` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `ScholarshipCreate` | PASS | PASS | PASS | N/A | 1 | **PASS** |
-| `ScholarshipsList` | PASS | PASS | PASS | PASS | 5 | **PASS** |
+| `ScholarshipsList` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `CreateEmployee` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `EditEmployee` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `EmployeeDetail` | PASS | PASS | PASS | N/A | 0 | **PASS** |
-| `EmployeesList` | PASS | PASS | PASS | N/A | 2 | **PASS** |
+| `EmployeesList` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `EmployerCreate` | PASS | PASS | PASS | N/A | 3 | **PASS** |
 | `EmployerEdit` | PASS | PASS | PASS | N/A | 2 | **PASS** |
-| `EmployersList` | PASS | PASS | PASS | PASS | 4 | **PASS** |
+| `EmployersList` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `TrainingCreate` | PASS | PASS | PASS | N/A | 3 | **PASS** |
 | `TrainingDetail` | PASS | PASS | PASS | PASS | 7 | **PASS** |
-| `TrainingsList` | PASS | PASS | PASS | PASS | 4 | **PASS** |
-| `VacanciesList` | PASS | PASS | PASS | PASS | 4 | **PASS** |
+| `TrainingsList` | PASS | PASS | PASS | N/A | 0 | **PASS** |
+| `VacanciesList` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `VacancyCreate` | PASS | PASS | PASS | N/A | 3 | **PASS** |
 | `VacancyDetail` | PASS | PASS | PASS | N/A | 2 | **PASS** |
 | `CreateFamily` | PASS | PASS | PASS | N/A | 0 | **PASS** |
-| `EditFamily` | PASS | PASS | PASS | N/A | 2 | **PASS** |
+| `EditFamily` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `FamiliesList` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `FamilyDetail` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `UnapprovedFamiliesList` | PASS | PASS | PASS | N/A | 0 | **PASS** |
-| `BloodDonors` | PASS | PASS | PASS | N/A | 4 | **PASS** |
+| `BloodDonors` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `CampsCreate` | PASS | PASS | PASS | N/A | 0 | **PASS** |
-| `CampsList` | PASS | PASS | PASS | N/A | 2 | **PASS** |
+| `CampsList` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `DoctorCreate` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `DoctorEdit` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `DoctorsDirectory` | PASS | PASS | PASS | N/A | 0 | **PASS** |
@@ -129,18 +130,18 @@ The shared contract is: a `PageHeader` or documented custom header, a consistent
 | `RestrictedHealthPage` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `CreateInstitute` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `EditInstitute` | PASS | PASS | PASS | N/A | 0 | **PASS** |
-| `InstituteDetail` | PASS | PASS | PASS | N/A | 2 | **PASS** |
-| `InstitutesList` | PASS | PASS | PASS | N/A | 2 | **PASS** |
+| `InstituteDetail` | PASS | PASS | PASS | N/A | 0 | **PASS** |
+| `InstitutesList` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `BookForm` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `BooksList` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `IssueCreate` | PASS | PASS | PASS | N/A | 0 | **PASS** |
-| `IssuesList` | PASS | PASS | PASS | N/A | 2 | **PASS** |
+| `IssuesList` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `LoanCreate` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `LoanDetail` | PASS | PASS | PASS | N/A | 0 | **PASS** |
-| `LoansList` | PASS | PASS | PASS | N/A | 4 | **PASS** |
+| `LoansList` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `ReliefCreate` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `ReliefDetail` | PASS | PASS | PASS | N/A | 0 | **PASS** |
-| `ReliefList` | PASS | PASS | PASS | N/A | 4 | **PASS** |
+| `ReliefList` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `CreateMahalluAccount` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `CreateMahalluCategory` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `CreateMahalluLedger` | PASS | PASS | PASS | N/A | 0 | **PASS** |
@@ -148,7 +149,7 @@ The shared contract is: a `PageHeader` or documented custom header, a consistent
 | `EditMahalluAccount` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `EditMahalluCategory` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `EditMahalluLedger` | PASS | PASS | PASS | N/A | 0 | **PASS** |
-| `MahalluAccountsList` | PASS | PASS | PASS | N/A | 1 | **PASS** |
+| `MahalluAccountsList` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `MahalluBalanceSheet` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `MahalluCategoriesList` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `MahalluCombinedReport` | PASS | PASS | PASS | PASS | 6 | **PASS** |
@@ -165,32 +166,32 @@ The shared contract is: a `PageHeader` or documented custom header, a consistent
 | `CreateLedgerItem` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `CreateWallet` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `InstituteAccountsList` | PASS | PASS | PASS | N/A | 0 | **PASS** |
-| `LedgerItemsList` | PASS | PASS | PASS | N/A | 2 | **PASS** |
+| `LedgerItemsList` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `LedgersList` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `WalletsList` | PASS | PASS | PASS | N/A | 0 | **PASS** |
-| `MemberCertificates` | PASS | PASS | PASS | PASS | 0 | **PASS** |
+| `MemberCertificates` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `MemberDeathRequest` | PASS | PASS | PASS | N/A | 11 | **PASS** |
 | `MemberFamily` | PASS | PASS | PASS | N/A | 8 | **PASS** |
-| `MemberNOCList` | PASS | PASS | PASS | PASS | 0 | **PASS** |
+| `MemberNOCList` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `MemberNOCRequest` | PASS | PASS | PASS | N/A | 25 | **PASS** |
 | `MemberNikahRequest` | PASS | PASS | PASS | N/A | 16 | **PASS** |
 | `MemberOverview` | PASS | PASS | PASS | PASS | 0 | **PASS** |
-| `MemberPayments` | PASS | PASS | PASS | PASS | 0 | **PASS** |
+| `MemberPayments` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `MemberProfile` | PASS | PASS | PASS | N/A | 7 | **PASS** |
-| `MemberRequests` | PASS | PASS | PASS | PASS | 2 | **PASS** |
-| `MemberVarisangyaPage` | PASS | PASS | PASS | PASS | 1 | **PASS** |
+| `MemberRequests` | PASS | PASS | PASS | N/A | 0 | **PASS** |
+| `MemberVarisangyaPage` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `CreateMember` | PASS | PASS | PASS | N/A | 0 | **PASS** |
-| `EditMember` | PASS | PASS | PASS | N/A | 2 | **PASS** |
+| `EditMember` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `MemberDetail` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `MembersList` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `MosqueDetail` | PASS | PASS | PASS | N/A | 1 | **PASS** |
 | `MosquesList` | PASS | PASS | PASS | N/A | 1 | **PASS** |
-| `NotificationsList` | PASS | PASS | PASS | N/A | 2 | **PASS** |
+| `NotificationsList` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `SendNotification` | PASS | PASS | PASS | N/A | 4 | **PASS** |
 | `CreateProgram` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `EditProgram` | PASS | PASS | PASS | N/A | 0 | **PASS** |
-| `ProgramDetail` | PASS | PASS | PASS | N/A | 2 | **PASS** |
-| `ProgramsList` | PASS | PASS | PASS | N/A | 12 | **PASS** |
+| `ProgramDetail` | PASS | PASS | PASS | N/A | 0 | **PASS** |
+| `ProgramsList` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `RegisterList` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `RegistersOverview` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `CreateDeathRegistration` | PASS | PASS | PASS | N/A | 0 | **PASS** |
@@ -202,15 +203,15 @@ The shared contract is: a `PageHeader` or documented custom header, a consistent
 | `EditDeathRegistration` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `EditNOC` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `EditNikahRegistration` | PASS | PASS | PASS | N/A | 0 | **PASS** |
-| `MarriageAssistanceList` | PASS | PASS | PASS | N/A | 2 | **PASS** |
+| `MarriageAssistanceList` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `NOCDetail` | PASS | PASS | PASS | N/A | 1 | **PASS** |
-| `NOCList` | PASS | PASS | PASS | N/A | 1 | **PASS** |
+| `NOCList` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `NikahRegistrationDetail` | PASS | PASS | PASS | N/A | 1 | **PASS** |
 | `NikahRegistrationsList` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `KhateebsList` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `KhutbahCreate` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `KhutbahEdit` | PASS | PASS | PASS | N/A | 0 | **PASS** |
-| `KhutbahSchedule` | PASS | PASS | PASS | N/A | 1 | **PASS** |
+| `KhutbahSchedule` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `AnnualReport` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `AreaReport` | PASS | PASS | PASS | PASS | 1 | **PASS** |
 | `BloodBankReport` | PASS | PASS | PASS | PASS | 1 | **PASS** |
@@ -224,7 +225,7 @@ The shared contract is: a `PageHeader` or documented custom header, a consistent
 | `SalaryList` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `SalarySummary` | PASS | PASS | PASS | PASS | 3 | **PASS** |
 | `ActivityLogsList` | PASS | PASS | PASS | N/A | 2 | **PASS** |
-| `BannersList` | PASS | PASS | PASS | N/A | 2 | **PASS** |
+| `BannersList` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `CreateBanner` | PASS | PASS | PASS | N/A | 2 | **PASS** |
 | `CreateFeed` | PASS | PASS | PASS | N/A | 3 | **PASS** |
 | `CreateSupport` | PASS | PASS | PASS | N/A | 1 | **PASS** |
@@ -235,29 +236,29 @@ The shared contract is: a `PageHeader` or documented custom header, a consistent
 | `FacilitiesList` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `SurveyDetail` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `SurveyList` | PASS | PASS | PASS | N/A | 0 | **PASS** |
-| `AllUsersList` | PASS | PASS | PASS | N/A | 2 | **PASS** |
+| `AllUsersList` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `CreateInstituteUser` | PASS | PASS | PASS | N/A | 5 | **PASS** |
 | `CreateMahallUser` | PASS | PASS | PASS | N/A | 4 | **PASS** |
 | `CreateSurveyUser` | PASS | PASS | PASS | N/A | 4 | **PASS** |
 | `EditInstituteUser` | PASS | PASS | PASS | N/A | 4 | **PASS** |
 | `EditMahallUser` | PASS | PASS | PASS | N/A | 7 | **PASS** |
 | `EditSurveyUser` | PASS | PASS | PASS | N/A | 4 | **PASS** |
-| `InstituteUsersList` | PASS | PASS | PASS | N/A | 2 | **PASS** |
-| `MahallUsersList` | PASS | PASS | PASS | N/A | 2 | **PASS** |
+| `InstituteUsersList` | PASS | PASS | PASS | N/A | 0 | **PASS** |
+| `MahallUsersList` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `SelectUserType` | PASS | PASS | PASS | N/A | 0 | **PASS** |
-| `SurveyUsersList` | PASS | PASS | PASS | N/A | 2 | **PASS** |
-| `UserDetail` | PASS | PASS | PASS | N/A | 2 | **PASS** |
+| `SurveyUsersList` | PASS | PASS | PASS | N/A | 0 | **PASS** |
+| `UserDetail` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `AssignmentCreate` | PASS | PASS | PASS | N/A | 0 | **PASS** |
-| `AssignmentsList` | PASS | PASS | PASS | PASS | 4 | **PASS** |
+| `AssignmentsList` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `VolunteerCreate` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `VolunteerDetail` | PASS | PASS | PASS | N/A | 2 | **PASS** |
-| `VolunteersList` | PASS | PASS | PASS | N/A | 2 | **PASS** |
+| `VolunteersList` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `ApplicationCreate` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `ApplicationDetail` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `ApplicationEdit` | PASS | PASS | PASS | N/A | 0 | **PASS** |
-| `ApplicationsList` | PASS | PASS | PASS | N/A | 1 | **PASS** |
+| `ApplicationsList` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `SchemesList` | PASS | PASS | PASS | N/A | 0 | **PASS** |
-| `BeneficiariesList` | PASS | PASS | PASS | N/A | 1 | **PASS** |
+| `BeneficiariesList` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `BeneficiaryCreate` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `BeneficiaryEdit` | PASS | PASS | PASS | N/A | 0 | **PASS** |
 | `DistributionCreate` | PASS | PASS | PASS | N/A | 0 | **PASS** |

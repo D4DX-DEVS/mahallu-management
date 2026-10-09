@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { FiBook, FiPlus } from 'react-icons/fi';
 import TableCard from '@/components/ui/TableCard';
 import FilterPanel from '@/components/ui/FilterPanel';
@@ -11,7 +11,8 @@ import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
 import EmptyState from '@/components/ui/EmptyState';
 import Pagination from '@/components/ui/Pagination';
-import { PageSkeleton } from '@/components/ui/Skeleton';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import Badge from '@/components/ui/Badge';
 import TableToolbar from '@/components/ui/TableToolbar';
 import { TableColumn, Pagination as PaginationType } from '@/types';
 import { masterAccountService, Ledger } from '@/services/masterAccountService';
@@ -26,6 +27,7 @@ import { fetchAllPages } from '@/services/api';
 import { logError } from '@/utils/safeLog';
 
 export default function LedgersList() {
+  const navigate = useNavigate();
   const { currentInstituteId: userInstituteId } = useAuthStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [isFilterVisible, setIsFilterVisible] = useState(false);
@@ -35,7 +37,7 @@ export default function LedgersList() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [selectedLedger, setSelectedLedger] = useState<Ledger | null>(null);
@@ -58,7 +60,7 @@ export default function LedgersList() {
 
   useEffect(() => {
     fetchLedgers();
-  }, [currentPage, instituteFilter]);
+  }, [currentPage, instituteFilter, itemsPerPage]);
 
   const fetchLedgers = async () => {
     try {
@@ -127,21 +129,10 @@ export default function LedgersList() {
   );
 
   const columns: TableColumn<Ledger>[] = [
-    {
-      key: 'name',
-      label: 'Name',
-      width: '6.75rem',
-      sortable: true,
-      render: (v) => <span>{toTitleCase(v)}</span>,
-    },
-    { key: 'type', label: 'Type', width: '6.25rem' },
-    { key: 'description', label: 'Description', width: '9.25rem' },
-    {
-      key: 'createdAt',
-      label: 'Created',
-      width: '7.75rem',
-      render: (date) => formatDate(date),
-    },
+    { key: 'name', label: 'Name', sortable: true, width: '16rem', render: (v) => <span className="font-medium text-foreground">{toTitleCase(v)}</span> },
+    { key: 'type', label: 'Type', sortable: true, width: '9rem', render: (t) => <Badge variant={t === 'income' ? 'success' : 'danger'} className="capitalize">{t}</Badge> },
+    { key: 'description', label: 'Description', priority: 'secondary', width: '18rem', render: (v) => v || '—' },
+    { key: 'createdAt', label: 'Created', sortable: true, priority: 'tertiary', width: '9rem', render: (date) => formatDate(date) },
   ];
 
   const openEditModal = (ledger: Ledger) => {
@@ -189,85 +180,113 @@ export default function LedgersList() {
     },
   ];
 
-  return (
-    <div className="space-y-4">
-      <div className="space-y-3">
-        <PageHeader title="Ledgers" description="Manage ledgers" />
+  const activeFilterCount = !userInstituteId && instituteFilter !== 'all' ? 1 : 0;
+  const isFiltered = Boolean(searchQuery) || activeFilterCount > 0;
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-1">
-          {stats.map((stat, index) => (
-            <StatCard key={index} {...stat} />
-          ))}
-        </div>
+  return (
+    <>
+      <PageHeader
+        title="Ledgers"
+        description="Manage ledgers."
+        actions={
+          <Link to="/master-accounts/ledgers/create">
+            <Button icon={<FiPlus />} collapseLabel>New ledger</Button>
+          </Link>
+        }
+      />
+
+      <div className="mb-6 grid grid-cols-1 gap-3">
+        {stats.map((stat, index) => (
+          <StatCard key={index} {...stat} />
+        ))}
       </div>
 
       <TableCard>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
-          onFilterClick={() => setIsFilterVisible(!isFilterVisible)}
+          searchEntity="ledgers"
+          onFilterClick={() => setIsFilterVisible((open) => !open)}
           isFilterVisible={isFilterVisible}
           hasFilters={!userInstituteId}
+          activeFilterCount={activeFilterCount}
           onRefresh={fetchLedgers}
           onExport={handleExport}
           isExporting={isExporting}
-          actionButtons={
-            <Link to="/master-accounts/ledgers/create">
-              <Button size="md" icon={<FiPlus />} collapseLabel>New Ledger</Button>
-            </Link>
-          }
         />
 
         {isFilterVisible && !userInstituteId && (
-          <FilterPanel>
-            <div className="w-full sm:w-64">
-              <Select
-                label="Institute"
-                options={[
-                  { value: 'all', label: 'All Institutes' },
-                  ...institutes.map((i) => ({ value: i.id, label: toTitleCase(i.name) })),
-                ]}
-                value={instituteFilter}
-                onChange={(e) => {
-                  setInstituteFilter(e.target.value);
+          <FilterPanel onClose={() => setIsFilterVisible(false)}>
+            {!userInstituteId && (
+              <div className="w-full sm:w-64">
+                <Select
+                  label="Institute"
+                  options={[
+                    { value: 'all', label: 'All institutes' },
+                    ...institutes.map((i) => ({ value: i.id, label: toTitleCase(i.name) })),
+                  ]}
+                  value={instituteFilter}
+                  onChange={(e) => {
+                    setInstituteFilter(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                />
+              </div>
+            )}
+            {activeFilterCount > 0 && (
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  if (!userInstituteId) setInstituteFilter('all');
                   setCurrentPage(1);
                 }}
-              />
-            </div>
+              >
+                Clear filters
+              </Button>
+            )}
           </FilterPanel>
         )}
 
-        {loading ? (
-          <PageSkeleton variant="section" />
-        ) : error ? (
+        {error ? (
           <EmptyState
             variant="error"
             entity="ledgers"
             description={error}
-            action={{ label: 'Retry', onClick: fetchLedgers }}
+            action={{ label: 'Try again', onClick: fetchLedgers }}
           />
         ) : (
           <>
             <Table
               fixedLayout
-              striped
               columns={columns}
               data={filteredLedgers}
-              emptyMessage="No ledgers found"
-              showExport={false}
+              isLoading={loading}
+              entity="ledgers"
+              emptyVariant={isFiltered ? 'no-results' : 'empty'}
+              emptyAction={
+                isFiltered
+                  ? { label: 'Clear filters', onClick: () => { setSearchQuery(''); if (!userInstituteId) setInstituteFilter('all'); setCurrentPage(1); } }
+                  : { label: 'Add ledger', onClick: () => navigate('/master-accounts/ledgers/create') }
+              }
               onRowClick={(row) => {
                 setSelectedLedger(row);
                 setShowViewModal(true);
               }}
             />
-            {pagination && pagination.totalPages > 1 && (
+
+            {pagination && (
               <div className="mt-4">
                 <Pagination
-                  currentPage={currentPage}
+                  currentPage={pagination.page}
                   totalPages={pagination.totalPages}
                   totalItems={pagination.total}
-                  itemsPerPage={itemsPerPage}
+                  itemsPerPage={pagination.limit}
+                  entity="ledgers"
                   onPageChange={setCurrentPage}
+                  onItemsPerPageChange={(size) => {
+                    setItemsPerPage(size);
+                    setCurrentPage(1);
+                  }}
                 />
               </div>
             )}
@@ -389,36 +408,19 @@ export default function LedgersList() {
         </div>
       </Modal>
 
-      {/* Delete Modal */}
-      <Modal
+      <ConfirmDialog
         isOpen={showDeleteModal}
-        onClose={() => {
+        title={`Delete ${toTitleCase(selectedLedger?.name) || 'this ledger'}?`}
+        message="This permanently removes the ledger and cannot be undone."
+        confirmLabel="Delete ledger"
+        variant="danger"
+        isLoading={deleting}
+        onConfirm={handleDelete}
+        onCancel={() => {
           setShowDeleteModal(false);
           setSelectedLedger(null);
         }}
-        title="Delete Ledger"
-        footer={
-          <>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setShowDeleteModal(false);
-                setSelectedLedger(null);
-              }}
-            >
-              Cancel
-            </Button>
-            <Button variant="danger" onClick={handleDelete} isLoading={deleting}>
-              Delete
-            </Button>
-          </>
-        }
-      >
-        <p className="text-gray-600 dark:text-gray-400">
-          Are you sure you want to delete <strong>{toTitleCase(selectedLedger?.name)}</strong>? This action cannot be
-          undone.
-        </p>
-      </Modal>
-    </div>
+      />
+    </>
   );
 }

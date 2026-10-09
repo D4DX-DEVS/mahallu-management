@@ -6,8 +6,9 @@ import Button from '@/components/ui/Button';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
 import EmptyState from '@/components/ui/EmptyState';
-import { PageSkeleton } from '@/components/ui/Skeleton';
-import Modal from '@/components/ui/Modal';
+import FilterPanel from '@/components/ui/FilterPanel';
+import Select from '@/components/ui/Select';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
 import { TableColumn, Pagination as PaginationType } from '@/types';
@@ -59,7 +60,7 @@ export default function AssetsList() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [statusFilter, setStatusFilter] = useState('');
@@ -83,7 +84,7 @@ export default function AssetsList() {
 
   useEffect(() => {
     fetchAssets();
-  }, [debouncedSearch, currentPage, statusFilter, categoryFilter, mosqueFilter]);
+  }, [debouncedSearch, currentPage, itemsPerPage, statusFilter, categoryFilter, mosqueFilter]);
 
   const fetchAssets = async () => {
     try {
@@ -179,20 +180,22 @@ export default function AssetsList() {
     {
       key: 'name',
       label: 'Name',
-      width: '6.75rem',
+      width: '14rem',
       sortable: true,
-      render: (value) => <span>{toTitleCase(value)}</span>,
+      render: (value) => <span className="font-medium text-foreground">{toTitleCase(value)}</span>,
     },
     {
       key: 'category',
       label: 'Category',
-      width: '8.25rem',
+      width: '9rem',
+      priority: 'secondary',
       render: (category) => categoryLabels[category] || category,
     },
     {
       key: 'mosqueId',
       label: 'Mosque',
-      width: '7.5rem',
+      width: '10rem',
+      priority: 'secondary',
       render: (value) => (
         <span>{toTitleCase(typeof value === 'object' && value ? value.name : mosqueName(value) || '-')}</span>
       ),
@@ -201,27 +204,31 @@ export default function AssetsList() {
       key: 'estimatedValue',
       label: 'Value (₹)',
       width: '8rem',
+      align: 'right',
       render: (value) => value?.toLocaleString('en-IN') || '0',
     },
     {
       key: 'purchaseDate',
-      label: 'Purchase Date',
-      width: '11rem',
+      label: 'Purchase date',
+      width: '9rem',
+      priority: 'tertiary',
       render: (date) => formatDate(date),
     },
     {
       key: 'status',
       label: 'Status',
-      width: '7.25rem',
+      width: '8rem',
       render: (status) => <StatusBadge status={status} />,
     },
     {
       key: 'actions',
-      label: 'Actions',
-      width: '8rem',
-      align: 'center',
+      label: '',
+      width: '6.5rem',
+      align: 'right',
+      sortable: false,
       render: (_, row) => (
         <ActionsMenu
+          label={`Actions for ${toTitleCase(row.name)}`}
           items={[
             {
               label: 'View',
@@ -294,167 +301,164 @@ export default function AssetsList() {
     },
   ];
 
-  return (
-    <div className="space-y-4">
-      <div className="space-y-3">
-        <PageHeader title="Asset Management" description="Manage your mahallu assets" />
+  const activeFilterCount = [statusFilter, categoryFilter, mosqueFilter].filter(Boolean).length;
+  const isFiltered = Boolean(debouncedSearch) || activeFilterCount > 0;
+  const clearFilters = () => {
+    setStatusFilter('');
+    setCategoryFilter('');
+    setMosqueFilter('');
+    setCurrentPage(1);
+    setSearchParams({});
+  };
 
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 md:grid-cols-4">
-          {stats.map((stat, index) => (
-            <StatCard key={index} {...stat} />
-          ))}
-        </div>
+  return (
+    <>
+      <PageHeader
+        title="Assets"
+        description="Manage your mahallu assets."
+        actions={
+          <Link to={mosqueFilter ? `${ROUTES.ASSETS.CREATE}?mosqueId=${mosqueFilter}` : ROUTES.ASSETS.CREATE}>
+            <Button icon={<FiPlus />} collapseLabel>New asset</Button>
+          </Link>
+        }
+      />
+
+      <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {stats.map((stat, index) => (
+          <StatCard key={index} {...stat} />
+        ))}
       </div>
 
       <TableCard>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
-          onFilterClick={() => setIsFilterVisible(!isFilterVisible)}
+          searchEntity="assets"
+          onFilterClick={() => setIsFilterVisible((open) => !open)}
           isFilterVisible={isFilterVisible}
-          hasFilters={!!statusFilter || !!categoryFilter || !!mosqueFilter}
+          hasFilters
+          activeFilterCount={activeFilterCount}
           onRefresh={fetchAssets}
           onExport={handleExport}
           isExporting={isExporting}
-          actionButtons={
-            <Link
-              to={mosqueFilter ? `${ROUTES.ASSETS.CREATE}?mosqueId=${mosqueFilter}` : ROUTES.ASSETS.CREATE}
-            >
-              <Button size="md" icon={<FiPlus />} collapseLabel>New Asset</Button>
-            </Link>
-          }
         />
 
         {isFilterVisible && (
-          <div className="flex flex-wrap gap-3 p-4 border-b border-gray-200 dark:border-gray-700">
-            <select
-              aria-label="Filter"
-              value={statusFilter}
-              onChange={(e) => {
-                setStatusFilter(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200"
-            >
-              <option value="">All Status</option>
-              <option value="active">Active</option>
-              <option value="in_use">In Use</option>
-              <option value="under_maintenance">Under Maintenance</option>
-              <option value="disposed">Disposed</option>
-              <option value="damaged">Damaged</option>
-            </select>
-            <select
-              aria-label="Filter"
-              value={categoryFilter}
-              onChange={(e) => {
-                setCategoryFilter(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200"
-            >
-              <option value="">All Categories</option>
-              <option value="furniture">Furniture</option>
-              <option value="electronics">Electronics</option>
-              <option value="vehicle">Vehicle</option>
-              <option value="building">Building</option>
-              <option value="land">Land</option>
-              <option value="equipment">Equipment</option>
-              <option value="other">Other</option>
-            </select>
-            <select
-              aria-label="Filter"
-              value={mosqueFilter}
-              onChange={(e) => {
-                setMosqueFilter(e.target.value);
-                setCurrentPage(1);
-                setSearchParams(e.target.value ? { mosqueId: e.target.value } : {});
-              }}
-              className="px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200"
-            >
-              <option value="">All Mosques</option>
-              {mosques.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {toTitleCase(m.name)}
-                </option>
-              ))}
-            </select>
-            {(statusFilter || categoryFilter || mosqueFilter) && (
-              <button
-                onClick={() => {
-                  setStatusFilter('');
-                  setCategoryFilter('');
-                  setMosqueFilter('');
+          <FilterPanel onClose={() => setIsFilterVisible(false)}>
+            <div className="w-full sm:w-48">
+              <Select
+                label="Status"
+                options={[
+                  { value: '', label: 'All statuses' },
+                  { value: 'active', label: 'Active' },
+                  { value: 'in_use', label: 'In use' },
+                  { value: 'under_maintenance', label: 'Under maintenance' },
+                  { value: 'disposed', label: 'Disposed' },
+                  { value: 'damaged', label: 'Damaged' },
+                ]}
+                value={statusFilter}
+                onChange={(e) => {
+                  setStatusFilter(e.target.value);
                   setCurrentPage(1);
-                  setSearchParams({});
                 }}
-                className="px-3 py-2 text-sm text-red-600 hover:text-red-700 dark:text-red-400"
-              >
-                Clear Filters
-              </button>
+              />
+            </div>
+            <div className="w-full sm:w-48">
+              <Select
+                label="Category"
+                options={[
+                  { value: '', label: 'All categories' },
+                  { value: 'furniture', label: 'Furniture' },
+                  { value: 'electronics', label: 'Electronics' },
+                  { value: 'vehicle', label: 'Vehicle' },
+                  { value: 'building', label: 'Building' },
+                  { value: 'land', label: 'Land' },
+                  { value: 'equipment', label: 'Equipment' },
+                  { value: 'other', label: 'Other' },
+                ]}
+                value={categoryFilter}
+                onChange={(e) => {
+                  setCategoryFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
+              />
+            </div>
+            <div className="w-full sm:w-52">
+              <Select
+                label="Mosque"
+                options={[
+                  { value: '', label: 'All mosques' },
+                  ...mosques.map((m) => ({ value: m.id, label: toTitleCase(m.name) })),
+                ]}
+                value={mosqueFilter}
+                onChange={(e) => {
+                  setMosqueFilter(e.target.value);
+                  setCurrentPage(1);
+                  setSearchParams(e.target.value ? { mosqueId: e.target.value } : {});
+                }}
+              />
+            </div>
+            {activeFilterCount > 0 && (
+              <Button variant="ghost" onClick={clearFilters}>
+                Clear filters
+              </Button>
             )}
-          </div>
+          </FilterPanel>
         )}
 
-        {loading ? (
-          <PageSkeleton variant="section" />
-        ) : error ? (
-          <EmptyState variant="error" entity="assets" description={error} action={{ label: 'Retry', onClick: fetchAssets }} />
+        {error ? (
+          <EmptyState variant="error" entity="assets" description={error} action={{ label: 'Try again', onClick: fetchAssets }} />
         ) : (
-          <Table
-            fixedLayout
-            striped
-            columns={columns}
-            data={assets}
-            emptyMessage="No assets found"
-            showExport={false}
-            onRowClick={(row) => navigate(ROUTES.ASSETS.DETAIL(row.id))}
-          />
-        )}
-
-        {pagination && (
-          <div className="mt-4">
-            <Pagination
-              currentPage={pagination.page}
-              totalPages={pagination.totalPages}
-              totalItems={pagination.total}
-              itemsPerPage={pagination.limit}
-              onPageChange={(page) => {
-                setCurrentPage(page);
-              }}
+          <>
+            <Table
+              fixedLayout
+              columns={columns}
+              data={assets}
+              isLoading={loading}
+              entity="assets"
+              emptyVariant={isFiltered ? 'no-results' : 'empty'}
+              emptyAction={
+                isFiltered
+                  ? { label: 'Clear filters', onClick: () => { setSearchQuery(''); clearFilters(); } }
+                  : { label: 'Add asset', onClick: () => navigate(ROUTES.ASSETS.CREATE) }
+              }
+              onRowClick={(row) => navigate(ROUTES.ASSETS.DETAIL(row.id))}
             />
-          </div>
+
+            {pagination && (
+              <div className="mt-4">
+                <Pagination
+                  currentPage={pagination.page}
+                  totalPages={pagination.totalPages}
+                  totalItems={pagination.total}
+                  itemsPerPage={pagination.limit}
+                  entity="assets"
+                  onPageChange={setCurrentPage}
+                  onItemsPerPageChange={(size) => {
+                    setItemsPerPage(size);
+                    setCurrentPage(1);
+                  }}
+                />
+              </div>
+            )}
+          </>
         )}
       </TableCard>
 
-      <Modal
+      <ConfirmDialog
         isOpen={showDeleteModal}
-        onClose={() => {
+        title={`Delete ${selectedAsset?.name ? toTitleCase(selectedAsset.name) : 'this asset'}?`}
+        message="This permanently removes the asset and cannot be undone."
+        consequence="Its maintenance records will be deleted too."
+        confirmLabel="Delete asset"
+        variant="danger"
+        isLoading={deleting}
+        onConfirm={handleDelete}
+        onCancel={() => {
           setShowDeleteModal(false);
           setSelectedAsset(null);
         }}
-        title="Delete Asset"
-        footer={
-          <>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setShowDeleteModal(false);
-                setSelectedAsset(null);
-              }}
-            >
-              Cancel
-            </Button>
-            <Button variant="danger" onClick={handleDelete} isLoading={deleting}>
-              Delete
-            </Button>
-          </>
-        }
-      >
-        <p className="text-gray-600 dark:text-gray-400">
-          Are you sure you want to delete <strong>{toTitleCase(selectedAsset?.name)}</strong>? This will also delete all
-          maintenance records. This action cannot be undone.
-        </p>
-      </Modal>
-    </div>
+      />
+    </>
   );
 }

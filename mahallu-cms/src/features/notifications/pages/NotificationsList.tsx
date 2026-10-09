@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { FiBell, FiCheck, FiMail, FiInbox } from 'react-icons/fi';
-import Card from '@/components/ui/Card';
+import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
+import Badge from '@/components/ui/Badge';
 import EmptyState from '@/components/ui/EmptyState';
-import Select from '@/components/ui/Select';
+import Tabs from '@/components/ui/Tabs';
+import TableToolbar from '@/components/ui/TableToolbar';
 import StatCard from '@/components/ui/StatCard';
 import Pagination from '@/components/ui/Pagination';
 import { PageSkeleton } from '@/components/ui/Skeleton';
@@ -21,6 +23,7 @@ export default function NotificationsList() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
   /* Unread across every page of the current filter (server total); null until known, then the page's own count is used. */
   const [unreadTotal, setUnreadTotal] = useState<number | null>(null);
@@ -29,7 +32,7 @@ export default function NotificationsList() {
 
   useEffect(() => {
     fetchNotifications();
-  }, [typeFilter, currentPage]);
+  }, [typeFilter, currentPage, itemsPerPage]);
 
   const fetchNotifications = async () => {
     try {
@@ -38,7 +41,7 @@ export default function NotificationsList() {
       // The API caps and defaults `limit` server-side (10 per page) — without
       // an explicit page/limit here, and without showing pagination, the list
       // silently stuck at the 10 most recent notifications forever.
-      const params: any = { page: currentPage, limit: 20 };
+      const params: any = { page: currentPage, limit: itemsPerPage };
       if (typeFilter !== 'all') {
         params.recipientType = typeFilter;
       }
@@ -119,43 +122,45 @@ export default function NotificationsList() {
   ];
 
   return (
-    <div className="space-y-4">
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            {unreadCount > 0 && (
-              <Button onClick={handleMarkAllAsRead} variant="outline">
-                <FiCheck className="h-4 w-4 mr-2" />
-                Mark All as Read
-              </Button>
-            )}
-          </div>
-          <PageHeader description="Manage notifications" title="Notifications" />
-        </div>
+    <>
+      <PageHeader
+        title="Notifications"
+        description="Messages sent to you and to the community."
+        actions={
+          unreadCount > 0 ? (
+            <Button variant="outline" icon={<FiCheck />} collapseLabel onClick={handleMarkAllAsRead}>
+              Mark all as read
+            </Button>
+          ) : undefined
+        }
+      />
 
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          {stats.map((stat, index) => (
-            <StatCard key={index} {...stat} />
-          ))}
-        </div>
+      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
+        {stats.map((stat, index) => (
+          <StatCard key={index} {...stat} />
+        ))}
       </div>
 
-      <Card>
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <Select
-            options={[
-              { value: 'all', label: 'All Notifications' },
-              { value: 'individual', label: 'Individual' },
-              { value: 'collection', label: 'Collection' },
-            ]}
-            value={typeFilter}
-            onChange={(e) => {
-              setTypeFilter(e.target.value);
-              setCurrentPage(1);
-            }}
-            className="w-full sm:w-48"
-          />
-        </div>
+      <TableCard>
+        <TableToolbar
+          tabs={
+            <Tabs
+              variant="segmented"
+              ariaLabel="Notification type"
+              value={typeFilter}
+              onChange={(value) => {
+                setTypeFilter(value);
+                setCurrentPage(1);
+              }}
+              items={[
+                { value: 'all', label: 'All' },
+                { value: 'individual', label: 'Individual' },
+                { value: 'collection', label: 'Collection' },
+              ]}
+            />
+          }
+          onRefresh={fetchNotifications}
+        />
 
         {loading ? (
           <PageSkeleton variant="section" />
@@ -169,15 +174,13 @@ export default function NotificationsList() {
         ) : (
           <div className="space-y-2">
             {notifications.length === 0 ? (
-              <p className="text-center py-10 text-gray-500 dark:text-gray-400">No notifications found</p>
+              <EmptyState entity="notifications" />
             ) : (
               notifications.map((notification) => (
                 <div
                   key={notification.id}
-                  className={`p-4 border rounded-lg ${
-                    notification.isRead
-                      ? 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700'
-                      : 'bg-blue-50 dark:bg-blue-900 border-blue-200 dark:border-blue-700'
+                  className={`rounded-lg border p-4 ${
+                    notification.isRead ? 'border-border bg-subtle/50' : 'border-primary/25 bg-primary/5'
                   }`}
                 >
                   <div className="flex items-start justify-between">
@@ -188,9 +191,7 @@ export default function NotificationsList() {
                           {notification.title}
                         </h3>
                         {!notification.isRead && (
-                          <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-800 dark:bg-blue-200">
-                            New
-                          </span>
+                          <Badge variant="primary">New</Badge>
                         )}
                       </div>
                       <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">{notification.message}</p>
@@ -206,9 +207,8 @@ export default function NotificationsList() {
                       </p>
                     </div>
                     {!notification.isRead && (
-                      <Button variant="outline" size="sm" onClick={() => handleMarkAsRead(notification.id)}>
-                        <FiCheck className="h-3 w-3 mr-1" />
-                        Mark Read
+                      <Button variant="outline" size="sm" icon={<FiCheck />} onClick={() => handleMarkAsRead(notification.id)}>
+                        Mark read
                       </Button>
                     )}
                   </div>
@@ -218,18 +218,23 @@ export default function NotificationsList() {
           </div>
         )}
 
-        {pagination && pagination.totalPages > 1 && (
+        {pagination && (
           <div className="mt-4">
             <Pagination
               currentPage={pagination.page}
               totalPages={pagination.totalPages}
               totalItems={pagination.total}
               itemsPerPage={pagination.limit}
+              entity="notifications"
               onPageChange={setCurrentPage}
+              onItemsPerPageChange={(size) => {
+                setItemsPerPage(size);
+                setCurrentPage(1);
+              }}
             />
           </div>
         )}
-      </Card>
-    </div>
+      </TableCard>
+    </>
   );
 }

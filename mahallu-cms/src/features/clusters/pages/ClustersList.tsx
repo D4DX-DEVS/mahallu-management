@@ -1,17 +1,15 @@
 import { useState, useEffect } from 'react';
 import { FiPlus } from 'react-icons/fi';
-import { Link } from 'react-router-dom';
-import Card from '@/components/ui/Card';
+import { useNavigate } from 'react-router-dom';
 import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Modal from '@/components/ui/Modal';
-import ExpandableSearch from '@/components/ui/ExpandableSearch';
-import ActionBar from '@/components/ui/ActionBar';
+import Table from '@/components/ui/Table';
+import TableToolbar from '@/components/ui/TableToolbar';
 import EmptyState from '@/components/ui/EmptyState';
-import { PageSkeleton } from '@/components/ui/Skeleton';
 import Pagination from '@/components/ui/Pagination';
-import { Pagination as PaginationType } from '@/types';
+import { Pagination as PaginationType, TableColumn } from '@/types';
 import { clusterService, Cluster } from '@/services/clusterService';
 import { useDebounce } from '@/hooks/useDebounce';
 import { toast } from '@/store/toastStore';
@@ -27,12 +25,14 @@ const coordinatorName = (cluster: Cluster) =>
     : '-';
 
 export default function ClustersList() {
+  const navigate = useNavigate();
   const [rows, setRows] = useState<Cluster[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [nameError, setNameError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
   const [isFormOpen, setFormOpen] = useState(false);
   const [form, setForm] = useState(emptyForm);
@@ -42,13 +42,13 @@ export default function ClustersList() {
 
   useEffect(() => {
     fetchRows();
-  }, [debouncedSearch, currentPage]);
+  }, [debouncedSearch, currentPage, itemsPerPage]);
 
   const fetchRows = async () => {
     try {
       setLoading(true);
       setError(null);
-      const params: Record<string, any> = { page: currentPage, limit: 12 };
+      const params: Record<string, any> = { page: currentPage, limit: itemsPerPage };
       if (debouncedSearch) params.search = debouncedSearch;
       const result = await clusterService.getAll(params);
       setRows(result.data);
@@ -80,81 +80,101 @@ export default function ClustersList() {
     }
   };
 
+  const columns: TableColumn<Cluster>[] = [
+    {
+      key: 'name',
+      label: 'Cluster',
+      sortable: true,
+      width: '16rem',
+      render: (name, row) => (
+        <div className="min-w-0">
+          <div className="truncate font-medium text-foreground">{toTitleCase(name)}</div>
+          {row.code && <div className="truncate text-xs text-muted-foreground">{row.code}</div>}
+        </div>
+      ),
+    },
+    {
+      key: 'coordinatorMemberId',
+      label: 'Coordinator',
+      sortable: false,
+      width: '14rem',
+      render: (_v, row) => toTitleCase(coordinatorName(row)),
+    },
+    {
+      key: 'familyCount',
+      label: 'Families',
+      align: 'center',
+      sortable: true,
+      width: '7rem',
+      render: (count) => <span className="tabular-nums">{count ?? 0}</span>,
+    },
+  ];
+
   return (
-    <div className="space-y-3">
+    <>
       <PageHeader
         title="Clusters"
-        description="Neighbourhood groups of families with a coordinator and team"
+        description="Neighbourhood groups of families with a coordinator and team."
+        actions={
+          <Button icon={<FiPlus />} collapseLabel onClick={() => setFormOpen(true)}>
+            New cluster
+          </Button>
+        }
       />
 
-      {/* No border/padding below `md` here — each mosque/cluster
-       * below is already its own bordered card, and a second frame
-       * around the whole list drew a box around boxes on a phone. */}
       <TableCard>
-        <ActionBar>
-          <ExpandableSearch
-            value={searchQuery}
-            onChange={(value) => {
-              setSearchQuery(value);
-              setCurrentPage(1);
-            }}
-            entity="clusters"
-          />
-          <Button size="md" onClick={() => setFormOpen(true)} icon={<FiPlus />} collapseLabel>
-            New Cluster
-          </Button>
-        </ActionBar>
+        <TableToolbar
+          searchQuery={searchQuery}
+          onSearchChange={(value) => {
+            setSearchQuery(value);
+            setCurrentPage(1);
+          }}
+          searchEntity="clusters"
+          onRefresh={fetchRows}
+        />
 
-        {loading ? (
-          <PageSkeleton variant="section" />
-        ) : error ? (
-          <EmptyState
-            variant="error"
-            entity="clusters"
-            description={error}
-            action={{ label: 'Retry', onClick: fetchRows }}
-          />
-        ) : rows.length === 0 ? (
-          <p className="py-10 text-center text-sm text-gray-500 dark:text-gray-400">No clusters yet</p>
+        {error ? (
+          <EmptyState variant="error" entity="clusters" description={error} action={{ label: 'Try again', onClick: fetchRows }} />
         ) : (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {rows.map((cluster) => (
-              <Link key={cluster.id} to={`/clusters/${cluster.id}`}>
-                <Card className="h-full transition-shadow hover:shadow-md">
-                  <p className="text-sm font-semibold leading-tight text-gray-900 dark:text-gray-100 sm:text-base">
-                    {toTitleCase(cluster.name)}
-                  </p>
-                  {cluster.code && <p className="mt-0.5 text-xs text-gray-400 sm:text-xs">{cluster.code}</p>}
-                  <dl className="mt-2 space-y-1">
-                    <div className="flex items-baseline justify-between gap-2">
-                      <dt className="text-xs text-gray-500 dark:text-gray-400">Coordinator</dt>
-                      <dd className="truncate text-xs font-medium text-gray-700 dark:text-gray-200">
-                        {toTitleCase(coordinatorName(cluster))}
-                      </dd>
-                    </div>
-                    <div className="flex items-baseline justify-between gap-2">
-                      <dt className="text-xs text-gray-500 dark:text-gray-400">Families</dt>
-                      <dd className="text-base font-semibold text-gray-900 dark:text-gray-100 sm:text-xl">
-                        {cluster.familyCount ?? 0}
-                      </dd>
-                    </div>
-                  </dl>
-                </Card>
-              </Link>
-            ))}
-          </div>
-        )}
-
-        {pagination && (
-          <div className="mt-4">
-            <Pagination
-              currentPage={pagination.page}
-              totalPages={pagination.totalPages}
-              totalItems={pagination.total}
-              itemsPerPage={pagination.limit}
-              onPageChange={setCurrentPage}
+          <>
+            <Table
+              fixedLayout
+              columns={columns}
+              data={rows}
+              isLoading={loading}
+              entity="clusters"
+              emptyVariant={debouncedSearch ? 'no-results' : 'empty'}
+              emptyAction={
+                debouncedSearch
+                  ? {
+                      label: 'Clear filters',
+                      onClick: () => {
+                        setSearchQuery('');
+                        setCurrentPage(1);
+                      },
+                    }
+                  : { label: 'Add cluster', onClick: () => setFormOpen(true) }
+              }
+              onRowClick={(row) => navigate(`/clusters/${row.id}`)}
             />
-          </div>
+
+            {pagination && (
+              <div className="mt-4">
+                <Pagination
+                  currentPage={pagination.page}
+                  totalPages={pagination.totalPages}
+                  totalItems={pagination.total}
+                  itemsPerPage={pagination.limit}
+                  entity="clusters"
+                  onPageChange={setCurrentPage}
+                  onItemsPerPageChange={(size) => {
+                    setItemsPerPage(size);
+                    setCurrentPage(1);
+                  }}
+                />
+              </div>
+            )}
+          </>
         )}
       </TableCard>
 
@@ -200,6 +220,6 @@ export default function ClustersList() {
           </Button>
         </div>
       </Modal>
-    </div>
+    </>
   );
 }

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { FiCheckCircle, FiPlus, FiRss } from 'react-icons/fi';
 import TableCard from '@/components/ui/TableCard';
 import FilterPanel from '@/components/ui/FilterPanel';
@@ -9,7 +9,7 @@ import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
 import EmptyState from '@/components/ui/EmptyState';
 import Pagination from '@/components/ui/Pagination';
-import { PageSkeleton } from '@/components/ui/Skeleton';
+import Badge from '@/components/ui/Badge';
 import TableToolbar from '@/components/ui/TableToolbar';
 import Modal from '@/components/ui/Modal';
 import { TableColumn, Pagination as PaginationType } from '@/types';
@@ -26,6 +26,7 @@ import { useServerCounts } from '@/hooks/useServerCounts';
 import { logError } from '@/utils/safeLog';
 
 export default function FeedsList() {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [isFilterVisible, setIsFilterVisible] = useState(false);
   const [typeFilter, setTypeFilter] = useState('all');
@@ -33,7 +34,7 @@ export default function FeedsList() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [selectedFeed, setSelectedFeed] = useState<Feed | null>(null);
@@ -41,7 +42,7 @@ export default function FeedsList() {
 
   useEffect(() => {
     fetchFeeds();
-  }, [typeFilter, currentPage]);
+  }, [typeFilter, currentPage, itemsPerPage]);
 
   const fetchFeeds = async () => {
     try {
@@ -113,29 +114,32 @@ export default function FeedsList() {
   };
 
   const columns: TableColumn<Feed>[] = [
-    { key: 'title', label: 'Title', width: '6.25rem', sortable: true },
+    {
+      key: 'title',
+      label: 'Title',
+      width: '18rem',
+      sortable: true,
+      render: (title) => <span className="font-medium text-foreground">{title}</span>,
+    },
     {
       key: 'isSuperFeed',
       label: 'Type',
-      width: '6.25rem',
-      render: (isSuper) => (
-        <span className="px-2 py-1 text-xs font-medium rounded-full bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
-          {isSuper ? 'Super Feed' : 'Regular'}
-        </span>
-      ),
+      width: '10rem',
+      sortable: true,
+      render: (isSuper) => <Badge variant={isSuper ? 'primary' : 'neutral'}>{isSuper ? 'Super feed' : 'Regular'}</Badge>,
     },
     {
-      key: 'status',
+      key: 'status', sortable: true,
       label: 'Status',
-      width: '7.25rem',
+      width: '8rem',
       render: (status) => {
         return <StatusBadge status={status} />;
       },
     },
     {
-      key: 'createdAt',
+      key: 'createdAt', sortable: true, priority: 'secondary',
       label: 'Created',
-      width: '7.75rem',
+      width: '9rem',
       render: (date) => formatDate(date),
     },
   ];
@@ -158,43 +162,55 @@ export default function FeedsList() {
     },
   ];
 
-  return (
-    <div className="space-y-4">
-      <div className="space-y-3">
-        <PageHeader title="Feeds" description="Manage feeds and super feeds" />
+  // The API has no feed search, so this narrows the page already loaded.
+  const visibleFeeds = feeds.filter((feed) =>
+    (feed.title || '').toLowerCase().includes(searchQuery.trim().toLowerCase())
+  );
 
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-2">
-          {stats.map((stat, index) => (
-            <StatCard key={index} {...stat} />
-          ))}
-        </div>
+  const activeFilterCount = typeFilter !== 'all' ? 1 : 0;
+  const isFiltered = Boolean(searchQuery) || typeFilter !== 'all';
+
+  return (
+    <>
+      <PageHeader
+        title="Feeds"
+        description="Manage feeds and super feeds."
+        actions={
+          <Link to={ROUTES.SOCIAL.CREATE_FEED}>
+            <Button icon={<FiPlus />} collapseLabel>New feed</Button>
+          </Link>
+        }
+      />
+
+      <div className="mb-6 grid grid-cols-2 gap-3">
+        {stats.map((stat, index) => (
+          <StatCard key={index} {...stat} />
+        ))}
       </div>
 
       <TableCard>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
-          onFilterClick={() => setIsFilterVisible(!isFilterVisible)}
+          searchEntity="feeds"
+          onFilterClick={() => setIsFilterVisible((open) => !open)}
           isFilterVisible={isFilterVisible}
-          hasFilters={true}
+          hasFilters
+          activeFilterCount={activeFilterCount}
           onRefresh={fetchFeeds}
           onExport={handleExport}
           isExporting={isExporting}
-          actionButtons={
-            <Link to={ROUTES.SOCIAL.CREATE_FEED}>
-              <Button size="md" icon={<FiPlus />} collapseLabel>New Feed</Button>
-            </Link>
-          }
         />
 
         {isFilterVisible && (
           <FilterPanel onClose={() => setIsFilterVisible(false)}>
-            <div className="w-full sm:w-48">
+            <div className="w-full sm:w-52">
               <Select
+                label="Type"
                 options={[
-                  { value: 'all', label: 'All Feeds' },
-                  { value: 'regular', label: 'Regular Feeds' },
-                  { value: 'super', label: 'Super Feeds' },
+                  { value: 'all', label: 'All feeds' },
+                  { value: 'regular', label: 'Regular feeds' },
+                  { value: 'super', label: 'Super feeds' },
                 ]}
                 value={typeFilter}
                 onChange={(e) => {
@@ -203,40 +219,60 @@ export default function FeedsList() {
                 }}
               />
             </div>
+            {typeFilter !== 'all' && (
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setTypeFilter('all');
+                  setCurrentPage(1);
+                }}
+              >
+                Clear filters
+              </Button>
+            )}
           </FilterPanel>
         )}
 
-        {loading ? (
-          <PageSkeleton variant="section" />
-        ) : error ? (
+        {error ? (
           <EmptyState
             variant="error"
             entity="feeds"
             description={error}
-            action={{ label: 'Retry', onClick: fetchFeeds }}
+            action={{ label: 'Try again', onClick: fetchFeeds }}
           />
         ) : (
           <>
             <Table
               fixedLayout
-              striped
               columns={columns}
-              data={feeds}
-              emptyMessage="No feeds found"
-              showExport={false}
+              data={visibleFeeds}
+              isLoading={loading}
+              entity="feeds"
+              emptyVariant={isFiltered ? 'no-results' : 'empty'}
+              emptyAction={
+                isFiltered
+                  ? { label: 'Clear filters', onClick: () => { setSearchQuery(''); setTypeFilter('all'); setCurrentPage(1); } }
+                  : { label: 'Add feed', onClick: () => navigate(ROUTES.SOCIAL.CREATE_FEED) }
+              }
               onRowClick={(row) => {
                 setSelectedFeed(row);
                 setShowViewModal(true);
               }}
             />
-            {pagination && pagination.totalPages > 1 && (
+
+            {pagination && (
               <div className="mt-4">
                 <Pagination
-                  currentPage={currentPage}
+                  currentPage={pagination.page}
                   totalPages={pagination.totalPages}
                   totalItems={pagination.total}
-                  itemsPerPage={itemsPerPage}
+                  itemsPerPage={pagination.limit}
+                  entity="feeds"
                   onPageChange={setCurrentPage}
+                  onItemsPerPageChange={(size) => {
+                    setItemsPerPage(size);
+                    setCurrentPage(1);
+                  }}
                 />
               </div>
             )}
@@ -301,6 +337,6 @@ export default function FeedsList() {
           </div>
         )}
       </Modal>
-    </div>
+    </>
   );
 }

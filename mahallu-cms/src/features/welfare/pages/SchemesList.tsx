@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react';
-import { FiPlus } from 'react-icons/fi';
+import { FiEdit2, FiPlus, FiTrash2 } from 'react-icons/fi';
 import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import Table from '@/components/ui/Table';
 import Modal from '@/components/ui/Modal';
-import { PageSkeleton } from '@/components/ui/Skeleton';
+import StatusBadge from '@/components/ui/StatusBadge';
+import ActionsMenu from '@/components/ui/ActionsMenu';
+import TableToolbar from '@/components/ui/TableToolbar';
 import EmptyState from '@/components/ui/EmptyState';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import Pagination from '@/components/ui/Pagination';
@@ -35,6 +37,7 @@ export default function SchemesList() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
   const [isFormOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -49,13 +52,13 @@ export default function SchemesList() {
 
   useEffect(() => {
     fetchRows();
-  }, [currentPage]);
+  }, [currentPage, itemsPerPage]);
 
   const fetchRows = async () => {
     try {
       setLoading(true);
       setError(null);
-      const result = await welfareService.getSchemes({ page: currentPage, limit: 10 });
+      const result = await welfareService.getSchemes({ page: currentPage, limit: itemsPerPage });
       setRows(result.data);
       setPagination(result.pagination);
     } catch (err: any) {
@@ -130,77 +133,105 @@ export default function SchemesList() {
     }
   };
 
+  const openCreate = () => {
+    setEditingId(null);
+    setForm(emptyForm);
+    setFormOpen(true);
+  };
+
   const columns: TableColumn<WelfareScheme>[] = [
-    { key: 'name', label: 'Scheme', width: '7.75rem', render: (v) => <span>{toTitleCase(v)}</span> },
+    {
+      key: 'name',
+      label: 'Scheme',
+      sortable: true,
+      width: '16rem',
+      render: (v) => <span className="font-medium text-foreground">{toTitleCase(v)}</span>,
+    },
     {
       key: 'category',
       label: 'Category',
-      width: '8.25rem',
+      sortable: true,
+      width: '12rem',
       render: (v) => WELFARE_CATEGORY_OPTIONS.find((o) => o.value === v)?.label || v,
     },
-    { key: 'budgetAmount', label: 'Budget', width: '7.25rem', render: (v) => (v ? `Rs ${v}` : '-') },
-    { key: 'status', label: 'Status', width: '7.25rem' },
+    {
+      key: 'budgetAmount',
+      label: 'Budget',
+      align: 'right',
+      sortable: true,
+      width: '9rem',
+      render: (v) => (v ? <span className="tabular-nums">₹{v.toLocaleString('en-IN')}</span> : '—'),
+    },
+    { key: 'status', label: 'Status', sortable: true, width: '8rem', render: (v) => <StatusBadge status={v} /> },
+    {
+      key: 'actions',
+      label: '',
+      width: '6.5rem',
+      align: 'right',
+      sortable: false,
+      render: (_v, row) => (
+        <ActionsMenu
+          label={`Actions for ${toTitleCase(row.name)}`}
+          items={[
+            { label: 'Edit', icon: <FiEdit2 className="h-4 w-4" />, onClick: () => openEdit(row) },
+            {
+              label: 'Delete',
+              icon: <FiTrash2 className="h-4 w-4" />,
+              variant: 'danger',
+              onClick: () => openDeleteConfirm(row),
+            },
+          ]}
+        />
+      ),
+    },
   ];
 
   return (
-    <div className="space-y-3">
+    <>
       <PageHeader
-        title="Welfare Schemes"
-        description="Assistance programmes families can apply to"
-        breadcrumbs={[{ label: 'Welfare', path: '/welfare/applications' }]}
+        title="Welfare schemes"
+        description="Assistance programmes families can apply to."
+        actions={
+          <Button icon={<FiPlus />} collapseLabel onClick={openCreate}>
+            New scheme
+          </Button>
+        }
       />
 
       <TableCard>
-        <div className="mb-3 flex items-center justify-between gap-2">
-          <p className="text-xs text-gray-500 dark:text-gray-400">{pagination?.total ?? 0} scheme(s)</p>
-          <Button
-            size="md"
-            onClick={() => {
-              setEditingId(null);
-              setForm(emptyForm);
-              setFormOpen(true);
-            }} icon={<FiPlus />} collapseLabel>New Scheme</Button>
-        </div>
+        <TableToolbar onRefresh={fetchRows} />
 
-        {loading ? (
-          <PageSkeleton variant="section" />
-        ) : error ? (
-          <EmptyState variant="error" entity="schemes" description={error} action={{ label: 'Retry', onClick: fetchRows }} />
-        ) : rows.length === 0 ? (
-          <EmptyState
-            title="No schemes yet"
-            description="Create a welfare scheme to begin accepting applications"
-            action={{
-              label: 'Create First Scheme',
-              onClick: () => {
-                setEditingId(null);
-                setForm(emptyForm);
-                setFormOpen(true);
-              },
-            }}
-          />
+        {error ? (
+          <EmptyState variant="error" entity="schemes" description={error} action={{ label: 'Try again', onClick: fetchRows }} />
         ) : (
-          <Table
-            fixedLayout
-            striped
-            columns={columns}
-            data={rows}
-            emptyMessage="No schemes yet"
-            showExport={false}
-            onRowClick={openEdit}
-          />
-        )}
-
-        {pagination && (
-          <div className="mt-4">
-            <Pagination
-              currentPage={pagination.page}
-              totalPages={pagination.totalPages}
-              totalItems={pagination.total}
-              itemsPerPage={pagination.limit}
-              onPageChange={setCurrentPage}
+          <>
+            <Table
+              fixedLayout
+              columns={columns}
+              data={rows}
+              isLoading={loading}
+              entity="schemes"
+              emptyAction={{ label: 'Add scheme', onClick: openCreate }}
+              onRowClick={openEdit}
             />
-          </div>
+
+            {pagination && (
+              <div className="mt-4">
+                <Pagination
+                  currentPage={pagination.page}
+                  totalPages={pagination.totalPages}
+                  totalItems={pagination.total}
+                  itemsPerPage={pagination.limit}
+                  entity="schemes"
+                  onPageChange={setCurrentPage}
+                  onItemsPerPageChange={(size) => {
+                    setItemsPerPage(size);
+                    setCurrentPage(1);
+                  }}
+                />
+              </div>
+            )}
+          </>
         )}
       </TableCard>
 
@@ -318,10 +349,10 @@ export default function SchemesList() {
       <ConfirmDialog
         isLoading={deleting}
         isOpen={isConfirmDeleteOpen}
-        title="Delete Scheme"
-        message={`Delete the scheme "${toTitleCase(deletingName)}"?`}
+        title={`Delete ${deletingName ? toTitleCase(deletingName) : 'this scheme'}?`}
+        message="This permanently removes the scheme and cannot be undone."
         variant="danger"
-        confirmLabel="Delete"
+        confirmLabel="Delete scheme"
         onConfirm={confirmDelete}
         onCancel={() => {
           setConfirmDeleteOpen(false);
@@ -329,6 +360,6 @@ export default function SchemesList() {
           setDeletingName('');
         }}
       />
-    </div>
+    </>
   );
 }

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { FiCheckCircle, FiCreditCard, FiDollarSign, FiPlus } from 'react-icons/fi';
 import TableCard from '@/components/ui/TableCard';
 import { rowActionClass } from '@/components/ui/rowAction';
@@ -7,7 +7,6 @@ import Button from '@/components/ui/Button';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
 import EmptyState from '@/components/ui/EmptyState';
-import { PageSkeleton } from '@/components/ui/Skeleton';
 import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
 import Modal from '@/components/ui/Modal';
@@ -30,13 +29,13 @@ import PageHeader from '@/components/layout/PageHeader';
 import StatusBadge from '@/components/ui/StatusBadge';
 
 export default function ZakatList() {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
-  const [isFilterVisible, setIsFilterVisible] = useState(false);
   const [zakats, setZakats] = useState<Zakat[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
   /* Totals for the whole filtered set (every page), from the server. */
   const [summary, setSummary] = useState<CollectionSummary>(EMPTY_COLLECTION_SUMMARY);
@@ -58,7 +57,7 @@ export default function ZakatList() {
 
   useEffect(() => {
     fetchZakats();
-  }, [debouncedSearch, currentPage]);
+  }, [debouncedSearch, currentPage, itemsPerPage]);
 
   const fetchZakats = async () => {
     try {
@@ -170,38 +169,50 @@ export default function ZakatList() {
   };
 
   const columns: TableColumn<Zakat>[] = [
-    { key: 'payerName', label: 'Payer Name', width: '9.75rem', sortable: true, render: (v) => toTitleCase(v) },
+    {
+      key: 'payerName',
+      label: 'Payer name',
+      width: '14rem',
+      sortable: true,
+      render: (v) => <span className="font-medium text-foreground">{toTitleCase(v)}</span>,
+    },
     {
       key: 'amount',
       label: 'Amount',
-      width: '9.25rem',
-      align: 'center',
-      render: (amount) => `₹${amount?.toLocaleString() || 0}`,
+      width: '9rem',
+      align: 'right',
+      sortable: true,
+      render: (amount) => `₹${amount?.toLocaleString('en-IN') || 0}`,
     },
     {
       key: 'paymentDate',
-      label: 'Payment Date',
-      width: '10.75rem',
+      label: 'Payment date',
+      sortable: true,
+      width: '9rem',
       render: (date) => formatDate(date),
     },
-    { key: 'category', label: 'Category', width: '8.25rem', render: (v) => (v ? toTitleCase(v) : '-') },
+    { key: 'category', label: 'Category', sortable: true, priority: 'secondary', width: '9rem', render: (v) => (v ? toTitleCase(v) : '—') },
     {
       key: 'receiptNo',
-      label: 'Receipt No.',
-      width: '9.5rem',
-      render: (receiptNo) => receiptNo || '-',
+      label: 'Receipt no.',
+      sortable: true,
+      priority: 'secondary',
+      width: '9rem',
+      render: (receiptNo) => receiptNo || '—',
     },
     {
       key: 'status',
       label: 'Status',
-      width: '7.25rem',
+      sortable: true,
+      width: '8rem',
       render: (status) => <StatusBadge status={status === 'pending' ? 'pending' : 'verified'} />,
     },
     {
       key: 'actions',
-      label: 'Actions',
-      width: '8rem',
-      align: 'center',
+      label: '',
+      width: '6.5rem',
+      align: 'right',
+      sortable: false,
       render: (_, row) => (
         <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
           {row.status === 'pending' && (
@@ -235,72 +246,80 @@ export default function ZakatList() {
     },
   ];
 
-  return (
-    <div className="space-y-4">
-      <div className="space-y-3">
-        <PageHeader title="Zakat" description="Manage zakat payments" />
+  const isFiltered = Boolean(debouncedSearch);
 
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-2">
-          {stats.map((stat, index) => (
-            <StatCard key={index} {...stat} />
-          ))}
-        </div>
+  return (
+    <>
+      <PageHeader
+        title="Zakat"
+        description="Manage zakat payments."
+        actions={
+          <Link to="/collectibles/zakat/create">
+            <Button icon={<FiPlus />} collapseLabel>New payment</Button>
+          </Link>
+        }
+      />
+
+      <div className="mb-6 grid grid-cols-2 gap-3">
+        {stats.map((stat, index) => (
+          <StatCard key={index} {...stat} />
+        ))}
       </div>
 
       <TableCard>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
-          onFilterClick={() => setIsFilterVisible(!isFilterVisible)}
-          isFilterVisible={isFilterVisible}
-          hasFilters={false}
+          searchEntity="zakat payments"
           onRefresh={fetchZakats}
           onExport={handleExport}
           isExporting={isExporting}
-          actionButtons={
-            <Link to="/collectibles/zakat/create">
-              <Button size="md" icon={<FiPlus />} collapseLabel>New Payment</Button>
-            </Link>
-          }
         />
 
-        {loading ? (
-          <PageSkeleton variant="section" />
-        ) : error ? (
+        {error ? (
           <EmptyState
             variant="error"
             entity="zakat payments"
             description={error}
-            action={{ label: 'Retry', onClick: fetchZakats }}
+            action={{ label: 'Try again', onClick: fetchZakats }}
           />
         ) : (
-          <Table
-            fixedLayout
-            striped
-            columns={columns}
-            data={zakats}
-            emptyMessage="No zakat payments found"
-            showExport={false}
-            onRowClick={(row) => {
-              setSelectedZakat(row);
-              setShowViewModal(true);
-            }}
-          />
-        )}
-
-        {/* Pagination */}
-        {pagination && (
-          <div className="mt-4">
-            <Pagination
-              currentPage={pagination.page}
-              totalPages={pagination.totalPages}
-              totalItems={pagination.total}
-              itemsPerPage={pagination.limit}
-              onPageChange={(page) => {
-                setCurrentPage(page);
+          <>
+            <Table
+              fixedLayout
+              columns={columns}
+              data={zakats}
+              isLoading={loading}
+              entity="zakat payments"
+              emptyVariant={isFiltered ? 'no-results' : 'empty'}
+              emptyAction={
+                isFiltered
+                  ? { label: 'Clear filters', onClick: () => { setSearchQuery(''); setCurrentPage(1); } }
+                  : { label: 'New payment', onClick: () => navigate('/collectibles/zakat/create') }
+              }
+              onRowClick={(row) => {
+                setSelectedZakat(row);
+                setShowViewModal(true);
               }}
             />
-          </div>
+
+            {pagination && (
+              <div className="mt-4">
+                <Pagination
+                  currentPage={pagination.page}
+                  totalPages={pagination.totalPages}
+                  totalItems={pagination.total}
+                  itemsPerPage={pagination.limit}
+                  entity="zakat payments"
+                  onPageChange={setCurrentPage}
+                  onItemsPerPageChange={(size) => {
+                    setItemsPerPage(size);
+                    setCurrentPage(1);
+                  }}
+                />
+              </div>
+            )}
+          </>
         )}
       </TableCard>
 
@@ -381,36 +400,20 @@ export default function ZakatList() {
         )}
       </Modal>
 
-      {/* Delete Modal */}
-      <Modal
+      <ConfirmDialog
         isOpen={showDeleteModal}
-        onClose={() => {
+        title={`Delete payment from ${toTitleCase(selectedZakat?.payerName) || 'this payer'}?`}
+        message="This permanently removes the zakat payment and cannot be undone."
+        confirmLabel="Delete payment"
+        variant="danger"
+        isLoading={deleting}
+        onConfirm={handleDelete}
+        onCancel={() => {
           setShowDeleteModal(false);
           setSelectedZakat(null);
         }}
-        title="Delete Zakat Payment"
-        footer={
-          <>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setShowDeleteModal(false);
-                setSelectedZakat(null);
-              }}
-            >
-              Cancel
-            </Button>
-            <Button variant="danger" onClick={handleDelete} isLoading={deleting}>
-              Delete
-            </Button>
-          </>
-        }
-      >
-        <p className="text-gray-600 dark:text-gray-400">
-          Are you sure you want to delete this zakat payment from{' '}
-          <strong>{toTitleCase(selectedZakat?.payerName)}</strong>? This action cannot be undone.
-        </p>
-      </Modal>
+      />
+
       <ConfirmDialog
         isOpen={!!verifyConfirm}
         title="Verify this payment?"
@@ -421,6 +424,6 @@ export default function ZakatList() {
         onConfirm={handleVerify}
         onCancel={() => setVerifyConfirm(null)}
       />
-    </div>
+    </>
   );
 }

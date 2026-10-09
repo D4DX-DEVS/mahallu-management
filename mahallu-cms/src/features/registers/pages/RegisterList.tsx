@@ -4,8 +4,9 @@ import Card from '@/components/ui/Card';
 import TableCard from '@/components/ui/TableCard';
 import Select from '@/components/ui/Select';
 import Table from '@/components/ui/Table';
-import ExpandableSearch from '@/components/ui/ExpandableSearch';
-import { PageSkeleton } from '@/components/ui/Skeleton';
+import FilterPanel from '@/components/ui/FilterPanel';
+import TableToolbar from '@/components/ui/TableToolbar';
+import Button from '@/components/ui/Button';
 import EmptyState from '@/components/ui/EmptyState';
 import Pagination from '@/components/ui/Pagination';
 import { Pagination as PaginationType } from '@/types';
@@ -28,7 +29,8 @@ export default function RegisterList() {
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
+  const [isFilterVisible, setIsFilterVisible] = useState(false);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
   const [filterValues, setFilterValues] = useState<Record<string, string>>({});
 
@@ -42,7 +44,7 @@ export default function RegisterList() {
 
   useEffect(() => {
     if (config) fetchRows();
-  }, [key, debouncedSearch, currentPage, filterValues]);
+  }, [key, debouncedSearch, currentPage, itemsPerPage, filterValues]);
 
   const fetchRows = async () => {
     if (!config) return;
@@ -79,32 +81,40 @@ export default function RegisterList() {
     );
   }
 
+  const activeFilterCount = Object.values(filterValues).filter(Boolean).length;
+  const isFiltered = Boolean(debouncedSearch) || activeFilterCount > 0;
+  const hasFilters = Boolean(config.filters && config.filters.length > 0);
+  const clearFilters = () => {
+    setSearchQuery('');
+    setFilterValues({});
+    setCurrentPage(1);
+  };
+
   return (
-    <div className="space-y-3">
-      <PageHeader
-        title={config.title}
-        description={config.description}
-        breadcrumbs={[{ label: 'Registers', path: '/registers' }]}
-      />
+    <>
+      <PageHeader title={config.title} description={config.description} />
 
       <TableCard>
-        <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div className="w-full sm:max-w-xs">
-            <ExpandableSearch
-              value={searchQuery}
-              onChange={(value) => {
-                setSearchQuery(value);
-                setCurrentPage(1);
-              }}
-              entity="records"
-            />
-          </div>
+        <TableToolbar
+          searchQuery={searchQuery}
+          onSearchChange={(value) => {
+            setSearchQuery(value);
+            setCurrentPage(1);
+          }}
+          searchEntity="records"
+          onFilterClick={() => setIsFilterVisible((open) => !open)}
+          isFilterVisible={isFilterVisible}
+          hasFilters={hasFilters}
+          activeFilterCount={activeFilterCount}
+          onRefresh={fetchRows}
+        />
 
-          {config.filters && config.filters.length > 0 && (
-            <div className="grid grid-cols-1 gap-2 sm:flex sm:items-center">
-              {config.filters.map((filter) => (
+        {hasFilters && isFilterVisible && (
+          <FilterPanel onClose={() => setIsFilterVisible(false)}>
+            {config.filters!.map((filter) => (
+              <div key={filter.name} className="w-full sm:w-52">
                 <Select
-                  key={filter.name}
+                  label={filter.label}
                   options={filter.options}
                   value={filterValues[filter.name] || ''}
                   onChange={(e) => {
@@ -112,63 +122,55 @@ export default function RegisterList() {
                     setCurrentPage(1);
                   }}
                 />
-              ))}
-            </div>
-          )}
-        </div>
-
-        {pagination && (
-          <p className="mb-2 text-label text-muted-foreground">{pagination.total} records</p>
+              </div>
+            ))}
+            {activeFilterCount > 0 && (
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setFilterValues({});
+                  setCurrentPage(1);
+                }}
+              >
+                Clear filters
+              </Button>
+            )}
+          </FilterPanel>
         )}
 
-        {loading ? (
-          <PageSkeleton variant="section" />
-        ) : error ? (
-          <EmptyState variant="error" entity="records" description={error} action={{ label: 'Retry', onClick: fetchRows }} />
-        ) : rows.length === 0 ? (
-          <EmptyState
-            title="No records found"
-            description={
-              searchQuery || Object.values(filterValues).some((v) => v)
-                ? 'Try adjusting your search or filters'
-                : 'No records in this register yet'
-            }
-            action={
-              searchQuery || Object.values(filterValues).some((v) => v)
-                ? {
-                    label: 'Clear filters',
-                    onClick: () => {
-                      setSearchQuery('');
-                      setFilterValues({});
-                      setCurrentPage(1);
-                    },
-                  }
-                : undefined
-            }
-          />
+        {error ? (
+          <EmptyState variant="error" entity="records" description={error} action={{ label: 'Try again', onClick: fetchRows }} />
         ) : (
-          <Table
-            fixedLayout
-            striped
-            columns={columnsFor(config.source)}
-            data={rows}
-            emptyMessage="No records found"
-            showExport={false}
-          />
-        )}
-
-        {pagination && (
-          <div className="mt-4">
-            <Pagination
-              currentPage={pagination.page}
-              totalPages={pagination.totalPages}
-              totalItems={pagination.total}
-              itemsPerPage={pagination.limit}
-              onPageChange={setCurrentPage}
+          <>
+            <Table
+              fixedLayout
+              columns={columnsFor(config.source)}
+              data={rows}
+              isLoading={loading}
+              entity="records"
+              emptyVariant={isFiltered ? 'no-results' : 'empty'}
+              emptyAction={isFiltered ? { label: 'Clear filters', onClick: clearFilters } : undefined}
             />
-          </div>
+
+            {pagination && (
+              <div className="mt-4">
+                <Pagination
+                  currentPage={pagination.page}
+                  totalPages={pagination.totalPages}
+                  totalItems={pagination.total}
+                  itemsPerPage={pagination.limit}
+                  entity="records"
+                  onPageChange={setCurrentPage}
+                  onItemsPerPageChange={(size) => {
+                    setItemsPerPage(size);
+                    setCurrentPage(1);
+                  }}
+                />
+              </div>
+            )}
+          </>
         )}
       </TableCard>
-    </div>
+    </>
   );
 }

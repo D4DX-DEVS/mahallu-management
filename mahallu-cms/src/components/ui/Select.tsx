@@ -26,9 +26,14 @@ const nativeSelectValueSetter = Object.getOwnPropertyDescriptor(
   window.HTMLSelectElement.prototype,
   'value'
 )?.set;
+const nativeSelectValueGetter = Object.getOwnPropertyDescriptor(
+  window.HTMLSelectElement.prototype,
+  'value'
+)?.get;
 function setNativeSelectValue(node: HTMLSelectElement, value: string) {
   nativeSelectValueSetter?.call(node, value);
 }
+const mirroredSelects = new WeakSet<HTMLSelectElement>();
 /* An empty-value option worded as an instruction ("Select grade...") is a
  * placeholder, not a choice: it shows muted in the trigger and is left out of
  * the list. An empty option that is a real choice ("All areas") stays. */
@@ -75,6 +80,26 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
     useEffect(() => {
       if (value !== undefined) setInternalValue(value);
     }, [value]);
+    const valueRef = useRef(value);
+    valueRef.current = value;
+    /* react-hook-form loads values (setValue, reset, defaultValues) by assigning
+     * `node.value` on the registered element: no event, no re-render. The trigger
+     * label is drawn from `internalValue`, so it kept showing the placeholder on
+     * every edit form. Mirror those assignments into state, unless the parent
+     * controls `value` itself. Mirroring the requested value, not the DOM's, also
+     * survives options that arrive after the value was set. */
+    const mirrorNodeValue = useCallback((node: HTMLSelectElement) => {
+      if (mirroredSelects.has(node) || !nativeSelectValueGetter || !nativeSelectValueSetter) return;
+      mirroredSelects.add(node);
+      Object.defineProperty(node, 'value', {
+        configurable: true,
+        get: () => nativeSelectValueGetter.call(node),
+        set: (next: unknown) => {
+          nativeSelectValueSetter.call(node, next);
+          if (valueRef.current === undefined) setInternalValue(next == null ? '' : String(next));
+        },
+      });
+    }, []);
     const listOptions = options.filter((option) => !isPrompt(option));
     const promptOption = options.find(isPrompt);
     const needsSearch = listOptions.length > 7;
@@ -317,6 +342,7 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
           {/* Hidden native select keeps react-hook-form registration intact. */}
           <select
             ref={(node) => {
+              if (node) mirrorNodeValue(node);
               if (typeof ref === 'function') ref(node);
               else if (ref) ref.current = node;
               selectRef.current = node;

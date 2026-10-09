@@ -6,7 +6,6 @@ import Button from '@/components/ui/Button';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
 import EmptyState from '@/components/ui/EmptyState';
-import { PageSkeleton } from '@/components/ui/Skeleton';
 import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
 import { TableColumn, Pagination as PaginationType } from '@/types';
@@ -26,12 +25,11 @@ import { logError } from '@/utils/safeLog';
 export default function MahallUsersList() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
-  const [isFilterVisible, setIsFilterVisible] = useState(false);
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
   const [isExporting, setIsExporting] = useState(false);
 
@@ -44,7 +42,7 @@ export default function MahallUsersList() {
 
   useEffect(() => {
     fetchUsers();
-  }, [debouncedSearch, currentPage]);
+  }, [debouncedSearch, currentPage, itemsPerPage]);
 
   const fetchUsers = async () => {
     try {
@@ -112,7 +110,7 @@ export default function MahallUsersList() {
     {
       key: 'name',
       label: 'Name',
-      width: '6.75rem',
+      width: '16rem',
       render: (name, row) => (
         <div>
           <div className="font-medium text-gray-900 dark:text-white">{toTitleCase(name)}</div>
@@ -123,32 +121,32 @@ export default function MahallUsersList() {
       ),
     },
     {
-      key: 'tenant',
+      key: 'tenant', priority: 'secondary',
       label: 'Tenant',
-      width: '7.25rem',
+      width: '12rem',
       render: (tenant, row: any) => {
         // Check both tenant and tenantId fields (populated reference)
         const tenantData = tenant || row.tenantId;
         return tenantData?.name ? toTitleCase(tenantData.name) : '-';
       },
     },
-    { key: 'phone', label: 'Phone', width: '6.75rem' },
+    { key: 'phone', priority: 'secondary', label: 'Phone', width: '9rem' },
     {
-      key: 'email',
+      key: 'email', priority: 'secondary',
       label: 'Email',
-      width: '6.75rem',
+      width: '14rem',
       render: (email) => email || '-',
     },
     {
-      key: 'joiningDate',
+      key: 'joiningDate', priority: 'tertiary',
       label: 'Joining Date',
-      width: '10rem',
+      width: '9rem',
       render: (date) => (date ? formatDate(date) : '-'),
     },
     {
-      key: 'lastLogin',
+      key: 'lastLogin', priority: 'tertiary',
       label: 'Last Login',
-      width: '9.25rem',
+      width: '11rem',
       render: (lastLogin) => (lastLogin ? formatDateTime(lastLogin) : '-'),
     },
   ];
@@ -167,73 +165,79 @@ export default function MahallUsersList() {
     },
   ];
 
-  return (
-    <div className="space-y-4">
-      <div className="space-y-3">
-        <PageHeader title="All Mahall Users" description="Manage mahall users and their permissions" />
+  const isFiltered = Boolean(debouncedSearch);
 
-        {/* Statistics Cards */}
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          {stats.map((stat, index) => (
-            <StatCard key={index} {...stat} />
-          ))}
-        </div>
+  return (
+    <>
+      <PageHeader
+        title="Mahallu users"
+        description="Manage mahallu users and their permissions."
+        actions={
+          <Link to={ROUTES.USERS.CREATE_MAHALL}>
+            <Button icon={<FiPlus />} collapseLabel>New user</Button>
+          </Link>
+        }
+      />
+
+      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
+        {stats.map((stat, index) => (
+          <StatCard key={index} {...stat} />
+        ))}
       </div>
 
-      {/* Actions and Table */}
       <TableCard>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
-          onFilterClick={() => setIsFilterVisible(!isFilterVisible)}
-          isFilterVisible={isFilterVisible}
-          hasFilters={false}
+          searchEntity="users"
           onRefresh={fetchUsers}
           onExport={handleExport}
           isExporting={isExporting}
-          actionButtons={
-            <Link to={ROUTES.USERS.CREATE_MAHALL}>
-              <Button size="md" icon={<FiPlus />} collapseLabel>New User</Button>
-            </Link>
-          }
         />
 
-        {loading ? (
-          <PageSkeleton variant="section" />
-        ) : error ? (
+        {error ? (
           <EmptyState
             variant="error"
-            entity="mahall users"
+            entity="users"
             description={error}
-            action={{ label: 'Retry', onClick: fetchUsers }}
+            action={{ label: 'Try again', onClick: fetchUsers }}
           />
         ) : (
-          <Table
-            fixedLayout
-            striped
-            columns={columns}
-            data={users}
-            emptyMessage="No users found"
-            showExport={false}
-            onRowClick={(row) => navigate(`/users/mahall/${row.id}`)}
-          />
-        )}
-
-        {/* Pagination */}
-        {pagination && (
-          <div className="mt-4">
-            <Pagination
-              currentPage={pagination.page}
-              totalPages={pagination.totalPages}
-              totalItems={pagination.total}
-              itemsPerPage={pagination.limit}
-              onPageChange={(page) => {
-                setCurrentPage(page);
-              }}
+          <>
+            <Table
+              fixedLayout
+              columns={columns}
+              data={users}
+              isLoading={loading}
+              entity="users"
+              emptyVariant={isFiltered ? 'no-results' : 'empty'}
+              emptyAction={
+                isFiltered
+                  ? { label: 'Clear filters', onClick: () => { setSearchQuery(''); } }
+                  : { label: 'Add user', onClick: () => navigate(ROUTES.USERS.CREATE_MAHALL) }
+              }
+              onRowClick={(row) => navigate(`/users/mahall/${row.id}`)}
             />
-          </div>
+
+            {pagination && (
+              <div className="mt-4">
+                <Pagination
+                  currentPage={pagination.page}
+                  totalPages={pagination.totalPages}
+                  totalItems={pagination.total}
+                  itemsPerPage={pagination.limit}
+                  entity="users"
+                  onPageChange={setCurrentPage}
+                  onItemsPerPageChange={(size) => {
+                    setItemsPerPage(size);
+                    setCurrentPage(1);
+                  }}
+                />
+              </div>
+            )}
+          </>
         )}
       </TableCard>
-    </div>
+    </>
   );
 }

@@ -505,7 +505,11 @@ function Table<T extends Record<string, any>>({
                 const isSorted = activeSort?.key === column.key;
                 const direction = isSorted ? activeSort!.direction : null;
                 const sortableColumn = canSort(column);
-                const headAlign = column.headerAlign ?? column.align ?? 'left';
+                /* The row-actions column is the same on every list: right
+                 * aligned, no heading. Pages used to label it "Actions" and
+                 * centre it, so its menu sat in a different place on each. */
+                const isActions = column.key === 'actions';
+                const headAlign = isActions ? 'right' : (column.headerAlign ?? column.align ?? 'left');
                 return (
                   <th
                     key={column.key}
@@ -523,17 +527,17 @@ function Table<T extends Record<string, any>>({
                      * `minWidth`, and would stretch the column past it. */
                     style={{
                       ...HEAD_FONT,
-                      ...(column.width
+                      ...((column.width ?? (isActions ? '6.5rem' : undefined))
                         ? fixedLayout
-                          ? { width: column.width }
-                          : { minWidth: column.width }
+                          ? { width: column.width ?? '6.5rem' }
+                          : { minWidth: column.width ?? '6.5rem' }
                         : {}),
                     }}
                     className={cn(
                       /* Size comes from HEAD_FONT. `whitespace-nowrap` stops
                        * a two-word heading folding into its neighbour. */
                       'whitespace-nowrap font-medium text-muted-foreground',
-                      ALIGN_CLASS[column.headerAlign ?? column.align ?? 'left'],
+                      ALIGN_CLASS[headAlign],
                       PRIORITY_CLASS[column.priority ?? 'primary']
                     )}
                   >
@@ -570,6 +574,8 @@ function Table<T extends Record<string, any>>({
                         <span className="min-w-0 truncate">{column.label}</span>
                         <SortIndicator direction={direction} />
                       </button>
+                    ) : isActions ? (
+                      <span className="sr-only">{column.label || 'Actions'}</span>
                     ) : (
                       column.label
                     )}
@@ -628,7 +634,7 @@ function Table<T extends Record<string, any>>({
                       }
                       className={cn(
                         'text-foreground',
-                        ALIGN_CLASS[column.align ?? 'left'],
+                        ALIGN_CLASS[column.key === 'actions' ? 'right' : (column.align ?? 'left')],
                         PRIORITY_CLASS[column.priority ?? 'primary']
                       )}
                     >

@@ -84,6 +84,7 @@ import './sessionSecurity.test';
 import './statusTransitions.test';
 import './supportTickets.test';
 import './tenantIsolation.test';
+import './tenantSettingsSchema.test';
 import './tenantUpdate.test';
 import './totalsAudit.test';
 import './transactionHelper.test';

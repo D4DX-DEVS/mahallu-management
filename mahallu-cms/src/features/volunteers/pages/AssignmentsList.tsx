@@ -8,13 +8,17 @@ import {
   ASSIGNMENT_STATUS_OPTIONS,
 } from '@/services/volunteerService';
 import Button from '@/components/ui/Button';
+import TableCard from '@/components/ui/TableCard';
+import TableToolbar from '@/components/ui/TableToolbar';
+import Tabs from '@/components/ui/Tabs';
+import EmptyState from '@/components/ui/EmptyState';
 import Table from '@/components/ui/Table';
 import ActionsMenu from '@/components/ui/ActionsMenu';
 import Pagination from '@/components/ui/Pagination';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import Modal from '@/components/ui/Modal';
 import { toast } from '@/store/toastStore';
-import { errorMessage } from '@/utils/errors';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import StatusBadge from '@/components/ui/StatusBadge';
 import PageHeader from '@/components/layout/PageHeader';
 import { TableColumn } from '@/types';
@@ -25,7 +29,9 @@ export default function AssignmentsList() {
   const [assignments, setAssignments] = useState<VolunteerAssignment[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
+  const [totalItems, setTotalItems] = useState(0);
+  const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [totalPages, setTotalPages] = useState(1);
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; date: string } | null>(null);
@@ -33,26 +39,28 @@ export default function AssignmentsList() {
   const [selectedAssignment, setSelectedAssignment] = useState<VolunteerAssignment | null>(null);
   const [showViewModal, setShowViewModal] = useState(false);
 
-  useEffect(() => {
-    const fetchAssignments = async () => {
-      try {
-        setLoading(true);
-        const result = await volunteerService.getAssignments({
-          page: currentPage,
-          limit: itemsPerPage,
-          status: statusFilter || undefined,
-        });
-        setAssignments(result.data);
-        setTotalPages(result.pagination?.totalPages || 1);
-      } catch (error) {
-        console.error("Couldn't load assignments:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchAssignments();
+  const fetchAssignments = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const result = await volunteerService.getAssignments({
+        page: currentPage,
+        limit: itemsPerPage,
+        status: statusFilter || undefined,
+      });
+      setAssignments(result.data);
+      setTotalPages(result.pagination?.totalPages || 1);
+      setTotalItems(result.pagination?.total ?? result.data.length);
+    } catch (err) {
+      setError(loadErrorMessage(err, 'assignments'));
+    } finally {
+      setLoading(false);
+    }
   }, [currentPage, itemsPerPage, statusFilter]);
+
+  useEffect(() => {
+    fetchAssignments();
+  }, [fetchAssignments]);
 
   const handleDeleteClick = useCallback((id: string, date: string) => {
     setDeleteConfirm({ id, date });
@@ -87,10 +95,12 @@ export default function AssignmentsList() {
   const columns: TableColumn<VolunteerAssignment>[] = [
     {
       key: 'serviceType',
-      label: 'Service Type',
+      label: 'Service type',
+      sortable: true,
+      width: '16rem',
       render: (_v, assignment) => (
-        <div>
-          <div className="font-medium text-foreground">
+        <div className="min-w-0">
+          <div className="truncate font-medium text-foreground">
             {SERVICE_TYPE_OPTIONS.find((x) => x.value === assignment.serviceType)?.label ||
               assignment.serviceType}
           </div>
@@ -100,29 +110,15 @@ export default function AssignmentsList() {
         </div>
       ),
     },
-    {
-      key: 'description',
-      label: 'Description',
-      priority: 'secondary',
-      render: (_v, assignment) => assignment.description || '—',
-    },
-    {
-      key: 'volunteers',
-      label: 'Volunteers',
-      priority: 'secondary',
-      render: (_v, assignment) => volunteerNames(assignment),
-    },
-    {
-      key: 'status',
-      label: 'Status',
-      sortable: true,
-      render: (_v, assignment) => <StatusBadge status={assignment.status} />,
-    },
+    { key: 'description', label: 'Description', sortable: false, priority: 'secondary', width: '18rem', render: (_v, assignment) => assignment.description || '—' },
+    { key: 'volunteers', label: 'Volunteers', sortable: false, priority: 'secondary', width: '16rem', render: (_v, assignment) => volunteerNames(assignment) },
+    { key: 'status', label: 'Status', sortable: true, width: '8rem', render: (_v, assignment) => <StatusBadge status={assignment.status} /> },
     {
       key: 'actions',
-      label: 'Actions',
+      label: '',
       align: 'right',
       sortable: false,
+      width: '6.5rem',
       render: (_v, assignment) => (
         <ActionsMenu
           label="Actions for this assignment"
@@ -146,59 +142,74 @@ export default function AssignmentsList() {
   ];
 
   return (
-    <div className="space-y-4">
+    <>
       <PageHeader
         title="Volunteer assignments"
         description="Who is doing what, and when."
-        breadcrumbs={[{ label: 'Volunteers', path: '/volunteers' }]}
+        actions={
+          <Button icon={<FiPlus />} collapseLabel onClick={() => navigate('/volunteers/assignments/create')}>
+            New assignment
+          </Button>
+        }
       />
-      <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
-        <div className="flex-1">
-          <div className="flex gap-2 flex-wrap">
-            {[{ value: '', label: 'All Status' }, ...ASSIGNMENT_STATUS_OPTIONS].map((status) => (
-              <button
-                key={status.value}
-                onClick={() => {
-                  setStatusFilter(status.value);
+
+      <TableCard>
+        <TableToolbar
+          tabs={
+            <Tabs
+              variant="segmented"
+              ariaLabel="Assignment status"
+              value={statusFilter}
+              onChange={(value) => {
+                setStatusFilter(value);
+                setCurrentPage(1);
+              }}
+              items={[{ value: '', label: 'All' }, ...ASSIGNMENT_STATUS_OPTIONS]}
+            />
+          }
+          onRefresh={fetchAssignments}
+        />
+
+        {error ? (
+          <EmptyState variant="error" entity="assignments" description={error} action={{ label: 'Try again', onClick: fetchAssignments }} />
+        ) : (
+          <>
+            <Table
+              fixedLayout
+              columns={columns}
+              data={assignments}
+              isLoading={loading}
+              entity="assignments"
+              emptyVariant={statusFilter ? 'no-results' : 'empty'}
+              emptyAction={
+                statusFilter
+                  ? { label: 'Clear filters', onClick: () => { setStatusFilter(''); setCurrentPage(1); } }
+                  : { label: 'Add assignment', onClick: () => navigate('/volunteers/assignments/create') }
+              }
+              rowKey={(assignment) => assignment.id}
+              onRowClick={(assignment) => {
+                setSelectedAssignment(assignment);
+                setShowViewModal(true);
+              }}
+            />
+
+            <div className="mt-4">
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                totalItems={totalItems}
+                itemsPerPage={itemsPerPage}
+                entity="assignments"
+                onPageChange={setCurrentPage}
+                onItemsPerPageChange={(size) => {
+                  setItemsPerPage(size);
                   setCurrentPage(1);
                 }}
-                className={`px-3 py-1 text-xs rounded-full transition-colors ${
-                  statusFilter === status.value
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                {status.label}
-              </button>
-            ))}
-          </div>
-        </div>
-        <Button onClick={() => navigate('/volunteers/assignments/create')} icon={<FiPlus />} collapseLabel>
-          New Assignment
-        </Button>
-      </div>
-
-      <Table
-        columns={columns}
-        data={assignments}
-        isLoading={loading}
-        entity="assignments"
-        rowKey={(assignment) => assignment.id}
-        onRowClick={(assignment) => {
-          setSelectedAssignment(assignment);
-          setShowViewModal(true);
-        }}
-      />
-
-      {!loading && assignments.length > 0 && (
-        <Pagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          totalItems={totalPages * itemsPerPage}
-          itemsPerPage={itemsPerPage}
-          onPageChange={setCurrentPage}
-        />
-      )}
+              />
+            </div>
+          </>
+        )}
+      </TableCard>
 
       {/* View Modal */}
       <Modal
@@ -276,16 +287,15 @@ export default function AssignmentsList() {
 
       <ConfirmDialog
         isOpen={deleteConfirm !== null}
-        title="Delete Assignment"
-        message={deleteConfirm ? `Delete assignment from ${deleteConfirm.date}?` : ''}
-        consequence="This action cannot be undone."
-        confirmLabel="Delete"
+        title={deleteConfirm ? `Delete the assignment from ${deleteConfirm.date}?` : 'Delete this assignment?'}
+        message="This permanently removes the assignment and cannot be undone."
+        confirmLabel="Delete assignment"
         cancelLabel="Cancel"
         isLoading={isDeleting}
         variant="danger"
         onConfirm={handleConfirmDelete}
         onCancel={handleCancelDelete}
       />
-    </div>
+    </>
   );
 }

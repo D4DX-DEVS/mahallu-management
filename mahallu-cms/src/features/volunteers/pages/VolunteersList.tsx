@@ -1,213 +1,253 @@
 import { useEffect, useState, useCallback } from 'react';
-import { FiPlus } from 'react-icons/fi';
+import { FiEdit2, FiEye, FiPlus, FiTrash2 } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import { volunteerService, type VolunteerProfile, VOLUNTEER_WINGS } from '@/services/volunteerService';
 import Button from '@/components/ui/Button';
-import Card from '@/components/ui/Card';
+import TableCard from '@/components/ui/TableCard';
+import TableToolbar from '@/components/ui/TableToolbar';
+import FilterPanel from '@/components/ui/FilterPanel';
+import Select from '@/components/ui/Select';
+import Table from '@/components/ui/Table';
+import ActionsMenu from '@/components/ui/ActionsMenu';
+import EmptyState from '@/components/ui/EmptyState';
 import Pagination from '@/components/ui/Pagination';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { toast } from '@/store/toastStore';
 import StatusBadge from '@/components/ui/StatusBadge';
 import PageHeader from '@/components/layout/PageHeader';
+import { TableColumn } from '@/types';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import { toTitleCase } from '@/utils/format';
+
+const STATUS_OPTIONS = [
+  { value: '', label: 'All statuses' },
+  { value: 'active', label: 'Active' },
+  { value: 'inactive', label: 'Inactive' },
+];
+
+const volunteerName = (volunteer: VolunteerProfile) => {
+  if (volunteer.memberId && typeof volunteer.memberId === 'object') {
+    return toTitleCase(volunteer.memberId.name);
+  }
+  return '—';
+};
 
 export default function VolunteersList() {
   const navigate = useNavigate();
   const [volunteers, setVolunteers] = useState<VolunteerProfile[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
   const [wingFilter, setWingFilter] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('');
+  const [isFilterVisible, setIsFilterVisible] = useState(false);
   const [totalPages, setTotalPages] = useState(1);
-  const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [deleting, setDeleting] = useState(false);
+  const [totalItems, setTotalItems] = useState(0);
+  const [deleting, setDeleting] = useState<VolunteerProfile | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
-  useEffect(() => {
-    const fetchVolunteers = async () => {
-      try {
-        setLoading(true);
-        const result = await volunteerService.getVolunteers({
-          page: currentPage,
-          limit: itemsPerPage,
-          wing: wingFilter || undefined,
-          status: statusFilter || undefined,
-        });
-        setVolunteers(result.data);
-        setTotalPages(result.pagination?.totalPages || 1);
-      } catch (error) {
-        console.error("Couldn't load volunteers:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
+  const activeFilterCount = (wingFilter ? 1 : 0) + (statusFilter ? 1 : 0);
+  const isFiltered = activeFilterCount > 0;
 
-    fetchVolunteers();
+  const fetchVolunteers = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const result = await volunteerService.getVolunteers({
+        page: currentPage,
+        limit: itemsPerPage,
+        wing: wingFilter || undefined,
+        status: statusFilter || undefined,
+      });
+      setVolunteers(result.data);
+      setTotalPages(result.pagination?.totalPages || 1);
+      setTotalItems(result.pagination?.total ?? result.data.length);
+    } catch (err) {
+      setError(loadErrorMessage(err, 'volunteers'));
+    } finally {
+      setLoading(false);
+    }
   }, [currentPage, itemsPerPage, wingFilter, statusFilter]);
 
-  const handleDeleteClick = (id: string) => {
-    setDeleteId(id);
-    setShowDeleteConfirm(true);
-  };
+  useEffect(() => {
+    fetchVolunteers();
+  }, [fetchVolunteers]);
 
-  const handleConfirmDelete = useCallback(async () => {
-    if (!deleteId) return;
+  const confirmDelete = async () => {
+    if (!deleting) return;
     try {
-      setDeleting(true);
-      await volunteerService.deleteVolunteer(deleteId);
-      setVolunteers((prev) => prev.filter((v) => v.id !== deleteId));
+      setIsDeleting(true);
+      await volunteerService.deleteVolunteer(deleting.id);
       toast.success('Volunteer deleted');
-      setShowDeleteConfirm(false);
-      setDeleteId(null);
-    } catch (error) {
-      toast.error("Couldn't delete volunteer. Please try again.");
-      console.error("Couldn't delete volunteer:", error);
+      setDeleting(null);
+      fetchVolunteers();
+    } catch (err) {
+      toast.error(errorMessage(err, { action: 'delete this volunteer' }));
     } finally {
-      setDeleting(false);
+      setIsDeleting(false);
     }
-  }, [deleteId]);
-
-  const volunteerName = (volunteer: VolunteerProfile) => {
-    if (volunteer.memberId && typeof volunteer.memberId === 'object') {
-      return toTitleCase(volunteer.memberId.name);
-    }
-    return '-';
   };
 
-  return (
-    <div className="space-y-4">
-      <PageHeader title="Volunteers" description="People who have signed up to help, by wing." />
-      <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
-        <div className="flex-1">
-          <div className="flex gap-2 flex-wrap">
-            {[
-              { value: '', label: 'All Wings' },
-              ...VOLUNTEER_WINGS.map((w) => ({ value: w.value, label: w.label })),
-            ].map((wing) => (
-              <button
-                key={wing.value}
-                onClick={() => {
-                  setWingFilter(wing.value);
-                  setCurrentPage(1);
-                }}
-                className={`px-3 py-1 text-xs rounded-full transition-colors ${
-                  wingFilter === wing.value
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                {wing.label}
-              </button>
-            ))}
+  const clearFilters = () => {
+    setWingFilter('');
+    setStatusFilter('');
+    setCurrentPage(1);
+  };
+
+  const columns: TableColumn<VolunteerProfile>[] = [
+    {
+      key: 'memberId',
+      label: 'Volunteer',
+      sortable: false,
+      width: '16rem',
+      render: (_v, volunteer) => (
+        <div className="min-w-0">
+          <div className="truncate font-medium text-foreground">{volunteerName(volunteer)}</div>
+          <div className="truncate text-xs text-muted-foreground">
+            {(volunteer.wings ?? []).map((w) => toTitleCase(w)).join(', ') || 'No wing'}
           </div>
         </div>
-        <Button onClick={() => navigate('/volunteers/create')} icon={<FiPlus />} collapseLabel>
-          Add Volunteer
-        </Button>
-      </div>
+      ),
+    },
+    {
+      key: 'serviceTypes',
+      label: 'Service types',
+      sortable: false,
+      priority: 'secondary',
+      width: '20rem',
+      render: (_v, volunteer) => {
+        const types = volunteer.serviceTypes ?? [];
+        if (types.length === 0) return '—';
+        return (
+          <span>
+            {types.slice(0, 3).map((st) => toTitleCase(st.replace(/_/g, ' '))).join(', ')}
+            {types.length > 3 && <span className="text-muted-foreground"> +{types.length - 3}</span>}
+          </span>
+        );
+      },
+    },
+    { key: 'status', label: 'Status', sortable: true, width: '8rem', render: (_v, volunteer) => <StatusBadge status={volunteer.status} /> },
+    {
+      key: 'actions',
+      label: '',
+      align: 'right',
+      sortable: false,
+      width: '6.5rem',
+      render: (_v, volunteer) => (
+        <ActionsMenu
+          label={`Actions for ${volunteerName(volunteer)}`}
+          items={[
+            { label: 'View', icon: <FiEye className="h-4 w-4" />, onClick: () => navigate(`/volunteers/${volunteer.id}`) },
+            { label: 'Edit', icon: <FiEdit2 className="h-4 w-4" />, onClick: () => navigate(`/volunteers/${volunteer.id}/edit`) },
+            { label: 'Delete', icon: <FiTrash2 className="h-4 w-4" />, variant: 'danger', onClick: () => setDeleting(volunteer) },
+          ]}
+        />
+      ),
+    },
+  ];
 
-      {loading ? (
-        <Card>
-          <div className="py-8 text-center">Loading volunteers...</div>
-        </Card>
-      ) : volunteers.length === 0 ? (
-        <Card>
-          <div className="py-8 text-center text-gray-500">
-            <p>No volunteers found</p>
-          </div>
-        </Card>
-      ) : (
-        <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {volunteers.map((volunteer) => (
-              <Card
-                key={volunteer.id}
-                className="cursor-pointer hover:shadow-md transition-shadow"
-                onClick={() => navigate(`/volunteers/${volunteer.id}`)}
-              >
-                <div className="space-y-3">
-                  <div className="flex justify-between items-start gap-2">
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-foreground">{volunteerName(volunteer)}</h3>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {(volunteer.wings ?? [])
-                          .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-                          .join(', ')}
-                      </p>
-                    </div>
-                    <StatusBadge status={volunteer.status} />
-                  </div>
+  return (
+    <>
+      <PageHeader
+        title="Volunteers"
+        description="People who have signed up to help, by wing."
+        actions={
+          <Button icon={<FiPlus />} collapseLabel onClick={() => navigate('/volunteers/create')}>
+            Add volunteer
+          </Button>
+        }
+      />
 
-                  <div className="pt-2 border-t border-gray-200">
-                    <p className="text-xs text-gray-600">Service Types:</p>
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {(volunteer.serviceTypes ?? []).slice(0, 3).map((st) => (
-                        <span
-                          key={st}
-                          className="inline-block bg-blue-50 text-blue-700 px-2 py-1 text-xs rounded"
-                        >
-                          {st.replace(/_/g, ' ')}
-                        </span>
-                      ))}
-                      {(volunteer.serviceTypes ?? []).length > 3 && (
-                        <span className="text-xs text-gray-500">
-                          +{(volunteer.serviceTypes ?? []).length - 3}
-                        </span>
-                      )}
-                    </div>
-                  </div>
+      <TableCard>
+        <TableToolbar
+          onFilterClick={() => setIsFilterVisible((open) => !open)}
+          isFilterVisible={isFilterVisible}
+          hasFilters
+          activeFilterCount={activeFilterCount}
+          onRefresh={fetchVolunteers}
+        />
 
-                  <div className="pt-2 flex gap-2">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        navigate(`/volunteers/${volunteer.id}/edit`);
-                      }}
-                      className="flex-1 px-2 py-1 text-xs bg-blue-50 text-blue-600 rounded hover:bg-blue-100"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteClick(volunteer.id);
-                      }}
-                      className="flex-1 px-2 py-1 text-xs bg-red-50 text-red-600 rounded hover:bg-red-100"
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </div>
-              </Card>
-            ))}
-          </div>
+        {isFilterVisible && (
+          <FilterPanel onClose={() => setIsFilterVisible(false)}>
+            <div className="w-full sm:w-52">
+              <Select
+                label="Wing"
+                options={[{ value: '', label: 'All wings' }, ...VOLUNTEER_WINGS.map((w) => ({ value: w.value, label: w.label }))]}
+                value={wingFilter}
+                onChange={(e) => {
+                  setWingFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
+              />
+            </div>
+            <div className="w-full sm:w-52">
+              <Select
+                label="Status"
+                options={STATUS_OPTIONS}
+                value={statusFilter}
+                onChange={(e) => {
+                  setStatusFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
+              />
+            </div>
+            {activeFilterCount > 0 && (
+              <Button variant="ghost" onClick={clearFilters}>
+                Clear filters
+              </Button>
+            )}
+          </FilterPanel>
+        )}
 
-          <Pagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            totalItems={totalPages * itemsPerPage}
-            itemsPerPage={itemsPerPage}
-            onPageChange={setCurrentPage}
-          />
-        </>
-      )}
+        {error ? (
+          <EmptyState variant="error" entity="volunteers" description={error} action={{ label: 'Try again', onClick: fetchVolunteers }} />
+        ) : (
+          <>
+            <Table
+              fixedLayout
+              columns={columns}
+              data={volunteers}
+              isLoading={loading}
+              entity="volunteers"
+              emptyVariant={isFiltered ? 'no-results' : 'empty'}
+              emptyAction={
+                isFiltered
+                  ? { label: 'Clear filters', onClick: clearFilters }
+                  : { label: 'Add volunteer', onClick: () => navigate('/volunteers/create') }
+              }
+              rowKey={(volunteer) => volunteer.id}
+              onRowClick={(volunteer) => navigate(`/volunteers/${volunteer.id}`)}
+            />
+
+            <div className="mt-4">
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                totalItems={totalItems}
+                itemsPerPage={itemsPerPage}
+                entity="volunteers"
+                onPageChange={setCurrentPage}
+                onItemsPerPageChange={(size) => {
+                  setItemsPerPage(size);
+                  setCurrentPage(1);
+                }}
+              />
+            </div>
+          </>
+        )}
+      </TableCard>
 
       <ConfirmDialog
-        isOpen={showDeleteConfirm}
-        title="Delete Volunteer"
-        message="Are you sure you want to delete this volunteer? This action cannot be undone."
-        consequence="The volunteer record will be permanently removed from the system."
-        confirmLabel="Delete"
-        cancelLabel="Cancel"
+        isOpen={Boolean(deleting)}
+        title={`Delete ${deleting ? volunteerName(deleting) : 'this volunteer'}?`}
+        message="This permanently removes the volunteer record and cannot be undone."
+        confirmLabel="Delete volunteer"
         variant="danger"
-        isLoading={deleting}
-        onConfirm={handleConfirmDelete}
-        onCancel={() => {
-          setShowDeleteConfirm(false);
-          setDeleteId(null);
-        }}
+        isLoading={isDeleting}
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleting(null)}
       />
-    </div>
+    </>
   );
 }

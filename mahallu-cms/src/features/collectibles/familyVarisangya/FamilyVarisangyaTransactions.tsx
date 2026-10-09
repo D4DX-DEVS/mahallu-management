@@ -2,9 +2,9 @@ import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import Card from '@/components/ui/Card';
 import TableCard from '@/components/ui/TableCard';
-import Button from '@/components/ui/Button';
 import Table from '@/components/ui/Table';
 import Pagination from '@/components/ui/Pagination';
+import EmptyState from '@/components/ui/EmptyState';
 import TableToolbar from '@/components/ui/TableToolbar';
 import { TableColumn, Pagination as PaginationType } from '@/types';
 import { collectibleService, Transaction, Wallet, Varisangya } from '@/services/collectibleService';
@@ -45,10 +45,9 @@ export default function FamilyVarisangyaTransactions() {
   const [error, setError] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [isFilterVisible, setIsFilterVisible] = useState(false);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(20);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
 
   // Switching family invalidates the current page offset
   useEffect(() => {
@@ -250,38 +249,36 @@ export default function FamilyVarisangyaTransactions() {
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
-          onFilterClick={() => setIsFilterVisible(!isFilterVisible)}
-          isFilterVisible={isFilterVisible}
-          hasFilters={false}
+          searchEntity="transactions"
           onRefresh={familyId ? fetchData : fetchAllTransactions}
           onExport={handleExport}
           isExporting={isExporting}
         />
         {error ? (
-          <div className="text-center py-10">
-            <p className="text-red-600 dark:text-red-400">{error}</p>
-            <Button onClick={familyId ? fetchData : fetchAllTransactions} className="mt-4" variant="outline">
-              Retry
-            </Button>
-          </div>
+          <EmptyState
+            variant="error"
+            entity="transactions"
+            description={error}
+            action={{ label: 'Try again', onClick: familyId ? fetchData : fetchAllTransactions }}
+          />
         ) : (
           <>
             <Table
               fixedLayout
-              striped
               columns={columns}
               data={transactions}
               isLoading={loading}
-              emptyMessage="No transactions found"
-              showExport={false}
+              entity="transactions"
+              emptyVariant={searchQuery ? 'no-results' : 'empty'}
             />
-            {pagination && pagination.totalPages > 1 && (
+            {pagination && (
               <div className="mt-4">
                 <Pagination
                   currentPage={pagination.page}
                   totalPages={pagination.totalPages}
                   totalItems={pagination.total}
                   itemsPerPage={pagination.limit}
+                  entity="transactions"
                   onPageChange={setCurrentPage}
                   onItemsPerPageChange={(items) => {
                     setItemsPerPage(items);

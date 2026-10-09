@@ -25,14 +25,13 @@ import { logError } from '@/utils/safeLog';
 export default function InstituteUsersList() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
-  const [isFilterVisible, setIsFilterVisible] = useState(false);
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
 
   const debouncedSearch = useDebounce(searchQuery, 500);
 
@@ -102,28 +101,30 @@ export default function InstituteUsersList() {
   };
 
   const columns: TableColumn<User>[] = [
-    { key: 'name', label: 'Name', width: '6.75rem', sortable: true, render: (name) => toTitleCase(name) },
-    { key: 'phone', label: 'Phone', width: '6.75rem' },
-    { key: 'email', label: 'Email', width: '6.75rem', render: (email) => email || '-' },
+    { key: 'name', label: 'Name', width: '16rem', sortable: true, render: (name) => <span className="font-medium text-foreground">{toTitleCase(name)}</span> },
+    { key: 'phone', priority: 'secondary', label: 'Phone', width: '9rem' },
+    { key: 'email', priority: 'secondary', label: 'Email', width: '14rem', render: (email) => email || '-' },
     {
       key: 'status',
       label: 'Status',
-      width: '7.25rem',
+      width: '8rem',
       render: (status) => <StatusBadge status={status || 'active'} />,
     },
     {
-      key: 'createdAt',
+      key: 'createdAt', priority: 'tertiary',
       label: 'Created',
-      width: '7.75rem',
+      width: '9rem',
       render: (date) => formatDate(date),
     },
     {
       key: 'actions',
-      label: 'Actions',
-      width: '8rem',
-      align: 'center',
+      label: '',
+      width: '6.5rem',
+      align: 'right',
+      sortable: false,
       render: (_, row) => (
         <ActionsMenu
+          label={`Actions for ${toTitleCase(row.name)}`}
           items={[
             {
               label: 'View',
@@ -164,33 +165,34 @@ export default function InstituteUsersList() {
     },
   ];
 
-  return (
-    <div className="space-y-4">
-      <div className="space-y-3">
-        <PageHeader title="Institute Users" description="Manage institute users" />
+  const isFiltered = Boolean(debouncedSearch);
 
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          {stats.map((stat, index) => (
-            <StatCard key={index} {...stat} />
-          ))}
-        </div>
+  return (
+    <>
+      <PageHeader
+        title="Institute users"
+        description="Manage institute users."
+        actions={
+          <Link to="/users/institute/create">
+            <Button icon={<FiPlus />} collapseLabel>New user</Button>
+          </Link>
+        }
+      />
+
+      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
+        {stats.map((stat, index) => (
+          <StatCard key={index} {...stat} />
+        ))}
       </div>
 
       <TableCard>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
-          onFilterClick={() => setIsFilterVisible(!isFilterVisible)}
-          isFilterVisible={isFilterVisible}
-          hasFilters={false}
+          searchEntity="institute users"
           onRefresh={fetchUsers}
           onExport={handleExport}
           isExporting={isExporting}
-          actionButtons={
-            <Link to="/users/institute/create">
-              <Button size="md" icon={<FiPlus />} collapseLabel>New Institute User</Button>
-            </Link>
-          }
         />
 
         {error ? (
@@ -198,30 +200,36 @@ export default function InstituteUsersList() {
             variant="error"
             entity="institute users"
             description={error}
-            action={{ label: 'Retry', onClick: fetchUsers }}
+            action={{ label: 'Try again', onClick: fetchUsers }}
           />
         ) : (
           <>
             <Table
               fixedLayout
-              striped
               columns={columns}
               data={users}
               isLoading={loading}
-              emptyMessage="No institute users found"
-              showExport={false}
+              entity="institute users"
+              emptyVariant={isFiltered ? 'no-results' : 'empty'}
+              emptyAction={
+                isFiltered
+                  ? { label: 'Clear filters', onClick: () => { setSearchQuery(''); } }
+                  : { label: 'Add user', onClick: () => navigate('/users/institute/create') }
+              }
               onRowClick={(row) => navigate(`/users/institute/${row.id}`)}
             />
-            {pagination && pagination.totalPages > 1 && (
+
+            {pagination && (
               <div className="mt-4">
                 <Pagination
                   currentPage={pagination.page}
                   totalPages={pagination.totalPages}
                   totalItems={pagination.total}
                   itemsPerPage={pagination.limit}
+                  entity="institute users"
                   onPageChange={setCurrentPage}
-                  onItemsPerPageChange={(items) => {
-                    setItemsPerPage(items);
+                  onItemsPerPageChange={(size) => {
+                    setItemsPerPage(size);
                     setCurrentPage(1);
                   }}
                 />
@@ -230,6 +238,6 @@ export default function InstituteUsersList() {
           </>
         )}
       </TableCard>
-    </div>
+    </>
   );
 }

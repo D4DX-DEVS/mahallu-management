@@ -8,7 +8,6 @@ import Select from '@/components/ui/Select';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
 import EmptyState from '@/components/ui/EmptyState';
-import { PageSkeleton } from '@/components/ui/Skeleton';
 import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
 import { toast } from '@/store/toastStore';
@@ -33,7 +32,7 @@ export default function NikahRegistrationsList() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
   const [isExporting, setIsExporting] = useState(false);
 
@@ -45,7 +44,7 @@ export default function NikahRegistrationsList() {
 
   useEffect(() => {
     fetchRegistrations();
-  }, [debouncedSearch, statusFilter, currentPage]);
+  }, [debouncedSearch, statusFilter, currentPage, itemsPerPage]);
 
   const fetchRegistrations = async () => {
     try {
@@ -118,30 +117,30 @@ export default function NikahRegistrationsList() {
     {
       key: 'groomName',
       label: 'Groom',
-      width: '7.25rem',
+      width: '14rem',
       sortable: true,
-      render: (name) => toTitleCase(name),
+      render: (name) => <span className="font-medium text-foreground">{toTitleCase(name)}</span>,
     },
     {
       key: 'brideName',
       label: 'Bride',
-      width: '6.5rem',
+      width: '14rem',
       sortable: true,
       render: (name) => toTitleCase(name),
     },
     {
       key: 'nikahDate',
-      label: 'Nikah Date',
-      width: '9.25rem',
+      label: 'Nikah date',
+      sortable: true,
+      width: '9rem',
       render: (date) => formatDate(date),
     },
     {
       key: 'status',
       label: 'Status',
-      width: '7.25rem',
-      render: (status) => {
-        return <StatusBadge status={status} />;
-      },
+      sortable: true,
+      width: '9rem',
+      render: (status) => <StatusBadge status={status} />,
     },
   ];
 
@@ -173,43 +172,49 @@ export default function NikahRegistrationsList() {
     },
   ];
 
-  return (
-    <div className="space-y-4">
-      <div className="space-y-3">
-        <PageHeader title="Nikah Registrations" description="Manage nikah registrations" />
+  const isFiltered = Boolean(debouncedSearch) || statusFilter !== 'all';
 
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          {stats.map((stat, index) => (
-            <StatCard key={index} {...stat} />
-          ))}
-        </div>
+  return (
+    <>
+      <PageHeader
+        title="Nikah registrations"
+        description="Manage nikah registrations."
+        actions={
+          <Link to="/registrations/nikah/create">
+            <Button icon={<FiPlus />} collapseLabel>New registration</Button>
+          </Link>
+        }
+      />
+
+      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
+        {stats.map((stat, index) => (
+          <StatCard key={index} {...stat} />
+        ))}
       </div>
 
       <TableCard>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
-          onFilterClick={() => setIsFilterVisible(!isFilterVisible)}
+          searchEntity="nikah registrations"
+          onFilterClick={() => setIsFilterVisible((open) => !open)}
           isFilterVisible={isFilterVisible}
-          hasFilters={true}
+          hasFilters
+          activeFilterCount={statusFilter !== 'all' ? 1 : 0}
           onRefresh={fetchRegistrations}
           onExport={handleExport}
           isExporting={isExporting}
-          actionButtons={
-            <Link to="/registrations/nikah/create">
-              <Button size="md" icon={<FiPlus />} collapseLabel>New Registration</Button>
-            </Link>
-          }
         />
 
         {isFilterVisible && (
           <FilterPanel onClose={() => setIsFilterVisible(false)}>
-            <div className="w-full sm:w-40">
+            <div className="w-full sm:w-52">
               <Select
+                label="Status"
                 options={[
-                  { value: 'all', label: 'All Status' },
+                  { value: 'all', label: 'All statuses' },
                   { value: 'pending', label: 'Pending' },
-                  { value: 'correction_required', label: 'Correction Required' },
+                  { value: 'correction_required', label: 'Correction required' },
                   { value: 'approved', label: 'Approved' },
                   { value: 'rejected', label: 'Rejected' },
                 ]}
@@ -220,45 +225,63 @@ export default function NikahRegistrationsList() {
                 }}
               />
             </div>
+            {statusFilter !== 'all' && (
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setStatusFilter('all');
+                  setCurrentPage(1);
+                }}
+              >
+                Clear filters
+              </Button>
+            )}
           </FilterPanel>
         )}
 
-        {loading ? (
-          <PageSkeleton variant="section" />
-        ) : error ? (
+        {error ? (
           <EmptyState
             variant="error"
             entity="nikah registrations"
             description={error}
-            action={{ label: 'Retry', onClick: fetchRegistrations }}
+            action={{ label: 'Try again', onClick: fetchRegistrations }}
           />
         ) : (
-          <Table
-            fixedLayout
-            striped
-            columns={columns}
-            data={registrations}
-            emptyMessage="No nikah registrations found"
-            showExport={false}
-            onRowClick={(row) => navigate(`/registrations/nikah/${row.id}`)}
-          />
-        )}
-
-        {/* Pagination */}
-        {pagination && (
-          <div className="mt-4">
-            <Pagination
-              currentPage={pagination.page}
-              totalPages={pagination.totalPages}
-              totalItems={pagination.total}
-              itemsPerPage={pagination.limit}
-              onPageChange={(page) => {
-                setCurrentPage(page);
-              }}
+          <>
+            <Table
+              fixedLayout
+              columns={columns}
+              data={registrations}
+              isLoading={loading}
+              entity="nikah registrations"
+              emptyVariant={isFiltered ? 'no-results' : 'empty'}
+              emptyAction={
+                isFiltered
+                  ? { label: 'Clear filters', onClick: () => { setSearchQuery(''); setStatusFilter('all'); setCurrentPage(1); } }
+                  : { label: 'Add registration', onClick: () => navigate('/registrations/nikah/create') }
+              }
+              onRowClick={(row) => navigate(`/registrations/nikah/${row.id}`)}
             />
-          </div>
+
+            {pagination && (
+              <div className="mt-4">
+                <Pagination
+                  currentPage={pagination.page}
+                  totalPages={pagination.totalPages}
+                  totalItems={pagination.total}
+                  itemsPerPage={pagination.limit}
+                  entity="nikah registrations"
+                  onPageChange={setCurrentPage}
+                  onItemsPerPageChange={(size) => {
+                    setItemsPerPage(size);
+                    setCurrentPage(1);
+                  }}
+                />
+              </div>
+            )}
+          </>
         )}
       </TableCard>
-    </div>
+    </>
   );
 }

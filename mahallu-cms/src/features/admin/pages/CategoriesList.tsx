@@ -11,7 +11,6 @@ import Table from '@/components/ui/Table';
 import Pagination from '@/components/ui/Pagination';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import EmptyState from '@/components/ui/EmptyState';
-import { PageSkeleton } from '@/components/ui/Skeleton';
 import TableToolbar from '@/components/ui/TableToolbar';
 import { TableColumn, Pagination as PaginationType } from '@/types';
 import { categoryService, Category } from '@/services/categoryService';
@@ -28,7 +27,7 @@ export default function CategoriesList() {
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -49,7 +48,7 @@ export default function CategoriesList() {
   }, [debouncedSearch]);
   useEffect(() => {
     fetchCategories();
-  }, [debouncedSearch, currentPage]);
+  }, [debouncedSearch, currentPage, itemsPerPage]);
   const fetchCategories = async () => {
     try {
       setLoading(true);
@@ -130,21 +129,21 @@ export default function CategoriesList() {
     {
       key: 'name',
       label: 'Name',
-      width: '6.75rem',
+      width: '16rem',
       sortable: true,
-      render: (value) => <span>{toTitleCase(value)}</span>,
+      render: (value) => <span className="font-medium text-foreground">{toTitleCase(value)}</span>,
     },
     {
-      key: 'key',
+      key: 'key', priority: 'secondary',
       label: 'Key',
-      width: '6rem',
+      width: '12rem',
       render: (v) => <code className="text-xs text-gray-500 dark:text-gray-400">{v}</code>,
     },
-    { key: 'valueCount', label: 'Values', width: '7rem', render: (v) => v ?? 0 },
+    { key: 'valueCount', label: 'Values', width: '8rem', render: (v) => v ?? 0 },
     {
       key: 'isSystem',
       label: 'System',
-      width: '7.75rem',
+      width: '9rem',
       render: (v) =>
         v ? (
           <Badge variant="info" size="sm">
@@ -159,7 +158,7 @@ export default function CategoriesList() {
     {
       key: 'status',
       label: 'Status',
-      width: '7.25rem',
+      width: '8rem',
       render: (v) => (
         <Badge variant={v === 'active' ? 'success' : 'secondary'} size="sm">
           {v}
@@ -168,11 +167,13 @@ export default function CategoriesList() {
     },
     {
       key: 'actions',
-      label: 'Actions',
-      width: '8rem',
-      align: 'center',
+      label: '',
+      width: '6.5rem',
+      align: 'right',
+      sortable: false,
       render: (_, row) => (
         <ActionsMenu
+          label={`Actions for ${toTitleCase(row.name)}`}
           items={[
             { label: 'Edit', icon: <FiEdit2 className="h-4 w-4" />, onClick: () => openEditModal(row) },
             {
@@ -191,69 +192,81 @@ export default function CategoriesList() {
       ),
     },
   ];
+  const isFiltered = Boolean(debouncedSearch);
+
   return (
-    <div className="space-y-4">
-      <div className="space-y-3">
-        <PageHeader
-          title="Categories"
-          description="Manage the dropdown/master-data values used across the system"
+    <>
+      <PageHeader
+        title="Categories"
+        description="Manage the dropdown and master-data values used across the system."
+        actions={
+          <Button
+             
+            onClick={() => {
+              setCreateForm({ key: '', name: '', description: '' });
+              setFormError(null);
+              setShowCreateModal(true);
+            }}
+            icon={<FiPlus />}
+            collapseLabel
+          >
+            New category
+          </Button>
+        }
+      />
+
+      <div className="mb-6 grid grid-cols-1 gap-3">
+        <StatCard
+          title="Total categories"
+          value={pagination?.total ?? categories.length}
+          icon={<FiTag className="h-5 w-5" />}
         />
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-1">
-          <StatCard
-            title="Total Categories"
-            value={pagination?.total ?? categories.length}
-            icon={<FiTag className="h-5 w-5" />}
-          />
-        </div>
       </div>
+
       <TableCard>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
+          searchEntity="categories"
           onRefresh={fetchCategories}
-          actionButtons={
-            <Button
-              size="md"
-              onClick={() => {
-                setCreateForm({ key: '', name: '', description: '' });
-                setFormError(null);
-                setShowCreateModal(true);
-              }}
-              icon={<FiPlus />}
-              collapseLabel
-            >
-              New Category
-            </Button>
-          }
         />
-        {loading ? (
-          <PageSkeleton variant="section" />
-        ) : error ? (
+        {error ? (
           <EmptyState
             variant="error"
             entity="categories"
             description={error}
-            action={{ label: 'Retry', onClick: fetchCategories }}
+            action={{ label: 'Try again', onClick: fetchCategories }}
           />
         ) : (
           <>
             <Table
               fixedLayout
-              striped
               columns={columns}
               data={categories}
-              emptyMessage="No categories found"
-              showExport={false}
+              isLoading={loading}
+              entity="categories"
+              emptyVariant={isFiltered ? 'no-results' : 'empty'}
+              emptyAction={
+                isFiltered
+                  ? { label: 'Clear filters', onClick: () => { setSearchQuery(''); } }
+                  : { label: 'Add category', onClick: () => { setCreateForm({ key: '', name: '', description: '' }); setFormError(null); setShowCreateModal(true); } }
+              }
               onRowClick={(row) => navigate(`/admin/categories/${row.id}`)}
             />
-            {pagination && pagination.totalPages > 1 && (
+
+            {pagination && (
               <div className="mt-4">
                 <Pagination
-                  currentPage={currentPage}
+                  currentPage={pagination.page}
                   totalPages={pagination.totalPages}
                   totalItems={pagination.total}
-                  itemsPerPage={itemsPerPage}
+                  itemsPerPage={pagination.limit}
+                  entity="categories"
                   onPageChange={setCurrentPage}
+                  onItemsPerPageChange={(size) => {
+                    setItemsPerPage(size);
+                    setCurrentPage(1);
+                  }}
                 />
               </div>
             )}
@@ -369,6 +382,6 @@ export default function CategoriesList() {
           setSelectedCategory(null);
         }}
       />
-    </div>
+    </>
   );
 }

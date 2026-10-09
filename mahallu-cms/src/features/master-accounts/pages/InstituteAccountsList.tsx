@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { FiCreditCard, FiDollarSign, FiPlus } from 'react-icons/fi';
 import TableCard from '@/components/ui/TableCard';
 import FilterPanel from '@/components/ui/FilterPanel';
@@ -11,7 +11,7 @@ import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
 import EmptyState from '@/components/ui/EmptyState';
 import Pagination from '@/components/ui/Pagination';
-import { PageSkeleton } from '@/components/ui/Skeleton';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import TableToolbar from '@/components/ui/TableToolbar';
 import { TableColumn, Pagination as PaginationType } from '@/types';
 import { masterAccountService, InstituteAccount, BalanceSummary } from '@/services/masterAccountService';
@@ -29,6 +29,7 @@ import { useDebounce } from '@/hooks/useDebounce';
 import { buildInstituteAccountParams } from '@/utils/instituteAccountFilters';
 
 export default function InstituteAccountsList() {
+  const navigate = useNavigate();
   const { currentInstituteId: userInstituteId } = useAuthStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [isFilterVisible, setIsFilterVisible] = useState(false);
@@ -38,7 +39,7 @@ export default function InstituteAccountsList() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
   /* Total balance across every account matching the filter (all pages), from the server. */
   const [summary, setSummary] = useState<BalanceSummary>({ totalBalance: 0, count: 0 });
@@ -80,7 +81,7 @@ export default function InstituteAccountsList() {
 
   useEffect(() => {
     fetchAccounts();
-  }, [currentPage, instituteFilter, debouncedSearch]);
+  }, [currentPage, instituteFilter, debouncedSearch, itemsPerPage]);
 
   const fetchAccounts = async () => {
     try {
@@ -139,22 +140,11 @@ export default function InstituteAccountsList() {
   };
 
   const columns: TableColumn<InstituteAccount>[] = [
-    { key: 'accountNumber', label: 'Account Number', width: '11.75rem' },
-    { key: 'bankName', label: 'Bank Name', width: '9.25rem', render: (v) => toTitleCase(v) },
-    { key: 'ifscCode', label: 'IFSC Code', width: '9.25rem' },
-    {
-      key: 'balance',
-      label: 'Balance',
-      width: '9.25rem',
-      align: 'center',
-      render: (balance) => formatRupees(balance),
-    },
-    {
-      key: 'createdAt',
-      label: 'Created',
-      width: '7.75rem',
-      render: (date) => formatDate(date),
-    },
+    { key: 'accountNumber', label: 'Account number', sortable: true, width: '14rem', render: (v) => <span className="font-medium text-foreground tabular-nums">{v}</span> },
+    { key: 'bankName', label: 'Bank', sortable: true, width: '12rem', render: (v) => toTitleCase(v) },
+    { key: 'ifscCode', label: 'IFSC code', priority: 'secondary', width: '10rem' },
+    { key: 'balance', label: 'Balance', align: 'right', sortable: true, width: '10rem', render: (balance) => formatRupees(balance) },
+    { key: 'createdAt', label: 'Created', sortable: true, priority: 'tertiary', width: '9rem', render: (date) => formatDate(date) },
   ];
 
   const openEditModal = (account: InstituteAccount) => {
@@ -224,83 +214,112 @@ export default function InstituteAccountsList() {
     },
   ];
 
-  return (
-    <div className="space-y-4">
-      <div className="space-y-3">
-        <PageHeader title="Institute Accounts" description="Manage institute bank accounts" />
+  const activeFilterCount = !userInstituteId && instituteFilter !== 'all' ? 1 : 0;
+  const isFiltered = Boolean(searchQuery) || activeFilterCount > 0;
 
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-2">
-          {stats.map((stat, index) => (
-            <StatCard key={index} {...stat} />
-          ))}
-        </div>
+  return (
+    <>
+      <PageHeader
+        title="Institute accounts"
+        description="Manage institute bank accounts."
+        actions={
+          <Link to="/master-accounts/institute/create">
+            <Button icon={<FiPlus />} collapseLabel>New account</Button>
+          </Link>
+        }
+      />
+
+      <div className="mb-6 grid grid-cols-2 gap-3">
+        {stats.map((stat, index) => (
+          <StatCard key={index} {...stat} />
+        ))}
       </div>
 
       <TableCard>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
-          onFilterClick={() => setIsFilterVisible(!isFilterVisible)}
+          searchEntity="institute accounts"
+          onFilterClick={() => setIsFilterVisible((open) => !open)}
           isFilterVisible={isFilterVisible}
           hasFilters={!userInstituteId}
+          activeFilterCount={activeFilterCount}
           onRefresh={fetchAccounts}
           onExport={handleExport}
           isExporting={isExporting}
-          actionButtons={
-            <Link to="/master-accounts/institute/create">
-              <Button size="md" icon={<FiPlus />} collapseLabel>New Account</Button>
-            </Link>
-          }
         />
         {isFilterVisible && !userInstituteId && (
-          <FilterPanel>
-            <div className="w-full sm:w-64">
-              <Select
-                label="Institute"
-                options={[
-                  { value: 'all', label: 'All Institutes' },
-                  ...institutes.map((i) => ({ value: i.id, label: toTitleCase(i.name) })),
-                ]}
-                value={instituteFilter}
-                onChange={(e) => {
-                  setInstituteFilter(e.target.value);
+          <FilterPanel onClose={() => setIsFilterVisible(false)}>
+            {!userInstituteId && (
+              <div className="w-full sm:w-64">
+                <Select
+                  label="Institute"
+                  options={[
+                    { value: 'all', label: 'All institutes' },
+                    ...institutes.map((i) => ({ value: i.id, label: toTitleCase(i.name) })),
+                  ]}
+                  value={instituteFilter}
+                  onChange={(e) => {
+                    setInstituteFilter(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                />
+              </div>
+            )}
+            {activeFilterCount > 0 && (
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  if (!userInstituteId) setInstituteFilter('all');
                   setCurrentPage(1);
                 }}
-              />
-            </div>
+              >
+                Clear filters
+              </Button>
+            )}
           </FilterPanel>
         )}
-        {loading ? (
-          <PageSkeleton variant="section" />
-        ) : error ? (
+
+        {error ? (
           <EmptyState
             variant="error"
             entity="institute accounts"
             description={error}
-            action={{ label: 'Retry', onClick: fetchAccounts }}
+            action={{ label: 'Try again', onClick: fetchAccounts }}
           />
         ) : (
           <>
             <Table
               fixedLayout
-              striped
               columns={columns}
               data={accounts}
-              emptyMessage="No institute accounts found"
-              showExport={false}
+              isLoading={loading}
+              entity="institute accounts"
+              emptyVariant={isFiltered ? 'no-results' : 'empty'}
+              emptyAction={
+                isFiltered
+                  ? { label: 'Clear filters', onClick: () => { setSearchQuery(''); if (!userInstituteId) setInstituteFilter('all'); setCurrentPage(1); } }
+                  : { label: 'Add account', onClick: () => navigate('/master-accounts/institute/create') }
+              }
               onRowClick={(row) => {
                 setSelectedAccount(row);
                 setShowViewModal(true);
               }}
             />
-            {pagination && pagination.totalPages > 1 && (
+
+            {pagination && (
               <div className="mt-4">
                 <Pagination
-                  currentPage={currentPage}
+                  currentPage={pagination.page}
                   totalPages={pagination.totalPages}
                   totalItems={pagination.total}
-                  itemsPerPage={itemsPerPage}
+                  itemsPerPage={pagination.limit}
+                  entity="institute accounts"
                   onPageChange={setCurrentPage}
+                  onItemsPerPageChange={(size) => {
+                    setItemsPerPage(size);
+                    setCurrentPage(1);
+                  }}
                 />
               </div>
             )}
@@ -472,37 +491,19 @@ export default function InstituteAccountsList() {
         </div>
       </Modal>
 
-      {/* Delete Modal */}
-      <Modal
+      <ConfirmDialog
         isOpen={showDeleteModal}
-        onClose={() => {
+        title={`Delete ${toTitleCase(selectedAccount?.accountName) || 'this institute account'}?`}
+        message="This permanently removes the institute account and cannot be undone."
+        confirmLabel="Delete institute account"
+        variant="danger"
+        isLoading={deleting}
+        onConfirm={handleDelete}
+        onCancel={() => {
           setShowDeleteModal(false);
           setSelectedAccount(null);
         }}
-        title="Delete Institute Account"
-        footer={
-          <>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setShowDeleteModal(false);
-                setSelectedAccount(null);
-              }}
-            >
-              Cancel
-            </Button>
-            <Button variant="danger" onClick={handleDelete} isLoading={deleting}>
-              Delete
-            </Button>
-          </>
-        }
-      >
-        <p className="text-gray-600 dark:text-gray-400">
-          Are you sure you want to delete
-          <strong>{toTitleCase((selectedAccount as any)?.accountName) || selectedAccount?.accountNumber}</strong>? This
-          action cannot be undone.
-        </p>
-      </Modal>
-    </div>
+      />
+    </>
   );
 }

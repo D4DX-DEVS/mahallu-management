@@ -9,7 +9,6 @@ import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
 import EmptyState from '@/components/ui/EmptyState';
 import Pagination from '@/components/ui/Pagination';
-import { PageSkeleton } from '@/components/ui/Skeleton';
 import TableToolbar from '@/components/ui/TableToolbar';
 import { TableColumn, Pagination as PaginationType } from '@/types';
 import { socialService, Support } from '@/services/socialService';
@@ -34,13 +33,13 @@ export default function SupportList() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
   const [isExporting, setIsExporting] = useState(false);
 
   useEffect(() => {
     fetchSupport();
-  }, [statusFilter, priorityFilter, currentPage]);
+  }, [statusFilter, priorityFilter, currentPage, itemsPerPage]);
 
   const fetchSupport = async () => {
     try {
@@ -110,11 +109,17 @@ export default function SupportList() {
   };
 
   const columns: TableColumn<Support>[] = [
-    { key: 'subject', label: 'Subject', width: '7.5rem', sortable: true },
     {
-      key: 'priority',
+      key: 'subject',
+      label: 'Subject',
+      width: '20rem',
+      sortable: true,
+      render: (subject) => <span className="font-medium text-foreground">{subject}</span>,
+    },
+    {
+      key: 'priority', sortable: true,
       label: 'Priority',
-      width: '7.75rem',
+      width: '8rem',
       render: (priority) => {
         const priorityColors: Record<string, string> = {
           low: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
@@ -131,17 +136,17 @@ export default function SupportList() {
       },
     },
     {
-      key: 'status',
+      key: 'status', sortable: true,
       label: 'Status',
-      width: '7.25rem',
+      width: '8rem',
       render: (status) => {
         return <StatusBadge status={status} />;
       },
     },
     {
-      key: 'createdAt',
+      key: 'createdAt', sortable: true, priority: 'secondary',
       label: 'Created',
-      width: '7.75rem',
+      width: '9rem',
       render: (date) => formatDate(date),
     },
   ];
@@ -170,43 +175,55 @@ export default function SupportList() {
     },
   ];
 
-  return (
-    <div className="space-y-4">
-      <div className="space-y-3">
-        <PageHeader title="Support Tickets" description="Manage support tickets" />
+  // The API has no ticket search, so this narrows the page already loaded.
+  const visibleTickets = support.filter((ticket) =>
+    (ticket.subject || '').toLowerCase().includes(searchQuery.trim().toLowerCase())
+  );
 
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          {stats.map((stat, index) => (
-            <StatCard key={index} {...stat} />
-          ))}
-        </div>
+  const activeFilterCount = (statusFilter !== 'all' ? 1 : 0) + (priorityFilter !== 'all' ? 1 : 0);
+  const isFiltered = Boolean(searchQuery) || activeFilterCount > 0;
+
+  return (
+    <>
+      <PageHeader
+        title="Support tickets"
+        description="Manage support tickets."
+        actions={
+          <Link to={ROUTES.SOCIAL.CREATE_SUPPORT}>
+            <Button icon={<FiPlus />} collapseLabel>New ticket</Button>
+          </Link>
+        }
+      />
+
+      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
+        {stats.map((stat, index) => (
+          <StatCard key={index} {...stat} />
+        ))}
       </div>
 
       <TableCard>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
-          onFilterClick={() => setIsFilterVisible(!isFilterVisible)}
+          searchEntity="support tickets"
+          onFilterClick={() => setIsFilterVisible((open) => !open)}
           isFilterVisible={isFilterVisible}
-          hasFilters={true}
+          hasFilters
+          activeFilterCount={activeFilterCount}
           onRefresh={fetchSupport}
           onExport={handleExport}
           isExporting={isExporting}
-          actionButtons={
-            <Link to={ROUTES.SOCIAL.CREATE_SUPPORT}>
-              <Button size="md" icon={<FiPlus />} collapseLabel>New Ticket</Button>
-            </Link>
-          }
         />
 
         {isFilterVisible && (
           <FilterPanel onClose={() => setIsFilterVisible(false)}>
-            <div className="w-full sm:w-40">
+            <div className="w-full sm:w-52">
               <Select
+                label="Status"
                 options={[
-                  { value: 'all', label: 'All Status' },
+                  { value: 'all', label: 'All statuses' },
                   { value: 'open', label: 'Open' },
-                  { value: 'in_progress', label: 'In Progress' },
+                  { value: 'in_progress', label: 'In progress' },
                   { value: 'resolved', label: 'Resolved' },
                   { value: 'closed', label: 'Closed' },
                 ]}
@@ -217,10 +234,11 @@ export default function SupportList() {
                 }}
               />
             </div>
-            <div className="w-full sm:w-40">
+            <div className="w-full sm:w-52">
               <Select
+                label="Priority"
                 options={[
-                  { value: 'all', label: 'All Priority' },
+                  { value: 'all', label: 'All priorities' },
                   { value: 'low', label: 'Low' },
                   { value: 'medium', label: 'Medium' },
                   { value: 'high', label: 'High' },
@@ -232,43 +250,64 @@ export default function SupportList() {
                 }}
               />
             </div>
+            {activeFilterCount > 0 && (
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setStatusFilter('all');
+                  setPriorityFilter('all');
+                  setCurrentPage(1);
+                }}
+              >
+                Clear filters
+              </Button>
+            )}
           </FilterPanel>
         )}
 
-        {loading ? (
-          <PageSkeleton variant="section" />
-        ) : error ? (
+        {error ? (
           <EmptyState
             variant="error"
             entity="support tickets"
             description={error}
-            action={{ label: 'Retry', onClick: fetchSupport }}
+            action={{ label: 'Try again', onClick: fetchSupport }}
           />
         ) : (
           <>
             <Table
               fixedLayout
-              striped
               columns={columns}
-              data={support}
-              emptyMessage="No support tickets found"
-              showExport={false}
+              data={visibleTickets}
+              isLoading={loading}
+              entity="support tickets"
+              emptyVariant={isFiltered ? 'no-results' : 'empty'}
+              emptyAction={
+                isFiltered
+                  ? { label: 'Clear filters', onClick: () => { setSearchQuery(''); setStatusFilter('all'); setPriorityFilter('all'); setCurrentPage(1); } }
+                  : { label: 'Add ticket', onClick: () => navigate(ROUTES.SOCIAL.CREATE_SUPPORT) }
+              }
               onRowClick={(row) => navigate(ROUTES.SOCIAL.SUPPORT_DETAIL(row.id))}
             />
-            {pagination && pagination.totalPages > 1 && (
+
+            {pagination && (
               <div className="mt-4">
                 <Pagination
-                  currentPage={currentPage}
+                  currentPage={pagination.page}
                   totalPages={pagination.totalPages}
                   totalItems={pagination.total}
-                  itemsPerPage={itemsPerPage}
+                  itemsPerPage={pagination.limit}
+                  entity="support tickets"
                   onPageChange={setCurrentPage}
+                  onItemsPerPageChange={(size) => {
+                    setItemsPerPage(size);
+                    setCurrentPage(1);
+                  }}
                 />
               </div>
             )}
           </>
         )}
       </TableCard>
-    </div>
+    </>
   );
 }

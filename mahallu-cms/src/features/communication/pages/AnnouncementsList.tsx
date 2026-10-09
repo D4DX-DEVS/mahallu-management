@@ -5,15 +5,16 @@ import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import Table from '@/components/ui/Table';
 import EmptyState from '@/components/ui/EmptyState';
-import ExpandableSearch from '@/components/ui/ExpandableSearch';
-import ActionBar from '@/components/ui/ActionBar';
-import { PageSkeleton } from '@/components/ui/Skeleton';
+import Tabs from '@/components/ui/Tabs';
+import StatusBadge from '@/components/ui/StatusBadge';
+import TableToolbar from '@/components/ui/TableToolbar';
 import Pagination from '@/components/ui/Pagination';
 import { Pagination as PaginationType, TableColumn } from '@/types';
 import { announcementService, Announcement } from '@/services/announcementService';
 import { useDebounce } from '@/hooks/useDebounce';
 import { loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { toTitleCase } from '@/utils/format';
 
 const STATUS_TABS = [
   { value: '', label: 'All' },
@@ -29,19 +30,20 @@ export default function AnnouncementsList() {
   const [statusFilter, setStatusFilter] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
 
   const debouncedSearch = useDebounce(searchQuery, 500);
 
   useEffect(() => {
     fetchRows();
-  }, [statusFilter, debouncedSearch, currentPage]);
+  }, [statusFilter, debouncedSearch, currentPage, itemsPerPage]);
 
   const fetchRows = async () => {
     try {
       setLoading(true);
       setError(null);
-      const params: Record<string, any> = { page: currentPage, limit: 10 };
+      const params: Record<string, any> = { page: currentPage, limit: itemsPerPage };
       if (statusFilter) params.status = statusFilter;
       if (debouncedSearch) params.search = debouncedSearch;
       const result = await announcementService.getAll(params);
@@ -55,95 +57,104 @@ export default function AnnouncementsList() {
   };
 
   const columns: TableColumn<Announcement>[] = [
-    { key: 'title', label: 'Title', width: '6.25rem' },
-    { key: 'category', label: 'Category', width: '8.25rem' },
-    { key: 'audience', label: 'Audience', width: '8rem' },
-    { key: 'channels', label: 'Channels', width: '8rem', render: (v) => (Array.isArray(v) ? v.join(', ') : '-') },
-    { key: 'status', label: 'Status', width: '7.25rem' },
+    { key: 'title', label: 'Title', sortable: true, width: '18rem', render: (v) => <span className="font-medium text-foreground">{v}</span> },
+    { key: 'category', label: 'Category', sortable: true, priority: 'secondary', width: '10rem', render: (v) => (v ? toTitleCase(v) : '—') },
+    { key: 'audience', label: 'Audience', sortable: true, priority: 'secondary', width: '9rem', render: (v) => (v ? toTitleCase(v) : '—') },
+    { key: 'channels', label: 'Channels', sortable: false, priority: 'tertiary', width: '10rem', render: (v) => (Array.isArray(v) ? v.join(', ') : '—') },
+    { key: 'status', label: 'Status', sortable: true, width: '8rem', render: (v) => <StatusBadge status={v} /> },
     {
       key: 'sentAt',
       label: 'Sent',
-      width: '6.25rem',
-      render: (v) => (v ? new Date(v).toLocaleDateString() : '-'),
+      sortable: true,
+      width: '9rem',
+      render: (v) => (v ? new Date(v).toLocaleDateString() : '—'),
     },
   ];
 
-  return (
-    <div className="space-y-3">
-      <PageHeader title="Announcements" description="Broadcast messages to the community" />
+  const isFiltered = Boolean(statusFilter || debouncedSearch);
 
-      <TableCard>
-        <ActionBar
-          leading={
-            <div className="grid grid-cols-3 gap-1.5 sm:flex">
-              {STATUS_TABS.map((tab) => (
-                <button
-                  key={tab.value || 'all'}
-                  onClick={() => {
-                    setStatusFilter(tab.value);
-                    setCurrentPage(1);
-                  }}
-                  className={[
-                    'rounded-lg border px-2 py-1.5 text-xs font-medium',
-                    statusFilter === tab.value
-                      ? 'border-primary/30 bg-primary/10 text-primary'
-                      : 'border-border bg-background text-muted-foreground hover:bg-accent hover:text-accent-foreground',
-                  ].join(' ')}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-          }
-        >
-          <ExpandableSearch
-            value={searchQuery}
-            onChange={(value) => {
-              setSearchQuery(value);
-              setCurrentPage(1);
-            }}
-            entity="announcements"
-          />
-          <Link to="/announcements/create" className="flex-shrink-0">
-            <Button size="md" icon={<FiPlus />} collapseLabel>
-              New Announcement
+  return (
+    <>
+      <PageHeader
+        title="Announcements"
+        description="Broadcast messages to the community."
+        actions={
+          <Link to="/announcements/create">
+            <Button icon={<FiPlus />} collapseLabel>
+              New announcement
             </Button>
           </Link>
-        </ActionBar>
+        }
+      />
 
-        {loading ? (
-          <PageSkeleton variant="section" />
-        ) : error ? (
-          <EmptyState
-            variant="error"
-            entity="announcements"
-            description={error}
-            action={{ label: 'Retry', onClick: fetchRows }}
-          />
-        ) : (
-          <Table
-            fixedLayout
-            striped
-            columns={columns}
-            data={rows}
-            emptyMessage="No announcements yet"
-            showExport={false}
-            onRowClick={(row) => navigate(`/announcements/${row.id}`)}
-          />
-        )}
-
-        {pagination && (
-          <div className="mt-4">
-            <Pagination
-              currentPage={pagination.page}
-              totalPages={pagination.totalPages}
-              totalItems={pagination.total}
-              itemsPerPage={pagination.limit}
-              onPageChange={setCurrentPage}
+      <TableCard>
+        <TableToolbar
+          tabs={
+            <Tabs
+              variant="segmented"
+              ariaLabel="Announcement status"
+              value={statusFilter}
+              onChange={(value) => {
+                setStatusFilter(value);
+                setCurrentPage(1);
+              }}
+              items={STATUS_TABS}
             />
-          </div>
+          }
+          searchQuery={searchQuery}
+          onSearchChange={(value) => {
+            setSearchQuery(value);
+            setCurrentPage(1);
+          }}
+          searchEntity="announcements"
+          onRefresh={fetchRows}
+        />
+
+        {error ? (
+          <EmptyState variant="error" entity="announcements" description={error} action={{ label: 'Try again', onClick: fetchRows }} />
+        ) : (
+          <>
+            <Table
+              fixedLayout
+              columns={columns}
+              data={rows}
+              isLoading={loading}
+              entity="announcements"
+              emptyVariant={isFiltered ? 'no-results' : 'empty'}
+              emptyAction={
+                isFiltered
+                  ? {
+                      label: 'Clear filters',
+                      onClick: () => {
+                        setSearchQuery('');
+                        setStatusFilter('');
+                        setCurrentPage(1);
+                      },
+                    }
+                  : { label: 'Add announcement', onClick: () => navigate('/announcements/create') }
+              }
+              onRowClick={(row) => navigate(`/announcements/${row.id}`)}
+            />
+
+            {pagination && (
+              <div className="mt-4">
+                <Pagination
+                  currentPage={pagination.page}
+                  totalPages={pagination.totalPages}
+                  totalItems={pagination.total}
+                  itemsPerPage={pagination.limit}
+                  entity="announcements"
+                  onPageChange={setCurrentPage}
+                  onItemsPerPageChange={(size) => {
+                    setItemsPerPage(size);
+                    setCurrentPage(1);
+                  }}
+                />
+              </div>
+            )}
+          </>
         )}
       </TableCard>
-    </div>
+    </>
   );
 }

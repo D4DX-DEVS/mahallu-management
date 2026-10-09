@@ -5,7 +5,9 @@ import TableCard from '@/components/ui/TableCard';
 import Button from '@/components/ui/Button';
 import Table from '@/components/ui/Table';
 import StatCard from '@/components/ui/StatCard';
-import ExpandableSearch from '@/components/ui/ExpandableSearch';
+import Tabs from '@/components/ui/Tabs';
+import FilterPanel from '@/components/ui/FilterPanel';
+import TableToolbar from '@/components/ui/TableToolbar';
 import Select from '@/components/ui/Select';
 import Pagination from '@/components/ui/Pagination';
 import EmptyState from '@/components/ui/EmptyState';
@@ -35,14 +37,16 @@ export default function ReliefList() {
   const [statusFilter, setStatusFilter] = useState('');
   const [urgencyFilter, setUrgencyFilter] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [isFilterVisible, setIsFilterVisible] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
 
   const debouncedSearch = useDebounce(searchQuery, 500);
 
   useEffect(() => {
     fetchRows();
-  }, [statusFilter, urgencyFilter, debouncedSearch, currentPage]);
+  }, [statusFilter, urgencyFilter, debouncedSearch, currentPage, itemsPerPage]);
 
   useEffect(() => {
     reliefService
@@ -55,7 +59,7 @@ export default function ReliefList() {
     try {
       setLoading(true);
       setError(null);
-      const params: Record<string, any> = { page: currentPage, limit: 10 };
+      const params: Record<string, any> = { page: currentPage, limit: itemsPerPage };
       if (statusFilter) params.status = statusFilter;
       if (urgencyFilter) params.urgency = urgencyFilter;
       if (debouncedSearch) params.search = debouncedSearch;
@@ -70,33 +74,50 @@ export default function ReliefList() {
   };
 
   const columns: TableColumn<ReliefCase>[] = [
-    { key: 'title', label: 'Case', width: '6.25rem' },
+    {
+      key: 'title',
+      label: 'Case',
+      sortable: true,
+      width: '16rem',
+      render: (v) => <span className="font-medium text-foreground">{v}</span>,
+    },
     {
       key: 'familyId',
       label: 'Family',
-      width: '7.25rem',
-      render: (v) => (v && typeof v === 'object' ? toTitleCase(v.houseName) : '-'),
+      sortable: false,
+      width: '12rem',
+      render: (v) => (v && typeof v === 'object' ? toTitleCase(v.houseName) : '—'),
     },
-    { key: 'urgency', label: 'Urgency', width: '7.75rem', render: (v) => <UrgencyBadge urgency={v} /> },
-    { key: 'amount', label: 'Assistance', width: '9rem', render: (v) => (v ? formatCurrency(v) : '-') },
-    { key: 'createdAt', label: 'Reported', width: '8.25rem', render: (v) => formatDate(v) },
-    { key: 'status', label: 'Status', width: '7.25rem', render: (v) => <ReliefStatusBadge status={v} /> },
+    { key: 'urgency', label: 'Urgency', sortable: true, width: '8rem', render: (v) => <UrgencyBadge urgency={v} /> },
+    {
+      key: 'amount',
+      label: 'Assistance',
+      align: 'right',
+      sortable: true,
+      priority: 'secondary',
+      width: '9rem',
+      render: (v) => (v ? formatCurrency(v) : '—'),
+    },
+    { key: 'createdAt', label: 'Reported', sortable: true, priority: 'secondary', width: '9rem', render: (v) => formatDate(v) },
+    { key: 'status', label: 'Status', sortable: true, width: '8rem', render: (v) => <ReliefStatusBadge status={v} /> },
   ];
 
+  const isFiltered = Boolean(statusFilter || urgencyFilter || debouncedSearch);
+
   return (
-    <div>
+    <>
       <PageHeader
+        title="Emergency relief"
         description="Urgent household needs, from report through assistance."
-        title="Emergency Relief"
-        breadcrumbs={[{ label: 'Services' }]}
+        actions={
+          <Button icon={<FiPlus />} collapseLabel onClick={() => navigate('/relief/create')}>
+            Report a case
+          </Button>
+        }
       />
 
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <Button onClick={() => navigate('/relief/create')} icon={<FiPlus />} collapseLabel>Report a case</Button>
-      </div>
-
       {summary && (
-        <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
           <StatCard title="Open cases" value={summary.openCases} />
           <StatCard title="Critical" value={summary.criticalCases} />
           <StatCard title="Assisted" value={summary.assistedCases} />
@@ -105,78 +126,105 @@ export default function ReliefList() {
       )}
 
       <TableCard>
-        <div className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto] sm:items-end">
-          <ExpandableSearch
-            value={searchQuery}
-            onChange={(value) => {
-              setSearchQuery(value);
-              setCurrentPage(1);
-            }}
-            entity="relief cases"
-            placeholder="Search by case title"
-          />
-          <Select
-            value={urgencyFilter}
-            onChange={(e) => {
-              setUrgencyFilter(e.target.value);
-              setCurrentPage(1);
-            }}
-            options={URGENCY_FILTER}
-          />
-        </div>
-
-        <div className="mb-3 grid grid-cols-3 gap-1.5 sm:flex sm:flex-wrap">
-          {RELIEF_STATUS_TABS.map((tab) => (
-            <button
-              key={tab.value || 'all'}
-              onClick={() => {
-                setStatusFilter(tab.value);
+        <TableToolbar
+          tabs={
+            <Tabs
+              variant="segmented"
+              ariaLabel="Case status"
+              value={statusFilter}
+              onChange={(value) => {
+                setStatusFilter(value);
                 setCurrentPage(1);
               }}
-              className={`rounded-md px-2 py-1.5 text-xs font-medium transition-colors sm:px-3 sm:text-sm ${
-                statusFilter === tab.value
-                  ? 'bg-primary-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
+              items={RELIEF_STATUS_TABS}
+            />
+          }
+          searchQuery={searchQuery}
+          onSearchChange={(value) => {
+            setSearchQuery(value);
+            setCurrentPage(1);
+          }}
+          searchEntity="relief cases"
+          onFilterClick={() => setIsFilterVisible((open) => !open)}
+          isFilterVisible={isFilterVisible}
+          hasFilters
+          activeFilterCount={urgencyFilter ? 1 : 0}
+          onRefresh={fetchRows}
+        />
 
-        {error && (
-          <div className="mb-3 rounded-md bg-red-50 p-3 text-sm text-red-700 dark:bg-red-900/20 dark:text-red-300">
-            {error}
-          </div>
+        {isFilterVisible && (
+          <FilterPanel onClose={() => setIsFilterVisible(false)}>
+            <div className="w-full sm:w-52">
+              <Select
+                label="Urgency"
+                value={urgencyFilter}
+                onChange={(e) => {
+                  setUrgencyFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
+                options={URGENCY_FILTER}
+              />
+            </div>
+            {urgencyFilter && (
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setUrgencyFilter('');
+                  setCurrentPage(1);
+                }}
+              >
+                Clear filters
+              </Button>
+            )}
+          </FilterPanel>
         )}
 
-        {!loading && rows.length === 0 ? (
-          <EmptyState
-            title="No relief cases yet"
-            description="Report a case when an emergency arises"
-            action={{ label: 'Report a case', onClick: () => navigate('/relief/create') }}
-          />
+        {error ? (
+          <EmptyState variant="error" entity="relief cases" description={error} action={{ label: 'Try again', onClick: fetchRows }} />
         ) : (
-          <Table
-            fixedLayout
-            striped
-            columns={columns}
-            data={rows}
-            isLoading={loading}
-            onRowClick={(row) => navigate(`/relief/${row.id}`)}
-          />
-        )}
+          <>
+            <Table
+              fixedLayout
+              columns={columns}
+              data={rows}
+              isLoading={loading}
+              entity="relief cases"
+              emptyVariant={isFiltered ? 'no-results' : 'empty'}
+              emptyAction={
+                isFiltered
+                  ? {
+                      label: 'Clear filters',
+                      onClick: () => {
+                        setSearchQuery('');
+                        setStatusFilter('');
+                        setUrgencyFilter('');
+                        setCurrentPage(1);
+                      },
+                    }
+                  : { label: 'Report a case', onClick: () => navigate('/relief/create') }
+              }
+              onRowClick={(row) => navigate(`/relief/${row.id}`)}
+            />
 
-        {pagination && pagination.totalPages > 1 && (
-          <Pagination
-            currentPage={pagination.page}
-            totalPages={pagination.totalPages}
-            totalItems={pagination.total}
-            itemsPerPage={pagination.limit}
-            onPageChange={setCurrentPage}
-          />
+            {pagination && (
+              <div className="mt-4">
+                <Pagination
+                  currentPage={pagination.page}
+                  totalPages={pagination.totalPages}
+                  totalItems={pagination.total}
+                  itemsPerPage={pagination.limit}
+                  entity="relief cases"
+                  onPageChange={setCurrentPage}
+                  onItemsPerPageChange={(size) => {
+                    setItemsPerPage(size);
+                    setCurrentPage(1);
+                  }}
+                />
+              </div>
+            )}
+          </>
         )}
       </TableCard>
-    </div>
+    </>
   );
 }

@@ -5,7 +5,7 @@ import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
 import Table from '@/components/ui/Table';
 import EmptyState from '@/components/ui/EmptyState';
-import { PageSkeleton } from '@/components/ui/Skeleton';
+import FilterPanel from '@/components/ui/FilterPanel';
 import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
 import Modal from '@/components/ui/Modal';
@@ -26,7 +26,7 @@ export default function ChangeRequestsList() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
   const [reviewModal, setReviewModal] = useState<{
     open: boolean;
@@ -42,7 +42,7 @@ export default function ChangeRequestsList() {
 
   useEffect(() => {
     fetchChangeRequests();
-  }, [debouncedSearch, statusFilter, currentPage]);
+  }, [debouncedSearch, statusFilter, currentPage, itemsPerPage]);
 
   const fetchChangeRequests = async () => {
     try {
@@ -96,12 +96,12 @@ export default function ChangeRequestsList() {
   };
 
   const columns: TableColumn[] = [
-    { key: 'requester', label: 'Requested By' },
-    { key: 'targetType', label: 'Type' },
-    { key: 'changes', label: 'Changes' },
-    { key: 'status', label: 'Status' },
-    { key: 'createdAt', label: 'Date' },
-    { key: 'actions', label: 'Actions' },
+    { key: 'requester', label: 'Requested by', sortable: true, width: '14rem' },
+    { key: 'targetType', label: 'Type', sortable: true, width: '8rem' },
+    { key: 'changes', label: 'Changes', sortable: false, priority: 'secondary', width: '20rem' },
+    { key: 'status', label: 'Status', sortable: false, width: '9rem' },
+    { key: 'createdAt', label: 'Date', sortable: false, priority: 'secondary', width: '9rem' },
+    { key: 'actions', label: 'Actions', sortable: false, width: '8rem' },
   ];
 
   const rows = changeRequests.map((req) => ({
@@ -152,62 +152,101 @@ export default function ChangeRequestsList() {
       ),
   }));
 
-  return (
-    <div className="space-y-4">
-      <PageHeader description="Review and manage pending member change requests" title="Change Requests" />
+  const isFiltered = Boolean(debouncedSearch) || statusFilter !== 'pending';
 
-      <div className="flex items-center justify-between"></div>
+  return (
+    <>
+      <PageHeader title="Change requests" description="Review and manage pending member change requests." />
 
       <TableCard>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
-          onFilterClick={() => setIsFilterVisible(!isFilterVisible)}
+          searchEntity="change requests"
+          onFilterClick={() => setIsFilterVisible((open) => !open)}
+          isFilterVisible={isFilterVisible}
+          hasFilters
+          activeFilterCount={statusFilter !== 'pending' ? 1 : 0}
+          onRefresh={fetchChangeRequests}
         />
 
         {isFilterVisible && (
-          <div className="border-t border-gray-200 dark:border-gray-700 p-4">
-            <Select
-              label="Status"
-              value={statusFilter}
-              onChange={(e) => {
-                setStatusFilter(e.target.value);
-                setCurrentPage(1);
-              }}
-              options={[
-                { value: 'pending', label: 'Pending' },
-                { value: 'approved', label: 'Approved' },
-                { value: 'rejected', label: 'Rejected' },
-                { value: 'all', label: 'All Status' },
-              ]}
-            />
-          </div>
+          <FilterPanel onClose={() => setIsFilterVisible(false)}>
+            <div className="w-full sm:w-52">
+              <Select
+                label="Status"
+                value={statusFilter}
+                onChange={(e) => {
+                  setStatusFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
+                options={[
+                  { value: 'pending', label: 'Pending' },
+                  { value: 'approved', label: 'Approved' },
+                  { value: 'rejected', label: 'Rejected' },
+                  { value: 'all', label: 'All statuses' },
+                ]}
+              />
+            </div>
+            {statusFilter !== 'pending' && (
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setStatusFilter('pending');
+                  setCurrentPage(1);
+                }}
+              >
+                Clear filters
+              </Button>
+            )}
+          </FilterPanel>
         )}
 
-        {loading ? (
-          <PageSkeleton variant="section" />
-        ) : error ? (
+        {error ? (
           <EmptyState
             variant="error"
             entity="change requests"
             description={error}
-            action={{ label: 'Retry', onClick: fetchChangeRequests }}
+            action={{ label: 'Try again', onClick: fetchChangeRequests }}
           />
-        ) : changeRequests.length === 0 ? (
-          <div className="text-center py-8">
-            <p className="text-gray-500 dark:text-gray-400">No change requests found</p>
-          </div>
         ) : (
           <>
-            <Table fixedLayout striped columns={columns} data={rows} />
+            <Table
+              fixedLayout
+              columns={columns}
+              data={rows}
+              isLoading={loading}
+              entity="change requests"
+              emptyVariant={isFiltered ? 'no-results' : 'empty'}
+              emptyAction={
+                isFiltered
+                  ? {
+                      label: 'Clear filters',
+                      onClick: () => {
+                        setSearchQuery('');
+                        setStatusFilter('pending');
+                        setCurrentPage(1);
+                      },
+                    }
+                  : undefined
+              }
+            />
+
             {pagination && (
-              <Pagination
-                currentPage={currentPage}
-                totalPages={pagination.totalPages || Math.ceil(pagination.total / itemsPerPage)}
-                totalItems={pagination.total}
-                itemsPerPage={itemsPerPage}
-                onPageChange={setCurrentPage}
-              />
+              <div className="mt-4">
+                <Pagination
+                  currentPage={pagination.page}
+                  totalPages={pagination.totalPages}
+                  totalItems={pagination.total}
+                  itemsPerPage={pagination.limit}
+                  entity="change requests"
+                  onPageChange={setCurrentPage}
+                  onItemsPerPageChange={(size) => {
+                    setItemsPerPage(size);
+                    setCurrentPage(1);
+                  }}
+                />
+              </div>
             )}
           </>
         )}
@@ -268,6 +307,6 @@ export default function ChangeRequestsList() {
           </div>
         </div>
       </Modal>
-    </div>
+    </>
   );
 }
