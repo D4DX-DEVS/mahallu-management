@@ -93,6 +93,7 @@ import './uploadFlowSafety.test';
 import './uploadOrphans.test';
 import './userCredentials.test';
 import './userPhoneChange.test';
+import './userInstitute.test';
 import './userSensitiveModules.test';
 import './varisangyaVerification.test';
 import './volunteers.test';

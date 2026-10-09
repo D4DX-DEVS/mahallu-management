@@ -93,6 +93,7 @@ export const updateUserValidation = [
     .optional()
     .isIn(['active', 'inactive'])
     .withMessage('Please choose a valid status.'),
+  body('instituteId').optional().isMongoId().withMessage('Please select a valid institute.'),
   ...permissionsValidation,
 ];
 
