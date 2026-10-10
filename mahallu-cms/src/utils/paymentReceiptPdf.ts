@@ -1,10 +1,11 @@
 import jsPDF from 'jspdf';
 import { PaymentRecord } from '@/services/memberPortalService';
 import { PDF_FONT_FAMILY, registerPdfFont, toPdfSafeText } from '@/utils/pdfFonts';
+import { ICON_PATH } from '@/constants/theme';
 
 const loadLogo = async (): Promise<string | null> => {
   try {
-    const response = await fetch('/Logo-512x512.png');
+    const response = await fetch(ICON_PATH);
     const blob = await response.blob();
     return await new Promise((resolve) => {
       const reader = new FileReader();

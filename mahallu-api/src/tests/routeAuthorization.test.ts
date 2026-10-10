@@ -820,6 +820,7 @@ describe('sweep of every router module', () => {
     certificateRoutes: ['ALL_STAFF', 'issuing and revoking are admin guarded; reading is scoped in the controller'],
     changeRequestRoutes: ['ALL_STAFF', 'raising is scoped to the requester in the controller; review is admin guarded'],
     dashboardRoutes: ['ALL_STAFF', 'stats, recent families and timeline are for every staff role; financial-summary is admin'],
+    demoRequestRoutes: ['ALL_STAFF', 'POST is the public landing-page form, open to anyone and rate limited; the GET inbox is superAdminOnly'],
     documentRoutes: ['ALL_STAFF', 'uploads are scoped to the uploader in the controller; status changes are admin guarded'],
     familyRoutes: ['ALL_STAFF', 'router-level allowRoles(ALL_STAFF); scoped in the controller. NEEDS A PRODUCT DECISION for institute'],
     memberRoutes: ['ALL_STAFF', 'router-level allowRoles(ALL_STAFF); scoped in the controller. NEEDS A PRODUCT DECISION for institute'],

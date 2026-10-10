@@ -1,0 +1,195 @@
+/*
+ * Motion for the landing page. Every duration here collapses to ~0 under
+ * prefers-reduced-motion through the global rule in index.css, and the hooks in
+ * useMotion.ts skip their JavaScript-driven effects for the same preference.
+ */
+
+/* ---- Scroll reveal (toggled by <Reveal>) -------------------------------- */
+.lp-reveal {
+  opacity: 0;
+  transform: translate3d(0, 28px, 0);
+  transition:
+    opacity 0.8s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: opacity, transform;
+}
+.lp-reveal--left {
+  transform: translate3d(-44px, 0, 0);
+}
+.lp-reveal--right {
+  transform: translate3d(44px, 0, 0);
+}
+.lp-reveal--scale {
+  transform: scale(0.92);
+}
+.lp-reveal--fade {
+  transform: none;
+}
+.lp-reveal.is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+/* Children staggered by the parent's reveal. */
+.lp-step-body {
+  opacity: 0;
+  transform: translate3d(0, 16px, 0);
+  transition:
+    opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.is-visible .lp-step-body {
+  opacity: 1;
+  transform: none;
+}
+.lp-step-num {
+  opacity: 0;
+}
+.is-visible .lp-step-num {
+  animation: lp-pop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+.lp-step-line {
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 1.6s cubic-bezier(0.22, 1, 0.36, 1) 0.3s;
+}
+.is-visible .lp-step-line {
+  transform: scaleX(1);
+}
+
+/* ---- Page-load entrance (hero) ------------------------------------------ */
+@keyframes lp-enter {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 26px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.lp-enter {
+  opacity: 0;
+  animation: lp-enter 0.9s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* ---- Ambient loops ------------------------------------------------------ */
+@keyframes lp-float {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(0, -12px, 0);
+  }
+}
+.lp-float {
+  animation: lp-float 5s ease-in-out infinite alternate;
+}
+.lp-float--slow {
+  animation-duration: 7s;
+  animation-delay: 1.2s;
+}
+
+@keyframes lp-bounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(6px);
+  }
+}
+.lp-bounce {
+  animation: lp-bounce 1.6s ease-in-out infinite;
+}
+
+@keyframes lp-glow {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(-48px, 36px, 0) scale(1.18);
+  }
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+.lp-glow {
+  animation: lp-glow 10s ease-in-out infinite;
+}
+
+@keyframes lp-pop {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  70% {
+    transform: scale(1.25);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+.lp-pop {
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: lp-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+/* The radar polygon traces itself, then fills. */
+@keyframes lp-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes lp-fill {
+  to {
+    fill-opacity: 1;
+  }
+}
+.lp-draw {
+  stroke-dasharray: 420;
+  stroke-dashoffset: 420;
+  fill-opacity: 0;
+  animation:
+    lp-draw 2.2s ease-out 0.9s forwards,
+    lp-fill 0.8s ease-out 2.4s forwards;
+}
+
+/* ---- Hover micro-interactions ------------------------------------------- */
+@keyframes lp-shine {
+  from {
+    transform: translateX(-160%) skewX(-20deg);
+  }
+  to {
+    transform: translateX(260%) skewX(-20deg);
+  }
+}
+.lp-shine::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  width: 40%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.45), transparent);
+  transform: translateX(-160%) skewX(-20deg);
+  pointer-events: none;
+}
+.lp-shine:hover::after {
+  animation: lp-shine 0.9s ease forwards;
+}
+
+/* ---- Accordion ---------------------------------------------------------- */
+.lp-accordion {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.lp-accordion.is-open {
+  grid-template-rows: 1fr;
+}
+.lp-accordion > div {
+  overflow: hidden;
+}

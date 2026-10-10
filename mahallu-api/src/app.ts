@@ -41,6 +41,7 @@ import reconciliationRoutes from './routes/reconciliationRoutes';
 import documentRoutes from './routes/documentRoutes';
 import certificateRoutes from './routes/certificateRoutes';
 import changeRequestRoutes from './routes/changeRequestRoutes';
+import demoRequestRoutes from './routes/demoRequestRoutes';
 import exportRoutes from './routes/exportRoutes';
 import { verifyCertificate } from './controllers/certificateController';
 import registerRoutes from './routes/registerRoutes';
@@ -225,6 +226,7 @@ export const createApp = (): express.Express => {
   app.use('/api/certificates', certificateRoutes);
   app.get('/api/verify/:certificateNo', publicVerifyRateLimiter, verifyCertificate); // public certificate verification
   app.use('/api/change-requests', changeRequestRoutes);
+  app.use('/api/demo-requests', demoRequestRoutes); // public landing-page form + super admin inbox
   app.use('/api/export', exportRoutes);
   app.use('/api/registers', registerRoutes);
   app.use('/api/surveys', surveyRoutes);
