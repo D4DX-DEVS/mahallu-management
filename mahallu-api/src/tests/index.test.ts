@@ -27,6 +27,7 @@ import './certificateNumbering.test';
 import './corsExposedHeaders.test';
 import './counselling.test';
 import './dashboardDays.test';
+import './demoRequest.test';
 import './development.test';
 import './developmentIndex.test';
 import './employment.test';

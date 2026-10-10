@@ -14,7 +14,7 @@ import { useModuleAccess } from '@/hooks/useModuleAccess';
 import { isMenuItemAccessible, UserRole } from '@/utils/menuAccess';
 import { cn } from '@/utils/cn';
 import { useAuthStore } from '@/store/authStore';
-import { BRAND_NAME, LOGO_PATH } from '@/constants/theme';
+import { BRAND_NAME, ICON_PATH, LOGO_PATH } from '@/constants/theme';
 import { useLayoutStore } from '@/store/layoutStore';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { footerNavByRole, useIsMobile } from './MobileFooterNav';
@@ -196,6 +196,7 @@ const MENU_GROUPS: Record<string, Record<string, string>> = {
     'activity-logs': 'Monitoring',
     assistant: 'Monitoring',
     tenants: 'Platform',
+    'demo-requests': 'Platform',
     'all-users': 'Platform',
     'categories-admin': 'Platform',
   },
@@ -747,14 +748,18 @@ export default function Sidebar() {
                 title="Expand navigation"
                 className="flex h-10 w-10 items-center justify-center rounded-full transition-colors hover:bg-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
-                <img src={LOGO_PATH} alt="" aria-hidden="true" className="h-9 w-9 object-contain" />
+                <img src={ICON_PATH} alt="" aria-hidden="true" className="h-9 w-9 object-contain" />
               </button>
             ) : (
               <>
-                <img src={LOGO_PATH} alt="" aria-hidden="true" className="h-10 w-10 flex-shrink-0 rounded-full object-contain" />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold leading-5 text-foreground">{BRAND_NAME}</p>
-                  <p className="truncate text-xs text-muted-foreground">
+                  {/* The wordmark is dark green on transparent; a white chip keeps it legible in dark mode. */}
+                  <img
+                    src={LOGO_PATH}
+                    alt={BRAND_NAME}
+                    className="h-10 w-auto dark:rounded-md dark:bg-white dark:px-1.5 dark:py-0.5"
+                  />
+                  <p className="mt-0.5 truncate text-xs text-muted-foreground">
                     {userRole === 'member' ? 'Member portal' : 'Mahallu Management'}
                   </p>
                 </div>

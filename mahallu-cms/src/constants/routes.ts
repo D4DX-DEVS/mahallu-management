@@ -1,4 +1,7 @@
 export const ROUTES = {
+  // Public landing page
+  LANDING: '/',
+
   // Auth
   LOGIN: '/login',
 
@@ -114,6 +117,7 @@ export const ROUTES = {
 
   // Change Requests
   CHANGE_REQUESTS: '/admin/change-requests',
+  DEMO_REQUESTS: '/admin/demo-requests',
 
   // Collectibles
   COLLECTIBLES: {

@@ -1,5 +1,6 @@
 import { ROUTES } from '@/constants/routes';
 import TenantsList from '@/features/admin/pages/TenantsList';
+import DemoRequestsList from '@/features/admin/pages/DemoRequestsList';
 import CreateTenant from '@/features/admin/pages/CreateTenant';
 import TenantDetails from '@/features/admin/pages/TenantDetails';
 import EditTenant from '@/features/admin/pages/EditTenant';
@@ -29,6 +30,9 @@ export const adminRoutes = [
   superAdminRoute('/admin/tenants/create', <CreateTenant />, { label: 'New Tenant' }),
   superAdminRoute('/admin/tenants/:id', <TenantDetails />),
   superAdminRoute('/admin/tenants/:id/edit', <EditTenant />),
+
+  // Demo requests from the public landing page (super admin only)
+  superAdminRoute(ROUTES.DEMO_REQUESTS, <DemoRequestsList />),
 
   // Mahall main
   route(ROUTES.MAHALL_MAIN, <MahallMain />),

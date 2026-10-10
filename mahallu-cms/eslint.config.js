@@ -94,4 +94,13 @@ export default defineConfig([
       'no-restricted-syntax': 'off',
     },
   },
+  {
+    // The public landing page is marketing, not product UI. It follows the landing
+    // design mock (display type above the product scale, larger radii, its own
+    // palette), so the product-scale rules do not apply there.
+    files: ['src/features/landing/**'],
+    rules: {
+      'no-restricted-syntax': 'off',
+    },
+  },
 ]);

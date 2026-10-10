@@ -2,8 +2,9 @@ import { useState, useEffect, ChangeEvent } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
+  FiArrowLeft,
   FiRefreshCw,
   FiUser,
   FiHome,
@@ -23,7 +24,7 @@ import { useAuthStore } from '@/store/authStore';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Alert from '@/components/ui/Alert';
-import { BRAND_NAME, LOGO_PATH } from '@/constants/theme';
+import { BRAND_NAME, BRAND_TAGLINE, ICON_PATH, LOGO_PATH } from '@/constants/theme';
 import { ROUTES } from '@/constants/routes';
 import { errorMessage } from '@/utils/errors';
 import { peekAuthNotice, clearAuthNotice } from '@/utils/authNotice';
@@ -262,13 +263,13 @@ export default function Login() {
           <div className="relative">
             <div className="flex items-center gap-3">
               <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-white p-1.5">
-                <img src={LOGO_PATH} alt="" aria-hidden="true" className="h-full w-full object-contain" />
+                <img src={ICON_PATH} alt="" aria-hidden="true" className="h-full w-full object-contain" />
               </span>
               <div>
                 <p className="text-lg font-bold leading-tight">
                   <span className="text-primary-300">{BRAND_ACCENT}</span> {BRAND_REST.join(' ')}
                 </p>
-                <p className="text-[10px] font-semibold tracking-[0.2em] text-white/60">MANAGEMENT SUITE</p>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-white/60">{BRAND_TAGLINE}</p>
               </div>
             </div>
 
@@ -310,8 +311,20 @@ export default function Login() {
         {/* Form panel */}
         <div className="flex flex-col justify-center p-5 sm:p-8 lg:p-10">
           <div className="mx-auto w-full max-w-sm">
+            {/* The landing page is the front door; this is the way back to it. */}
+            <Link
+              to={ROUTES.LANDING}
+              className="mb-6 inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-primary"
+            >
+              <FiArrowLeft className="h-4 w-4" aria-hidden="true" />
+              Back to home
+            </Link>
             <div className="text-center">
-              <img src={LOGO_PATH} alt="" aria-hidden="true" className="mx-auto h-14 w-14 object-contain" />
+              <img
+                src={LOGO_PATH}
+                alt={BRAND_NAME}
+                className="mx-auto h-16 w-auto dark:rounded-xl dark:bg-white dark:px-3 dark:py-1.5"
+              />
               <p className="mt-4 text-xs font-semibold tracking-[0.2em] text-primary">• WELCOME BACK •</p>
               <h1 className="mt-2 text-2xl font-bold tracking-tight text-foreground">
                 {step === 'otp'

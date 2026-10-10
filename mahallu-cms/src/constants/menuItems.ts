@@ -20,6 +20,7 @@ import {
   RiFileTextLine,
   RiGiftLine,
   RiLayoutGridLine,
+  RiMailSendLine,
   RiHeartLine,
   RiQuestionLine,
   RiHome5Line,
@@ -985,6 +986,13 @@ export const menuItems: MenuItem[] = [
         allowedRoles: ADMIN_ROLES,
       },
       { id: 'tenants', label: 'Tenants', icon: RiLayoutGridLine, path: '/admin/tenants', superAdminOnly: true },
+      {
+        id: 'demo-requests',
+        label: 'Demo requests',
+        icon: RiMailSendLine,
+        path: '/admin/demo-requests',
+        superAdminOnly: true,
+      },
       { id: 'all-users', label: 'All users', icon: RiGroupLine, path: '/admin/users', superAdminOnly: true },
       {
         id: 'categories-admin',
