@@ -139,6 +139,8 @@ export const DEMO_BAND = {
 
 export const ABOUT = {
   heading: 'ഞങ്ങളെക്കുറിച്ച്',
+  /** This phrase in the paragraphs links to the council's site. */
+  link: { text: 'Masjid Council Kerala – masjidcouncilkerala.org', href: 'https://masjidcouncilkerala.org/' },
   paragraphs: [
     'ZAAD മഹല്ലുകളുടെ ഭരണനിർവഹണം കൂടുതൽ ലളിതവും സുതാര്യവും കാര്യക്ഷമവുമാക്കുന്നതിനായി രൂപകൽപ്പന ചെയ്ത സമഗ്ര ഡിജിറ്റൽ പ്ലാറ്റ്‌ഫോമാണ്. മസ്ജിദ് കൗൺസിൽ കേരളയുടെ (Masjid Council Kerala – masjidcouncilkerala.org) പെയ്ഡ് സംരംഭമാണ് ZAAD. മഹല്ല് ഭരണസമിതികൾക്കായി വെബ് എഡിഷനും മഹല്ല് നിവാസികൾക്കായി മൊബൈൽ ആപ്പും ഇതിലൂടെ ലഭ്യമാക്കുന്നു.',
     'കുടുംബവിവര ശേഖരണം, വരിസംഖ്യാ പിരിവ്, സർട്ടിഫിക്കറ്റ് വിതരണം, അക്കൗണ്ടിംഗ്, സാമ്പത്തിക റിപ്പോർട്ടുകൾ, പൊതുഅറിയിപ്പുകൾ തുടങ്ങിയ പ്രവർത്തനങ്ങൾ ഒരൊറ്റ സംവിധാനത്തിലൂടെ ഏകോപിപ്പിക്കാൻ ZAAD സഹായിക്കുന്നു.',
