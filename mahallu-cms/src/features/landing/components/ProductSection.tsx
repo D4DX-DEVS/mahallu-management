@@ -33,9 +33,11 @@ function Realities() {
           </div>
           <h2
             {...staggered(textInView, 1)}
-            className={`${staggered(textInView, 1).className} mt-4 max-w-[440px] text-[30px] font-extrabold leading-[1.15] tracking-[-0.02em] text-[#192024] sm:text-[36px]`}
+            className={`${staggered(textInView, 1).className} mt-4 max-w-[440px] text-[26px] font-extrabold leading-[1.15] tracking-[-0.02em] text-[#192024] sm:text-[30px]`}
           >
-            {REALITIES.headline}
+            {REALITIES.headline[0]}
+            <br />
+            <span className="text-[#298959]">{REALITIES.headline[1]}</span>
           </h2>
           <p
             {...staggered(textInView, 2)}
@@ -73,7 +75,7 @@ function DemoBand() {
                 <MosqueIllustration className="w-[190px]" fill="#FFFFFF" shade="#B8D6C5" accent="#F2C14E" />
               </div>
               <div>
-                <h2 className="text-[26px] font-extrabold leading-tight tracking-[-0.02em] sm:text-[30px]">{DEMO_BAND.headline}</h2>
+                <h2 className="text-[22px] font-extrabold leading-tight tracking-[-0.02em] sm:text-[26px]">{DEMO_BAND.headline}</h2>
                 <p className="mt-2 max-w-[520px] text-[15px] leading-[1.6] text-white/85">{DEMO_BAND.body}</p>
               </div>
               <RequestDemoButton className={`${BTN_INVERSE} lp-shine relative overflow-hidden justify-self-start lg:justify-self-end`} />

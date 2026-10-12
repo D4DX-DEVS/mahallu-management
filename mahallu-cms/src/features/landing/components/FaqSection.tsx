@@ -21,9 +21,9 @@ function ContactCard() {
         <span className="flex h-12 w-12 items-center justify-center rounded-full bg-[#E6F4EC] text-[#15603B]">
           <FiHeadphones className="h-5 w-5" aria-hidden="true" />
         </span>
-        <h3 className="mt-5 text-[18px] font-extrabold text-[#192024]">Still have questions?</h3>
-        <p className="mt-1 text-[14px] text-[#5D696F]">Our team is here to help you.</p>
-        <a href={`mailto:${CONTACT_EMAIL}`} className={`${BTN_PRIMARY} group mt-5 px-5 py-[10px] text-[14px]`}>
+        <h3 className="mt-5 text-[18px] font-extrabold text-[#192024]">സൗജന്യ ഡെമോ ബുക്ക് ചെയ്യുക</h3>
+        <p className="mt-1 text-[14px] text-[#5D696F]">ZAAD-ന്റെ പ്രവർത്തനരീതിയും ലഭ്യമായ സൗകര്യങ്ങളും മനസ്സിലാക്കാൻ</p>
+        <a href={`mailto:${CONTACT_EMAIL}`} className={`${BTN_PRIMARY} group mt-5 px-5 py-[10px] text-[13px]`}>
           Contact us
           <FiArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" aria-hidden="true" />
         </a>
@@ -48,7 +48,7 @@ export default function FaqSection() {
       <div className={CONTAINER}>
         <Reveal>
           <Eyebrow>FAQ</Eyebrow>
-          <h2 className="mt-4 text-[30px] font-extrabold leading-[1.15] tracking-[-0.02em] text-[#192024] sm:text-[34px]">
+          <h2 className="mt-4 text-[26px] font-extrabold leading-[1.15] tracking-[-0.02em] text-[#192024] sm:text-[30px]">
             Frequently asked questions.
           </h2>
         </Reveal>

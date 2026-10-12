@@ -6,7 +6,7 @@
 export const CONTAINER = 'mx-auto w-full max-w-[1200px] px-5 sm:px-8';
 
 const BTN_BASE =
-  'inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 text-[15px] font-bold transition-[background-color,color,border-color,transform,box-shadow] duration-200 ease-out hover:-translate-y-[2px] active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2';
+  'inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 text-[14px] font-bold transition-[background-color,color,border-color,transform,box-shadow] duration-200 ease-out hover:-translate-y-[2px] active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2';
 
 export const BTN_PRIMARY = `${BTN_BASE} bg-[#15603B] text-white shadow-[0_10px_24px_-12px_rgba(21,96,59,0.8)] hover:bg-[#124F31] hover:shadow-[0_16px_30px_-12px_rgba(21,96,59,0.75)] focus-visible:ring-[#15603B]`;
 

@@ -35,13 +35,18 @@ export const NAV_LINKS: NavLink[] = [
   { label: 'Features', href: '#features', section: 'features' },
   { label: 'For Members', href: '#for-members', section: 'for-members' },
   { label: 'Contact', href: '#contact', section: 'contact' },
+  { label: 'About Us', href: '#about-us', section: 'about-us' },
 ];
 
 export const HERO = {
   eyebrow: 'The digital office for your Mahallu',
-  headline: ['Know every family.', 'Serve every need.'],
-  body: 'ZAAD helps your Mahallu manage family records, collections, certificates, welfare, accounts and more — all in one secure and easy-to-use system.',
-  trust: ['Works on mobile', 'Secure & reliable', 'Built for Kerala Mahallus'],
+  headline: ['മഹല്ല് ഭരണനിർവഹണത്തിനുള്ള', 'സമഗ്ര ഡിജിറ്റൽ പരിഹാരം'],
+  body: 'മഹല്ല് കുടുംബങ്ങളുടെ വിവരശേഖരണം മുതൽ വരിസംഖ്യാ പിരിവ്, അക്കൗണ്ടിംഗ്, സർട്ടിഫിക്കറ്റ് വിതരണം, പൊതുഅറിയിപ്പുകൾ തുടങ്ങി ദൈനംദിന ഭരണപ്രവർത്തനങ്ങൾ വരെ — എല്ലാം ഒരൊറ്റ ഡിജിറ്റൽ സംവിധാനത്തിലൂടെ ലളിതവും കാര്യക്ഷമവുമാക്കാം.',
+  trust: [
+    'മഹല്ല് ഭരണസമിതിക്കായി Web Edition',
+    'മഹല്ല് നിവാസികൾക്കായി സൗകര്യപ്രദമായ Mobile App',
+    'ഓരോ മഹല്ലിന്റെയും ആവശ്യങ്ങൾക്കനുസരിച്ചുള്ള Customizable Features',
+  ],
 };
 
 export interface Stat {
@@ -68,20 +73,20 @@ export interface Feature {
 
 export const FEATURES: Feature[] = [
   {
-    title: 'Family records',
-    body: 'Maintain a complete and up-to-date register of every family and member.',
+    title: 'കുടുംബ ഡയറക്ടറിയും ജനസംഖ്യാ വിവരശേഖരണവും',
+    body: 'കുടുംബാംഗങ്ങളുടെ വിലാസം, ബന്ധവിവരങ്ങൾ, വിദ്യാഭ്യാസം, തൊഴിൽ, രക്തഗ്രൂപ്പ് തുടങ്ങിയ വിവരങ്ങൾ ക്രമബദ്ധമായി സൂക്ഷിക്കാനും ആവശ്യാനുസരണം കണ്ടെത്താനും കഴിയും.',
     icon: FiUsers,
     tint: { bg: '#E6F4EC', fg: '#1F8A55' },
   },
   {
-    title: 'Varisangya collections',
-    body: 'Collect dues online or offline with clear reports and payment history.',
+    title: 'വരിസംഖ്യാ പിരിവും സംഭാവനാ മാനേജ്മെന്റും',
+    body: 'മാസവരി, വാർഷിക വരിസംഖ്യ, റമദാൻ പിരിവ്, സംഭാവനകൾ എന്നിവ രേഖപ്പെടുത്തുക. പേയ്മെന്റ് നില പരിശോധിക്കുക, രസീതുകൾ തയ്യാറാക്കുക, ലഭിച്ച തുകയും ലഭിക്കാനുള്ള തുകയും നിരീക്ഷിക്കുക. പിന്തുണയ്ക്കുന്ന സംവിധാനങ്ങൾ വഴി SMS/WhatsApp അറിയിപ്പുകളും കൈമാറാം.',
     icon: FaCoins,
     tint: { bg: '#FFF3DC', fg: '#D9900A' },
   },
   {
-    title: 'Nikah & death certificates',
-    body: 'Register marriages and deaths, and issue certificates and NOCs with ease.',
+    title: 'ഡിജിറ്റൽ സർട്ടിഫിക്കറ്റുകൾ',
+    body: 'മഹല്ല് അംഗത്വ സർട്ടിഫിക്കറ്റ്, വിവാഹവുമായി ബന്ധപ്പെട്ട സർട്ടിഫിക്കറ്റുകൾ, NOC, മറ്റ് അംഗീകൃത രേഖകൾ എന്നിവ തയ്യാറാക്കാനും പ്രിന്റ് ചെയ്യാനും സഹായിക്കുന്ന സംവിധാനം.',
     icon: FiFileText,
     tint: { bg: '#E2F4F1', fg: '#128C78' },
   },
@@ -104,8 +109,8 @@ export const FEATURES: Feature[] = [
     tint: { bg: '#E6F4EC', fg: '#1F8A55' },
   },
   {
-    title: 'Accounts & reports',
-    body: 'Manage income, expenses and budgets with audit-ready reports.',
+    title: 'അക്കൗണ്ടിംഗും സാമ്പത്തിക റിപ്പോർട്ടുകളും',
+    body: 'വരവ്–ചെലവ് ഇടപാടുകൾ, ഫണ്ടുകൾ, സംഭാവനകൾ എന്നിവ ക്രമമായി രേഖപ്പെടുത്തുക. സാമ്പത്തിക അവലോകനത്തിനും ഓഡിറ്റ് നടപടികൾക്കും ആവശ്യമായ റിപ്പോർട്ടുകൾ തയ്യാറാക്കുക.',
     icon: FiBarChart2,
     tint: { bg: '#FDE8E8', fg: '#D13B3B' },
   },
@@ -131,8 +136,8 @@ export const STEPS: Step[] = [
 
 export const REALITIES = {
   eyebrow: 'Built for Mahallu realities',
-  headline: 'From paper registers to a well-run community.',
-  body: 'No more lost records, duplicate entries or confusing spreadsheets. ZAAD gives you a secure, organised and transparent system that works for your Mahallu today and for the next generation.',
+  headline: ['മഹല്ല് ഭരണത്തിന് പുതിയ', 'ഒരു ഡിജിറ്റൽ അനുഭവം'],
+  body: 'മഹല്ല് പരിപാലനം ഒരു ഭരണപരമായ ചുമതല മാത്രമല്ല; വിശ്വാസം, ഉത്തരവാദിത്തം, കൃത്യത, സുതാര്യത എന്നിവ ഉറപ്പാക്കേണ്ട സാമൂഹിക സേവനമാണ്. രജിസ്റ്ററുകളിലും ചിതറിക്കിടക്കുന്ന രേഖകളിലും മാത്രം ആശ്രയിക്കുന്നതിനുപകരം, മഹല്ലിന്റെ പ്രധാന വിവരങ്ങളും പ്രവർത്തനങ്ങളും ക്രമബദ്ധമായി കൈകാര്യം ചെയ്യാൻ ZAAD സഹായിക്കുന്നു.',
   points: [
     'Access from office or mobile',
     'Role-based access for committee, staff and volunteers',
@@ -142,8 +147,17 @@ export const REALITIES = {
 };
 
 export const DEMO_BAND = {
-  headline: 'Ready to see ZAAD in action?',
-  body: 'Book a free demo and see how ZAAD can help your Mahallu work better, serve faster and grow together.',
+  headline: 'നിങ്ങളുടെ മഹല്ലിനെ ഡിജിറ്റൽ യുഗത്തിലേക്ക് നയിക്കൂ',
+  body: 'മഹല്ലിന്റെ ഭരണപ്രവർത്തനങ്ങൾ കൂടുതൽ ചിട്ടയോടെയും കാര്യക്ഷമതയോടെയും നിർവഹിക്കാൻ ആഗ്രഹിക്കുന്നുണ്ടോ? ZAAD പരിചയപ്പെടൂ. നിങ്ങളുടെ മഹല്ലിന്റെ ആവശ്യങ്ങൾ പങ്കുവെക്കൂ. അനുയോജ്യമായ ഡിജിറ്റൽ പരിഹാരം കണ്ടെത്തൂ.',
+};
+
+export const ABOUT = {
+  heading: 'ഞങ്ങളെക്കുറിച്ച്',
+  paragraphs: [
+    'ZAAD മഹല്ലുകളുടെ ഭരണനിർവഹണം കൂടുതൽ ലളിതവും സുതാര്യവും കാര്യക്ഷമവുമാക്കുന്നതിനായി രൂപകൽപ്പന ചെയ്ത സമഗ്ര ഡിജിറ്റൽ പ്ലാറ്റ്‌ഫോമാണ്. മസ്ജിദ് കൗൺസിൽ കേരളയുടെ (Masjid Council Kerala – masjidcouncilkerala.org) പെയ്ഡ് സംരംഭമാണ് ZAAD. മഹല്ല് ഭരണസമിതികൾക്കായി വെബ് എഡിഷനും മഹല്ല് നിവാസികൾക്കായി മൊബൈൽ ആപ്പും ഇതിലൂടെ ലഭ്യമാക്കുന്നു.',
+    'കുടുംബവിവര ശേഖരണം, വരിസംഖ്യാ പിരിവ്, സർട്ടിഫിക്കറ്റ് വിതരണം, അക്കൗണ്ടിംഗ്, സാമ്പത്തിക റിപ്പോർട്ടുകൾ, പൊതുഅറിയിപ്പുകൾ തുടങ്ങിയ പ്രവർത്തനങ്ങൾ ഒരൊറ്റ സംവിധാനത്തിലൂടെ ഏകോപിപ്പിക്കാൻ ZAAD സഹായിക്കുന്നു.',
+    'ഓരോ മഹല്ലിന്റെയും ആവശ്യങ്ങൾക്കനുസരിച്ച് സൗകര്യങ്ങൾ ക്രമീകരിക്കാനും പുതിയ സംവിധാനങ്ങൾ കൂട്ടിച്ചേർക്കാനും കഴിയുന്ന രീതിയിലാണ് ZAAD രൂപകൽപ്പന ചെയ്തിരിക്കുന്നത്. മഹല്ല് ഭരണത്തിൽ സുതാര്യതയും കൃത്യതയും കാര്യക്ഷമതയും പ്രോത്സാഹിപ്പിക്കുകയാണ് ഈ സംരംഭത്തിന്റെ ലക്ഷ്യം.',
+  ],
 };
 
 export interface Audience {
@@ -259,7 +273,7 @@ export const FOOTER_COLUMNS: FooterColumn[] = [
   {
     title: 'Company',
     links: [
-      { label: 'About', href: '#home' },
+      { label: 'About', href: '#about-us' },
       { label: 'Contact', href: '#contact' },
       { label: 'Privacy Policy', href: '#' },
       { label: 'Terms of Service', href: '#' },
