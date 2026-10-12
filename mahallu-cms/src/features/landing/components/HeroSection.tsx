@@ -1,11 +1,12 @@
-import { useRef, type CSSProperties } from 'react';
-import { FiCheck, FiChevronDown } from 'react-icons/fi';
+import { useRef, useState, type CSSProperties } from 'react';
+import { FiArrowUpRight, FiCheck, FiChevronDown } from 'react-icons/fi';
 import { HERO } from '../content';
 import { CONTAINER } from '../styles';
 import { prefersReducedMotion, useScrollFrame } from '../useMotion';
 import { BRAND_NAME, ICON_PATH } from '@/constants/theme';
 import { Eyebrow, RequestDemoButton } from './shared';
 import { LaptopFrame, PhoneFrame, DashboardScreen, MemberPortalScreen } from './mockups';
+import HeroDetailDialog from './HeroDetailDialog';
 
 /** Page-load entrance timing, so the hero builds up piece by piece. */
 const enterAt = (ms: number): CSSProperties => ({ animationDelay: `${ms}ms` });
@@ -46,6 +47,8 @@ function HeroVisual() {
 export default function HeroSection() {
   const sectionRef = useRef<HTMLElement>(null);
   const innerRef = useRef<HTMLDivElement>(null);
+  /** The hero point whose details are open, if any. */
+  const [detail, setDetail] = useState<number | null>(null);
 
   /* On wide screens the hero is pinned and the next section slides over it
      (see Landing.tsx); as it is covered it recedes and fades, like a card
@@ -96,15 +99,35 @@ export default function HeroSection() {
             <div className="lp-enter mt-5 flex flex-wrap gap-3 sm:mt-8" style={enterAt(280)}>
               <RequestDemoButton />
             </div>
-            <ul className="lp-enter mt-5 flex flex-wrap gap-x-6 gap-y-2 sm:mt-8 sm:gap-y-3" style={enterAt(380)}>
-              {HERO.trust.map(({ lead, highlight }) => (
-                <li key={highlight} className="flex items-center gap-2 text-[12px] font-semibold text-[#3A454B] max-sm:leading-[1.45] sm:text-[13px]">
-                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#15603B] text-white">
-                    <FiCheck className="h-3 w-3" strokeWidth={3} aria-hidden="true" />
-                  </span>
-                  <span>
-                    {lead} <strong className="whitespace-nowrap text-[13px] font-extrabold text-[#15603B] sm:text-[14px]">{highlight}</strong>
-                  </span>
+            {/* Each point opens its details. The row tints on hover and its arrow chip fills in;
+                with a mouse, a "View details" tag slides out beside the chip. On wide screens the
+                list may run into the empty column gap, so the longest point keeps to one line. */}
+            <ul className="lp-enter mt-4 flex flex-col items-start gap-y-1 sm:mt-7 lg:-mr-8" style={enterAt(380)}>
+              {HERO.trust.map(({ lead, highlight }, index) => (
+                <li key={highlight} className="max-w-full">
+                  <button
+                    type="button"
+                    aria-haspopup="dialog"
+                    onClick={() => setDetail(index)}
+                    className="group -ml-2 flex max-w-[calc(100%+0.5rem)] items-center gap-2 rounded-[14px] py-[5px] pl-2 pr-3 text-left text-[12px] font-semibold text-[#3A454B] transition-[background-color,box-shadow] duration-200 hover:bg-[#E9F3EC] hover:shadow-[0_10px_24px_-20px_rgba(21,96,59,0.8)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#15603B] max-sm:leading-[1.45] sm:rounded-full sm:text-[13px]"
+                  >
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#15603B] text-white">
+                      <FiCheck className="h-3 w-3" strokeWidth={3} aria-hidden="true" />
+                    </span>
+                    <span>
+                      {lead}{' '}
+                      <span className="whitespace-nowrap">
+                        <strong className="text-[13px] font-extrabold text-[#15603B] sm:text-[14px]">{highlight}</strong>
+                        <span className="relative ml-[6px] inline-flex h-5 w-5 -translate-y-px items-center justify-center rounded-full border border-[#BFDCCB] bg-white align-middle text-[#15603B] transition-colors duration-200 group-hover:border-[#15603B] group-hover:bg-[#15603B] group-hover:text-white">
+                          <FiArrowUpRight className="h-3 w-3 transition-transform duration-300 group-hover:rotate-45" aria-hidden="true" />
+                          <span className="pointer-events-none absolute left-full top-1/2 ml-2 -translate-x-1 -translate-y-1/2 whitespace-nowrap rounded-full bg-[#15603B] px-[9px] py-[3px] text-[10.5px] font-bold text-white opacity-0 shadow-[0_8px_18px_-10px_rgba(21,96,59,0.9)] transition-[opacity,transform] duration-200 group-hover:translate-x-0 group-hover:opacity-100 group-focus-visible:translate-x-0 group-focus-visible:opacity-100 max-lg:hidden">
+                            View details
+                          </span>
+                          <span className="sr-only lg:hidden">View details</span>
+                        </span>
+                      </span>
+                    </span>
+                  </button>
                 </li>
               ))}
             </ul>
@@ -118,6 +141,7 @@ export default function HeroSection() {
           </span>
         </div>
       </div>
+      <HeroDetailDialog index={detail} onSelect={setDetail} onClose={() => setDetail(null)} />
     </section>
   );
 }
