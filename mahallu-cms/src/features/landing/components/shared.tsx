@@ -36,7 +36,7 @@ export function SectionHeading({ eyebrow, title, subtitle, align = 'left', class
   return (
     <div className={`${center ? 'mx-auto max-w-[680px] text-center' : 'max-w-[600px]'} ${className}`}>
       <Eyebrow align={align}>{eyebrow}</Eyebrow>
-      <h2 className="mt-4 text-[30px] font-extrabold leading-[1.15] tracking-[-0.02em] text-[#192024] sm:text-[36px]">
+      <h2 className="mt-4 text-[26px] font-extrabold leading-[1.15] tracking-[-0.02em] text-[#192024] sm:text-[30px]">
         {title}
       </h2>
       {subtitle && <p className="mt-3 text-[16px] leading-[1.6] text-[#5D696F]">{subtitle}</p>}

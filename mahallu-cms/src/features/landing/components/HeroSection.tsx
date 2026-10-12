@@ -32,7 +32,7 @@ function HeroVisual() {
             <img src={ICON_PATH} alt="" className="h-8 w-8 rounded-[9px]" />
             <span className="flex flex-col leading-none">
               <span className="text-[13px] font-extrabold text-[#0E5A3A]">{BRAND_NAME}</span>
-              <span className="mt-[3px] text-[9px] font-semibold uppercase tracking-[0.12em] text-[#5D696F]">Mahallu app</span>
+              <span className="mt-[3px] text-[9px] font-semibold uppercase tracking-[0.12em] text-[#5D696F]">App</span>
             </span>
           </div>
         </div>
@@ -89,10 +89,10 @@ export default function HeroSection() {
               <Eyebrow>{HERO.eyebrow}</Eyebrow>
             </div>
             <h1
-              className="lp-enter mt-5 text-[40px] font-extrabold leading-[1.08] tracking-[-0.025em] text-[#192024] sm:text-[48px] lg:text-[54px]"
+              className="lp-enter mt-5 text-[30px] font-extrabold leading-[1.08] tracking-[-0.025em] text-[#192024] sm:text-[36px] xl:text-[33px]"
               style={enterAt(90)}
             >
-              {HERO.headline[0]}
+              <span className="xl:whitespace-nowrap">{HERO.headline[0]}</span>
               <br />
               <span className="text-[#298959]">{HERO.headline[1]}</span>
             </h1>

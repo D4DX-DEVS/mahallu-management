@@ -6,6 +6,7 @@ import FeaturesSection from '../components/FeaturesSection';
 import ProductSection from '../components/ProductSection';
 import CommunitySection from '../components/CommunitySection';
 import FaqSection from '../components/FaqSection';
+import AboutSection from '../components/AboutSection';
 import LandingFooter from '../components/LandingFooter';
 import DemoRequestDialog from '../components/DemoRequestDialog';
 import { DemoRequestContext } from '../demoRequestContext';
@@ -45,6 +46,7 @@ export default function Landing() {
             <ProductSection />
             <CommunitySection />
             <FaqSection />
+            <AboutSection />
           </div>
         </main>
         <LandingFooter />

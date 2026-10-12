@@ -80,7 +80,7 @@ export default function DemoRequestDialog({ isOpen, onClose }: DemoRequestDialog
       isOpen={isOpen}
       onClose={onClose}
       size="sm"
-      title={sent ? 'Request sent' : 'Request a demo'}
+      title={sent ? 'Request sent' : 'സൗജന്യ ഡെമോ ബുക്ക് ചെയ്യുക'}
       description={sent ? undefined : 'Tell us about your Mahallu and we will call you to arrange a free demo.'}
     >
       {sent ? (
@@ -92,7 +92,7 @@ export default function DemoRequestDialog({ isOpen, onClose }: DemoRequestDialog
           <p className="mt-2 max-w-sm text-sm text-muted-foreground">
             Our team will call you on the number you gave, usually within a working day, to arrange your free demo.
           </p>
-          <Button className="mt-6" onClick={onClose}>
+          <Button className="mt-6 text-[13px]" onClick={onClose}>
             Done
           </Button>
         </div>
@@ -134,10 +134,10 @@ export default function DemoRequestDialog({ isOpen, onClose }: DemoRequestDialog
             {...phoneRegister('whatsappNumber')}
           />
           <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
-            <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
+            <Button type="button" variant="outline" className="text-[13px]" onClick={onClose} disabled={isSubmitting}>
               Cancel
             </Button>
-            <Button type="submit" isLoading={isSubmitting} loadingText="Sending…" icon={<FiSend />}>
+            <Button type="submit" className="text-[13px]" isLoading={isSubmitting} loadingText="Sending…" icon={<FiSend />}>
               Send request
             </Button>
           </div>

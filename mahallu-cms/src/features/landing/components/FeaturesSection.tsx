@@ -14,7 +14,7 @@ function KeyFeatures() {
             eyebrow="Key features"
             title={
               <>
-                Your entire Mahallu, <span className="text-[#298959]">organised.</span>
+                ZAAD-ന്റെ <span className="text-[#298959]">പ്രധാന സവിശേഷതകൾ</span>
               </>
             }
             subtitle="All the essential functions your committee needs, in one simple and secure platform."
@@ -47,7 +47,7 @@ function HowItWorks() {
       <div className={`${CONTAINER} grid gap-12 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.5fr)] lg:items-center`}>
         <Reveal variant="left">
           <Eyebrow>How it works</Eyebrow>
-          <h2 className="mt-4 text-[30px] font-extrabold leading-[1.15] tracking-[-0.02em] text-[#192024] sm:text-[34px]">
+          <h2 className="mt-4 text-[26px] font-extrabold leading-[1.15] tracking-[-0.02em] text-[#192024] sm:text-[30px]">
             Simple for everyone.
             <br />
             <span className="text-[#298959]">Powerful for your community.</span>

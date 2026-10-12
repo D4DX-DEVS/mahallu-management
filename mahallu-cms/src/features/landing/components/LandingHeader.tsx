@@ -80,7 +80,7 @@ export default function LandingHeader() {
           <BrandLogo />
         </a>
 
-        <nav aria-label="Primary" className="hidden items-center gap-8 lg:flex">
+        <nav aria-label="Primary" className="hidden items-center gap-8 xl:flex">
           {NAV_LINKS.map((link) => {
             const isActive = link.section === active;
             return (
@@ -88,7 +88,7 @@ export default function LandingHeader() {
                 key={link.section}
                 href={link.href}
                 aria-current={isActive ? 'page' : undefined}
-                className={`group relative text-[14px] font-semibold transition-colors duration-200 ${
+                className={`group relative whitespace-nowrap text-[13px] font-semibold transition-colors duration-200 ${
                   isActive ? 'text-[#15603B]' : 'text-[#3A454B] hover:text-[#15603B]'
                 }`}
               >
@@ -104,16 +104,16 @@ export default function LandingHeader() {
           })}
         </nav>
 
-        <div className="hidden items-center gap-3 lg:flex">
-          <Link to={appHref} className="px-3 py-2 text-[14px] font-semibold text-[#192024] transition-colors duration-200 hover:text-[#15603B]">
+        <div className="hidden items-center gap-3 xl:flex">
+          <Link to={appHref} className="px-3 py-2 text-[13px] font-semibold text-[#192024] transition-colors duration-200 hover:text-[#15603B]">
             {appLabel}
           </Link>
-          <RequestDemoButton className={`${BTN_PRIMARY} px-5 py-[10px] text-[14px]`} />
+          <RequestDemoButton className={`${BTN_PRIMARY} px-5 py-[10px] text-[13px]`} />
         </div>
 
         <button
           type="button"
-          className="flex h-10 w-10 items-center justify-center rounded-full text-[#192024] transition hover:bg-[#F1F7F3] lg:hidden"
+          className="flex h-10 w-10 items-center justify-center rounded-full text-[#192024] transition hover:bg-[#F1F7F3] xl:hidden"
           aria-expanded={open}
           aria-controls="landing-mobile-nav"
           onClick={() => setOpen((value) => !value)}
@@ -126,14 +126,14 @@ export default function LandingHeader() {
       <div ref={progressRef} aria-hidden="true" className="absolute bottom-0 left-0 h-[2px] w-full origin-left scale-x-0 bg-[#298959]" />
 
       {open && (
-        <div id="landing-mobile-nav" className="animate-fade-in border-t border-[#E6E9EE] bg-white lg:hidden">
+        <div id="landing-mobile-nav" className="animate-fade-in border-t border-[#E6E9EE] bg-white xl:hidden">
           <nav aria-label="Primary" className={`${CONTAINER} flex flex-col py-3`}>
             {NAV_LINKS.map((link, index) => (
               <a
                 key={link.section}
                 href={link.href}
                 onClick={() => setOpen(false)}
-                className={`lp-enter rounded-[10px] px-3 py-3 text-[15px] font-semibold ${
+                className={`lp-enter rounded-[10px] px-3 py-3 text-[14px] font-semibold ${
                   link.section === active ? 'bg-[#F1F7F3] text-[#15603B]' : 'text-[#192024]'
                 }`}
                 style={{ animationDelay: `${index * 50}ms`, animationDuration: '0.45s' }}
@@ -142,7 +142,7 @@ export default function LandingHeader() {
               </a>
             ))}
             <div className="mt-3 flex flex-col gap-2 border-t border-[#E6E9EE] pt-4">
-              <Link to={appHref} className="rounded-full border border-[#D5DBE1] px-5 py-3 text-center text-[15px] font-bold text-[#192024]">
+              <Link to={appHref} className="rounded-full border border-[#D5DBE1] px-5 py-3 text-center text-[14px] font-bold text-[#192024]">
                 {appLabel}
               </Link>
               <RequestDemoButton onAfterClick={() => setOpen(false)} />

@@ -147,7 +147,7 @@ function Testimonials() {
         <Reveal className="flex items-end justify-between gap-6">
           <div>
             <Eyebrow>Testimonials</Eyebrow>
-            <h2 className="mt-4 text-[30px] font-extrabold leading-[1.15] tracking-[-0.02em] text-[#192024] sm:text-[34px]">
+            <h2 className="mt-4 text-[26px] font-extrabold leading-[1.15] tracking-[-0.02em] text-[#192024] sm:text-[30px]">
               What committees say about ZAAD.
             </h2>
             <p className="mt-2 text-[15px] text-[#5D696F]">Trusted by Mahallus across Kerala.</p>
