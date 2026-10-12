@@ -80,6 +80,7 @@ export default function DemoRequestDialog({ isOpen, onClose }: DemoRequestDialog
       isOpen={isOpen}
       onClose={onClose}
       size="sm"
+      className="font-landing"
       title={sent ? 'Request sent' : 'സൗജന്യ ഡെമോ ബുക്ക് ചെയ്യുക'}
       description={sent ? undefined : 'Tell us about your Mahallu and we will call you to arrange a free demo.'}
     >

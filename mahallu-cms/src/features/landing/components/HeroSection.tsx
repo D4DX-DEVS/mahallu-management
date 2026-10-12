@@ -1,11 +1,10 @@
 import { useRef, type CSSProperties } from 'react';
-import { FiPlay, FiCheck, FiChevronDown } from 'react-icons/fi';
-import { HERO, WATCH_VIDEO_HREF } from '../content';
-import { BTN_OUTLINE, CONTAINER } from '../styles';
+import { FiCheck, FiChevronDown } from 'react-icons/fi';
+import { HERO } from '../content';
+import { CONTAINER } from '../styles';
 import { prefersReducedMotion, useScrollFrame } from '../useMotion';
 import { BRAND_NAME, ICON_PATH } from '@/constants/theme';
 import { Eyebrow, RequestDemoButton } from './shared';
-import { MosqueIllustration, PalmFrond } from './illustrations';
 import { LaptopFrame, PhoneFrame, DashboardScreen, MemberPortalScreen } from './mockups';
 
 /** Page-load entrance timing, so the hero builds up piece by piece. */
@@ -15,17 +14,6 @@ function HeroVisual() {
   return (
     <div className="relative mx-auto w-full max-w-[620px] lg:max-w-none" aria-hidden="true">
       <div className="relative aspect-[10/8] w-full">
-        <div
-          className="lp-enter absolute inset-x-4 bottom-10 top-0 rounded-[32px] bg-[linear-gradient(180deg,#D3E5F1_0%,#E8F2EC_55%,#FFFFFF_100%)]"
-          style={enterAt(150)}
-        />
-        <div className="lp-enter absolute right-[8%] top-[2%] w-[56%]" style={enterAt(350)}>
-          <MosqueIllustration className="w-full" fill="#FFFFFF" shade="#D2DFD7" />
-        </div>
-        <div className="lp-enter absolute -right-8 -top-8 w-[170px]" style={enterAt(500)}>
-          <PalmFrond className="lp-float lp-float--slow w-full text-[#1F6B45] opacity-60" />
-        </div>
-        <div className="absolute inset-y-0 left-0 w-[28%] bg-gradient-to-r from-white to-transparent" />
         {/* A small app badge in place of a second full logo, so the brand is present without repeating the header. */}
         <div className="lp-enter absolute left-[7%] top-[6%] z-10" style={enterAt(800)}>
           <div className="lp-float lp-float--slow flex items-center gap-2 rounded-full border border-white/80 bg-white/90 py-[6px] pl-[6px] pr-4 shadow-[0_14px_30px_-16px_rgba(21,96,59,0.5)] backdrop-blur">
@@ -79,42 +67,44 @@ export default function HeroSection() {
 
   return (
     <section id="home" ref={sectionRef} className="relative z-0 overflow-hidden scroll-mt-[80px] lg:sticky lg:top-[84px]">
-      <div ref={innerRef} className="will-change-[transform,opacity] [transform-origin:50%_30%]">
-        <div className="lp-enter pointer-events-none absolute -left-24 top-[38%] hidden w-[240px] xl:block" style={enterAt(700)}>
-          <PalmFrond className="lp-float w-full text-[#1F6B45] opacity-25" />
-        </div>
-        <div className={`${CONTAINER} grid items-center gap-12 py-14 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] lg:py-20`}>
+      {/* The banner photo stays put while the content recedes over it. Its left side is a pale wash
+          that sits under the text; the mosque sits under the devices. */}
+      <div className="lp-enter pointer-events-none absolute inset-0" style={enterAt(0)} aria-hidden="true">
+        <div
+          className="absolute inset-0 bg-cover bg-[position:68%_center] bg-no-repeat opacity-90 lg:bg-center"
+          style={{ backgroundImage: `url(${HERO.background})` }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-white via-white/85 to-white/20 lg:bg-gradient-to-r lg:from-white/80 lg:via-white/25 lg:to-transparent" />
+      </div>
+      <div ref={innerRef} className="relative will-change-[transform,opacity] [transform-origin:50%_30%]">
+        <div className={`${CONTAINER} grid items-center gap-8 py-8 sm:gap-12 sm:py-14 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] lg:py-20`}>
           <div className="relative z-10">
             <div className="lp-enter" style={enterAt(0)}>
               <Eyebrow>{HERO.eyebrow}</Eyebrow>
             </div>
             <h1
-              className="lp-enter mt-5 text-[30px] font-extrabold leading-[1.08] tracking-[-0.025em] text-[#192024] sm:text-[36px] xl:text-[33px]"
+              className="lp-enter mt-3 text-[21px] font-extrabold leading-[1.35] text-[#192024] sm:mt-5 sm:text-[31px] sm:leading-[1.3] xl:text-[29px]"
               style={enterAt(90)}
             >
               <span className="xl:whitespace-nowrap">{HERO.headline[0]}</span>
               <br />
               <span className="text-[#298959]">{HERO.headline[1]}</span>
             </h1>
-            <p className="lp-enter mt-5 max-w-[480px] text-[16px] leading-[1.65] text-[#5D696F] sm:text-[17px]" style={enterAt(180)}>
+            <p className="lp-enter mt-3 max-w-[480px] text-[14px] leading-[1.6] text-[#5D696F] sm:mt-5 sm:text-[16px] sm:leading-[1.7]" style={enterAt(180)}>
               {HERO.body}
             </p>
-            <div className="lp-enter mt-8 flex flex-wrap gap-3" style={enterAt(280)}>
+            <div className="lp-enter mt-5 flex flex-wrap gap-3 sm:mt-8" style={enterAt(280)}>
               <RequestDemoButton />
-              <a href={WATCH_VIDEO_HREF} className={`${BTN_OUTLINE} group`}>
-                <span className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-[#192024] transition-transform duration-300 group-hover:scale-110">
-                  <FiPlay className="ml-[1px] h-3 w-3 fill-current" aria-hidden="true" />
-                </span>
-                Watch video
-              </a>
             </div>
-            <ul className="lp-enter mt-8 flex flex-wrap gap-x-6 gap-y-3" style={enterAt(380)}>
-              {HERO.trust.map((item) => (
-                <li key={item} className="flex items-center gap-2 text-[13px] font-semibold text-[#3A454B]">
-                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#15603B] text-white">
+            <ul className="lp-enter mt-5 flex flex-wrap gap-x-6 gap-y-2 sm:mt-8 sm:gap-y-3" style={enterAt(380)}>
+              {HERO.trust.map(({ lead, highlight }) => (
+                <li key={highlight} className="flex items-center gap-2 text-[12px] font-semibold text-[#3A454B] max-sm:leading-[1.45] sm:text-[13px]">
+                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#15603B] text-white">
                     <FiCheck className="h-3 w-3" strokeWidth={3} aria-hidden="true" />
                   </span>
-                  {item}
+                  <span>
+                    {lead} <strong className="whitespace-nowrap text-[13px] font-extrabold text-[#15603B] sm:text-[14px]">{highlight}</strong>
+                  </span>
                 </li>
               ))}
             </ul>

@@ -3,25 +3,8 @@
  * the words can be edited without touching layout.
  */
 import type { IconType } from 'react-icons';
-import {
-  FiUsers,
-  FiFileText,
-  FiHeart,
-  FiBookOpen,
-  FiBarChart2,
-  FiCalendar,
-  FiBox,
-  FiUser,
-  FiUserCheck,
-  FiLayers,
-} from 'react-icons/fi';
-import { FaMosque, FaCoins, FaArchway } from 'react-icons/fa';
-
-/* "Request a demo" opens the demo-request form (see DemoRequestDialog). There is
-   no video yet, so "Watch video" scrolls to the walkthrough. CONTACT_EMAIL is a
-   placeholder until the real contact channel is decided. */
-export const CONTACT_EMAIL = 'hello@zaad.app';
-export const WATCH_VIDEO_HREF = '#how-it-works';
+import { FiUsers, FiFileText, FiBarChart2, FiBox, FiBell, FiShield } from 'react-icons/fi';
+import { FaMosque, FaCoins } from 'react-icons/fa';
 
 export interface NavLink {
   label: string;
@@ -33,21 +16,42 @@ export interface NavLink {
 export const NAV_LINKS: NavLink[] = [
   { label: 'Home', href: '#home', section: 'home' },
   { label: 'Features', href: '#features', section: 'features' },
-  { label: 'For Members', href: '#for-members', section: 'for-members' },
-  { label: 'Contact', href: '#contact', section: 'contact' },
   { label: 'About Us', href: '#about-us', section: 'about-us' },
 ];
 
 export const HERO = {
+  background: '/banner-bg.png',
   eyebrow: 'The digital office for your Mahallu',
   headline: ['മഹല്ല് ഭരണനിർവഹണത്തിനുള്ള', 'സമഗ്ര ഡിജിറ്റൽ പരിഹാരം'],
   body: 'മഹല്ല് കുടുംബങ്ങളുടെ വിവരശേഖരണം മുതൽ വരിസംഖ്യാ പിരിവ്, അക്കൗണ്ടിംഗ്, സർട്ടിഫിക്കറ്റ് വിതരണം, പൊതുഅറിയിപ്പുകൾ തുടങ്ങി ദൈനംദിന ഭരണപ്രവർത്തനങ്ങൾ വരെ — എല്ലാം ഒരൊറ്റ ഡിജിറ്റൽ സംവിധാനത്തിലൂടെ ലളിതവും കാര്യക്ഷമവുമാക്കാം.',
+  /** Each point is a Malayalam lead-in and the English product name, which is set apart. */
   trust: [
-    'മഹല്ല് ഭരണസമിതിക്കായി Web Edition',
-    'മഹല്ല് നിവാസികൾക്കായി സൗകര്യപ്രദമായ Mobile App',
-    'ഓരോ മഹല്ലിന്റെയും ആവശ്യങ്ങൾക്കനുസരിച്ചുള്ള Customizable Features',
+    { lead: 'മഹല്ല് ഭരണസമിതിക്കായി', highlight: 'Web Edition' },
+    { lead: 'മഹല്ല് നിവാസികൾക്കായി സൗകര്യപ്രദമായ', highlight: 'Mobile App' },
+    { lead: 'ഓരോ മഹല്ലിന്റെയും ആവശ്യങ്ങൾക്കനുസരിച്ചുള്ള', highlight: 'Customizable Features' },
   ],
 };
+
+export interface Scripture {
+  /** The original Arabic, shown above the Malayalam when there is one. */
+  arabic?: string;
+  text: string;
+  source: string;
+}
+
+/* The ayah and hadith shown right after the hero, word for word as given. */
+export const SCRIPTURE: Scripture[] = [
+  {
+    arabic: 'إِنَّمَا يَعْمُرُ مَسَٰجِدَ ٱللَّهِ مَنْ ءَامَنَ بِٱللَّهِ وَٱلْيَوْمِ ٱلْءَاخِرِ وَأَقَامَ ٱلصَّلَوٰةَ وَءَاتَى ٱلزَّكَوٰةَ وَلَمْ يَخْشَ إِلَّا ٱللَّهَ  ۖ',
+    text: '“അല്ലാഹുവിന്റെ പള്ളികള്‍ പരിപാലിക്കേണ്ടത് അല്ലാഹുവിലും അന്ത്യദിനത്തിലും വിശ്വസിക്കുകയും നമസ്‌കാരം നിഷ്ഠയോടെ നിര്‍വഹിക്കുകയും സകാത്ത് നല്‍കുകയും അല്ലാഹുവെയല്ലാതെ ഒന്നിനെയും ഭയപ്പെടാതിരിക്കുകയും ചെയ്യുന്നവര്‍ മാത്രമാണ്.”',
+    source: 'സൂറത്തുത്തൗബ 9:18',
+  },
+  {
+    arabic: 'كُلُّكُمْ رَاعٍ وَكُلُّكُمْ مَسْؤُولٌ عَنْ رَعِيَّتِهِ',
+    text: '“നിങ്ങളോരോരുത്തരും ഉത്തരവാദിത്തമുള്ളവരാണ്. നിങ്ങളോരോരുത്തരും തങ്ങളുടെ ഉത്തരവാദിത്തത്തിലുള്ളവരെക്കുറിച്ച് ചോദിക്കപ്പെടുന്നതാണ്.”',
+    source: 'സ്വഹീഹുൽ ബുഖാരി',
+  },
+];
 
 export interface Stat {
   value: string;
@@ -79,8 +83,8 @@ export const FEATURES: Feature[] = [
     tint: { bg: '#E6F4EC', fg: '#1F8A55' },
   },
   {
-    title: 'വരിസംഖ്യാ പിരിവും സംഭാവനാ മാനേജ്മെന്റും',
-    body: 'മാസവരി, വാർഷിക വരിസംഖ്യ, റമദാൻ പിരിവ്, സംഭാവനകൾ എന്നിവ രേഖപ്പെടുത്തുക. പേയ്മെന്റ് നില പരിശോധിക്കുക, രസീതുകൾ തയ്യാറാക്കുക, ലഭിച്ച തുകയും ലഭിക്കാനുള്ള തുകയും നിരീക്ഷിക്കുക. പിന്തുണയ്ക്കുന്ന സംവിധാനങ്ങൾ വഴി SMS/WhatsApp അറിയിപ്പുകളും കൈമാറാം.',
+    title: 'വരിസംഖ്യാ പിരിവും സംഭാവനാ മാനേജ്‌മെന്റും',
+    body: 'മാസവരി, വാർഷിക വരിസംഖ്യ, റമദാൻ പിരിവ്, സംഭാവനകൾ എന്നിവ രേഖപ്പെടുത്തുക. പേയ്‌മെന്റ് നില പരിശോധിക്കുക, രസീതുകൾ തയ്യാറാക്കുക, ലഭിച്ച തുകയും ലഭിക്കാനുള്ള തുകയും നിരീക്ഷിക്കുക. പിന്തുണയ്ക്കുന്ന സംവിധാനങ്ങൾ വഴി SMS/WhatsApp അറിയിപ്പുകളും കൈമാറാം.',
     icon: FaCoins,
     tint: { bg: '#FFF3DC', fg: '#D9900A' },
   },
@@ -91,33 +95,21 @@ export const FEATURES: Feature[] = [
     tint: { bg: '#E2F4F1', fg: '#128C78' },
   },
   {
-    title: 'Welfare & Zakat',
-    body: 'Identify families in need, manage Zakat collections and distribute assistance fairly.',
-    icon: FiHeart,
-    tint: { bg: '#FFEBE0', fg: '#E35F1C' },
-  },
-  {
-    title: 'Madrasa management',
-    body: 'Manage students, staff, classes and fees for your Madrasa and other institutes.',
-    icon: FiBookOpen,
-    tint: { bg: '#E6EEFF', fg: '#2F62D3' },
-  },
-  {
-    title: 'Qabaristan (burial ground)',
-    body: 'Keep records of burials, location details and maintenance.',
-    icon: FaArchway,
-    tint: { bg: '#E6F4EC', fg: '#1F8A55' },
-  },
-  {
     title: 'അക്കൗണ്ടിംഗും സാമ്പത്തിക റിപ്പോർട്ടുകളും',
     body: 'വരവ്–ചെലവ് ഇടപാടുകൾ, ഫണ്ടുകൾ, സംഭാവനകൾ എന്നിവ ക്രമമായി രേഖപ്പെടുത്തുക. സാമ്പത്തിക അവലോകനത്തിനും ഓഡിറ്റ് നടപടികൾക്കും ആവശ്യമായ റിപ്പോർട്ടുകൾ തയ്യാറാക്കുക.',
     icon: FiBarChart2,
     tint: { bg: '#FDE8E8', fg: '#D13B3B' },
   },
   {
-    title: 'Meetings & programs',
-    body: 'Schedule committee meetings, manage programs and keep records.',
-    icon: FiCalendar,
+    title: 'മഹല്ല് നോട്ടീസ് ബോർഡും അറിയിപ്പുകളും',
+    body: 'മരണവാർത്തകൾ, മഹല്ല് യോഗങ്ങൾ, ദീനിപരിപാടികൾ, പൊതുഅറിയിപ്പുകൾ തുടങ്ങിയവ നിവാസികളിലേക്ക് സമയബന്ധിതമായി എത്തിക്കുക.',
+    icon: FiBell,
+    tint: { bg: '#E6EEFF', fg: '#2F62D3' },
+  },
+  {
+    title: 'സുരക്ഷിതമായ വിവരസംരക്ഷണം',
+    body: 'അംഗീകൃത ഉപയോക്താക്കൾക്ക് മാത്രം ആവശ്യമായ വിവരങ്ങൾ ലഭ്യമാക്കുന്ന നിയന്ത്രണങ്ങൾ, ഉപയോക്തൃ അധികാരങ്ങൾ, ഡാറ്റാ ബാക്കപ്പ്, വീണ്ടെടുക്കൽ എന്നിവയ്ക്കുള്ള അനുയോജ്യമായ സംവിധാനങ്ങൾ.',
+    icon: FiShield,
     tint: { bg: '#F0E8FF', fg: '#7A3FD6' },
   },
 ];
@@ -138,12 +130,6 @@ export const REALITIES = {
   eyebrow: 'Built for Mahallu realities',
   headline: ['മഹല്ല് ഭരണത്തിന് പുതിയ', 'ഒരു ഡിജിറ്റൽ അനുഭവം'],
   body: 'മഹല്ല് പരിപാലനം ഒരു ഭരണപരമായ ചുമതല മാത്രമല്ല; വിശ്വാസം, ഉത്തരവാദിത്തം, കൃത്യത, സുതാര്യത എന്നിവ ഉറപ്പാക്കേണ്ട സാമൂഹിക സേവനമാണ്. രജിസ്റ്ററുകളിലും ചിതറിക്കിടക്കുന്ന രേഖകളിലും മാത്രം ആശ്രയിക്കുന്നതിനുപകരം, മഹല്ലിന്റെ പ്രധാന വിവരങ്ങളും പ്രവർത്തനങ്ങളും ക്രമബദ്ധമായി കൈകാര്യം ചെയ്യാൻ ZAAD സഹായിക്കുന്നു.',
-  points: [
-    'Access from office or mobile',
-    'Role-based access for committee, staff and volunteers',
-    'Secure data with regular backups',
-    'Built with the needs of Kerala Mahallus in mind',
-  ],
 };
 
 export const DEMO_BAND = {
@@ -160,131 +146,23 @@ export const ABOUT = {
   ],
 };
 
-export interface Audience {
-  title: string;
-  body: string;
-  icon: IconType;
-  tint: { bg: string; fg: string };
-}
-
-export const AUDIENCES: Audience[] = [
-  {
-    title: 'Committee leaders',
-    body: 'Less paperwork, clear accounts and a well-organised Mahallu.',
-    icon: FiUser,
-    tint: { bg: '#E6EEFF', fg: '#2F62D3' },
-  },
-  {
-    title: 'Office staff & volunteers',
-    body: 'Easy data entry and clear tasks on a phone or computer.',
-    icon: FiUserCheck,
-    tint: { bg: '#E6F4EC', fg: '#1F8A55' },
-  },
-  {
-    title: 'Families',
-    body: 'View your own records, pay dues and get certificates without visiting the office.',
-    icon: FiUsers,
-    tint: { bg: '#FFEBE0', fg: '#E35F1C' },
-  },
-  {
-    title: 'Multi-Mahallu bodies',
-    body: 'Manage multiple Mahallus from one account with consistent records.',
-    icon: FiLayers,
-    tint: { bg: '#F0E8FF', fg: '#7A3FD6' },
-  },
+/** Section shortcuts in the footer, in page order. */
+export const FOOTER_LINKS: { label: string; href: string }[] = [
+  { label: 'Home', href: '#home' },
+  { label: 'Features', href: '#features' },
+  { label: 'About Us', href: '#about-us' },
+  { label: 'How it works', href: '#how-it-works' },
 ];
 
-export interface Testimonial {
-  quote: string;
-  name: string;
-  role: string;
-}
+export const CONTACT = {
+  phone: '+91 9562478805',
+  email: 'help.zaad@gmail.com',
+  address: ['Masjid Council Kerala,', 'Hira Centre, PB No. 833,', 'Mavoor Road, Kozhikode - 4,', '673004'],
+  demoLabel: 'സൗജന്യ ഡെമോ ആവശ്യപ്പെടുക',
+};
 
-/* Placeholder voices from the design mock. Replace with real committee
-   testimonials before launch. */
-export const TESTIMONIALS: Testimonial[] = [
-  {
-    quote:
-      'ZAAD has made our office work so much easier. We can now give certificates and payment receipts quickly, and our accounts are clear and transparent.',
-    name: 'Abdul Latheef',
-    role: 'Secretary, Beypore Juma Masjid',
-  },
-  {
-    quote:
-      "Family records, Varisangya collections and welfare management are now in one place. It has improved our committee's efficiency a lot.",
-    name: 'Muhammed Rashid',
-    role: 'President, Cheruvannur Mahallu',
-  },
-  {
-    quote:
-      'The member portal is very helpful. Our members can now view their details and pay online. Excellent support from the ZAAD team.',
-    name: 'Ismail K',
-    role: 'Treasurer, Parappanangadi Mahallu',
-  },
-];
-
-export interface Faq {
-  question: string;
-  answer: string;
-}
-
-export const FAQS: Faq[] = [
-  {
-    question: 'Is ZAAD suitable for small Mahallus?',
-    answer:
-      'Yes. Choose your mosque type when you register, from a full Mahallu to a small Musalla, and switch on only the modules you need. A small committee is never overwhelmed, and a large Mahallu gets everything.',
-  },
-  {
-    question: 'Can we import our existing records?',
-    answer:
-      'Yes. Family and member records can be imported in bulk from your existing registers or spreadsheets, and volunteers can add or correct details from a phone during the field survey.',
-  },
-  {
-    question: 'Can members pay Varisangya online?',
-    answer:
-      'Members sign in to their own portal, see their dues and payment history, and submit payments with proof. The committee approves each payment and the member receives a receipt.',
-  },
-  {
-    question: 'Is our data secure?',
-    answer:
-      "Each Mahallu's data is kept fully separate. People see only what their role allows, sensitive records are restricted to named people, and every important action is logged.",
-  },
-  {
-    question: 'Do you provide training and support?',
-    answer:
-      'Yes. Every Mahallu gets onboarding for the committee and office staff, and our support team is available to help whenever you need it.',
-  },
-];
-
-export interface FooterColumn {
-  title: string;
-  links: { label: string; href: string }[];
-}
-
-export const FOOTER_COLUMNS: FooterColumn[] = [
-  {
-    title: 'Product',
-    links: [
-      { label: 'Features', href: '#features' },
-      { label: 'For Members', href: '#for-members' },
-      { label: 'FAQ', href: '#faq' },
-    ],
-  },
-  {
-    title: 'Company',
-    links: [
-      { label: 'About', href: '#about-us' },
-      { label: 'Contact', href: '#contact' },
-      { label: 'Privacy Policy', href: '#' },
-      { label: 'Terms of Service', href: '#' },
-    ],
-  },
-  {
-    title: 'Support',
-    links: [
-      { label: 'Help Center', href: '#faq' },
-      { label: 'Documentation', href: '#how-it-works' },
-      { label: 'Contact Support', href: '#contact' },
-    ],
-  },
-];
+export const POWERED_BY = {
+  name: 'D4DX Innovations LLP',
+  href: 'https://d4dx.co',
+  logo: '/d4dx_logo.png',
+};

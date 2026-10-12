@@ -19,6 +19,8 @@ export interface ModalProps {
   showCloseButton?: boolean;
   /** When true, clicking the backdrop does not close — use for dirty forms. */
   disableBackdropClose?: boolean;
+  /** Extra classes for the dialog panel, e.g. a page-specific font. */
+  className?: string;
 }
 
 const FOCUSABLE =
@@ -56,6 +58,7 @@ export default function Modal({
   overlay = true,
   showCloseButton = false,
   disableBackdropClose = false,
+  className,
 }: ModalProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   const restoreFocusRef = useRef<HTMLElement | null>(null);
@@ -163,7 +166,8 @@ export default function Modal({
         tabIndex={-1}
         className={cn(
           'relative flex max-h-[92vh] max-h-[92dvh] w-full flex-col overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-md',
-          sizeClasses[size]
+          sizeClasses[size],
+          className
         )}
       >
         {/* Untitled dialogs (create/edit forms bring their own header) get a

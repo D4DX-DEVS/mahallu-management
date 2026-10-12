@@ -1,11 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import LandingHeader from '../components/LandingHeader';
 import HeroSection from '../components/HeroSection';
+import ScriptureSection from '../components/ScriptureSection';
 import StatsStrip from '../components/StatsStrip';
-import FeaturesSection from '../components/FeaturesSection';
+import { HowItWorks, KeyFeatures } from '../components/FeaturesSection';
 import ProductSection from '../components/ProductSection';
-import CommunitySection from '../components/CommunitySection';
-import FaqSection from '../components/FaqSection';
 import AboutSection from '../components/AboutSection';
 import LandingFooter from '../components/LandingFooter';
 import DemoRequestDialog from '../components/DemoRequestDialog';
@@ -36,17 +35,17 @@ export default function Landing() {
 
   return (
     <DemoRequestContext.Provider value={openDemo}>
-      <div className="min-h-screen overflow-x-clip bg-white font-sans text-[#192024] antialiased">
+      <div className="min-h-screen overflow-x-clip bg-white font-landing text-[#192024] antialiased">
         <LandingHeader />
         <main>
           <HeroSection />
           <div className="relative z-10 bg-white lg:shadow-[0_-30px_80px_-40px_rgba(21,96,59,0.5)]">
+            <ScriptureSection />
             <StatsStrip />
-            <FeaturesSection />
-            <ProductSection />
-            <CommunitySection />
-            <FaqSection />
+            <KeyFeatures />
             <AboutSection />
+            <HowItWorks />
+            <ProductSection />
           </div>
         </main>
         <LandingFooter />
