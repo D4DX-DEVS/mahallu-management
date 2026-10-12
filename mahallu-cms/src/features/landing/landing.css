@@ -56,6 +56,15 @@
 .is-visible .lp-step-line {
   transform: scaleX(1);
 }
+/* Phones: the same line runs down the left edge, one segment per step. */
+.lp-step-vline {
+  transform: scaleY(0);
+  transform-origin: top;
+  transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.is-visible .lp-step-vline {
+  transform: scaleY(1);
+}
 
 /* ---- Page-load entrance (hero) ------------------------------------------ */
 @keyframes lp-enter {
@@ -181,15 +190,71 @@
   animation: lp-shine 0.9s ease forwards;
 }
 
-/* ---- Accordion ---------------------------------------------------------- */
-.lp-accordion {
+/* ---- Ayah / hadith rotation --------------------------------------------- */
+/* Both texts sit in one grid cell. The outgoing one fades first and the
+   incoming one waits for it, so the two are never on screen together. */
+.lp-scripture {
+  grid-area: 1 / 1;
+  opacity: 0;
+  transform: translate3d(0, 14px, 0);
+  transition:
+    opacity 0.6s ease,
+    transform 0.6s ease;
+}
+.lp-scripture.is-active {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity 0.9s ease 0.6s,
+    transform 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.6s;
+}
+
+/* ---- Flip cards (key features) ------------------------------------------ */
+/* Both faces share one grid cell, so the card is as tall as its longer face. */
+.lp-flip {
+  perspective: 1200px;
+}
+.lp-flip-inner {
   display: grid;
-  grid-template-rows: 0fr;
-  transition: grid-template-rows 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+  height: 100%;
+  transform-style: preserve-3d;
+  transition: transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
 }
-.lp-accordion.is-open {
-  grid-template-rows: 1fr;
+.lp-flip-face {
+  grid-area: 1 / 1;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  transform: rotateY(0deg);
 }
-.lp-accordion > div {
-  overflow: hidden;
+.lp-flip-back {
+  transform: rotateY(180deg);
+}
+.lp-flip.is-flipped .lp-flip-inner {
+  transform: rotateY(180deg);
+}
+/* Phones: two small cards a row. A card keeps its front's height and the back
+   lies over it, so a long description scrolls inside instead of stretching the row. */
+@media (max-width: 639.98px) {
+  .lp-flip-inner {
+    position: relative;
+  }
+  .lp-flip-back {
+    position: absolute;
+    inset: 0;
+  }
+  .lp-flip-text {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  /* How it works: each step card slides in from the side as the line reaches it. */
+  .lp-step-body {
+    transform: translate3d(28px, 0, 0);
+  }
+}
+/* Only a real pointer turns a card on hover; touch screens turn it with a tap. */
+@media (hover: hover) {
+  .lp-flip:hover .lp-flip-inner {
+    transform: rotateY(180deg);
+  }
 }

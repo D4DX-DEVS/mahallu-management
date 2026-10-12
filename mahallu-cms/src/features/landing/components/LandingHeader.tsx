@@ -3,12 +3,14 @@ import { Link } from 'react-router-dom';
 import { FiMenu, FiX } from 'react-icons/fi';
 import { useAuthStore } from '@/store/authStore';
 import { ROUTES } from '@/constants/routes';
-import { BRAND_NAME } from '@/constants/theme';
+import { BRAND_NAME, BRAND_TAGLINE } from '@/constants/theme';
 import { NAV_LINKS } from '../content';
 import { BTN_PRIMARY, CONTAINER } from '../styles';
 import { useScrollFrame } from '../useMotion';
 import { RequestDemoButton } from './shared';
-import BrandLogo from './BrandLogo';
+
+/** The full logo artwork: mark, wordmark and tagline in one image. */
+const HEADER_LOGO = '/logo-s.png';
 
 const SECTION_IDS = NAV_LINKS.map((link) => link.section);
 
@@ -21,16 +23,14 @@ function useActiveSection(): string {
     const update = () => {
       frame = 0;
       const marker = window.scrollY + 140;
+      // The links are in page order, so the last section that has reached the
+      // marker wins. (The pinned hero's top travels with the page, so comparing
+      // tops would keep "Home" marked all the way down.)
       let current = SECTION_IDS[0];
-      let currentTop = -Infinity;
       for (const id of SECTION_IDS) {
         const el = document.getElementById(id);
         if (!el) continue;
-        const top = el.getBoundingClientRect().top + window.scrollY;
-        if (top <= marker && top > currentTop) {
-          current = id;
-          currentTop = top;
-        }
+        if (el.getBoundingClientRect().top + window.scrollY <= marker) current = id;
       }
       setActive(current);
     };
@@ -75,9 +75,15 @@ export default function LandingHeader() {
         scrolled ? 'shadow-[0_10px_30px_-22px_rgba(25,32,36,0.45)]' : ''
       }`}
     >
-      <div className={`${CONTAINER} flex h-[84px] items-center justify-between gap-6`}>
-        <a href="#home" className="group flex shrink-0 items-center" aria-label={`${BRAND_NAME} home`}>
-          <BrandLogo />
+      <div className={`${CONTAINER} flex h-16 items-center justify-between gap-6 sm:h-[84px]`}>
+        <a href="#home" className="flex shrink-0 items-center" aria-label={`${BRAND_NAME} home`}>
+          <img
+            src={HEADER_LOGO}
+            alt={`${BRAND_NAME} – ${BRAND_TAGLINE}`}
+            width={345}
+            height={116}
+            className="h-10 w-auto sm:h-[52px]"
+          />
         </a>
 
         <nav aria-label="Primary" className="hidden items-center gap-8 xl:flex">

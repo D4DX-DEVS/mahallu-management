@@ -1,57 +1,42 @@
-import { useState, type FormEvent } from 'react';
-import { FiArrowRight } from 'react-icons/fi';
-import { FaYoutube, FaFacebookF, FaInstagram, FaLinkedinIn } from 'react-icons/fa';
-import { BRAND_NAME } from '@/constants/theme';
+import type { ReactNode } from 'react';
+import type { IconType } from 'react-icons';
+import { FiMail, FiMapPin, FiPhone } from 'react-icons/fi';
+import { BRAND_NAME, BRAND_TAGLINE } from '@/constants/theme';
 import BrandLogo from './BrandLogo';
-import { FOOTER_COLUMNS } from '../content';
-import { CONTAINER } from '../styles';
+import { CONTACT, FOOTER_LINKS, POWERED_BY } from '../content';
+import { BTN_INVERSE, CONTAINER } from '../styles';
+import { RequestDemoButton } from './shared';
 import Reveal from './Reveal';
 
-const SOCIAL_LINKS = [
-  { label: 'YouTube', icon: FaYoutube, href: '#' },
-  { label: 'Facebook', icon: FaFacebookF, href: '#' },
-  { label: 'Instagram', icon: FaInstagram, href: '#' },
-  { label: 'LinkedIn', icon: FaLinkedinIn, href: '#' },
-];
+function ContactRow({ icon: Icon, label, children }: { icon: IconType; label: string; children: ReactNode }) {
+  return (
+    <div className="flex gap-3">
+      <span className="mt-[2px] flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/10 text-[#8EDCB3]">
+        <Icon className="h-[14px] w-[14px]" aria-hidden="true" />
+      </span>
+      <div>
+        <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-white/50">{label}</dt>
+        <dd>{children}</dd>
+      </div>
+    </div>
+  );
+}
 
 export default function LandingFooter() {
-  const [subscribed, setSubscribed] = useState(false);
-
-  // There is no mailing list yet: acknowledge the address locally so the form is not a dead end.
-  const onSubscribe = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setSubscribed(true);
-  };
-
   return (
     <footer className="relative z-10 bg-[#0E3B27] text-white">
-      <div className={`${CONTAINER} grid gap-10 py-14 sm:grid-cols-2 lg:grid-cols-[1.5fr_1fr_1fr_1fr_1.6fr]`}>
-        <Reveal className="sm:col-span-2 lg:col-span-1">
-          <BrandLogo tone="light" />
-          <p className="mt-5 max-w-[280px] text-[13px] leading-[1.65] text-white/75">
-            A digital office for Mahallus. Know every family. Serve every need. Develop the community.
-          </p>
-          <ul className="mt-5 flex gap-2">
-            {SOCIAL_LINKS.map(({ label, icon: Icon, href }) => (
-              <li key={label}>
-                <a
-                  href={href}
-                  aria-label={label}
-                  className="flex h-9 w-9 items-center justify-center rounded-full border border-white/15 text-white/80 transition-[background-color,color,transform] duration-200 hover:-translate-y-[2px] hover:bg-white/10 hover:text-white"
-                >
-                  <Icon className="h-4 w-4" aria-hidden="true" />
-                </a>
-              </li>
-            ))}
-          </ul>
+      <div className={`${CONTAINER} grid grid-cols-[auto_minmax(0,1fr)] gap-8 py-10 sm:grid-cols-2 sm:gap-10 sm:py-14 lg:grid-cols-[1.5fr_1fr_1.3fr]`}>
+        {/* Phones: the brand on top, then quick links and contact side by side. */}
+        <Reveal className="col-span-2 lg:col-span-1">
+          <BrandLogo tone="light" tagline={false} />
+          <p className="mt-5 max-w-[280px] text-[13px] leading-[1.65] text-white/75">{BRAND_TAGLINE}</p>
         </Reveal>
 
-        {FOOTER_COLUMNS.map((column, index) => (
-          <Reveal key={column.title} delay={100 + index * 90}>
-            <nav aria-label={column.title}>
-            <p className="text-[14px] font-bold">{column.title}</p>
+        <Reveal delay={100}>
+          <nav aria-label="Quick links">
+            <p className="text-[14px] font-bold">Quick links</p>
             <ul className="mt-4 space-y-2">
-              {column.links.map((link) => (
+              {FOOTER_LINKS.map((link) => (
                 <li key={link.label}>
                   <a href={link.href} className="text-[13px] text-white/75 transition hover:text-white">
                     {link.label}
@@ -59,48 +44,51 @@ export default function LandingFooter() {
                 </li>
               ))}
             </ul>
-            </nav>
-          </Reveal>
-        ))}
+          </nav>
+        </Reveal>
 
-        <Reveal className="sm:col-span-2 lg:col-span-1" delay={400}>
-          <p className="text-[14px] font-bold">Subscribe to updates</p>
-          <p className="mt-2 text-[13px] text-white/75">Get the latest news and updates from {BRAND_NAME}.</p>
-          <form onSubmit={onSubscribe} className="mt-4 flex items-center rounded-full bg-white p-1 pl-4">
-            <label htmlFor="landing-subscribe-email" className="sr-only">
-              Email address
-            </label>
-            <input
-              id="landing-subscribe-email"
-              type="email"
-              required
-              placeholder="Enter your email"
-              className="min-w-0 flex-1 bg-transparent text-[13px] text-[#192024] placeholder:text-[#8A949A] focus:outline-none"
-            />
-            <button
-              type="submit"
-              aria-label="Subscribe"
-              className="group flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#15603B] text-white transition hover:bg-[#124F31]"
-            >
-              <FiArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-[2px]" aria-hidden="true" />
-            </button>
-          </form>
-          {subscribed && (
-            <p className="mt-2 text-[12px] text-[#8EDCB3]" role="status">
-              Thanks! We will keep you posted.
-            </p>
-          )}
+        <Reveal delay={200}>
+          <p className="text-[14px] font-bold">Contact us</p>
+          <dl className="mt-4 space-y-3 text-[13px] leading-[1.6]">
+            <ContactRow icon={FiPhone} label="Mobile">
+              <a href={`tel:${CONTACT.phone.replace(/\s/g, '')}`} className="text-white/85 transition hover:text-white">
+                {CONTACT.phone}
+              </a>
+            </ContactRow>
+            <ContactRow icon={FiMail} label="Mail ID">
+              <a href={`mailto:${CONTACT.email}`} className="break-all text-white/85 transition hover:text-white">
+                {CONTACT.email}
+              </a>
+            </ContactRow>
+            <ContactRow icon={FiMapPin} label="Address">
+              <address className="not-italic text-white/85">
+                {CONTACT.address.map((line) => (
+                  <span key={line} className="block">
+                    {line}
+                  </span>
+                ))}
+              </address>
+            </ContactRow>
+          </dl>
+          <RequestDemoButton label={CONTACT.demoLabel} className={`${BTN_INVERSE} mt-6 px-5 py-[10px] text-[13px] max-sm:mt-5 max-sm:gap-[6px] max-sm:whitespace-nowrap max-sm:px-[14px] max-sm:py-[9px] max-sm:text-[11.5px]`} />
         </Reveal>
       </div>
 
       <div className="border-t border-white/10">
-        <div className={`${CONTAINER} flex flex-col gap-2 py-5 text-[12px] text-white/60 sm:flex-row sm:items-center sm:justify-between`}>
+        <div className={`${CONTAINER} flex flex-col gap-3 py-5 text-[12px] text-white/60 sm:flex-row sm:items-center sm:justify-between`}>
           <p>© {new Date().getFullYear()} {BRAND_NAME}. All rights reserved.</p>
-          <p>
-            Made for Mahallus in Kerala
-            <span className="mx-3">|</span>
-            Know · Serve · Develop
-          </p>
+          <a
+            href={POWERED_BY.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group flex items-center gap-2 transition hover:text-white"
+          >
+            Powered by
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[8px] bg-white p-[3px]">
+              <img src={POWERED_BY.logo} alt="" className="h-full w-full object-contain" />
+            </span>
+            <span className="font-semibold text-white/85 group-hover:text-white">{POWERED_BY.name}</span>
+          </a>
         </div>
       </div>
     </footer>

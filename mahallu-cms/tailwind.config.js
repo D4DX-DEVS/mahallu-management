@@ -155,6 +155,10 @@ export default {
         body: ['Manrope', 'Noto Sans Malayalam', 'system-ui', 'sans-serif'],
         title: ['Manrope', 'Noto Sans Malayalam', 'system-ui', 'sans-serif'],
         malayalam: ['Noto Sans Malayalam', 'sans-serif'],
+        /* The public landing page sets everything in Anek Malayalam, which has its own Latin glyphs. */
+        landing: ['Anek Malayalam', 'system-ui', 'sans-serif'],
+        /* The ayah and hadith Arabic on the landing page. */
+        arabic: ['Noto Sans Arabic', 'sans-serif'],
       },
 
       keyframes: {

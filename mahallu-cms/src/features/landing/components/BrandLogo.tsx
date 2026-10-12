@@ -5,6 +5,8 @@ interface BrandLogoProps {
   size?: 'md' | 'lg';
   /** `light` for dark backgrounds. */
   tone?: 'dark' | 'light';
+  /** Set false to show the wordmark alone. */
+  tagline?: boolean;
   className?: string;
 }
 
@@ -12,7 +14,7 @@ interface BrandLogoProps {
  * The mark with the wordmark and tagline set in live type, so the tagline
  * stays readable at every size (in logo.png it is only a few pixels tall).
  */
-export default function BrandLogo({ size = 'md', tone = 'dark', className = '' }: BrandLogoProps) {
+export default function BrandLogo({ size = 'md', tone = 'dark', tagline: showTagline = true, className = '' }: BrandLogoProps) {
   const large = size === 'lg';
   const wordmark = tone === 'light' ? 'text-white' : 'text-[#0E5A3A]';
   const tagline = tone === 'light' ? 'text-white/70' : 'text-[#3A454B]';
@@ -31,13 +33,15 @@ export default function BrandLogo({ size = 'md', tone = 'dark', className = '' }
         >
           {BRAND_NAME}
         </span>
-        <span
-          className={`mt-1 font-semibold uppercase leading-tight tracking-[0.12em] ${tagline} ${
-            large ? 'text-[12px]' : 'hidden text-[10px] sm:block'
-          }`}
-        >
-          {BRAND_TAGLINE}
-        </span>
+        {showTagline && (
+          <span
+            className={`mt-1 font-semibold uppercase leading-tight tracking-[0.12em] ${tagline} ${
+              large ? 'text-[12px]' : 'hidden text-[10px] sm:block'
+            }`}
+          >
+            {BRAND_TAGLINE}
+          </span>
+        )}
       </span>
     </span>
   );
