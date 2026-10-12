@@ -82,8 +82,8 @@ export default function TableToolbar({
         {/* Filter Toggle - Only show if filters exist */}
         {hasFilters && onFilterClick && (
           <Button
-            variant={isFilterVisible ? 'primary' : 'outline'}
-            size="sm"
+            variant={isFilterVisible ? 'soft' : 'secondary'}
+            size="md"
             onClick={onFilterClick}
             className="flex items-center gap-1.5"
           >
@@ -94,18 +94,18 @@ export default function TableToolbar({
 
         {/* Refresh Button */}
         {onRefresh && (
-          <Button variant="outline" size="sm" onClick={onRefresh} className="px-2.5">
+          <Button variant="secondary" size="md" onClick={onRefresh} className="w-[34px] px-0" aria-label="Refresh">
             <FiRefreshCw className="h-3.5 w-3.5" />
           </Button>
         )}
 
         {/* Search */}
         <div className={cn(
-          "relative flex h-9 items-center overflow-hidden rounded-lg border border-gray-200 bg-white transition-all duration-300 ease-in-out dark:border-gray-700 dark:bg-gray-800",
-          isSearchExpanded ? "w-56" : "w-9 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50"
+          "relative flex h-[34px] items-center overflow-hidden rounded-lg border border-line-strong bg-white transition-all duration-300 ease-in-out dark:border-surface-border-strong dark:bg-surface-raised",
+          isSearchExpanded ? "w-60 border-primary-600 shadow-focus" : "w-[34px] cursor-pointer hover:bg-[#F4F7F5] dark:hover:bg-surface-hover"
         )} onClick={!isSearchExpanded ? handleSearchClick : undefined}>
-          <div className="flex h-full w-9 flex-shrink-0 items-center justify-center text-gray-500 dark:text-gray-400">
-            <FiSearch className="h-3.5 w-3.5" />
+          <div className="flex h-full w-[34px] flex-shrink-0 items-center justify-center text-[#5B6963] dark:text-surface-muted">
+            <FiSearch className="h-3.5 w-3.5" aria-hidden="true" />
           </div>
           
           <input
@@ -115,8 +115,9 @@ export default function TableToolbar({
             onChange={(e) => onSearchChange(e.target.value)}
             onBlur={handleSearchBlur}
             placeholder="Search"
+            aria-label="Search"
             className={cn(
-              "h-full w-full border-none bg-transparent pr-8 text-[0.82rem] text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-0 dark:text-gray-100",
+              "h-full w-full border-none bg-transparent pr-8 text-xs text-[#18231E] placeholder-[#7B8983] focus:outline-none focus:ring-0 dark:text-surface-text",
               !isSearchExpanded && "pointer-events-none opacity-0"
             )}
             tabIndex={isSearchExpanded ? 0 : -1}
@@ -128,7 +129,8 @@ export default function TableToolbar({
                 e.stopPropagation();
                 handleClearSearch();
               }}
-              className="absolute right-3 flex items-center text-gray-400 hover:text-gray-600"
+              aria-label="Clear search"
+              className="absolute right-3 flex items-center text-[#98A59F] hover:text-[#3A4741]"
             >
               <FiX className="h-3 w-3" />
             </button>
@@ -141,7 +143,7 @@ export default function TableToolbar({
         {onExport && (
           <Dropdown
             trigger={
-              <Button variant="outline" size="sm" isLoading={isExporting}>
+              <Button variant="secondary" size="md" isLoading={isExporting}>
                 {!isExporting && <FiDownload className="h-3.5 w-3.5 sm:mr-1.5" />}
                 <span className="hidden sm:inline">Export</span>
               </Button>

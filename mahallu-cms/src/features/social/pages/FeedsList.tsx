@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { FiX, FiRss, FiCheckCircle } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
+import { FiRss, FiCheckCircle } from 'react-icons/fi';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
@@ -9,15 +8,20 @@ import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
 import Pagination from '@/components/ui/Pagination';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
-import TableToolbar from '@/components/ui/TableToolbar';
+import PageHeader from '@/components/ui/PageHeader';
+import Badge from '@/components/ui/Badge';
+import StatusBadge from '@/components/ui/StatusBadge';
+import ListToolbar from '../components/ListToolbar';
 import { TableColumn, Pagination as PaginationType } from '@/types';
 import { socialService, Feed } from '@/services/socialService';
 import { formatDate } from '@/utils/format';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
+import { toast } from '@/store/toastStore';
+import { getFriendlyError } from '@/utils/apiMessages';
+import { monthlySeries, shareViz } from '@/utils/statSeries';
 
 export default function FeedsList() {
   const [searchQuery, setSearchQuery] = useState('');
-  const [isFilterVisible, setIsFilterVisible] = useState(false);
   const [typeFilter, setTypeFilter] = useState('all');
   const [feeds, setFeeds] = useState<Feed[]>([]);
   const [loading, setLoading] = useState(true);
@@ -50,7 +54,7 @@ export default function FeedsList() {
         setPagination(result.pagination);
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch feeds');
+      setError(getFriendlyError(err, "Couldn't load feeds. Refresh the page or try again."));
       console.error('Error fetching feeds:', err);
       setFeeds([]);
     } finally {
@@ -73,7 +77,7 @@ export default function FeedsList() {
       const dataToExport = Array.isArray(result.data) ? result.data : [];
 
       if (dataToExport.length === 0) {
-        alert('No data to export');
+        toast.info('Nothing to export. Change your filters and try again.');
         return;
       }
 
@@ -93,7 +97,7 @@ export default function FeedsList() {
       }
     } catch (error: any) {
       console.error('Export error:', error);
-      alert(error?.message || 'Failed to export data');
+      toast.error(getFriendlyError(error, "Couldn't export data. Check your connection and try again."));
     } finally {
       setIsExporting(false);
     }
@@ -105,27 +109,12 @@ export default function FeedsList() {
     {
       key: 'isSuperFeed',
       label: 'Type',
-      render: (isSuper) => (
-        <span className="px-2 py-1 text-xs font-medium rounded-full bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
-          {isSuper ? 'Super Feed' : 'Regular'}
-        </span>
-      ),
+      render: (isSuper) => <Badge variant={isSuper ? 'solid' : 'neutral'}>{isSuper ? 'Super Feed' : 'Regular'}</Badge>,
     },
     {
       key: 'status',
       label: 'Status',
-      render: (status) => {
-        const statusColors: Record<string, string> = {
-          draft: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200',
-          published: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-          archived: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
-        };
-        return (
-          <span className={`px-2 py-1 text-xs font-medium rounded-full ${statusColors[status || 'draft']}`}>
-            {status || 'draft'}
-          </span>
-        );
-      },
+      render: (status) => <StatusBadge status={status || 'draft'} />,
     },
     {
       key: 'createdAt',
@@ -135,100 +124,84 @@ export default function FeedsList() {
   ];
 
   const stats = [
-    { title: 'Total Feeds', value: feeds.length, icon: <FiRss className="h-5 w-5" /> },
+    { title: 'Total Feeds', value: feeds.length, viz: monthlySeries(feeds as any[], (r: any) => r.createdAt).length ? { type: 'bars' as const, values: monthlySeries(feeds as any[], (r: any) => r.createdAt) } : undefined, icon: <FiRss className="h-[17px] w-[17px]" />, tone: 'green' as const },
     {
       title: 'Published',
-      value: feeds.filter((f) => f.status === 'published').length,
-      icon: <FiCheckCircle className="h-5 w-5" />,
+      value: feeds.filter((f) => f.status === 'published').length, viz: shareViz(feeds.filter((f) => f.status === 'published').length, feeds.length), summary: `Published: ${feeds.filter((f) => f.status === 'published').length} of ${feeds.length}`,
+      icon: <FiCheckCircle className="h-[17px] w-[17px]" />,
+      tone: 'lime' as const,
     },
   ];
 
   return (
     <div className="space-y-4">
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Feeds</h1>
-            <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">Manage feeds and super feeds</p>
-          </div>
-          <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Feeds' }]} />
-        </div>
+      <PageHeader
+        title="Feeds"
+        description="Manage feeds and super feeds"
+        actions={
+          <Link to="/social/feeds/create">
+            <Button>+ New feed</Button>
+          </Link>
+        }
+      />
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {stats.map((stat, index) => (
-            <StatCard key={index} {...stat} />
-          ))}
-        </div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {stats.map((stat, index) => (
+          <StatCard key={index} variant="inline" {...stat} />
+        ))}
       </div>
 
-      <Card>
-        <TableToolbar
+      <Card padding="none" className="overflow-visible">
+        <ListToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
-          onFilterClick={() => setIsFilterVisible(!isFilterVisible)}
-          isFilterVisible={isFilterVisible}
-          hasFilters={true}
+          searchPlaceholder="Search feeds"
           onRefresh={fetchFeeds}
           onExport={handleExport}
           isExporting={isExporting}
-          actionButtons={
-            <Link to="/social/feeds/create">
-              <Button size="md">
-                + New Feed
-              </Button>
-            </Link>
-          }
-        />
+        >
+          <div className="w-48">
+            <Select
+              options={[
+                { value: 'all', label: 'All Feeds' },
+                { value: 'regular', label: 'Regular Feeds' },
+                { value: 'super', label: 'Super Feeds' },
+              ]}
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+            />
+          </div>
+        </ListToolbar>
 
-        {isFilterVisible && (
-          <div className="relative flex flex-wrap items-center gap-4 mb-6 p-4 border border-gray-200 rounded-lg bg-white dark:bg-gray-800 dark:border-gray-700">
-            <button
-              onClick={() => setIsFilterVisible(false)}
-              className="absolute right-4 top-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-            >
-              <FiX className="h-4 w-4" />
-            </button>
-            <div className="w-48">
-              <Select
-                options={[
-                  { value: 'all', label: 'All Feeds' },
-                  { value: 'regular', label: 'Regular Feeds' },
-                  { value: 'super', label: 'Super Feeds' },
-                ]}
-                value={typeFilter}
-                onChange={(e) => setTypeFilter(e.target.value)}
-              />
+        <div className="p-3.5">
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <LoadingSpinner />
             </div>
-          </div>
-        )}
-
-        {loading ? (
-          <div className="flex justify-center items-center py-12">
-            <LoadingSpinner />
-          </div>
-        ) : error ? (
-          <div className="text-center py-12">
-            <p className="text-red-600 dark:text-red-400">{error}</p>
-            <Button onClick={fetchFeeds} className="mt-4" variant="outline">
-              Retry
-            </Button>
-          </div>
-        ) : (
-          <>
-            <Table columns={columns} data={feeds} emptyMessage="No feeds found" showExport={false} />
-            {pagination && pagination.totalPages > 1 && (
-              <div className="mt-6">
-                <Pagination
-                  currentPage={currentPage}
-                  totalPages={pagination.totalPages}
-                  totalItems={pagination.total}
-                  itemsPerPage={itemsPerPage}
-                  onPageChange={setCurrentPage}
-                />
-              </div>
-            )}
-          </>
-        )}
+          ) : error ? (
+            <div className="py-12 text-center">
+              <p className="text-red-600 dark:text-red-400">{error}</p>
+              <Button onClick={fetchFeeds} className="mt-4" variant="outline">
+                Retry
+              </Button>
+            </div>
+          ) : (
+            <>
+              <Table columns={columns} data={feeds} emptyMessage="No feeds found" showExport={false} />
+              {pagination && pagination.totalPages > 1 && (
+                <div className="mt-3.5">
+                  <Pagination
+                    currentPage={currentPage}
+                    totalPages={pagination.totalPages}
+                    totalItems={pagination.total}
+                    itemsPerPage={itemsPerPage}
+                    onPageChange={setCurrentPage}
+                  />
+                </div>
+              )}
+            </>
+          )}
+        </div>
       </Card>
     </div>
   );

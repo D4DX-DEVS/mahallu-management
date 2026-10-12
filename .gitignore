@@ -32,3 +32,9 @@ logs/
 # Temporary files
 tmp/
 temp/
+bash.exe.stackdump
+
+*.log
+.env
+.env.*
+!.env.example

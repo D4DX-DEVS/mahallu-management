@@ -2,6 +2,7 @@ import { useState } from 'react';
 import QuickAddModal from '@/components/ui/QuickAddModal';
 import Input from '@/components/ui/Input';
 import { tenantService } from '@/services/tenantService';
+import { getFriendlyError } from '@/utils/apiMessages';
 
 interface Props {
   open: boolean;
@@ -48,7 +49,7 @@ export default function QuickAddVarisangyaGrade({ open, onClose, tenantId, onCre
       setAmount('');
       onClose();
     } catch (err: any) {
-      setErrors({ general: err.response?.data?.message || 'Failed to add grade. Please try again.' });
+      setErrors({ general: getFriendlyError(err, "Couldn't add the grade. Check the details and try again.") });
     } finally {
       setIsLoading(false);
     }

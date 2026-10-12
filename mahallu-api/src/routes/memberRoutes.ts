@@ -7,6 +7,8 @@ import {
   deleteMember,
   getMembersByFamily,
   updateMemberStatus,
+  bulkImportMembers,
+  transferMemberHandler,
 } from '../controllers/memberController';
 import { authMiddleware, allowRoles } from '../middleware/authMiddleware';
 import { tenantMiddleware, tenantFilter } from '../middleware/tenantMiddleware';
@@ -128,6 +130,61 @@ router.use(allowRoles(['super_admin', 'mahall', 'survey', 'institute']));
  *         $ref: '#/components/responses/Unauthorized'
  */
 router.get('/', getAllMembers);
+
+/**
+ * @swagger
+ * /members/bulk-import:
+ *   post:
+ *     summary: Bulk import members to a family
+ *     tags: [Members]
+ *     description: |
+ *       Import up to 500 members to a family at once (CSV parsed client-side into JSON rows).
+ *       **Access:** Super Admin, Mahall Admin
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [familyId, members]
+ *             properties:
+ *               familyId:
+ *                 type: string
+ *                 description: The ID of the family to import members into
+ *               members:
+ *                 type: array
+ *                 maxItems: 500
+ *                 items:
+ *                   type: object
+ *                   required: [name]
+ *                   properties:
+ *                     name:
+ *                       type: string
+ *                     nameMl:
+ *                       type: string
+ *                     gender:
+ *                       type: string
+ *                       enum: [male, female]
+ *                     age:
+ *                       type: integer
+ *                     maritalStatus:
+ *                       type: string
+ *                       enum: [single, married, divorced, widowed]
+ *                     education:
+ *                       type: string
+ *                     occupation:
+ *                       type: string
+ *     responses:
+ *       201:
+ *         description: Number of members imported
+ *       400:
+ *         description: Validation errors with row numbers
+ *       403:
+ *         description: Family does not belong to this tenant
+ */
+router.post('/bulk-import', allowRoles(['mahall', 'super_admin']), bulkImportMembers);
 
 /**
  * @swagger
@@ -354,6 +411,9 @@ router.put('/:id/status', [param('id').isMongoId().withMessage('Invalid member I
  *       404:
  *         $ref: '#/components/responses/NotFound'
  */
+// Move a member to another family of this mahallu { toFamilyId, makeHead? }
+router.post('/:id/transfer', allowRoles(['mahall', 'super_admin']), getMemberValidation, validationHandler, transferMemberHandler);
+
 router.delete('/:id', deleteMemberValidation, validationHandler, deleteMember);
 
 export default router;

@@ -1,19 +1,26 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiEdit2, FiTrash2, FiBookOpen } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
+import { FiBookOpen, FiDownload, FiFileText, FiFile } from 'react-icons/fi';
 import Card from '@/components/ui/Card';
+import RowActions from '@/components/ui/RowActions';
+import Alert from '@/components/ui/Alert';
+import Badge from '@/components/ui/Badge';
+import PageHeader from '@/components/ui/PageHeader';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import Table from '@/components/ui/Table';
 import Pagination from '@/components/ui/Pagination';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
-import TableToolbar from '@/components/ui/TableToolbar';
+import FilterBar from '@/components/ui/FilterBar';
+import Dropdown from '@/components/ui/Dropdown';
 import { TableColumn, Pagination as PaginationType } from '@/types';
 import { masterAccountService, Ledger } from '@/services/masterAccountService';
 import { formatDate } from '@/utils/format';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
 import { ROUTES } from '@/constants/routes';
+import { toast } from '@/store/toastStore';
+import { getFriendlyError } from '@/utils/apiMessages';
+import { PersonCell } from '@/components/ui/Avatar';
 
 export default function MahalluLedgersList() {
   const navigate = useNavigate();
@@ -40,7 +47,7 @@ export default function MahalluLedgersList() {
       setLedgers(Array.isArray(result.data) ? result.data : []);
       if (result.pagination) setPagination(result.pagination);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch ledgers');
+      setError(getFriendlyError(err, "Couldn't load ledgers. Refresh the page or try again."));
       setLedgers([]);
     } finally {
       setLoading(false);
@@ -54,8 +61,9 @@ export default function MahalluLedgersList() {
       await masterAccountService.deleteLedger(selected.id);
       setShowDeleteModal(false);
       fetchLedgers();
+      toast.success('Ledger deleted');
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to delete ledger');
+      toast.error(getFriendlyError(err, "Couldn't delete ledger. Try again in a moment."));
     } finally {
       setDeleting(false);
     }
@@ -66,11 +74,11 @@ export default function MahalluLedgersList() {
       setIsExporting(true);
       const result = await masterAccountService.getAllLedgers({ limit: 10000, scope: 'mahallu' });
       const data = Array.isArray(result.data) ? result.data : [];
-      if (!data.length) { alert('No data to export'); return; }
+      if (!data.length) { toast.info('Nothing to export. Change your filters and try again.'); return; }
       if (type === 'csv') exportToCSV(columns, data, 'mahallu-ledgers');
       else if (type === 'json') exportToJSON(columns, data, 'mahallu-ledgers');
       else exportToPDF(columns, data, 'mahallu-ledgers', 'Mahallu Ledgers');
-    } catch (err: any) { alert(err?.message || 'Export failed'); }
+    } catch (err: any) { toast.error(getFriendlyError(err, "Couldn't export ledgers. Check your connection and try again.")); }
     finally { setIsExporting(false); }
   };
 
@@ -78,52 +86,68 @@ export default function MahalluLedgersList() {
 
   const columns: TableColumn<Ledger>[] = [
     { key: 'id', label: 'No.', render: (_, __, i) => i + 1 },
-    { key: 'name', label: 'Name' },
+    { key: 'name', label: 'Name', render: (v) => <PersonCell name={v} /> },
     { key: 'type', label: 'Type', render: (t) => (
-      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${t === 'income' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{t}</span>
+      <Badge variant={t === 'income' ? 'success' : 'danger'} dot className="capitalize">{t}</Badge>
     )},
     { key: 'description', label: 'Description' },
     { key: 'createdAt', label: 'Created', render: (d) => formatDate(d) },
     { key: 'actions', label: 'Actions', render: (_, row) => (
-      <div className="flex items-center gap-2">
-        <button onClick={() => navigate(ROUTES.MAHALLU_FINANCE.LEDGERS_EDIT(row.id), { state: { ledger: row } })} className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600"><FiEdit2 className="h-4 w-4" /></button>
-        <button onClick={() => { setSelected(row); setShowDeleteModal(true); }} className="p-1.5 rounded-md hover:bg-red-50 text-red-600"><FiTrash2 className="h-4 w-4" /></button>
-      </div>
+      <RowActions
+        onEdit={() => navigate(ROUTES.MAHALLU_FINANCE.LEDGERS_EDIT(row.id), { state: { ledger: row } })}
+        onDelete={() => { setSelected(row); setShowDeleteModal(true); }}
+        ariaLabels={{ edit: 'Edit', delete: 'Delete' }}
+      />
     )},
   ];
 
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Mahallu Ledgers</h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Chart of accounts for the Mahallu</p>
-        </div>
-        <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Mahallu Finance', path: '/mahallu-finance/accounts' }, { label: 'Ledgers' }]} />
-      </div>
+    <div className="space-y-4">
+      <PageHeader title="Mahallu Ledgers" description="Chart of accounts for the Mahallu"
+        actions={
+          <Button onClick={() => navigate(ROUTES.MAHALLU_FINANCE.LEDGERS_CREATE)}><FiBookOpen className="h-3.5 w-3.5" />Add Ledger</Button>
+        }
+      />
 
-      <Card>
-        <TableToolbar
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-          onExport={handleExport}
-          isExporting={isExporting}
-          actionButtons={<Button onClick={() => navigate(ROUTES.MAHALLU_FINANCE.LEDGERS_CREATE)} size="sm"><FiBookOpen className="h-4 w-4 mr-2" />Add Ledger</Button>}
+      <Card padding="none" className="overflow-visible">
+        <FilterBar
+          search={{ value: searchQuery, onChange: setSearchQuery, placeholder: 'Search ledgers' }}
+          actions={
+            <>
+              <Dropdown
+                trigger={
+                  <Button variant="secondary" isLoading={isExporting}>
+                    {!isExporting && <FiDownload className="h-3.5 w-3.5" />}
+                    Export
+                  </Button>
+                }
+                items={[
+                  { label: 'Export CSV', icon: <FiFileText />, onClick: () => handleExport('csv'), disabled: isExporting },
+                  { label: 'Export JSON', icon: <FiFile />, onClick: () => handleExport('json'), disabled: isExporting },
+                  { label: 'Export PDF', icon: <FiDownload />, onClick: () => handleExport('pdf'), disabled: isExporting },
+                ]}
+              />
+            </>
+          }
         />
-        {loading ? <div className="flex justify-center py-12"><LoadingSpinner /></div>
-          : error ? <p className="text-center py-8 text-red-600">{error}</p>
-          : <>
-            <Table columns={columns} data={filtered} emptyMessage="No ledgers found" />
-            {pagination && <Pagination currentPage={currentPage} totalPages={pagination.totalPages || 1} totalItems={pagination.total || 0} itemsPerPage={itemsPerPage} onPageChange={setCurrentPage} />}
-          </>}
+
+        <div className="p-3.5">
+          {loading ? <div className="flex justify-center py-12"><LoadingSpinner /></div>
+            : error ? <Alert tone="danger">{error}</Alert>
+            : <>
+              <Table columns={columns} data={filtered} emptyMessage="No ledgers found" />
+              {pagination && <Pagination currentPage={currentPage} totalPages={pagination.totalPages || 1} totalItems={pagination.total || 0} itemsPerPage={itemsPerPage} onPageChange={setCurrentPage} />}
+            </>}
+      
+        </div>
       </Card>
 
-      <Modal isOpen={showDeleteModal} onClose={() => setShowDeleteModal(false)} title="Delete Ledger">
-        <p className="text-gray-600 dark:text-gray-400 mb-6">Delete ledger <strong>{selected?.name}</strong>?</p>
+      <Modal isOpen={showDeleteModal} onClose={() => setShowDeleteModal(false)} title="Delete ledger?">
+        <p className="text-[#5B6963] dark:text-surface-muted mb-6">Delete ledger <strong>{selected?.name}</strong>?</p>
         <div className="flex justify-end gap-3">
           <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>Cancel</Button>
-          <Button variant="danger" onClick={handleDelete} disabled={deleting}>{deleting ? 'Deleting...' : 'Delete'}</Button>
+          <Button variant="danger-solid" onClick={handleDelete} disabled={deleting}>{deleting ? 'Deleting...' : 'Delete'}</Button>
         </div>
       </Modal>
     </div>

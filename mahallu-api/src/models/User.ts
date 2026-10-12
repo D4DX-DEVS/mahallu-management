@@ -5,6 +5,8 @@ export interface IUser extends Document {
   nameMl?: string;
   phone: string;
   email?: string;
+  /** Optional profile photo (object-storage URL). Empty/absent = initials placeholder. */
+  photoUrl?: string;
   role: 'super_admin' | 'mahall' | 'survey' | 'institute' | 'member';
   tenantId?: mongoose.Types.ObjectId; // null for super admin
   memberId?: mongoose.Types.ObjectId; // Reference to Member for member users
@@ -17,9 +19,25 @@ export interface IUser extends Document {
     add: boolean;
     edit: boolean;
     delete: boolean;
+    /** Lets a non-super-admin reopen a closed financial period. */
+    financeAdmin?: boolean;
+    sensitiveModules?: ('counselling' | 'maslahat' | 'inheritance' | 'health' | 'welfare')[];
+    /**
+     * Granular flags (additive). Left undefined = role default, see PERMISSION_DEFAULTS in
+     * middleware/authMiddleware.ts. Only an explicit true/false overrides the default.
+     */
+    canDeleteReceipts?: boolean;
+    canCancelReceipts?: boolean;
+    canApprovePayments?: boolean;
+    canCloseCashDay?: boolean;
+    canVerifyCashDay?: boolean;
+    canManageCampaigns?: boolean;
+    canManagePeriods?: boolean;
   };
   password: string;
   isSuperAdmin: boolean;
+  /** Task C5 — when on, password login stops at an OTP step instead of issuing a token. */
+  twoFactorEnabled: boolean;
   oneSignalPlayerId?: string;
   createdAt: Date;
   updatedAt: Date;
@@ -40,6 +58,12 @@ const UserSchema = new Schema<IUser>(
       type: String,
       required: [true, 'Phone number is required'],
       trim: true,
+    },
+    photoUrl: {
+      type: String,
+      trim: true,
+      maxlength: 1000,
+      match: [/^(https?:\/\/\S+)?$/, 'Photo URL must be an http(s) link'],
     },
     email: {
       type: String,
@@ -83,6 +107,19 @@ const UserSchema = new Schema<IUser>(
       add: { type: Boolean, default: false },
       edit: { type: Boolean, default: false },
       delete: { type: Boolean, default: false },
+      financeAdmin: { type: Boolean, default: false },
+      sensitiveModules: {
+        type: [String],
+        enum: ['counselling', 'maslahat', 'inheritance', 'health', 'welfare'],
+        default: undefined,
+      },
+      canDeleteReceipts: { type: Boolean, default: undefined },
+      canCancelReceipts: { type: Boolean, default: undefined },
+      canApprovePayments: { type: Boolean, default: undefined },
+      canCloseCashDay: { type: Boolean, default: undefined },
+      canVerifyCashDay: { type: Boolean, default: undefined },
+      canManageCampaigns: { type: Boolean, default: undefined },
+      canManagePeriods: { type: Boolean, default: undefined },
     },
     password: {
       type: String,
@@ -90,6 +127,10 @@ const UserSchema = new Schema<IUser>(
       select: false,
     },
     isSuperAdmin: {
+      type: Boolean,
+      default: false,
+    },
+    twoFactorEnabled: {
       type: Boolean,
       default: false,
     },

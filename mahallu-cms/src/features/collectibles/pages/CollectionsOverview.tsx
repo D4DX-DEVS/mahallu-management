@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { FiDollarSign, FiArrowRight } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import StatCard from '@/components/ui/StatCard';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import PageHeader from '@/components/ui/PageHeader';
 import { collectibleService } from '@/services/collectibleService';
 import { ROUTES } from '@/constants/routes';
 
@@ -23,19 +23,11 @@ export default function CollectionsOverview() {
     try {
       setLoading(true);
       
-      // Fetch varisangya stats
-      const varisangyaResult = await collectibleService.getAllVarisangyas({ page: 1, limit: 1 });
-      const varisangyaTotal = varisangyaResult.pagination?.total || 0;
-      const varisangyaAmount = varisangyaResult.data.reduce((sum, v) => sum + (v.amount || 0), 0);
-      
-      // Fetch zakat stats
-      const zakatResult = await collectibleService.getAllZakats({ page: 1, limit: 1 });
-      const zakatTotal = zakatResult.pagination?.total || 0;
-      const zakatAmount = zakatResult.data.reduce((sum, z) => sum + (z.amount || 0), 0);
-      
+      // Server-side totals (approved records only) instead of summing a single paged row
+      const summary = await collectibleService.getCollectionsSummary();
       setStats({
-        varisangya: { total: varisangyaTotal, amount: varisangyaAmount },
-        zakat: { total: zakatTotal, amount: zakatAmount },
+        varisangya: { total: summary.varisangya.count, amount: summary.varisangya.amount },
+        zakat: { total: summary.zakat.count, amount: summary.zakat.amount },
       });
     } catch (err) {
       console.error('Error fetching collections stats:', err);
@@ -71,18 +63,13 @@ export default function CollectionsOverview() {
   const totalPayments = stats.varisangya.total + stats.zakat.total;
 
   return (
-    <div className="space-y-6">
-      <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Collections' }]} />
-
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Collections</h1>
-        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Overview of all collectible types</p>
-      </div>
+    <div className="space-y-4">
+      <PageHeader title="Collections" description="Overview of all collectible types" />
 
       {/* Summary Stats */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <StatCard title="Total Payments" value={totalPayments} />
-        <StatCard title="Total Amount" value={`₹${totalAmount.toLocaleString()}`} />
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <StatCard variant="inline" title="Total Payments" value={totalPayments} viz={totalPayments > 0 ? { type: 'pair', a: stats.varisangya.total, b: stats.zakat.total, colorB: '#E0B400' } : undefined} summary={`${stats.varisangya.total} varisangya payments compared with ${stats.zakat.total} zakat payments`} icon={<FiDollarSign className="h-[17px] w-[17px]" />} />
+        <StatCard variant="inline" tone="lime" title="Total Amount" value={`₹${totalAmount.toLocaleString()}`} viz={totalAmount > 0 ? { type: 'segments', segments: [{ value: stats.varisangya.amount }, { value: stats.zakat.amount, color: '#E0B400' }] } : undefined} summary={`Total ₹${totalAmount.toLocaleString()}: varisangya ₹${stats.varisangya.amount.toLocaleString()}, zakat ₹${stats.zakat.amount.toLocaleString()}`} icon={<FiDollarSign className="h-[17px] w-[17px]" />} />
       </div>
 
       {loading ? (
@@ -90,47 +77,39 @@ export default function CollectionsOverview() {
           <LoadingSpinner />
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {collectibleTypes.map((type) => (
-            <Card key={type.id} className="hover:shadow-lg transition-shadow">
-              <div className="p-6">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center space-x-3">
-                    <div className="p-3 bg-blue-100 dark:bg-blue-900 rounded-lg">
-                      <FiDollarSign className="h-6 w-6 text-blue-600 dark:text-blue-400" />
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                        {type.title}
-                      </h3>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">{type.description}</p>
-                    </div>
-                  </div>
+            <Card key={type.id} hoverEffect>
+              <div className="mb-4 flex items-center gap-3">
+                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-mint text-primary-700 dark:bg-brand-lime/15 dark:text-brand-lime">
+                  <FiDollarSign className="h-[17px] w-[17px]" />
+                </span>
+                <div>
+                  <h3 className="text-sm font-bold text-[#18231E] dark:text-surface-text">{type.title}</h3>
+                  <p className="text-xs text-[#7B8983] dark:text-surface-muted">{type.description}</p>
                 </div>
-
-                <div className="grid grid-cols-2 gap-4 mb-4">
-                  <div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Total Payments</p>
-                    <p className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                      {type.stats.total}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Total Amount</p>
-                    <p className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                      ₹{type.stats.amount.toLocaleString()}
-                    </p>
-                  </div>
-                </div>
-
-                <Link
-                  to={type.path}
-                  className="flex items-center justify-center w-full px-4 py-2 text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
-                >
-                  View Details
-                  <FiArrowRight className="ml-2 h-4 w-4" />
-                </Link>
               </div>
+
+              <div className="mb-4 grid grid-cols-2 gap-4">
+                <div>
+                  <p className="mb-1 text-[12px] font-bold uppercase tracking-wider text-[#7B8983] dark:text-surface-muted">Total Payments</p>
+                  <p className="text-lg font-extrabold text-[#18231E] dark:text-surface-text">{type.stats.total}</p>
+                </div>
+                <div>
+                  <p className="mb-1 text-[12px] font-bold uppercase tracking-wider text-[#7B8983] dark:text-surface-muted">Total Amount</p>
+                  <p className="text-lg font-extrabold text-[#18231E] dark:text-surface-text">
+                    ₹{type.stats.amount.toLocaleString()}
+                  </p>
+                </div>
+              </div>
+
+              <Link
+                to={type.path}
+                className="flex w-full items-center justify-center rounded-[10px] px-4 py-2 max-sm:min-h-10 text-xs font-bold text-primary-700 transition-colors hover:bg-mint focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-lime/[.28] dark:text-brand-lime dark:hover:bg-brand-lime/10"
+              >
+                View Details
+                <FiArrowRight className="ml-2 h-3.5 w-3.5" />
+              </Link>
             </Card>
           ))}
         </div>
@@ -138,4 +117,3 @@ export default function CollectionsOverview() {
     </div>
   );
 }
-

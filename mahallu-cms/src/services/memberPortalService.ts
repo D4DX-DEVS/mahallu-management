@@ -7,6 +7,8 @@ export interface MemberOverviewResponse {
     phone?: string;
     familyName?: string;
     mahallId?: string;
+    photoUrl?: string;
+    bloodGroup?: string;
   };
   family: {
     details: {
@@ -24,6 +26,7 @@ export interface MemberOverviewResponse {
       name: string;
       phone?: string;
       gender?: 'male' | 'female';
+      photoUrl?: string;
       mahallId?: string;
       status?: string;
     }>;
@@ -57,13 +60,13 @@ export interface MemberOverviewResponse {
 }
 
 export interface VarisangyaRecord {
-  _id: string;
+  id: string;
   amount: number;
   paymentDate: string;
   receiptNo?: string;
   paymentMethod?: string;
   remarks?: string;
-  status: 'paid';
+  status: 'paid' | 'pending' | 'rejected';
 }
 
 export interface MemberVarisangyaResponse {
@@ -78,8 +81,7 @@ export interface MemberVarisangyaResponse {
 }
 
 export interface PaymentRecord {
-  _id: string;
-  id?: string;
+  id: string;
   amount: number;
   paymentDate: string;
   receiptNo?: string;
@@ -90,6 +92,9 @@ export interface PaymentRecord {
   familyId?: string;
   memberId?: string;
   type: 'varisangya' | 'zakat';
+  /** Member-submitted requests are 'pending' until an admin approves them. Missing = approved. */
+  status?: 'pending' | 'approved' | 'rejected';
+  rejectReason?: string;
   createdAt?: string;
 }
 

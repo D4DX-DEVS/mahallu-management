@@ -1,22 +1,26 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { FiCreditCard, FiDollarSign } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
+import { FiCreditCard, FiDollarSign, FiRefreshCw, FiDownload, FiFileText, FiFile } from 'react-icons/fi';
 import Card from '@/components/ui/Card';
+import PageHeader from '@/components/ui/PageHeader';
 import Button from '@/components/ui/Button';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
 import Pagination from '@/components/ui/Pagination';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
-import TableToolbar from '@/components/ui/TableToolbar';
+import FilterBar from '@/components/ui/FilterBar';
+import Dropdown from '@/components/ui/Dropdown';
 import { TableColumn, Pagination as PaginationType } from '@/types';
 import { masterAccountService, MasterWallet } from '@/services/masterAccountService';
 import { formatDate } from '@/utils/format';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
+import { toast } from '@/store/toastStore';
+import { getFriendlyError } from '@/utils/apiMessages';
+import StatusBadge from '@/components/ui/StatusBadge';
+import { PersonCell } from '@/components/ui/Avatar';
 
 export default function WalletsList() {
   const [searchQuery, setSearchQuery] = useState('');
-  const [isFilterVisible, setIsFilterVisible] = useState(false);
   const [wallets, setWallets] = useState<MasterWallet[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -38,7 +42,7 @@ export default function WalletsList() {
       setWallets(Array.isArray(result.data) ? result.data : []);
       if (result.pagination) setPagination(result.pagination);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch wallets');
+      setError(getFriendlyError(err, "Couldn't load wallets. Refresh the page or try again."));
       console.error('Error fetching wallets:', err);
       setWallets([]);
     } finally {
@@ -52,7 +56,7 @@ export default function WalletsList() {
       const params = { limit: 10000 };
       const result = await masterAccountService.getAllWallets(params);
       const dataToExport = Array.isArray(result.data) ? result.data : [];
-      if (dataToExport.length === 0) { alert('No data to export'); return; }
+      if (dataToExport.length === 0) { toast.info('Nothing to export. Change your filters and try again.'); return; }
       const filename = 'wallets';
       const title = 'All Wallets';
       switch (type) {
@@ -62,7 +66,7 @@ export default function WalletsList() {
       }
     } catch (error: any) {
       console.error('Export error:', error);
-      alert(error?.message || 'Failed to export data');
+      toast.error(getFriendlyError(error, "Couldn't export wallets. Check your connection and try again."));
     } finally {
       setIsExporting(false);
     }
@@ -70,12 +74,12 @@ export default function WalletsList() {
 
   const columns: TableColumn<MasterWallet>[] = [
     { key: 'id', label: 'No.', render: (_, __, index) => index + 1 },
-    { key: 'name', label: 'Name', sortable: true },
-    { key: 'type', label: 'Type' },
+    { key: 'name', label: 'Name', sortable: true, render: (v) => <PersonCell name={v} /> },
+    { key: 'type', label: 'Type', render: (t) => (t ? <StatusBadge status={t} tone={t === 'income' ? 'success' : t === 'expense' ? 'danger' : 'neutral'} dot={t === 'income' || t === 'expense'} /> : '-') },
     {
       key: 'balance',
       label: 'Balance',
-      render: (balance) => `₹${balance?.toLocaleString() || 0}`,
+      render: (balance) => <span className={(balance || 0) < 0 ? 'font-semibold text-[#B3261E] dark:text-red-300' : 'font-semibold text-[#0B4837] dark:text-brand-lime'}>{`₹${balance?.toLocaleString() || 0}`}</span>,
     },
     {
       key: 'createdAt',
@@ -87,67 +91,81 @@ export default function WalletsList() {
   const totalBalance = wallets.reduce((sum, w) => sum + (w.balance || 0), 0);
 
   const stats = [
-    { title: 'Total Wallets', value: pagination?.total || wallets.length, icon: <FiCreditCard className="h-5 w-5" /> },
-    { title: 'Total Balance', value: `₹${totalBalance.toLocaleString()}`, icon: <FiDollarSign className="h-5 w-5" /> },
+    { title: 'Total Wallets', value: pagination?.total || wallets.length, icon: <FiCreditCard className="h-[17px] w-[17px]" /> },
+    { title: 'Total Balance', value: `₹${totalBalance.toLocaleString()}`, icon: <FiDollarSign className="h-[17px] w-[17px]" />, tone: 'lime' as const, viz: wallets.filter((w) => (w.balance || 0) > 0).length >= 2 ? { type: 'ladder' as const, values: wallets.map((w) => w.balance || 0) } : undefined, summary: `Total balance ₹${totalBalance.toLocaleString()}, wallets ranked` },
   ];
 
   return (
     <div className="space-y-4">
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Master Wallets</h1>
-            <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">Manage master wallets</p>
-          </div>
-          <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Wallets' }]} />
-        </div>
+    <div className="space-y-3">
+      <PageHeader title="Master Wallets" description="Manage master wallets"
+        actions={
+          <Link to="/master-accounts/wallets/create"><Button>+ New wallet</Button></Link>
+        }
+      />
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {stats.map((stat, index) => (
-            <StatCard key={index} {...stat} />
+            <StatCard key={index} variant="inline" {...stat} />
           ))}
         </div>
       </div>
 
-      <Card>
-        <TableToolbar
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-          onFilterClick={() => setIsFilterVisible(!isFilterVisible)}
-          isFilterVisible={isFilterVisible}
-          hasFilters={false}
-          onRefresh={fetchWallets}
-          onExport={handleExport}
-          isExporting={isExporting}
-          actionButtons={<Link to="/master-accounts/wallets/create"><Button size="md">+ New Wallet</Button></Link>}
+      <Card padding="none" className="overflow-visible">
+        <FilterBar
+          search={{ value: searchQuery, onChange: setSearchQuery, placeholder: 'Search wallets' }}
+          actions={
+            <>
+              <Button variant="secondary" iconOnly aria-label="Refresh list" onClick={fetchWallets}>
+                <FiRefreshCw className="h-3.5 w-3.5" />
+              </Button>
+              <Dropdown
+                trigger={
+                  <Button variant="secondary" isLoading={isExporting}>
+                    {!isExporting && <FiDownload className="h-3.5 w-3.5" />}
+                    Export
+                  </Button>
+                }
+                items={[
+                  { label: 'Export CSV', icon: <FiFileText />, onClick: () => handleExport('csv'), disabled: isExporting },
+                  { label: 'Export JSON', icon: <FiFile />, onClick: () => handleExport('json'), disabled: isExporting },
+                  { label: 'Export PDF', icon: <FiDownload />, onClick: () => handleExport('pdf'), disabled: isExporting },
+                ]}
+              />
+            </>
+          }
         />
-        {loading ? (
-          <div className="flex justify-center items-center py-12">
-            <LoadingSpinner />
-          </div>
-        ) : error ? (
-          <div className="text-center py-12">
-            <p className="text-red-600 dark:text-red-400">{error}</p>
-            <Button onClick={fetchWallets} className="mt-4" variant="outline">
-              Retry
-            </Button>
-          </div>
-        ) : (
-          <>
-            <Table columns={columns} data={wallets} emptyMessage="No wallets found" showExport={false} />
-            {pagination && pagination.totalPages > 1 && (
-              <div className="mt-6">
-                <Pagination
-                  currentPage={currentPage}
-                  totalPages={pagination.totalPages}
-                  totalItems={pagination.total}
-                  itemsPerPage={itemsPerPage}
-                  onPageChange={setCurrentPage}
-                />
-              </div>
-            )}
-          </>
-        )}
+
+        <div className="p-3.5">
+          {loading ? (
+            <div className="flex justify-center items-center py-12">
+              <LoadingSpinner />
+            </div>
+          ) : error ? (
+            <div className="text-center py-12">
+              <p className="text-[#B3261E] dark:text-red-300">{error}</p>
+              <Button onClick={fetchWallets} className="mt-4" variant="outline">
+                Retry
+              </Button>
+            </div>
+          ) : (
+            <>
+              <Table columns={columns} data={wallets} emptyMessage="No wallets found" showExport={false} />
+              {pagination && pagination.totalPages > 1 && (
+                <div className="mt-3.5">
+                  <Pagination
+                    currentPage={currentPage}
+                    totalPages={pagination.totalPages}
+                    totalItems={pagination.total}
+                    itemsPerPage={itemsPerPage}
+                    onPageChange={setCurrentPage}
+                  />
+                </div>
+              )}
+            </>
+          )}
+      
+        </div>
       </Card>
     </div>
   );

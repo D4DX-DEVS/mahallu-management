@@ -1,10 +1,17 @@
 import { useState } from 'react';
-import Breadcrumb from '@/components/layout/Breadcrumb';
+import { FiTrendingUp, FiTrendingDown, FiDollarSign } from 'react-icons/fi';
 import Card from '@/components/ui/Card';
+import EmptyState from '@/components/ui/EmptyState';
+import Alert from '@/components/ui/Alert';
+import FilterBar from '@/components/ui/FilterBar';
+import StatCard from '@/components/ui/StatCard';
+import PageHeader from '@/components/ui/PageHeader';
 import Button from '@/components/ui/Button';
-import Input from '@/components/ui/Input';
+import DateRangePicker from '@/components/ui/DateRangePicker';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { accountingReportService, BalanceSheetData } from '@/services/accountingReportService';
+import { pct } from '@/utils/statSeries';
+import { getFriendlyError } from '@/utils/apiMessages';
 
 export default function MahalluBalanceSheet() {
   const [loading, setLoading] = useState(false);
@@ -20,103 +27,89 @@ export default function MahalluBalanceSheet() {
       const result = await accountingReportService.getBalanceSheet({ startDate, endDate, scope: 'mahallu' });
       setData(result);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch balance sheet');
+      setError(getFriendlyError(err, "Couldn't load balance sheet. Refresh the page or try again."));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Mahallu Balance Sheet</h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Financial position of the Mahallu</p>
-        </div>
-        <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Mahallu Finance', path: '/mahallu-finance/accounts' }, { label: 'Balance Sheet' }]} />
-      </div>
+    <div className="space-y-4">
+      <PageHeader title="Mahallu Balance Sheet" description="Financial position of the Mahallu" />
 
-      <Card>
-        <div className="flex flex-wrap items-end gap-4 mb-6">
-          <div className="w-44"><Input label="Start Date" type="date" value={startDate} onChange={e => setStartDate(e.target.value)} /></div>
-          <div className="w-44"><Input label="End Date" type="date" value={endDate} onChange={e => setEndDate(e.target.value)} /></div>
-          <Button onClick={fetchData} disabled={loading}>{loading ? 'Loading...' : 'Generate'}</Button>
-        </div>
-
-        {loading ? (
-          <div className="flex justify-center py-12"><LoadingSpinner /></div>
-        ) : error ? (
-          <p className="text-center py-8 text-red-600">{error}</p>
-        ) : !data ? (
-          <p className="text-center py-12 text-gray-500">Select a date range and click "Generate"</p>
-        ) : (
-          <div className="space-y-6">
-            {/* Summary Cards */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                <p className="text-sm text-blue-600">Bank Balance</p>
-                <p className="text-xl font-bold text-blue-700">₹{(data.totalBankBalance || 0).toLocaleString()}</p>
-              </div>
-              <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                <p className="text-sm text-green-600">Total Income</p>
-                <p className="text-xl font-bold text-green-700">₹{(data.totalIncome || 0).toLocaleString()}</p>
-              </div>
-              <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg">
-                <p className="text-sm text-red-600">Total Expense</p>
-                <p className="text-xl font-bold text-red-700">₹{(data.totalExpense || 0).toLocaleString()}</p>
-              </div>
-              <div className={`p-4 rounded-lg ${(data.netBalance || 0) >= 0 ? 'bg-green-50 dark:bg-green-900/20' : 'bg-red-50 dark:bg-red-900/20'}`}>
-                <p className={`text-sm ${(data.netBalance || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>Net Balance</p>
-                <p className={`text-xl font-bold ${(data.netBalance || 0) >= 0 ? 'text-green-700' : 'text-red-700'}`}>₹{(data.netBalance || 0).toLocaleString()}</p>
-              </div>
-            </div>
-
-            {/* Bank Accounts */}
-            {data.bankBalances.length > 0 && (
-              <div>
-                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase mb-3">Bank Accounts (Assets)</h3>
-                <div className="divide-y divide-gray-100 dark:divide-gray-700 border border-gray-200 dark:border-gray-700 rounded-lg">
-                  {data.bankBalances.map((b, i) => (
-                    <div key={i} className="flex justify-between items-center px-4 py-3">
-                      <span className="text-sm text-gray-700 dark:text-gray-300">{b.ledgerName}</span>
-                      <span className="text-sm font-medium text-blue-700">₹{b.balance.toLocaleString()}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Income */}
-            {data.incomeByCategory.length > 0 && (
-              <div>
-                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase mb-3">Income</h3>
-                <div className="divide-y divide-gray-100 dark:divide-gray-700 border border-gray-200 dark:border-gray-700 rounded-lg">
-                  {data.incomeByCategory.map((item, i) => (
-                    <div key={i} className="flex justify-between items-center px-4 py-3">
-                      <span className="text-sm text-gray-700 dark:text-gray-300">{item.category}</span>
-                      <span className="text-sm font-medium text-green-700">₹{item.amount.toLocaleString()}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Expenses */}
-            {data.expenseByCategory.length > 0 && (
-              <div>
-                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase mb-3">Expenses</h3>
-                <div className="divide-y divide-gray-100 dark:divide-gray-700 border border-gray-200 dark:border-gray-700 rounded-lg">
-                  {data.expenseByCategory.map((item, i) => (
-                    <div key={i} className="flex justify-between items-center px-4 py-3">
-                      <span className="text-sm text-gray-700 dark:text-gray-300">{item.category}</span>
-                      <span className="text-sm font-medium text-red-700">₹{item.amount.toLocaleString()}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+      <Card padding="none" className="overflow-visible">
+        <FilterBar className="items-end">
+          <div className="w-72 max-sm:w-full">
+            <DateRangePicker label="Date range" from={startDate} to={endDate} onChange={(f, t) => { setStartDate(f); setEndDate(t); }} />
           </div>
-        )}
+          <Button onClick={fetchData} disabled={loading}>{loading ? 'Loading...' : 'Generate'}</Button>
+        </FilterBar>
+
+        <div className="p-3.5">
+          {loading ? (
+            <div className="flex justify-center py-12"><LoadingSpinner /></div>
+          ) : error ? (
+            <Alert tone="danger">{error}</Alert>
+          ) : !data ? (
+            <EmptyState title="Nothing to show yet" description='Select a date range and click "Generate"' />
+          ) : (
+            <div className="space-y-6">
+              {/* Summary Cards */}
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
+                <StatCard variant="inline" title="Bank Balance" value={`₹${(data.totalBankBalance || 0).toLocaleString()}`} tone="neutral" icon={<FiDollarSign className="h-[17px] w-[17px]" />} />
+                <StatCard variant="inline" title="Total Income" value={`₹${(data.totalIncome || 0).toLocaleString()}`} tone="green" icon={<FiTrendingUp className="h-[17px] w-[17px]" />} />
+                <StatCard variant="inline" viz={(data.totalIncome || 0) > 0 ? { type: 'bullet', percent: pct((data.totalExpense || 0), (data.totalIncome || 0)), target: 100, color: (data.totalExpense || 0) > (data.totalIncome || 0) ? '#B3261E' : '#04563A' } : undefined} summary={`Expense ₹${((data.totalExpense || 0)).toLocaleString()}, ${pct((data.totalExpense || 0), (data.totalIncome || 0))} percent of income`} title="Total Expense" value={`₹${(data.totalExpense || 0).toLocaleString()}`} tone="red" icon={<FiTrendingDown className="h-[17px] w-[17px]" />} />
+                <StatCard variant="inline" title="Net Balance" value={`₹${(data.netBalance || 0).toLocaleString()}`} tone={(data.netBalance || 0) >= 0 ? 'lime' : 'red'} icon={<FiDollarSign className="h-[17px] w-[17px]" />} viz={(data.totalIncome || 0) + (data.totalExpense || 0) > 0 ? { type: 'pair', a: (data.totalIncome || 0), b: (data.totalExpense || 0), colorB: '#E0B400' } : undefined} summary={`Income ₹${((data.totalIncome || 0)).toLocaleString()} compared with expense ₹${((data.totalExpense || 0)).toLocaleString()}`} />
+              </div>
+
+              {/* Bank Accounts */}
+              {data.bankBalances.length > 0 && (
+                <div>
+                  <h3 className="text-sm font-semibold text-[#3A4741] dark:text-surface-text uppercase mb-3">Bank Accounts (Assets)</h3>
+                  <div className="divide-y divide-line-soft dark:divide-surface-border border border-line dark:border-surface-border rounded-lg">
+                    {data.bankBalances.map((b, i) => (
+                      <div key={i} className="flex justify-between items-center px-4 py-3">
+                        <span className="text-sm text-[#3A4741] dark:text-surface-text">{b.ledgerName}</span>
+                        <span className="text-sm font-medium text-blue-700">₹{b.balance.toLocaleString()}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Income */}
+              {data.incomeByCategory.length > 0 && (
+                <div>
+                  <h3 className="text-sm font-semibold text-[#3A4741] dark:text-surface-text uppercase mb-3">Income</h3>
+                  <div className="divide-y divide-line-soft dark:divide-surface-border border border-line dark:border-surface-border rounded-lg">
+                    {data.incomeByCategory.map((item, i) => (
+                      <div key={i} className="flex justify-between items-center px-4 py-3">
+                        <span className="text-sm text-[#3A4741] dark:text-surface-text">{item.category}</span>
+                        <span className="text-sm font-medium text-primary-700">₹{item.amount.toLocaleString()}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Expenses */}
+              {data.expenseByCategory.length > 0 && (
+                <div>
+                  <h3 className="text-sm font-semibold text-[#3A4741] dark:text-surface-text uppercase mb-3">Expenses</h3>
+                  <div className="divide-y divide-line-soft dark:divide-surface-border border border-line dark:border-surface-border rounded-lg">
+                    {data.expenseByCategory.map((item, i) => (
+                      <div key={i} className="flex justify-between items-center px-4 py-3">
+                        <span className="text-sm text-[#3A4741] dark:text-surface-text">{item.category}</span>
+                        <span className="text-sm font-medium text-red-700">₹{item.amount.toLocaleString()}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+        </div>
       </Card>
     </div>
   );

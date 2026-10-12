@@ -1,11 +1,35 @@
 import { useEffect, useState } from 'react';
+import { formatINR } from '@/utils/formatINR';
 import { Link } from 'react-router-dom';
+import { FiUsers, FiHome, FiUser, FiAward } from 'react-icons/fi';
+import { gradeLevel } from '@/utils/statSeries';
 import Card from '@/components/ui/Card';
+import StatCard from '@/components/ui/StatCard';
+import Avatar, { PersonCell } from '@/components/ui/Avatar';
+import BloodGroupBadge from '@/components/ui/BloodGroupBadge';
+import GenderChip from '@/components/ui/GenderChip';
+import PageHeader from '@/components/ui/PageHeader';
+import Table from '@/components/ui/Table';
+import Alert from '@/components/ui/Alert';
+import { TableColumn } from '@/types';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { memberPortalService, MemberOverviewResponse } from '@/services/memberPortalService';
 import { ROUTES } from '@/constants/routes';
+import { getFriendlyError } from '@/utils/apiMessages';
 
-const currency = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 });
+type FamilyMember = MemberOverviewResponse['family']['members'][number];
+
+function DetailRow({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <p className="flex items-baseline justify-between gap-3">
+      <span className="text-[#7B8983] dark:text-surface-muted">{label}</span>
+      <span className="text-right font-semibold text-[#18231E] dark:text-surface-text">{value}</span>
+    </p>
+  );
+}
+
+const CARD_TITLE = 'mb-3 text-sm font-bold text-[#18231E] dark:text-surface-text';
+
 
 export default function MemberOverview() {
   const [overview, setOverview] = useState<MemberOverviewResponse | null>(null);
@@ -19,7 +43,7 @@ export default function MemberOverview() {
         const data = await memberPortalService.getOverview();
         setOverview(data);
       } catch (err: any) {
-        setError(err.response?.data?.message || 'Failed to load member overview');
+        setError(getFriendlyError(err, "Couldn't load member overview. Refresh the page or try again."));
       } finally {
         setLoading(false);
       }
@@ -38,102 +62,110 @@ export default function MemberOverview() {
 
   if (error || !overview) {
     return (
-      <div className="flex flex-col items-center justify-center h-[calc(100vh-140px)] gap-4">
-        <p className="text-red-600 dark:text-red-400">{error || 'Unable to load overview'}</p>
+      <div className="py-6">
+        <Alert tone="danger">{error || 'Unable to load overview'}</Alert>
       </div>
     );
   }
 
+  const famMale = overview.family.members.filter((m) => m.gender === 'male').length;
+  const famFemale = overview.family.members.filter((m) => m.gender === 'female').length;
+  const memberColumns: TableColumn<FamilyMember>[] = [
+    { key: 'name', label: 'Name', render: (v, row) => <PersonCell name={v} src={row.photoUrl} /> },
+    { key: 'phone', label: 'Phone', render: (v) => v || '-' },
+    { key: 'gender', label: 'Gender', render: (v) => <GenderChip value={v} /> },
+    { key: 'mahallId', label: 'Member ID', render: (v) => v || '-' },
+  ];
+
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">My Dashboard</h1>
+    <div className="space-y-4">
+      <PageHeader
+        leading={<Avatar name={overview.member.name} src={overview.member.photoUrl} size={56} badge={overview.member.bloodGroup ? <BloodGroupBadge value={overview.member.bloodGroup} size="xs" /> : undefined} />}
+        title="My dashboard"
+        description={`Welcome back, ${overview.member.name}. Your membership, family and payment summary`}
+      />
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Mahallu Users</p>
-          <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100">{overview.mahalluStatistics.users}</p>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 xl:grid-cols-5">
+        <StatCard variant="inline" title="Mahallu Users" value={overview.mahalluStatistics.users} icon={<FiUser className="h-[17px] w-[17px]" />} tone="green" />
+        <StatCard variant="inline" title="Mahallu Families" value={overview.mahalluStatistics.families} icon={<FiHome className="h-[17px] w-[17px]" />} tone="lime" />
+        <StatCard variant="inline" title="Mahallu Members" value={overview.mahalluStatistics.members} icon={<FiUsers className="h-[17px] w-[17px]" />} tone="neutral" />
+        <StatCard
+          variant="inline"
+          title="My family members"
+          value={overview.family.members.length}
+          icon={<FiUsers className="h-[17px] w-[17px]" />}
+          tone="lime"
+          viz={famMale + famFemale > 0 ? { type: 'segments', segments: [{ value: famMale }, { value: famFemale, color: '#8EC13E' }] } : undefined}
+          summary={`${overview.family.members.length} family members: ${famMale} male, ${famFemale} female`}
+        />
+        {overview.family.details?.varisangyaGrade && (
+          <StatCard
+            variant="inline"
+            title="Varisangya grade"
+            value={overview.family.details.varisangyaGrade}
+            icon={<FiAward className="h-[17px] w-[17px]" />}
+            tone="gold"
+            viz={gradeLevel(overview.family.details.varisangyaGrade) ? { type: 'meter', level: gradeLevel(overview.family.details.varisangyaGrade) } : undefined}
+            summary={`Varisangya grade ${overview.family.details.varisangyaGrade}`}
+          />
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <Card padding="lg">
+          <h2 className={CARD_TITLE}>My Details</h2>
+          <div className="space-y-2 text-[13px]">
+            <DetailRow label="Name" value={overview.member.name} />
+            <DetailRow label="Phone" value={overview.member.phone || '-'} />
+            <DetailRow label="Member ID" value={overview.varusankhyaDetails.memberMahallId || '-'} />
+          </div>
         </Card>
-        <Card>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Mahallu Families</p>
-          <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100">{overview.mahalluStatistics.families}</p>
-        </Card>
-        <Card>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Mahallu Members</p>
-          <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100">{overview.mahalluStatistics.members}</p>
+
+        <Card padding="lg">
+          <h2 className={CARD_TITLE}>Family Details</h2>
+          <div className="space-y-2 text-[13px]">
+            <DetailRow label="House Name" value={overview.family.details?.houseName || '-'} />
+            <DetailRow label="Family ID" value={overview.varusankhyaDetails.familyMahallId || '-'} />
+            <DetailRow label="Varisangya Grade" value={overview.varusankhyaDetails.varisangyaGrade || '-'} />
+            <DetailRow label="Contact" value={overview.family.details?.contactNo || '-'} />
+          </div>
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card>
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">My Details</h2>
-          <div className="space-y-2 text-sm">
-            <p><span className="text-gray-500 dark:text-gray-400">Name:</span> <span className="text-gray-900 dark:text-gray-100">{overview.member.name}</span></p>
-            <p><span className="text-gray-500 dark:text-gray-400">Phone:</span> <span className="text-gray-900 dark:text-gray-100">{overview.member.phone || '-'}</span></p>
-            <p><span className="text-gray-500 dark:text-gray-400">Member ID:</span> <span className="text-gray-900 dark:text-gray-100">{overview.varusankhyaDetails.memberMahallId || '-'}</span></p>
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <Card padding="lg">
+          <h2 className={CARD_TITLE}>Family Financial Summary</h2>
+          <div className="space-y-2 text-[13px]">
+            <DetailRow label="Varisangya Total" value={formatINR(overview.family.financialSummary.varisangyaTotal || 0)} />
+            <DetailRow label="Varisangya Count" value={overview.family.financialSummary.varisangyaCount} />
+            <DetailRow label="Zakat Total" value={formatINR(overview.family.financialSummary.zakatTotal || 0)} />
+            <DetailRow label="Zakat Count" value={overview.family.financialSummary.zakatCount} />
           </div>
-        </Card>
-
-        <Card>
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">Family Details</h2>
-          <div className="space-y-2 text-sm">
-            <p><span className="text-gray-500 dark:text-gray-400">House Name:</span> <span className="text-gray-900 dark:text-gray-100">{overview.family.details?.houseName || '-'}</span></p>
-            <p><span className="text-gray-500 dark:text-gray-400">Family ID:</span> <span className="text-gray-900 dark:text-gray-100">{overview.varusankhyaDetails.familyMahallId || '-'}</span></p>
-            <p><span className="text-gray-500 dark:text-gray-400">Varisangya Grade:</span> <span className="text-gray-900 dark:text-gray-100">{overview.varusankhyaDetails.varisangyaGrade || '-'}</span></p>
-            <p><span className="text-gray-500 dark:text-gray-400">Contact:</span> <span className="text-gray-900 dark:text-gray-100">{overview.family.details?.contactNo || '-'}</span></p>
-          </div>
-        </Card>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card>
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">Family Financial Summary</h2>
-          <div className="space-y-2 text-sm">
-            <p><span className="text-gray-500 dark:text-gray-400">Varisangya Total:</span> <span className="text-gray-900 dark:text-gray-100">{currency.format(overview.family.financialSummary.varisangyaTotal || 0)}</span></p>
-            <p><span className="text-gray-500 dark:text-gray-400">Varisangya Count:</span> <span className="text-gray-900 dark:text-gray-100">{overview.family.financialSummary.varisangyaCount}</span></p>
-            <p><span className="text-gray-500 dark:text-gray-400">Zakat Total:</span> <span className="text-gray-900 dark:text-gray-100">{currency.format(overview.family.financialSummary.zakatTotal || 0)}</span></p>
-            <p><span className="text-gray-500 dark:text-gray-400">Zakat Count:</span> <span className="text-gray-900 dark:text-gray-100">{overview.family.financialSummary.zakatCount}</span></p>
-          </div>
-          <div className="mt-4 pt-3 border-t border-gray-100 dark:border-gray-800">
+          <div className="mt-4 border-t border-line-soft pt-3 dark:border-surface-border">
             <Link
               to={ROUTES.MEMBER.VARISANGYA}
-              className="text-sm text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 font-medium"
+              className="text-[13px] font-semibold text-primary-600 hover:text-primary-700 dark:text-brand-lime dark:hover:text-brand-lime/80"
             >
               View All Varisangya →
             </Link>
           </div>
         </Card>
 
-        <Card>
-          <div className="space-y-2 text-sm">
-            <p><span className="text-gray-500 dark:text-gray-400">Latest Varisangya Receipt:</span> <span className="text-gray-900 dark:text-gray-100">{overview.varusankhyaDetails.latestVarisangyaReceiptNo || '-'}</span></p>
-            <p><span className="text-gray-500 dark:text-gray-400">Latest Zakat Receipt:</span> <span className="text-gray-900 dark:text-gray-100">{overview.varusankhyaDetails.latestZakatReceiptNo || '-'}</span></p>
+        <Card padding="lg">
+          <h2 className={CARD_TITLE}>Latest Receipts</h2>
+          <div className="space-y-2 text-[13px]">
+            <DetailRow label="Latest Varisangya Receipt" value={overview.varusankhyaDetails.latestVarisangyaReceiptNo || '-'} />
+            <DetailRow label="Latest Zakat Receipt" value={overview.varusankhyaDetails.latestZakatReceiptNo || '-'} />
           </div>
         </Card>
       </div>
 
-      <Card>
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">Family Members</h2>
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-sm">
-            <thead>
-              <tr className="text-left border-b border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-400">
-                <th className="py-2 pr-3">Name</th>
-                <th className="py-2 pr-3">Phone</th>
-                <th className="py-2 pr-3">Gender</th>
-                <th className="py-2 pr-3">Member ID</th>
-              </tr>
-            </thead>
-            <tbody>
-              {overview.family.members.map((member) => (
-                <tr key={member.id} className="border-b border-gray-100 dark:border-gray-900 text-gray-900 dark:text-gray-100">
-                  <td className="py-2 pr-3">{member.name}</td>
-                  <td className="py-2 pr-3">{member.phone || '-'}</td>
-                  <td className="py-2 pr-3">{member.gender || '-'}</td>
-                  <td className="py-2 pr-3">{member.mahallId || '-'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      <Card padding="none">
+        <div className="px-4 pt-4">
+          <h2 className="text-sm font-bold text-[#18231E] dark:text-surface-text">Family Members</h2>
+        </div>
+        <div className="p-3.5">
+          <Table columns={memberColumns} data={overview.family.members} showExport={false} emptyMessage="No family members" />
         </div>
       </Card>
     </div>

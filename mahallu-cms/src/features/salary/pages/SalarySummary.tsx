@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { FiArrowLeft } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
+import PageHeader from '@/components/ui/PageHeader';
+import FilterBar from '@/components/ui/FilterBar';
+import EmptyState from '@/components/ui/EmptyState';
 import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
@@ -10,6 +12,8 @@ import { ROUTES } from '@/constants/routes';
 import { salaryService } from '@/services/salaryService';
 import { instituteService } from '@/services/instituteService';
 import { useAuthStore } from '@/store/authStore';
+import { getFriendlyError } from '@/utils/apiMessages';
+import ScrollX from '@/features/_shared/ScrollX';
 
 const MONTHS = [
   { value: '1', label: 'January' }, { value: '2', label: 'February' }, { value: '3', label: 'March' },
@@ -21,7 +25,7 @@ const MONTHS = [
 const getMonthName = (month: number) => MONTHS.find(m => m.value === String(month))?.label || String(month);
 
 interface SummaryItem {
-  _id: { instituteId?: string; month?: number; year?: number };
+  id: { instituteId?: string; month?: number; year?: number };
   totalPayments: number;
   totalBaseSalary: number;
   totalAllowances: number;
@@ -69,7 +73,7 @@ export default function SalarySummary() {
       const data = await salaryService.getSummary(params);
       setSummary(data || []);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch salary summary');
+      setError(getFriendlyError(err, "Couldn't load salary summary. Refresh the page or try again."));
     } finally {
       setLoading(false);
     }
@@ -78,20 +82,15 @@ export default function SalarySummary() {
   const grandTotal = summary.reduce((sum, s) => sum + (s.totalNetAmount || 0), 0);
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Salary Summary</h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Overview of salary expenditures</p>
-        </div>
-        <div className="flex items-center gap-4">
-          <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Salary', path: ROUTES.SALARY.LIST }, { label: 'Summary' }]} />
-          <Link to={ROUTES.SALARY.LIST}><Button variant="outline"><FiArrowLeft className="h-4 w-4 mr-2" />Back</Button></Link>
-        </div>
-      </div>
+    <div className="space-y-4">
+      <PageHeader
+        title="Salary Summary"
+        description="Overview of salary expenditures"
+        actions={<Link to={ROUTES.SALARY.LIST}><Button variant="secondary"><FiArrowLeft className="h-3.5 w-3.5" />Back</Button></Link>}
+      />
 
-      <Card>
-        <div className="flex flex-wrap items-center gap-4 mb-6">
+      <Card padding="none" className="overflow-visible">
+        <FilterBar>
           {!userInstituteId && (
             <div className="w-48">
               <Select options={[{ value: 'all', label: 'All Institutes' }, ...institutes.map(i => ({ value: i.id, label: i.name }))]} value={instituteFilter} onChange={(e) => setInstituteFilter(e.target.value)} />
@@ -100,58 +99,58 @@ export default function SalarySummary() {
           <div className="w-28">
             <Select options={[{ value: 'all', label: 'All Years' }, ...years]} value={yearFilter} onChange={(e) => setYearFilter(e.target.value)} />
           </div>
-        </div>
+        </FilterBar>
 
         {loading ? (
           <div className="flex justify-center items-center py-12"><LoadingSpinner /></div>
         ) : error ? (
           <div className="text-center py-12">
-            <p className="text-red-600 dark:text-red-400">{error}</p>
-            <Button onClick={fetchSummary} className="mt-4" variant="outline">Retry</Button>
+            <p className="text-[#B3261E] dark:text-red-300">{error}</p>
+            <Button onClick={fetchSummary} className="mt-4" variant="secondary">Retry</Button>
           </div>
         ) : summary.length === 0 ? (
-          <div className="text-center py-12 text-gray-500 dark:text-gray-400">No salary data found for the selected period</div>
+          <EmptyState title="No salary data found" description="No salary data found for the selected period" />
         ) : (
           <>
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                <thead className="bg-gray-50 dark:bg-gray-800">
+            <ScrollX className="p-3.5">
+              <table className="w-full border-collapse text-[12.5px]">
+                <thead className="bg-[#FAFCFB] dark:bg-surface-base/60">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Period</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Payments</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Base Total</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Allowances</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Deductions</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Net Total</th>
-                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Paid/Pending</th>
+                    <th className="whitespace-nowrap px-3.5 py-2.5 text-left text-[12px] font-bold text-[#7B8983] dark:text-surface-muted uppercase tracking-[0.06em]">Period</th>
+                    <th className="whitespace-nowrap px-3.5 py-2.5 text-right text-[12px] font-bold text-[#7B8983] dark:text-surface-muted uppercase tracking-[0.06em]">Payments</th>
+                    <th className="whitespace-nowrap px-3.5 py-2.5 text-right text-[12px] font-bold text-[#7B8983] dark:text-surface-muted uppercase tracking-[0.06em]">Base Total</th>
+                    <th className="whitespace-nowrap px-3.5 py-2.5 text-right text-[12px] font-bold text-[#7B8983] dark:text-surface-muted uppercase tracking-[0.06em]">Allowances</th>
+                    <th className="whitespace-nowrap px-3.5 py-2.5 text-right text-[12px] font-bold text-[#7B8983] dark:text-surface-muted uppercase tracking-[0.06em]">Deductions</th>
+                    <th className="whitespace-nowrap px-3.5 py-2.5 text-right text-[12px] font-bold text-[#7B8983] dark:text-surface-muted uppercase tracking-[0.06em]">Net Total</th>
+                    <th className="whitespace-nowrap px-3.5 py-2.5 text-center text-[12px] font-bold text-[#7B8983] dark:text-surface-muted uppercase tracking-[0.06em]">Paid/Pending</th>
                   </tr>
                 </thead>
-                <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+                <tbody className="divide-y divide-line-soft bg-white dark:divide-surface-border dark:bg-surface-card">
                   {summary.map((item, idx) => (
-                    <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-800">
-                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
-                        {item._id?.month ? `${getMonthName(item._id.month)} ${item._id.year}` : item.instituteName || '-'}
+                    <tr key={idx} className="hover:bg-[#F6FAF8] dark:hover:bg-surface-hover/60">
+                      <td className="px-3.5 py-2 text-[12.5px] text-[#18231E] dark:text-surface-text">
+                        {item.id?.month ? `${getMonthName(item.id.month)} ${item.id.year}` : item.instituteName || '-'}
                       </td>
-                      <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-gray-100">{item.totalPayments}</td>
-                      <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-gray-100">₹{item.totalBaseSalary.toLocaleString()}</td>
-                      <td className="px-4 py-3 text-sm text-right text-green-600 dark:text-green-400">₹{item.totalAllowances.toLocaleString()}</td>
-                      <td className="px-4 py-3 text-sm text-right text-red-600 dark:text-red-400">₹{item.totalDeductions.toLocaleString()}</td>
-                      <td className="px-4 py-3 text-sm text-right font-semibold text-gray-900 dark:text-gray-100">₹{item.totalNetAmount.toLocaleString()}</td>
-                      <td className="px-4 py-3 text-sm text-center">
-                        <span className="text-green-600">{item.paidCount}</span> / <span className="text-yellow-600">{item.pendingCount}</span>
+                      <td className="px-3.5 py-2 text-[12.5px] text-right text-[#18231E] dark:text-surface-text">{item.totalPayments}</td>
+                      <td className="px-3.5 py-2 text-[12.5px] text-right text-[#18231E] dark:text-surface-text">₹{item.totalBaseSalary.toLocaleString()}</td>
+                      <td className="px-3.5 py-2 text-[12.5px] text-right text-primary-600 dark:text-primary-400">₹{item.totalAllowances.toLocaleString()}</td>
+                      <td className="px-3.5 py-2 text-[12.5px] text-right text-[#B3261E] dark:text-red-300">₹{item.totalDeductions.toLocaleString()}</td>
+                      <td className="px-3.5 py-2 text-[12.5px] text-right font-semibold text-[#18231E] dark:text-surface-text">₹{item.totalNetAmount.toLocaleString()}</td>
+                      <td className="px-3.5 py-2 text-[12.5px] text-center">
+                        <span className="text-primary-600">{item.paidCount}</span> / <span className="text-[#7A5B00] dark:text-secondary-300">{item.pendingCount}</span>
                       </td>
                     </tr>
                   ))}
                 </tbody>
-                <tfoot className="bg-gray-50 dark:bg-gray-800">
+                <tfoot className="bg-[#FAFCFB] dark:bg-surface-base/60">
                   <tr>
-                    <td className="px-4 py-3 text-sm font-bold text-gray-900 dark:text-gray-100" colSpan={5}>Grand Total</td>
-                    <td className="px-4 py-3 text-sm text-right font-bold text-gray-900 dark:text-gray-100">₹{grandTotal.toLocaleString()}</td>
+                    <td className="px-3.5 py-2 text-[12.5px] font-bold text-[#18231E] dark:text-surface-text" colSpan={5}>Grand Total</td>
+                    <td className="px-3.5 py-2 text-[12.5px] text-right font-bold text-[#18231E] dark:text-surface-text">₹{grandTotal.toLocaleString()}</td>
                     <td></td>
                   </tr>
                 </tfoot>
               </table>
-            </div>
+            </ScrollX>
           </>
         )}
       </Card>

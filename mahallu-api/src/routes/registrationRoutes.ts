@@ -4,6 +4,10 @@ import {
   getNikahRegistrationById,
   createNikahRegistration,
   updateNikahRegistration,
+  deleteNikahRegistration,
+  previewNikahEffects,
+  previewDeathEffects,
+  deleteDeathRegistration,
   getAllDeathRegistrations,
   getDeathRegistrationById,
   createDeathRegistration,
@@ -13,7 +17,7 @@ import {
   createNOC,
   updateNOC,
 } from '../controllers/registrationController';
-import { authMiddleware } from '../middleware/authMiddleware';
+import { authMiddleware, allowRoles } from '../middleware/authMiddleware';
 import { tenantMiddleware, tenantFilter } from '../middleware/tenantMiddleware';
 import { validationHandler } from '../middleware/validationHandler';
 import {
@@ -110,6 +114,12 @@ router.use(tenantFilter);
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  */
+// Side-effect previews (what approving would change) and deletes that roll back
+router.post('/nikah/preview', allowRoles(['super_admin', 'mahall']), previewNikahEffects);
+router.post('/death/preview', allowRoles(['super_admin', 'mahall']), previewDeathEffects);
+router.delete('/nikah/:id', allowRoles(['super_admin', 'mahall']), getNikahRegistrationValidation, validationHandler, deleteNikahRegistration);
+router.delete('/death/:id', allowRoles(['super_admin', 'mahall']), getDeathRegistrationValidation, validationHandler, deleteDeathRegistration);
+
 router.get('/nikah', getAllNikahRegistrations);
 
 /**

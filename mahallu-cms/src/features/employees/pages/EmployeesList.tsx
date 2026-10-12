@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FiEdit2, FiTrash2, FiX, FiEye, FiUsers, FiCheckCircle, FiXCircle } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
+import { FiUsers, FiCheckCircle, FiXCircle, FiRefreshCw } from 'react-icons/fi';
 import Card from '@/components/ui/Card';
+import PageHeader from '@/components/ui/PageHeader';
 import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
 import StatCard from '@/components/ui/StatCard';
@@ -10,7 +10,10 @@ import Table from '@/components/ui/Table';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import Modal from '@/components/ui/Modal';
 import Pagination from '@/components/ui/Pagination';
-import TableToolbar from '@/components/ui/TableToolbar';
+import FilterBar from '@/components/ui/FilterBar';
+import StatusBadge from '@/components/ui/StatusBadge';
+import RowActions from '@/components/ui/RowActions';
+import { PersonCell } from '@/components/ui/Avatar';
 import { TableColumn, Pagination as PaginationType } from '@/types';
 import { Employee } from '@/types';
 import { ROUTES } from '@/constants/routes';
@@ -18,12 +21,14 @@ import { employeeService } from '@/services/employeeService';
 import { instituteService } from '@/services/instituteService';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useAuthStore } from '@/store/authStore';
+import { shareViz } from '@/utils/statSeries';
+import { toast } from '@/store/toastStore';
+import { getFriendlyError } from '@/utils/apiMessages';
 
 export default function EmployeesList() {
   const navigate = useNavigate();
   const { currentInstituteId: userInstituteId } = useAuthStore();
   const [searchQuery, setSearchQuery] = useState('');
-  const [isFilterVisible, setIsFilterVisible] = useState(false);
   const [statusFilter, setStatusFilter] = useState('all');
   const [instituteFilter, setInstituteFilter] = useState(userInstituteId || 'all');
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -70,7 +75,7 @@ export default function EmployeesList() {
       setEmployees(result.data);
       if (result.pagination) setPagination(result.pagination);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch employees');
+      setError(getFriendlyError(err, "Couldn't load employees. Refresh the page or try again."));
     } finally {
       setLoading(false);
     }
@@ -85,7 +90,7 @@ export default function EmployeesList() {
       setShowDeleteModal(false);
       setSelectedEmployee(null);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to delete employee');
+      toast.error(getFriendlyError(err, "Couldn't delete employee. Try again in a moment."));
     } finally {
       setDeleting(false);
     }
@@ -93,9 +98,9 @@ export default function EmployeesList() {
 
   const columns: TableColumn<Employee>[] = [
     { key: 'id', label: 'No.', render: (_, __, index) => index + 1 },
-    { key: 'name', label: 'Name', sortable: true },
-    { key: 'designation', label: 'Designation' },
-    { key: 'department', label: 'Department' },
+    { key: 'name', label: 'Name', sortable: true, render: (name, row) => <PersonCell name={name} subtitle={row.designation} /> },
+    { key: 'designation', label: 'Designation', render: (v) => (v ? <StatusBadge status={v} tone="neutral" dot={false} /> : '-') },
+    { key: 'department', label: 'Department', render: (v) => (v ? <StatusBadge status={v} tone="neutral" dot={false} /> : '-') },
     { key: 'phone', label: 'Phone' },
     {
       key: 'salary',
@@ -105,110 +110,87 @@ export default function EmployeesList() {
     {
       key: 'status',
       label: 'Status',
-      render: (status) => (
-        <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-          status === 'active' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-            : status === 'on_leave' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-            : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
-        }`}>
-          {status === 'on_leave' ? 'On Leave' : status || 'active'}
-        </span>
-      ),
+      render: (status) => <StatusBadge status={status || 'active'} label={status === 'on_leave' ? 'On Leave' : undefined} tone={status === 'on_leave' ? 'warning' : status === 'resigned' || status === 'terminated' ? 'neutral' : undefined} />,
     },
     {
       key: 'actions',
       label: 'Actions',
       render: (_, row) => (
-        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-          <button onClick={() => navigate(ROUTES.EMPLOYEES.DETAIL(row.id))} className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400" title="View">
-            <FiEye className="h-4 w-4" />
-          </button>
-          <button onClick={() => navigate(ROUTES.EMPLOYEES.EDIT(row.id))} className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400" title="Edit">
-            <FiEdit2 className="h-4 w-4" />
-          </button>
-          <button onClick={() => { setSelectedEmployee(row); setShowDeleteModal(true); }} className="p-1.5 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400" title="Delete">
-            <FiTrash2 className="h-4 w-4" />
-          </button>
-        </div>
+        <RowActions
+          onView={() => navigate(ROUTES.EMPLOYEES.DETAIL(row.id))}
+          onEdit={() => navigate(ROUTES.EMPLOYEES.EDIT(row.id))}
+          onDelete={() => { setSelectedEmployee(row); setShowDeleteModal(true); }}
+          ariaLabels={{ view: 'View employee', edit: 'Edit employee', delete: 'Delete employee' }}
+        />
       ),
     },
   ];
 
   const stats = [
-    { title: 'Total Employees', value: pagination?.total || employees.length, icon: <FiUsers className="h-5 w-5" /> },
-    { title: 'Active', value: employees.filter(e => e.status === 'active' || !e.status).length, icon: <FiCheckCircle className="h-5 w-5" /> },
-    { title: 'Inactive/Left', value: employees.filter(e => e.status === 'resigned' || e.status === 'terminated').length, icon: <FiXCircle className="h-5 w-5" /> },
+    { title: 'Total Employees', value: pagination?.total || employees.length, icon: <FiUsers className="h-[17px] w-[17px]" />, tone: 'green' as const },
+    { title: 'Active', value: employees.filter(e => e.status === 'active' || !e.status).length, viz: shareViz(employees.filter(e => e.status === 'active' || !e.status).length, employees.length), summary: `Active: ${employees.filter(e => e.status === 'active' || !e.status).length} of ${employees.length}`, icon: <FiCheckCircle className="h-[17px] w-[17px]" />, tone: 'lime' as const },
+    { title: 'Inactive/Left', value: employees.filter(e => e.status === 'resigned' || e.status === 'terminated').length, viz: shareViz(employees.filter(e => e.status === 'resigned' || e.status === 'terminated').length, employees.length, '#E0B400'), summary: `Inactive/Left: ${employees.filter(e => e.status === 'resigned' || e.status === 'terminated').length} of ${employees.length}`, icon: <FiXCircle className="h-[17px] w-[17px]" />, tone: 'neutral' as const },
   ];
 
   return (
     <div className="space-y-4">
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Employees</h1>
-            <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">Manage institute employees</p>
-          </div>
-          <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Employees' }]} />
-        </div>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          {stats.map((stat, index) => (<StatCard key={index} {...stat} />))}
-        </div>
+      <PageHeader
+        title="Employees"
+        description="Manage institute employees"
+        actions={
+          <Link to={ROUTES.EMPLOYEES.CREATE}>
+            <Button>+ New employee</Button>
+          </Link>
+        }
+      />
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        {stats.map((stat, index) => (<StatCard key={index} variant="inline" {...stat} />))}
       </div>
 
-      <Card>
-        <TableToolbar
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-          onFilterClick={() => setIsFilterVisible(!isFilterVisible)}
-          isFilterVisible={isFilterVisible}
-          hasFilters={true}
-          onRefresh={fetchEmployees}
-          actionButtons={
-            <Link to={ROUTES.EMPLOYEES.CREATE}>
-              <Button size="md">+ New Employee</Button>
-            </Link>
+      <Card padding="none" className="overflow-visible">
+        <FilterBar
+          search={{ value: searchQuery, onChange: setSearchQuery, placeholder: 'Search employees' }}
+          actions={
+            <Button variant="secondary" iconOnly aria-label="Refresh list" onClick={fetchEmployees}>
+              <FiRefreshCw className="h-3.5 w-3.5" />
+            </Button>
           }
-        />
-
-        {isFilterVisible && (
-          <div className="relative flex flex-wrap items-center gap-4 mb-6 p-4 border border-gray-200 rounded-lg bg-white dark:bg-gray-800 dark:border-gray-700">
-            <button onClick={() => setIsFilterVisible(false)} className="absolute right-4 top-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
-              <FiX className="h-4 w-4" />
-            </button>
-            <div className="w-40">
+        >
+          <div className="w-40">
+            <Select
+              options={[
+                { value: 'all', label: 'All Status' },
+                { value: 'active', label: 'Active' },
+                { value: 'on_leave', label: 'On Leave' },
+                { value: 'resigned', label: 'Resigned' },
+                { value: 'terminated', label: 'Terminated' },
+              ]}
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+            />
+          </div>
+          {!userInstituteId && (
+            <div className="w-48">
               <Select
                 options={[
-                  { value: 'all', label: 'All Status' },
-                  { value: 'active', label: 'Active' },
-                  { value: 'on_leave', label: 'On Leave' },
-                  { value: 'resigned', label: 'Resigned' },
-                  { value: 'terminated', label: 'Terminated' },
+                  { value: 'all', label: 'All Institutes' },
+                  ...institutes.map(i => ({ value: i.id, label: i.name })),
                 ]}
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
+                value={instituteFilter}
+                onChange={(e) => setInstituteFilter(e.target.value)}
               />
             </div>
-            {!userInstituteId && (
-              <div className="w-48">
-                <Select
-                  options={[
-                    { value: 'all', label: 'All Institutes' },
-                    ...institutes.map(i => ({ value: i.id, label: i.name })),
-                  ]}
-                  value={instituteFilter}
-                  onChange={(e) => setInstituteFilter(e.target.value)}
-                />
-              </div>
-            )}
-          </div>
-        )}
+          )}
+        </FilterBar>
 
+        <div className="p-3.5">
         {loading ? (
           <div className="flex justify-center items-center py-12"><LoadingSpinner /></div>
         ) : error ? (
           <div className="text-center py-12">
             <p className="text-red-600 dark:text-red-400">{error}</p>
-            <Button onClick={fetchEmployees} className="mt-4" variant="outline">Retry</Button>
+            <Button onClick={fetchEmployees} className="mt-4" variant="secondary">Retry</Button>
           </div>
         ) : (
           <Table
@@ -221,7 +203,7 @@ export default function EmployeesList() {
         )}
 
         {pagination && (
-          <div className="mt-4">
+          <div className="mt-3.5">
             <Pagination
               currentPage={pagination.page}
               totalPages={pagination.totalPages}
@@ -231,21 +213,22 @@ export default function EmployeesList() {
             />
           </div>
         )}
+        </div>
       </Card>
 
       <Modal
         isOpen={showDeleteModal}
         onClose={() => { setShowDeleteModal(false); setSelectedEmployee(null); }}
-        title="Delete Employee"
+        title="Delete employee?"
         footer={
           <>
-            <Button variant="outline" onClick={() => { setShowDeleteModal(false); setSelectedEmployee(null); }}>Cancel</Button>
-            <Button variant="danger" onClick={handleDelete} isLoading={deleting}>Delete</Button>
+            <Button variant="secondary" onClick={() => { setShowDeleteModal(false); setSelectedEmployee(null); }}>Cancel</Button>
+            <Button variant="danger-solid" onClick={handleDelete} isLoading={deleting}>Delete</Button>
           </>
         }
       >
-        <p className="text-gray-600 dark:text-gray-400">
-          Are you sure you want to delete <strong>{selectedEmployee?.name}</strong>? This action cannot be undone.
+        <p className="text-[13px] text-[#5B6963] dark:text-surface-muted">
+          Delete <strong>{selectedEmployee?.name}</strong>? This cannot be undone.
         </p>
       </Modal>
     </div>

@@ -15,7 +15,29 @@ export interface IFamily extends Document {
   areaMl?: string;
   place?: string;
   placeMl?: string;
+  // Welfare / socio-economic profile (spec 7.6) - optional, older documents stay valid
+  economicStatus?: 'stable' | 'struggling' | 'needs_assistance';
+  welfareStatus?: 'none' | 'receiving' | 'applied' | 'needs_review';
+  specialRequirements?: string;
+  housingType?: 'own' | 'rented' | 'shared' | 'none';
+  clusterId?: mongoose.Types.ObjectId;
   status: 'approved' | 'unapproved' | 'pending';
+  // Lifecycle (all optional: a missing field behaves exactly like before)
+  isArchived?: boolean;
+  archivedAt?: Date;
+  archivedBy?: mongoose.Types.ObjectId;
+  archivedReason?: string;
+  needsHeadReassignment?: boolean;
+  needsHeadReason?: string;
+  needsHeadSince?: Date;
+  mergedIntoFamilyId?: mongoose.Types.ObjectId;
+  lifecycleLog?: Array<{
+    action: string;
+    at: Date;
+    by?: mongoose.Types.ObjectId;
+    byName?: string;
+    details?: Record<string, any>;
+  }>;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -79,11 +101,41 @@ const FamilySchema = new Schema<IFamily>(
       type: String,
       trim: true,
     },
+    economicStatus: {
+      type: String,
+      enum: ['stable', 'struggling', 'needs_assistance'],
+    },
+    welfareStatus: {
+      type: String,
+      enum: ['none', 'receiving', 'applied', 'needs_review'],
+    },
+    specialRequirements: {
+      type: String,
+      trim: true,
+    },
+    housingType: {
+      type: String,
+      enum: ['own', 'rented', 'shared', 'none'],
+    },
+    clusterId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Cluster',
+      index: true,
+    },
     status: {
       type: String,
       enum: ['approved', 'unapproved', 'pending'],
       default: 'pending',
     },
+    isArchived: { type: Boolean, default: undefined, index: true },
+    archivedAt: Date,
+    archivedBy: { type: Schema.Types.ObjectId, ref: 'User' },
+    archivedReason: { type: String, trim: true },
+    needsHeadReassignment: { type: Boolean, default: undefined },
+    needsHeadReason: { type: String, trim: true },
+    needsHeadSince: Date,
+    mergedIntoFamilyId: { type: Schema.Types.ObjectId, ref: 'Family' },
+    lifecycleLog: { type: [Schema.Types.Mixed], default: undefined },
   },
   {
     timestamps: true,
@@ -98,6 +150,9 @@ FamilySchema.virtual('members', {
   localField: '_id',
   foreignField: 'familyId',
 });
+
+FamilySchema.index({ tenantId: 1, status: 1 });
+FamilySchema.index({ tenantId: 1, welfareStatus: 1 });
 
 export default mongoose.model<IFamily>('Family', FamilySchema);
 

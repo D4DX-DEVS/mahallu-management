@@ -1,6 +1,8 @@
 import { forwardRef, useState, useRef, useEffect, useCallback } from 'react';
+import FloatingPanel, { isInsideFloating } from './FloatingPanel';
 import { FiSearch, FiX, FiChevronDown, FiLoader } from 'react-icons/fi';
 import { cn } from '@/utils/cn';
+import { controlClasses, controlErrorClasses, labelClasses } from './Input';
 
 export interface SearchableSelectOption {
   value: string;
@@ -135,7 +137,7 @@ const SearchableSelect = forwardRef<HTMLInputElement, SearchableSelectProps>(
     // Close on click outside
     useEffect(() => {
       const handleClickOutside = (event: MouseEvent) => {
-        if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        if (containerRef.current && !containerRef.current.contains(event.target as Node) && !isInsideFloating(event.target)) {
           setIsOpen(false);
           setSearchQuery('');
           setFocusedIndex(-1);
@@ -177,7 +179,7 @@ const SearchableSelect = forwardRef<HTMLInputElement, SearchableSelectProps>(
     // Scroll focused option into view
     useEffect(() => {
       if (focusedIndex >= 0 && isOpen) {
-        const el = containerRef.current?.querySelector(`[data-index="${focusedIndex}"]`);
+        const el = document.querySelector(`[data-floating-panel] [data-index="${focusedIndex}"]`);
         el?.scrollIntoView({ block: 'nearest' });
       }
     }, [focusedIndex, isOpen]);
@@ -185,9 +187,9 @@ const SearchableSelect = forwardRef<HTMLInputElement, SearchableSelectProps>(
     return (
       <div className={cn('w-full', className)}>
         {label && (
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 ml-1">
+          <label className={labelClasses}>
             {label}
-            {required && <span className="text-red-500 ml-1">*</span>}
+            {required && <span className="ml-0.5 text-[#D9534F]">*</span>}
           </label>
         )}
 
@@ -214,17 +216,13 @@ const SearchableSelect = forwardRef<HTMLInputElement, SearchableSelectProps>(
             onClick={handleToggle}
             disabled={disabled}
             className={cn(
-              'flex h-11 w-full items-center justify-between rounded-xl border border-gray-200 bg-white px-3.5 py-2 text-sm transition-all duration-200',
-              'ring-offset-white placeholder:text-gray-400',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/20 focus-visible:border-primary-500',
-              'disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-gray-50',
-              'hover:border-gray-300 dark:hover:border-gray-600',
-              'dark:border-gray-700 dark:bg-gray-900/50 dark:text-gray-100 dark:ring-offset-gray-950',
-              error && 'border-red-500 focus-visible:ring-red-500/20 focus-visible:border-red-500',
-              isOpen && 'ring-2 ring-primary-500/20 border-primary-500'
+              controlClasses,
+              'flex h-9 items-center justify-between max-sm:h-11',
+              error && controlErrorClasses,
+              isOpen && 'border-primary-600 shadow-focus dark:border-brand-lime'
             )}
           >
-            <span className={cn('truncate text-left flex-1', !selectedOption && 'text-gray-400 dark:text-gray-500')}>
+            <span className={cn('truncate text-left flex-1', !selectedOption && 'text-[#98A59F] dark:text-surface-muted')}>
               {selectedOption ? selectedOption.label : placeholder}
             </span>
             <div className="flex items-center gap-1 ml-2">
@@ -249,7 +247,7 @@ const SearchableSelect = forwardRef<HTMLInputElement, SearchableSelectProps>(
 
           {/* Dropdown */}
           {isOpen && (
-            <div className="absolute z-50 mt-1 w-full rounded-xl border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-900 max-h-80 overflow-hidden">
+            <FloatingPanel anchorRef={containerRef} className="rounded-xl border border-line bg-white shadow-pop dark:border-surface-border dark:bg-surface-raised">
               {/* Search input */}
               <div className="p-2 border-b border-gray-200 dark:border-gray-700">
                 <div className="relative">
@@ -278,7 +276,7 @@ const SearchableSelect = forwardRef<HTMLInputElement, SearchableSelectProps>(
               </div>
 
               {/* Options list */}
-              <div className="max-h-60 overflow-y-auto">
+              <div className="min-h-0 max-h-60 flex-1 overflow-y-auto overscroll-contain">
                 {isLoading ? (
                   <div className="flex items-center justify-center px-3 py-4 text-sm text-gray-500 dark:text-gray-400">
                     <FiLoader className="h-4 w-4 animate-spin mr-2" />
@@ -300,7 +298,7 @@ const SearchableSelect = forwardRef<HTMLInputElement, SearchableSelectProps>(
                         'w-full px-3.5 py-2.5 text-left text-sm transition-colors duration-150',
                         'hover:bg-gray-50 dark:hover:bg-gray-800',
                         internalValue === option.value &&
-                          'bg-primary-50 text-primary-700 dark:bg-primary-900/20 dark:text-primary-400',
+                          'bg-mint font-bold text-primary-700 dark:bg-brand-lime/15 dark:text-brand-lime',
                         index === focusedIndex && 'bg-gray-50 dark:bg-gray-800'
                       )}
                     >
@@ -312,17 +310,17 @@ const SearchableSelect = forwardRef<HTMLInputElement, SearchableSelectProps>(
                   ))
                 )}
               </div>
-            </div>
+            </FloatingPanel>
           )}
         </div>
 
         {error && (
-          <p className="mt-1.5 ml-1 text-sm text-red-600 dark:text-red-400 animate-in slide-in-from-top-1 fade-in duration-200">
+          <p className="mt-1.5 text-[12px] font-medium text-[#B3261E] dark:text-red-300">
             {error}
           </p>
         )}
         {helperText && !error && (
-          <p className="mt-1.5 ml-1 text-sm text-gray-500 dark:text-gray-400">{helperText}</p>
+          <p className="mt-1.5 text-[12px] text-[#7B8983] dark:text-surface-muted">{helperText}</p>
         )}
       </div>
     );

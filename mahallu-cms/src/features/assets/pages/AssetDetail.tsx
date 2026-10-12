@@ -1,61 +1,40 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { FiEdit2, FiArrowLeft, FiPlus, FiTrash2, FiTool } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
+import { FiEdit2, FiArrowLeft, FiPlus, FiTool } from 'react-icons/fi';
+import PageHeader from '@/components/ui/PageHeader';
+import StatusBadge from '@/components/ui/StatusBadge';
+import RowActions from '@/components/ui/RowActions';
+import Avatar, { PersonCell } from '@/components/ui/Avatar';
+import Badge from '@/components/ui/Badge';
+import Tabs from '@/components/ui/Tabs';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import Modal from '@/components/ui/Modal';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import Table from '@/components/ui/Table';
 import { Asset, AssetMaintenance, TableColumn } from '@/types';
 import { ROUTES } from '@/constants/routes';
 import { assetService } from '@/services/assetService';
 import { formatDate } from '@/utils/format';
+import { toast } from '@/store/toastStore';
+import { getFriendlyError } from '@/utils/apiMessages';
+import {
+  categoryLabels,
+  statusLabels,
+  statusTones,
+  maintenanceStatusLabels,
+  maintenanceStatusTones,
+} from '../assetLabels';
+import { controlClasses, labelClasses } from '@/components/ui/Input';
+import DateInput from '@/components/ui/DateInput';
 
-const categoryLabels: Record<string, string> = {
-  furniture: 'Furniture',
-  electronics: 'Electronics',
-  vehicle: 'Vehicle',
-  building: 'Building',
-  land: 'Land',
-  equipment: 'Equipment',
-  other: 'Other',
-};
-
-const statusLabels: Record<string, string> = {
-  active: 'Active',
-  in_use: 'In Use',
-  under_maintenance: 'Under Maintenance',
-  disposed: 'Disposed',
-  damaged: 'Damaged',
-};
-
-const statusColors: Record<string, string> = {
-  active: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-  in_use: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-  under_maintenance: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
-  disposed: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200',
-  damaged: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
-};
-
-const maintenanceStatusLabels: Record<string, string> = {
-  scheduled: 'Scheduled',
-  in_progress: 'In Progress',
-  completed: 'Completed',
-  cancelled: 'Cancelled',
-};
-
-const maintenanceStatusColors: Record<string, string> = {
-  scheduled: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-  in_progress: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
-  completed: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-  cancelled: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
-};
 
 export default function AssetDetail() {
   const { id } = useParams<{ id: string }>();
   const [asset, setAsset] = useState<Asset | null>(null);
   const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState('overview');
   const [error, setError] = useState<string | null>(null);
 
   // Maintenance state
@@ -93,7 +72,7 @@ export default function AssetDetail() {
       const data = await assetService.getById(id);
       setAsset(data);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch asset');
+      setError(getFriendlyError(err, "Couldn't load asset. Refresh the page or try again."));
     } finally {
       setLoading(false);
     }
@@ -165,7 +144,7 @@ export default function AssetDetail() {
       await fetchMaintenanceRecords();
     } catch (err: any) {
       console.error('Error saving maintenance record:', err);
-      alert(err.response?.data?.message || 'Failed to save maintenance record');
+      toast.error(getFriendlyError(err, "Couldn't save maintenance record. Check the details and try again."));
     } finally {
       setMaintenanceSubmitting(false);
     }
@@ -176,11 +155,12 @@ export default function AssetDetail() {
     try {
       setDeletingMaintenance(true);
       await assetService.deleteMaintenance(id, selectedMaintenance.id);
+      toast.success('Maintenance record deleted');
       setShowDeleteMaintenanceModal(false);
       setSelectedMaintenance(null);
       await fetchMaintenanceRecords();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to delete maintenance record');
+      toast.error(getFriendlyError(err, "Couldn't delete maintenance record. Try again in a moment."));
     } finally {
       setDeletingMaintenance(false);
     }
@@ -199,14 +179,12 @@ export default function AssetDetail() {
       label: 'Cost (₹)',
       render: (cost) => cost ? cost.toLocaleString('en-IN') : '-',
     },
-    { key: 'performedBy', label: 'Performed By', render: (val) => val || '-' },
+    { key: 'performedBy', label: 'Performed By', render: (val) => (val ? <PersonCell name={val} size={24} /> : '-') },
     {
       key: 'status',
       label: 'Status',
       render: (status) => (
-        <span className={`px-2 py-1 text-xs font-medium rounded-full ${maintenanceStatusColors[status] || 'bg-gray-100 text-gray-800'}`}>
-          {maintenanceStatusLabels[status] || status}
-        </span>
+        <StatusBadge status={status} tone={maintenanceStatusTones[status] ?? 'neutral'} label={maintenanceStatusLabels[status] || status} />
       ),
     },
     {
@@ -218,29 +196,15 @@ export default function AssetDetail() {
       key: 'actions',
       label: 'Actions',
       render: (_, row) => (
-        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              openEditMaintenance(row);
-            }}
-            className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
-            title="Edit"
-          >
-            <FiEdit2 className="h-4 w-4" />
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setSelectedMaintenance(row);
-              setShowDeleteMaintenanceModal(true);
-            }}
-            className="p-1.5 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 transition-colors"
-            title="Delete"
-          >
-            <FiTrash2 className="h-4 w-4" />
-          </button>
-        </div>
+        <RowActions
+          onEdit={() => openEditMaintenance(row)}
+          onDelete={() => {
+            setSelectedMaintenance(row);
+            setShowDeleteMaintenanceModal(true);
+          }}
+          deleteLabel="Delete"
+          ariaLabels={{ edit: 'Edit maintenance record', delete: 'Delete maintenance record' }}
+        />
       ),
     },
   ];
@@ -258,96 +222,97 @@ export default function AssetDetail() {
       <div className="text-center py-12">
         <p className="text-red-600 dark:text-red-400">{error || 'Asset not found'}</p>
         <Link to={ROUTES.ASSETS.LIST} className="mt-4 inline-block">
-          <Button variant="outline">Back to Assets</Button>
+          <Button variant="secondary">Back to Assets</Button>
         </Link>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{asset.name}</h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Asset Details</p>
-        </div>
-        <div className="flex items-center gap-4">
-          <Breadcrumb
-            items={[
-              { label: 'Dashboard', path: '/dashboard' },
-              { label: 'Assets', path: ROUTES.ASSETS.LIST },
-              { label: asset.name },
-            ]}
-          />
-          <div className="flex gap-2">
+      <PageHeader
+        title={asset.name}
+        leading={<Avatar size={56} name={asset.name} />}
+        description="Asset Details"
+        actions={
+          <>
             <Link to={ROUTES.ASSETS.LIST}>
-              <Button variant="outline">
-                <FiArrowLeft className="h-4 w-4 mr-2" />
+              <Button variant="secondary">
+                <FiArrowLeft className="h-3.5 w-3.5" />
                 Back
               </Button>
             </Link>
             <Link to={ROUTES.ASSETS.EDIT(asset.id)}>
               <Button>
-                <FiEdit2 className="h-4 w-4 mr-2" />
+                <FiEdit2 className="h-3.5 w-3.5" />
                 Edit
               </Button>
             </Link>
-          </div>
-        </div>
-      </div>
+          </>
+        }
+      />
+
+      <Tabs
+        aria-label="Asset sections"
+        value={tab}
+        onChange={setTab}
+        tabs={[
+          { value: 'overview', label: 'Overview' },
+          { value: 'maintenance', label: 'Maintenance records', count: maintenanceRecords.length },
+        ]}
+      />
 
       {/* Asset Info */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {tab === 'overview' && (
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card>
-          <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">Basic Information</h2>
+          <h2 className="text-[13.5px] font-bold mb-3 text-[#18231E] dark:text-surface-text">Basic Information</h2>
           <div className="space-y-4">
             <div>
-              <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Name</label>
-              <p className="mt-1 text-gray-900 dark:text-gray-100">{asset.name}</p>
+              <label className="text-sm font-medium text-[#7B8983] dark:text-surface-muted">Name</label>
+              <div className="mt-0.5"><PersonCell name={asset.name} size={24} /></div>
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Category</label>
-              <p className="mt-1 text-gray-900 dark:text-gray-100">{categoryLabels[asset.category] || asset.category}</p>
+              <label className="text-sm font-medium text-[#7B8983] dark:text-surface-muted">Category</label>
+              <p className="mt-1 text-[#18231E] dark:text-surface-text">{categoryLabels[asset.category] || asset.category}</p>
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Status</label>
+              <label className="text-sm font-medium text-[#7B8983] dark:text-surface-muted">Status</label>
               <p className="mt-1">
-                <span className={`px-2 py-1 text-xs font-medium rounded-full ${statusColors[asset.status] || 'bg-gray-100 text-gray-800'}`}>
-                  {statusLabels[asset.status] || asset.status}
-                </span>
+                <StatusBadge status={asset.status} tone={statusTones[asset.status] ?? 'neutral'} label={statusLabels[asset.status] || asset.status} />
               </p>
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Purchase Date</label>
-              <p className="mt-1 text-gray-900 dark:text-gray-100">{formatDate(asset.purchaseDate)}</p>
+              <label className="text-sm font-medium text-[#7B8983] dark:text-surface-muted">Purchase Date</label>
+              <p className="mt-1 text-[#18231E] dark:text-surface-text">{formatDate(asset.purchaseDate)}</p>
             </div>
           </div>
         </Card>
 
         <Card>
-          <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">Value & Location</h2>
+          <h2 className="text-[13.5px] font-bold mb-3 text-[#18231E] dark:text-surface-text">Value & Location</h2>
           <div className="space-y-4">
             <div>
-              <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Estimated Value</label>
-              <p className="mt-1 text-gray-900 dark:text-gray-100 text-lg font-semibold">
+              <label className="text-sm font-medium text-[#7B8983] dark:text-surface-muted">Estimated Value</label>
+              <p className="mt-1 text-[#18231E] dark:text-surface-text text-lg font-semibold">
                 ₹{asset.estimatedValue?.toLocaleString('en-IN') || '0'}
               </p>
             </div>
             {asset.location && (
               <div>
-                <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Location</label>
-                <p className="mt-1 text-gray-900 dark:text-gray-100">{asset.location}</p>
+                <label className="text-sm font-medium text-[#7B8983] dark:text-surface-muted">Location</label>
+                <p className="mt-1 text-[#18231E] dark:text-surface-text">{asset.location}</p>
               </div>
             )}
             <div>
-              <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Created At</label>
-              <p className="mt-1 text-gray-900 dark:text-gray-100">{formatDate(asset.createdAt)}</p>
+              <label className="text-sm font-medium text-[#7B8983] dark:text-surface-muted">Created At</label>
+              <p className="mt-1 text-[#18231E] dark:text-surface-text">{formatDate(asset.createdAt)}</p>
             </div>
             {asset.updatedAt && (
               <div>
-                <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Last Updated</label>
-                <p className="mt-1 text-gray-900 dark:text-gray-100">{formatDate(asset.updatedAt)}</p>
+                <label className="text-sm font-medium text-[#7B8983] dark:text-surface-muted">Last Updated</label>
+                <p className="mt-1 text-[#18231E] dark:text-surface-text">{formatDate(asset.updatedAt)}</p>
               </div>
             )}
           </div>
@@ -355,24 +320,26 @@ export default function AssetDetail() {
 
         {asset.description && (
           <Card className="md:col-span-2">
-            <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">Description</h2>
-            <p className="text-gray-700 dark:text-gray-300">{asset.description}</p>
+            <h2 className="text-[13.5px] font-bold mb-3 text-[#18231E] dark:text-surface-text">Description</h2>
+            <p className="text-[#3A4741] dark:text-surface-text">{asset.description}</p>
           </Card>
         )}
       </div>
+      )}
 
       {/* Maintenance Records Section */}
+      {tab === 'maintenance' && (
       <Card>
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <FiTool className="h-5 w-5 text-gray-600 dark:text-gray-400" />
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Maintenance Records</h2>
-            <span className="ml-2 px-2 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200">
+            <FiTool className="h-4 w-4 text-[#5B6963] dark:text-surface-muted" />
+            <h2 className="text-[13.5px] font-bold text-[#18231E] dark:text-surface-text">Maintenance Records</h2>
+            <Badge variant="neutral" size="sm">
               {maintenanceRecords.length}
-            </span>
+            </Badge>
           </div>
-          <Button size="md" onClick={openAddMaintenance}>
-            <FiPlus className="h-4 w-4 mr-2" />
+          <Button onClick={openAddMaintenance}>
+            <FiPlus className="h-3.5 w-3.5" />
             Add Record
           </Button>
         </div>
@@ -390,6 +357,7 @@ export default function AssetDetail() {
           />
         )}
       </Card>
+      )}
 
       {/* Add/Edit Maintenance Modal */}
       <Modal
@@ -402,7 +370,7 @@ export default function AssetDetail() {
         footer={
           <>
             <Button
-              variant="outline"
+              variant="secondary"
               onClick={() => {
                 setShowMaintenanceModal(false);
                 resetMaintenanceForm();
@@ -422,59 +390,57 @@ export default function AssetDetail() {
       >
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label className={labelClasses}>
               Maintenance Date <span className="text-red-500">*</span>
             </label>
-            <input
-              type="date"
+            <DateInput
               value={maintenanceForm.maintenanceDate}
               onChange={(e) => setMaintenanceForm({ ...maintenanceForm, maintenanceDate: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label className={labelClasses}>
               Description <span className="text-red-500">*</span>
             </label>
             <textarea
               value={maintenanceForm.description}
               onChange={(e) => setMaintenanceForm({ ...maintenanceForm, description: e.target.value })}
               rows={3}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+              className={`${controlClasses} py-2`}
               placeholder="Describe the maintenance work..."
             />
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Cost (₹)</label>
+              <label className={labelClasses}>Cost (₹)</label>
               <input
                 type="number"
                 min="0"
                 step="0.01"
                 value={maintenanceForm.cost}
                 onChange={(e) => setMaintenanceForm({ ...maintenanceForm, cost: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                className={`${controlClasses} h-9`}
                 placeholder="0"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Performed By</label>
+              <label className={labelClasses}>Performed By</label>
               <input
                 type="text"
                 value={maintenanceForm.performedBy}
                 onChange={(e) => setMaintenanceForm({ ...maintenanceForm, performedBy: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                className={`${controlClasses} h-9`}
                 placeholder="Service provider name"
               />
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Status</label>
+              <label className={labelClasses}>Status</label>
               <select
                 value={maintenanceForm.status}
                 onChange={(e) => setMaintenanceForm({ ...maintenanceForm, status: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                className={`${controlClasses} h-9`}
               >
                 <option value="scheduled">Scheduled</option>
                 <option value="in_progress">In Progress</option>
@@ -483,12 +449,10 @@ export default function AssetDetail() {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Next Maintenance Date</label>
-              <input
-                type="date"
+              <label className={labelClasses}>Next Maintenance Date</label>
+              <DateInput
                 value={maintenanceForm.nextMaintenanceDate}
                 onChange={(e) => setMaintenanceForm({ ...maintenanceForm, nextMaintenanceDate: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               />
             </div>
           </div>
@@ -502,11 +466,11 @@ export default function AssetDetail() {
           setShowDeleteMaintenanceModal(false);
           setSelectedMaintenance(null);
         }}
-        title="Delete Maintenance Record"
+        title="Delete maintenance record?"
         footer={
           <>
             <Button
-              variant="outline"
+              variant="secondary"
               onClick={() => {
                 setShowDeleteMaintenanceModal(false);
                 setSelectedMaintenance(null);
@@ -520,8 +484,8 @@ export default function AssetDetail() {
           </>
         }
       >
-        <p className="text-gray-600 dark:text-gray-400">
-          Are you sure you want to delete this maintenance record? This action cannot be undone.
+        <p className="text-[#5B6963] dark:text-surface-muted">
+          Delete this maintenance record? This cannot be undone.
         </p>
       </Modal>
     </div>

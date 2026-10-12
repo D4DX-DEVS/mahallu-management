@@ -1,21 +1,26 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { FiEye, FiX, FiDollarSign, FiCheckCircle, FiClock } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
+import { FiDollarSign, FiCheckCircle, FiClock, FiRefreshCw } from 'react-icons/fi';
 import Card from '@/components/ui/Card';
+import PageHeader from '@/components/ui/PageHeader';
 import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import Pagination from '@/components/ui/Pagination';
-import TableToolbar from '@/components/ui/TableToolbar';
+import FilterBar from '@/components/ui/FilterBar';
+import StatusBadge from '@/components/ui/StatusBadge';
+import RowActions from '@/components/ui/RowActions';
+import { PersonCell } from '@/components/ui/Avatar';
 import { TableColumn, Pagination as PaginationType } from '@/types';
 import { SalaryPayment } from '@/types';
 import { ROUTES } from '@/constants/routes';
 import { salaryService } from '@/services/salaryService';
 import { instituteService } from '@/services/instituteService';
 import { useAuthStore } from '@/store/authStore';
+import { monthlySeries } from '@/utils/statSeries';
+import { getFriendlyError } from '@/utils/apiMessages';
 
 const MONTHS = [
   { value: '1', label: 'January' }, { value: '2', label: 'February' }, { value: '3', label: 'March' },
@@ -30,7 +35,6 @@ export default function SalaryList() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { currentInstituteId: userInstituteId } = useAuthStore();
-  const [isFilterVisible, setIsFilterVisible] = useState(false);
   const [statusFilter, setStatusFilter] = useState('all');
   const [monthFilter, setMonthFilter] = useState('all');
   const [yearFilter, setYearFilter] = useState(String(new Date().getFullYear()));
@@ -72,7 +76,7 @@ export default function SalaryList() {
       setPayments(result.data);
       if (result.pagination) setPagination(result.pagination);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch salary payments');
+      setError(getFriendlyError(err, "Couldn't load salary payments. Refresh the page or try again."));
     } finally {
       setLoading(false);
     }
@@ -80,31 +84,21 @@ export default function SalaryList() {
 
   const columns: TableColumn<SalaryPayment>[] = [
     { key: 'id', label: 'No.', render: (_, __, index) => index + 1 },
-    { key: 'employeeId', label: 'Employee', render: (emp) => (typeof emp === 'object' && emp?.name) ? emp.name : (emp || '-') },
+    { key: 'employeeId', label: 'Employee', render: (emp) => { const nm = (typeof emp === 'object' && emp?.name) ? emp.name : emp; return nm ? <PersonCell name={String(nm)} size={32} /> : '-'; } },
     { key: 'month', label: 'Period', render: (_, row) => `${getMonthName(row.month)} ${row.year}` },
     { key: 'baseSalary', label: 'Base', render: (v) => `₹${Number(v || 0).toLocaleString()}` },
     { key: 'netAmount', label: 'Net Amount', render: (v) => <span className="font-semibold">₹{Number(v || 0).toLocaleString()}</span> },
-    { key: 'paymentMethod', label: 'Method', render: (v) => v || '-' },
+    { key: 'paymentMethod', label: 'Method', render: (v) => (v ? <StatusBadge status={v} tone="neutral" dot={false} /> : '-') },
     {
       key: 'status',
       label: 'Status',
-      render: (status) => (
-        <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-          status === 'paid' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-            : status === 'pending' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-            : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-        }`}>
-          {status || 'pending'}
-        </span>
-      ),
+      render: (status) => <StatusBadge status={status || 'pending'} />,
     },
     {
       key: 'actions',
       label: 'Actions',
       render: (_, row) => (
-        <button onClick={(e) => { e.stopPropagation(); navigate(ROUTES.SALARY.DETAIL(row.id)); }} className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400">
-          <FiEye className="h-4 w-4" />
-        </button>
+        <RowActions onView={() => navigate(ROUTES.SALARY.DETAIL(row.id))} viewLabel="View payment" ariaLabels={{ view: 'View payment' }} />
       ),
     },
   ];
@@ -112,67 +106,59 @@ export default function SalaryList() {
   const totalPaid = payments.filter(p => p.status === 'paid').reduce((sum, p) => sum + (p.netAmount || 0), 0);
   const totalPending = payments.filter(p => p.status === 'pending').reduce((sum, p) => sum + (p.netAmount || 0), 0);
 
+  const payMonths = monthlySeries(payments as any[], (p: any) => p.paymentDate || p.createdAt);
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 5 }, (_, i) => ({ value: String(currentYear - i), label: String(currentYear - i) }));
 
   return (
     <div className="space-y-4">
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Salary Payments</h1>
-            <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">Manage employee salary payments</p>
-          </div>
-          <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Salary' }]} />
-        </div>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <StatCard title="Total Payments" value={pagination?.total || payments.length} icon={<FiDollarSign className="h-5 w-5" />} />
-          <StatCard title="Total Paid" value={`₹${totalPaid.toLocaleString()}`} icon={<FiCheckCircle className="h-5 w-5" />} />
-          <StatCard title="Total Pending" value={`₹${totalPending.toLocaleString()}`} icon={<FiClock className="h-5 w-5" />} />
-        </div>
+      <PageHeader
+        title="Salary Payments"
+        description="Manage employee salary payments"
+        actions={
+          <>
+            <Link to={ROUTES.SALARY.SUMMARY}><Button variant="secondary">Summary</Button></Link>
+            <Link to={ROUTES.SALARY.CREATE}><Button>+ New payment</Button></Link>
+          </>
+        }
+      />
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <StatCard variant="inline" viz={payMonths.length ? { type: 'bars', values: payMonths } : undefined} title="Total Payments" value={pagination?.total || payments.length} icon={<FiDollarSign className="h-[17px] w-[17px]" />} tone="green" />
+        <StatCard variant="inline" viz={totalPaid + totalPending > 0 ? { type: 'segments', segments: [{ value: totalPaid }, { value: totalPending, color: '#FDD817' }] } : undefined} summary={`Paid ₹${totalPaid.toLocaleString()}, pending ₹${totalPending.toLocaleString()}`} title="Total Paid" value={`₹${totalPaid.toLocaleString()}`} icon={<FiCheckCircle className="h-[17px] w-[17px]" />} tone="lime" />
+        <StatCard variant="inline" viz={payments.filter((p) => p.status === 'pending').length > 0 ? { type: 'dots', count: payments.filter((p) => p.status === 'pending').length } : undefined} summary={`${payments.filter((p) => p.status === 'pending').length} salary payments pending, ₹${totalPending.toLocaleString()}`} title="Total Pending" value={`₹${totalPending.toLocaleString()}`} icon={<FiClock className="h-[17px] w-[17px]" />} tone="gold" />
       </div>
 
-      <Card>
-        <TableToolbar
-          searchQuery=""
-          onSearchChange={() => {}}
-          onFilterClick={() => setIsFilterVisible(!isFilterVisible)}
-          isFilterVisible={isFilterVisible}
-          hasFilters={true}
-          onRefresh={fetchPayments}
-          actionButtons={
-            <div className="flex gap-2">
-              <Link to={ROUTES.SALARY.SUMMARY}><Button size="md" variant="outline">Summary</Button></Link>
-              <Link to={ROUTES.SALARY.CREATE}><Button size="md">+ New Payment</Button></Link>
-            </div>
+      <Card padding="none" className="overflow-visible">
+        <FilterBar
+          actions={
+            <Button variant="secondary" iconOnly aria-label="Refresh list" onClick={fetchPayments}>
+              <FiRefreshCw className="h-3.5 w-3.5" />
+            </Button>
           }
-        />
-
-        {isFilterVisible && (
-          <div className="relative flex flex-wrap items-center gap-4 mb-6 p-4 border border-gray-200 rounded-lg bg-white dark:bg-gray-800 dark:border-gray-700">
-            <button onClick={() => setIsFilterVisible(false)} className="absolute right-4 top-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"><FiX className="h-4 w-4" /></button>
-            <div className="w-36">
-              <Select options={[{ value: 'all', label: 'All Status' }, { value: 'paid', label: 'Paid' }, { value: 'pending', label: 'Pending' }, { value: 'cancelled', label: 'Cancelled' }]} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} />
-            </div>
-            <div className="w-36">
-              <Select options={[{ value: 'all', label: 'All Months' }, ...MONTHS]} value={monthFilter} onChange={(e) => setMonthFilter(e.target.value)} />
-            </div>
-            <div className="w-28">
-              <Select options={[{ value: 'all', label: 'All Years' }, ...years]} value={yearFilter} onChange={(e) => setYearFilter(e.target.value)} />
-            </div>
-            {!userInstituteId && (
-              <div className="w-48">
-                <Select options={[{ value: 'all', label: 'All Institutes' }, ...institutes.map(i => ({ value: i.id, label: i.name }))]} value={instituteFilter} onChange={(e) => setInstituteFilter(e.target.value)} />
-              </div>
-            )}
+        >
+          <div className="w-36">
+            <Select options={[{ value: 'all', label: 'All Status' }, { value: 'paid', label: 'Paid' }, { value: 'pending', label: 'Pending' }, { value: 'cancelled', label: 'Cancelled' }]} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} />
           </div>
-        )}
+          <div className="w-36">
+            <Select options={[{ value: 'all', label: 'All Months' }, ...MONTHS]} value={monthFilter} onChange={(e) => setMonthFilter(e.target.value)} />
+          </div>
+          <div className="w-28">
+            <Select options={[{ value: 'all', label: 'All Years' }, ...years]} value={yearFilter} onChange={(e) => setYearFilter(e.target.value)} />
+          </div>
+          {!userInstituteId && (
+            <div className="w-48">
+              <Select options={[{ value: 'all', label: 'All Institutes' }, ...institutes.map(i => ({ value: i.id, label: i.name }))]} value={instituteFilter} onChange={(e) => setInstituteFilter(e.target.value)} />
+            </div>
+          )}
+        </FilterBar>
 
+        <div className="p-3.5">
         {loading ? (
           <div className="flex justify-center items-center py-12"><LoadingSpinner /></div>
         ) : error ? (
           <div className="text-center py-12">
-            <p className="text-red-600 dark:text-red-400">{error}</p>
+            <p className="text-[#B3261E] dark:text-red-300">{error}</p>
             <Button onClick={fetchPayments} className="mt-4" variant="outline">Retry</Button>
           </div>
         ) : (
@@ -180,10 +166,11 @@ export default function SalaryList() {
         )}
 
         {pagination && (
-          <div className="mt-4">
+          <div className="mt-3.5">
             <Pagination currentPage={pagination.page} totalPages={pagination.totalPages} totalItems={pagination.total} itemsPerPage={pagination.limit} onPageChange={setCurrentPage} />
           </div>
         )}
+        </div>
       </Card>
     </div>
   );

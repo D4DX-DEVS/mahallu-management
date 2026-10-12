@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { FiCreditCard, FiDollarSign, FiEdit2, FiTrash2 } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
+import { FiCreditCard, FiDollarSign, FiRefreshCw, FiDownload, FiFileText, FiFile } from 'react-icons/fi';
 import Card from '@/components/ui/Card';
+import RowActions from '@/components/ui/RowActions';
+import PageHeader from '@/components/ui/PageHeader';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import Input from '@/components/ui/Input';
@@ -11,18 +12,22 @@ import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
 import Pagination from '@/components/ui/Pagination';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
-import TableToolbar from '@/components/ui/TableToolbar';
+import FilterBar from '@/components/ui/FilterBar';
+import Dropdown from '@/components/ui/Dropdown';
 import { TableColumn, Pagination as PaginationType } from '@/types';
 import { masterAccountService, InstituteAccount } from '@/services/masterAccountService';
 import { instituteService } from '@/services/instituteService';
 import { useAuthStore } from '@/store/authStore';
 import { formatDate } from '@/utils/format';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
+import { toast } from '@/store/toastStore';
+import { getFriendlyError } from '@/utils/apiMessages';
+import { PersonCell } from '@/components/ui/Avatar';
+import StatusBadge from '@/components/ui/StatusBadge';
 
 export default function InstituteAccountsList() {
   const { currentInstituteId: userInstituteId } = useAuthStore();
   const [searchQuery, setSearchQuery] = useState('');
-  const [isFilterVisible, setIsFilterVisible] = useState(false);
   const [accounts, setAccounts] = useState<InstituteAccount[]>([]);
   const [institutes, setInstitutes] = useState<{ id: string; name: string }[]>([]);
   const [instituteFilter, setInstituteFilter] = useState(userInstituteId || 'all');
@@ -63,7 +68,7 @@ export default function InstituteAccountsList() {
         setPagination(result.pagination);
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch institute accounts');
+      setError(getFriendlyError(err, "Couldn't load institute accounts. Refresh the page or try again."));
       console.error('Error fetching accounts:', err);
       setAccounts([]);
     } finally {
@@ -77,7 +82,7 @@ export default function InstituteAccountsList() {
       const params = { limit: 10000 };
       const result = await masterAccountService.getAllInstituteAccounts(params);
       const dataToExport = Array.isArray(result.data) ? result.data : [];
-      if (dataToExport.length === 0) { alert('No data to export'); return; }
+      if (dataToExport.length === 0) { toast.info('Nothing to export. Change your filters and try again.'); return; }
       const filename = 'institute-accounts';
       const title = 'Institute Accounts';
       switch (type) {
@@ -87,7 +92,7 @@ export default function InstituteAccountsList() {
       }
     } catch (error: any) {
       console.error('Export error:', error);
-      alert(error?.message || 'Failed to export data');
+      toast.error(getFriendlyError(error, "Couldn't export institute accounts. Check your connection and try again."));
     } finally {
       setIsExporting(false);
     }
@@ -95,14 +100,16 @@ export default function InstituteAccountsList() {
 
   const columns: TableColumn<InstituteAccount>[] = [
     { key: 'id', label: 'No.', render: (_, __, index) => index + 1 },
+    { key: 'accountName', label: 'Account', render: (v, row) => <PersonCell name={v || row.bankName || 'Account'} subtitle={row.bankName} /> },
     { key: 'accountNumber', label: 'Account Number' },
     { key: 'bankName', label: 'Bank Name' },
     { key: 'ifscCode', label: 'IFSC Code' },
     {
       key: 'balance',
       label: 'Balance',
-      render: (balance) => `₹${balance?.toLocaleString() || 0}`,
+      render: (balance) => <span className={(balance || 0) < 0 ? 'font-semibold text-[#B3261E] dark:text-red-300' : 'font-semibold text-[#0B4837] dark:text-brand-lime'}>{`₹${balance?.toLocaleString() || 0}`}</span>,
     },
+    { key: 'status', label: 'Status', render: (s) => <StatusBadge status={s || 'active'} /> },
     {
       key: 'createdAt',
       label: 'Created',
@@ -112,14 +119,11 @@ export default function InstituteAccountsList() {
       key: 'actions',
       label: 'Actions',
       render: (_, row) => (
-        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-          <button onClick={() => openEditModal(row)} className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400" title="Edit">
-            <FiEdit2 className="h-4 w-4" />
-          </button>
-          <button onClick={() => { setSelectedAccount(row); setShowDeleteModal(true); }} className="p-1.5 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400" title="Delete">
-            <FiTrash2 className="h-4 w-4" />
-          </button>
-        </div>
+        <RowActions
+          onEdit={() => openEditModal(row)}
+          onDelete={() => { setSelectedAccount(row); setShowDeleteModal(true); }}
+          ariaLabels={{ edit: 'Edit', delete: 'Delete' }}
+        />
       ),
     },
   ];
@@ -145,7 +149,7 @@ export default function InstituteAccountsList() {
       setShowEditModal(false);
       setSelectedAccount(null);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to update account');
+      toast.error(getFriendlyError(err, "Couldn't update account. Try again in a moment."));
     }
   };
 
@@ -158,90 +162,106 @@ export default function InstituteAccountsList() {
       setShowDeleteModal(false);
       setSelectedAccount(null);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to delete account');
+      toast.error(getFriendlyError(err, "Couldn't delete account. Try again in a moment."));
     } finally {
       setDeleting(false);
     }
   };
 
   const stats = [
-    { title: 'Total Accounts', value: pagination?.total || accounts.length, icon: <FiCreditCard className="h-5 w-5" /> },
+    { title: 'Total Accounts', value: pagination?.total || accounts.length, icon: <FiCreditCard className="h-[17px] w-[17px]" /> },
     {
       title: 'Total Balance',
       value: `₹${accounts.reduce((sum, a) => sum + (a.balance || 0), 0).toLocaleString()}`,
-      icon: <FiDollarSign className="h-5 w-5" />,
+      icon: <FiDollarSign className="h-[17px] w-[17px]" />,
+      tone: 'lime' as const,
+      viz: accounts.filter((a) => (a.balance || 0) > 0).length >= 2 ? { type: 'ladder' as const, values: accounts.map((a) => a.balance || 0) } : undefined,
     },
   ];
 
   return (
     <div className="space-y-4">
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Institute Accounts</h1>
-            <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">Manage institute bank accounts</p>
-          </div>
-          <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Institute Accounts' }]} />
-        </div>
+    <div className="space-y-3">
+      <PageHeader title="Institute Accounts" description="Manage institute bank accounts"
+        actions={
+          <Link to="/master-accounts/institute/create"><Button>+ New account</Button></Link>
+        }
+      />
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {stats.map((stat, index) => (
-            <StatCard key={index} {...stat} />
+            <StatCard key={index} variant="inline" {...stat} />
           ))}
         </div>
       </div>
 
-      <Card>
-        <TableToolbar
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-          onFilterClick={() => setIsFilterVisible(!isFilterVisible)}
-          isFilterVisible={isFilterVisible}
-          hasFilters={!userInstituteId}
-          onRefresh={fetchAccounts}
-          onExport={handleExport}
-          isExporting={isExporting}
-          actionButtons={<Link to="/master-accounts/institute/create"><Button size="md">+ New Account</Button></Link>}
-        />
-        {isFilterVisible && !userInstituteId && (
-          <div className="flex flex-wrap items-center gap-4 mb-6 p-4 border border-gray-200 rounded-lg bg-white dark:bg-gray-800 dark:border-gray-700">
-            <div className="w-64">
-              <Select
-                label="Institute"
-                options={[{ value: 'all', label: 'All Institutes' }, ...institutes.map(i => ({ value: i.id, label: i.name }))]}
-                value={instituteFilter}
-                onChange={(e) => setInstituteFilter(e.target.value)}
+      <Card padding="none" className="overflow-visible">
+        <FilterBar
+          search={{ value: searchQuery, onChange: setSearchQuery, placeholder: 'Search accounts' }}
+          actions={
+            <>
+              <Button variant="secondary" iconOnly aria-label="Refresh list" onClick={fetchAccounts}>
+                <FiRefreshCw className="h-3.5 w-3.5" />
+              </Button>
+              <Dropdown
+                trigger={
+                  <Button variant="secondary" isLoading={isExporting}>
+                    {!isExporting && <FiDownload className="h-3.5 w-3.5" />}
+                    Export
+                  </Button>
+                }
+                items={[
+                  { label: 'Export CSV', icon: <FiFileText />, onClick: () => handleExport('csv'), disabled: isExporting },
+                  { label: 'Export JSON', icon: <FiFile />, onClick: () => handleExport('json'), disabled: isExporting },
+                  { label: 'Export PDF', icon: <FiDownload />, onClick: () => handleExport('pdf'), disabled: isExporting },
+                ]}
               />
-            </div>
-          </div>
-        )}
-        {loading ? (
-          <div className="flex justify-center items-center py-12">
-            <LoadingSpinner />
-          </div>
-        ) : error ? (
-          <div className="text-center py-12">
-            <p className="text-red-600 dark:text-red-400">{error}</p>
-            <Button onClick={fetchAccounts} className="mt-4" variant="outline">
-              Retry
-            </Button>
-          </div>
-        ) : (
-          <>
-            <Table columns={columns} data={accounts} emptyMessage="No institute accounts found" showExport={false} />
-            {pagination && pagination.totalPages > 1 && (
-              <div className="mt-6">
-                <Pagination
-                  currentPage={currentPage}
-                  totalPages={pagination.totalPages}
-                  totalItems={pagination.total}
-                  itemsPerPage={itemsPerPage}
-                  onPageChange={setCurrentPage}
+            </>
+          }
+        >
+          {!userInstituteId && (
+            <>
+              <div className="w-64">
+                <Select
+                  options={[{ value: 'all', label: 'All Institutes' }, ...institutes.map(i => ({ value: i.id, label: i.name }))]}
+                  value={instituteFilter}
+                  onChange={(e) => setInstituteFilter(e.target.value)}
                 />
               </div>
-            )}
-          </>
-        )}
+            </>
+          )}
+        </FilterBar>
+
+        <div className="p-3.5">
+          {loading ? (
+            <div className="flex justify-center items-center py-12">
+              <LoadingSpinner />
+            </div>
+          ) : error ? (
+            <div className="text-center py-12">
+              <p className="text-[#B3261E] dark:text-red-300">{error}</p>
+              <Button onClick={fetchAccounts} className="mt-4" variant="outline">
+                Retry
+              </Button>
+            </div>
+          ) : (
+            <>
+              <Table columns={columns} data={accounts} emptyMessage="No institute accounts found" showExport={false} />
+              {pagination && pagination.totalPages > 1 && (
+                <div className="mt-3.5">
+                  <Pagination
+                    currentPage={currentPage}
+                    totalPages={pagination.totalPages}
+                    totalItems={pagination.total}
+                    itemsPerPage={itemsPerPage}
+                    onPageChange={setCurrentPage}
+                  />
+                </div>
+              )}
+            </>
+          )}
+      
+        </div>
       </Card>
 
       {/* Edit Modal */}
@@ -270,16 +290,16 @@ export default function InstituteAccountsList() {
       <Modal
         isOpen={showDeleteModal}
         onClose={() => { setShowDeleteModal(false); setSelectedAccount(null); }}
-        title="Delete Institute Account"
+        title="Delete institute account?"
         footer={
           <>
             <Button variant="outline" onClick={() => { setShowDeleteModal(false); setSelectedAccount(null); }}>Cancel</Button>
-            <Button variant="danger" onClick={handleDelete} isLoading={deleting}>Delete</Button>
+            <Button variant="danger-solid" onClick={handleDelete} isLoading={deleting}>Delete</Button>
           </>
         }
       >
-        <p className="text-gray-600 dark:text-gray-400">
-          Are you sure you want to delete <strong>{(selectedAccount as any)?.accountName || selectedAccount?.accountNumber}</strong>? This action cannot be undone.
+        <p className="text-[13px] text-[#5B6963] dark:text-surface-muted">
+          Delete <strong>{(selectedAccount as any)?.accountName || selectedAccount?.accountNumber}</strong>? This cannot be undone.
         </p>
       </Modal>
     </div>

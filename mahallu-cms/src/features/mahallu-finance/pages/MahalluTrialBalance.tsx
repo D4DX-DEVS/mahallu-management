@@ -1,10 +1,18 @@
 import { useState } from 'react';
-import Breadcrumb from '@/components/layout/Breadcrumb';
+import { FiDollarSign, FiTrendingUp, FiTrendingDown } from 'react-icons/fi';
 import Card from '@/components/ui/Card';
+import EmptyState from '@/components/ui/EmptyState';
+import Badge from '@/components/ui/Badge';
+import Alert from '@/components/ui/Alert';
+import FilterBar from '@/components/ui/FilterBar';
+import StatCard from '@/components/ui/StatCard';
+import PageHeader from '@/components/ui/PageHeader';
 import Button from '@/components/ui/Button';
-import Input from '@/components/ui/Input';
+import DateRangePicker from '@/components/ui/DateRangePicker';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { accountingReportService, TrialBalanceEntry } from '@/services/accountingReportService';
+import { getFriendlyError } from '@/utils/apiMessages';
+import ScrollX from '@/features/_shared/ScrollX';
 
 export default function MahalluTrialBalance() {
   const [loading, setLoading] = useState(false);
@@ -20,7 +28,7 @@ export default function MahalluTrialBalance() {
       const data = await accountingReportService.getTrialBalance({ startDate, endDate, scope: 'mahallu' });
       setEntries(data || []);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch trial balance');
+      setError(getFriendlyError(err, "Couldn't load trial balance. Refresh the page or try again."));
     } finally {
       setLoading(false);
     }
@@ -30,74 +38,63 @@ export default function MahalluTrialBalance() {
   const totalCredit = entries.reduce((s, e) => s + e.credit, 0);
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Mahallu Trial Balance</h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Summary of all Mahallu ledger balances</p>
-        </div>
-        <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Mahallu Finance', path: '/mahallu-finance/accounts' }, { label: 'Trial Balance' }]} />
-      </div>
+    <div className="space-y-4">
+      <PageHeader title="Mahallu Trial Balance" description="Summary of all Mahallu ledger balances" />
 
-      <Card>
-        <div className="flex flex-wrap items-end gap-4 mb-6">
-          <div className="w-44"><Input label="Start Date" type="date" value={startDate} onChange={e => setStartDate(e.target.value)} /></div>
-          <div className="w-44"><Input label="End Date" type="date" value={endDate} onChange={e => setEndDate(e.target.value)} /></div>
+      <Card padding="none" className="overflow-visible">
+        <FilterBar className="items-end">
+          <div className="w-72 max-sm:w-full">
+            <DateRangePicker label="Date range" from={startDate} to={endDate} onChange={(f, t) => { setStartDate(f); setEndDate(t); }} />
+          </div>
           <Button onClick={fetchData} disabled={loading}>{loading ? 'Loading...' : 'Generate'}</Button>
-        </div>
+        </FilterBar>
 
-        {loading ? (
-          <div className="flex justify-center py-12"><LoadingSpinner /></div>
-        ) : error ? (
-          <p className="text-center py-8 text-red-600">{error}</p>
-        ) : entries.length === 0 ? (
-          <p className="text-center py-12 text-gray-500">Select a date range and click "Generate"</p>
-        ) : (
-          <>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-              <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg">
-                <p className="text-sm text-red-600">Total Debit (Expense)</p>
-                <p className="text-xl font-bold text-red-700">₹{totalDebit.toLocaleString()}</p>
+        <div className="p-3.5">
+          {loading ? (
+            <div className="flex justify-center py-12"><LoadingSpinner /></div>
+          ) : error ? (
+            <Alert tone="danger">{error}</Alert>
+          ) : entries.length === 0 ? (
+            <EmptyState title="Nothing to show yet" description='Select a date range and click "Generate"' />
+          ) : (
+            <>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 mb-4">
+                <StatCard variant="inline" title="Total Debit (Expense)" value={`₹${totalDebit.toLocaleString()}`} tone="red" icon={<FiTrendingDown className="h-[17px] w-[17px]" />} />
+                <StatCard variant="inline" title="Total Credit (Income)" value={`₹${totalCredit.toLocaleString()}`} tone="green" icon={<FiTrendingUp className="h-[17px] w-[17px]" />} />
+                <StatCard variant="inline" title="Difference" value={`₹${Math.abs(totalCredit - totalDebit).toLocaleString()}`} tone={Math.abs(totalCredit - totalDebit) < 0.01 ? 'lime' : 'gold'} icon={<FiDollarSign className="h-[17px] w-[17px]" />} viz={totalDebit + totalCredit > 0 ? { type: 'pair', a: totalCredit, b: totalDebit, colorB: '#E0B400' } : undefined} summary={`Credit ₹${totalCredit.toLocaleString()} compared with debit ₹${totalDebit.toLocaleString()}`} />
               </div>
-              <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                <p className="text-sm text-green-600">Total Credit (Income)</p>
-                <p className="text-xl font-bold text-green-700">₹{totalCredit.toLocaleString()}</p>
-              </div>
-              <div className={`p-4 rounded-lg ${Math.abs(totalCredit - totalDebit) < 0.01 ? 'bg-green-50 dark:bg-green-900/20' : 'bg-yellow-50 dark:bg-yellow-900/20'}`}>
-                <p className={`text-sm ${Math.abs(totalCredit - totalDebit) < 0.01 ? 'text-green-600' : 'text-yellow-600'}`}>Difference</p>
-                <p className={`text-xl font-bold ${Math.abs(totalCredit - totalDebit) < 0.01 ? 'text-green-700' : 'text-yellow-700'}`}>₹{Math.abs(totalCredit - totalDebit).toLocaleString()}</p>
-              </div>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                <thead className="bg-gray-50 dark:bg-gray-800">
-                  <tr>
-                    {['Ledger', 'Type', 'Debit', 'Credit'].map(h => (
-                      <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                  {entries.map((entry, i) => (
-                    <tr key={i} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
-                      <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100">{entry.ledgerName}</td>
-                      <td className="px-4 py-3">
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${entry.type === 'income' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{entry.type}</span>
-                      </td>
-                      <td className="px-4 py-3 text-sm text-red-600">{entry.debit > 0 ? `₹${entry.debit.toLocaleString()}` : '-'}</td>
-                      <td className="px-4 py-3 text-sm text-green-600">{entry.credit > 0 ? `₹${entry.credit.toLocaleString()}` : '-'}</td>
+              <ScrollX>
+                <table className="w-full border-collapse text-[12.5px]">
+                  <thead className="bg-[#FAFCFB] dark:bg-surface-base/60">
+                    <tr>
+                      {['Ledger', 'Type', 'Debit', 'Credit'].map(h => (
+                        <th key={h} className="whitespace-nowrap px-3.5 py-2.5 text-left text-[12px] font-bold text-[#7B8983] dark:text-surface-muted uppercase tracking-[0.06em]">{h}</th>
+                      ))}
                     </tr>
-                  ))}
-                  <tr className="bg-gray-50 dark:bg-gray-800 font-semibold">
-                    <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100" colSpan={2}>Total</td>
-                    <td className="px-4 py-3 text-sm text-red-700">₹{totalDebit.toLocaleString()}</td>
-                    <td className="px-4 py-3 text-sm text-green-700">₹{totalCredit.toLocaleString()}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </>
-        )}
+                  </thead>
+                  <tbody className="divide-y divide-line-soft dark:divide-surface-border">
+                    {entries.map((entry, i) => (
+                      <tr key={i} className="hover:bg-[#F6FAF8] dark:hover:bg-surface-hover/60">
+                        <td className="px-3.5 py-2 text-[12.5px] font-medium text-[#18231E] dark:text-surface-text">{entry.ledgerName}</td>
+                        <td className="px-3.5 py-2">
+                          <Badge variant={entry.type === 'income' ? 'success' : 'danger'} dot className="capitalize">{entry.type}</Badge>
+                        </td>
+                        <td className="px-3.5 py-2 text-[12.5px] text-red-600">{entry.debit > 0 ? `₹${entry.debit.toLocaleString()}` : '-'}</td>
+                        <td className="px-3.5 py-2 text-[12.5px] text-primary-600">{entry.credit > 0 ? `₹${entry.credit.toLocaleString()}` : '-'}</td>
+                      </tr>
+                    ))}
+                    <tr className="bg-[#FAFCFB] font-semibold dark:bg-surface-base/60">
+                      <td className="px-3.5 py-2 text-[12.5px] text-[#18231E] dark:text-surface-text" colSpan={2}>Total</td>
+                      <td className="px-3.5 py-2 text-[12.5px] text-red-700">₹{totalDebit.toLocaleString()}</td>
+                      <td className="px-3.5 py-2 text-[12.5px] text-primary-700">₹{totalCredit.toLocaleString()}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </ScrollX>
+            </>
+          )}
+
+        </div>
       </Card>
     </div>
   );

@@ -1,5 +1,5 @@
 import express from 'express';
-import { getDashboardStats, getRecentFamilies, getActivityTimeline, getFinancialSummary } from '../controllers/dashboardController';
+import { getDashboardStats, getRecentFamilies, getActivityTimeline, getFinancialSummary, getDashboardOverview } from '../controllers/dashboardController';
 import { authMiddleware, allowRoles } from '../middleware/authMiddleware';
 import { tenantMiddleware } from '../middleware/tenantMiddleware';
 
@@ -118,6 +118,7 @@ router.get('/activity-timeline', allowRoles(['super_admin', 'mahall', 'survey', 
  */
 router.get('/stats', allowRoles(['super_admin', 'mahall', 'survey', 'institute', 'member']), getDashboardStats);
 router.get('/financial-summary', allowRoles(['super_admin', 'mahall', 'institute']), getFinancialSummary);
+router.get('/overview', allowRoles(['super_admin', 'mahall', 'institute']), getDashboardOverview);
 
 export default router;
 

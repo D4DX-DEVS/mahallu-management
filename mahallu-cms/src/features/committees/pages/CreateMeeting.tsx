@@ -4,16 +4,20 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useNavigate } from 'react-router-dom';
 import { FiSave, FiX } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
+import Avatar from '@/components/ui/Avatar';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
-import Input from '@/components/ui/Input';
+import Input, { labelClasses } from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import QuickAddCommittee from '@/components/quick-add/QuickAddCommittee';
 import { ROUTES } from '@/constants/routes';
 import { committeeService } from '@/services/committeeService';
 import { meetingService } from '@/services/meetingService';
 import { Committee, Member } from '@/types';
+import PageHeader from '@/components/ui/PageHeader';
+import Alert from '@/components/ui/Alert';
+import { toast } from '@/store/toastStore';
+import { getFriendlyError } from '@/utils/apiMessages';
 
 const meetingSchema = z.object({
   committeeId: z.string().min(1, 'Committee is required'),
@@ -116,33 +120,26 @@ export default function CreateMeeting() {
       });
       navigate(ROUTES.COMMITTEES.MEETINGS);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to create meeting. Please try again.');
+      toast.error(getFriendlyError(err, "Couldn't create meeting. Check the details and try again."));
       console.error('Error creating meeting:', err);
     }
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Create Meeting</h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Schedule a new committee meeting</p>
-        </div>
-        <Breadcrumb
-          items={[
-            { label: 'Dashboard', path: '/dashboard' },
-            { label: 'Meetings', path: ROUTES.COMMITTEES.MEETINGS },
-            { label: 'Create' },
-          ]}
-        />
-      </div>
+    <div className="space-y-4">
+      <PageHeader
+        title="Create Meeting"
+        description="Schedule a new committee meeting"
+      />
 
       <form onSubmit={handleSubmit(onSubmit)}>
         <Card className="space-y-6">
+          <div>
+            <h2 className="text-[13.5px] font-bold text-[#18231E] dark:text-surface-text">Meeting details</h2>
+            <p className="mt-0.5 text-xs text-[#7B8983] dark:text-surface-muted">Committee, date, agenda and attendance</p>
+          </div>
           {error && (
-            <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm dark:bg-red-900 dark:border-red-700 dark:text-red-200">
-              {error}
-            </div>
+            <Alert tone="danger">{error}</Alert>
           )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -200,13 +197,13 @@ export default function CreateMeeting() {
           </div>
 
           <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <label className={labelClasses}>
               Attendance ({selectedAttendance.length} selected)
             </label>
             {loadingMembers ? (
-              <p className="text-sm text-gray-500">Loading members...</p>
+              <p className="text-sm text-[#7B8983] dark:text-surface-muted">Loading members...</p>
             ) : (
-              <div className="border border-gray-300 dark:border-gray-600 rounded-lg p-4 max-h-64 overflow-y-auto">
+              <div className="border border-line-strong dark:border-surface-border-strong rounded-[10px] p-3.5 max-h-64 overflow-y-auto">
                 <div className="mb-3">
                   <Input
                     label="Search Members"
@@ -216,21 +213,22 @@ export default function CreateMeeting() {
                   />
                 </div>
                 {filteredMembers.length === 0 ? (
-                  <p className="text-sm text-gray-500">No members available</p>
+                  <p className="text-sm text-[#7B8983] dark:text-surface-muted">No members available</p>
                 ) : (
                   <div className="space-y-2">
                     {filteredMembers.map((member) => (
                       <label
                         key={member.id}
-                        className="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 p-2 rounded"
+                        className="flex items-center space-x-2 cursor-pointer hover:bg-mint/40 dark:hover:bg-surface-hover p-2 rounded-lg"
                       >
                         <input
                           type="checkbox"
                           checked={selectedAttendance.includes(member.id)}
                           onChange={() => toggleAttendance(member.id)}
-                          className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                          className="h-4 w-4 cursor-pointer rounded border-line-strong accent-primary-700 dark:accent-brand-lime"
                         />
-                        <span className="text-sm text-gray-700 dark:text-gray-300">
+                        <span className="flex items-center gap-2 text-sm text-[#3A4741] dark:text-surface-text">
+                          <Avatar size={24} name={member.name} src={member.photoUrl} />
                           {member.name} ({member.familyName})
                         </span>
                       </label>
@@ -241,13 +239,13 @@ export default function CreateMeeting() {
             )}
           </div>
 
-          <div className="flex justify-end gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-            <Button type="button" variant="outline" onClick={() => navigate(ROUTES.COMMITTEES.MEETINGS)}>
-              <FiX className="h-4 w-4 mr-2" />
+          <div className="sticky bottom-0 z-10 -mx-4 -mb-4 flex flex-wrap justify-end gap-2 pb-[calc(0.75rem+env(safe-area-inset-bottom))] [&>button]:flex-1 sm:[&>button]:flex-none rounded-b-card border-t border-line bg-white/90 px-4 py-3 backdrop-blur dark:border-surface-border dark:bg-surface-card/90">
+            <Button type="button" variant="secondary" onClick={() => navigate(ROUTES.COMMITTEES.MEETINGS)}>
+              <FiX className="h-3.5 w-3.5" />
               Cancel
             </Button>
             <Button type="submit" isLoading={isSubmitting}>
-              <FiSave className="h-4 w-4 mr-2" />
+              <FiSave className="h-3.5 w-3.5" />
               Create Meeting
             </Button>
           </div>

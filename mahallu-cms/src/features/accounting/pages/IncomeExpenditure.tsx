@@ -1,13 +1,20 @@
 import { useState, useEffect } from 'react';
-import Breadcrumb from '@/components/layout/Breadcrumb';
+import { FiDollarSign, FiTrendingUp } from 'react-icons/fi';
 import Card from '@/components/ui/Card';
+import EmptyState from '@/components/ui/EmptyState';
+import Alert from '@/components/ui/Alert';
+import FilterBar from '@/components/ui/FilterBar';
+import StatCard from '@/components/ui/StatCard';
+import PageHeader from '@/components/ui/PageHeader';
 import Button from '@/components/ui/Button';
-import Input from '@/components/ui/Input';
+import DateRangePicker from '@/components/ui/DateRangePicker';
 import Select from '@/components/ui/Select';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { accountingReportService } from '@/services/accountingReportService';
 import { instituteService } from '@/services/instituteService';
 import { useAuthStore } from '@/store/authStore';
+import { pct } from '@/utils/statSeries';
+import { getFriendlyError } from '@/utils/apiMessages';
 
 interface CategoryItem {
   categoryId: string;
@@ -56,7 +63,7 @@ export default function IncomeExpenditure() {
       const data = await accountingReportService.getIncomeExpenditure(params);
       setReportData(data);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch report');
+      setError(getFriendlyError(err, "Couldn't load report. Refresh the page or try again."));
     } finally {
       setLoading(false);
     }
@@ -71,17 +78,17 @@ export default function IncomeExpenditure() {
   const renderLedgerGroup = (groups: LedgerGroup[], colorClass: string) => (
     <div className="space-y-4">
       {groups.map((group) => (
-        <div key={group.ledgerId} className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+        <div key={group.ledgerId} className="border border-line dark:border-surface-border rounded-lg overflow-hidden">
           <div className={`px-4 py-2 ${colorClass} flex justify-between items-center`}>
             <span className="font-semibold text-sm">{group.ledgerName}</span>
             <span className="font-bold text-sm">₹{group.total.toLocaleString()}</span>
           </div>
           {group.categories.length > 0 && (
-            <div className="divide-y divide-gray-100 dark:divide-gray-800">
+            <div className="divide-y divide-line-soft dark:divide-surface-border">
               {group.categories.map((cat, idx) => (
                 <div key={idx} className="px-6 py-2 flex justify-between text-sm">
-                  <span className="text-gray-700 dark:text-gray-300">{cat.categoryName}</span>
-                  <span className="text-gray-900 dark:text-gray-100 font-medium">₹{cat.total.toLocaleString()}</span>
+                  <span className="text-[#3A4741] dark:text-surface-text">{cat.categoryName}</span>
+                  <span className="text-[#18231E] dark:text-surface-text font-medium">₹{cat.total.toLocaleString()}</span>
                 </div>
               ))}
             </div>
@@ -92,22 +99,13 @@ export default function IncomeExpenditure() {
   );
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Income & Expenditure</h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Detailed breakdown of income and expenses by ledger and category</p>
-        </div>
-        <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Income & Expenditure' }]} />
-      </div>
+    <div className="space-y-4">
+      <PageHeader title="Income & Expenditure" description="Detailed breakdown of income and expenses by ledger and category" />
 
-      <Card>
-        <div className="flex flex-wrap items-end gap-4 mb-6">
-          <div className="w-44">
-            <Input label="Start Date" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
-          </div>
-          <div className="w-44">
-            <Input label="End Date" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+      <Card padding="none" className="overflow-visible">
+        <FilterBar className="items-end">
+          <div className="w-72 max-sm:w-full">
+            <DateRangePicker label="Date range" from={startDate} to={endDate} onChange={(f, t) => { setStartDate(f); setEndDate(t); }} />
           </div>
           {!userInstituteId && (
             <div className="w-48">
@@ -122,85 +120,73 @@ export default function IncomeExpenditure() {
           <Button onClick={fetchReport} disabled={loading}>
             {loading ? 'Loading...' : 'Generate'}
           </Button>
+        </FilterBar>
+
+        <div className="p-3.5">
+          {loading ? (
+            <div className="flex justify-center items-center py-12"><LoadingSpinner /></div>
+          ) : error ? (
+            <Alert tone="danger">{error}</Alert>
+          ) : !reportData ? (
+            <EmptyState title="Nothing to show yet" description='Select a date range and click "Generate" to view the report' />
+          ) : (
+            <>
+              {/* Summary */}
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 mb-4">
+                <StatCard variant="inline" title="Total Income" value={`₹${totalIncome.toLocaleString()}`} tone="green" icon={<FiTrendingUp className="h-[17px] w-[17px]" />} />
+                <StatCard variant="inline" viz={totalIncome > 0 ? { type: 'bullet', percent: pct(totalExpense, totalIncome), target: 100, color: totalExpense > totalIncome ? '#B3261E' : '#04563A' } : undefined} summary={`Expense ₹${(totalExpense).toLocaleString()}, ${pct(totalExpense, totalIncome)} percent of income`} title="Total Expenditure" value={`₹${totalExpense.toLocaleString()}`} tone="red" />
+                <StatCard variant="inline" title={surplus >= 0 ? 'Surplus' : 'Deficit'} value={`₹${Math.abs(surplus).toLocaleString()}`} tone={surplus >= 0 ? 'lime' : 'red'} icon={<FiDollarSign className="h-[17px] w-[17px]" />} viz={totalIncome + totalExpense > 0 ? { type: 'pair', a: totalIncome, b: totalExpense, colorB: '#E0B400' } : undefined} summary={`Income ₹${(totalIncome).toLocaleString()} compared with expense ₹${(totalExpense).toLocaleString()}`} />
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Income Section */}
+                <div>
+                  <h3 className="text-sm font-bold text-primary-700 dark:text-primary-400 mb-3 flex items-center gap-2">
+                    <span className="w-3 h-3 rounded-full bg-primary-500"></span>
+                    Income
+                  </h3>
+                  {incomeGroups.length > 0
+                    ? renderLedgerGroup(incomeGroups, 'bg-primary-50 dark:bg-primary-900/20 text-primary-800 dark:text-primary-200')
+                    : <p className="text-[#7B8983] dark:text-surface-muted text-sm">No income records</p>
+                  }
+                  <div className="mt-3 px-4 py-2 bg-primary-100 dark:bg-primary-900/30 rounded-lg flex justify-between">
+                    <span className="font-semibold text-primary-800 dark:text-primary-200">Total Income</span>
+                    <span className="font-bold text-primary-800 dark:text-primary-200">₹{totalIncome.toLocaleString()}</span>
+                  </div>
+                </div>
+
+                {/* Expense Section */}
+                <div>
+                  <h3 className="text-sm font-bold text-red-700 dark:text-red-400 mb-3 flex items-center gap-2">
+                    <span className="w-3 h-3 rounded-full bg-red-500"></span>
+                    Expenditure
+                  </h3>
+                  {expenseGroups.length > 0
+                    ? renderLedgerGroup(expenseGroups, 'bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-200')
+                    : <p className="text-[#7B8983] dark:text-surface-muted text-sm">No expense records</p>
+                  }
+                  <div className="mt-3 px-4 py-2 bg-red-100 dark:bg-red-900/30 rounded-lg flex justify-between">
+                    <span className="font-semibold text-red-800 dark:text-red-200">Total Expenditure</span>
+                    <span className="font-bold text-red-800 dark:text-red-200">₹{totalExpense.toLocaleString()}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Final Surplus/Deficit */}
+              <div className={`mt-6 p-4 rounded-lg border-2 ${surplus >= 0 ? 'border-blue-300 bg-blue-50 dark:border-blue-700 dark:bg-blue-900/20' : 'border-orange-300 bg-orange-50 dark:border-orange-700 dark:bg-orange-900/20'}`}>
+                <div className="flex justify-between items-center">
+                  <span className="text-lg font-semibold text-[#18231E] dark:text-surface-text">
+                    Net {surplus >= 0 ? 'Surplus' : 'Deficit'}
+                  </span>
+                  <span className={`text-2xl font-bold ${surplus >= 0 ? 'text-blue-700 dark:text-blue-300' : 'text-orange-700 dark:text-orange-300'}`}>
+                    ₹{Math.abs(surplus).toLocaleString()}
+                  </span>
+                </div>
+              </div>
+            </>
+          )}
+
         </div>
-
-        {loading ? (
-          <div className="flex justify-center items-center py-12"><LoadingSpinner /></div>
-        ) : error ? (
-          <div className="text-center py-12"><p className="text-red-600 dark:text-red-400">{error}</p></div>
-        ) : !reportData ? (
-          <div className="text-center py-12 text-gray-500 dark:text-gray-400">
-            Select a date range and click "Generate" to view the report
-          </div>
-        ) : (
-          <>
-            {/* Summary */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-              <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                <p className="text-sm text-green-600 dark:text-green-400">Total Income</p>
-                <p className="text-xl font-bold text-green-700 dark:text-green-300">₹{totalIncome.toLocaleString()}</p>
-              </div>
-              <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg">
-                <p className="text-sm text-red-600 dark:text-red-400">Total Expenditure</p>
-                <p className="text-xl font-bold text-red-700 dark:text-red-300">₹{totalExpense.toLocaleString()}</p>
-              </div>
-              <div className={`p-4 rounded-lg ${surplus >= 0 ? 'bg-blue-50 dark:bg-blue-900/20' : 'bg-orange-50 dark:bg-orange-900/20'}`}>
-                <p className={`text-sm ${surplus >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-orange-600 dark:text-orange-400'}`}>
-                  {surplus >= 0 ? 'Surplus' : 'Deficit'}
-                </p>
-                <p className={`text-xl font-bold ${surplus >= 0 ? 'text-blue-700 dark:text-blue-300' : 'text-orange-700 dark:text-orange-300'}`}>
-                  ₹{Math.abs(surplus).toLocaleString()}
-                </p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Income Section */}
-              <div>
-                <h3 className="text-lg font-semibold text-green-700 dark:text-green-400 mb-3 flex items-center gap-2">
-                  <span className="w-3 h-3 rounded-full bg-green-500"></span>
-                  Income
-                </h3>
-                {incomeGroups.length > 0
-                  ? renderLedgerGroup(incomeGroups, 'bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-200')
-                  : <p className="text-gray-500 text-sm">No income records</p>
-                }
-                <div className="mt-3 px-4 py-2 bg-green-100 dark:bg-green-900/30 rounded-lg flex justify-between">
-                  <span className="font-semibold text-green-800 dark:text-green-200">Total Income</span>
-                  <span className="font-bold text-green-800 dark:text-green-200">₹{totalIncome.toLocaleString()}</span>
-                </div>
-              </div>
-
-              {/* Expense Section */}
-              <div>
-                <h3 className="text-lg font-semibold text-red-700 dark:text-red-400 mb-3 flex items-center gap-2">
-                  <span className="w-3 h-3 rounded-full bg-red-500"></span>
-                  Expenditure
-                </h3>
-                {expenseGroups.length > 0
-                  ? renderLedgerGroup(expenseGroups, 'bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-200')
-                  : <p className="text-gray-500 text-sm">No expense records</p>
-                }
-                <div className="mt-3 px-4 py-2 bg-red-100 dark:bg-red-900/30 rounded-lg flex justify-between">
-                  <span className="font-semibold text-red-800 dark:text-red-200">Total Expenditure</span>
-                  <span className="font-bold text-red-800 dark:text-red-200">₹{totalExpense.toLocaleString()}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Final Surplus/Deficit */}
-            <div className={`mt-6 p-4 rounded-lg border-2 ${surplus >= 0 ? 'border-blue-300 bg-blue-50 dark:border-blue-700 dark:bg-blue-900/20' : 'border-orange-300 bg-orange-50 dark:border-orange-700 dark:bg-orange-900/20'}`}>
-              <div className="flex justify-between items-center">
-                <span className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                  Net {surplus >= 0 ? 'Surplus' : 'Deficit'}
-                </span>
-                <span className={`text-2xl font-bold ${surplus >= 0 ? 'text-blue-700 dark:text-blue-300' : 'text-orange-700 dark:text-orange-300'}`}>
-                  ₹{Math.abs(surplus).toLocaleString()}
-                </span>
-              </div>
-            </div>
-          </>
-        )}
       </Card>
     </div>
   );

@@ -66,6 +66,15 @@ export const authService = {
     return response.data;
   },
 
+  /** Task C5 — two-factor login for the signed-in user's own account. */
+  setTwoFactor: async (enabled: boolean) => {
+    const response = await api.put<{ success: boolean; data: { twoFactorEnabled: boolean } }>(
+      '/auth/two-factor',
+      { enabled }
+    );
+    return response.data.data;
+  },
+
   registerDevice: async (oneSignalPlayerId: string) => {
     const response = await api.put<{ success: boolean; message: string }>('/auth/register-device', {
       oneSignalPlayerId,

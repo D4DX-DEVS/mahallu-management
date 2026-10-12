@@ -1,12 +1,19 @@
 import { useState, useEffect } from 'react';
-import Breadcrumb from '@/components/layout/Breadcrumb';
+import { FiTrendingUp, FiTrendingDown, FiDollarSign } from 'react-icons/fi';
 import Card from '@/components/ui/Card';
+import Badge from '@/components/ui/Badge';
+import Alert from '@/components/ui/Alert';
+import StatCard from '@/components/ui/StatCard';
+import PageHeader from '@/components/ui/PageHeader';
 import Button from '@/components/ui/Button';
-import Input from '@/components/ui/Input';
+import DateRangePicker from '@/components/ui/DateRangePicker';
 import Select from '@/components/ui/Select';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { accountingReportService, DayBookEntry, TrialBalanceEntry } from '@/services/accountingReportService';
 import { instituteService } from '@/services/instituteService';
+import { pct } from '@/utils/statSeries';
+import { getFriendlyError } from '@/utils/apiMessages';
+import ScrollX from '@/features/_shared/ScrollX';
 
 type ReportType = 'day-book' | 'trial-balance' | 'balance-sheet' | 'income-expenditure';
 
@@ -68,7 +75,7 @@ export default function MahalluCombinedReport() {
       }
       setReportData(result);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to generate combined report');
+      setError(getFriendlyError(err, "Couldn't generate combined report. Try again in a moment."));
     } finally {
       setLoading(false);
     }
@@ -80,20 +87,14 @@ export default function MahalluCombinedReport() {
   ];
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Combined Report</h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Merge Mahallu and Institute financials into a single view</p>
-        </div>
-        <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Mahallu Finance', path: '/mahallu-finance/accounts' }, { label: 'Combined Report' }]} />
-      </div>
+    <div className="space-y-4">
+      <PageHeader title="Combined Report" description="Merge Mahallu and Institute financials into a single view" />
 
       {/* Filters */}
-      <Card>
-        <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-4">Report Configuration</h2>
+      <Card padding="lg">
+        <h2 className="mb-3.5 text-sm font-bold text-primary-700 dark:text-surface-text">Report Configuration</h2>
 
-        <div className="flex flex-wrap items-end gap-4 mb-6">
+        <div className="mb-5 flex flex-wrap items-end gap-3">
           <div className="w-52">
             <Select
               label="Report Type"
@@ -107,21 +108,24 @@ export default function MahalluCombinedReport() {
               onChange={e => setReportType(e.target.value as ReportType)}
             />
           </div>
-          <div className="w-44"><Input label="Start Date" type="date" value={startDate} onChange={e => setStartDate(e.target.value)} /></div>
-          <div className="w-44"><Input label="End Date" type="date" value={endDate} onChange={e => setEndDate(e.target.value)} /></div>
+          <div className="w-72 max-sm:w-full">
+            <DateRangePicker label="Date range" from={startDate} to={endDate} onChange={(f, t) => { setStartDate(f); setEndDate(t); }} />
+          </div>
         </div>
 
         {/* Entity Selection */}
         <div className="mb-6">
-          <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Select Entities to Combine</p>
+          <p className="mb-2.5 text-xs font-semibold text-[#3A4741] dark:text-surface-text/80">Select Entities to Combine</p>
           <div className="flex flex-wrap gap-2">
             {/* Mahallu chip */}
             <button
+              type="button"
+              aria-pressed={selectedEntities.includes('mahallu')}
               onClick={() => toggleEntity('mahallu')}
-              className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors border ${
+              className={`px-3 py-1.5 max-sm:min-h-10 rounded-full text-xs font-semibold transition-colors border focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-lime/[.28] ${
                 selectedEntities.includes('mahallu')
-                  ? 'bg-indigo-600 text-white border-indigo-600'
-                  : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:border-indigo-400'
+                  ? 'bg-primary-700 text-white border-primary-700 dark:bg-brand-lime dark:text-primary-950 dark:border-brand-lime'
+                  : 'bg-white text-[#3A4741] border-line-strong hover:border-primary-600 hover:bg-mint dark:bg-surface-raised dark:text-surface-text dark:border-surface-border-strong dark:hover:border-brand-lime'
               }`}
             >
               🏛️ Mahallu (Main)
@@ -130,11 +134,13 @@ export default function MahalluCombinedReport() {
             {institutes.map(inst => (
               <button
                 key={inst.id}
+                type="button"
+                aria-pressed={selectedEntities.includes(inst.id)}
                 onClick={() => toggleEntity(inst.id)}
-                className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors border ${
+                className={`px-3 py-1.5 max-sm:min-h-10 rounded-full text-xs font-semibold transition-colors border focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-lime/[.28] ${
                   selectedEntities.includes(inst.id)
-                    ? 'bg-blue-600 text-white border-blue-600'
-                    : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:border-blue-400'
+                    ? 'bg-primary-700 text-white border-primary-700 dark:bg-brand-lime dark:text-primary-950 dark:border-brand-lime'
+                    : 'bg-white text-[#3A4741] border-line-strong hover:border-primary-600 hover:bg-mint dark:bg-surface-raised dark:text-surface-text dark:border-surface-border-strong dark:hover:border-brand-lime'
                 }`}
               >
                 🏫 {inst.name}
@@ -142,8 +148,8 @@ export default function MahalluCombinedReport() {
             ))}
           </div>
           {selectedEntities.length > 0 && (
-            <p className="mt-2 text-xs text-gray-500">
-              Combining: <span className="font-medium text-gray-700 dark:text-gray-300">{selectedNames.join(' + ')}</span>
+            <p className="mt-2 text-xs text-[#7B8983] dark:text-surface-muted">
+              Combining: <span className="font-semibold text-[#3A4741] dark:text-surface-text">{selectedNames.join(' + ')}</span>
             </p>
           )}
         </div>
@@ -156,15 +162,15 @@ export default function MahalluCombinedReport() {
       {/* Results */}
       {loading && <div className="flex justify-center py-12"><LoadingSpinner /></div>}
 
-      {error && <Card><p className="text-center py-8 text-red-600">{error}</p></Card>}
+      {error && <Alert tone="danger">{error}</Alert>}
 
       {!loading && !error && reportData && (
-        <Card>
-          <div className="flex items-center gap-2 mb-6">
-            <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">
+        <Card padding="lg">
+          <div className="mb-4 flex items-center gap-2">
+            <h2 className="text-sm font-bold text-primary-700 dark:text-surface-text">
               {reportType === 'day-book' ? 'Day Book' : reportType === 'trial-balance' ? 'Trial Balance' : reportType === 'balance-sheet' ? 'Balance Sheet' : 'Income & Expenditure'}
             </h2>
-            <span className="text-xs text-gray-500">— {selectedNames.join(' + ')}</span>
+            <span className="text-xs text-[#7B8983] dark:text-surface-muted">— {selectedNames.join(' + ')}</span>
           </div>
 
           {reportType === 'day-book' && Array.isArray(reportData) && (
@@ -193,30 +199,30 @@ function DayBookView({ entries }: { entries: DayBookEntry[] }) {
   const totalExpense = entries.filter(e => e.type !== 'income').reduce((s, e) => s + e.amount, 0);
   return (
     <>
-      <div className="grid grid-cols-3 gap-4 mb-6">
-        <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg"><p className="text-sm text-green-600">Total Income</p><p className="text-xl font-bold text-green-700">₹{totalIncome.toLocaleString()}</p></div>
-        <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg"><p className="text-sm text-red-600">Total Expense</p><p className="text-xl font-bold text-red-700">₹{totalExpense.toLocaleString()}</p></div>
-        <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg"><p className="text-sm text-blue-600">Net Balance</p><p className="text-xl font-bold text-blue-700">₹{(totalIncome - totalExpense).toLocaleString()}</p></div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 mb-4">
+        <StatCard variant="inline" title="Total Income" value={`₹${totalIncome.toLocaleString()}`} tone="green" icon={<FiTrendingUp className="h-[17px] w-[17px]" />} />
+        <StatCard variant="inline" viz={totalIncome > 0 ? { type: 'bullet', percent: pct(totalExpense, totalIncome), target: 100, color: totalExpense > totalIncome ? '#B3261E' : '#04563A' } : undefined} summary={`Expense ₹${(totalExpense).toLocaleString()}, ${pct(totalExpense, totalIncome)} percent of income`} title="Total Expense" value={`₹${totalExpense.toLocaleString()}`} tone="red" icon={<FiTrendingDown className="h-[17px] w-[17px]" />} />
+        <StatCard variant="inline" viz={totalIncome + totalExpense > 0 ? { type: 'pair', a: totalIncome, b: totalExpense, colorB: '#E0B400' } : undefined} summary={`Income ₹${(totalIncome).toLocaleString()} compared with expense ₹${(totalExpense).toLocaleString()}`} title="Net Balance" value={`₹${(totalIncome - totalExpense).toLocaleString()}`} tone="neutral" icon={<FiDollarSign className="h-[17px] w-[17px]" />} />
       </div>
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-          <thead className="bg-gray-50 dark:bg-gray-800">
-            <tr>{['Date', 'Description', 'Type', 'Ledger', 'Category', 'Amount'].map(h => <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{h}</th>)}</tr>
+      <ScrollX>
+        <table className="w-full border-collapse text-[12.5px]">
+          <thead className="bg-[#FAFCFB] dark:bg-surface-base/60">
+            <tr>{['Date', 'Description', 'Type', 'Ledger', 'Category', 'Amount'].map(h => <th key={h} className="whitespace-nowrap px-3.5 py-2.5 text-left text-[12px] font-bold text-[#7B8983] dark:text-surface-muted uppercase tracking-[0.06em]">{h}</th>)}</tr>
           </thead>
-          <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+          <tbody className="divide-y divide-line-soft dark:divide-surface-border">
             {entries.map((entry, i) => (
-              <tr key={i} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
-                <td className="px-4 py-3 text-sm whitespace-nowrap">{new Date(entry.date).toLocaleDateString()}</td>
-                <td className="px-4 py-3 text-sm">{entry.description}</td>
-                <td className="px-4 py-3"><span className={`px-2 py-0.5 rounded-full text-xs font-medium ${entry.type === 'income' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{entry.type}</span></td>
-                <td className="px-4 py-3 text-sm text-gray-600">{entry.ledgerName}</td>
-                <td className="px-4 py-3 text-sm text-gray-600">{entry.categoryName}</td>
-                <td className={`px-4 py-3 text-sm font-medium ${entry.type === 'income' ? 'text-green-600' : 'text-red-600'}`}>₹{entry.amount.toLocaleString()}</td>
+              <tr key={i} className="hover:bg-[#F6FAF8] dark:hover:bg-surface-hover/60">
+                <td className="px-3.5 py-2 text-[12.5px] whitespace-nowrap">{new Date(entry.date).toLocaleDateString()}</td>
+                <td className="px-3.5 py-2 text-[12.5px]">{entry.description}</td>
+                <td className="px-3.5 py-2"><Badge variant={entry.type === 'income' ? 'success' : 'danger'} dot className="capitalize">{entry.type}</Badge></td>
+                <td className="px-3.5 py-2 text-[12.5px] text-[#5B6963] dark:text-surface-muted">{entry.ledgerName}</td>
+                <td className="px-3.5 py-2 text-[12.5px] text-[#5B6963] dark:text-surface-muted">{entry.categoryName}</td>
+                <td className={`px-3.5 py-2 text-[12.5px] font-medium ${entry.type === 'income' ? 'text-primary-600' : 'text-red-600'}`}>₹{entry.amount.toLocaleString()}</td>
               </tr>
             ))}
           </tbody>
         </table>
-      </div>
+      </ScrollX>
     </>
   );
 }
@@ -226,28 +232,28 @@ function TrialBalanceView({ entries }: { entries: TrialBalanceEntry[] }) {
   const totalCredit = entries.reduce((s, e) => s + e.credit, 0);
   return (
     <>
-      <div className="grid grid-cols-3 gap-4 mb-6">
-        <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg"><p className="text-sm text-red-600">Total Debit</p><p className="text-xl font-bold text-red-700">₹{totalDebit.toLocaleString()}</p></div>
-        <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg"><p className="text-sm text-green-600">Total Credit</p><p className="text-xl font-bold text-green-700">₹{totalCredit.toLocaleString()}</p></div>
-        <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg"><p className="text-sm text-gray-600">Difference</p><p className="text-xl font-bold text-gray-700">₹{Math.abs(totalCredit - totalDebit).toLocaleString()}</p></div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 mb-4">
+        <StatCard variant="inline" title="Total Debit" value={`₹${totalDebit.toLocaleString()}`} tone="red" icon={<FiTrendingDown className="h-[17px] w-[17px]" />} />
+        <StatCard variant="inline" title="Total Credit" value={`₹${totalCredit.toLocaleString()}`} tone="green" icon={<FiTrendingUp className="h-[17px] w-[17px]" />} />
+        <StatCard variant="inline" viz={totalDebit + totalCredit > 0 ? { type: 'pair', a: totalCredit, b: totalDebit, colorB: '#E0B400' } : undefined} summary={`Credit ₹${totalCredit.toLocaleString()} compared with debit ₹${totalDebit.toLocaleString()}`} title="Difference" value={`₹${Math.abs(totalCredit - totalDebit).toLocaleString()}`} tone="neutral" icon={<FiDollarSign className="h-[17px] w-[17px]" />} />
       </div>
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-          <thead className="bg-gray-50 dark:bg-gray-800">
-            <tr>{['Ledger', 'Type', 'Debit', 'Credit'].map(h => <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{h}</th>)}</tr>
+      <ScrollX>
+        <table className="w-full border-collapse text-[12.5px]">
+          <thead className="bg-[#FAFCFB] dark:bg-surface-base/60">
+            <tr>{['Ledger', 'Type', 'Debit', 'Credit'].map(h => <th key={h} className="whitespace-nowrap px-3.5 py-2.5 text-left text-[12px] font-bold text-[#7B8983] dark:text-surface-muted uppercase tracking-[0.06em]">{h}</th>)}</tr>
           </thead>
-          <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+          <tbody className="divide-y divide-line-soft dark:divide-surface-border">
             {entries.map((entry, i) => (
-              <tr key={i} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
-                <td className="px-4 py-3 text-sm font-medium">{entry.ledgerName}</td>
-                <td className="px-4 py-3"><span className={`px-2 py-0.5 rounded-full text-xs font-medium ${entry.type === 'income' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{entry.type}</span></td>
-                <td className="px-4 py-3 text-sm text-red-600">{entry.debit > 0 ? `₹${entry.debit.toLocaleString()}` : '-'}</td>
-                <td className="px-4 py-3 text-sm text-green-600">{entry.credit > 0 ? `₹${entry.credit.toLocaleString()}` : '-'}</td>
+              <tr key={i} className="hover:bg-[#F6FAF8] dark:hover:bg-surface-hover/60">
+                <td className="px-3.5 py-2 text-[12.5px] font-medium">{entry.ledgerName}</td>
+                <td className="px-3.5 py-2"><Badge variant={entry.type === 'income' ? 'success' : 'danger'} dot className="capitalize">{entry.type}</Badge></td>
+                <td className="px-3.5 py-2 text-[12.5px] text-red-600">{entry.debit > 0 ? `₹${entry.debit.toLocaleString()}` : '-'}</td>
+                <td className="px-3.5 py-2 text-[12.5px] text-primary-600">{entry.credit > 0 ? `₹${entry.credit.toLocaleString()}` : '-'}</td>
               </tr>
             ))}
           </tbody>
         </table>
-      </div>
+      </ScrollX>
     </>
   );
 }
@@ -255,17 +261,17 @@ function TrialBalanceView({ entries }: { entries: TrialBalanceEntry[] }) {
 function BalanceSheetView({ data }: { data: any }) {
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg"><p className="text-sm text-blue-600">Bank Balance</p><p className="text-xl font-bold text-blue-700">₹{(data.totalBankBalance || 0).toLocaleString()}</p></div>
-        <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg"><p className="text-sm text-green-600">Total Income</p><p className="text-xl font-bold text-green-700">₹{(data.totalIncome || 0).toLocaleString()}</p></div>
-        <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg"><p className="text-sm text-red-600">Total Expense</p><p className="text-xl font-bold text-red-700">₹{(data.totalExpense || 0).toLocaleString()}</p></div>
-        <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg"><p className="text-sm text-gray-600">Net Balance</p><p className="text-xl font-bold text-gray-700">₹{(data.netBalance || 0).toLocaleString()}</p></div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
+        <StatCard variant="inline" title="Bank Balance" value={`₹${(data.totalBankBalance || 0).toLocaleString()}`} tone="neutral" icon={<FiDollarSign className="h-[17px] w-[17px]" />} />
+        <StatCard variant="inline" title="Total Income" value={`₹${(data.totalIncome || 0).toLocaleString()}`} tone="green" icon={<FiTrendingUp className="h-[17px] w-[17px]" />} />
+        <StatCard variant="inline" viz={(data.totalIncome || 0) > 0 ? { type: 'bullet', percent: pct((data.totalExpense || 0), (data.totalIncome || 0)), target: 100, color: (data.totalExpense || 0) > (data.totalIncome || 0) ? '#B3261E' : '#04563A' } : undefined} summary={`Expense ₹${((data.totalExpense || 0)).toLocaleString()}, ${pct((data.totalExpense || 0), (data.totalIncome || 0))} percent of income`} title="Total Expense" value={`₹${(data.totalExpense || 0).toLocaleString()}`} tone="red" icon={<FiTrendingDown className="h-[17px] w-[17px]" />} />
+        <StatCard variant="inline" viz={(data.totalIncome || 0) + (data.totalExpense || 0) > 0 ? { type: 'pair', a: (data.totalIncome || 0), b: (data.totalExpense || 0), colorB: '#E0B400' } : undefined} summary={`Income ₹${((data.totalIncome || 0)).toLocaleString()} compared with expense ₹${((data.totalExpense || 0)).toLocaleString()}`} title="Net Balance" value={`₹${(data.netBalance || 0).toLocaleString()}`} tone="neutral" icon={<FiDollarSign className="h-[17px] w-[17px]" />} />
       </div>
       {(data.bankBalances || []).length > 0 && (
         <div>
-          <h3 className="text-sm font-semibold text-gray-700 uppercase mb-2">Bank Accounts</h3>
+          <h3 className="text-[12px] font-bold uppercase tracking-[0.04em] text-[#6A7771] dark:text-surface-muted mb-2">Bank Accounts</h3>
           {(data.bankBalances || []).map((b: any, i: number) => (
-            <div key={i} className="flex justify-between px-4 py-2 border-b border-gray-100 dark:border-gray-700"><span className="text-sm text-gray-700">{b.ledgerName}</span><span className="text-sm font-medium text-blue-700">₹{b.balance.toLocaleString()}</span></div>
+            <div key={i} className="flex justify-between px-4 py-2 border-b border-line-soft dark:border-surface-border"><span className="text-sm text-[#3A4741] dark:text-surface-text">{b.ledgerName}</span><span className="text-sm font-medium text-blue-700">₹{b.balance.toLocaleString()}</span></div>
           ))}
         </div>
       )}
@@ -276,19 +282,19 @@ function BalanceSheetView({ data }: { data: any }) {
 function IncomeExpenditureView({ data }: { data: any }) {
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-3 gap-4">
-        <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg"><p className="text-sm text-green-600">Total Income</p><p className="text-2xl font-bold text-green-700">₹{(data.totalIncome || 0).toLocaleString()}</p></div>
-        <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg"><p className="text-sm text-red-600">Total Expense</p><p className="text-2xl font-bold text-red-700">₹{(data.totalExpense || 0).toLocaleString()}</p></div>
-        <div className={`p-4 rounded-lg ${(data.surplus || 0) >= 0 ? 'bg-green-50' : 'bg-red-50'}`}><p className="text-sm text-gray-600">{(data.surplus || 0) >= 0 ? 'Surplus' : 'Deficit'}</p><p className="text-2xl font-bold text-gray-700">₹{Math.abs(data.surplus || 0).toLocaleString()}</p></div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <StatCard variant="inline" title="Total Income" value={`₹${(data.totalIncome || 0).toLocaleString()}`} tone="green" icon={<FiTrendingUp className="h-[17px] w-[17px]" />} />
+        <StatCard variant="inline" viz={(data.totalIncome || 0) > 0 ? { type: 'bullet', percent: pct((data.totalExpense || 0), (data.totalIncome || 0)), target: 100, color: (data.totalExpense || 0) > (data.totalIncome || 0) ? '#B3261E' : '#04563A' } : undefined} summary={`Expense ₹${((data.totalExpense || 0)).toLocaleString()}, ${pct((data.totalExpense || 0), (data.totalIncome || 0))} percent of income`} title="Total Expense" value={`₹${(data.totalExpense || 0).toLocaleString()}`} tone="red" icon={<FiTrendingDown className="h-[17px] w-[17px]" />} />
+        <StatCard variant="inline" viz={(data.totalIncome || 0) + (data.totalExpense || 0) > 0 ? { type: 'pair', a: (data.totalIncome || 0), b: (data.totalExpense || 0), colorB: '#E0B400' } : undefined} summary={`Income ₹${((data.totalIncome || 0)).toLocaleString()} compared with expense ₹${((data.totalExpense || 0)).toLocaleString()}`} title={(data.surplus || 0) >= 0 ? 'Surplus' : 'Deficit'} value={`₹${Math.abs(data.surplus || 0).toLocaleString()}`} tone={(data.surplus || 0) >= 0 ? 'green' : 'red'} icon={<FiDollarSign className="h-[17px] w-[17px]" />} />
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div>
-          <h3 className="text-sm font-semibold text-green-700 uppercase mb-2">Income</h3>
+          <h3 className="text-sm font-semibold text-primary-700 uppercase mb-2">Income</h3>
           {(data.income || []).map((ledger: any, i: number) => (
-            <div key={i} className="border border-green-200 dark:border-green-800 rounded-lg mb-2 overflow-hidden">
-              <div className="flex justify-between px-4 py-2 bg-green-50 dark:bg-green-900/20"><span className="text-sm font-semibold text-green-800">{ledger.ledgerName}</span><span className="text-sm font-bold text-green-700">₹{(ledger.ledgerTotal || ledger.total || 0).toLocaleString()}</span></div>
+            <div key={i} className="border border-primary-200 dark:border-primary-800 rounded-lg mb-2 overflow-hidden">
+              <div className="flex justify-between px-4 py-2 bg-primary-50 dark:bg-primary-900/20"><span className="text-sm font-semibold text-primary-800">{ledger.ledgerName}</span><span className="text-sm font-bold text-primary-700">₹{(ledger.ledgerTotal || ledger.total || 0).toLocaleString()}</span></div>
               {(ledger.categories || []).map((cat: any, j: number) => (
-                <div key={j} className="flex justify-between px-4 py-1.5 border-t border-green-100"><span className="text-xs text-gray-600 pl-4">{cat.categoryName}</span><span className="text-xs text-gray-700">₹{(cat.total || 0).toLocaleString()}</span></div>
+                <div key={j} className="flex justify-between px-4 py-1.5 border-t border-primary-100"><span className="text-xs text-[#5B6963] dark:text-surface-muted pl-4">{cat.categoryName}</span><span className="text-xs text-[#3A4741] dark:text-surface-text">₹{(cat.total || 0).toLocaleString()}</span></div>
               ))}
             </div>
           ))}
@@ -299,7 +305,7 @@ function IncomeExpenditureView({ data }: { data: any }) {
             <div key={i} className="border border-red-200 dark:border-red-800 rounded-lg mb-2 overflow-hidden">
               <div className="flex justify-between px-4 py-2 bg-red-50 dark:bg-red-900/20"><span className="text-sm font-semibold text-red-800">{ledger.ledgerName}</span><span className="text-sm font-bold text-red-700">₹{(ledger.ledgerTotal || ledger.total || 0).toLocaleString()}</span></div>
               {(ledger.categories || []).map((cat: any, j: number) => (
-                <div key={j} className="flex justify-between px-4 py-1.5 border-t border-red-100"><span className="text-xs text-gray-600 pl-4">{cat.categoryName}</span><span className="text-xs text-gray-700">₹{(cat.total || 0).toLocaleString()}</span></div>
+                <div key={j} className="flex justify-between px-4 py-1.5 border-t border-red-100"><span className="text-xs text-[#5B6963] dark:text-surface-muted pl-4">{cat.categoryName}</span><span className="text-xs text-[#3A4741] dark:text-surface-text">₹{(cat.total || 0).toLocaleString()}</span></div>
               ))}
             </div>
           ))}

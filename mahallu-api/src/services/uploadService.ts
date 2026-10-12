@@ -38,7 +38,7 @@ function getS3Client(): S3Client {
 
 export async function uploadFileToSpaces(
   file: Express.Multer.File,
-  folderType: 'notifications' | 'banners' = 'notifications'
+  folderType: 'notifications' | 'banners' | 'profiles' = 'notifications'
 ): Promise<string> {
   const missing = getMissingSpacesVars();
   if (missing.length > 0) {

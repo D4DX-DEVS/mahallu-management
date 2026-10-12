@@ -1,19 +1,27 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiEdit2, FiTrash2, FiBriefcase } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
+import { FiBriefcase, FiDownload, FiFileText, FiFile, FiDollarSign } from 'react-icons/fi';
 import Card from '@/components/ui/Card';
+import RowActions from '@/components/ui/RowActions';
+import Alert from '@/components/ui/Alert';
+import StatusBadge from '@/components/ui/StatusBadge';
+import StatCard from '@/components/ui/StatCard';
+import PageHeader from '@/components/ui/PageHeader';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import Table from '@/components/ui/Table';
 import Pagination from '@/components/ui/Pagination';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
-import TableToolbar from '@/components/ui/TableToolbar';
+import FilterBar from '@/components/ui/FilterBar';
+import Dropdown from '@/components/ui/Dropdown';
 import { TableColumn, Pagination as PaginationType } from '@/types';
 import { masterAccountService, MahalluAccount } from '@/services/masterAccountService';
 import { formatDate } from '@/utils/format';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
 import { ROUTES } from '@/constants/routes';
+import { toast } from '@/store/toastStore';
+import { getFriendlyError } from '@/utils/apiMessages';
+import { PersonCell } from '@/components/ui/Avatar';
 
 export default function MahalluAccountsList() {
   const navigate = useNavigate();
@@ -39,7 +47,7 @@ export default function MahalluAccountsList() {
       setAccounts(Array.isArray(result.data) ? result.data : []);
       if (result.pagination) setPagination(result.pagination);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch accounts');
+      setError(getFriendlyError(err, "Couldn't load accounts. Refresh the page or try again."));
       setAccounts([]);
     } finally {
       setLoading(false);
@@ -53,8 +61,9 @@ export default function MahalluAccountsList() {
       await masterAccountService.deleteMahalluAccount(selectedAccount.id);
       setShowDeleteModal(false);
       fetchAccounts();
+      toast.success('Account deleted');
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to delete account');
+      toast.error(getFriendlyError(err, "Couldn't delete account. Try again in a moment."));
     } finally {
       setDeleting(false);
     }
@@ -65,13 +74,13 @@ export default function MahalluAccountsList() {
       setIsExporting(true);
       const result = await masterAccountService.getAllMahalluAccounts({ limit: 10000 });
       const data = Array.isArray(result.data) ? result.data : [];
-      if (!data.length) { alert('No data to export'); return; }
+      if (!data.length) { toast.info('Nothing to export. Change your filters and try again.'); return; }
       const filename = 'mahallu-accounts';
       if (type === 'csv') exportToCSV(columns, data, filename);
       else if (type === 'json') exportToJSON(columns, data, filename);
       else exportToPDF(columns, data, filename, 'Mahallu Accounts');
     } catch (err: any) {
-      alert(err?.message || 'Export failed');
+      toast.error(getFriendlyError(err, "Couldn't export accounts. Check your connection and try again."));
     } finally {
       setIsExporting(false);
     }
@@ -85,69 +94,79 @@ export default function MahalluAccountsList() {
 
   const columns: TableColumn<MahalluAccount>[] = [
     { key: 'id', label: 'No.', render: (_, __, i) => i + 1 },
-    { key: 'accountName', label: 'Account Name' },
+    { key: 'accountName', label: 'Account Name', render: (v, row) => <PersonCell name={v} subtitle={row.bankName} /> },
     { key: 'accountNumber', label: 'Account Number' },
     { key: 'bankName', label: 'Bank Name' },
     { key: 'ifscCode', label: 'IFSC Code' },
-    { key: 'balance', label: 'Balance', render: (b) => `₹${(b || 0).toLocaleString()}` },
+    { key: 'balance', label: 'Balance', render: (b) => <span className={(b || 0) < 0 ? 'font-semibold text-[#B3261E] dark:text-red-300' : 'font-semibold text-[#0B4837] dark:text-brand-lime'}>{`₹${(b || 0).toLocaleString()}`}</span> },
     { key: 'status', label: 'Status', render: (s) => (
-      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${s === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>{s}</span>
+      <StatusBadge status={s} />
     )},
     { key: 'createdAt', label: 'Created', render: (d) => formatDate(d) },
     { key: 'actions', label: 'Actions', render: (_, row) => (
-      <div className="flex items-center gap-2">
-        <button onClick={() => navigate(ROUTES.MAHALLU_FINANCE.ACCOUNTS_EDIT(row.id), { state: { account: row } })} className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400"><FiEdit2 className="h-4 w-4" /></button>
-        <button onClick={() => { setSelectedAccount(row); setShowDeleteModal(true); }} className="p-1.5 rounded-md hover:bg-red-50 text-red-600"><FiTrash2 className="h-4 w-4" /></button>
-      </div>
+      <RowActions
+        onEdit={() => navigate(ROUTES.MAHALLU_FINANCE.ACCOUNTS_EDIT(row.id), { state: { account: row } })}
+        onDelete={() => { setSelectedAccount(row); setShowDeleteModal(true); }}
+        ariaLabels={{ edit: 'Edit', delete: 'Delete' }}
+      />
     )},
   ];
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Mahallu Bank Accounts</h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Manage the Mahallu's own bank accounts</p>
-        </div>
-        <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Mahallu Finance', path: '/mahallu-finance/accounts' }, { label: 'Bank Accounts' }]} />
+    <div className="space-y-4">
+      <PageHeader title="Mahallu Bank Accounts" description="Manage the Mahallu's own bank accounts"
+        actions={
+          <Button onClick={() => navigate(ROUTES.MAHALLU_FINANCE.ACCOUNTS_CREATE)}><FiBriefcase className="h-3.5 w-3.5" />Add Account</Button>
+        }
+      />
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <StatCard variant="inline" title="Total Accounts" value={accounts.length} tone="neutral" />
+        <StatCard variant="inline" viz={accounts.filter((a: any) => (a.balance || 0) > 0).length >= 2 ? { type: 'ladder', values: accounts.map((a: any) => a.balance || 0), color: '#04563A' } : undefined} summary={`Total balance ₹${totalBalance.toLocaleString()}, accounts ranked`} title="Total Balance" value={`₹${totalBalance.toLocaleString()}`} tone="green" icon={<FiDollarSign className="h-[17px] w-[17px]" />} />
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-          <p className="text-sm text-blue-600 dark:text-blue-400">Total Accounts</p>
-          <p className="text-2xl font-bold text-blue-700 dark:text-blue-300">{accounts.length}</p>
-        </div>
-        <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
-          <p className="text-sm text-green-600 dark:text-green-400">Total Balance</p>
-          <p className="text-2xl font-bold text-green-700 dark:text-green-300">₹{totalBalance.toLocaleString()}</p>
-        </div>
-      </div>
-
-      <Card>
-        <TableToolbar
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-          onExport={handleExport}
-          isExporting={isExporting}
-          actionButtons={<Button onClick={() => navigate(ROUTES.MAHALLU_FINANCE.ACCOUNTS_CREATE)} size="sm"><FiBriefcase className="h-4 w-4 mr-2" />Add Account</Button>}
+      <Card padding="none" className="overflow-visible">
+        <FilterBar
+          search={{ value: searchQuery, onChange: setSearchQuery, placeholder: 'Search accounts' }}
+          actions={
+            <>
+              <Dropdown
+                trigger={
+                  <Button variant="secondary" isLoading={isExporting}>
+                    {!isExporting && <FiDownload className="h-3.5 w-3.5" />}
+                    Export
+                  </Button>
+                }
+                items={[
+                  { label: 'Export CSV', icon: <FiFileText />, onClick: () => handleExport('csv'), disabled: isExporting },
+                  { label: 'Export JSON', icon: <FiFile />, onClick: () => handleExport('json'), disabled: isExporting },
+                  { label: 'Export PDF', icon: <FiDownload />, onClick: () => handleExport('pdf'), disabled: isExporting },
+                ]}
+              />
+            </>
+          }
         />
-        {loading ? (
-          <div className="flex justify-center py-12"><LoadingSpinner /></div>
-        ) : error ? (
-          <p className="text-center py-8 text-red-600">{error}</p>
-        ) : (
-          <>
-            <Table columns={columns} data={filteredAccounts} emptyMessage="No accounts found" />
-            {pagination && <Pagination currentPage={currentPage} totalPages={pagination.totalPages || 1} totalItems={pagination.total || 0} itemsPerPage={itemsPerPage} onPageChange={setCurrentPage} />}
-          </>
-        )}
+
+        <div className="p-3.5">
+          {loading ? (
+            <div className="flex justify-center py-12"><LoadingSpinner /></div>
+          ) : error ? (
+            <Alert tone="danger">{error}</Alert>
+          ) : (
+            <>
+              <Table columns={columns} data={filteredAccounts} emptyMessage="No accounts found" />
+              {pagination && <Pagination currentPage={currentPage} totalPages={pagination.totalPages || 1} totalItems={pagination.total || 0} itemsPerPage={itemsPerPage} onPageChange={setCurrentPage} />}
+            </>
+          )}
+      
+        </div>
       </Card>
 
-      <Modal isOpen={showDeleteModal} onClose={() => setShowDeleteModal(false)} title="Delete Account">
-        <p className="text-gray-600 dark:text-gray-400 mb-6">Are you sure you want to delete <strong>{selectedAccount?.accountName}</strong>?</p>
+      <Modal isOpen={showDeleteModal} onClose={() => setShowDeleteModal(false)} title="Delete account?">
+        <p className="text-[#5B6963] dark:text-surface-muted mb-6">Delete <strong>{selectedAccount?.accountName}</strong>?</p>
         <div className="flex justify-end gap-3">
           <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>Cancel</Button>
-          <Button variant="danger" onClick={handleDelete} disabled={deleting}>{deleting ? 'Deleting...' : 'Delete'}</Button>
+          <Button variant="danger-solid" onClick={handleDelete} disabled={deleting}>{deleting ? 'Deleting...' : 'Delete'}</Button>
         </div>
       </Modal>
     </div>

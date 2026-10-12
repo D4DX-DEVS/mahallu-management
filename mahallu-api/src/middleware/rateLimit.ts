@@ -38,6 +38,31 @@ export const verifyOtpRateLimiter = (req: Request, res: Response, next: NextFunc
   next();
 };
 
+// Password login brute-force protection: per ip+phone within window.
+const loginAttemptsStore: Map<Key, Entry> = new Map();
+const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+const LOGIN_MAX_ATTEMPTS = 10;
 
+export const loginRateLimiter = (req: Request, res: Response, next: NextFunction) => {
+  const phone = typeof req.body?.phone === 'string' ? req.body.phone.replace(/\D/g, '').slice(-10) : 'unknown';
+  const key: Key = `${req.ip || 'unknown'}:${phone}`;
+  const now = Date.now();
+  const recent = (loginAttemptsStore.get(key) || []).filter((ts) => ts >= now - LOGIN_WINDOW_MS);
+  recent.push(now);
+  loginAttemptsStore.set(key, recent);
 
+  // Opportunistic cleanup so the map cannot grow without bound.
+  if (loginAttemptsStore.size > 5000) {
+    for (const [k, v] of loginAttemptsStore) {
+      if (!v.some((ts) => ts >= now - LOGIN_WINDOW_MS)) loginAttemptsStore.delete(k);
+    }
+  }
 
+  if (recent.length > LOGIN_MAX_ATTEMPTS) {
+    return res.status(429).json({
+      success: false,
+      message: 'Too many login attempts. Please try again later.',
+    });
+  }
+  next();
+};

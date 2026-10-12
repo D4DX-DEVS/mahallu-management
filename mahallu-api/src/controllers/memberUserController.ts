@@ -1,7 +1,7 @@
 import { Response } from 'express';
 import Member from '../models/Member';
 import Family from '../models/Family';
-import { Varisangya, Zakat, Wallet, Transaction } from '../models/Collectible';
+import { Varisangya, Zakat, Wallet, Transaction, APPROVED_FILTER } from '../models/Collectible';
 import { NikahRegistration, DeathRegistration, NOC } from '../models/Registration';
 import Notification from '../models/Notification';
 import Institute from '../models/Institute';
@@ -9,6 +9,7 @@ import { Banner, Feed } from '../models/Social';
 import { AuthRequest } from '../middleware/authMiddleware';
 import { getPaginationParams, createPaginationResponse } from '../utils/pagination';
 import User from '../models/User';
+import { ACTIVE_FAMILY_FILTER } from '../utils/archiveFilters';
 
 // Get own profile
 export const getOwnProfile = async (req: AuthRequest, res: Response) => {
@@ -70,15 +71,16 @@ export const getOwnOverview = async (req: AuthRequest, res: Response) => {
             status: 'active',
           })
             .sort({ createdAt: -1 })
-            .select('name phone age gender mahallId familyName status createdAt')
+            .select('name phone age gender photoUrl mahallId familyName status createdAt')
         : Promise.resolve([]),
       User.countDocuments({ tenantId: member.tenantId }),
-      Family.countDocuments({ tenantId: member.tenantId }),
+      Family.countDocuments({ tenantId: member.tenantId, ...ACTIVE_FAMILY_FILTER }),
       Member.countDocuments({ tenantId: member.tenantId }),
       Varisangya.aggregate([
         {
           $match: {
             tenantId: member.tenantId,
+            ...APPROVED_FILTER,
             ...(familyId ? { familyId } : { memberId: member._id }),
           },
         },
@@ -94,6 +96,7 @@ export const getOwnOverview = async (req: AuthRequest, res: Response) => {
         {
           $match: {
             tenantId: member.tenantId,
+            ...APPROVED_FILTER,
             payerId: member._id,
           },
         },
@@ -107,6 +110,7 @@ export const getOwnOverview = async (req: AuthRequest, res: Response) => {
       ]),
       Varisangya.findOne({
         tenantId: member.tenantId,
+        ...APPROVED_FILTER,
         $or: [
           { memberId: member._id },
           ...(familyId ? [{ familyId }] : []),
@@ -116,6 +120,7 @@ export const getOwnOverview = async (req: AuthRequest, res: Response) => {
         .select('receiptNo paymentDate amount'),
       Zakat.findOne({
         tenantId: member.tenantId,
+        ...APPROVED_FILTER,
         payerId: member._id,
       })
         .sort({ paymentDate: -1, createdAt: -1 })
@@ -251,8 +256,10 @@ export const getOwnPayments = async (req: AuthRequest, res: Response) => {
         memberId: member._id,
       });
 
+      // Own list shows pending/rejected requests too (status surfaced to the member)
       payments = varisangyas.map((v) => ({
         ...v.toObject(),
+        status: v.status || 'approved',
         type: 'varisangya',
       }));
       total = varisangyaTotal;
@@ -275,6 +282,7 @@ export const getOwnPayments = async (req: AuthRequest, res: Response) => {
       if (type === 'zakat') {
         payments = zakats.map((z) => ({
           ...z.toObject(),
+          status: z.status || 'approved',
           type: 'zakat',
         }));
         total = zakatTotal;
@@ -283,6 +291,7 @@ export const getOwnPayments = async (req: AuthRequest, res: Response) => {
           ...payments,
           ...zakats.map((z) => ({
             ...z.toObject(),
+            status: z.status || 'approved',
             type: 'zakat',
           })),
         ];
@@ -345,25 +354,38 @@ export const getOwnVarisangya = async (req: AuthRequest, res: Response) => {
         : Promise.resolve([]),
     ]);
 
-    const memberTotal = memberVarisangya.reduce((sum: number, v: any) => sum + (v.amount || 0), 0);
-    const familyTotal = familyVarisangya.reduce((sum: number, v: any) => sum + (v.amount || 0), 0);
+    const isCounted = (v: any) => !['pending', 'rejected', 'cancelled'].includes(v.status);
+    const memberCounted = memberVarisangya.filter(isCounted);
+    const familyCounted = familyVarisangya.filter(isCounted);
+    const memberTotal = memberCounted.reduce((sum: number, v: any) => sum + (v.amount || 0), 0);
+    const familyTotal = familyCounted.reduce((sum: number, v: any) => sum + (v.amount || 0), 0);
 
     res.json({
       success: true,
       data: {
-        memberVarisangya: memberVarisangya.map((v: any) => ({ ...v, status: 'paid' })),
-        familyVarisangya: familyVarisangya.map((v: any) => ({ ...v, status: 'paid' })),
+        memberVarisangya: memberVarisangya.map((v: any) => ({ ...v, status: v.status === 'pending' ? 'pending' : v.status === 'rejected' ? 'rejected' : 'paid' })),
+        familyVarisangya: familyVarisangya.map((v: any) => ({ ...v, status: v.status === 'pending' ? 'pending' : v.status === 'rejected' ? 'rejected' : 'paid' })),
         summary: {
           memberTotal,
-          memberCount: memberVarisangya.length,
+          memberCount: memberCounted.length,
           familyTotal,
-          familyCount: familyVarisangya.length,
+          familyCount: familyCounted.length,
         },
       },
     });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
   }
+};
+
+/** Wallet rule: one wallet per family (family-only first); a member wallet only for members without a family. */
+const findMemberWallet = async (member: any) => {
+  if (member.familyId) {
+    const base = { tenantId: member.tenantId, familyId: member.familyId };
+    const w = (await Wallet.findOne({ ...base, memberId: { $exists: false } })) || (await Wallet.findOne(base).sort({ createdAt: 1 }));
+    if (w) return w;
+  }
+  return Wallet.findOne({ tenantId: member.tenantId, memberId: member._id }).sort({ createdAt: 1 });
 };
 
 // Get own wallet balance
@@ -384,21 +406,9 @@ export const getOwnWallet = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    let wallet = await Wallet.findOne({
-      tenantId: member.tenantId,
-      memberId: member._id,
-    });
-
-    if (!wallet) {
-      wallet = new Wallet({
-        tenantId: member.tenantId,
-        memberId: member._id,
-        balance: 0,
-      });
-      await wallet.save();
-    }
-
-    res.json({ success: true, data: wallet });
+    // One wallet per family; read-only (never creates a wallet on GET)
+    const wallet = await findMemberWallet(member);
+    res.json({ success: true, data: wallet || { balance: 0, tenantId: member.tenantId, memberId: member._id } });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -422,22 +432,13 @@ export const getOwnWalletTransactions = async (req: AuthRequest, res: Response) 
       });
     }
 
-    let wallet = await Wallet.findOne({
-      tenantId: member.tenantId,
-      memberId: member._id,
-    });
-
-    if (!wallet) {
-      wallet = new Wallet({
-        tenantId: member.tenantId,
-        memberId: member._id,
-        balance: 0,
-      });
-      await wallet.save();
-    }
+    const wallet = await findMemberWallet(member);
 
     const { page, limit } = req.query;
     const { skip } = getPaginationParams(req);
+    if (!wallet) {
+      return res.json(createPaginationResponse([], 0, Number(page) || 1, Number(limit) || 10));
+    }
 
     const [transactions, total] = await Promise.all([
       Transaction.find({ walletId: wallet._id })
@@ -471,11 +472,19 @@ export const requestVarisangyaPayment = async (req: AuthRequest, res: Response) 
       });
     }
 
+    const { amount, paymentDate, paymentMethod, remarks, remarksMl } = req.body;
     const varisangyaData = {
-      ...req.body,
+      amount,
+      paymentDate,
+      paymentMethod,
+      remarks,
+      remarksMl,
       tenantId: member.tenantId,
       memberId: member._id,
       familyId: member.familyId,
+      status: 'pending' as const,
+      source: 'member' as const,
+      requestedBy: req.user?._id,
     };
 
     const varisangya = new Varisangya(varisangyaData);
@@ -484,7 +493,7 @@ export const requestVarisangyaPayment = async (req: AuthRequest, res: Response) 
     res.status(201).json({
       success: true,
       data: varisangya,
-      message: 'Varisangya payment request submitted successfully',
+      message: 'Varisangya payment request submitted and awaiting admin approval',
     });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
@@ -509,11 +518,20 @@ export const requestZakatPayment = async (req: AuthRequest, res: Response) => {
       });
     }
 
+    const { amount, paymentDate, paymentMethod, category, remarks, remarksMl } = req.body;
     const zakatData = {
-      ...req.body,
+      amount,
+      paymentDate,
+      paymentMethod,
+      category,
+      remarks,
+      remarksMl,
       tenantId: member.tenantId,
       payerId: member._id,
       payerName: member.name,
+      status: 'pending' as const,
+      source: 'member' as const,
+      requestedBy: req.user?._id,
     };
 
     const zakat = new Zakat(zakatData);
@@ -522,7 +540,7 @@ export const requestZakatPayment = async (req: AuthRequest, res: Response) => {
     res.status(201).json({
       success: true,
       data: zakat,
-      message: 'Zakat payment request submitted successfully',
+      message: 'Zakat payment request submitted and awaiting admin approval',
     });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
@@ -631,8 +649,12 @@ export const requestNikahRegistration = async (req: AuthRequest, res: Response) 
       });
     }
 
+    // Server-managed fields (side-effect bookkeeping, certificate, approval, family movement) are never client input
+    const portalBody: Record<string, any> = { ...req.body };
+    ['effectsApplied', 'effects', 'previousStatus', 'approvedBy', 'approvedAt', 'certificateNo', 'certificateIssuedAt', 'brideFamilyAction', 'newFamilyHouseName', 'graveId', 'graveRecordId', 'spouseMemberId', 'brideId', 'tenantId', '_id']
+      .forEach((k) => delete portalBody[k]);
     const nikahData = {
-      ...req.body,
+      ...portalBody,
       tenantId: member.tenantId,
       groomId: member._id,
       groomName: member.name,
@@ -670,11 +692,27 @@ export const requestDeathRegistration = async (req: AuthRequest, res: Response) 
       });
     }
 
+    const portalBody: Record<string, any> = { ...req.body };
+    ['effectsApplied', 'effects', 'previousStatus', 'approvedBy', 'approvedAt', 'certificateNo', 'graveId', 'graveRecordId', 'spouseMemberId', 'tenantId', '_id']
+      .forEach((k) => delete portalBody[k]);
+    // A family member can report the death of another member of their own family (portalBody.deceasedId).
+    // Without it the request keeps its original meaning (about the requester). An admin sees exactly
+    // who will be marked deceased in the approval preview before approving.
+    let deceased: any = member;
+    if (portalBody.deceasedId && String(portalBody.deceasedId) !== String(member._id)) {
+      const other = /^[a-f0-9]{24}$/i.test(String(portalBody.deceasedId))
+        ? await Member.findOne({ _id: portalBody.deceasedId, tenantId: member.tenantId, familyId: member.familyId })
+        : null;
+      if (!other) {
+        return res.status(400).json({ success: false, message: 'You can only report the death of someone in your own family.' });
+      }
+      deceased = other;
+    }
     const deathData = {
-      ...req.body,
+      ...portalBody,
       tenantId: member.tenantId,
-      deceasedId: member._id,
-      deceasedName: member.name,
+      deceasedId: deceased._id,
+      deceasedName: deceased.name,
       familyId: member.familyId,
       status: 'pending',
     };

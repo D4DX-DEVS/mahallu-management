@@ -4,15 +4,21 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useNavigate } from 'react-router-dom';
 import { FiSave, FiX } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
-import Input from '@/components/ui/Input';
+import Input, { controlClasses, labelClasses } from '@/components/ui/Input';
 import { ROUTES } from '@/constants/routes';
 import { userService } from '@/services/userService';
 import { tenantService } from '@/services/tenantService';
 import { useAuthStore } from '@/store/authStore';
 import { Tenant } from '@/types/tenant';
+import Alert from '@/components/ui/Alert';
+import PageHeader from '@/components/ui/PageHeader';
+import { useUnsavedChangesGuard } from '@/hooks/useUnsavedChangesGuard';
+import UnsavedChangesDialog from '@/components/ui/UnsavedChangesDialog';
+import PhoneInput from '@/components/ui/PhoneInput';
+import { toast } from '@/store/toastStore';
+import { getFriendlyError } from '@/utils/apiMessages';
 
 const userSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters').max(100, 'Name must not exceed 100 characters'),
@@ -39,8 +45,9 @@ export default function CreateSurveyUser() {
     register,
     handleSubmit,
     watch,
-    formState: { errors, isSubmitting },
+    formState: { errors, isSubmitting, isDirty },
   } = useForm<UserFormData>({
+    mode: 'onTouched',
     resolver: zodResolver(userSchema),
     defaultValues: {
       tenantId: currentTenantId || '',
@@ -52,6 +59,7 @@ export default function CreateSurveyUser() {
       },
     },
   });
+  const guard = useUnsavedChangesGuard(isDirty);
 
   const permissions = watch('permissions');
 
@@ -91,55 +99,36 @@ export default function CreateSurveyUser() {
       console.error('Error response:', err.response?.data);
       
       // Handle validation errors
-      if (err.response?.data?.errors && Array.isArray(err.response.data.errors)) {
-        const errorMessages = err.response.data.errors.map((e: any) => e.msg).join(', ');
-        setError(`Validation failed: ${errorMessages}`);
-      } else {
-        setError(err.response?.data?.message || 'Failed to create user. Please try again.');
-      }
+      toast.error(getFriendlyError(err, "Couldn't create user. Check the details and try again."));
+
     }
   };
 
   return (
-    <div className="space-y-6">
-      <Breadcrumb
-        items={[
-          { label: 'Dashboard', path: '/dashboard' },
-          { label: 'Survey Users', path: ROUTES.USERS.SURVEY },
-          { label: 'Create' },
-        ]}
-      />
+    <div className="space-y-4">
 
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-          Create Survey User
-        </h1>
-        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-          Add a new survey user with appropriate permissions
-        </p>
-      </div>
+      <PageHeader title="Create Survey User" description="Add a new survey user with appropriate permissions" />
 
       <form onSubmit={handleSubmit(onSubmit)}>
-        <Card className="space-y-6">
+        <div className="space-y-4">
           {error && (
-            <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm dark:bg-red-900 dark:border-red-700 dark:text-red-200">
-              {error}
-            </div>
+            <Alert tone="danger">{error}</Alert>
           )}
           {/* Basic Information */}
-          <div>
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+          <Card>
+            <h2 className="text-[13.5px] font-bold text-[#18231E] dark:text-surface-text mb-0.5">
               Basic Information
             </h2>
+            <p className="mb-3 text-xs text-[#7B8983] dark:text-surface-muted">Name and contact details</p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {isSuperAdmin && (
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label className={labelClasses}>
                     Tenant <span className="text-red-500">*</span>
                   </label>
                   <select
                     {...register('tenantId')}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-800 dark:border-gray-600 dark:text-gray-100"
+                    className={`${controlClasses} h-9`}
                   >
                     <option value="">Select Tenant</option>
                     {tenants.map((tenant) => (
@@ -168,15 +157,13 @@ export default function CreateSurveyUser() {
                 className="font-malayalam"
               />
               </div>
-              <Input
+              <PhoneInput
                 label="Phone Number"
-                type="tel"
                 {...register('phone')}
                 error={errors.phone?.message}
                 required
                 placeholder="9876543210"
                 pattern="[0-9]{10}"
-                maxLength={10}
                 title="Phone number must be exactly 10 digits"
               />
               <Input
@@ -188,14 +175,14 @@ export default function CreateSurveyUser() {
                 className="md:col-span-2"
               />
             </div>
-          </div>
+          </Card>
 
           {/* Permissions */}
-          <div>
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
+          <Card>
+            <h2 className="text-[13.5px] font-bold text-[#18231E] dark:text-surface-text mb-2">
               Permissions
             </h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+            <p className="text-sm text-[#7B8983] dark:text-surface-muted mb-4">
               Check The Required Permissions Below
             </p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -207,38 +194,39 @@ export default function CreateSurveyUser() {
               ].map((permission) => (
                 <label
                   key={permission.key}
-                  className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800"
+                  className="flex items-center space-x-3 p-3 border border-line rounded-xl cursor-pointer hover:bg-mint/40 dark:border-surface-border dark:hover:bg-surface-hover"
                 >
                   <input
                     type="checkbox"
                     {...register(`permissions.${permission.key}`)}
-                    className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded dark:bg-gray-700 dark:border-gray-600"
+                    className="h-4 w-4 cursor-pointer rounded border-line-strong accent-primary-700 dark:accent-brand-lime"
                   />
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  <span className="text-sm font-medium text-[#3A4741] dark:text-surface-text">
                     {permission.label}
                   </span>
                 </label>
               ))}
             </div>
-          </div>
+          </Card>
 
           {/* Form Actions */}
-          <div className="flex justify-end gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+          <div className="sticky bottom-0 z-10 flex flex-wrap justify-end gap-2 pb-[calc(0.75rem+env(safe-area-inset-bottom))] [&>button]:flex-1 sm:[&>button]:flex-none rounded-card border border-line bg-white/90 px-4 py-3 shadow-card backdrop-blur dark:border-surface-border dark:bg-surface-card/90">
             <Button
               type="button"
-              variant="outline"
-              onClick={() => navigate(ROUTES.USERS.SURVEY)}
+              variant="secondary"
+              onClick={() => guard.guardedNavigate(ROUTES.USERS.SURVEY)}
             >
-              <FiX className="h-4 w-4 mr-2" />
+              <FiX className="h-3.5 w-3.5" />
               Cancel
             </Button>
             <Button type="submit" isLoading={isSubmitting}>
-              <FiSave className="h-4 w-4 mr-2" />
+              <FiSave className="h-3.5 w-3.5" />
               Create User
             </Button>
           </div>
-        </Card>
+        </div>
       </form>
+      <UnsavedChangesDialog guard={guard} />
     </div>
   );
 }

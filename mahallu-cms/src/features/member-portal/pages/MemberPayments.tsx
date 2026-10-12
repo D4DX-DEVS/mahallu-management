@@ -1,17 +1,26 @@
 import { useEffect, useState } from 'react';
+import { formatINR } from '@/utils/formatINR';
 import { memberPortalService, PaymentRecord } from '@/services/memberPortalService';
 import { downloadPaymentReceiptPdf } from '@/utils/paymentReceiptPdf';
 import { useAuthStore } from '@/store/authStore';
+import { FiDollarSign, FiHeart, FiDownload } from 'react-icons/fi';
 import Card from '@/components/ui/Card';
+import Button from '@/components/ui/Button';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import PageHeader from '@/components/ui/PageHeader';
+import StatCard from '@/components/ui/StatCard';
+import Tabs from '@/components/ui/Tabs';
+import Table from '@/components/ui/Table';
+import Badge from '@/components/ui/Badge';
+import StatusBadge from '@/components/ui/StatusBadge';
+import Alert from '@/components/ui/Alert';
+import { TableColumn } from '@/types';
+import { monthlySeries } from '@/utils/statSeries';
+import RowActions from '@/components/ui/RowActions';
+import { getFriendlyError } from '@/utils/apiMessages';
 
 type TabType = 'all' | 'varisangya' | 'zakat';
 
-const currency = new Intl.NumberFormat('en-IN', {
-  style: 'currency',
-  currency: 'INR',
-  maximumFractionDigits: 0,
-});
 
 export default function MemberPayments() {
   const user = useAuthStore((state) => state.user);
@@ -28,7 +37,7 @@ export default function MemberPayments() {
         const result = await memberPortalService.getOwnPayments(undefined, 1, 100);
         setPayments(result.data || []);
       } catch (err: any) {
-        setError(err.response?.data?.message || 'Failed to load payment records');
+        setError(getFriendlyError(err, "Couldn't load payment records. Refresh the page or try again."));
       } finally {
         setLoading(false);
       }
@@ -39,15 +48,20 @@ export default function MemberPayments() {
   const filtered =
     activeTab === 'all' ? payments : payments.filter((p) => p.type === activeTab);
 
-  const varisangyaTotal = payments
+  // Pending / rejected requests never count toward totals
+  const counted = payments.filter((p) => p.status !== 'pending' && p.status !== 'rejected');
+  const varisangyaTotal = counted
     .filter((p) => p.type === 'varisangya')
     .reduce((s, p) => s + p.amount, 0);
-  const zakatTotal = payments
+  const zakatTotal = counted
     .filter((p) => p.type === 'zakat')
     .reduce((s, p) => s + p.amount, 0);
 
+  const varisangyaSeries = monthlySeries(counted.filter((p) => p.type === 'varisangya'), (p) => p.paymentDate, (p) => p.amount);
+  const zakatSeries = monthlySeries(counted.filter((p) => p.type === 'zakat'), (p) => p.paymentDate, (p) => p.amount);
+
   const handleDownload = async (payment: PaymentRecord) => {
-    setDownloading(payment._id);
+    setDownloading(payment.id);
     try {
       await downloadPaymentReceiptPdf(payment, user?.name || 'Member');
     } finally {
@@ -65,125 +79,114 @@ export default function MemberPayments() {
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center h-[calc(100vh-140px)] gap-4">
-        <p className="text-red-600 dark:text-red-400">{error}</p>
+      <div className="py-6">
+        <Alert tone="danger">{error}</Alert>
       </div>
     );
   }
 
+  const columns: TableColumn<PaymentRecord>[] = [
+    {
+      key: 'receiptNo',
+      label: 'Receipt No',
+      render: (v) => <span className="font-mono text-xs">{v || '—'}</span>,
+    },
+    {
+      key: 'paymentDate',
+      label: 'Date',
+      render: (v) => (v ? new Date(v).toLocaleDateString('en-IN') : '—'),
+    },
+    {
+      key: 'amount',
+      label: 'Amount',
+      render: (v) => <span className="font-semibold text-[#0B4837] dark:text-brand-lime">{formatINR(v)}</span>,
+    },
+    {
+      key: 'type',
+      label: 'Type',
+      render: (v) => <Badge variant={v === 'varisangya' ? 'primary' : 'warning'}>{v === 'varisangya' ? 'Varisangya' : 'Zakat'}</Badge>,
+    },
+    {
+      key: 'paymentMethod',
+      label: 'Method',
+      render: (v) => (v ? <StatusBadge status={v} tone="neutral" dot={false} /> : '—'),
+    },
+    {
+      key: 'status',
+      label: 'Status',
+      render: (s, payment) =>
+        s === 'pending' ? (
+          <StatusBadge status="pending" label="Pending approval" />
+        ) : s === 'rejected' ? (
+          <span title={payment.rejectReason || undefined}>
+            <StatusBadge status="rejected" />
+          </span>
+        ) : (
+          <StatusBadge status="paid" />
+        ),
+    },
+    {
+      key: 'actions',
+      label: 'Actions',
+      render: (_, payment) => (
+        <RowActions
+          extra={[
+            {
+              label: 'Download receipt',
+              icon: <FiDownload />,
+              onClick: () => handleDownload(payment),
+              disabledReason:
+                payment.status === 'pending' ? 'Receipt after approval'
+                : payment.status === 'rejected' ? 'No receipt for a rejected payment'
+                : downloading === payment.id ? 'Generating…' : undefined,
+            },
+          ]}
+        />
+      ),
+    },
+  ];
+
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-        My Payments &amp; Receipts
-      </h1>
+    <div className="space-y-4">
+      <PageHeader title="My payments & receipts" description="Varisangya and zakat payments with downloadable receipts" />
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Card>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Total Varisangya Paid</p>
-          <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100 mt-1">
-            {currency.format(varisangyaTotal)}
-          </p>
-          <p className="text-xs text-gray-400 mt-1">
-            {payments.filter((p) => p.type === 'varisangya').length} payments
-          </p>
-        </Card>
-        <Card>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Total Zakat Paid</p>
-          <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100 mt-1">
-            {currency.format(zakatTotal)}
-          </p>
-          <p className="text-xs text-gray-400 mt-1">
-            {payments.filter((p) => p.type === 'zakat').length} payments
-          </p>
-        </Card>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <StatCard
+          variant="inline"
+          title="Total Varisangya Paid"
+          value={formatINR(varisangyaTotal)}
+          icon={<FiDollarSign className="h-[17px] w-[17px]" />}
+          tone="green"
+          viz={varisangyaSeries.length ? { type: 'area', values: varisangyaSeries } : undefined}
+        />
+        <StatCard
+          variant="inline"
+          title="Total Zakat Paid"
+          value={formatINR(zakatTotal)}
+          icon={<FiHeart className="h-[17px] w-[17px]" />}
+          tone="lime"
+          viz={zakatSeries.length ? { type: 'bars', values: zakatSeries, color: '#E0B400' } : undefined}
+        />
       </div>
 
-      {/* Tab Filter */}
-      <div className="flex gap-2 border-b border-gray-200 dark:border-gray-800">
-        {(['all', 'varisangya', 'zakat'] as TabType[]).map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`pb-2 px-3 text-sm font-medium border-b-2 transition-colors ${
-              activeTab === tab
-                ? 'border-primary-600 text-primary-600 dark:text-primary-400'
-                : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
-            }`}
-          >
-            {tab === 'all' ? 'All' : tab === 'varisangya' ? 'Varisangya' : 'Zakat'}
-          </button>
-        ))}
-      </div>
-
-      {/* Payments Table */}
-      {filtered.length === 0 ? (
-        <Card>
-          <div className="text-center py-12">
-            <p className="text-gray-500 dark:text-gray-400">No payment records found.</p>
-          </div>
-        </Card>
-      ) : (
-        <Card>
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
-              <thead>
-                <tr className="text-left border-b border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-400">
-                  <th className="py-2 pr-4">Receipt No</th>
-                  <th className="py-2 pr-4">Date</th>
-                  <th className="py-2 pr-4">Amount</th>
-                  <th className="py-2 pr-4">Type</th>
-                  <th className="py-2 pr-4">Method</th>
-                  <th className="py-2">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((payment) => (
-                  <tr
-                    key={payment._id}
-                    className="border-b border-gray-100 dark:border-gray-900 text-gray-900 dark:text-gray-100"
-                  >
-                    <td className="py-3 pr-4 font-mono text-xs">
-                      {payment.receiptNo || '—'}
-                    </td>
-                    <td className="py-3 pr-4 text-gray-500 dark:text-gray-400">
-                      {payment.paymentDate
-                        ? new Date(payment.paymentDate).toLocaleDateString('en-IN')
-                        : '—'}
-                    </td>
-                    <td className="py-3 pr-4 font-semibold">
-                      {currency.format(payment.amount)}
-                    </td>
-                    <td className="py-3 pr-4">
-                      <span
-                        className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                          payment.type === 'varisangya'
-                            ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'
-                            : 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400'
-                        }`}
-                      >
-                        {payment.type === 'varisangya' ? 'Varisangya' : 'Zakat'}
-                      </span>
-                    </td>
-                    <td className="py-3 pr-4 capitalize text-gray-500 dark:text-gray-400">
-                      {payment.paymentMethod || '—'}
-                    </td>
-                    <td className="py-3">
-                      <button
-                        onClick={() => handleDownload(payment)}
-                        disabled={downloading === payment._id}
-                        className="text-xs text-primary-600 dark:text-primary-400 hover:underline disabled:opacity-50"
-                      >
-                        {downloading === payment._id ? 'Generating…' : 'Download Receipt'}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Card>
-      )}
+      <Card padding="none">
+        <div className="px-4 pt-3">
+          <Tabs
+            aria-label="Payment type"
+            value={activeTab}
+            onChange={(v) => setActiveTab(v as TabType)}
+            tabs={[
+              { value: 'all', label: 'All', count: payments.length },
+              { value: 'varisangya', label: 'Varisangya', count: payments.filter((p) => p.type === 'varisangya').length },
+              { value: 'zakat', label: 'Zakat', count: payments.filter((p) => p.type === 'zakat').length },
+            ]}
+          />
+        </div>
+        <div className="p-3.5">
+          <Table columns={columns} data={filtered} showExport={false} emptyMessage="No payment records found." />
+        </div>
+      </Card>
     </div>
   );
 }

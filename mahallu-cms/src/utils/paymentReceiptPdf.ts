@@ -1,5 +1,6 @@
 import jsPDF from 'jspdf';
 import { PaymentRecord } from '@/services/memberPortalService';
+import { formatHijri } from '@/utils/hijri';
 
 const loadLogo = async (): Promise<string | null> => {
   try {
@@ -53,6 +54,7 @@ export const downloadPaymentReceiptPdf = async (
   // Title
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(15);
+  doc.setTextColor(11, 72, 55); // ZAAD deep green #0B4837
   const title = 'PAYMENT RECEIPT';
   doc.text(title, pageWidth / 2, y, { align: 'center' });
   y += 6;
@@ -60,10 +62,12 @@ export const downloadPaymentReceiptPdf = async (
   // Mahall name
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(11);
+  doc.setTextColor(35, 31, 32); // ink #231F20
   doc.text(mahallName, pageWidth / 2, y, { align: 'center' });
   y += 8;
 
   // Separator
+  doc.setDrawColor(4, 86, 58); // forest #04563A
   doc.setLineWidth(0.5);
   doc.line(20, y, pageWidth - 20, y);
   y += 10;
@@ -76,6 +80,7 @@ export const downloadPaymentReceiptPdf = async (
   const rows: [string, string][] = [
     ['Receipt No:', payment.receiptNo || 'N/A'],
     ['Date:', payment.paymentDate ? formatDate(payment.paymentDate) : 'N/A'],
+    ...(payment.paymentDate ? ([['Hijri Date:', formatHijri(payment.paymentDate)]] as [string, string][]) : []),
     ['Member Name:', memberName],
     ['Payment Type:', payment.type === 'varisangya' ? 'Varisangya (Member Fee)' : 'Zakat'],
     ['Amount:', formatAmount(payment.amount)],
@@ -97,6 +102,7 @@ export const downloadPaymentReceiptPdf = async (
   });
 
   y += 8;
+  doc.setDrawColor(142, 193, 62); // lime #8EC13E
   doc.setLineWidth(0.3);
   doc.line(20, y, pageWidth - 20, y);
   y += 10;
@@ -109,5 +115,5 @@ export const downloadPaymentReceiptPdf = async (
     align: 'center',
   });
 
-  doc.save(`${filename}-${payment.receiptNo || payment._id}.pdf`);
+  doc.save(`${filename}-${payment.receiptNo || payment.id}.pdf`);
 };

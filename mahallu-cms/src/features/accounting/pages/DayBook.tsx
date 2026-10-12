@@ -1,13 +1,21 @@
 import { useState, useEffect } from 'react';
-import Breadcrumb from '@/components/layout/Breadcrumb';
+import { FiTrendingUp, FiTrendingDown, FiDollarSign } from 'react-icons/fi';
 import Card from '@/components/ui/Card';
+import Badge from '@/components/ui/Badge';
+import Alert from '@/components/ui/Alert';
+import FilterBar from '@/components/ui/FilterBar';
+import StatCard from '@/components/ui/StatCard';
+import PageHeader from '@/components/ui/PageHeader';
 import Button from '@/components/ui/Button';
-import Input from '@/components/ui/Input';
+import DateRangePicker from '@/components/ui/DateRangePicker';
 import Select from '@/components/ui/Select';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { accountingReportService, DayBookEntry } from '@/services/accountingReportService';
 import { instituteService } from '@/services/instituteService';
 import { useAuthStore } from '@/store/authStore';
+import { pct } from '@/utils/statSeries';
+import { getFriendlyError } from '@/utils/apiMessages';
+import ScrollX from '@/features/_shared/ScrollX';
 
 export default function DayBook() {
   const { currentInstituteId: userInstituteId } = useAuthStore();
@@ -43,7 +51,7 @@ export default function DayBook() {
       const data = await accountingReportService.getDayBook(params);
       setEntries(data || []);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch day book');
+      setError(getFriendlyError(err, "Couldn't load day book. Refresh the page or try again."));
     } finally {
       setLoading(false);
     }
@@ -53,22 +61,13 @@ export default function DayBook() {
   const totalExpense = entries.filter(e => e.type === 'expense' || e.type === 'salary').reduce((sum, e) => sum + e.amount, 0);
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Day Book</h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Chronological record of all transactions</p>
-        </div>
-        <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Day Book' }]} />
-      </div>
+    <div className="space-y-4">
+      <PageHeader title="Day Book" description="Chronological record of all transactions" />
 
-      <Card>
-        <div className="flex flex-wrap items-end gap-4 mb-6">
-          <div className="w-44">
-            <Input label="Start Date" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
-          </div>
-          <div className="w-44">
-            <Input label="End Date" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+      <Card padding="none" className="overflow-visible">
+        <FilterBar className="items-end">
+          <div className="w-72 max-sm:w-full">
+            <DateRangePicker label="Date range" from={startDate} to={endDate} onChange={(f, t) => { setStartDate(f); setEndDate(t); }} />
           </div>
           {!userInstituteId && (
             <div className="w-48">
@@ -83,80 +82,66 @@ export default function DayBook() {
           <Button onClick={fetchDayBook} disabled={loading}>
             {loading ? 'Loading...' : 'Generate'}
           </Button>
-        </div>
+        </FilterBar>
 
-        {loading ? (
-          <div className="flex justify-center items-center py-12"><LoadingSpinner /></div>
-        ) : error ? (
-          <div className="text-center py-12">
-            <p className="text-red-600 dark:text-red-400">{error}</p>
-          </div>
-        ) : entries.length === 0 ? (
-          <div className="text-center py-12 text-gray-500 dark:text-gray-400">
-            {startDate ? 'No entries found for the selected period. Click "Generate" to load data.' : 'Select a date range and click "Generate"'}
-          </div>
-        ) : (
-          <>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-              <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                <p className="text-sm text-green-600 dark:text-green-400">Total Income</p>
-                <p className="text-xl font-bold text-green-700 dark:text-green-300">₹{totalIncome.toLocaleString()}</p>
-              </div>
-              <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg">
-                <p className="text-sm text-red-600 dark:text-red-400">Total Expense</p>
-                <p className="text-xl font-bold text-red-700 dark:text-red-300">₹{totalExpense.toLocaleString()}</p>
-              </div>
-              <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                <p className="text-sm text-blue-600 dark:text-blue-400">Net Balance</p>
-                <p className="text-xl font-bold text-blue-700 dark:text-blue-300">₹{(totalIncome - totalExpense).toLocaleString()}</p>
-              </div>
+        <div className="p-3.5">
+          {loading ? (
+            <div className="flex justify-center items-center py-12"><LoadingSpinner /></div>
+          ) : error ? (
+            <Alert tone="danger">{error}</Alert>
+          ) : entries.length === 0 ? (
+            <div className="text-center py-12 text-[#7B8983] dark:text-surface-muted">
+              {startDate ? 'No entries found for the selected period. Click "Generate" to load data.' : 'Select a date range and click "Generate"'}
             </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 mb-4">
+                <StatCard variant="inline" title="Total Income" value={`₹${totalIncome.toLocaleString()}`} tone="green" icon={<FiTrendingUp className="h-[17px] w-[17px]" />} />
+                <StatCard variant="inline" viz={totalIncome > 0 ? { type: 'bullet', percent: pct(totalExpense, totalIncome), target: 100, color: totalExpense > totalIncome ? '#B3261E' : '#04563A' } : undefined} summary={`Expense ₹${(totalExpense).toLocaleString()}, ${pct(totalExpense, totalIncome)} percent of income`} title="Total Expense" value={`₹${totalExpense.toLocaleString()}`} tone="red" icon={<FiTrendingDown className="h-[17px] w-[17px]" />} />
+                <StatCard variant="inline" viz={totalIncome + totalExpense > 0 ? { type: 'pair', a: totalIncome, b: totalExpense, colorB: '#E0B400' } : undefined} summary={`Income ₹${(totalIncome).toLocaleString()} compared with expense ₹${(totalExpense).toLocaleString()}`} title="Net Balance" value={`₹${(totalIncome - totalExpense).toLocaleString()}`} tone="neutral" icon={<FiDollarSign className="h-[17px] w-[17px]" />} />
+              </div>
 
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                <thead className="bg-gray-50 dark:bg-gray-800">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Date</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Description</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Type</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Ledger/Category</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Amount</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
-                  {entries.map((entry, idx) => (
-                    <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-800">
-                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap">
-                        {new Date(entry.date).toLocaleDateString()}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
-                        {entry.description}
-                        {entry.employeeName && <span className="text-gray-500 ml-1">({entry.employeeName})</span>}
-                      </td>
-                      <td className="px-4 py-3 text-sm">
-                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                          entry.type === 'income' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                            : entry.type === 'salary' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200'
-                            : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                        }`}>
-                          {entry.type}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
-                        {entry.ledgerName || entry.categoryName || '-'}
-                      </td>
-                      <td className={`px-4 py-3 text-sm text-right font-medium ${
-                        entry.type === 'income' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
-                      }`}>
-                        {entry.type === 'income' ? '+' : '-'}₹{entry.amount.toLocaleString()}
-                      </td>
+              <ScrollX>
+                <table className="w-full border-collapse text-[12.5px]">
+                  <thead className="bg-[#FAFCFB] dark:bg-surface-base/60">
+                    <tr>
+                      <th className="whitespace-nowrap px-3.5 py-2.5 text-left text-[12px] font-bold text-[#7B8983] dark:text-surface-muted uppercase tracking-[0.06em]">Date</th>
+                      <th className="whitespace-nowrap px-3.5 py-2.5 text-left text-[12px] font-bold text-[#7B8983] dark:text-surface-muted uppercase tracking-[0.06em]">Description</th>
+                      <th className="whitespace-nowrap px-3.5 py-2.5 text-left text-[12px] font-bold text-[#7B8983] dark:text-surface-muted uppercase tracking-[0.06em]">Type</th>
+                      <th className="whitespace-nowrap px-3.5 py-2.5 text-left text-[12px] font-bold text-[#7B8983] dark:text-surface-muted uppercase tracking-[0.06em]">Ledger/Category</th>
+                      <th className="whitespace-nowrap px-3.5 py-2.5 text-right text-[12px] font-bold text-[#7B8983] dark:text-surface-muted uppercase tracking-[0.06em]">Amount</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </>
-        )}
+                  </thead>
+                  <tbody className="divide-y divide-line-soft bg-white dark:divide-surface-border dark:bg-surface-card">
+                    {entries.map((entry, idx) => (
+                      <tr key={idx} className="hover:bg-[#F6FAF8] dark:hover:bg-surface-hover/60">
+                        <td className="px-3.5 py-2 text-[12.5px] text-[#18231E] dark:text-surface-text whitespace-nowrap">
+                          {new Date(entry.date).toLocaleDateString()}
+                        </td>
+                        <td className="px-3.5 py-2 text-[12.5px] text-[#18231E] dark:text-surface-text">
+                          {entry.description}
+                          {entry.employeeName && <span className="text-[#7B8983] dark:text-surface-muted ml-1">({entry.employeeName})</span>}
+                        </td>
+                        <td className="px-3.5 py-2 text-[12.5px]">
+                          <Badge variant={entry.type === 'income' ? 'success' : entry.type === 'salary' ? 'info' : 'danger'} dot className="capitalize">{entry.type}</Badge>
+                        </td>
+                        <td className="px-3.5 py-2 text-[12.5px] text-[#5B6963] dark:text-surface-muted">
+                          {entry.ledgerName || entry.categoryName || '-'}
+                        </td>
+                        <td className={`px-3.5 py-2 text-[12.5px] text-right font-medium ${
+                          entry.type === 'income' ? 'text-primary-600 dark:text-primary-400' : 'text-[#B3261E] dark:text-red-300'
+                        }`}>
+                          {entry.type === 'income' ? '+' : '-'}₹{entry.amount.toLocaleString()}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </ScrollX>
+            </>
+          )}
+
+        </div>
       </Card>
     </div>
   );

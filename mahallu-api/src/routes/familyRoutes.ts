@@ -6,6 +6,15 @@ import {
   updateFamily,
   deleteFamily,
   getFamilyStats,
+  bulkImportFamilies,
+  getFamilyDuplicates,
+  getFamiliesNeedingAttention,
+  getFamilyLifecycleInfo,
+  restoreFamilyHandler,
+  mergePreviewHandler,
+  mergeFamilyHandler,
+  splitFamilyHandler,
+  setFamilyHeadHandler,
 } from '../controllers/familyController';
 import { authMiddleware, allowRoles } from '../middleware/authMiddleware';
 import { tenantMiddleware, tenantFilter } from '../middleware/tenantMiddleware';
@@ -55,6 +64,63 @@ router.use(allowRoles(['super_admin', 'mahall', 'survey', 'institute']));
  */
 router.get('/', getAllFamilies);
 router.get('/stats', getFamilyStats);
+// Tenant-wide duplicate report and "needs attention" feed (declared before /:id)
+router.get('/duplicates', allowRoles(['mahall', 'super_admin']), getFamilyDuplicates);
+router.get('/needs-attention', getFamiliesNeedingAttention);
+
+/**
+ * @swagger
+ * /families/bulk-import:
+ *   post:
+ *     summary: Bulk import families
+ *     tags: [Families]
+ *     description: |
+ *       Import up to 500 families at once (CSV parsed client-side into JSON rows).
+ *       **Access:** Super Admin, Mahall Admin
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [families]
+ *             properties:
+ *               families:
+ *                 type: array
+ *                 maxItems: 500
+ *                 items:
+ *                   type: object
+ *                   required: [houseName]
+ *                   properties:
+ *                     houseName:
+ *                       type: string
+ *                     houseNameMl:
+ *                       type: string
+ *                     familyHead:
+ *                       type: string
+ *                     familyHeadMl:
+ *                       type: string
+ *                     contactNo:
+ *                       type: string
+ *                     area:
+ *                       type: string
+ *                     areaMl:
+ *                       type: string
+ *                     place:
+ *                       type: string
+ *                     placeMl:
+ *                       type: string
+ *                     varisangyaGrade:
+ *                       type: string
+ *     responses:
+ *       201:
+ *         description: Number of families imported
+ *       400:
+ *         description: Validation errors with row numbers
+ */
+router.post('/bulk-import', allowRoles(['mahall', 'super_admin']), bulkImportFamilies);
 
 /**
  * @swagger
@@ -208,7 +274,17 @@ router.put('/:id', updateFamilyValidation, validationHandler, updateFamily);
  *       404:
  *         $ref: '#/components/responses/NotFound'
  */
-router.delete('/:id', deleteFamilyValidation, validationHandler, deleteFamily);
+// DELETE archives (soft delete). ?cascade=true, ?force=true, ?reason=..., ?hard=true (super_admin, archived only)
+router.delete('/:id', allowRoles(['mahall', 'super_admin']), deleteFamilyValidation, validationHandler, deleteFamily);
+
+// Lifecycle: restore, archive preview, merge, split, change head. Mahall admin / super admin only.
+const lifecycleRoles = allowRoles(['mahall', 'super_admin']);
+router.get('/:id/lifecycle', lifecycleRoles, getFamilyValidation, validationHandler, getFamilyLifecycleInfo);
+router.post('/:id/restore', lifecycleRoles, getFamilyValidation, validationHandler, restoreFamilyHandler);
+router.get('/:id/merge-preview', lifecycleRoles, getFamilyValidation, validationHandler, mergePreviewHandler);
+router.post('/:id/merge', lifecycleRoles, getFamilyValidation, validationHandler, mergeFamilyHandler);
+router.post('/:id/split', lifecycleRoles, getFamilyValidation, validationHandler, splitFamilyHandler);
+router.put('/:id/head', lifecycleRoles, getFamilyValidation, validationHandler, setFamilyHeadHandler);
 
 export default router;
 

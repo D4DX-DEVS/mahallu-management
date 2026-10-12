@@ -1,13 +1,19 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { FiSave, FiArrowLeft } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
+import Alert from '@/components/ui/Alert';
+import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import { Tenant } from '@/types/tenant';
 import { tenantService } from '@/services/tenantService';
+import { CLASSIFICATION_OPTIONS, TenantClassification } from '@/constants/modules';
+import ModuleFeatureToggles from '../components/ModuleFeatureToggles';
+import PageHeader from '@/components/ui/PageHeader';
+import { toast } from '@/store/toastStore';
+import { getFriendlyError } from '@/utils/apiMessages';
 
 export default function EditTenant() {
   const { id } = useParams<{ id: string }>();
@@ -22,6 +28,8 @@ export default function EditTenant() {
     location: '',
     locationMl: '',
     type: 'standard' as 'standard' | 'premium' | 'enterprise',
+    classification: 'fully_functional' as TenantClassification,
+    features: {} as Record<string, boolean>,
     status: 'active' as 'active' | 'suspended' | 'inactive',
     address: {
       state: '',
@@ -43,7 +51,7 @@ export default function EditTenant() {
     try {
       setIsLoading(true);
       setError(null);
-      const tenant = await tenantService.getById(id!);
+      const tenant = await tenantService.getById(id!, { force: true });
       setFormData({
         name: tenant.name || '',
         nameMl: tenant.nameMl || '',
@@ -51,6 +59,8 @@ export default function EditTenant() {
         location: tenant.location || '',
         locationMl: tenant.locationMl || '',
         type: tenant.type || 'standard',
+        classification: ((tenant as any).classification || 'fully_functional') as TenantClassification,
+        features: ((tenant as any).settings?.features || {}) as Record<string, boolean>,
         status: tenant.status || 'active',
         address: {
           state: tenant.address?.state || '',
@@ -63,7 +73,7 @@ export default function EditTenant() {
       });
     } catch (error: any) {
       console.error('Error loading tenant:', error);
-      setError(error.response?.data?.message || 'Failed to load tenant');
+      setError(getFriendlyError(error, "Couldn't load tenant. Refresh the page or try again."));
     } finally {
       setIsLoading(false);
     }
@@ -75,11 +85,12 @@ export default function EditTenant() {
     try {
       setIsSaving(true);
       setError(null);
-      await tenantService.update(id!, formData);
+      const { features, ...rest } = formData;
+      await tenantService.update(id!, { ...rest, settings: { features } } as any);
       navigate(`/admin/tenants/${id}`);
     } catch (error: any) {
       console.error('Error updating tenant:', error);
-      setError(error.response?.data?.message || 'Failed to update tenant');
+      toast.error(getFriendlyError(error, "Couldn't update tenant. Try again in a moment."));
     } finally {
       setIsSaving(false);
     }
@@ -97,20 +108,12 @@ export default function EditTenant() {
     }
   };
 
-  const breadcrumbItems = [
-    { label: 'Dashboard', path: '/dashboard' },
-    { label: 'Admin', path: '/admin/tenants' },
-    { label: 'Tenants', path: '/admin/tenants' },
-    { label: formData.name || 'Edit' },
-  ];
-
   if (isLoading) {
     return (
       <div className="space-y-4">
-        <Breadcrumb items={breadcrumbItems} />
         <Card>
           <div className="flex items-center justify-center h-64">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+            <LoadingSpinner />
           </div>
         </Card>
       </div>
@@ -120,12 +123,11 @@ export default function EditTenant() {
   if (error) {
     return (
       <div className="space-y-4">
-        <Breadcrumb items={breadcrumbItems} />
         <Card>
           <div className="text-center py-12">
-            <p className="text-red-500 dark:text-red-400 mb-4">{error}</p>
+            <p className="text-[#B3261E] dark:text-red-300 mb-4">{error}</p>
             <Button
-              variant="outline"
+              variant="secondary"
               onClick={() => navigate('/admin/tenants')}
             >
               Back to Tenants
@@ -138,40 +140,25 @@ export default function EditTenant() {
 
   return (
     <div className="space-y-4">
-      <Breadcrumb items={breadcrumbItems} />
 
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => navigate(`/admin/tenants/${id}`)}
-            className="flex items-center gap-2"
-          >
-            <FiArrowLeft className="h-4 w-4" />
+      <PageHeader
+        title="Edit Tenant"
+        description="Update tenant information"
+        actions={
+          <Button variant="secondary" onClick={() => navigate(`/admin/tenants/${id}`)}>
+            <FiArrowLeft className="h-3.5 w-3.5" />
             Back
           </Button>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-              Edit Tenant
-            </h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              Update tenant information
-            </p>
-          </div>
-        </div>
-      </div>
+        }
+      />
 
       {/* Form */}
       <form onSubmit={handleSubmit}>
-        <Card title="Tenant Information">
-          {error && (
-            <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-              <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
-            </div>
-          )}
-          <div className="space-y-4">
+        <div className="space-y-4">
+          {error && <Alert tone="danger">{error}</Alert>}
+          <Card>
+            <h2 className="text-[13.5px] font-bold text-[#18231E] dark:text-surface-text">Tenant information</h2>
+            <p className="mb-3 mt-0.5 text-xs text-[#7B8983] dark:text-surface-muted">Name, code, type and status</p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Input
                 label="Tenant Name"
@@ -230,6 +217,14 @@ export default function EditTenant() {
               />
 
               <Select
+                label="Mahallu Classification"
+                value={formData.classification}
+                onChange={(e) => handleChange('classification', e.target.value)}
+                options={[...CLASSIFICATION_OPTIONS]}
+                required
+              />
+
+              <Select
                 label="Status"
                 value={formData.status}
                 onChange={(e) => handleChange('status', e.target.value)}
@@ -241,10 +236,17 @@ export default function EditTenant() {
                 required
               />
             </div>
+          </Card>
 
-            {/* Address Section */}
-            <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
-              <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-4">Address Details</h3>
+          <ModuleFeatureToggles
+            value={formData.features}
+            onChange={(features) => setFormData((prev) => ({ ...prev, features }))}
+          />
+
+          {/* Address Section */}
+          <Card>
+              <h2 className="text-[13.5px] font-bold text-[#18231E] dark:text-surface-text">Address details</h2>
+              <p className="mb-3 mt-0.5 text-xs text-[#7B8983] dark:text-surface-muted">Where this tenant is located</p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Input
                   label="Village"
@@ -288,14 +290,13 @@ export default function EditTenant() {
                   placeholder="Enter post office"
                 />
               </div>
-            </div>
-          </div>
+          </Card>
 
           {/* Form Actions */}
-          <div className="flex justify-end gap-3 mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+          <div className="sticky bottom-0 z-10 flex flex-wrap justify-end gap-2 pb-[calc(0.75rem+env(safe-area-inset-bottom))] [&>button]:flex-1 sm:[&>button]:flex-none rounded-card border border-line bg-white/90 px-4 py-3 shadow-card backdrop-blur dark:border-surface-border dark:bg-surface-card/90">
             <Button
               type="button"
-              variant="outline"
+              variant="secondary"
               onClick={() => navigate(`/admin/tenants/${id}`)}
             >
               Cancel
@@ -308,18 +309,17 @@ export default function EditTenant() {
             >
               {isSaving ? (
                 <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                   Saving...
                 </>
               ) : (
                 <>
-                  <FiSave className="h-4 w-4" />
+                  <FiSave className="h-3.5 w-3.5" />
                   Save Changes
                 </>
               )}
             </Button>
           </div>
-        </Card>
+        </div>
       </form>
     </div>
   );

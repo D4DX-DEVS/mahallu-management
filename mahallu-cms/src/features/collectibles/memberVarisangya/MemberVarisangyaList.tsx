@@ -1,14 +1,16 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FiEye, FiDollarSign, FiUsers, FiCreditCard, FiDownload } from 'react-icons/fi';
+import { FiDollarSign, FiUsers, FiCreditCard, FiDownload, FiRefreshCw, FiFileText, FiFile } from 'react-icons/fi';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import Pagination from '@/components/ui/Pagination';
-import TableToolbar from '@/components/ui/TableToolbar';
+import RowActions from '@/components/ui/RowActions';
+import { PersonCell } from '@/components/ui/Avatar';
 import Dropdown from '@/components/ui/Dropdown';
+import FilterBar from '@/components/ui/FilterBar';
 import { TableColumn, Pagination as PaginationType, Member } from '@/types';
 import { memberService } from '@/services/memberService';
 import { collectibleService } from '@/services/collectibleService';
@@ -17,6 +19,8 @@ import { formatDate } from '@/utils/format';
 import { ROUTES } from '@/constants/routes';
 import { exportToCSV, exportToJSON } from '@/utils/exportUtils';
 import { exportInvoicesToPdf, InvoiceDetails } from '@/utils/invoiceUtils';
+import { toast } from '@/store/toastStore';
+import { getFriendlyError } from '@/utils/apiMessages';
 
 interface MemberVarisangyaData extends Member {
   totalVarisangya?: number;
@@ -26,12 +30,11 @@ interface MemberVarisangyaData extends Member {
 
 const MEMBER_BASE = ROUTES.COLLECTIBLES.MEMBER_VARISANGYA.BASE;
 
-const getMemberId = (v: any) => (typeof v.memberId === 'object' && v.memberId != null ? v.memberId._id : v.memberId);
+const getMemberId = (v: any) => (typeof v.memberId === 'object' && v.memberId != null ? v.memberId.id : v.memberId);
 
 export default function MemberVarisangyaList() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
-  const [isFilterVisible, setIsFilterVisible] = useState(false);
   const [members, setMembers] = useState<MemberVarisangyaData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -73,7 +76,7 @@ export default function MemberVarisangyaList() {
       setMembers(membersWithVarisangya);
       if (membersResult.pagination) setPagination(membersResult.pagination);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch members');
+      setError(getFriendlyError(err, "Couldn't load members. Refresh the page or try again."));
       console.error('Error fetching members:', err);
     } finally {
       setLoading(false);
@@ -103,7 +106,7 @@ export default function MemberVarisangyaList() {
         };
       });
       if (dataToExport.length === 0) {
-        alert('No data to export');
+        toast.info('Nothing to export. Change your filters and try again.');
         return;
       }
       switch (type) {
@@ -137,7 +140,7 @@ export default function MemberVarisangyaList() {
       }
     } catch (error: any) {
       console.error('Export error:', error);
-      alert(error?.message || 'Failed to export data');
+      toast.error(getFriendlyError(error, "Couldn't export member varisangya data. Check your connection and try again."));
     } finally {
       setIsExporting(false);
     }
@@ -160,7 +163,7 @@ export default function MemberVarisangyaList() {
             const varisangyasResult = await collectibleService.getAllVarisangyas({ memberId: row.id });
             const memberVarisangyas = varisangyasResult.data || [];
             if (memberVarisangyas.length === 0) {
-              alert('No payment records to export for this member');
+              toast.info('No payment records to export for this member');
               return;
             }
             const invoices: InvoiceDetails[] = memberVarisangyas.map((entry: any) => ({
@@ -179,7 +182,7 @@ export default function MemberVarisangyaList() {
       }
     } catch (error: any) {
       console.error('Row export error:', error);
-      alert(error?.message || 'Failed to export');
+      toast.error(getFriendlyError(error, "Couldn't export member varisangya records. Check your connection and try again."));
     } finally {
       setExportingRowId(null);
     }
@@ -192,7 +195,7 @@ export default function MemberVarisangyaList() {
       label: 'Member Name',
       render: (name, row) => (
         <Link to={ROUTES.MEMBERS.DETAIL(row.id)} className="text-primary-600 hover:text-primary-700 dark:text-primary-400">
-          {name}
+          <PersonCell name={name} src={row.photoUrl} />
         </Link>
       ),
     },
@@ -203,77 +206,66 @@ export default function MemberVarisangyaList() {
     {
       key: 'actions',
       label: 'Actions',
-      render: (_, row) => (
-        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(`${MEMBER_BASE}?view=transactions&memberId=${row.id}`);
-            }}
-            className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
-            title="View Transactions"
-          >
-            <FiEye className="h-4 w-4" />
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(`${MEMBER_BASE}?view=wallet&memberId=${row.id}`);
-            }}
-            className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
-            title="View Wallet"
-          >
-            <FiDollarSign className="h-4 w-4" />
-          </button>
-          <Dropdown
-            align="right"
-            trigger={
-              <button
-                onClick={(e) => e.stopPropagation()}
-                disabled={exportingRowId === row.id}
-                className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors disabled:opacity-50"
-                title="Export"
-              >
-                {exportingRowId === row.id ? <LoadingSpinner size="sm" /> : <FiDownload className="h-4 w-4" />}
-              </button>
-            }
-            items={[
-              { label: 'Export as CSV', onClick: () => handleExportRow(row, 'csv') },
-              { label: 'Export as JSON', onClick: () => handleExportRow(row, 'json') },
-              { label: 'Export as PDF', onClick: () => handleExportRow(row, 'pdf') },
+      hideable: false,
+      render: (_, row) => {
+        const busy = exportingRowId === row.id ? 'Exporting...' : undefined;
+        return (
+          <RowActions
+            onView={() => navigate(`${MEMBER_BASE}?view=transactions&memberId=${row.id}`)}
+            viewLabel="View transactions"
+            extra={[
+              { label: 'View wallet', icon: <FiDollarSign />, onClick: () => navigate(`${MEMBER_BASE}?view=wallet&memberId=${row.id}`) },
+              { label: 'Export as CSV', icon: <FiDownload />, onClick: () => handleExportRow(row, 'csv'), disabledReason: busy },
+              { label: 'Export as JSON', icon: <FiFile />, onClick: () => handleExportRow(row, 'json'), disabledReason: busy },
+              { label: 'Export as PDF', icon: <FiFileText />, onClick: () => handleExportRow(row, 'pdf'), disabledReason: busy },
             ]}
           />
-        </div>
-      ),
+        );
+      },
     },
   ];
 
   const totalAmount = members.reduce((sum, m) => sum + (m.totalVarisangya || 0), 0);
   const totalPayments = members.reduce((sum, m) => sum + (m.varisangyaCount || 0), 0);
   const stats = [
-    { title: 'Total Members', value: pagination?.total || members.length, icon: <FiUsers className="h-5 w-5" /> },
-    { title: 'Total Payments', value: totalPayments, icon: <FiCreditCard className="h-5 w-5" /> },
-    { title: 'Total Amount', value: `₹${totalAmount.toLocaleString()}`, icon: <FiDollarSign className="h-5 w-5" /> },
+    { title: 'Total Members', value: pagination?.total || members.length, icon: <FiUsers className="h-[17px] w-[17px]" /> },
+    { title: 'Total Payments', value: totalPayments, icon: <FiCreditCard className="h-[17px] w-[17px]" /> },
+    { title: 'Total Amount', value: `₹${totalAmount.toLocaleString()}`, icon: <FiDollarSign className="h-[17px] w-[17px]" />, tone: 'lime' as const, viz: members.filter((r) => (r.totalVarisangya || 0) > 0).length >= 2 ? { type: 'ladder' as const, values: members.map((r) => r.totalVarisangya || 0) } : undefined, summary: `Total amount ₹${totalAmount.toLocaleString()}, top contributors ranked` },
   ];
 
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         {stats.map((stat, index) => (
-          <StatCard key={index} {...stat} />
+          <StatCard key={index} variant="inline" {...stat} />
         ))}
       </div>
-      <Card>
-        <TableToolbar
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-          onFilterClick={() => setIsFilterVisible(!isFilterVisible)}
-          isFilterVisible={isFilterVisible}
-          hasFilters={false}
-          onRefresh={fetchMembers}
-          onExport={handleExport}
-          isExporting={isExporting}
+      <Card padding="none" className="overflow-visible">
+        <FilterBar
+          search={{ value: searchQuery, onChange: setSearchQuery, placeholder: 'Search members' }}
+          actions={
+            <>
+              <Button variant="secondary" iconOnly aria-label="Refresh list" onClick={fetchMembers}>
+                <FiRefreshCw className="h-3.5 w-3.5" />
+              </Button>
+              <Dropdown
+                trigger={
+                  <Button variant="secondary" isLoading={isExporting}>
+                    {!isExporting && <FiDownload className="h-3.5 w-3.5" />}
+                    Export
+                  </Button>
+                }
+                items={[
+                  { label: 'Export CSV', icon: <FiFileText />, onClick: () => handleExport('csv'), disabled: isExporting },
+                  { label: 'Export JSON', icon: <FiFile />, onClick: () => handleExport('json'), disabled: isExporting },
+                  { label: 'Export PDF', icon: <FiDownload />, onClick: () => handleExport('pdf'), disabled: isExporting },
+                ]}
+              />
+            </>
+          }
         />
+
+        <div className="p-3.5">
         {loading ? (
           <div className="flex justify-center items-center py-12">
             <LoadingSpinner />
@@ -281,7 +273,7 @@ export default function MemberVarisangyaList() {
         ) : error ? (
           <div className="text-center py-12">
             <p className="text-red-600 dark:text-red-400">{error}</p>
-            <Button onClick={fetchMembers} className="mt-4" variant="outline">
+            <Button onClick={fetchMembers} className="mt-4" variant="secondary">
               Retry
             </Button>
           </div>
@@ -289,7 +281,7 @@ export default function MemberVarisangyaList() {
           <Table columns={columns} data={members} emptyMessage="No members found" showExport={false} />
         )}
         {pagination && (
-          <div className="mt-4">
+          <div className="mt-3.5">
             <Pagination
               currentPage={pagination.page}
               totalPages={pagination.totalPages}
@@ -299,6 +291,7 @@ export default function MemberVarisangyaList() {
             />
           </div>
         )}
+        </div>
       </Card>
     </div>
   );

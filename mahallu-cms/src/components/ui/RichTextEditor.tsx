@@ -30,8 +30,8 @@ export default function RichTextEditor({ label, value, onChange, className, erro
 
   return (
     <div className={cn('w-full', className)}>
-      {label && <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 ml-1">{label}</label>}
-      <div className={cn('rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900/50', error && 'border-red-500')}>
+      {label && <label className="mb-1.5 block text-xs font-semibold text-[#3A4741] dark:text-surface-text/80">{label}</label>}
+      <div className={cn('rounded-[10px] border border-line-strong dark:border-surface-border-strong bg-white dark:bg-surface-raised focus-within:border-primary-600 focus-within:shadow-focus', error && 'border-red-500')}>
         <div className="flex flex-wrap items-center gap-2 border-b border-gray-200 dark:border-gray-700 px-3 py-2">
           <button type="button" onClick={() => runCommand('bold')} className="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-800">
             <FiBold className="h-4 w-4" />

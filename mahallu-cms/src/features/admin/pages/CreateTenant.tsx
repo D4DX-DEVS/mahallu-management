@@ -4,18 +4,20 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useNavigate } from 'react-router-dom';
 import { FiSave, FiX } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import { tenantService } from '@/services/tenantService';
+import { CLASSIFICATION_OPTIONS, TENANT_CLASSIFICATIONS } from '@/constants/modules';
 import { STATES, getDistrictsByState } from '@/constants/locations';
+import PageHeader from '@/components/ui/PageHeader';
 
 const tenantSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   code: z.string().min(1, 'Code is required').toUpperCase(),
   type: z.enum(['standard', 'premium', 'enterprise']),
+  classification: z.enum(TENANT_CLASSIFICATIONS),
   location: z.string().min(1, 'Location is required'),
   address: z.object({
     state: z.string().min(1, 'State is required'),
@@ -47,6 +49,7 @@ export default function CreateTenant() {
     resolver: zodResolver(tenantSchema),
     defaultValues: {
       type: 'standard',
+      classification: 'fully_functional',
       code: '',
       address: {
         state: 'Kerala',
@@ -94,31 +97,19 @@ export default function CreateTenant() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-            Create Tenant
-          </h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            Add a new tenant (Mahall) to the system
-          </p>
-        </div>
-        <Breadcrumb
-          items={[
-            { label: 'Dashboard', path: '/dashboard' },
-            { label: 'Admin', path: '/admin/tenants' },
-            { label: 'Create Tenant' },
-          ]}
-        />
-      </div>
+    <div className="space-y-4">
+      <PageHeader
+        title="Create Tenant"
+        description="Add a new tenant (Mahall) to the system"
+      />
 
       <form onSubmit={handleSubmit(onSubmit)}>
-        <Card className="space-y-6">
-          <div>
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+        <div className="space-y-4">
+          <Card>
+            <h2 className="text-[13.5px] font-bold text-[#18231E] dark:text-surface-text mb-0.5">
               Basic Information
             </h2>
+            <p className="mb-3 text-xs text-[#7B8983] dark:text-surface-muted">Name and contact details</p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Input
                 label="Tenant Name"
@@ -145,6 +136,13 @@ export default function CreateTenant() {
                 error={errors.type?.message}
                 required
               />
+              <Select
+                label="Mahallu Classification"
+                options={[...CLASSIFICATION_OPTIONS]}
+                {...register('classification')}
+                error={errors.classification?.message}
+                required
+              />
               <Input
                 label="Location"
                 {...register('location')}
@@ -153,12 +151,13 @@ export default function CreateTenant() {
                 placeholder="Thiruvizhamkunnu"
               />
             </div>
-          </div>
+          </Card>
 
-          <div>
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+          <Card>
+            <h2 className="text-[13.5px] font-bold text-[#18231E] dark:text-surface-text mb-0.5">
               Address
             </h2>
+            <p className="mb-3 text-xs text-[#7B8983] dark:text-surface-muted">Where this is located</p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Select
                 label="State"
@@ -207,12 +206,13 @@ export default function CreateTenant() {
                 placeholder="Kottoppadam-I"
               />
             </div>
-          </div>
+          </Card>
 
-          <div>
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+          <Card>
+            <h2 className="text-[13.5px] font-bold text-[#18231E] dark:text-surface-text mb-0.5">
               Settings
             </h2>
+            <p className="mb-3 text-xs text-[#7B8983] dark:text-surface-muted">Defaults for this record</p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Input
                 label="Varisangya Amount"
@@ -223,23 +223,23 @@ export default function CreateTenant() {
                 placeholder="0"
               />
             </div>
-          </div>
+          </Card>
 
-          <div className="flex justify-end gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+          <div className="sticky bottom-0 z-10 flex flex-wrap justify-end gap-2 pb-[calc(0.75rem+env(safe-area-inset-bottom))] [&>button]:flex-1 sm:[&>button]:flex-none rounded-card border border-line bg-white/90 px-4 py-3 shadow-card backdrop-blur dark:border-surface-border dark:bg-surface-card/90">
             <Button
               type="button"
-              variant="outline"
+              variant="secondary"
               onClick={() => navigate('/admin/tenants')}
             >
-              <FiX className="h-4 w-4 mr-2" />
+              <FiX className="h-3.5 w-3.5" />
               Cancel
             </Button>
             <Button type="submit" isLoading={isSubmitting}>
-              <FiSave className="h-4 w-4 mr-2" />
+              <FiSave className="h-3.5 w-3.5" />
               Create Tenant
             </Button>
           </div>
-        </Card>
+        </div>
       </form>
     </div>
   );

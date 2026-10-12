@@ -11,6 +11,10 @@ export interface InvoiceDetails {
   paymentDate: string;
   paymentMethod?: string;
   remarks?: string;
+  /** Reprint: draws a DUPLICATE label and watermark so it cannot pass as the original. */
+  duplicate?: boolean;
+  /** Which stored receipt this is, so the print can be logged (see features/collectibles/receiptPrint). */
+  receiptRef?: { type: 'varisangya' | 'zakat'; id: string };
 }
 
 const blobToDataUrl = (blob: Blob) =>
@@ -51,7 +55,7 @@ const renderInvoicePage = (
   const marginX = 14;
   const pageWidth = doc.internal.pageSize.getWidth();
   let currentY = 14;
-  const primaryGreen = [22, 163, 74];
+  const primaryGreen = [4, 86, 58];
 
   if (logoDataUrl) {
     doc.addImage(logoDataUrl, 'PNG', marginX, currentY, 18, 18);
@@ -105,14 +109,28 @@ const renderInvoicePage = (
     doc.setTextColor(82, 82, 91);
     doc.text(`Remarks: ${details.remarks}`, marginX, currentY);
   }
+
+  if (details.duplicate) {
+    // Label next to the receipt number + diagonal watermark across the page
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(179, 38, 30);
+    const dupLabel = 'DUPLICATE COPY';
+    doc.text(dupLabel, pageWidth - marginX - doc.getTextWidth(dupLabel), 14 + 16);
+    doc.setFontSize(64);
+    doc.setTextColor(235, 205, 202);
+    doc.text('DUPLICATE', pageWidth / 2, 120, { align: 'center', angle: 30 });
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(24, 24, 27);
+  }
 };
 
 export const downloadInvoicePdf = async (details: InvoiceDetails) => {
   const doc = new jsPDF();
   const logoDataUrl = await fetchLogoDataUrl();
   renderInvoicePage(doc, details, logoDataUrl, true);
-  const filenameSafeReceipt = details.receiptNo ? `-${details.receiptNo}` : '';
-  doc.save(`${details.title.toLowerCase().replace(/\s+/g, '-')}${filenameSafeReceipt}.pdf`);
+  const filenameSafeReceipt = details.receiptNo ? `-${details.receiptNo.replace(/[^A-Za-z0-9_-]+/g, '-')}` : '';
+  doc.save(`${details.title.toLowerCase().replace(/\s+/g, '-')}${filenameSafeReceipt}${details.duplicate ? '-duplicate' : ''}.pdf`);
 };
 
 export const exportInvoicesToPdf = async (detailsList: InvoiceDetails[], filename: string) => {

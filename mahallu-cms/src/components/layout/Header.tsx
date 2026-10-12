@@ -1,19 +1,44 @@
-import { FiMenu, FiBell, FiSun, FiMoon, FiUser, FiLogOut, FiSearch, FiMail, FiPhone, FiShield, FiCalendar, FiChevronDown, FiChevronRight, FiMapPin, FiAlertTriangle } from 'react-icons/fi';
+import Avatar from '@/components/ui/Avatar';
+import { FiMenu, FiBell, FiSun, FiMoon, FiLogOut, FiSearch, FiMail, FiPhone, FiShield, FiCalendar, FiChevronDown, FiChevronRight, FiMapPin, FiAlertTriangle } from 'react-icons/fi';
 import { useThemeStore } from '@/store/themeStore';
 import { useAuthStore } from '@/store/authStore';
 import { useLayoutStore } from '@/store/layoutStore';
 import { applyTheme } from '@/utils/theme';
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { menuItems, MenuItem } from '@/constants/menuItems';
 import TenantSwitcher from './TenantSwitcher';
 import CommandPalette from '@/components/ui/CommandPalette';
 import Modal from '@/components/ui/Modal';
 import { tenantService } from '@/services/tenantService';
+import { canReadNotifications, canReadTenantInfo } from '@/utils/apiAccess';
 import { useNotificationStore } from '@/store/notificationStore';
 import { Tenant } from '@/types/tenant';
 import { ROUTES } from '@/constants/routes';
+import { cn } from '@/utils/cn';
+
+/** Best-matching menu trail for the current URL (longest path prefix), e.g. Community > Families. */
+function findTrail(items: MenuItem[], pathname: string, trail: MenuItem[] = []): MenuItem[] {
+  let best: MenuItem[] = [];
+  for (const item of items) {
+    const next = [...trail, item];
+    if (item.path && (pathname === item.path || pathname.startsWith(item.path + '/'))) {
+      if (next.length > 0 && (best.length === 0 || item.path.length >= (best[best.length - 1].path?.length ?? 0))) best = next;
+    }
+    if (item.children) {
+      const sub = findTrail(item.children, pathname, next);
+      if (sub.length > 0 && (best.length === 0 || (sub[sub.length - 1].path?.length ?? 0) >= (best[best.length - 1].path?.length ?? 0))) best = sub;
+    }
+  }
+  return best;
+}
+
+const iconBtn =
+  'relative inline-flex h-[34px] w-[34px] max-sm:h-10 max-sm:w-10 items-center justify-center rounded-[10px] border border-line bg-white text-[#3A4741] transition-colors hover:bg-[#F4F7F5] ' +
+  'focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-lime/[.28] dark:border-surface-border dark:bg-surface-raised dark:text-surface-text dark:hover:bg-surface-hover';
 
 export default function Header() {
+  const location = useLocation();
   const navigate = useNavigate();
   const { theme, toggleTheme } = useThemeStore();
   const { user, logout, isSuperAdmin, currentTenantId } = useAuthStore();
@@ -24,6 +49,8 @@ export default function Header() {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [tenantInfo, setTenantInfo] = useState<Tenant | null>(null);
   const { unreadCount, fetchUnreadCount } = useNotificationStore();
+  const trail = findTrail(menuItems, location.pathname);
+  const crumbs = trail.length > 1 ? trail : trail.length === 1 ? [{ id: 'overview', label: 'Overview', path: undefined } as MenuItem, ...trail] : [];
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   const isViewingAsTenant = isSuperAdmin && currentTenantId;
@@ -33,17 +60,26 @@ export default function Header() {
     applyTheme();
   }, []);
 
+  const showNotifications = canReadNotifications(user?.role, isSuperAdmin);
+  const mayReadTenant = canReadTenantInfo(user?.role, isSuperAdmin);
+
   useEffect(() => {
+    if (!showNotifications) return;
     fetchUnreadCount();
     const interval = setInterval(fetchUnreadCount, 60000);
     return () => clearInterval(interval);
-  }, [fetchUnreadCount]);
+  }, [fetchUnreadCount, showNotifications]);
 
   useEffect(() => {
     const loadTenantInfo = async () => {
       // Don't load tenant info for super admin without selected tenant
       if (!currentTenantId) {
         setTenantInfo(null);
+        return;
+      }
+      // Member accounts cannot read the tenant: show what the sign-in session already carries.
+      if (!mayReadTenant) {
+        setTenantInfo(user?.tenant?.name ? ({ id: currentTenantId, name: user.tenant.name, code: '', location: '' } as Tenant) : null);
         return;
       }
       try {
@@ -55,7 +91,7 @@ export default function Header() {
       }
     };
     loadTenantInfo();
-  }, [currentTenantId]);
+  }, [currentTenantId, mayReadTenant, user?.tenant?.name]);
 
   useEffect(() => {
     if (mounted) {
@@ -137,75 +173,111 @@ export default function Header() {
         </div>
       )}
       
-      <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-gray-200/50 bg-white/80 backdrop-blur-md px-4 md:px-6 dark:border-gray-800/50 dark:bg-gray-900/80">
-        <div className="flex items-center gap-2 md:gap-4">
+      <header className="sticky top-0 z-30 flex h-[calc(3.5rem+env(safe-area-inset-top))] items-center pt-[env(safe-area-inset-top)] justify-between gap-3 border-b border-line bg-white/90 px-3 backdrop-blur-md md:px-6 dark:border-surface-border dark:bg-surface-base/90">
+        <div className="flex min-w-0 items-center gap-2 md:gap-3">
           {/* Mobile hamburger */}
           <button
             onClick={() => setMobileSidebarOpen(!isMobileSidebarOpen)}
-            className="md:hidden p-2 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            className={cn(iconBtn, 'lg:hidden')}
+            aria-label="Open navigation menu"
           >
-            <FiMenu className="h-5 w-5" />
+            <FiMenu className="h-4 w-4" />
           </button>
           <button
             onClick={toggleDesktopSidebarCollapsed}
-            className="hidden md:inline-flex p-2 rounded-xl text-slate-600 hover:bg-slate-100 transition-colors"
-            aria-label="Toggle sidebar"
+            className={cn(iconBtn, 'hidden lg:inline-flex')}
+            aria-label="Toggle menu panel"
           >
-            <FiMenu className="h-5 w-5" />
+            <FiMenu className="h-4 w-4" />
           </button>
+          {/* Breadcrumb derived from the menu tree */}
+          {crumbs.length > 0 && (
+            <nav aria-label="Breadcrumb" className="hidden min-w-0 items-center gap-2 text-xs text-[#7B8983] sm:flex dark:text-surface-muted">
+              {crumbs.map((c, i) => (
+                <span key={c.id} className="flex min-w-0 items-center gap-2">
+                  {i > 0 && <FiChevronRight className="h-3 w-3 flex-shrink-0" aria-hidden="true" />}
+                  {i === crumbs.length - 1 ? (
+                    <span className="truncate font-bold text-[#18231E] dark:text-surface-text" aria-current="page">{c.label}</span>
+                  ) : c.path ? (
+                    <Link to={c.path} className="truncate hover:text-[#18231E] dark:hover:text-surface-text">{c.label}</Link>
+                  ) : (
+                    <span className="truncate">{c.label}</span>
+                  )}
+                </span>
+              ))}
+            </nav>
+          )}
           {/* Search / Command Palette Trigger */}
           {user?.role !== 'member' && (
             <button
               onClick={() => setShowCommandPalette(true)}
-              className="flex items-center gap-2 px-3 py-2 text-sm text-gray-500 bg-gray-100/80 rounded-lg hover:bg-gray-200/80 dark:bg-gray-800/80 dark:hover:bg-gray-700/80 dark:text-gray-400 transition-colors"
+              aria-label="Search menu"
+              className="ml-1 flex h-[34px] items-center gap-2 rounded-[10px] border border-line bg-[#F4F7F5] px-3 text-xs text-[#7B8983] transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-lime/[.28] md:ml-4 md:w-[300px] dark:border-surface-border dark:bg-surface-raised dark:text-surface-muted dark:hover:bg-surface-hover"
             >
-              <FiSearch className="h-4 w-4" />
-              <span className="hidden md:inline">Search menu...</span>
-              <kbd className="hidden md:inline-flex items-center gap-1 px-1.5 py-0.5 text-xs font-mono bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded">
+              <FiSearch className="h-3.5 w-3.5" aria-hidden="true" />
+              <span className="hidden flex-1 text-left md:inline">Search menu</span>
+              <kbd className="hidden items-center rounded-[5px] border border-[#D5DDD9] bg-white px-1.5 py-px font-sans text-[10px] md:inline-flex dark:border-surface-border-strong dark:bg-surface-card">
                 ⌘K
               </kbd>
             </button>
           )}
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
         {/* Tenant Switcher (Super Admin Only) */}
         {isSuperAdmin && <TenantSwitcher />}
 
+        <button
+          type="button"
+          onClick={handleThemeToggle}
+          className={iconBtn}
+          aria-label={mounted && theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+        >
+          {mounted && theme === 'dark' ? <FiSun className="h-[15px] w-[15px]" /> : <FiMoon className="h-[15px] w-[15px]" />}
+        </button>
+        {showNotifications && <button
+          type="button"
+          onClick={handleNotificationsClick}
+          className={iconBtn}
+          aria-label={unreadCount > 0 ? `Notifications (${unreadCount} unread)` : 'Notifications'}
+        >
+          <FiBell className="h-[15px] w-[15px]" />
+          {unreadCount > 0 && (
+            <span className="absolute right-2 top-[7px] h-[7px] w-[7px] rounded-full border-[1.5px] border-white bg-secondary-500 dark:border-surface-raised" />
+          )}
+        </button>}
+
         {/* User Menu */}
-        <div className="flex items-center gap-3 ml-2 pl-4 border-l border-gray-200/50 dark:border-gray-700/50 relative" ref={userMenuRef}>
+        <div className="relative ml-1 flex items-center gap-3 border-l border-line pl-3 dark:border-surface-border" ref={userMenuRef}>
           <button
             onClick={() => setShowUserMenu(!showUserMenu)}
-            className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100/80 dark:hover:bg-gray-800/80 transition-colors"
+            aria-haspopup="menu"
+            aria-expanded={showUserMenu}
+            aria-label="Account menu"
+            className="flex items-center gap-2.5 rounded-[10px] px-1.5 py-1 transition-colors hover:bg-[#F4F7F5] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-lime/[.28] dark:hover:bg-surface-hover"
           >
-            <div className="h-9 w-9 rounded-full bg-gradient-to-br from-primary-100 to-primary-200 dark:from-primary-900 dark:to-primary-800 flex items-center justify-center ring-2 ring-white dark:ring-gray-800 relative">
-              <FiUser className="h-4 w-4 text-primary-600 dark:text-primary-400" />
-              <span className="absolute bottom-0 right-0 h-3 w-3 bg-green-500 rounded-full border-2 border-white dark:border-gray-800"></span>
-            </div>
-            <div className="hidden md:block text-left">
-              <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+            <Avatar name={user?.name} src={user?.photoUrl} size={32} />
+            <div className="hidden text-left leading-tight md:block">
+              <p className="text-[12.5px] font-bold text-[#18231E] dark:text-surface-text">
                 {user?.name || 'User'}
               </p>
-              <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">
+              <p className="text-[11px] text-[#7B8983] dark:text-surface-muted">
                 {getAccountTypeLabel()}
               </p>
             </div>
-            <FiChevronDown className={`h-4 w-4 text-gray-500 dark:text-gray-400 transition-transform ${showUserMenu ? 'rotate-180' : ''}`} />
+            <FiChevronDown className={`h-3.5 w-3.5 text-[#7B8983] transition-transform dark:text-surface-muted ${showUserMenu ? 'rotate-180' : ''}`} />
           </button>
 
           {/* User Dropdown Menu */}
           {showUserMenu && (
-            <div className="absolute right-0 top-full mt-2 w-80 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden z-50">
+            <div className="absolute right-0 top-full z-50 mt-2 max-h-[calc(100dvh-5rem)] w-[min(20rem,calc(100vw-1.5rem))] overflow-y-auto overscroll-contain rounded-card border border-line bg-white shadow-pop dark:border-surface-border dark:bg-surface-card">
               {/* Blue Banner */}
-              <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4">
+              <div className="border-b border-line-soft bg-mint px-5 py-4 dark:border-surface-border dark:bg-surface-raised">
                 <div className="flex items-center gap-3">
-                  <div className="h-12 w-12 rounded-lg bg-white/20 backdrop-blur-sm flex items-center justify-center relative">
-                    <FiUser className="h-6 w-6 text-white" />
-                    <span className="absolute bottom-0 right-0 h-3 w-3 bg-green-400 rounded-full border-2 border-blue-600"></span>
-                  </div>
+                  <Avatar name={user?.name} src={user?.photoUrl} size={40} status="active" />
                   <div>
-                    <p className="text-white/90 text-sm">Welcome back,</p>
-                    <p className="text-white font-semibold text-lg">{user?.name || 'User'}</p>
+                    <p className="text-xs text-[#5B6963] dark:text-surface-muted">Welcome back,</p>
+                    <p className="text-base font-extrabold text-primary-700 dark:text-surface-text">{user?.name || 'User'}</p>
                   </div>
                 </div>
               </div>
@@ -301,7 +373,7 @@ export default function Header() {
               {/* Actions */}
               <div className="border-t border-gray-200 dark:border-gray-700 p-2 space-y-1">
                 {/* Notifications */}
-                <button
+                {showNotifications && <button
                   onClick={handleNotificationsClick}
                   aria-label="View notifications"
                   className="w-full flex items-center justify-between px-4 py-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors group relative"
@@ -318,7 +390,7 @@ export default function Header() {
                     </span>
                   </div>
                   <FiChevronRight className="h-4 w-4 text-gray-400 dark:text-gray-500" />
-                </button>
+                </button>}
 
                 {/* Theme Toggle */}
                 <button

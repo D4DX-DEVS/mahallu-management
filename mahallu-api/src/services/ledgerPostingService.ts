@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import { LedgerItem, Ledger, InstituteAccount, MahalluAccount } from '../models/MasterAccount';
+import { assertPeriodOpen } from '../utils/periodLock';
 
 interface PostLedgerEntryParams {
   tenantId: string | mongoose.Types.ObjectId;
@@ -9,7 +10,7 @@ interface PostLedgerEntryParams {
   amount: number;
   description: string;
   date: Date;
-  source: 'salary' | 'varisangya' | 'zakat' | 'petty_cash' | 'manual';
+  source: 'salary' | 'varisangya' | 'zakat' | 'petty_cash' | 'manual' | 'welfare' | 'zakat_distribution';
   sourceId: mongoose.Types.ObjectId;
   paymentMethod?: string;
   referenceNo?: string;
@@ -47,7 +48,9 @@ async function findOrCreateLedger(
  * Post a ledger entry automatically when a transaction occurs.
  * Also updates the InstituteAccount balance if applicable.
  */
-export async function postLedgerEntry(params: PostLedgerEntryParams): Promise<void> {
+export async function postLedgerEntry(params: PostLedgerEntryParams): Promise<mongoose.Types.ObjectId> {
+  // Backstop: a closed financial period never accepts new ledger entries.
+  await assertPeriodOpen(params.tenantId, params.date);
   const tenantId = new mongoose.Types.ObjectId(String(params.tenantId));
   const instituteId = params.instituteId
     ? new mongoose.Types.ObjectId(String(params.instituteId))
@@ -87,16 +90,21 @@ export async function postLedgerEntry(params: PostLedgerEntryParams): Promise<vo
       await MahalluAccount.findByIdAndUpdate(account._id, { $inc: { balance: balanceChange } });
     }
   }
+
+  return item._id as mongoose.Types.ObjectId;
 }
 
 /**
  * Reverse a previously posted ledger entry (e.g., when deleting the source transaction).
  */
 export async function reverseLedgerEntry(
-  source: 'salary' | 'varisangya' | 'zakat',
+  source: 'salary' | 'varisangya' | 'zakat' | 'zakat_distribution' | 'petty_cash' | 'welfare',
   sourceId: mongoose.Types.ObjectId
 ): Promise<void> {
   const entries = await LedgerItem.find({ source, sourceId });
+
+  // Backstop: entries inside a closed financial period cannot be reversed.
+  for (const entry of entries) await assertPeriodOpen(entry.tenantId, entry.date);
 
   for (const entry of entries) {
     // Reverse the balance change on the first active institute account

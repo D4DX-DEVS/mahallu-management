@@ -1,5 +1,61 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
+export type PaymentStatus = 'pending' | 'approved' | 'rejected' | 'cancelled';
+
+/**
+ * Mongo filter fragment: only money that actually counts (approved).
+ * Legacy documents have no status field and are treated as approved.
+ */
+export const APPROVED_FILTER = { status: { $nin: ['pending', 'rejected', 'cancelled'] } } as const;
+
+/**
+ * Same as APPROVED_FILTER but keeps cancelled receipts (they stay visible in lists so the
+ * receipt number sequence has no gaps). NEVER use this for sums or balances.
+ */
+export const LISTABLE_FILTER = { status: { $nin: ['pending', 'rejected'] } } as const;
+
+export interface IPrintLogEntry {
+  at: Date;
+  by?: mongoose.Types.ObjectId;
+  kind: 'original' | 'duplicate';
+}
+
+export interface IEditHistoryEntry {
+  at: Date;
+  by?: mongoose.Types.ObjectId;
+  changes: Record<string, { from: any; to: any }>;
+}
+
+const PrintLogSchema = new Schema<IPrintLogEntry>(
+  {
+    at: { type: Date, default: Date.now },
+    by: { type: Schema.Types.ObjectId, ref: 'User' },
+    kind: { type: String, enum: ['original', 'duplicate'], required: true },
+  },
+  { _id: false }
+);
+
+const EditHistorySchema = new Schema<IEditHistoryEntry>(
+  {
+    at: { type: Date, default: Date.now },
+    by: { type: Schema.Types.ObjectId, ref: 'User' },
+    changes: { type: Schema.Types.Mixed, default: {} },
+  },
+  { _id: false }
+);
+
+/** Fields shared by Varisangya and Zakat receipts (all optional: legacy documents stay valid). */
+const receiptAuditFields = {
+  /** Who collected the money (field collector) and which login recorded it: used for cash-day closing */
+  collectorId: { type: Schema.Types.ObjectId, ref: 'Collector', index: true },
+  createdBy: { type: Schema.Types.ObjectId, ref: 'User' },
+  cancelledAt: Date,
+  cancelledBy: { type: Schema.Types.ObjectId, ref: 'User' },
+  cancelReason: String,
+  printLog: { type: [PrintLogSchema], default: undefined },
+  editHistory: { type: [EditHistorySchema], default: undefined },
+};
+
 export interface IVarisangya extends Document {
   tenantId: mongoose.Types.ObjectId;
   familyId?: mongoose.Types.ObjectId;
@@ -10,6 +66,19 @@ export interface IVarisangya extends Document {
   receiptNo?: string;
   remarks?: string;
   remarksMl?: string;
+  status?: PaymentStatus;
+  source?: 'admin' | 'member';
+  requestedBy?: mongoose.Types.ObjectId;
+  reviewedBy?: mongoose.Types.ObjectId;
+  reviewedAt?: Date;
+  rejectReason?: string;
+  cancelledAt?: Date;
+  cancelledBy?: mongoose.Types.ObjectId;
+  cancelReason?: string;
+  printLog?: IPrintLogEntry[];
+  editHistory?: IEditHistoryEntry[];
+  collectorId?: mongoose.Types.ObjectId;
+  createdBy?: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -25,6 +94,19 @@ export interface IZakat extends Document {
   category?: string;
   remarks?: string;
   remarksMl?: string;
+  status?: PaymentStatus;
+  source?: 'admin' | 'member';
+  requestedBy?: mongoose.Types.ObjectId;
+  reviewedBy?: mongoose.Types.ObjectId;
+  reviewedAt?: Date;
+  rejectReason?: string;
+  cancelledAt?: Date;
+  cancelledBy?: mongoose.Types.ObjectId;
+  cancelReason?: string;
+  printLog?: IPrintLogEntry[];
+  editHistory?: IEditHistoryEntry[];
+  collectorId?: mongoose.Types.ObjectId;
+  createdBy?: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -47,6 +129,8 @@ export interface ITransaction extends Document {
   description: string;
   referenceId?: mongoose.Types.ObjectId; // Varisangya/Zakat ID
   referenceType?: 'varisangya' | 'zakat';
+  reversalOf?: mongoose.Types.ObjectId; // set on a reversal: the transaction it cancels
+  reversedBy?: mongoose.Types.ObjectId; // set on the original: its reversal
   createdAt: Date;
 }
 
@@ -66,8 +150,22 @@ const VarisangyaSchema = new Schema<IVarisangya>(
     receiptNo: String,
     remarks: String,
     remarksMl: String,
+    status: { type: String, enum: ['pending', 'approved', 'rejected', 'cancelled'], default: 'approved', index: true },
+    source: { type: String, enum: ['admin', 'member'] },
+    requestedBy: { type: Schema.Types.ObjectId, ref: 'User' },
+    reviewedBy: { type: Schema.Types.ObjectId, ref: 'User' },
+    reviewedAt: Date,
+    rejectReason: String,
+    ...receiptAuditFields,
   },
   { timestamps: true }
+);
+
+// One receipt number per tenant (partial: documents without a number are not indexed).
+// Checked read-only against live data before adding: no duplicates existed.
+VarisangyaSchema.index(
+  { tenantId: 1, receiptNo: 1 },
+  { unique: true, partialFilterExpression: { receiptNo: { $gt: '' } } }
 );
 
 const ZakatSchema = new Schema<IZakat>(
@@ -87,8 +185,20 @@ const ZakatSchema = new Schema<IZakat>(
     category: String,
     remarks: String,
     remarksMl: String,
+    status: { type: String, enum: ['pending', 'approved', 'rejected', 'cancelled'], default: 'approved', index: true },
+    source: { type: String, enum: ['admin', 'member'] },
+    requestedBy: { type: Schema.Types.ObjectId, ref: 'User' },
+    reviewedBy: { type: Schema.Types.ObjectId, ref: 'User' },
+    reviewedAt: Date,
+    rejectReason: String,
+    ...receiptAuditFields,
   },
   { timestamps: true }
+);
+
+ZakatSchema.index(
+  { tenantId: 1, receiptNo: 1 },
+  { unique: true, partialFilterExpression: { receiptNo: { $gt: '' } } }
 );
 
 const WalletSchema = new Schema<IWallet>(
@@ -132,6 +242,8 @@ const TransactionSchema = new Schema<ITransaction>(
       type: String,
       enum: ['varisangya', 'zakat'],
     },
+    reversalOf: { type: Schema.Types.ObjectId, ref: 'Transaction' },
+    reversedBy: { type: Schema.Types.ObjectId, ref: 'Transaction' },
   },
   { timestamps: true }
 );

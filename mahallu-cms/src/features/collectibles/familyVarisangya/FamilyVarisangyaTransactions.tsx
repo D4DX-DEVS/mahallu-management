@@ -1,16 +1,22 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { FiRefreshCw, FiDownload, FiFileText, FiFile } from 'react-icons/fi';
+import StatusBadge from '@/components/ui/StatusBadge';
+import Avatar from '@/components/ui/Avatar';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Table from '@/components/ui/Table';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
-import TableToolbar from '@/components/ui/TableToolbar';
+import FilterBar from '@/components/ui/FilterBar';
+import Dropdown from '@/components/ui/Dropdown';
 import { TableColumn } from '@/types';
 import { collectibleService, Transaction, Wallet, Varisangya } from '@/services/collectibleService';
 import { familyService } from '@/services/familyService';
 import { formatDate } from '@/utils/format';
 import { exportToCSV, exportToJSON } from '@/utils/exportUtils';
 import { exportInvoicesToPdf, InvoiceDetails } from '@/utils/invoiceUtils';
+import { toast } from '@/store/toastStore';
+import { getFriendlyError } from '@/utils/apiMessages';
 
 /** Map varisangya payment to transaction-like shape (list shows varisangya, so transactions view must match). */
 function varisangyaToTransaction(v: Varisangya): Transaction {
@@ -40,7 +46,6 @@ export default function FamilyVarisangyaTransactions() {
   const [error, setError] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [isFilterVisible, setIsFilterVisible] = useState(false);
 
   useEffect(() => {
     if (familyId) {
@@ -68,7 +73,7 @@ export default function FamilyVarisangyaTransactions() {
       const mapped = list.map(varisangyaToTransaction).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       setTransactions(mapped);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch transactions');
+      setError(getFriendlyError(err, "Couldn't load transactions. Refresh the page or try again."));
       console.error('Error fetching data:', err);
     } finally {
       setLoading(false);
@@ -87,7 +92,7 @@ export default function FamilyVarisangyaTransactions() {
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       setTransactions(mapped);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch transactions');
+      setError(getFriendlyError(err, "Couldn't load transactions. Refresh the page or try again."));
       console.error('Error fetching transactions:', err);
     } finally {
       setLoading(false);
@@ -98,7 +103,7 @@ export default function FamilyVarisangyaTransactions() {
     try {
       setIsExporting(true);
       if (transactions.length === 0) {
-        alert('No data to export');
+        toast.info('Nothing to export. Change your filters and try again.');
         return;
       }
       const filename = `family-varisangya-transactions${familyId ? `-${familyId}` : ''}`;
@@ -129,7 +134,7 @@ export default function FamilyVarisangyaTransactions() {
       }
     } catch (error: any) {
       console.error('Export error:', error);
-      alert(error?.message || 'Failed to export data');
+      toast.error(getFriendlyError(error, "Couldn't export transactions. Check your connection and try again."));
     } finally {
       setIsExporting(false);
     }
@@ -140,17 +145,7 @@ export default function FamilyVarisangyaTransactions() {
     {
       key: 'type',
       label: 'Type',
-      render: (type) => (
-        <span
-          className={`px-2 py-1 text-xs font-medium rounded-full ${
-            type === 'credit'
-              ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-              : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-          }`}
-        >
-          {type}
-        </span>
-      ),
+      render: (type) => <StatusBadge status={type} tone={type === 'credit' ? 'success' : 'danger'} />,
     },
     {
       key: 'amount',
@@ -171,30 +166,33 @@ export default function FamilyVarisangyaTransactions() {
   ];
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+    <div className="space-y-4">
+      <div className="flex items-center gap-3">
+        {family && <Avatar size={40} name={family.houseName} />}
+        <div className="min-w-0">
+        <h2 className="text-base font-bold text-primary-700 dark:text-surface-text">
           Family Varisangya Transactions
           {family && ` - ${family.houseName}`}
         </h2>
-        <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
+        <p className="mt-0.5 text-[12.5px] text-[#7B8983] dark:text-surface-muted">
           View all varisangya transactions{family ? ` for ${family.houseName}` : ''}
         </p>
+        </div>
       </div>
 
       {wallet && (
         <Card>
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Wallet Balance</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+              <p className="text-xs text-[#7B8983] dark:text-surface-muted">Wallet Balance</p>
+              <p className="text-2xl font-bold text-[#18231E] dark:text-surface-text">
                 ₹{(wallet?.balance ?? 0).toLocaleString()}
               </p>
             </div>
             {wallet?.lastTransactionDate && (
               <div className="text-right">
-                <p className="text-sm text-gray-500 dark:text-gray-400">Last Transaction</p>
-                <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                <p className="text-xs text-[#7B8983] dark:text-surface-muted">Last Transaction</p>
+                <p className="text-sm font-medium text-[#18231E] dark:text-surface-text">
                   {formatDate(wallet.lastTransactionDate)}
                 </p>
               </div>
@@ -203,17 +201,32 @@ export default function FamilyVarisangyaTransactions() {
         </Card>
       )}
 
-      <Card>
-        <TableToolbar
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-          onFilterClick={() => setIsFilterVisible(!isFilterVisible)}
-          isFilterVisible={isFilterVisible}
-          hasFilters={false}
-          onRefresh={familyId ? fetchData : fetchAllTransactions}
-          onExport={handleExport}
-          isExporting={isExporting}
+      <Card padding="none" className="overflow-visible">
+        <FilterBar
+          search={{ value: searchQuery, onChange: setSearchQuery, placeholder: 'Search transactions' }}
+          actions={
+            <>
+              <Button variant="secondary" iconOnly aria-label="Refresh list" onClick={familyId ? fetchData : fetchAllTransactions}>
+                <FiRefreshCw className="h-3.5 w-3.5" />
+              </Button>
+              <Dropdown
+                trigger={
+                  <Button variant="secondary" isLoading={isExporting}>
+                    {!isExporting && <FiDownload className="h-3.5 w-3.5" />}
+                    Export
+                  </Button>
+                }
+                items={[
+                  { label: 'Export CSV', icon: <FiFileText />, onClick: () => handleExport('csv'), disabled: isExporting },
+                  { label: 'Export JSON', icon: <FiFile />, onClick: () => handleExport('json'), disabled: isExporting },
+                  { label: 'Export PDF', icon: <FiDownload />, onClick: () => handleExport('pdf'), disabled: isExporting },
+                ]}
+              />
+            </>
+          }
         />
+
+        <div className="p-3.5">
         {loading ? (
           <div className="flex justify-center items-center py-12">
             <LoadingSpinner />
@@ -221,13 +234,14 @@ export default function FamilyVarisangyaTransactions() {
         ) : error ? (
           <div className="text-center py-12">
             <p className="text-red-600 dark:text-red-400">{error}</p>
-            <Button onClick={familyId ? fetchData : fetchAllTransactions} className="mt-4" variant="outline">
+            <Button onClick={familyId ? fetchData : fetchAllTransactions} className="mt-4" variant="secondary">
               Retry
             </Button>
           </div>
         ) : (
           <Table columns={columns} data={transactions} emptyMessage="No transactions found" showExport={false} />
         )}
+        </div>
       </Card>
     </div>
   );

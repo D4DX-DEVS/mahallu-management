@@ -1,4 +1,5 @@
 import { Response } from 'express';
+import { rangeStart, rangeEnd } from '../utils/dayWindow';
 import { LedgerItem, Ledger, Category, InstituteAccount, MahalluAccount } from '../models/MasterAccount';
 import { AuthRequest } from '../middleware/authMiddleware';
 import mongoose from 'mongoose';
@@ -84,8 +85,8 @@ export const getDayBook = async (req: AuthRequest, res: Response) => {
 
     if (startDate || endDate) {
       query.date = {};
-      if (startDate) query.date.$gte = new Date(startDate as string);
-      if (endDate) query.date.$lte = new Date(endDate as string);
+      if (startDate) query.date.$gte = rangeStart(startDate as string);
+      if (endDate) query.date.$lte = rangeEnd(endDate as string);
     }
 
     const items = await LedgerItem.find(query)
@@ -154,8 +155,8 @@ export const getTrialBalance = async (req: AuthRequest, res: Response) => {
 
     if (startDate || endDate) {
       matchQuery.date = {};
-      if (startDate) matchQuery.date.$gte = new Date(startDate as string);
-      if (endDate) matchQuery.date.$lte = new Date(endDate as string);
+      if (startDate) matchQuery.date.$gte = rangeStart(startDate as string);
+      if (endDate) matchQuery.date.$lte = rangeEnd(endDate as string);
     }
 
     const result = await LedgerItem.aggregate([
@@ -236,8 +237,8 @@ export const getBalanceSheet = async (req: AuthRequest, res: Response) => {
     const dateFilter: any = {};
     if (startDate || endDate) {
       dateFilter.date = {};
-      if (startDate) dateFilter.date.$gte = new Date(startDate as string);
-      if (endDate) dateFilter.date.$lte = new Date(endDate as string);
+      if (startDate) dateFilter.date.$gte = rangeStart(startDate as string);
+      if (endDate) dateFilter.date.$lte = rangeEnd(endDate as string);
     }
 
     // 1. Get bank account balances (assets) — scope-aware
@@ -383,7 +384,7 @@ export const getLedgerReport = async (req: AuthRequest, res: Response) => {
     let openingBalance = 0;
     if (startDate) {
       const openingResult = await LedgerItem.aggregate([
-        { $match: { ...baseMatch, date: { $lt: new Date(startDate as string) } } },
+        { $match: { ...baseMatch, date: { $lt: rangeStart(startDate as string) } } },
         {
           $lookup: { from: 'ledgers', localField: 'ledgerId', foreignField: '_id', as: 'ledger' },
         },
@@ -406,8 +407,8 @@ export const getLedgerReport = async (req: AuthRequest, res: Response) => {
     const dateMatch: any = { ...baseMatch };
     if (startDate || endDate) {
       dateMatch.date = {};
-      if (startDate) dateMatch.date.$gte = new Date(startDate as string);
-      if (endDate) dateMatch.date.$lte = new Date(endDate as string);
+      if (startDate) dateMatch.date.$gte = rangeStart(startDate as string);
+      if (endDate) dateMatch.date.$lte = rangeEnd(endDate as string);
     }
 
     const items = await LedgerItem.find(dateMatch)
@@ -476,8 +477,8 @@ export const getIncomeExpenditure = async (req: AuthRequest, res: Response) => {
 
     if (startDate || endDate) {
       matchQuery.date = {};
-      if (startDate) matchQuery.date.$gte = new Date(startDate as string);
-      if (endDate) matchQuery.date.$lte = new Date(endDate as string);
+      if (startDate) matchQuery.date.$gte = rangeStart(startDate as string);
+      if (endDate) matchQuery.date.$lte = rangeEnd(endDate as string);
     }
 
     // Income grouped by ledger then category
@@ -595,12 +596,13 @@ export const getConsolidatedReport = async (req: AuthRequest, res: Response) => 
     }
     if (startDate || endDate) {
       matchQuery.date = {};
-      if (startDate) matchQuery.date.$gte = new Date(startDate as string);
-      if (endDate) matchQuery.date.$lte = new Date(endDate as string);
+      if (startDate) matchQuery.date.$gte = rangeStart(startDate as string);
+      if (endDate) matchQuery.date.$lte = rangeEnd(endDate as string);
     }
 
     const result = await LedgerItem.aggregate([
-      { $match: matchQuery },
+      // Mahallu-level (null institute) rows are reported once, as 'Mahallu (Main)' below
+      { $match: { ...matchQuery, instituteId: { $ne: null } } },
       { $lookup: { from: 'ledgers', localField: 'ledgerId', foreignField: '_id', as: 'ledger' } },
       { $unwind: '$ledger' },
       { $lookup: { from: 'institutes', localField: 'instituteId', foreignField: '_id', as: 'institute' } },

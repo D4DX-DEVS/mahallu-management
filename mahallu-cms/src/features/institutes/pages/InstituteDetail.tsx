@@ -1,14 +1,18 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { FiEdit2, FiArrowLeft } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
+import PageHeader from '@/components/ui/PageHeader';
+import Badge from '@/components/ui/Badge';
+import Avatar, { PersonCell } from '@/components/ui/Avatar';
+import StatusBadge from '@/components/ui/StatusBadge';
 import Button from '@/components/ui/Button';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { Institute } from '@/types';
 import { ROUTES } from '@/constants/routes';
 import { instituteService } from '@/services/instituteService';
 import { formatDate } from '@/utils/format';
+import { getFriendlyError } from '@/utils/apiMessages';
 
 export default function InstituteDetail() {
   const { id } = useParams<{ id: string }>();
@@ -30,7 +34,7 @@ export default function InstituteDetail() {
       const data = await instituteService.getById(id);
       setInstitute(data);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch institute');
+      setError(getFriendlyError(err, "Couldn't load institute. Refresh the page or try again."));
       console.error('Error fetching institute:', err);
     } finally {
       setLoading(false);
@@ -48,112 +52,94 @@ export default function InstituteDetail() {
   if (error || !institute) {
     return (
       <div className="text-center py-12">
-        <p className="text-red-600 dark:text-red-400">{error || 'Institute not found'}</p>
+        <p className="text-[#B3261E] dark:text-red-300">{error || 'Institute not found'}</p>
         <Link to={ROUTES.INSTITUTES.LIST} className="mt-4 inline-block">
-          <Button variant="outline">Back to Institutes</Button>
+          <Button variant="secondary">Back to Institutes</Button>
         </Link>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{institute.name}</h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Institute Details</p>
-        </div>
-        <div className="flex items-center gap-4">
-          <Breadcrumb
-            items={[
-              { label: 'Dashboard', path: '/dashboard' },
-              { label: 'Institutes', path: ROUTES.INSTITUTES.LIST },
-              { label: institute.name },
-            ]}
-          />
-          <div className="flex gap-2">
+    <div className="space-y-4">
+      <PageHeader
+        leading={<Avatar size={56} name={institute.name} />}
+        title={institute.name}
+        description="Institute Details"
+        actions={
+          <>
             <Link to={ROUTES.INSTITUTES.LIST}>
-              <Button variant="outline">
-                <FiArrowLeft className="h-4 w-4 mr-2" />
+              <Button variant="secondary">
+                <FiArrowLeft className="h-3.5 w-3.5" />
                 Back
               </Button>
             </Link>
             <Link to={`/institutes/${institute.id}/edit`}>
               <Button>
-                <FiEdit2 className="h-4 w-4 mr-2" />
+                <FiEdit2 className="h-3.5 w-3.5" />
                 Edit
               </Button>
             </Link>
-          </div>
-        </div>
-      </div>
+          </>
+        }
+      />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card>
-          <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">Basic Information</h2>
-          <div className="space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Card padding="lg">
+          <h2 className="mb-3.5 text-sm font-bold text-primary-700 dark:text-surface-text">Basic Information</h2>
+          <div className="space-y-3">
             <div>
-              <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Name</label>
-              <p className="mt-1 text-gray-900 dark:text-gray-100">{institute.name}</p>
+              <label className="text-[12px] font-bold uppercase tracking-[0.04em] text-[#6A7771] dark:text-surface-muted">Name</label>
+              <div className="mt-0.5"><PersonCell name={institute.name} size={24} /></div>
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Place</label>
-              <p className="mt-1 text-gray-900 dark:text-gray-100">{institute.place}</p>
+              <label className="text-[12px] font-bold uppercase tracking-[0.04em] text-[#6A7771] dark:text-surface-muted">Place</label>
+              <p className="mt-0.5 text-[13px] text-[#18231E] dark:text-surface-text">{institute.place}</p>
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Type</label>
+              <label className="text-[12px] font-bold uppercase tracking-[0.04em] text-[#6A7771] dark:text-surface-muted">Type</label>
               <p className="mt-1">
-                <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 capitalize">
-                  {institute.type}
-                </span>
+                <Badge variant="info" className="capitalize">{institute.type}</Badge>
               </p>
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Join Date</label>
-              <p className="mt-1 text-gray-900 dark:text-gray-100">{formatDate(institute.joinDate)}</p>
+              <label className="text-[12px] font-bold uppercase tracking-[0.04em] text-[#6A7771] dark:text-surface-muted">Join Date</label>
+              <p className="mt-0.5 text-[13px] text-[#18231E] dark:text-surface-text">{formatDate(institute.joinDate)}</p>
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Status</label>
+              <label className="text-[12px] font-bold uppercase tracking-[0.04em] text-[#6A7771] dark:text-surface-muted">Status</label>
               <p className="mt-1">
-                <span
-                  className={`px-2 py-1 text-xs font-medium rounded-full ${
-                    institute.status === 'active'
-                      ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                      : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
-                  }`}
-                >
-                  {institute.status || 'active'}
-                </span>
+                <StatusBadge status={institute.status || 'active'} />
               </p>
             </div>
           </div>
         </Card>
 
-        <Card>
-          <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">Contact Information</h2>
-          <div className="space-y-4">
+        <Card padding="lg">
+          <h2 className="mb-3.5 text-sm font-bold text-primary-700 dark:text-surface-text">Contact Information</h2>
+          <div className="space-y-3">
             {institute.contactNo && (
               <div>
-                <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Contact No.</label>
-                <p className="mt-1 text-gray-900 dark:text-gray-100">{institute.contactNo}</p>
+                <label className="text-[12px] font-bold uppercase tracking-[0.04em] text-[#6A7771] dark:text-surface-muted">Contact No.</label>
+                <p className="mt-0.5 text-[13px] text-[#18231E] dark:text-surface-text">{institute.contactNo}</p>
               </div>
             )}
             {institute.email && (
               <div>
-                <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Email</label>
-                <p className="mt-1 text-gray-900 dark:text-gray-100">{institute.email}</p>
+                <label className="text-[12px] font-bold uppercase tracking-[0.04em] text-[#6A7771] dark:text-surface-muted">Email</label>
+                <p className="mt-0.5 text-[13px] text-[#18231E] dark:text-surface-text">{institute.email}</p>
               </div>
             )}
             {!institute.contactNo && !institute.email && (
-              <p className="text-sm text-gray-500 dark:text-gray-400">No contact information available</p>
+              <p className="text-[13px] text-[#7B8983] dark:text-surface-muted">No contact information available</p>
             )}
           </div>
         </Card>
 
         {institute.description && (
-          <Card className="md:col-span-2">
-            <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">Description</h2>
-            <p className="text-gray-700 dark:text-gray-300">{institute.description}</p>
+          <Card padding="lg" className="md:col-span-2">
+            <h2 className="mb-3.5 text-sm font-bold text-primary-700 dark:text-surface-text">Description</h2>
+            <p className="text-[13px] text-[#3A4741] dark:text-surface-text">{institute.description}</p>
           </Card>
         )}
       </div>

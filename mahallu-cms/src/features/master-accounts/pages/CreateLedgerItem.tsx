@@ -4,8 +4,9 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useNavigate } from 'react-router-dom';
 import { FiSave, FiX } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
+import PageHeader from '@/components/ui/PageHeader';
+import Alert from '@/components/ui/Alert';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
@@ -13,6 +14,8 @@ import QuickAddLedger from '@/components/quick-add/QuickAddLedger';
 import QuickAddCategory from '@/components/quick-add/QuickAddCategory';
 import { ROUTES } from '@/constants/routes';
 import { masterAccountService, Ledger, Category } from '@/services/masterAccountService';
+import { toast } from '@/store/toastStore';
+import { getFriendlyError } from '@/utils/apiMessages';
 
 const ledgerItemSchema = z.object({
   ledgerId: z.string().min(1, 'Ledger is required'),
@@ -100,33 +103,22 @@ export default function CreateLedgerItem() {
       });
       navigate(ROUTES.MASTER_ACCOUNTS.LEDGER_ITEMS);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to create ledger item. Please try again.');
+      toast.error(getFriendlyError(err, "Couldn't create ledger item. Check the details and try again."));
       console.error('Error creating ledger item:', err);
     }
   };
 
   return (
-    <div className="space-y-6">
-      <Breadcrumb
-        items={[
-          { label: 'Dashboard', path: '/dashboard' },
-          { label: 'Ledger Items', path: ROUTES.MASTER_ACCOUNTS.LEDGER_ITEMS },
-          { label: 'Create' },
-        ]}
-      />
-
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Create Ledger Item</h1>
-        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Add a new income or expense entry</p>
-      </div>
+    <div className="space-y-4">
+      <PageHeader title="Create Ledger Item" description="Add a new income or expense entry" />
 
       <form onSubmit={handleSubmit(onSubmit)}>
-        <Card className="space-y-6">
-          {error && (
-            <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm dark:bg-red-900 dark:border-red-700 dark:text-red-200">
-              {error}
-            </div>
-          )}
+        <div className="space-y-4">
+          {error && <Alert tone="danger">{error}</Alert>}
+
+          <Card padding="lg">
+          <h3 className="text-sm font-bold text-primary-700 dark:text-surface-text">Entry details</h3>
+          <p className="mb-3.5 mt-0.5 text-xs text-[#7B8983] dark:text-surface-muted">Ledger, amount and payment information</p>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Select
@@ -193,18 +185,19 @@ export default function CreateLedgerItem() {
               <Input label="Reference Number (Optional)" {...register('referenceNo')} error={errors.referenceNo?.message} placeholder="Enter reference number" />
             </div>
           </div>
+          </Card>
 
-          <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+          <div className="sticky bottom-0 z-10 -mx-1 flex flex-wrap justify-end gap-2 pb-[calc(0.75rem+env(safe-area-inset-bottom))] [&>button]:flex-1 sm:[&>button]:flex-none rounded-b-card border-t border-line bg-white/90 px-4 py-3 backdrop-blur dark:border-surface-border dark:bg-surface-card/90">
             <Button type="button" variant="outline" onClick={() => navigate(ROUTES.MASTER_ACCOUNTS.LEDGER_ITEMS)}>
-              <FiX className="h-4 w-4 mr-2" />
+              <FiX className="h-3.5 w-3.5" />
               Cancel
             </Button>
             <Button type="submit" disabled={isSubmitting}>
-              <FiSave className="h-4 w-4 mr-2" />
+              <FiSave className="h-3.5 w-3.5" />
               {isSubmitting ? 'Creating...' : 'Create Item'}
             </Button>
           </div>
-        </Card>
+        </div>
       </form>
 
       <QuickAddLedger

@@ -1,8 +1,10 @@
 import { Response } from 'express';
 import { AuthRequest } from '../middleware/authMiddleware';
 import { PettyCash, PettyCashTransaction } from '../models/PettyCash';
+import { LedgerItem } from '../models/MasterAccount';
 import { postLedgerEntry } from '../services/ledgerPostingService';
 import mongoose from 'mongoose';
+import { ensurePeriodOpen } from '../utils/periodLock';
 
 const toObjectId = (id: string) => mongoose.Types.ObjectId.isValid(id) ? new mongoose.Types.ObjectId(id) : null;
 
@@ -55,6 +57,8 @@ export const createPettyCash = async (req: AuthRequest, res: Response) => {
       currentBalance: req.body.floatAmount || 0,
     };
 
+    if (!(await ensurePeriodOpen(res, data.tenantId, new Date()))) return;
+
     const fund = new PettyCash(data);
     await fund.save();
 
@@ -72,23 +76,8 @@ export const createPettyCash = async (req: AuthRequest, res: Response) => {
       });
       await txn.save();
 
-      // Post to ledger as expense (cash withdrawn from bank)
-      try {
-        await postLedgerEntry({
-          tenantId: String(fund.tenantId),
-          instituteId: String(fund.instituteId),
-          ledgerName: 'Petty Cash',
-          ledgerType: 'expense',
-          amount: fund.floatAmount,
-          description: `Petty cash float - ${fund.custodianName}`,
-          date: new Date(),
-          source: 'petty_cash' as any, // Use existing enum, petty cash entries
-          sourceId: fund._id as any,
-          paymentMethod: 'cash',
-        });
-      } catch (ledgerError) {
-        console.error('Failed to post petty cash float to ledger:', ledgerError);
-      }
+      // The float is a transfer of cash from the bank to the custodian, not spending: nothing is posted
+      // to the ledger here. Spending reaches the ledger when expenses are posted on replenishment.
     }
 
     const populated = await PettyCash.findById(fund._id).populate('instituteId', 'name');
@@ -167,6 +156,8 @@ export const recordExpense = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ success: false, message: 'Insufficient petty cash balance' });
     }
 
+    if (!(await ensurePeriodOpen(res, fund.tenantId, date ? new Date(date) : new Date()))) return;
+
     const txn = new PettyCashTransaction({
       tenantId: fund.tenantId,
       instituteId: fund.instituteId,
@@ -179,10 +170,21 @@ export const recordExpense = async (req: AuthRequest, res: Response) => {
       date: date ? new Date(date) : new Date(),
       createdBy: req.user?._id,
     });
-    await txn.save();
-
-    fund.currentBalance -= amount;
-    await fund.save();
+    // Atomic debit: the balance check and the decrement happen in one operation (no read-modify-write race)
+    const debited = await PettyCash.findOneAndUpdate(
+      { _id: fund._id, currentBalance: { $gte: amount } },
+      { $inc: { currentBalance: -amount } },
+      { new: true }
+    );
+    if (!debited) {
+      return res.status(400).json({ success: false, message: 'Insufficient petty cash balance' });
+    }
+    try {
+      await txn.save();
+    } catch (err) {
+      await PettyCash.updateOne({ _id: fund._id }, { $inc: { currentBalance: amount } });
+      throw err;
+    }
 
     res.status(201).json({ success: true, data: txn });
   } catch (error: any) {
@@ -209,7 +211,55 @@ export const replenishPettyCash = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ success: false, message: 'No expenses to replenish' });
     }
 
-    // Create replenishment transaction
+    // Expenses not yet in the ledger (postedAt is set when posted; older rows are matched by their ledger item)
+    const candidates = await PettyCashTransaction.find({
+      tenantId: fund.tenantId,
+      pettyCashId: fund._id,
+      type: 'expense',
+      postedAt: { $exists: false },
+    });
+    const unposted: any[] = [];
+    for (const e of candidates) {
+      const already = await LedgerItem.exists({ source: 'petty_cash', sourceId: e._id });
+      if (already) await PettyCashTransaction.updateOne({ _id: e._id }, { $set: { postedAt: new Date() } });
+      else unposted.push(e);
+    }
+
+    // Period lock up front: today (replenishment) and every expense date about to be posted
+    if (!(await ensurePeriodOpen(res, fund.tenantId, [new Date(), ...unposted.map((e) => e.date)]))) return;
+
+    for (const expense of unposted) {
+      try {
+        await postLedgerEntry({
+          tenantId: String(fund.tenantId),
+          instituteId: String(fund.instituteId),
+          ledgerName: 'Petty Cash Expenses',
+          ledgerType: 'expense',
+          amount: expense.amount,
+          description: expense.description,
+          date: expense.date,
+          source: 'petty_cash' as any,
+          sourceId: expense._id as any,
+          paymentMethod: 'cash',
+          referenceNo: expense.receiptNo,
+        });
+        await PettyCashTransaction.updateOne({ _id: expense._id }, { $set: { postedAt: new Date() } });
+      } catch (ledgerError: any) {
+        // Already-posted expenses stay marked, so a retry continues where this stopped
+        return res.status(500).json({ success: false, message: `Could not post expense "${expense.description}" to the ledger: ${ledgerError.message}` });
+      }
+    }
+
+    // Restore balance atomically (only the amount actually spent)
+    const restored = await PettyCash.findOneAndUpdate(
+      { _id: fund._id, currentBalance: fund.currentBalance },
+      { $inc: { currentBalance: spentAmount } },
+      { new: true }
+    );
+    if (!restored) {
+      return res.status(409).json({ success: false, message: 'The fund changed while replenishing. Refresh and try again.' });
+    }
+
     const txn = new PettyCashTransaction({
       tenantId: fund.tenantId,
       instituteId: fund.instituteId,
@@ -221,37 +271,6 @@ export const replenishPettyCash = async (req: AuthRequest, res: Response) => {
       createdBy: req.user?._id,
     });
     await txn.save();
-
-    // Post all expenses in this cycle to accounting ledger
-    try {
-      const unpostedExpenses = await PettyCashTransaction.find({
-        pettyCashId: fund._id,
-        type: 'expense',
-        date: { $gte: fund.updatedAt }, // Expenses since last replenishment
-      });
-
-      for (const expense of unpostedExpenses) {
-        await postLedgerEntry({
-          tenantId: String(fund.tenantId),
-          instituteId: String(fund.instituteId),
-          ledgerName: 'Petty Cash Expenses',
-          ledgerType: 'expense',
-          amount: expense.amount,
-          description: expense.description,
-          date: expense.date,
-          source: 'petty_cash' as any, // petty cash expenses posted to ledger
-          sourceId: expense._id as any,
-          paymentMethod: 'cash',
-          referenceNo: expense.receiptNo,
-        });
-      }
-    } catch (ledgerError) {
-      console.error('Failed to post petty cash expenses to ledger:', ledgerError);
-    }
-
-    // Restore balance
-    fund.currentBalance = fund.floatAmount;
-    await fund.save();
 
     res.json({ success: true, data: txn, message: `Replenished ₹${spentAmount}` });
   } catch (error: any) {

@@ -1,7 +1,31 @@
 import { Request, Response } from 'express';
 import { NikahRegistration, DeathRegistration, NOC } from '../models/Registration';
+import Member from '../models/Member';
 import { AuthRequest } from '../middleware/authMiddleware';
+import { tenantScope } from '../utils/tenantScope';
 import { getPaginationParams, createPaginationResponse } from '../utils/pagination';
+import { reconcileRegistration, deleteRegistrationWithRollback, previewDeath, previewNikah } from '../services/lifecycleService';
+import { sendError } from '../utils/transaction';
+import { refBelongsToTenant } from '../utils/sanitizeUpdate';
+import Family from '../models/Family';
+
+// Fields only the server may write (side-effect bookkeeping)
+const SERVER_ONLY = ['effectsApplied', 'effects', 'previousStatus', 'approvedBy', 'approvedAt', 'certificateIssuedAt', 'tenantId', '_id'];
+const stripServerOnly = (body: any) => {
+  const clean = { ...body };
+  SERVER_ONLY.forEach((k) => delete clean[k]);
+  return clean;
+};
+const actorOf = (req: AuthRequest) => ({ tenantId: req.tenantId, userId: req.user?._id ? String(req.user._id) : undefined, userName: req.user?.name, isSuperAdmin: req.isSuperAdmin });
+const canDecide = (req: AuthRequest) => !!req.isSuperAdmin || req.user?.role === 'mahall';
+
+/** Verify member/family refs on a registration body belong to the tenant (cross-tenant ids are rejected). */
+async function refsOk(req: AuthRequest, tenantId: any, body: any): Promise<string | null> {
+  for (const [field, model] of [['groomId', Member], ['brideId', Member], ['deceasedId', Member], ['spouseMemberId', Member], ['familyId', Family]] as const) {
+    if (body[field] && !(await refBelongsToTenant(model as any, body[field], tenantId))) return `${field} does not belong to this mahallu`;
+  }
+  return null;
+}
 
 // Nikah Registration
 export const getAllNikahRegistrations = async (req: AuthRequest, res: Response) => {
@@ -65,7 +89,7 @@ export const getNikahRegistrationById = async (req: AuthRequest, res: Response) 
 export const createNikahRegistration = async (req: AuthRequest, res: Response) => {
   try {
     const registrationData = {
-      ...req.body,
+      ...stripServerOnly(req.body),
       tenantId: req.tenantId || req.body.tenantId,
     };
 
@@ -76,9 +100,16 @@ export const createNikahRegistration = async (req: AuthRequest, res: Response) =
       });
     }
 
+    if (registrationData.status && registrationData.status !== 'pending' && !canDecide(req)) {
+      return res.status(403).json({ success: false, message: 'Only the mahallu admin can approve or reject a registration.' });
+    }
+    const refErr = registrationData.tenantId ? await refsOk(req, registrationData.tenantId, registrationData) : null;
+    if (refErr) return res.status(400).json({ success: false, message: refErr });
+
     const registration = new NikahRegistration(registrationData);
     await registration.save();
-    res.status(201).json({ success: true, data: registration });
+    const sideEffects = await reconcileRegistration('nikah', registration._id, actorOf(req));
+    res.status(201).json({ success: true, data: await NikahRegistration.findById(registration._id), sideEffects });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -87,11 +118,16 @@ export const createNikahRegistration = async (req: AuthRequest, res: Response) =
 export const updateNikahRegistration = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const {
-      groomName, groomAge, groomId, brideName, brideAge, brideId,
-      mahallMemberType, nikahDate, mahallId, waliName, witness1, witness2,
-      mahrAmount, mahrDescription, status, remarks,
-    } = req.body;
+    const b = req.body;
+    const fields = [
+      'groomName', 'groomAge', 'groomId', 'brideName', 'brideAge', 'brideId',
+      'mahallMemberType', 'nikahDate', 'mahallId', 'waliName', 'witness1', 'witness2',
+      'mahrAmount', 'mahrDescription', 'status', 'remarks', 'venue',
+      'groomFatherName', 'brideFatherName', 'groomAddress', 'brideAddress', 'officiantName',
+      'brideFamilyAction', 'newFamilyHouseName',
+    ];
+    const update: Record<string, any> = {};
+    fields.forEach((f) => { if (b[f] !== undefined) update[f] = b[f]; });
 
     const registration = await NikahRegistration.findById(id);
     if (!registration) {
@@ -102,22 +138,47 @@ export const updateNikahRegistration = async (req: AuthRequest, res: Response) =
     if (!req.isSuperAdmin && registration.tenantId.toString() !== req.tenantId) {
       return res.status(403).json({ success: false, message: 'Access denied' });
     }
+    if (update.status !== undefined && update.status !== registration.status && !canDecide(req)) {
+      return res.status(403).json({ success: false, message: 'Only the mahallu admin can approve or reject a registration.' });
+    }
+    const refErr = await refsOk(req, registration.tenantId, update);
+    if (refErr) return res.status(400).json({ success: false, message: refErr });
 
-    const updated = await NikahRegistration.findByIdAndUpdate(
-      id,
-      {
-        groomName, groomAge, groomId, brideName, brideAge, brideId,
-        mahallMemberType, nikahDate, mahallId, waliName, witness1, witness2,
-        mahrAmount, mahrDescription, status, remarks,
-      },
-      { new: true, runValidators: true }
-    )
+    await NikahRegistration.findByIdAndUpdate(id, update, { new: true, runValidators: true });
+    const sideEffects = await reconcileRegistration('nikah', id, actorOf(req));
+    const updated = await NikahRegistration.findById(id)
       .populate('groomId', 'name')
       .populate('brideId', 'name');
 
-    res.json({ success: true, data: updated });
+    res.json({ success: true, data: updated, sideEffects });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendError(res, error);
+  }
+};
+
+export const deleteNikahRegistration = async (req: AuthRequest, res: Response) => {
+  try {
+    const reg = await NikahRegistration.findById(req.params.id);
+    if (!reg) return res.status(404).json({ success: false, message: 'Nikah registration not found' });
+    if (!req.isSuperAdmin && reg.tenantId.toString() !== req.tenantId) {
+      return res.status(403).json({ success: false, message: 'Access denied' });
+    }
+    const r = await deleteRegistrationWithRollback('nikah', reg._id, actorOf(req));
+    res.json({ success: true, message: 'Nikah registration deleted. Anything it changed has been undone.', notes: r?.notes || [] });
+  } catch (error: any) {
+    sendError(res, error);
+  }
+};
+
+export const previewNikahEffects = async (req: AuthRequest, res: Response) => {
+  try {
+    const tenantId = req.tenantId || req.body.tenantId;
+    if (!tenantId) return res.status(400).json({ success: false, message: 'Tenant ID is required' });
+    const refErr = await refsOk(req, tenantId, req.body);
+    if (refErr) return res.status(400).json({ success: false, message: refErr });
+    res.json({ success: true, data: await previewNikah(tenantId, req.body) });
+  } catch (error: any) {
+    sendError(res, error);
   }
 };
 
@@ -180,8 +241,11 @@ export const getDeathRegistrationById = async (req: AuthRequest, res: Response) 
 export const createDeathRegistration = async (req: AuthRequest, res: Response) => {
   try {
     const registrationData = {
-      ...req.body,
+      ...stripServerOnly(req.body),
       tenantId: req.tenantId || req.body.tenantId,
+      // Recorded by an admin => approved straight away (this is how it always behaved: the member was marked
+      // deceased on create). Member-portal requests are created elsewhere as 'pending'.
+      status: req.body.status || 'approved',
     };
 
     if (!registrationData.tenantId && !req.isSuperAdmin) {
@@ -190,31 +254,36 @@ export const createDeathRegistration = async (req: AuthRequest, res: Response) =
         message: 'Tenant ID is required',
       });
     }
+    if (registrationData.status !== 'pending' && !canDecide(req)) {
+      return res.status(403).json({ success: false, message: 'Only the mahallu admin can approve or reject a registration.' });
+    }
+    const refErr = registrationData.tenantId ? await refsOk(req, registrationData.tenantId, registrationData) : null;
+    if (refErr) return res.status(400).json({ success: false, message: refErr });
+    if (registrationData.graveId && !registrationData.graveRecordId) registrationData.graveRecordId = registrationData.graveId;
+    if (registrationData.graveRecordId && !registrationData.graveId) registrationData.graveId = registrationData.graveRecordId;
 
     const registration = new DeathRegistration(registrationData);
     await registration.save();
-
-    if (registration.deceasedId) {
-      const Member = (await import('../models/Member')).default;
-      await Member.findByIdAndUpdate(registration.deceasedId, {
-        isDead: true,
-        status: 'inactive',
-      });
-    }
-    res.status(201).json({ success: true, data: registration });
+    const sideEffects = await reconcileRegistration('death', registration._id, actorOf(req));
+    res.status(201).json({ success: true, data: await DeathRegistration.findById(registration._id), sideEffects });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendError(res, error);
   }
 };
 
 export const updateDeathRegistration = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const {
-      deceasedName, deceasedId, deathDate, placeOfDeath, causeOfDeath,
-      mahallId, familyId, informantName, informantRelation, informantPhone,
-      status, remarks,
-    } = req.body;
+    const b = req.body;
+    const fields = [
+      'deceasedName', 'deceasedId', 'deathDate', 'placeOfDeath', 'causeOfDeath',
+      'mahallId', 'familyId', 'informantName', 'informantRelation', 'informantPhone',
+      'status', 'remarks', 'graveId', 'graveRecordId', 'spouseMemberId',
+    ];
+    const update: Record<string, any> = {};
+    fields.forEach((f) => { if (b[f] !== undefined) update[f] = b[f]; });
+    if (update.graveId && update.graveRecordId === undefined) update.graveRecordId = update.graveId;
+    if (update.graveRecordId && update.graveId === undefined) update.graveId = update.graveRecordId;
 
     const registration = await DeathRegistration.findById(id);
     if (!registration) {
@@ -225,22 +294,47 @@ export const updateDeathRegistration = async (req: AuthRequest, res: Response) =
     if (!req.isSuperAdmin && registration.tenantId.toString() !== req.tenantId) {
       return res.status(403).json({ success: false, message: 'Access denied' });
     }
+    if (update.status !== undefined && update.status !== registration.status && !canDecide(req)) {
+      return res.status(403).json({ success: false, message: 'Only the mahallu admin can approve or reject a registration.' });
+    }
+    const refErr = await refsOk(req, registration.tenantId, update);
+    if (refErr) return res.status(400).json({ success: false, message: refErr });
 
-    const updated = await DeathRegistration.findByIdAndUpdate(
-      id,
-      {
-        deceasedName, deceasedId, deathDate, placeOfDeath, causeOfDeath,
-        mahallId, familyId, informantName, informantRelation, informantPhone,
-        status, remarks,
-      },
-      { new: true, runValidators: true }
-    )
+    await DeathRegistration.findByIdAndUpdate(id, update, { new: true, runValidators: true });
+    const sideEffects = await reconcileRegistration('death', id, actorOf(req));
+    const updated = await DeathRegistration.findById(id)
       .populate('deceasedId', 'name')
       .populate('familyId', 'houseName');
 
-    res.json({ success: true, data: updated });
+    res.json({ success: true, data: updated, sideEffects });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    sendError(res, error);
+  }
+};
+
+export const deleteDeathRegistration = async (req: AuthRequest, res: Response) => {
+  try {
+    const reg = await DeathRegistration.findById(req.params.id);
+    if (!reg) return res.status(404).json({ success: false, message: 'Death registration not found' });
+    if (!req.isSuperAdmin && reg.tenantId.toString() !== req.tenantId) {
+      return res.status(403).json({ success: false, message: 'Access denied' });
+    }
+    const r = await deleteRegistrationWithRollback('death', reg._id, actorOf(req));
+    res.json({ success: true, message: 'Death registration deleted. Anything it changed has been undone.', notes: r?.notes || [] });
+  } catch (error: any) {
+    sendError(res, error);
+  }
+};
+
+export const previewDeathEffects = async (req: AuthRequest, res: Response) => {
+  try {
+    const tenantId = req.tenantId || req.body.tenantId;
+    if (!tenantId) return res.status(400).json({ success: false, message: 'Tenant ID is required' });
+    const refErr = await refsOk(req, tenantId, req.body);
+    if (refErr) return res.status(400).json({ success: false, message: refErr });
+    res.json({ success: true, data: await previewDeath(tenantId, req.body) });
+  } catch (error: any) {
+    sendError(res, error);
   }
 };
 
@@ -351,8 +445,8 @@ export const updateNOC = async (req: AuthRequest, res: Response) => {
       if (!issuedDate) updateData.issuedDate = new Date();
     }
 
-    const noc = await NOC.findByIdAndUpdate(
-      id,
+    const noc = await NOC.findOneAndUpdate(
+      { _id: id, ...tenantScope(req) },
       updateData,
       { new: true, runValidators: true }
     )

@@ -1,5 +1,7 @@
 import { Response } from 'express';
 import Employee from '../models/Employee';
+import Institute from '../models/Institute';
+import { stripImmutable, refBelongsToTenant, clearableUpdate } from '../utils/sanitizeUpdate';
 import { AuthRequest } from '../middleware/authMiddleware';
 import { getPaginationParams, createPaginationResponse } from '../utils/pagination';
 import { verifyTenantOwnership } from '../utils/tenantCheck';
@@ -62,8 +64,8 @@ export const getEmployeeById = async (req: AuthRequest, res: Response) => {
 
 export const createEmployee = async (req: AuthRequest, res: Response) => {
   try {
-    const employeeData = {
-      ...req.body,
+    const employeeData: Record<string, any> = {
+      ...(stripImmutable(req.body) as Record<string, any>),
       tenantId: req.tenantId || req.body.tenantId,
     };
 
@@ -79,6 +81,10 @@ export const createEmployee = async (req: AuthRequest, res: Response) => {
         success: false,
         message: 'Institute ID is required',
       });
+    }
+
+    if (!(await refBelongsToTenant(Institute, employeeData.instituteId, employeeData.tenantId))) {
+      return res.status(400).json({ success: false, message: 'Institute does not belong to this Mahallu' });
     }
 
     const employee = new Employee(employeeData);
@@ -102,9 +108,14 @@ export const updateEmployee = async (req: AuthRequest, res: Response) => {
       return;
     }
 
+    const body = stripImmutable(req.body) as Record<string, any>;
+    if (body.instituteId && !(await refBelongsToTenant(Institute, body.instituteId, existingEmployee.tenantId))) {
+      return res.status(400).json({ success: false, message: 'Institute does not belong to this Mahallu' });
+    }
+
     const employee = await Employee.findByIdAndUpdate(
       req.params.id,
-      req.body,
+      clearableUpdate(body),
       { new: true, runValidators: true }
     ).populate('instituteId', 'name type');
 

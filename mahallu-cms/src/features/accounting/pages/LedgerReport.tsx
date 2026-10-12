@@ -1,17 +1,25 @@
 import { useState, useEffect } from 'react';
-import Breadcrumb from '@/components/layout/Breadcrumb';
+import { FiTrendingUp, FiDollarSign } from 'react-icons/fi';
 import Card from '@/components/ui/Card';
+import Badge from '@/components/ui/Badge';
+import EmptyState from '@/components/ui/EmptyState';
+import Alert from '@/components/ui/Alert';
+import FilterBar from '@/components/ui/FilterBar';
+import StatCard from '@/components/ui/StatCard';
+import PageHeader from '@/components/ui/PageHeader';
 import Button from '@/components/ui/Button';
-import Input from '@/components/ui/Input';
+import DateRangePicker from '@/components/ui/DateRangePicker';
 import Select from '@/components/ui/Select';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { accountingReportService } from '@/services/accountingReportService';
 import { masterAccountService } from '@/services/masterAccountService';
 import { instituteService } from '@/services/instituteService';
 import { useAuthStore } from '@/store/authStore';
+import { getFriendlyError } from '@/utils/apiMessages';
+import ScrollX from '@/features/_shared/ScrollX';
 
 interface LedgerReportEntry {
-  _id: string;
+  id: string;
   date: string;
   description: string;
   category?: string;
@@ -47,7 +55,7 @@ export default function LedgerReport() {
   const fetchLedgers = async () => {
     try {
       const result = await masterAccountService.getAllLedgers({ limit: 1000 });
-      setLedgers(result.data.map((l: any) => ({ id: l.id || l._id, name: l.name, type: l.type })));
+      setLedgers(result.data.map((l: any) => ({ id: l.id, name: l.name, type: l.type })));
     } catch (err) { console.error('Error fetching ledgers:', err); }
   };
 
@@ -68,7 +76,7 @@ export default function LedgerReport() {
       const data = await accountingReportService.getLedgerReport(params);
       setReportData(data);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch ledger report');
+      setError(getFriendlyError(err, "Couldn't load ledger report. Refresh the page or try again."));
     } finally {
       setLoading(false);
     }
@@ -77,17 +85,11 @@ export default function LedgerReport() {
   const entries: LedgerReportEntry[] = reportData?.entries || [];
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Ledger Report</h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Detailed transactions for a specific ledger with running balance</p>
-        </div>
-        <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Ledger Report' }]} />
-      </div>
+    <div className="space-y-4">
+      <PageHeader title="Ledger Report" description="Detailed transactions for a specific ledger with running balance" />
 
-      <Card>
-        <div className="flex flex-wrap items-end gap-4 mb-6">
+      <Card padding="none" className="overflow-visible">
+        <FilterBar className="items-end">
           <div className="w-52">
             <Select
               label="Ledger"
@@ -96,11 +98,8 @@ export default function LedgerReport() {
               onChange={(e) => setSelectedLedger(e.target.value)}
             />
           </div>
-          <div className="w-44">
-            <Input label="Start Date" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
-          </div>
-          <div className="w-44">
-            <Input label="End Date" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+          <div className="w-72 max-sm:w-full">
+            <DateRangePicker label="Date range" from={startDate} to={endDate} onChange={(f, t) => { setStartDate(f); setEndDate(t); }} />
           </div>
           {!userInstituteId && (
             <div className="w-48">
@@ -115,97 +114,89 @@ export default function LedgerReport() {
           <Button onClick={fetchReport} disabled={loading || !selectedLedger}>
             {loading ? 'Loading...' : 'Generate'}
           </Button>
-        </div>
+        </FilterBar>
 
-        {loading ? (
-          <div className="flex justify-center items-center py-12"><LoadingSpinner /></div>
-        ) : error ? (
-          <div className="text-center py-12"><p className="text-red-600 dark:text-red-400">{error}</p></div>
-        ) : !reportData ? (
-          <div className="text-center py-12 text-gray-500 dark:text-gray-400">
-            Select a ledger and click "Generate" to view the report
-          </div>
-        ) : (
-          <>
-            {/* Summary Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6">
-              <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                <p className="text-sm text-gray-600 dark:text-gray-400">Ledger</p>
-                <p className="text-lg font-bold text-gray-900 dark:text-gray-100">{reportData.ledger?.name || '-'}</p>
-                <p className="text-xs text-gray-500">{reportData.ledger?.type}</p>
+        <div className="p-3.5">
+          {loading ? (
+            <div className="flex justify-center items-center py-12"><LoadingSpinner /></div>
+          ) : error ? (
+            <Alert tone="danger">{error}</Alert>
+          ) : !reportData ? (
+            <EmptyState title="Nothing to show yet" description='Select a ledger and click "Generate" to view the report' />
+          ) : (
+            <>
+              {/* Summary Cards */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+                <div className="rounded-xl bg-[#F4F7F5] p-4 dark:bg-surface-raised">
+                  <p className="text-sm text-[#5B6963] dark:text-surface-muted">Ledger</p>
+                  <p className="text-lg font-bold text-[#18231E] dark:text-surface-text">{reportData.ledger?.name || '-'}</p>
+                  <p className="text-xs text-[#7B8983] dark:text-surface-muted">{reportData.ledger?.type}</p>
+                </div>
+                <StatCard variant="inline" title="Opening Balance" value={`₹${(reportData.openingBalance || 0).toLocaleString()}`} tone="neutral" icon={<FiDollarSign className="h-[17px] w-[17px]" />} />
+                <StatCard variant="inline" title="Total Credit" value={`₹${(reportData.totalCredit || 0).toLocaleString()}`} tone="green" icon={<FiTrendingUp className="h-[17px] w-[17px]" />} />
+                <StatCard variant="inline" viz={Math.max(reportData.openingBalance || 0, reportData.closingBalance || 0) > 0 ? { type: 'pair', a: Math.max(reportData.openingBalance || 0, 0), b: Math.max(reportData.closingBalance || 0, 0) } : undefined} summary={`Closing balance ₹${(reportData.closingBalance || 0).toLocaleString()} compared with opening ₹${(reportData.openingBalance || 0).toLocaleString()}`} title="Closing Balance" value={`₹${(reportData.closingBalance || 0).toLocaleString()}`} tone="neutral" icon={<FiDollarSign className="h-[17px] w-[17px]" />} />
               </div>
-              <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                <p className="text-sm text-blue-600 dark:text-blue-400">Opening Balance</p>
-                <p className="text-xl font-bold text-blue-700 dark:text-blue-300">₹{(reportData.openingBalance || 0).toLocaleString()}</p>
-              </div>
-              <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                <p className="text-sm text-green-600 dark:text-green-400">Total Credit</p>
-                <p className="text-xl font-bold text-green-700 dark:text-green-300">₹{(reportData.totalCredit || 0).toLocaleString()}</p>
-              </div>
-              <div className="p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
-                <p className="text-sm text-purple-600 dark:text-purple-400">Closing Balance</p>
-                <p className="text-xl font-bold text-purple-700 dark:text-purple-300">₹{(reportData.closingBalance || 0).toLocaleString()}</p>
-              </div>
-            </div>
 
-            {entries.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">No transactions found for this period</div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                  <thead className="bg-gray-50 dark:bg-gray-800">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Date</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Description</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Source</th>
-                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Debit</th>
-                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Credit</th>
-                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Balance</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
-                    {/* Opening Balance Row */}
-                    <tr className="bg-blue-50/50 dark:bg-blue-900/10">
-                      <td className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300" colSpan={5}>Opening Balance</td>
-                      <td className="px-4 py-2 text-sm text-right font-bold text-blue-700 dark:text-blue-300">₹{(reportData.openingBalance || 0).toLocaleString()}</td>
-                    </tr>
-                    {entries.map((entry) => (
-                      <tr key={entry._id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
-                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap">
-                          {new Date(entry.date).toLocaleDateString()}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{entry.description}</td>
-                        <td className="px-4 py-3 text-sm">
-                          {entry.source && entry.source !== 'manual' ? (
-                            <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">{entry.source}</span>
-                          ) : (
-                            <span className="text-gray-400">manual</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-right text-red-600 dark:text-red-400">
-                          {entry.debit > 0 ? `₹${entry.debit.toLocaleString()}` : '-'}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-right text-green-600 dark:text-green-400">
-                          {entry.credit > 0 ? `₹${entry.credit.toLocaleString()}` : '-'}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-right font-medium text-gray-900 dark:text-gray-100">
-                          ₹{entry.balance.toLocaleString()}
-                        </td>
+              {entries.length === 0 ? (
+                <EmptyState title="Nothing to show yet" description='No transactions found for this period' />
+              ) : (
+                <ScrollX>
+                  <table className="w-full border-collapse text-[12.5px]">
+                    <thead className="bg-[#FAFCFB] dark:bg-surface-base/60">
+                      <tr>
+                        <th className="whitespace-nowrap px-3.5 py-2.5 text-left text-[12px] font-bold text-[#7B8983] dark:text-surface-muted uppercase tracking-[0.06em]">Date</th>
+                        <th className="whitespace-nowrap px-3.5 py-2.5 text-left text-[12px] font-bold text-[#7B8983] dark:text-surface-muted uppercase tracking-[0.06em]">Description</th>
+                        <th className="whitespace-nowrap px-3.5 py-2.5 text-left text-[12px] font-bold text-[#7B8983] dark:text-surface-muted uppercase tracking-[0.06em]">Source</th>
+                        <th className="whitespace-nowrap px-3.5 py-2.5 text-right text-[12px] font-bold text-[#7B8983] dark:text-surface-muted uppercase tracking-[0.06em]">Debit</th>
+                        <th className="whitespace-nowrap px-3.5 py-2.5 text-right text-[12px] font-bold text-[#7B8983] dark:text-surface-muted uppercase tracking-[0.06em]">Credit</th>
+                        <th className="whitespace-nowrap px-3.5 py-2.5 text-right text-[12px] font-bold text-[#7B8983] dark:text-surface-muted uppercase tracking-[0.06em]">Balance</th>
                       </tr>
-                    ))}
-                    {/* Closing Balance Row */}
-                    <tr className="bg-purple-50/50 dark:bg-purple-900/10">
-                      <td className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300" colSpan={3}>Closing Balance</td>
-                      <td className="px-4 py-2 text-sm text-right font-bold text-red-700 dark:text-red-300">₹{(reportData.totalDebit || 0).toLocaleString()}</td>
-                      <td className="px-4 py-2 text-sm text-right font-bold text-green-700 dark:text-green-300">₹{(reportData.totalCredit || 0).toLocaleString()}</td>
-                      <td className="px-4 py-2 text-sm text-right font-bold text-purple-700 dark:text-purple-300">₹{(reportData.closingBalance || 0).toLocaleString()}</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </>
-        )}
+                    </thead>
+                    <tbody className="divide-y divide-line-soft bg-white dark:divide-surface-border dark:bg-surface-card">
+                      {/* Opening Balance Row */}
+                      <tr className="bg-blue-50/50 dark:bg-blue-900/10">
+                        <td className="px-3.5 py-2 text-[12.5px] font-medium text-[#3A4741] dark:text-surface-text" colSpan={5}>Opening Balance</td>
+                        <td className="px-3.5 py-2 text-[12.5px] text-right font-bold text-blue-700 dark:text-blue-300">₹{(reportData.openingBalance || 0).toLocaleString()}</td>
+                      </tr>
+                      {entries.map((entry) => (
+                        <tr key={entry.id} className="hover:bg-[#F6FAF8] dark:hover:bg-surface-hover/60">
+                          <td className="px-3.5 py-2 text-[12.5px] text-[#18231E] dark:text-surface-text whitespace-nowrap">
+                            {new Date(entry.date).toLocaleDateString()}
+                          </td>
+                          <td className="px-3.5 py-2 text-[12.5px] text-[#18231E] dark:text-surface-text">{entry.description}</td>
+                          <td className="px-3.5 py-2 text-[12.5px]">
+                            {entry.source && entry.source !== 'manual' ? (
+                              <Badge variant="warning">{entry.source}</Badge>
+                            ) : (
+                              <span className="text-[#98A59F] dark:text-surface-muted">manual</span>
+                            )}
+                          </td>
+                          <td className="px-3.5 py-2 text-[12.5px] text-right text-[#B3261E] dark:text-red-300">
+                            {entry.debit > 0 ? `₹${entry.debit.toLocaleString()}` : '-'}
+                          </td>
+                          <td className="px-3.5 py-2 text-[12.5px] text-right text-primary-600 dark:text-primary-400">
+                            {entry.credit > 0 ? `₹${entry.credit.toLocaleString()}` : '-'}
+                          </td>
+                          <td className="px-3.5 py-2 text-[12.5px] text-right font-medium text-[#18231E] dark:text-surface-text">
+                            ₹{entry.balance.toLocaleString()}
+                          </td>
+                        </tr>
+                      ))}
+                      {/* Closing Balance Row */}
+                      <tr className="bg-purple-50/50 dark:bg-purple-900/10">
+                        <td className="px-3.5 py-2 text-[12.5px] font-medium text-[#3A4741] dark:text-surface-text" colSpan={3}>Closing Balance</td>
+                        <td className="px-3.5 py-2 text-[12.5px] text-right font-bold text-red-700 dark:text-red-300">₹{(reportData.totalDebit || 0).toLocaleString()}</td>
+                        <td className="px-3.5 py-2 text-[12.5px] text-right font-bold text-primary-700 dark:text-primary-300">₹{(reportData.totalCredit || 0).toLocaleString()}</td>
+                        <td className="px-3.5 py-2 text-[12.5px] text-right font-bold text-purple-700 dark:text-purple-300">₹{(reportData.closingBalance || 0).toLocaleString()}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </ScrollX>
+              )}
+            </>
+          )}
+
+        </div>
       </Card>
     </div>
   );

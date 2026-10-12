@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FiEye, FiX, FiHelpCircle, FiAlertCircle, FiCheckCircle } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
+import { FiHelpCircle, FiAlertCircle, FiCheckCircle } from 'react-icons/fi';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
@@ -9,16 +8,22 @@ import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
 import Pagination from '@/components/ui/Pagination';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
-import TableToolbar from '@/components/ui/TableToolbar';
+import PageHeader from '@/components/ui/PageHeader';
+import Badge from '@/components/ui/Badge';
+import StatusBadge from '@/components/ui/StatusBadge';
+import RowActions from '@/components/ui/RowActions';
+import ListToolbar from '../components/ListToolbar';
 import { TableColumn, Pagination as PaginationType } from '@/types';
 import { socialService, Support } from '@/services/socialService';
 import { formatDate } from '@/utils/format';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
+import { toast } from '@/store/toastStore';
+import { getFriendlyError } from '@/utils/apiMessages';
+import { monthlySeries, shareViz, waitingViz } from '@/utils/statSeries';
 
 export default function SupportList() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
-  const [isFilterVisible, setIsFilterVisible] = useState(false);
   const [statusFilter, setStatusFilter] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('all');
   const [support, setSupport] = useState<Support[]>([]);
@@ -53,7 +58,7 @@ export default function SupportList() {
         setPagination(result.pagination);
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch support tickets');
+      setError(getFriendlyError(err, "Couldn't load support tickets. Refresh the page or try again."));
       console.error('Error fetching support:', err);
       setSupport([]);
     } finally {
@@ -73,7 +78,7 @@ export default function SupportList() {
       const dataToExport = Array.isArray(result.data) ? result.data : [];
 
       if (dataToExport.length === 0) {
-        alert('No data to export');
+        toast.info('Nothing to export. Change your filters and try again.');
         return;
       }
 
@@ -93,7 +98,7 @@ export default function SupportList() {
       }
     } catch (error: any) {
       console.error('Export error:', error);
-      alert(error?.message || 'Failed to export data');
+      toast.error(getFriendlyError(error, "Couldn't export data. Check your connection and try again."));
     } finally {
       setIsExporting(false);
     }
@@ -106,34 +111,19 @@ export default function SupportList() {
       key: 'priority',
       label: 'Priority',
       render: (priority) => {
-        const priorityColors: Record<string, string> = {
-          low: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-          medium: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
-          high: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
-        };
+        const tones: Record<string, 'info' | 'warning' | 'danger'> = { low: 'info', medium: 'warning', high: 'danger' };
+        const value: string = priority || 'medium';
         return (
-          <span className={`px-2 py-1 text-xs font-medium rounded-full ${priorityColors[priority || 'medium']}`}>
-            {priority || 'medium'}
-          </span>
+          <Badge variant={tones[value] || 'neutral'} dot>
+            {value.charAt(0).toUpperCase() + value.slice(1)}
+          </Badge>
         );
       },
     },
     {
       key: 'status',
       label: 'Status',
-      render: (status) => {
-        const statusColors: Record<string, string> = {
-          open: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-          in_progress: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
-          resolved: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-          closed: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200',
-        };
-        return (
-          <span className={`px-2 py-1 text-xs font-medium rounded-full ${statusColors[status || 'open']}`}>
-            {status || 'open'}
-          </span>
-        );
-      },
+      render: (status) => <StatusBadge status={status || 'open'} />,
     },
     {
       key: 'createdAt',
@@ -144,136 +134,114 @@ export default function SupportList() {
       key: 'actions',
       label: 'Actions',
       render: (_, row) => (
-        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(`/social/support/${row.id}`);
-            }}
-            className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
-            title="View"
-          >
-            <FiEye className="h-4 w-4" />
-          </button>
-        </div>
+        <RowActions
+          onView={() => navigate(`/social/support/${row.id}`)}
+          viewLabel="View ticket"
+          ariaLabels={{ view: 'View ticket' }}
+        />
       ),
     },
   ];
 
   const stats = [
-    { title: 'Total Tickets', value: support.length, icon: <FiHelpCircle className="h-5 w-5" /> },
+    { title: 'Total Tickets', value: support.length, viz: monthlySeries(support as any[], (r: any) => r.createdAt).length ? { type: 'bars' as const, values: monthlySeries(support as any[], (r: any) => r.createdAt) } : undefined, icon: <FiHelpCircle className="h-[17px] w-[17px]" />, tone: 'green' as const },
     {
       title: 'Open',
-      value: support.filter((s) => s.status === 'open' || !s.status).length,
-      icon: <FiAlertCircle className="h-5 w-5" />,
+      value: support.filter((s) => s.status === 'open' || !s.status).length, viz: waitingViz(support.filter((s) => s.status === 'open' || !s.status).length), summary: `Open: ${support.filter((s) => s.status === 'open' || !s.status).length} of ${support.length}`,
+      icon: <FiAlertCircle className="h-[17px] w-[17px]" />,
+      tone: 'gold' as const,
     },
     {
       title: 'Resolved',
-      value: support.filter((s) => s.status === 'resolved').length,
-      icon: <FiCheckCircle className="h-5 w-5" />,
+      value: support.filter((s) => s.status === 'resolved').length, viz: shareViz(support.filter((s) => s.status === 'resolved').length, support.length), summary: `Resolved: ${support.filter((s) => s.status === 'resolved').length} of ${support.length}`,
+      icon: <FiCheckCircle className="h-[17px] w-[17px]" />,
+      tone: 'lime' as const,
     },
   ];
 
   return (
     <div className="space-y-4">
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Support Tickets</h1>
-            <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">Manage support tickets</p>
-          </div>
-          <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Support' }]} />
-        </div>
+      <PageHeader
+        title="Support tickets"
+        description="Manage support tickets"
+        actions={
+          <Link to="/social/support/create">
+            <Button>+ New ticket</Button>
+          </Link>
+        }
+      />
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          {stats.map((stat, index) => (
-            <StatCard key={index} {...stat} />
-          ))}
-        </div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        {stats.map((stat, index) => (
+          <StatCard key={index} variant="inline" {...stat} />
+        ))}
       </div>
 
-      <Card>
-        <TableToolbar
+      <Card padding="none" className="overflow-visible">
+        <ListToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
-          onFilterClick={() => setIsFilterVisible(!isFilterVisible)}
-          isFilterVisible={isFilterVisible}
-          hasFilters={true}
+          searchPlaceholder="Search tickets"
           onRefresh={fetchSupport}
           onExport={handleExport}
           isExporting={isExporting}
-          actionButtons={
-            <Link to="/social/support/create">
-              <Button size="md">
-                + New Ticket
+        >
+          <div className="w-40">
+            <Select
+              options={[
+                { value: 'all', label: 'All Status' },
+                { value: 'open', label: 'Open' },
+                { value: 'in_progress', label: 'In Progress' },
+                { value: 'resolved', label: 'Resolved' },
+                { value: 'closed', label: 'Closed' },
+              ]}
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+            />
+          </div>
+          <div className="w-40">
+            <Select
+              options={[
+                { value: 'all', label: 'All Priority' },
+                { value: 'low', label: 'Low' },
+                { value: 'medium', label: 'Medium' },
+                { value: 'high', label: 'High' },
+              ]}
+              value={priorityFilter}
+              onChange={(e) => setPriorityFilter(e.target.value)}
+            />
+          </div>
+        </ListToolbar>
+
+        <div className="p-3.5">
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <LoadingSpinner />
+            </div>
+          ) : error ? (
+            <div className="py-12 text-center">
+              <p className="text-red-600 dark:text-red-400">{error}</p>
+              <Button onClick={fetchSupport} className="mt-4" variant="outline">
+                Retry
               </Button>
-            </Link>
-          }
-        />
-
-        {isFilterVisible && (
-          <div className="relative flex flex-wrap items-center gap-4 mb-6 p-4 border border-gray-200 rounded-lg bg-white dark:bg-gray-800 dark:border-gray-700">
-            <button
-              onClick={() => setIsFilterVisible(false)}
-              className="absolute right-4 top-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-            >
-              <FiX className="h-4 w-4" />
-            </button>
-            <div className="w-40">
-              <Select
-                options={[
-                  { value: 'all', label: 'All Status' },
-                  { value: 'open', label: 'Open' },
-                  { value: 'in_progress', label: 'In Progress' },
-                  { value: 'resolved', label: 'Resolved' },
-                  { value: 'closed', label: 'Closed' },
-                ]}
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-              />
             </div>
-            <div className="w-40">
-              <Select
-                options={[
-                  { value: 'all', label: 'All Priority' },
-                  { value: 'low', label: 'Low' },
-                  { value: 'medium', label: 'Medium' },
-                  { value: 'high', label: 'High' },
-                ]}
-                value={priorityFilter}
-                onChange={(e) => setPriorityFilter(e.target.value)}
-              />
-            </div>
-          </div>
-        )}
-
-        {loading ? (
-          <div className="flex justify-center items-center py-12">
-            <LoadingSpinner />
-          </div>
-        ) : error ? (
-          <div className="text-center py-12">
-            <p className="text-red-600 dark:text-red-400">{error}</p>
-            <Button onClick={fetchSupport} className="mt-4" variant="outline">
-              Retry
-            </Button>
-          </div>
-        ) : (
-          <>
-            <Table columns={columns} data={support} emptyMessage="No support tickets found" showExport={false} />
-            {pagination && pagination.totalPages > 1 && (
-              <div className="mt-6">
-                <Pagination
-                  currentPage={currentPage}
-                  totalPages={pagination.totalPages}
-                  totalItems={pagination.total}
-                  itemsPerPage={itemsPerPage}
-                  onPageChange={setCurrentPage}
-                />
-              </div>
-            )}
-          </>
-        )}
+          ) : (
+            <>
+              <Table columns={columns} data={support} emptyMessage="No support tickets found" showExport={false} />
+              {pagination && pagination.totalPages > 1 && (
+                <div className="mt-3.5">
+                  <Pagination
+                    currentPage={currentPage}
+                    totalPages={pagination.totalPages}
+                    totalItems={pagination.total}
+                    itemsPerPage={itemsPerPage}
+                    onPageChange={setCurrentPage}
+                  />
+                </div>
+              )}
+            </>
+          )}
+        </div>
       </Card>
     </div>
   );

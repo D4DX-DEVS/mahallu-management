@@ -4,8 +4,9 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useNavigate } from 'react-router-dom';
 import { FiSave, FiX } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
+import Alert from '@/components/ui/Alert';
+import PageHeader from '@/components/ui/PageHeader';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
@@ -15,6 +16,11 @@ import { salaryService } from '@/services/salaryService';
 import { employeeService } from '@/services/employeeService';
 import { instituteService } from '@/services/instituteService';
 import { useAuthStore } from '@/store/authStore';
+import { useUnsavedChangesGuard } from '@/hooks/useUnsavedChangesGuard';
+import UnsavedChangesDialog from '@/components/ui/UnsavedChangesDialog';
+import AmountInput from '@/components/ui/AmountInput';
+import { toast } from '@/store/toastStore';
+import { getFriendlyError } from '@/utils/apiMessages';
 
 const MONTHS = [
   { value: '1', label: 'January' }, { value: '2', label: 'February' }, { value: '3', label: 'March' },
@@ -53,8 +59,9 @@ export default function CreateSalaryPayment() {
     handleSubmit,
     watch,
     setValue,
-    formState: { errors, isSubmitting },
+    formState: { errors, isSubmitting, isDirty },
   } = useForm<SalaryFormData>({
+    mode: 'onTouched',
     resolver: zodResolver(salarySchema),
     defaultValues: {
       instituteId: userInstituteId || '',
@@ -64,6 +71,7 @@ export default function CreateSalaryPayment() {
       paymentDate: new Date().toISOString().split('T')[0],
     },
   });
+  const guard = useUnsavedChangesGuard(isDirty);
 
   const selectedInstituteId = watch('instituteId');
   const selectedEmployeeId = watch('employeeId');
@@ -125,7 +133,7 @@ export default function CreateSalaryPayment() {
       });
       navigate(ROUTES.SALARY.LIST);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to create salary payment.');
+      toast.error(getFriendlyError(err, "Couldn't create salary payment. Check the details and try again."));
     }
   };
 
@@ -138,22 +146,16 @@ export default function CreateSalaryPayment() {
   const years = Array.from({ length: 5 }, (_, i) => ({ value: String(currentYear - i), label: String(currentYear - i) }));
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Create Salary Payment</h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Record a new salary payment</p>
-        </div>
-        <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Salary', path: ROUTES.SALARY.LIST }, { label: 'Create' }]} />
-      </div>
+    <div className="space-y-4">
+      <PageHeader title="Create Salary Payment" description="Record a new salary payment" />
 
       <form onSubmit={handleSubmit(onSubmit)}>
-        <Card className="space-y-6">
-          {error && (
-            <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm dark:bg-red-900 dark:border-red-700 dark:text-red-200">{error}</div>
-          )}
+        <div className="space-y-4">
+          {error && <Alert tone="danger">{error}</Alert>}
 
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Payment Details</h3>
+          <Card padding="lg">
+          <h3 className="text-sm font-bold text-primary-700 dark:text-surface-text">Payment details</h3>
+          <p className="mb-3.5 mt-0.5 text-xs text-[#7B8983] dark:text-surface-muted">Who is being paid and for which period</p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {!userInstituteId ? (
               <Select
@@ -181,22 +183,30 @@ export default function CreateSalaryPayment() {
             <Select label="Year" options={years} {...register('year')} error={errors.year?.message} required />
           </div>
 
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 pt-4 border-t border-gray-200 dark:border-gray-700">Amount Breakdown</h3>
+          </Card>
+
+          <Card padding="lg">
+          <h3 className="text-sm font-bold text-primary-700 dark:text-surface-text">Amount breakdown</h3>
+          <p className="mb-3.5 mt-0.5 text-xs text-[#7B8983] dark:text-surface-muted">Base salary, allowances and deductions</p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Input label="Base Salary (₹)" type="number" {...register('baseSalary')} placeholder="0" />
+            <AmountInput label="Base Salary (₹)" {...register('baseSalary')} placeholder="0" />
             <Input label="Allowances (₹)" type="number" {...register('allowances')} placeholder="0" />
             <Input label="Deductions (₹)" type="number" {...register('deductions')} placeholder="0" />
           </div>
-          <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-            <p className="text-lg font-semibold text-blue-900 dark:text-blue-200">
-              Net Amount: <span className="text-2xl">₹{netAmount.toLocaleString()}</span>
+          <div className="mt-3.5 rounded-xl bg-mint p-3.5 dark:bg-brand-lime/10">
+            <p className="text-[13px] font-bold text-primary-700 dark:text-brand-lime">
+              Net Amount: <span className="text-xl font-extrabold">₹{netAmount.toLocaleString()}</span>
             </p>
-            <p className="text-sm text-blue-600 dark:text-blue-400 mt-1">
+            <p className="mt-1 text-xs text-[#5B6963] dark:text-surface-muted">
               Base ({baseSalary.toLocaleString()}) + Allowances ({allowances.toLocaleString()}) - Deductions ({deductions.toLocaleString()})
             </p>
           </div>
 
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 pt-4 border-t border-gray-200 dark:border-gray-700">Payment Info</h3>
+          </Card>
+
+          <Card padding="lg">
+          <h3 className="text-sm font-bold text-primary-700 dark:text-surface-text">Payment info</h3>
+          <p className="mb-3.5 mt-0.5 text-xs text-[#7B8983] dark:text-surface-muted">Date, method and reference</p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input label="Payment Date" type="date" {...register('paymentDate')} />
             <Select
@@ -222,16 +232,17 @@ export default function CreateSalaryPayment() {
             />
             <Input label="Remarks" {...register('remarks')} placeholder="Additional notes" className="md:col-span-2" />
           </div>
+          </Card>
 
-          <div className="flex justify-end gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-            <Button type="button" variant="outline" onClick={() => navigate(ROUTES.SALARY.LIST)}>
-              <FiX className="h-4 w-4 mr-2" />Cancel
+          <div className="sticky bottom-0 z-10 -mx-1 flex flex-wrap justify-end gap-2 pb-[calc(0.75rem+env(safe-area-inset-bottom))] [&>button]:flex-1 sm:[&>button]:flex-none rounded-b-card border-t border-line bg-white/90 px-4 py-3 backdrop-blur dark:border-surface-border dark:bg-surface-card/90">
+            <Button type="button" variant="outline" onClick={() => guard.guardedNavigate(ROUTES.SALARY.LIST)}>
+              <FiX className="h-3.5 w-3.5" />Cancel
             </Button>
             <Button type="submit" isLoading={isSubmitting}>
-              <FiSave className="h-4 w-4 mr-2" />Create Payment
+              <FiSave className="h-3.5 w-3.5" />Create Payment
             </Button>
           </div>
-        </Card>
+        </div>
       </form>
 
       {!userInstituteId && (
@@ -244,6 +255,7 @@ export default function CreateSalaryPayment() {
           }}
         />
       )}
+      <UnsavedChangesDialog guard={guard} />
     </div>
   );
 }

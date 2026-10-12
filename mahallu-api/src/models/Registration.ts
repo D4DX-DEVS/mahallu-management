@@ -19,6 +19,22 @@ export interface INikahRegistration extends Document {
   witness2?: string;
   mahrAmount?: number;
   mahrDescription?: string;
+  // Certificate data (optional)
+  certificateNo?: string;
+  certificateIssuedAt?: Date;
+  groomFatherName?: string;
+  brideFatherName?: string;
+  groomAddress?: string;
+  brideAddress?: string;
+  officiantName?: string;
+  approvedBy?: string;
+  approvedAt?: Date;
+  // Where the bride lives after the nikah. 'stay' (default) moves nobody.
+  brideFamilyAction?: 'stay' | 'move' | 'newFamily';
+  newFamilyHouseName?: string;
+  // Side effects bookkeeping (see services/lifecycleService.ts)
+  effectsApplied?: boolean;
+  effects?: Record<string, any>;
   status: 'pending' | 'approved' | 'rejected';
   remarks?: string;
   createdAt: Date;
@@ -38,6 +54,15 @@ export interface IDeathRegistration extends Document {
   informantName?: string;
   informantRelation?: string;
   informantPhone?: string;
+  graveRecordId?: mongoose.Types.ObjectId; // Link to GraveRecord (backward compatible)
+  graveId?: mongoose.Types.ObjectId; // Optional grave link chosen at approval (mirrors graveRecordId)
+  spouseMemberId?: mongoose.Types.ObjectId; // Optional: explicitly name the surviving spouse
+  certificateNo?: string;
+  approvedBy?: string;
+  approvedAt?: Date;
+  previousStatus?: string; // member status before this registration was applied
+  effectsApplied?: boolean;
+  effects?: Record<string, any>;
   status: 'pending' | 'approved' | 'rejected';
   remarks?: string;
   createdAt: Date;
@@ -93,6 +118,19 @@ const NikahRegistrationSchema = new Schema<INikahRegistration>(
     witness2: String,
     mahrAmount: Number,
     mahrDescription: String,
+    certificateNo: { type: String, trim: true },
+    certificateIssuedAt: Date,
+    groomFatherName: { type: String, trim: true },
+    brideFatherName: { type: String, trim: true },
+    groomAddress: { type: String, trim: true },
+    brideAddress: { type: String, trim: true },
+    officiantName: { type: String, trim: true },
+    approvedBy: { type: String, trim: true },
+    approvedAt: Date,
+    brideFamilyAction: { type: String, enum: ['stay', 'move', 'newFamily'] },
+    newFamilyHouseName: { type: String, trim: true },
+    effectsApplied: { type: Boolean, default: undefined },
+    effects: { type: Schema.Types.Mixed },
     status: {
       type: String,
       enum: ['pending', 'approved', 'rejected'],
@@ -122,6 +160,15 @@ const DeathRegistrationSchema = new Schema<IDeathRegistration>(
     informantName: String,
     informantRelation: String,
     informantPhone: String,
+    graveRecordId: { type: Schema.Types.ObjectId, ref: 'GraveRecord' },
+    graveId: { type: Schema.Types.ObjectId, ref: 'GraveRecord' },
+    spouseMemberId: { type: Schema.Types.ObjectId, ref: 'Member' },
+    certificateNo: { type: String, trim: true },
+    approvedBy: { type: String, trim: true },
+    approvedAt: Date,
+    previousStatus: String,
+    effectsApplied: { type: Boolean, default: undefined },
+    effects: { type: Schema.Types.Mixed },
     status: {
       type: String,
       enum: ['pending', 'approved', 'rejected'],

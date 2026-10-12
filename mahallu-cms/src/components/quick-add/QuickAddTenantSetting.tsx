@@ -2,6 +2,8 @@ import { useState } from 'react';
 import QuickAddModal from '@/components/ui/QuickAddModal';
 import Input from '@/components/ui/Input';
 import { tenantService } from '@/services/tenantService';
+import { toast } from '@/store/toastStore';
+import { getFriendlyError } from '@/utils/apiMessages';
 
 interface Props {
   open: boolean;
@@ -50,7 +52,7 @@ export default function QuickAddTenantSetting({
       setValue('');
       onClose();
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to add. Please try again.');
+      toast.error(getFriendlyError(err, 'Failed to add. Please try again.'));
     } finally {
       setIsLoading(false);
     }

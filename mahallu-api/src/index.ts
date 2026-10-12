@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import * as swaggerUi from 'swagger-ui-express';
 import { connectDatabase } from './config/database';
 import { errorHandler } from './middleware/errorHandler';
+import { sanitizeRequest } from './middleware/sanitizeRequest';
 import { activityLogger } from './middleware/activityLogger';
 import { swaggerSpec } from './config/swagger';
 import authRoutes from './routes/authRoutes';
@@ -29,6 +30,37 @@ import memberUserRoutes from './routes/memberUserRoutes';
 import assetRoutes from './routes/assetRoutes';
 import pettyCashRoutes from './routes/pettyCashRoutes';
 import uploadRoutes from './routes/uploadRoutes';
+import registerRoutes from './routes/registerRoutes';
+import surveyRoutes from './routes/surveyRoutes';
+import localityFacilityRoutes from './routes/localityFacilityRoutes';
+import clusterRoutes from './routes/clusterRoutes';
+import clusterVisitRoutes from './routes/clusterVisitRoutes';
+import welfareRoutes from './routes/welfareRoutes';
+import mosqueRoutes from './routes/mosqueRoutes';
+import announcementRoutes from './routes/announcementRoutes';
+import zakatDistributionRoutes from './routes/zakatDistributionRoutes';
+import periodRoutes from './routes/periodRoutes';
+import budgetRoutes from './routes/budgetRoutes';
+import qardRoutes from './routes/qardRoutes';
+import reliefRoutes from './routes/reliefRoutes';
+import madrasaRoutes from './routes/madrasaRoutes';
+import attendanceRoutes from './routes/attendanceRoutes';
+import examRoutes from './routes/examRoutes';
+import { scholarshipsRouter, awardsRouter, supportRouter } from './routes/scholarshipRoutes';
+import { employersRouter, vacanciesRouter, trainingsRouter, summaryRouter } from './routes/employmentRoutes';
+import { volunteersRouter, assignmentsRouter } from './routes/volunteerRoutes';
+import healthRoutes from './routes/healthRoutes';
+import khutbahRoutes from './routes/khutbahRoutes';
+import { counsellingRouter, disputeRouter, inheritanceRouter } from './routes/counsellingRoutes';
+import marriageAssistanceRoutes from './routes/marriageAssistanceRoutes';
+import { cemeteriesRouter, gravesRouter } from './routes/cemeteryRoutes';
+import { booksRouter, issuesRouter } from './routes/libraryRoutes';
+import developmentRoutes from './routes/developmentRoutes';
+import developmentIndexRoutes from './routes/developmentIndexRoutes';
+import assistantRoutes from './routes/assistantRoutes';
+import duesReminderRoutes from './routes/duesReminderRoutes';
+import { startVarisangyaReminderScheduler } from './services/varisangyaNotificationService';
+import { startCommitteeTermScheduler } from './services/committeeTermService';
 import path from 'path';
 
 // Load environment variables from the correct path
@@ -57,9 +89,34 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Middleware
-app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.disable('x-powered-by');
+if (process.env.TRUST_PROXY) {
+  // e.g. TRUST_PROXY=1 when running behind a single reverse proxy (needed for correct req.ip in rate limiting)
+  app.set('trust proxy', Number.isNaN(Number(process.env.TRUST_PROXY)) ? process.env.TRUST_PROXY : Number(process.env.TRUST_PROXY));
+}
+
+// Basic security headers (helmet is not a dependency; swagger UI needs inline scripts so no CSP here)
+app.use((_req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('Referrer-Policy', 'no-referrer');
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  if (process.env.NODE_ENV === 'production') {
+    res.setHeader('Strict-Transport-Security', 'max-age=15552000; includeSubDomains');
+  }
+  next();
+});
+
+// CORS: set CORS_ORIGINS=https://cms.example.com,https://other.example.com to restrict browsers
+// to known origins. When unset every origin is allowed (legacy behaviour; auth is Bearer-token based).
+const corsOrigins = (process.env.CORS_ORIGINS || '')
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
+app.use(cors(corsOrigins.length > 0 ? { origin: corsOrigins } : undefined));
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+app.use(sanitizeRequest);
 
 // Swagger Documentation
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
@@ -120,6 +177,8 @@ app.use('/api/accounting-reports', accountingReportRoutes);
 app.use('/api/committees', committeeRoutes);
 app.use('/api/meetings', meetingRoutes);
 app.use('/api/registrations', registrationRoutes);
+// Dues reminders must be mounted before the general collectibles router
+app.use('/api/collectibles/dues/reminders', duesReminderRoutes);
 app.use('/api/collectibles', collectibleRoutes);
 app.use('/api/social', socialRoutes);
 app.use('/api/reports', reportRoutes);
@@ -129,12 +188,61 @@ app.use('/api/member-user', memberUserRoutes);
 app.use('/api/assets', assetRoutes);
 app.use('/api/petty-cash', pettyCashRoutes);
 app.use('/api/upload', uploadRoutes);
+app.use('/api/registers', registerRoutes);
+app.use('/api/surveys', surveyRoutes);
+app.use('/api/locality-facilities', localityFacilityRoutes);
+app.use('/api/clusters', clusterRoutes);
+app.use('/api/cluster-visits', clusterVisitRoutes);
+app.use('/api/welfare', welfareRoutes);
+app.use('/api/mosque-profile', mosqueRoutes);
+app.use('/api/announcements', announcementRoutes);
+app.use('/api/zakat', zakatDistributionRoutes);
+app.use('/api/periods', periodRoutes);
+app.use('/api/budgets', budgetRoutes);
+app.use('/api/qard', qardRoutes);
+app.use('/api/relief', reliefRoutes);
+app.use('/api/madrasa', madrasaRoutes);
+app.use('/api/class-attendance', attendanceRoutes);
+app.use('/api/exams', examRoutes);
+app.use('/api/scholarships', scholarshipsRouter);
+app.use('/api/scholarship-awards', awardsRouter);
+app.use('/api/academic-support', supportRouter);
+app.use('/api/employers', employersRouter);
+app.use('/api/job-vacancies', vacanciesRouter);
+app.use('/api/skill-trainings', trainingsRouter);
+app.use('/api/employment', summaryRouter);
+app.use('/api/volunteers', volunteersRouter);
+app.use('/api/volunteer-assignments', assignmentsRouter);
+// healthRoutes defines its own '/health-resources/...' and '/medical-camps/...' paths.
+app.use('/api', healthRoutes);
+app.use('/api', khutbahRoutes);
+// counsellingRoutes with sensitiveAccess middleware
+app.use('/api', counsellingRouter);
+app.use('/api', disputeRouter);
+app.use('/api', inheritanceRouter);
+app.use('/api/marriage-assistance', marriageAssistanceRoutes);
+app.use('/api/cemeteries', cemeteriesRouter);
+app.use('/api/grave-records', gravesRouter);
+app.use('/api/library-books', booksRouter);
+app.use('/api/book-issues', issuesRouter);
+app.use('/api/development-projects', developmentRoutes);
+app.use('/api/development-index', developmentIndexRoutes);
+app.use('/api/assistant', assistantRoutes);
+// Campaigns, collectors, daily cash closing (/api/campaigns, /api/collectors, /api/cash-closings)
+import engagementRoutes from './routes/engagementRoutes';
+app.use('/api', engagementRoutes);
 
 // Error handling middleware (must be last)
 app.use(errorHandler);
 
 // Connect to database
 connectDatabase();
+
+// Monthly varisangya WhatsApp reminders
+startVarisangyaReminderScheduler();
+
+// Daily committee term-expiry notifications
+startCommitteeTermScheduler();
 
 // Start server
 app.listen(PORT, () => {

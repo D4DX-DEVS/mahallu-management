@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FiEye, FiEdit2, FiX, FiFileText, FiClock, FiCheckCircle } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
+import { FiFileText, FiClock, FiCheckCircle, FiRefreshCw, FiDownload, FiFile } from 'react-icons/fi';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
@@ -9,17 +8,24 @@ import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import Pagination from '@/components/ui/Pagination';
-import TableToolbar from '@/components/ui/TableToolbar';
+import PageHeader from '@/components/ui/PageHeader';
+import FilterBar from '@/components/ui/FilterBar';
+import StatusBadge from '@/components/ui/StatusBadge';
+import RowActions from '@/components/ui/RowActions';
+import { PersonCell } from '@/components/ui/Avatar';
+import Dropdown from '@/components/ui/Dropdown';
+import { toast } from '@/store/toastStore';
+import { getFriendlyError } from '@/utils/apiMessages';
 import { TableColumn, Pagination as PaginationType } from '@/types';
 import { registrationService, DeathRegistration } from '@/services/registrationService';
 import { useDebounce } from '@/hooks/useDebounce';
 import { formatDate } from '@/utils/format';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
+import { shareViz, waitingViz } from '@/utils/statSeries';
 
 export default function DeathRegistrationsList() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
-  const [isFilterVisible, setIsFilterVisible] = useState(false);
   const [statusFilter, setStatusFilter] = useState('all');
   const [registrations, setRegistrations] = useState<DeathRegistration[]>([]);
   const [loading, setLoading] = useState(true);
@@ -55,7 +61,7 @@ export default function DeathRegistrationsList() {
         setPagination(result.pagination);
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch death registrations');
+      setError(getFriendlyError(err, "Couldn't load death registrations. Refresh the page or try again."));
       console.error('Error fetching registrations:', err);
     } finally {
       setLoading(false);
@@ -74,7 +80,7 @@ export default function DeathRegistrationsList() {
       const dataToExport = result.data;
 
       if (dataToExport.length === 0) {
-        alert('No data to export');
+        toast.info('Nothing to export. Change your filters and try again.');
         return;
       }
 
@@ -94,7 +100,7 @@ export default function DeathRegistrationsList() {
       }
     } catch (error: any) {
       console.error('Export error:', error);
-      alert(error?.message || 'Failed to export data');
+      toast.error(getFriendlyError(error, "Couldn't export death registrations. Check your connection and try again."));
     } finally {
       setIsExporting(false);
     }
@@ -102,7 +108,7 @@ export default function DeathRegistrationsList() {
 
   const columns: TableColumn<DeathRegistration>[] = [
     { key: 'id', label: 'No.', render: (_, __, index) => index + 1 },
-    { key: 'deceasedName', label: 'Deceased Name', sortable: true },
+    { key: 'deceasedName', label: 'Deceased Name', sortable: true, render: (name) => <PersonCell name={name} /> },
     {
       key: 'deathDate',
       label: 'Death Date',
@@ -112,123 +118,94 @@ export default function DeathRegistrationsList() {
     {
       key: 'status',
       label: 'Status',
-      render: (status) => {
-        const statusColors: Record<string, string> = {
-          pending: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
-          approved: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-          rejected: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
-        };
-        return (
-          <span className={`px-2 py-1 text-xs font-medium rounded-full ${statusColors[status || 'pending']}`}>
-            {status || 'pending'}
-          </span>
-        );
-      },
+      render: (status) => <StatusBadge status={status || 'pending'} />,
     },
     {
       key: 'actions',
       label: 'Actions',
+      hideable: false,
       render: (_, row) => (
-        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(`/registrations/death/${row.id}`);
-            }}
-            className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
-            title="View"
-          >
-            <FiEye className="h-4 w-4" />
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(`/registrations/death/${row.id}/edit`);
-            }}
-            className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-blue-600 dark:text-blue-400 transition-colors"
-            title="Edit"
-          >
-            <FiEdit2 className="h-4 w-4" />
-          </button>
-        </div>
+        <RowActions
+          onView={() => navigate(`/registrations/death/${row.id}`)}
+          onEdit={() => navigate(`/registrations/death/${row.id}/edit`)}
+          ariaLabels={{ view: 'View registration', edit: 'Edit registration' }}
+        />
       ),
     },
   ];
 
   const stats = [
-    { title: 'Total Registrations', value: pagination?.total || registrations.length, icon: <FiFileText className="h-5 w-5" /> },
+    { title: 'Total Registrations', value: pagination?.total || registrations.length, icon: <FiFileText className="h-[17px] w-[17px]" />, tone: 'green' as const },
     {
       title: 'Pending',
-      value: registrations.filter((r) => r.status === 'pending' || !r.status).length,
-      icon: <FiClock className="h-5 w-5" />,
+      value: registrations.filter((r) => r.status === 'pending' || !r.status).length, viz: waitingViz(registrations.filter((r) => r.status === 'pending' || !r.status).length), summary: `Pending: ${registrations.filter((r) => r.status === 'pending' || !r.status).length} of ${registrations.length}`,
+      icon: <FiClock className="h-[17px] w-[17px]" />,
     },
     {
       title: 'Approved',
-      value: registrations.filter((r) => r.status === 'approved').length,
-      icon: <FiCheckCircle className="h-5 w-5" />,
+      value: registrations.filter((r) => r.status === 'approved').length, viz: shareViz(registrations.filter((r) => r.status === 'approved').length, registrations.length), summary: `Approved: ${registrations.filter((r) => r.status === 'approved').length} of ${registrations.length}`,
+      icon: <FiCheckCircle className="h-[17px] w-[17px]" />,
     },
   ];
 
   return (
     <div className="space-y-4">
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Death Registrations</h1>
-            <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">Manage death registrations</p>
-          </div>
-          <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Death Registrations' }]} />
-        </div>
+      <PageHeader
+        title="Death registrations"
+        description="Manage death registrations"
+        actions={
+          <Link to="/registrations/death/create">
+            <Button>+ New registration</Button>
+          </Link>
+        }
+      />
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          {stats.map((stat, index) => (
-            <StatCard key={index} {...stat} />
-          ))}
-        </div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        {stats.map((stat, index) => (
+          <StatCard key={index} variant="inline" {...stat} />
+        ))}
       </div>
 
-      <Card>
-        <TableToolbar
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-          onFilterClick={() => setIsFilterVisible(!isFilterVisible)}
-          isFilterVisible={isFilterVisible}
-          hasFilters={true}
-          onRefresh={fetchRegistrations}
-          onExport={handleExport}
-          isExporting={isExporting}
-          actionButtons={
-            <Link to="/registrations/death/create">
-              <Button size="md">
-                + New Registration
+      <Card padding="none" className="overflow-visible">
+        <FilterBar
+          search={{ value: searchQuery, onChange: setSearchQuery, placeholder: 'Search registrations' }}
+          actions={
+            <>
+              <Button variant="secondary" iconOnly aria-label="Refresh list" onClick={fetchRegistrations}>
+                <FiRefreshCw className="h-3.5 w-3.5" />
               </Button>
-            </Link>
-          }
-        />
-
-        {isFilterVisible && (
-          <div className="relative flex flex-wrap items-center gap-4 mb-6 p-4 border border-gray-200 rounded-lg bg-white dark:bg-gray-800 dark:border-gray-700">
-            <button
-              onClick={() => setIsFilterVisible(false)}
-              className="absolute right-4 top-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-            >
-              <FiX className="h-4 w-4" />
-            </button>
-            <div className="w-40">
-              <Select
-                options={[
-                  { value: 'all', label: 'All Status' },
-                  { value: 'pending', label: 'Pending' },
-                  { value: 'approved', label: 'Approved' },
-                  { value: 'rejected', label: 'Rejected' },
+              <Dropdown
+                trigger={
+                  <Button variant="secondary" isLoading={isExporting}>
+                    {!isExporting && <FiDownload className="h-3.5 w-3.5" />}
+                    Export
+                  </Button>
+                }
+                items={[
+                  { label: 'Export CSV', icon: <FiFileText />, onClick: () => handleExport('csv'), disabled: isExporting },
+                  { label: 'Export JSON', icon: <FiFile />, onClick: () => handleExport('json'), disabled: isExporting },
+                  { label: 'Export PDF', icon: <FiDownload />, onClick: () => handleExport('pdf'), disabled: isExporting },
                 ]}
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
               />
-            </div>
+            </>
+          }
+        >
+          <div className="w-40">
+            <Select
+              aria-label="Filter by status"
+              options={[
+                { value: 'all', label: 'All Status' },
+                { value: 'pending', label: 'Pending' },
+                { value: 'approved', label: 'Approved' },
+                { value: 'rejected', label: 'Rejected' },
+              ]}
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+            />
           </div>
-        )}
+        </FilterBar>
 
+        <div className="p-3.5">
         {loading ? (
           <div className="flex justify-center items-center py-12">
             <LoadingSpinner />
@@ -236,7 +213,7 @@ export default function DeathRegistrationsList() {
         ) : error ? (
           <div className="text-center py-12">
             <p className="text-red-600 dark:text-red-400">{error}</p>
-            <Button onClick={fetchRegistrations} className="mt-4" variant="outline">
+            <Button onClick={fetchRegistrations} className="mt-4" variant="secondary">
               Retry
             </Button>
           </div>
@@ -252,7 +229,7 @@ export default function DeathRegistrationsList() {
 
         {/* Pagination */}
         {pagination && (
-          <div className="mt-4">
+          <div className="mt-3.5">
             <Pagination
               currentPage={pagination.page}
               totalPages={pagination.totalPages}
@@ -264,6 +241,7 @@ export default function DeathRegistrationsList() {
             />
           </div>
         )}
+        </div>
       </Card>
     </div>
   );

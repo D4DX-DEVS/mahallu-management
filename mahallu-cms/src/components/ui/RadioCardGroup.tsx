@@ -33,7 +33,7 @@ export default function RadioCardGroup({
 
   return (
     <div className="space-y-1">
-      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+      <label className="block text-xs font-semibold text-[#3A4741] dark:text-surface-text/80">
         {label}
         {required && <span className="text-red-500 ml-1">*</span>}
       </label>
@@ -44,20 +44,20 @@ export default function RadioCardGroup({
             type="button"
             onClick={() => onChange(option.value)}
             className={`
-              relative flex items-center justify-center px-3 py-2 rounded-md border-2 transition-all text-sm
+              relative flex min-h-9 items-center justify-center rounded-[10px] border px-3 py-2 text-[13px] transition-all
               ${
                 value === option.value
-                  ? 'border-primary-600 bg-primary-50 dark:bg-primary-900/20 dark:border-primary-500'
-                  : 'border-gray-300 bg-white hover:border-gray-400 dark:border-gray-600 dark:bg-gray-800 dark:hover:border-gray-500'
+                  ? 'border-primary-600 bg-mint dark:bg-brand-lime/15 dark:border-brand-lime'
+                  : 'border-line-strong bg-white hover:border-[#C9D6CF] dark:border-surface-border-strong dark:bg-surface-raised dark:hover:border-[#4A5750]'
               }
-              focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2
+              focus:outline-none focus-visible:shadow-focus
               cursor-pointer
             `}
           >
             <span
               className={`font-medium ${
                 value === option.value
-                  ? 'text-primary-700 dark:text-primary-300'
+                  ? 'text-primary-700 dark:text-brand-lime'
                   : 'text-gray-700 dark:text-gray-300'
               }`}
             >

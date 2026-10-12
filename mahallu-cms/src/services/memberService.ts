@@ -18,21 +18,34 @@ export const memberService = {
     return { data: response.data.data, pagination: null };
   },
 
-  getById: async (id: string) => {
-    const response = await api.get<{ success: boolean; data: Member }>(`/members/${id}`);
+  getById: async (id: string, signal?: AbortSignal) => {
+    const response = await api.get<{ success: boolean; data: Member }>(`/members/${id}`, { signal });
     return response.data.data;
   },
 
-  getByFamily: async (familyId: string) => {
+  getByFamily: async (familyId: string, signal?: AbortSignal) => {
     const response = await api.get<{ success: boolean; data: Member[] }>(
-      `/members/family/${familyId}`
+      `/members/family/${familyId}`,
+      { signal }
     );
     return response.data.data;
   },
 
-  create: async (memberData: Partial<Member>) => {
-    const response = await api.post<{ success: boolean; data: Member }>('/members', memberData);
+  /** Pass `{ confirmDuplicate: true }` to save even though the API found a possible duplicate. */
+  create: async (memberData: Partial<Member>, opts?: { confirmDuplicate?: boolean }) => {
+    const response = await api.post<{ success: boolean; data: Member }>('/members', memberData, {
+      params: opts?.confirmDuplicate ? { confirmDuplicate: true } : undefined,
+    });
     return response.data.data;
+  },
+
+  /** Move a member to another family of this mahallu. */
+  transfer: async (id: string, toFamilyId: string, makeHead = false) => {
+    const response = await api.post<{ success: boolean; message: string; data: { newMahallId?: string; sourceNeedsHead: boolean } }>(
+      `/members/${id}/transfer`,
+      { toFamilyId, makeHead }
+    );
+    return response.data;
   },
 
   update: async (id: string, memberData: Partial<Member>) => {
@@ -43,6 +56,16 @@ export const memberService = {
   delete: async (id: string) => {
     const response = await api.delete<{ success: boolean; message: string }>(`/members/${id}`);
     return response.data;
+  },
+
+  /** The API answers 409 POSSIBLE_DUPLICATE when rows look like existing members; re-send with `confirmDuplicate`. */
+  bulkImportMembers: async (familyId: string, members: Array<Record<string, any>>, opts?: { confirmDuplicate?: boolean }) => {
+    const response = await api.post<{ success: boolean; data: { imported: number } }>(
+      '/members/bulk-import',
+      { familyId, members },
+      { params: opts?.confirmDuplicate ? { confirmDuplicate: true } : undefined }
+    );
+    return response.data.data;
   },
 };
 

@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import FloatingPanel, { isInsideFloating } from './FloatingPanel';
 import { FiChevronDown, FiSearch, FiX } from 'react-icons/fi';
 import { cn } from '@/utils/cn';
+import { controlClasses, controlErrorClasses, labelClasses } from './Input';
 
 export interface MultiSelectOption {
   value: string;
@@ -55,7 +57,7 @@ export default function MultiSelect({
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node) && !isInsideFloating(event.target)) {
         setIsOpen(false);
         setSearchQuery('');
       }
@@ -97,7 +99,7 @@ export default function MultiSelect({
   return (
     <div className="w-full">
       {label && (
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 ml-1">
+        <label className={labelClasses}>
           {label}
         </label>
       )}
@@ -107,19 +109,14 @@ export default function MultiSelect({
           onClick={() => !disabled && setIsOpen((prev) => !prev)}
           disabled={disabled}
           className={cn(
-            'flex h-11 w-full items-center justify-between rounded-xl border border-gray-200 bg-white px-3.5 py-2 text-sm transition-all duration-200',
-            'ring-offset-white placeholder:text-gray-400',
-            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/20 focus-visible:border-primary-500',
-            'disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-gray-50',
-            'hover:border-gray-300 dark:hover:border-gray-600',
-            'dark:border-gray-700 dark:bg-gray-900/50 dark:text-gray-100 dark:ring-offset-gray-950',
-            'dark:placeholder:text-gray-500 dark:focus-visible:ring-primary-500/20 dark:focus-visible:border-primary-500',
-            error && 'border-red-500 focus-visible:ring-red-500/20 focus-visible:border-red-500',
-            isOpen && 'ring-2 ring-primary-500/20 border-primary-500',
+            controlClasses,
+              'flex h-9 items-center justify-between max-sm:h-11',
+            error && controlErrorClasses,
+            isOpen && 'border-primary-600 shadow-focus dark:border-brand-lime',
             className
           )}
         >
-          <span className={cn('truncate text-left', selectedLabels.length === 0 && 'text-gray-400 dark:text-gray-500')}>
+          <span className={cn('truncate text-left', selectedLabels.length === 0 && 'text-[#98A59F] dark:text-surface-muted')}>
             {displayValue}
           </span>
           <FiChevronDown
@@ -132,7 +129,7 @@ export default function MultiSelect({
         </button>
 
         {isOpen && (
-          <div className="absolute z-50 mt-1 w-full rounded-xl border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-900 max-h-80 overflow-hidden">
+          <FloatingPanel anchorRef={dropdownRef} className="rounded-xl border border-line bg-white shadow-pop dark:border-surface-border dark:bg-surface-raised">
             <div className="p-2 border-b border-gray-200 dark:border-gray-700">
               <div className="relative">
                 <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -159,7 +156,7 @@ export default function MultiSelect({
               </div>
             </div>
 
-            <div className="max-h-60 overflow-y-auto">
+            <div className="min-h-0 max-h-60 flex-1 overflow-y-auto overscroll-contain">
               {showSelectAll && (
                 <button
                   type="button"
@@ -188,7 +185,7 @@ export default function MultiSelect({
                       className={cn(
                         'w-full px-3.5 py-2.5 text-left text-sm transition-colors duration-150',
                         'hover:bg-gray-50 dark:hover:bg-gray-800',
-                        checked && 'bg-primary-50 text-primary-700 dark:bg-primary-900/20 dark:text-primary-400'
+                        checked && 'bg-mint font-bold text-primary-700 dark:bg-brand-lime/15 dark:text-brand-lime'
                       )}
                     >
                       <span className="inline-flex items-center gap-2">
@@ -200,16 +197,16 @@ export default function MultiSelect({
                 })
               )}
             </div>
-          </div>
+          </FloatingPanel>
         )}
       </div>
       {error && (
-        <p className="mt-1.5 ml-1 text-sm text-red-600 dark:text-red-400 animate-in slide-in-from-top-1 fade-in duration-200">
+        <p className="mt-1.5 text-[12px] font-medium text-[#B3261E] dark:text-red-300">
           {error}
         </p>
       )}
       {helperText && !error && (
-        <p className="mt-1.5 ml-1 text-sm text-gray-500 dark:text-gray-400">{helperText}</p>
+        <p className="mt-1.5 text-[12px] text-[#7B8983] dark:text-surface-muted">{helperText}</p>
       )}
     </div>
   );

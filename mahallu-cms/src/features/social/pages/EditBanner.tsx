@@ -4,7 +4,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useNavigate, useParams } from 'react-router-dom';
 import { FiSave, FiUpload, FiX } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
+import PageHeader from '@/components/ui/PageHeader';
+import Alert from '@/components/ui/Alert';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -12,6 +13,8 @@ import Select from '@/components/ui/Select';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { ROUTES } from '@/constants/routes';
 import { socialService } from '@/services/socialService';
+import { toast } from '@/store/toastStore';
+import { getFriendlyError } from '@/utils/apiMessages';
 
 const bannerSchema = z.object({
   title: z.string().min(2, 'Title must be at least 2 characters').max(200, 'Title must be at most 200 characters'),
@@ -83,7 +86,7 @@ export default function EditBanner() {
           setImagePreview(banner.image);
         }
       } catch (err: any) {
-        setError(err.response?.data?.message || 'Failed to load banner details.');
+        setError(getFriendlyError(err, "Couldn't load banner details. Refresh the page or try again."));
       } finally {
         setLoading(false);
       }
@@ -180,7 +183,7 @@ export default function EditBanner() {
       }
 
       if (!bannerImage) {
-        setError('Failed to determine banner image. Please try again.');
+        setError("Couldn't read the banner image. Choose the image again.");
         return;
       }
 
@@ -196,7 +199,7 @@ export default function EditBanner() {
       await socialService.updateBanner(id, bannerData);
       navigate(ROUTES.SOCIAL.BANNERS);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to update banner. Please try again.');
+      toast.error(getFriendlyError(err, "Couldn't update banner. Try again in a moment."));
     } finally {
       setIsUploadingImage(false);
     }
@@ -211,28 +214,17 @@ export default function EditBanner() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Edit Banner</h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Update banner details</p>
-        </div>
-        <Breadcrumb
-          items={[
-            { label: 'Dashboard', path: '/dashboard' },
-            { label: 'Banners', path: ROUTES.SOCIAL.BANNERS },
-            { label: 'Edit' },
-          ]}
-        />
-      </div>
+    <div className="space-y-4">
+      <PageHeader title="Edit banner" description="Update banner details" />
 
       <form onSubmit={handleSubmit(onSubmit)}>
-        <Card className="space-y-6">
-          {error && (
-            <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm dark:bg-red-900 dark:border-red-700 dark:text-red-200">
-              {error}
-            </div>
-          )}
+        <Card padding="lg" className="space-y-4">
+          <div>
+            <h2 className="text-sm font-bold text-[#18231E] dark:text-surface-text">Banner details</h2>
+            <p className="mt-0.5 text-xs text-[#7B8983] dark:text-surface-muted">Title, image, link and schedule</p>
+          </div>
+
+          {error && <Alert tone="danger">{error}</Alert>}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input
@@ -252,8 +244,8 @@ export default function EditBanner() {
             />
 
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Upload From PC <span className="text-gray-400 text-xs font-normal">(optional)</span>
+              <label className="mb-1.5 block text-xs font-semibold text-[#3A4741] dark:text-surface-text/80">
+                Upload From PC <span className="text-xs font-normal text-[#98A59F]">(optional)</span>
               </label>
 
               {imagePreview ? (
@@ -261,22 +253,22 @@ export default function EditBanner() {
                   <img
                     src={imagePreview}
                     alt="Selected banner preview"
-                    className="h-40 w-auto max-w-full rounded-lg object-cover border border-gray-200 dark:border-gray-700"
+                    className="h-40 w-auto max-w-full rounded-xl border border-line object-cover dark:border-surface-border"
                   />
                   <button
                     type="button"
                     onClick={removeSelectedImage}
-                    className="absolute -top-2 -right-2 p-1 rounded-full bg-red-500 text-white hover:bg-red-600 transition-colors"
+                    className="absolute -top-2 -right-2 p-1 rounded-full bg-[#D9534F] text-white transition-colors hover:bg-[#B3261E]"
                     aria-label="Remove selected image"
                   >
                     <FiX className="h-3.5 w-3.5" />
                   </button>
                 </div>
               ) : (
-                <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:border-primary-400 dark:hover:border-primary-500 transition-colors bg-gray-50 dark:bg-gray-800/50">
-                  <FiUpload className="h-8 w-8 text-gray-400 mb-2" />
-                  <span className="text-sm text-gray-500 dark:text-gray-400">Click to choose image from your computer</span>
-                  <span className="text-xs text-gray-400 mt-1">JPEG, PNG, WebP or GIF · max 5 MB</span>
+                <label className="flex flex-col items-center justify-center h-32 w-full cursor-pointer rounded-xl border-2 border-dashed border-line-strong bg-[#F4F7F5] transition-colors hover:border-primary-600 dark:border-surface-border-strong dark:bg-surface-raised dark:hover:border-brand-lime">
+                  <FiUpload className="mb-2 h-7 w-7 text-[#98A59F]" />
+                  <span className="text-[13px] text-[#5B6963] dark:text-surface-muted">Click to choose image from your computer</span>
+                  <span className="mt-1 text-xs text-[#98A59F]">JPEG, PNG, WebP or GIF · max 5 MB</span>
                   <input
                     ref={fileInputRef}
                     type="file"
@@ -288,7 +280,7 @@ export default function EditBanner() {
               )}
 
               {imageUrl && !imageFile && (
-                <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">Using image URL from the field above.</p>
+                <p className="mt-2 text-xs text-[#7B8983] dark:text-surface-muted">Using image URL from the field above.</p>
               )}
             </div>
 
@@ -318,18 +310,18 @@ export default function EditBanner() {
               className="md:col-span-2"
             />
           </div>
-
-          <div className="flex justify-end gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-            <Button type="button" variant="outline" onClick={() => navigate(ROUTES.SOCIAL.BANNERS)}>
-              <FiX className="h-4 w-4 mr-2" />
-              Cancel
-            </Button>
-            <Button type="submit" isLoading={isSubmitting || isUploadingImage}>
-              <FiSave className="h-4 w-4 mr-2" />
-              {isUploadingImage ? 'Uploading Image...' : 'Update Banner'}
-            </Button>
-          </div>
         </Card>
+
+        <div className="sticky bottom-0 z-10 -mx-1 mt-4 flex flex-wrap justify-end gap-2 pb-[calc(0.75rem+env(safe-area-inset-bottom))] [&>button]:flex-1 sm:[&>button]:flex-none border-t border-line bg-white/90 px-1 py-3 backdrop-blur dark:border-surface-border dark:bg-surface-card/90">
+          <Button type="button" variant="secondary" onClick={() => navigate(ROUTES.SOCIAL.BANNERS)}>
+            <FiX className="h-4 w-4" />
+            Cancel
+          </Button>
+          <Button type="submit" isLoading={isSubmitting || isUploadingImage}>
+            <FiSave className="h-4 w-4" />
+            {isUploadingImage ? 'Uploading Image...' : 'Update Banner'}
+          </Button>
+        </div>
       </form>
     </div>
   );

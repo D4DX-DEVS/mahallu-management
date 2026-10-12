@@ -1,7 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
+import FilterBar from '@/components/ui/FilterBar';
+import Avatar from '@/components/ui/Avatar';
+import StatusBadge from '@/components/ui/StatusBadge';
+import EmptyState from '@/components/ui/EmptyState';
+import PageHeader from '@/components/ui/PageHeader';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
@@ -72,37 +76,32 @@ export default function PettyCashList() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Petty Cash</h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Manage petty cash funds for daily expenses</p>
-        </div>
-        <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Petty Cash' }]} />
-      </div>
+    <div className="space-y-4">
+      <PageHeader
+        title="Petty Cash"
+        description="Manage petty cash funds for daily expenses"
+        actions={<Button onClick={() => setShowCreate(true)}>+ New fund</Button>}
+      />
 
-      <Card>
-        <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
-          <div className="flex items-center gap-4">
-            {!userInstituteId && (
-              <div className="w-48">
-                <Select
-                  label="Institute"
-                  options={[{ value: 'all', label: 'All Institutes' }, ...institutes.map(i => ({ value: i.id, label: i.name }))]}
-                  value={instituteFilter}
-                  onChange={(e) => setInstituteFilter(e.target.value)}
-                />
-              </div>
-            )}
-          </div>
-          <Button onClick={() => setShowCreate(true)}>+ New Fund</Button>
-        </div>
+      <Card padding="none" className="overflow-visible">
+        {!userInstituteId && (
+          <FilterBar>
+            <div className="w-48">
+              <Select
+                options={[{ value: 'all', label: 'All Institutes' }, ...institutes.map(i => ({ value: i.id, label: i.name }))]}
+                value={instituteFilter}
+                onChange={(e) => setInstituteFilter(e.target.value)}
+              />
+            </div>
+          </FilterBar>
+        )}
 
+        <div className="p-3.5">
         {/* Create Form */}
         {showCreate && (
-          <div className="mb-6 p-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800">
-            <h3 className="text-sm font-semibold mb-3">Create Petty Cash Fund</h3>
-            <div className="flex flex-wrap items-end gap-4">
+          <div className="mb-4 rounded-xl border border-line bg-[#F4F7F5] p-3.5 dark:border-surface-border dark:bg-surface-base/60">
+            <h3 className="mb-3 text-sm font-bold text-primary-700 dark:text-surface-text">Create petty cash fund</h3>
+            <div className="flex flex-wrap items-end gap-3">
               {!userInstituteId && (
                 <div className="w-48">
                   <Select
@@ -120,7 +119,7 @@ export default function PettyCashList() {
                 <Input label="Float Amount (₹)" type="number" value={createForm.floatAmount} onChange={(e) => setCreateForm(f => ({ ...f, floatAmount: e.target.value }))} />
               </div>
               <Button onClick={handleCreate} disabled={saving}>{saving ? 'Creating...' : 'Create'}</Button>
-              <Button variant="outline" onClick={() => setShowCreate(false)}>Cancel</Button>
+              <Button variant="secondary" onClick={() => setShowCreate(false)}>Cancel</Button>
             </div>
           </div>
         )}
@@ -128,51 +127,51 @@ export default function PettyCashList() {
         {loading ? (
           <div className="flex justify-center py-12"><LoadingSpinner /></div>
         ) : funds.length === 0 ? (
-          <div className="text-center py-12 text-gray-500 dark:text-gray-400">No petty cash funds found. Create one to get started.</div>
+          <EmptyState title="Nothing to show yet" description='No petty cash funds found. Create one to get started.' />
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2 lg:grid-cols-3">
             {funds.map((fund) => {
               const spent = fund.floatAmount - fund.currentBalance;
               const spentPct = fund.floatAmount > 0 ? (spent / fund.floatAmount) * 100 : 0;
               return (
-                <div
+                <Card
                   key={fund.id}
-                  className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:shadow-md transition-shadow cursor-pointer"
+                  hoverEffect
+                  className="cursor-pointer"
                   onClick={() => navigate(`/petty-cash/${fund.id}`)}
                 >
                   <div className="flex justify-between items-start mb-2">
                     <div>
-                      <h3 className="font-semibold text-gray-900 dark:text-gray-100">{fund.custodianName}</h3>
-                      <p className="text-xs text-gray-500">{getInstituteName(fund)}</p>
+                      <h3 className="flex items-center gap-2 text-[13px] font-bold text-[#18231E] dark:text-surface-text"><Avatar size={32} name={fund.custodianName} />{fund.custodianName}</h3>
+                      <p className="text-xs text-[#7B8983] dark:text-surface-muted">{getInstituteName(fund)}</p>
                     </div>
-                    <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${
-                      fund.status === 'active' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300'
-                    }`}>{fund.status}</span>
+                    <StatusBadge status={fund.status} />
                   </div>
                   <div className="space-y-2 mt-3">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-500">Float</span>
+                    <div className="flex justify-between text-[13px]">
+                      <span className="text-[#7B8983] dark:text-surface-muted">Float</span>
                       <span className="font-medium">₹{fund.floatAmount.toLocaleString()}</span>
                     </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-500">Balance</span>
-                      <span className={`font-bold ${fund.currentBalance < fund.floatAmount * 0.2 ? 'text-red-600' : 'text-green-600'}`}>
+                    <div className="flex justify-between text-[13px]">
+                      <span className="text-[#7B8983] dark:text-surface-muted">Balance</span>
+                      <span className={`font-bold ${fund.currentBalance < fund.floatAmount * 0.2 ? 'text-red-600' : 'text-primary-600'}`}>
                         ₹{fund.currentBalance.toLocaleString()}
                       </span>
                     </div>
-                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                    <div className="h-2 w-full rounded-full bg-[#E7EEEA] dark:bg-surface-raised">
                       <div
-                        className={`h-2 rounded-full ${spentPct > 80 ? 'bg-red-500' : spentPct > 50 ? 'bg-yellow-500' : 'bg-green-500'}`}
+                        className={`h-2 rounded-full ${spentPct > 80 ? 'bg-red-500' : spentPct > 50 ? 'bg-secondary-500' : 'bg-progress-brand'}`}
                         style={{ width: `${Math.min(spentPct, 100)}%` }}
                       ></div>
                     </div>
-                    <p className="text-xs text-gray-500 text-right">₹{spent.toLocaleString()} spent ({spentPct.toFixed(0)}%)</p>
+                    <p className="text-xs text-[#7B8983] dark:text-surface-muted text-right">₹{spent.toLocaleString()} spent ({spentPct.toFixed(0)}%)</p>
                   </div>
-                </div>
+                </Card>
               );
             })}
           </div>
         )}
+        </div>
       </Card>
     </div>
   );

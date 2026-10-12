@@ -4,6 +4,7 @@ import { useAuthStore } from '@/store/authStore';
 import { tenantService } from '@/services/tenantService';
 import { Tenant } from '@/types/tenant';
 import { cn } from '@/utils/cn';
+import { getFriendlyError } from '@/utils/apiMessages';
 
 export default function TenantSwitcher() {
   const { isSuperAdmin, currentTenantId, setCurrentTenant } = useAuthStore();
@@ -65,7 +66,7 @@ export default function TenantSwitcher() {
     } catch (error: any) {
       console.error('Error loading tenants:', error);
       setTenants([]);
-      setLoadError(error?.response?.data?.message || 'Failed to load tenants');
+      setLoadError(getFriendlyError(error, "Couldn't load mahallus. Refresh the page or try again."));
     } finally {
       setIsLoading(false);
     }
@@ -124,7 +125,7 @@ export default function TenantSwitcher() {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-gray-900 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 py-2 z-50 max-h-[500px] flex flex-col">
+        <div className="absolute right-0 mt-2 w-[min(20rem,calc(100vw-1.5rem))] bg-white dark:bg-gray-900 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 py-2 z-50 max-h-[min(500px,calc(100dvh-6rem))] flex flex-col">
           {/* Switch back to Super Admin option */}
           {isViewingAsTenant && (
             <div className="px-3 pb-2 mb-2 border-b border-gray-200 dark:border-gray-700">

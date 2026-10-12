@@ -1,10 +1,14 @@
 import { Response } from 'express';
 import SalaryPayment from '../models/SalaryPayment';
 import Employee from '../models/Employee';
+import Institute from '../models/Institute';
+import { stripImmutable, refBelongsToTenant } from '../utils/sanitizeUpdate';
 import { AuthRequest } from '../middleware/authMiddleware';
 import { getPaginationParams, createPaginationResponse } from '../utils/pagination';
 import { verifyTenantOwnership } from '../utils/tenantCheck';
+import { LedgerItem } from '../models/MasterAccount';
 import { postLedgerEntry, reverseLedgerEntry } from '../services/ledgerPostingService';
+import { ensurePeriodOpen } from '../utils/periodLock';
 
 export const getAllSalaryPayments = async (req: AuthRequest, res: Response) => {
   try {
@@ -61,8 +65,8 @@ export const getSalaryPaymentById = async (req: AuthRequest, res: Response) => {
 
 export const createSalaryPayment = async (req: AuthRequest, res: Response) => {
   try {
-    const paymentData = {
-      ...req.body,
+    const paymentData: Record<string, any> = {
+      ...(stripImmutable(req.body) as Record<string, any>),
       tenantId: req.tenantId || req.body.tenantId,
     };
 
@@ -73,10 +77,19 @@ export const createSalaryPayment = async (req: AuthRequest, res: Response) => {
       });
     }
 
+    if (
+      !(await refBelongsToTenant(Employee, paymentData.employeeId, paymentData.tenantId)) ||
+      !(await refBelongsToTenant(Institute, paymentData.instituteId, paymentData.tenantId))
+    ) {
+      return res.status(400).json({ success: false, message: 'Employee or institute does not belong to this Mahallu' });
+    }
+
     // Calculate net amount if not provided
     if (!paymentData.netAmount) {
       paymentData.netAmount = (paymentData.baseSalary || 0) + (paymentData.allowances || 0) - (paymentData.deductions || 0);
     }
+
+    if (!(await ensurePeriodOpen(res, paymentData.tenantId, paymentData.paymentDate))) return;
 
     const payment = new SalaryPayment(paymentData);
     await payment.save();
@@ -97,8 +110,14 @@ export const createSalaryPayment = async (req: AuthRequest, res: Response) => {
           paymentMethod: payment.paymentMethod,
           referenceNo: payment.referenceNo,
         });
-      } catch (ledgerError) {
+      } catch (ledgerError: any) {
+        // A paid salary without its expense would silently understate spending: undo and tell the user
         console.error('Failed to auto-post salary to ledger:', ledgerError);
+        await SalaryPayment.deleteOne({ _id: payment._id });
+        return res.status(ledgerError?.statusCode === 423 ? 423 : 500).json({
+          success: false,
+          message: `Salary payment was not saved because it could not be posted to the ledger: ${ledgerError.message}`,
+        });
       }
     }
 
@@ -128,17 +147,28 @@ export const updateSalaryPayment = async (req: AuthRequest, res: Response) => {
       return;
     }
 
+    const body = stripImmutable(req.body) as Record<string, any>;
+    if (!(await ensurePeriodOpen(res, existing.tenantId, [existing.paymentDate, body.paymentDate]))) return;
     // Recalculate net amount if salary components are being updated
-    if (req.body.baseSalary !== undefined || req.body.allowances !== undefined || req.body.deductions !== undefined) {
-      const base = req.body.baseSalary ?? existing.baseSalary;
-      const allowances = req.body.allowances ?? existing.allowances;
-      const deductions = req.body.deductions ?? existing.deductions;
-      req.body.netAmount = base + allowances - deductions;
+    if (body.baseSalary !== undefined || body.allowances !== undefined || body.deductions !== undefined) {
+      const base = body.baseSalary ?? existing.baseSalary;
+      const allowances = body.allowances ?? existing.allowances;
+      const deductions = body.deductions ?? existing.deductions;
+      body.netAmount = base + allowances - deductions;
     }
+
+    // The employee / institute cannot be moved to another tenant's records
+    if (
+      !(await refBelongsToTenant(Employee, body.employeeId, existing.tenantId)) ||
+      !(await refBelongsToTenant(Institute, body.instituteId, existing.tenantId))
+    ) {
+      return res.status(400).json({ success: false, message: 'Employee or institute does not belong to this Mahallu' });
+    }
+    const previous = existing.toObject();
 
     const payment = await SalaryPayment.findByIdAndUpdate(
       req.params.id,
-      req.body,
+      body,
       { new: true, runValidators: true }
     )
       .populate('instituteId', 'name type')
@@ -148,30 +178,46 @@ export const updateSalaryPayment = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ success: false, message: 'Salary payment not found' });
     }
 
-    // Re-post to ledger: reverse old entry, create new if paid
+    // Re-post to ledger: reverse old entry, create new if paid. If it fails, restore the record and
+    // the old ledger entry so the books never silently lose the expense.
+    const postParams = (p: any) => ({
+      tenantId: p.tenantId,
+      // populated documents expose _id; plain ids pass through
+      instituteId: (p.instituteId && (p.instituteId as any)._id) || p.instituteId,
+      ledgerName: 'Salary Payments',
+      ledgerType: 'expense' as const,
+      amount: p.netAmount,
+      description: `Salary payment - ${p.month}/${p.year}`,
+      date: p.paymentDate,
+      source: 'salary' as const,
+      sourceId: p._id as any,
+      paymentMethod: p.paymentMethod,
+      referenceNo: p.referenceNo,
+    });
     try {
       await reverseLedgerEntry('salary', existing._id as any);
-      if (payment.status === 'paid') {
-        await postLedgerEntry({
-          tenantId: payment.tenantId,
-          instituteId: payment.instituteId,
-          ledgerName: 'Salary Payments',
-          ledgerType: 'expense',
-          amount: payment.netAmount,
-          description: `Salary payment - ${payment.month}/${payment.year}`,
-          date: payment.paymentDate,
-          source: 'salary',
-          sourceId: payment._id as any,
-          paymentMethod: payment.paymentMethod,
-          referenceNo: payment.referenceNo,
-        });
-      }
-    } catch (ledgerError) {
+      if (payment.status === 'paid') await postLedgerEntry(postParams(payment));
+    } catch (ledgerError: any) {
       console.error('Failed to update salary ledger entry:', ledgerError);
+      const { _id, ...oldFields } = previous as any;
+      await SalaryPayment.replaceOne({ _id }, oldFields).catch(() => undefined);
+      try {
+        const stillThere = await LedgerItem.exists({ source: 'salary', sourceId: existing._id });
+        if (!stillThere && previous.status === 'paid') await postLedgerEntry(postParams(previous));
+      } catch (restoreError) {
+        console.error('Could not restore the previous salary ledger entry:', restoreError);
+      }
+      return res.status(ledgerError?.statusCode === 423 ? 423 : 500).json({
+        success: false,
+        message: `Salary payment was not changed because the ledger could not be updated: ${ledgerError.message}`,
+      });
     }
 
     res.json({ success: true, data: payment });
   } catch (error: any) {
+    if (error.code === 11000) {
+      return res.status(400).json({ success: false, message: 'Salary payment already exists for this employee in the given month/year' });
+    }
     res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -187,11 +233,17 @@ export const deleteSalaryPayment = async (req: AuthRequest, res: Response) => {
       return;
     }
 
+    if (!(await ensurePeriodOpen(res, payment.tenantId, payment.paymentDate))) return;
+
     // Reverse any auto-posted ledger entries
     try {
       await reverseLedgerEntry('salary', payment._id as any);
-    } catch (ledgerError) {
+    } catch (ledgerError: any) {
       console.error('Failed to reverse salary ledger entry:', ledgerError);
+      return res.status(ledgerError?.statusCode === 423 ? 423 : 500).json({
+        success: false,
+        message: `Salary payment was not deleted because its ledger entry could not be reversed: ${ledgerError.message}`,
+      });
     }
 
     await SalaryPayment.findByIdAndDelete(req.params.id);

@@ -3,6 +3,8 @@ import Meeting from '../models/Meeting';
 import Committee from '../models/Committee';
 import { sendWhatsAppMessage } from '../services/dxingService';
 import { AuthRequest } from '../middleware/authMiddleware';
+import { tenantScope } from '../utils/tenantScope';
+import { stripImmutable } from '../utils/sanitizeUpdate';
 import { getPaginationParams, createPaginationResponse } from '../utils/pagination';
 
 export const getAllMeetings = async (req: AuthRequest, res: Response) => {
@@ -37,9 +39,9 @@ export const getAllMeetings = async (req: AuthRequest, res: Response) => {
   }
 };
 
-export const getMeetingById = async (req: Request, res: Response) => {
+export const getMeetingById = async (req: AuthRequest, res: Response) => {
   try {
-    const meeting = await Meeting.findById(req.params.id)
+    const meeting = await Meeting.findOne({ _id: req.params.id, ...tenantScope(req) })
       .populate('committeeId', 'name')
       .populate('attendance', 'name familyName');
     if (!meeting) {
@@ -53,10 +55,10 @@ export const getMeetingById = async (req: Request, res: Response) => {
 
 export const createMeeting = async (req: AuthRequest, res: Response) => {
   try {
-    const { committeeId, attendance, ...meetingData } = req.body;
+    const { committeeId, attendance, ...meetingData } = stripImmutable(req.body) as Record<string, any>;
 
     // Get committee to calculate attendance
-    const committee = await Committee.findById(committeeId).populate('members', 'name phone familyName');
+    const committee = await Committee.findOne({ _id: committeeId, ...tenantScope(req) }).populate('members', 'name phone familyName');
     if (!committee) {
       return res.status(404).json({ success: false, message: 'Committee not found' });
     }
@@ -69,7 +71,7 @@ export const createMeeting = async (req: AuthRequest, res: Response) => {
       ...meetingData,
       committeeId,
       attendance: attendance || [],
-      tenantId: req.tenantId || req.body.tenantId,
+      tenantId: req.tenantId || committee.tenantId,
       totalMembers,
       attendancePercent,
     });
@@ -115,10 +117,10 @@ export const createMeeting = async (req: AuthRequest, res: Response) => {
   }
 };
 
-export const updateMeeting = async (req: Request, res: Response) => {
+export const updateMeeting = async (req: AuthRequest, res: Response) => {
   try {
-    const { attendance, ...updateData } = req.body;
-    const meeting = await Meeting.findById(req.params.id);
+    const { attendance, committeeId: _ignoredCommitteeId, ...updateData } = stripImmutable(req.body) as Record<string, any>;
+    const meeting = await Meeting.findOne({ _id: req.params.id, ...tenantScope(req) });
 
     if (!meeting) {
       return res.status(404).json({ success: false, message: 'Meeting not found' });
@@ -126,7 +128,7 @@ export const updateMeeting = async (req: Request, res: Response) => {
 
     // Recalculate attendance if updated
     if (attendance) {
-      const committee = await Committee.findById(meeting.committeeId);
+      const committee = await Committee.findOne({ _id: meeting.committeeId, tenantId: meeting.tenantId });
       const totalMembers = committee?.members.length || 0;
       const attendanceCount = attendance.length;
       const attendancePercent = totalMembers > 0 ? Math.round((attendanceCount / totalMembers) * 100) : 0;
@@ -149,9 +151,9 @@ export const updateMeeting = async (req: Request, res: Response) => {
   }
 };
 
-export const deleteMeeting = async (req: Request, res: Response) => {
+export const deleteMeeting = async (req: AuthRequest, res: Response) => {
   try {
-    const meeting = await Meeting.findByIdAndDelete(req.params.id);
+    const meeting = await Meeting.findOneAndDelete({ _id: req.params.id, ...tenantScope(req) });
     if (!meeting) {
       return res.status(404).json({ success: false, message: 'Meeting not found' });
     }

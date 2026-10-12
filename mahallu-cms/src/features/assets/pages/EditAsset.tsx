@@ -4,14 +4,17 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useNavigate, useParams } from 'react-router-dom';
 import { FiSave, FiX } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
-import Input from '@/components/ui/Input';
+import Input, { controlClasses, labelClasses } from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { ROUTES } from '@/constants/routes';
 import { assetService } from '@/services/assetService';
+import PageHeader from '@/components/ui/PageHeader';
+import Alert from '@/components/ui/Alert';
+import { toast } from '@/store/toastStore';
+import { getFriendlyError } from '@/utils/apiMessages';
 
 const assetSchema = z.object({
   name: z.string().min(1, 'Asset name is required').max(200),
@@ -65,7 +68,7 @@ export default function EditAsset() {
       setValue('nameMl', asset.nameMl || '');
       setValue('locationMl', asset.locationMl || '');
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to load asset');
+      setError(getFriendlyError(err, "Couldn't load asset. Refresh the page or try again."));
     } finally {
       setLoading(false);
     }
@@ -90,7 +93,7 @@ export default function EditAsset() {
       await assetService.update(id, assetData);
       navigate(ROUTES.ASSETS.LIST);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to update asset. Please try again.');
+      toast.error(getFriendlyError(err, "Couldn't update asset. Try again in a moment."));
       console.error('Error updating asset:', err);
     }
   };
@@ -104,27 +107,20 @@ export default function EditAsset() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Edit Asset</h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Update asset information</p>
-        </div>
-        <Breadcrumb
-          items={[
-            { label: 'Dashboard', path: '/dashboard' },
-            { label: 'Assets', path: ROUTES.ASSETS.LIST },
-            { label: 'Edit' },
-          ]}
-        />
-      </div>
+    <div className="space-y-4">
+      <PageHeader
+        title="Edit Asset"
+        description="Update asset information"
+      />
 
       <form onSubmit={handleSubmit(onSubmit)}>
         <Card className="space-y-6">
+          <div>
+            <h2 className="text-[13.5px] font-bold text-[#18231E] dark:text-surface-text">Asset details</h2>
+            <p className="mt-0.5 text-xs text-[#7B8983] dark:text-surface-muted">Name, category, value and location</p>
+          </div>
           {error && (
-            <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm dark:bg-red-900 dark:border-red-700 dark:text-red-200">
-              {error}
-            </div>
+            <Alert tone="danger">{error}</Alert>
           )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -203,23 +199,23 @@ export default function EditAsset() {
             />
             </div>
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
+              <label className={labelClasses}>Description</label>
               <textarea
                 {...register('description')}
                 rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                className={`${controlClasses} py-2`}
                 placeholder="Brief description about the asset..."
               />
             </div>
           </div>
 
-          <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
-            <Button type="button" variant="outline" onClick={() => navigate(ROUTES.ASSETS.LIST)}>
-              <FiX className="h-4 w-4 mr-2" />
+          <div className="sticky bottom-0 z-10 -mx-4 -mb-4 flex flex-wrap justify-end gap-2 pb-[calc(0.75rem+env(safe-area-inset-bottom))] [&>button]:flex-1 sm:[&>button]:flex-none rounded-b-card border-t border-line bg-white/90 px-4 py-3 backdrop-blur dark:border-surface-border dark:bg-surface-card/90">
+            <Button type="button" variant="secondary" onClick={() => navigate(ROUTES.ASSETS.LIST)}>
+              <FiX className="h-3.5 w-3.5" />
               Cancel
             </Button>
             <Button type="submit" disabled={isSubmitting}>
-              <FiSave className="h-4 w-4 mr-2" />
+              <FiSave className="h-3.5 w-3.5" />
               {isSubmitting ? 'Updating...' : 'Update Asset'}
             </Button>
           </div>

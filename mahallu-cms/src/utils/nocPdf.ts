@@ -45,7 +45,7 @@ const loadLogo = async (): Promise<string | null> => {
 /** Draw a double-line decorative border around the page */
 const drawBorder = (doc: jsPDF, pageWidth: number, pageHeight: number) => {
   // Outer border
-  doc.setDrawColor(34, 100, 60);
+  doc.setDrawColor(4, 86, 58);
   doc.setLineWidth(1.5);
   doc.rect(10, 10, pageWidth - 20, pageHeight - 20);
   // Inner border (inset by 3mm)
@@ -112,7 +112,7 @@ export const downloadNocPdf = async (noc: NOC, filename = 'noc-certificate') => 
   const orgName = noc.mahalluName || 'Mahallu Management';
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(13);
-  doc.setTextColor(34, 100, 60);
+  doc.setTextColor(4, 86, 58);
   const orgW = doc.getTextWidth(orgName);
   doc.text(orgName, (pageWidth - orgW) / 2, y);
   y += 7;
@@ -137,7 +137,7 @@ export const downloadNocPdf = async (noc: NOC, filename = 'noc-certificate') => 
   y += 8;
 
   // ── Decorative header separator (double line) ──────────────────────────────
-  doc.setDrawColor(34, 100, 60);
+  doc.setDrawColor(4, 86, 58);
   doc.setLineWidth(0.8);
   doc.line(20, y, pageWidth - 20, y);
   doc.setLineWidth(0.3);
@@ -174,10 +174,10 @@ export const downloadNocPdf = async (noc: NOC, filename = 'noc-certificate') => 
     // Sub-section header
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(11);
-    doc.setTextColor(34, 100, 60);
+    doc.setTextColor(4, 86, 58);
     doc.text('Nikah Details', 25, y);
     y += 2;
-    doc.setDrawColor(34, 100, 60);
+    doc.setDrawColor(4, 86, 58);
     doc.setLineWidth(0.3);
     doc.line(25, y, pageWidth - 25, y);
     y += 6;
@@ -253,7 +253,7 @@ export const downloadNocPdf = async (noc: NOC, filename = 'noc-certificate') => 
   // Org name in green below admin name
   doc.setFont('times', 'bold');
   doc.setFontSize(10);
-  doc.setTextColor(34, 100, 60);
+  doc.setTextColor(4, 86, 58);
   doc.text(orgName, leftX, y);
   y += 5;
 

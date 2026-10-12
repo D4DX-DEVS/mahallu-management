@@ -1,13 +1,19 @@
 import { useState, useEffect } from 'react';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
+import Badge from '@/components/ui/Badge';
+import EmptyState from '@/components/ui/EmptyState';
+import Alert from '@/components/ui/Alert';
+import FilterBar from '@/components/ui/FilterBar';
+import PageHeader from '@/components/ui/PageHeader';
 import Button from '@/components/ui/Button';
-import Input from '@/components/ui/Input';
+import DateRangePicker from '@/components/ui/DateRangePicker';
 import Select from '@/components/ui/Select';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { accountingReportService, TrialBalanceEntry } from '@/services/accountingReportService';
 import { instituteService } from '@/services/instituteService';
 import { useAuthStore } from '@/store/authStore';
+import { getFriendlyError } from '@/utils/apiMessages';
+import ScrollX from '@/features/_shared/ScrollX';
 
 export default function TrialBalance() {
   const { currentInstituteId: userInstituteId } = useAuthStore();
@@ -43,7 +49,7 @@ export default function TrialBalance() {
       const data = await accountingReportService.getTrialBalance(params);
       setEntries(data || []);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch trial balance');
+      setError(getFriendlyError(err, "Couldn't load trial balance. Refresh the page or try again."));
     } finally {
       setLoading(false);
     }
@@ -53,22 +59,13 @@ export default function TrialBalance() {
   const totalCredit = entries.reduce((sum, e) => sum + (e.credit || 0), 0);
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Trial Balance</h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Summary of all ledger balances</p>
-        </div>
-        <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Trial Balance' }]} />
-      </div>
+    <div className="space-y-4">
+      <PageHeader title="Trial Balance" description="Summary of all ledger balances" />
 
-      <Card>
-        <div className="flex flex-wrap items-end gap-4 mb-6">
-          <div className="w-44">
-            <Input label="Start Date" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
-          </div>
-          <div className="w-44">
-            <Input label="End Date" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+      <Card padding="none" className="overflow-visible">
+        <FilterBar className="items-end">
+          <div className="w-72 max-sm:w-full">
+            <DateRangePicker label="Date range" from={startDate} to={endDate} onChange={(f, t) => { setStartDate(f); setEndDate(t); }} />
           </div>
           {!userInstituteId && (
             <div className="w-48">
@@ -83,70 +80,63 @@ export default function TrialBalance() {
           <Button onClick={fetchTrialBalance} disabled={loading}>
             {loading ? 'Loading...' : 'Generate'}
           </Button>
-        </div>
+        </FilterBar>
 
-        {loading ? (
-          <div className="flex justify-center items-center py-12"><LoadingSpinner /></div>
-        ) : error ? (
-          <div className="text-center py-12">
-            <p className="text-red-600 dark:text-red-400">{error}</p>
-          </div>
-        ) : entries.length === 0 ? (
-          <div className="text-center py-12 text-gray-500 dark:text-gray-400">
-            Select a date range and click "Generate" to view the trial balance
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-              <thead className="bg-gray-50 dark:bg-gray-800">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Ledger</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Type</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Debit (₹)</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Credit (₹)</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
-                {entries.map((entry, idx) => (
-                  <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-800">
-                    <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100 font-medium">{entry.ledgerName}</td>
-                    <td className="px-4 py-3 text-sm">
-                      <span className={`px-2 py-1 text-xs font-medium rounded-full capitalize ${
-                        entry.type === 'income' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                          : entry.type === 'bank' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
-                          : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                      }`}>
-                        {entry.type}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-gray-100">
-                      {entry.debit > 0 ? `₹${entry.debit.toLocaleString()}` : '-'}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-gray-100">
-                      {entry.credit > 0 ? `₹${entry.credit.toLocaleString()}` : '-'}
+        <div className="p-3.5">
+          {loading ? (
+            <div className="flex justify-center items-center py-12"><LoadingSpinner /></div>
+          ) : error ? (
+            <Alert tone="danger">{error}</Alert>
+          ) : entries.length === 0 ? (
+            <EmptyState title="Nothing to show yet" description='Select a date range and click "Generate" to view the trial balance' />
+          ) : (
+            <ScrollX>
+              <table className="w-full border-collapse text-[12.5px]">
+                <thead className="bg-[#FAFCFB] dark:bg-surface-base/60">
+                  <tr>
+                    <th className="whitespace-nowrap px-3.5 py-2.5 text-left text-[12px] font-bold text-[#7B8983] dark:text-surface-muted uppercase tracking-[0.06em]">Ledger</th>
+                    <th className="whitespace-nowrap px-3.5 py-2.5 text-left text-[12px] font-bold text-[#7B8983] dark:text-surface-muted uppercase tracking-[0.06em]">Type</th>
+                    <th className="whitespace-nowrap px-3.5 py-2.5 text-right text-[12px] font-bold text-[#7B8983] dark:text-surface-muted uppercase tracking-[0.06em]">Debit (₹)</th>
+                    <th className="whitespace-nowrap px-3.5 py-2.5 text-right text-[12px] font-bold text-[#7B8983] dark:text-surface-muted uppercase tracking-[0.06em]">Credit (₹)</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-line-soft bg-white dark:divide-surface-border dark:bg-surface-card">
+                  {entries.map((entry, idx) => (
+                    <tr key={idx} className="hover:bg-[#F6FAF8] dark:hover:bg-surface-hover/60">
+                      <td className="px-3.5 py-2 text-[12.5px] text-[#18231E] dark:text-surface-text font-medium">{entry.ledgerName}</td>
+                      <td className="px-3.5 py-2 text-[12.5px]">
+                        <Badge variant={entry.type === 'income' ? 'success' : entry.type === 'bank' ? 'info' : 'danger'} dot className="capitalize">{entry.type}</Badge>
+                      </td>
+                      <td className="px-3.5 py-2 text-[12.5px] text-right text-[#18231E] dark:text-surface-text">
+                        {entry.debit > 0 ? `₹${entry.debit.toLocaleString()}` : '-'}
+                      </td>
+                      <td className="px-3.5 py-2 text-[12.5px] text-right text-[#18231E] dark:text-surface-text">
+                        {entry.credit > 0 ? `₹${entry.credit.toLocaleString()}` : '-'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot className="bg-[#FAFCFB] dark:bg-surface-base/60">
+                  <tr>
+                    <td colSpan={2} className="px-3.5 py-2 text-[12.5px] font-bold text-[#18231E] dark:text-surface-text">Total</td>
+                    <td className="px-3.5 py-2 text-[12.5px] text-right font-bold text-[#18231E] dark:text-surface-text">₹{totalDebit.toLocaleString()}</td>
+                    <td className="px-3.5 py-2 text-[12.5px] text-right font-bold text-[#18231E] dark:text-surface-text">₹{totalCredit.toLocaleString()}</td>
+                  </tr>
+                  <tr>
+                    <td colSpan={2} className="px-3.5 py-2 text-[12.5px] font-bold text-[#18231E] dark:text-surface-text">Difference</td>
+                    <td colSpan={2} className={`px-3.5 py-2 text-[12.5px] text-right font-bold ${
+                      totalDebit - totalCredit === 0 ? 'text-primary-600' : 'text-red-600'
+                    }`}>
+                      ₹{Math.abs(totalDebit - totalCredit).toLocaleString()}
+                      {totalDebit - totalCredit === 0 && ' (Balanced ✓)'}
                     </td>
                   </tr>
-                ))}
-              </tbody>
-              <tfoot className="bg-gray-50 dark:bg-gray-800">
-                <tr>
-                  <td colSpan={2} className="px-4 py-3 text-sm font-bold text-gray-900 dark:text-gray-100">Total</td>
-                  <td className="px-4 py-3 text-sm text-right font-bold text-gray-900 dark:text-gray-100">₹{totalDebit.toLocaleString()}</td>
-                  <td className="px-4 py-3 text-sm text-right font-bold text-gray-900 dark:text-gray-100">₹{totalCredit.toLocaleString()}</td>
-                </tr>
-                <tr>
-                  <td colSpan={2} className="px-4 py-3 text-sm font-bold text-gray-900 dark:text-gray-100">Difference</td>
-                  <td colSpan={2} className={`px-4 py-3 text-sm text-right font-bold ${
-                    totalDebit - totalCredit === 0 ? 'text-green-600' : 'text-red-600'
-                  }`}>
-                    ₹{Math.abs(totalDebit - totalCredit).toLocaleString()}
-                    {totalDebit - totalCredit === 0 && ' (Balanced ✓)'}
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-        )}
+                </tfoot>
+              </table>
+            </ScrollX>
+          )}
+
+        </div>
       </Card>
     </div>
   );

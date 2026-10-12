@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import Institute from '../models/Institute';
 import { AuthRequest } from '../middleware/authMiddleware';
+import { stripImmutable, clearableUpdate } from '../utils/sanitizeUpdate';
 import { getPaginationParams, createPaginationResponse } from '../utils/pagination';
 import { verifyTenantOwnership } from '../utils/tenantCheck';
 
@@ -92,7 +93,7 @@ export const updateInstitute = async (req: AuthRequest, res: Response) => {
 
     const institute = await Institute.findByIdAndUpdate(
       req.params.id,
-      req.body,
+      clearableUpdate(stripImmutable(req.body)),
       { new: true, runValidators: true }
     );
     if (!institute) {

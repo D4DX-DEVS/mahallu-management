@@ -1,5 +1,7 @@
 import axios from 'axios';
 import { useAuthStore } from '@/store/authStore';
+import { noteMutation } from './mutationTracker';
+import { handleWriteSuccess, handleApiError, SESSION_NOTICE_KEY } from './apiToasts';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
@@ -92,6 +94,8 @@ const transformId = (data: any): any => {
 // Response interceptor for error handling and data transformation
 api.interceptors.response.use(
   (response) => {
+    noteMutation(response.config?.method, response.config?.url);
+    handleWriteSuccess(response);
     // Transform _id to id in response data
     if (response.data && response.data.data) {
       response.data.data = transformId(response.data.data);
@@ -99,7 +103,11 @@ api.interceptors.response.use(
     return response;
   },
   (error) => {
+    handleApiError(error, (cfg) => api.request(cfg));
     if (error.response?.status === 401) {
+      if (!/\/auth\//.test(error.config?.url || '')) {
+        try { sessionStorage.setItem(SESSION_NOTICE_KEY, '1'); } catch { /* ignore */ }
+      }
       localStorage.removeItem('token');
       useAuthStore.getState().logout();
       window.location.href = '/login';

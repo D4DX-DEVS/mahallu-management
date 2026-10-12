@@ -4,16 +4,23 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useNavigate, useParams } from 'react-router-dom';
 import { FiSave, FiX } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
+import Alert from '@/components/ui/Alert';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import PageHeader from '@/components/ui/PageHeader';
 import { ROUTES } from '@/constants/routes';
 import { registrationService } from '@/services/registrationService';
 import { memberService } from '@/services/memberService';
 import { Member } from '@/types';
+import { useUnsavedChangesGuard } from '@/hooks/useUnsavedChangesGuard';
+import UnsavedChangesDialog from '@/components/ui/UnsavedChangesDialog';
+import PhoneInput from '@/components/ui/PhoneInput';
+import SideEffectsSummary, { ApprovalConfirmDialog, useSideEffectsPreview } from '../components/SideEffectsSummary';
+import { toast } from '@/store/toastStore';
+import { getFriendlyError } from '@/utils/apiMessages';
 
 const deathSchema = z.object({
   deceasedName: z.string().min(1, 'Deceased name is required'),
@@ -44,12 +51,25 @@ export default function EditDeathRegistration() {
     watch,
     setValue,
     reset,
-    formState: { errors, isSubmitting },
+    formState: { errors, isSubmitting, isDirty },
   } = useForm<DeathFormData>({
+    mode: 'onTouched',
     resolver: zodResolver(deathSchema),
   });
+  const guard = useUnsavedChangesGuard(isDirty);
 
   const selectedMemberId = watch('deceasedId') || '';
+  const [graveId, setGraveId] = useState('');
+  const [spouseMemberId, setSpouseMemberId] = useState('');
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [pendingData, setPendingData] = useState<DeathFormData | null>(null);
+  const deathDateVal = watch('deathDate');
+  const willApprove = watch('status') === 'approved';
+  const { preview, loading: previewLoading } = useSideEffectsPreview(
+    'death',
+    { deceasedId: selectedMemberId, deathDate: deathDateVal, graveId: graveId || undefined, spouseMemberId: spouseMemberId || undefined },
+    !!selectedMemberId && willApprove
+  );
 
   useEffect(() => {
     const fetchRegistration = async () => {
@@ -81,7 +101,7 @@ export default function EditDeathRegistration() {
           remarks: data.remarks || '',
         });
       } catch (err: any) {
-        setError(err.response?.data?.message || 'Failed to load death registration');
+        setError(getFriendlyError(err, "Couldn't load death registration. Refresh the page or try again."));
       } finally {
         setLoading(false);
       }
@@ -120,7 +140,18 @@ export default function EditDeathRegistration() {
     }
   }, [selectedMemberId, members, setValue]);
 
+  // Ask for confirmation first when approving will change member records
   const onSubmit = async (data: DeathFormData) => {
+    if (willApprove && preview && preview.effects.length > 0) {
+      setPendingData(data);
+      setConfirmOpen(true);
+      return;
+    }
+    await save(data);
+  };
+
+  const save = async (data: DeathFormData) => {
+    setConfirmOpen(false);
     try {
       setError(null);
       await registrationService.updateDeath(id!, {
@@ -136,10 +167,12 @@ export default function EditDeathRegistration() {
         informantPhone: data.informantPhone || undefined,
         status: data.status,
         remarks: data.remarks || undefined,
+        graveId: graveId || undefined,
+        spouseMemberId: spouseMemberId || undefined,
       });
       navigate(ROUTES.REGISTRATIONS.DEATH);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to update death registration. Please try again.');
+      toast.error(getFriendlyError(err, "Couldn't update death registration. Try again in a moment."));
       console.error('Error updating registration:', err);
     }
   };
@@ -153,102 +186,122 @@ export default function EditDeathRegistration() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Edit Death Registration</h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Update death registration details</p>
-        </div>
-        <Breadcrumb
-          items={[
-            { label: 'Dashboard', path: '/dashboard' },
-            { label: 'Death Registrations', path: ROUTES.REGISTRATIONS.DEATH },
-            { label: 'Edit' },
-          ]}
-        />
-      </div>
+    <div className="space-y-4">
+      <PageHeader
+        title="Edit Death Registration"
+        description="Update death registration details"
+      />
 
       <form onSubmit={handleSubmit(onSubmit)}>
-        <Card className="space-y-6">
+        <div className="space-y-4">
           {error && (
-            <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm dark:bg-red-900 dark:border-red-700 dark:text-red-200">
-              {error}
-            </div>
+            <Alert tone="danger">{error}</Alert>
           )}
 
           {Object.keys(errors).length > 0 && (
-            <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-yellow-700 text-sm dark:bg-yellow-900 dark:border-yellow-700 dark:text-yellow-200">
-              Please fix the highlighted errors before submitting.
-            </div>
+            <Alert tone="warning">Please fix the highlighted errors before submitting.</Alert>
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <h3 className="md:col-span-2 text-lg font-semibold text-gray-900 dark:text-gray-100">
-              Member Selection
-            </h3>
-            <Select
-              label="Select Member"
-              options={[
-                { value: '', label: 'Select member...' },
-                ...members.map((member) => ({
-                  value: member.id,
-                  label: `${member.name} (${member.familyName})`,
-                })),
-              ]}
-              {...register('deceasedId')}
-              className="md:col-span-2"
-            />
-            <Input
-              label="Deceased Name"
-              {...register('deceasedName')}
-              error={errors.deceasedName?.message}
-              required
-              placeholder="Deceased Name"
-              className="md:col-span-2"
-            />
-            <Input
-              label="Death Date"
-              type="date"
-              {...register('deathDate')}
-              error={errors.deathDate?.message}
-              required
-            />
-            <Input label="Place of Death" {...register('placeOfDeath')} placeholder="Place of Death" />
-            <Input label="Cause of Death" {...register('causeOfDeath')} placeholder="Cause of Death" />
-            <Input label="Mahall ID" {...register('mahallId')} placeholder="Mahall ID" />
-            <h3 className="md:col-span-2 text-lg font-semibold text-gray-900 dark:text-gray-100 mt-4">Informant Information</h3>
-            <Input label="Informant Name" {...register('informantName')} placeholder="Informant Name" />
-            <Input label="Relation" {...register('informantRelation')} placeholder="Relation to Deceased" />
-            <Input label="Informant Phone" type="tel" {...register('informantPhone')} placeholder="Phone Number" />
-            <Select
-              label="Status"
-              options={[
-                { value: 'pending', label: 'Pending' },
-                { value: 'approved', label: 'Approved' },
-                { value: 'rejected', label: 'Rejected' },
-              ]}
-              {...register('status')}
-              error={errors.status?.message as string | undefined}
-            />
-            <Input
-              label="Remarks"
-              {...register('remarks')}
-              placeholder="Remarks"
-            />
-          </div>
+          <Card>
+            <div className="mb-3.5">
+              <h2 className="text-sm font-bold text-[#18231E] dark:text-surface-text">Member Selection</h2>
+              <p className="mt-0.5 text-xs text-[#7B8983] dark:text-surface-muted">Select the deceased member and record the details of death</p>
+            </div>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <Select
+                label="Select Member"
+                options={[
+                  { value: '', label: 'Select member...' },
+                  ...members.map((member) => ({
+                    value: member.id,
+                    label: `${member.name} (${member.familyName})`,
+                  })),
+                ]}
+                {...register('deceasedId')}
+                className="md:col-span-2"
+              />
+              <Input
+                label="Deceased Name"
+                {...register('deceasedName')}
+                error={errors.deceasedName?.message}
+                required
+                placeholder="Deceased Name"
+                className="md:col-span-2"
+              />
+              <Input
+                label="Death Date"
+                type="date"
+                {...register('deathDate')}
+                error={errors.deathDate?.message}
+                required
+              />
+              <Input label="Place of Death" {...register('placeOfDeath')} placeholder="Place of Death" />
+              <Input label="Cause of Death" {...register('causeOfDeath')} placeholder="Cause of Death" />
+              <Input label="Mahall ID" {...register('mahallId')} placeholder="Mahall ID" />
+            </div>
+          </Card>
 
-          <div className="flex justify-end gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-            <Button type="button" variant="outline" onClick={() => navigate(ROUTES.REGISTRATIONS.DEATH)}>
-              <FiX className="h-4 w-4 mr-2" />
+          <Card>
+            <div className="mb-3.5">
+              <h2 className="text-sm font-bold text-[#18231E] dark:text-surface-text">Informant Information</h2>
+              <p className="mt-0.5 text-xs text-[#7B8983] dark:text-surface-muted">Person who reported the death</p>
+            </div>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <Input label="Informant Name" {...register('informantName')} placeholder="Informant Name" />
+              <Input label="Relation" {...register('informantRelation')} placeholder="Relation to Deceased" />
+              <PhoneInput label="Informant Phone" {...register('informantPhone')} placeholder="Phone Number" />
+              <Select
+                label="Status"
+                options={[
+                  { value: 'pending', label: 'Pending' },
+                  { value: 'approved', label: 'Approved' },
+                  { value: 'rejected', label: 'Rejected' },
+                ]}
+                {...register('status')}
+                error={errors.status?.message as string | undefined}
+              />
+              <Input
+                label="Remarks"
+                {...register('remarks')}
+                placeholder="Remarks"
+              />
+            </div>
+          </Card>
+
+          {willApprove ? (
+            <SideEffectsSummary
+              preview={preview}
+              loading={previewLoading}
+              title="Saving as approved will:"
+              onPickGrave={setGraveId}
+              onPickSpouse={setSpouseMemberId}
+              pickedGraveId={graveId}
+              pickedSpouseId={spouseMemberId}
+            />
+          ) : (
+            <Alert tone="info">Nothing changes on the member record while this is pending or rejected. If it was approved before, saving undoes what the approval did.</Alert>
+          )}
+
+          <div className="sticky bottom-0 z-10 -mx-1 flex flex-wrap justify-end gap-2 pb-[calc(0.75rem+env(safe-area-inset-bottom))] [&>button]:flex-1 sm:[&>button]:flex-none border-t border-line bg-white/90 px-4 py-3 backdrop-blur dark:border-surface-border dark:bg-surface-card/90">
+            <Button type="button" variant="secondary" onClick={() => guard.guardedNavigate(ROUTES.REGISTRATIONS.DEATH)}>
+              <FiX className="h-3.5 w-3.5" />
               Cancel
             </Button>
             <Button type="submit" isLoading={isSubmitting}>
-              <FiSave className="h-4 w-4 mr-2" />
+              <FiSave className="h-3.5 w-3.5" />
               Update Registration
             </Button>
           </div>
-        </Card>
+        </div>
       </form>
+      <UnsavedChangesDialog guard={guard} />
+      <ApprovalConfirmDialog
+        open={confirmOpen}
+        preview={preview}
+        isSaving={isSubmitting}
+        onCancel={() => setConfirmOpen(false)}
+        onConfirm={() => pendingData && save(pendingData)}
+      />
     </div>
   );
 }

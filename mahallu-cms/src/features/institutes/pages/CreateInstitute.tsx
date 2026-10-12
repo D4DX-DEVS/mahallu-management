@@ -4,13 +4,19 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useNavigate } from 'react-router-dom';
 import { FiSave, FiX } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
+import Alert from '@/components/ui/Alert';
+import PageHeader from '@/components/ui/PageHeader';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import { ROUTES } from '@/constants/routes';
 import { instituteService } from '@/services/instituteService';
+import { useUnsavedChangesGuard } from '@/hooks/useUnsavedChangesGuard';
+import UnsavedChangesDialog from '@/components/ui/UnsavedChangesDialog';
+import PhoneInput from '@/components/ui/PhoneInput';
+import { toast } from '@/store/toastStore';
+import { getFriendlyError } from '@/utils/apiMessages';
 
 const instituteSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -33,8 +39,9 @@ export default function CreateInstitute() {
   const {
     register,
     handleSubmit,
-    formState: { errors, isSubmitting },
+    formState: { errors, isSubmitting, isDirty },
   } = useForm<InstituteFormData>({
+    mode: 'onTouched',
     resolver: zodResolver(instituteSchema),
     defaultValues: {
       type: 'institute',
@@ -42,6 +49,7 @@ export default function CreateInstitute() {
       joinDate: new Date().toISOString().split('T')[0],
     },
   });
+  const guard = useUnsavedChangesGuard(isDirty);
 
   const onSubmit = async (data: InstituteFormData) => {
     try {
@@ -62,38 +70,22 @@ export default function CreateInstitute() {
       await instituteService.create(instituteData);
       navigate(ROUTES.INSTITUTES.LIST);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to create institute. Please try again.');
+      toast.error(getFriendlyError(err, "Couldn't create institute. Check the details and try again."));
       console.error('Error creating institute:', err);
     }
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-            Create Institute
-          </h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            Add a new institute
-          </p>
-        </div>
-        <Breadcrumb
-          items={[
-            { label: 'Dashboard', path: '/dashboard' },
-            { label: 'Institutes', path: ROUTES.INSTITUTES.LIST },
-            { label: 'Create' },
-          ]}
-        />
-      </div>
+    <div className="space-y-4">
+      <PageHeader title="Create Institute" description="Add a new institute" />
 
       <form onSubmit={handleSubmit(onSubmit)}>
-        <Card className="space-y-6">
-          {error && (
-            <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm dark:bg-red-900 dark:border-red-700 dark:text-red-200">
-              {error}
-            </div>
-          )}
+        <div className="space-y-4">
+          {error && <Alert tone="danger">{error}</Alert>}
+
+          <Card padding="lg">
+          <h3 className="text-sm font-bold text-primary-700 dark:text-surface-text">Institute details</h3>
+          <p className="mb-3.5 mt-0.5 text-xs text-[#7B8983] dark:text-surface-muted">Name, type and contact information</p>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input
@@ -147,9 +139,8 @@ export default function CreateInstitute() {
               error={errors.joinDate?.message}
               required
             />
-            <Input
+            <PhoneInput
               label="Contact No."
-              type="tel"
               {...register('contactNo')}
               placeholder="Contact Number"
             />
@@ -176,23 +167,25 @@ export default function CreateInstitute() {
               className="md:col-span-2"
             />
           </div>
+          </Card>
 
-          <div className="flex justify-end gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+          <div className="sticky bottom-0 z-10 -mx-1 flex flex-wrap justify-end gap-2 pb-[calc(0.75rem+env(safe-area-inset-bottom))] [&>button]:flex-1 sm:[&>button]:flex-none rounded-b-card border-t border-line bg-white/90 px-4 py-3 backdrop-blur dark:border-surface-border dark:bg-surface-card/90">
             <Button
               type="button"
               variant="outline"
-              onClick={() => navigate(ROUTES.INSTITUTES.LIST)}
+              onClick={() => guard.guardedNavigate(ROUTES.INSTITUTES.LIST)}
             >
-              <FiX className="h-4 w-4 mr-2" />
+              <FiX className="h-3.5 w-3.5" />
               Cancel
             </Button>
             <Button type="submit" isLoading={isSubmitting}>
-              <FiSave className="h-4 w-4 mr-2" />
+              <FiSave className="h-3.5 w-3.5" />
               Create Institute
             </Button>
           </div>
-        </Card>
+        </div>
       </form>
+      <UnsavedChangesDialog guard={guard} />
     </div>
   );
 }

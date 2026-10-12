@@ -3,16 +3,23 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { FiSave, FiSettings, FiMapPin, FiInfo, FiDollarSign } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
+import Alert from '@/components/ui/Alert';
+import Badge from '@/components/ui/Badge';
+import StatusBadge from '@/components/ui/StatusBadge';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
-import Input from '@/components/ui/Input';
+import Input, { labelClasses } from '@/components/ui/Input';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { tenantService } from '@/services/tenantService';
+import { CLASSIFICATION_LABELS, TenantClassification } from '@/constants/modules';
+import StringListEditor from '../components/StringListEditor';
 import { useAuthStore } from '@/store/authStore';
 import { Tenant } from '@/types/tenant';
 import { formatDate } from '@/utils/format';
 import { getTenantId } from '@/utils/tenantHelper';
+import PageHeader from '@/components/ui/PageHeader';
+import { toast } from '@/store/toastStore';
+import { getFriendlyError } from '@/utils/apiMessages';
 
 const settingsSchema = z.object({
   varisangyaAmount: z.number().min(0, 'Varisangya amount must be positive'),
@@ -26,7 +33,6 @@ export default function MahallMain() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
   const [grades, setGrades] = useState<Array<{ name: string; amount: number }>>([]);
   const [educationOptions, setEducationOptions] = useState<string[]>([]);
   const [areaOptions, setAreaOptions] = useState<string[]>([]);
@@ -55,7 +61,7 @@ export default function MahallMain() {
     try {
       setLoading(true);
       setError(null);
-      const data = await tenantService.getById(tenantId);
+      const data = await tenantService.getById(tenantId, { force: true });
       setTenant(data);
       setGrades(data.settings?.varisangyaGrades || [
         { name: 'Grade A', amount: 100 },
@@ -83,7 +89,7 @@ export default function MahallMain() {
         varisangyaAmount: data.settings?.varisangyaAmount || 0,
       });
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to load tenant information');
+      setError(getFriendlyError(err, "Couldn't load tenant information. Refresh the page or try again."));
       console.error('Error fetching tenant:', err);
     } finally {
       setLoading(false);
@@ -96,7 +102,6 @@ export default function MahallMain() {
     try {
       setSaving(true);
       setError(null);
-      setSuccess(null);
 
       await tenantService.update(tenantId, {
         settings: {
@@ -108,10 +113,10 @@ export default function MahallMain() {
         },
       });
 
-      setSuccess('Settings updated successfully');
+      toast.success('Settings saved');
       await fetchTenant();
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to update settings');
+      toast.error(getFriendlyError(err, "Couldn't update settings. Try again in a moment."));
       console.error('Error updating settings:', err);
     } finally {
       setSaving(false);
@@ -128,33 +133,30 @@ export default function MahallMain() {
 
   if (!tenantId && !tenant) {
     return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Mahall Main</h1>
-            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Manage mahall settings and configuration</p>
-          </div>
-          <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Mahall Main' }]} />
-        </div>
+      <div className="space-y-4">
+        <PageHeader
+        title="Mahall Main"
+        description="Manage mahall settings and configuration"
+      />
         <Card>
           <div className="text-center py-12">
             {isSuperAdmin ? (
               <>
-                <div className="mx-auto w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mb-4">
-                  <FiInfo className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-mint dark:bg-brand-lime/10">
+                  <FiInfo className="h-6 w-6 text-primary-600 dark:text-brand-lime" />
                 </div>
-                <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">Select a Mahall to Manage</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400 max-w-md mx-auto">
+                <h3 className="mb-2 text-sm font-bold text-[#18231E] dark:text-surface-text">Select a Mahall to Manage</h3>
+                <p className="text-xs text-[#7B8983] dark:text-surface-muted max-w-md mx-auto">
                   As a Super Admin, please select a mahall from the <strong>"Select Tenant"</strong> dropdown in the header to view and manage its settings.
                 </p>
               </>
             ) : (
               <>
-                <div className="mx-auto w-12 h-12 bg-yellow-100 dark:bg-yellow-900/30 rounded-full flex items-center justify-center mb-4">
-                  <FiInfo className="h-6 w-6 text-yellow-600 dark:text-yellow-400" />
+                <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#FFF6CC] dark:bg-secondary-500/15">
+                  <FiInfo className="h-6 w-6 text-[#7A5B00] dark:text-secondary-300" />
                 </div>
-                <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">No Mahall Assigned</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400 max-w-md mx-auto">
+                <h3 className="mb-2 text-sm font-bold text-[#18231E] dark:text-surface-text">No Mahall Assigned</h3>
+                <p className="text-xs text-[#7B8983] dark:text-surface-muted max-w-md mx-auto">
                   Your account is not linked to any mahall yet. Please contact your administrator to get assigned to a mahall.
                 </p>
               </>
@@ -167,18 +169,15 @@ export default function MahallMain() {
 
   if (error && !tenant) {
     return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Mahall Main</h1>
-            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Manage mahall settings and configuration</p>
-          </div>
-          <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Mahall Main' }]} />
-        </div>
+      <div className="space-y-4">
+        <PageHeader
+        title="Mahall Main"
+        description="Manage mahall settings and configuration"
+      />
         <Card>
           <div className="text-center py-12">
             <p className="text-red-600 dark:text-red-400">{error}</p>
-            <Button onClick={fetchTenant} className="mt-4" variant="outline">
+            <Button onClick={fetchTenant} className="mt-4" variant="secondary">
               Retry
             </Button>
           </div>
@@ -188,112 +187,98 @@ export default function MahallMain() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Mahall Main</h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Manage mahall settings and configuration</p>
-        </div>
-        <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Mahall Main' }]} />
-      </div>
+    <div className="space-y-4">
+      <PageHeader
+        title="Mahall Main"
+        description="Manage mahall settings and configuration"
+        actions={
+          (tenant as any)?.classification ? (
+            <Badge variant="primary">
+              {CLASSIFICATION_LABELS[(tenant as any).classification as TenantClassification] ||
+                (tenant as any).classification}
+            </Badge>
+          ) : undefined
+        }
+      />
 
-      {error && (
-        <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-          <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
-        </div>
-      )}
+      {error && <Alert tone="danger">{error}</Alert>}
 
-      {success && (
-        <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
-          <p className="text-sm text-green-600 dark:text-green-400">{success}</p>
-        </div>
-      )}
 
       {/* Tenant Information */}
       {tenant && (
         <Card>
-          <div className="p-6">
-            <div className="flex items-center space-x-3 mb-6">
-              <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
-                <FiInfo className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+          <div className="p-4">
+            <div className="mb-4 flex items-center space-x-3">
+              <div className="flex h-[34px] w-[34px] items-center justify-center rounded-[11px] bg-mint dark:bg-brand-lime/15">
+                <FiInfo className="h-[17px] w-[17px] text-primary-700 dark:text-brand-lime" />
               </div>
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Tenant Information</h2>
+              <h2 className="text-[13.5px] font-bold text-[#18231E] dark:text-surface-text">Tenant Information</h2>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name</label>
-                <p className="text-gray-900 dark:text-gray-100">{tenant.name}</p>
+                <label className={labelClasses}>Name</label>
+                <p className="text-[13px] text-[#18231E] dark:text-surface-text">{tenant.name}</p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Code</label>
-                <p className="text-gray-900 dark:text-gray-100">{tenant.code}</p>
+                <label className={labelClasses}>Code</label>
+                <p className="text-[13px] text-[#18231E] dark:text-surface-text">{tenant.code}</p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Type</label>
-                <p className="text-gray-900 dark:text-gray-100 capitalize">{tenant.type}</p>
+                <label className={labelClasses}>Type</label>
+                <p className="text-[13px] text-[#18231E] dark:text-surface-text capitalize">{tenant.type}</p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Status</label>
-                <span
-                  className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                    tenant.status === 'active'
-                      ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                      : tenant.status === 'suspended'
-                      ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-                      : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                  }`}
-                >
-                  {tenant.status}
-                </span>
+                <label className={labelClasses}>Status</label>
+                <StatusBadge status={tenant.status} tone={tenant.status === 'suspended' ? 'warning' : undefined} />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Location</label>
-                <p className="text-gray-900 dark:text-gray-100">{tenant.location || 'N/A'}</p>
+                <label className={labelClasses}>Location</label>
+                <p className="text-[13px] text-[#18231E] dark:text-surface-text">{tenant.location || 'N/A'}</p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Since</label>
-                <p className="text-gray-900 dark:text-gray-100">{formatDate(tenant.since)}</p>
+                <label className={labelClasses}>Since</label>
+                <p className="text-[13px] text-[#18231E] dark:text-surface-text">{formatDate(tenant.since)}</p>
               </div>
             </div>
 
             {tenant.address && (
-              <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+              <div className="mt-6 pt-6 border-t border-line dark:border-surface-border">
                 <div className="flex items-center space-x-3 mb-4">
-                  <FiMapPin className="h-5 w-5 text-gray-500 dark:text-gray-400" />
-                  <h3 className="text-md font-semibold text-gray-900 dark:text-gray-100">Address</h3>
+                  <FiMapPin className="h-4 w-4 text-[#7B8983] dark:text-surface-muted" />
+                  <h3 className="text-[13.5px] font-bold text-[#18231E] dark:text-surface-text">Address</h3>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">State</label>
-                    <p className="text-gray-900 dark:text-gray-100">{tenant.address.state}</p>
+                    <label className={labelClasses}>State</label>
+                    <p className="text-[13px] text-[#18231E] dark:text-surface-text">{tenant.address.state}</p>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">District</label>
-                    <p className="text-gray-900 dark:text-gray-100">{tenant.address.district}</p>
+                    <label className={labelClasses}>District</label>
+                    <p className="text-[13px] text-[#18231E] dark:text-surface-text">{tenant.address.district}</p>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">LSG Name</label>
-                    <p className="text-gray-900 dark:text-gray-100">{tenant.address.lsgName}</p>
+                    <label className={labelClasses}>LSG Name</label>
+                    <p className="text-[13px] text-[#18231E] dark:text-surface-text">{tenant.address.lsgName}</p>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Village</label>
-                    <p className="text-gray-900 dark:text-gray-100">{tenant.address.village}</p>
+                    <label className={labelClasses}>Village</label>
+                    <p className="text-[13px] text-[#18231E] dark:text-surface-text">{tenant.address.village}</p>
                   </div>
                   {tenant.address.pinCode && (
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      <label className={labelClasses}>
                         PIN Code
                       </label>
-                      <p className="text-gray-900 dark:text-gray-100">{tenant.address.pinCode}</p>
+                      <p className="text-[13px] text-[#18231E] dark:text-surface-text">{tenant.address.pinCode}</p>
                     </div>
                   )}
                   {tenant.address.postOffice && (
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      <label className={labelClasses}>
                         Post Office
                       </label>
-                      <p className="text-gray-900 dark:text-gray-100">{tenant.address.postOffice}</p>
+                      <p className="text-[13px] text-[#18231E] dark:text-surface-text">{tenant.address.postOffice}</p>
                     </div>
                   )}
                 </div>
@@ -306,19 +291,19 @@ export default function MahallMain() {
       {/* Settings */}
       <Card>
         <form onSubmit={handleSubmit(onSubmit)}>
-          <div className="p-6">
-            <div className="flex items-center space-x-3 mb-6">
-              <div className="p-2 bg-purple-100 dark:bg-purple-900 rounded-lg">
-                <FiSettings className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+          <div className="p-4">
+            <div className="mb-4 flex items-center space-x-3">
+              <div className="flex h-[34px] w-[34px] items-center justify-center rounded-[11px] bg-mint dark:bg-brand-lime/15">
+                <FiSettings className="h-[17px] w-[17px] text-primary-700 dark:text-brand-lime" />
               </div>
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Settings</h2>
+              <h2 className="text-[13.5px] font-bold text-[#18231E] dark:text-surface-text">Settings</h2>
             </div>
 
             <div className="space-y-4">
               <div>
                 <label
                   htmlFor="varisangyaAmount"
-                  className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+                  className={labelClasses}
                 >
                   <div className="flex items-center space-x-2">
                     <FiDollarSign className="h-4 w-4" />
@@ -333,17 +318,17 @@ export default function MahallMain() {
                   error={errors.varisangyaAmount?.message}
                   placeholder="Enter varisangya amount"
                 />
-                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                <p className="mt-1 text-xs text-[#7B8983] dark:text-surface-muted">
                   Default amount for varisangya payments
                 </p>
               </div>
 
               {/* Varisangya Grades */}
-              <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
-                <h3 className="text-md font-semibold text-gray-900 dark:text-gray-100 mb-4">
+              <div className="mt-6 border-t border-line pt-5 dark:border-surface-border">
+                <h3 className="mb-0.5 text-[13.5px] font-bold text-[#18231E] dark:text-surface-text">
                   Varisangya Grades
                 </h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                <p className="mb-3 text-xs text-[#7B8983] dark:text-surface-muted">
                   Configure different grade levels with their corresponding amounts
                 </p>
                 
@@ -376,7 +361,7 @@ export default function MahallMain() {
                       </div>
                       <Button
                         type="button"
-                        variant="outline"
+                        variant="secondary"
                         onClick={() => {
                           const newGrades = grades.filter((_, i) => i !== index);
                           setGrades(newGrades);
@@ -390,7 +375,7 @@ export default function MahallMain() {
                   
                   <Button
                     type="button"
-                    variant="outline"
+                    variant="secondary"
                     onClick={() => {
                       setGrades([...grades, { name: `Grade ${String.fromCharCode(65 + grades.length)}`, amount: 0 }]);
                     }}
@@ -401,105 +386,23 @@ export default function MahallMain() {
                 </div>
               </div>
 
-              {/* Education Options */}
-              <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
-                <h3 className="text-md font-semibold text-gray-900 dark:text-gray-100 mb-4">
-                  Education Options
-                </h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-                  Configure education qualification options for member profiles
-                </p>
-                
-                <div className="space-y-3">
-                  {educationOptions.map((option, index) => (
-                    <div key={index} className="flex items-center gap-4">
-                      <div className="flex-1">
-                        <Input
-                          value={option}
-                          onChange={(e) => {
-                            const newOptions = [...educationOptions];
-                            newOptions[index] = e.target.value;
-                            setEducationOptions(newOptions);
-                          }}
-                          placeholder="Education option (e.g., SSLC)"
-                        />
-                      </div>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => {
-                          const newOptions = educationOptions.filter((_, i) => i !== index);
-                          setEducationOptions(newOptions);
-                        }}
-                        className="whitespace-nowrap"
-                      >
-                        Remove
-                      </Button>
-                    </div>
-                  ))}
-                  
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => {
-                      setEducationOptions([...educationOptions, '']);
-                    }}
-                    className="w-full mt-2"
-                  >
-                    + Add Education Option
-                  </Button>
-                </div>
-              </div>
+              <StringListEditor
+                title="Education Options"
+                description="Configure education qualification options for member profiles"
+                values={educationOptions}
+                onChange={setEducationOptions}
+                placeholder="Education option (e.g., SSLC)"
+                addLabel="+ Add Education Option"
+              />
 
-              {/* Area Options */}
-              <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
-                <h3 className="text-md font-semibold text-gray-900 dark:text-gray-100 mb-4">
-                  Area Options
-                </h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-                  Configure area/locality options for family addresses
-                </p>
-                
-                <div className="space-y-3">
-                  {areaOptions.map((option, index) => (
-                    <div key={index} className="flex items-center gap-4">
-                      <div className="flex-1">
-                        <Input
-                          value={option}
-                          onChange={(e) => {
-                            const newOptions = [...areaOptions];
-                            newOptions[index] = e.target.value;
-                            setAreaOptions(newOptions);
-                          }}
-                          placeholder="Area option (e.g., Area A)"
-                        />
-                      </div>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => {
-                          const newOptions = areaOptions.filter((_, i) => i !== index);
-                          setAreaOptions(newOptions);
-                        }}
-                        className="whitespace-nowrap"
-                      >
-                        Remove
-                      </Button>
-                    </div>
-                  ))}
-                  
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => {
-                      setAreaOptions([...areaOptions, '']);
-                    }}
-                    className="w-full mt-2"
-                  >
-                    + Add Area Option
-                  </Button>
-                </div>
-              </div>
+              <StringListEditor
+                title="Area Options"
+                description="Configure area/locality options for family addresses"
+                values={areaOptions}
+                onChange={setAreaOptions}
+                placeholder="Area option (e.g., Area A)"
+                addLabel="+ Add Area Option"
+              />
             </div>
 
             <div className="mt-6 flex justify-end">
@@ -513,7 +416,7 @@ export default function MahallMain() {
                   </>
                 ) : (
                   <>
-                    <FiSave className="h-4 w-4 mr-2" />
+                    <FiSave className="h-3.5 w-3.5" />
                     Save Settings
                   </>
                 )}

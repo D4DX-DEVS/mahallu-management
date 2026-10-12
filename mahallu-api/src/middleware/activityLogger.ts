@@ -82,7 +82,7 @@ const getActionFromMethod = (method: string, entityType: string): string => {
 const sanitizeRequestBody = (body: any): any => {
   if (!body || typeof body !== 'object') return body;
 
-  const sensitiveFields = ['password', 'token', 'secret', 'apiKey', 'authorization'];
+  const sensitiveFields = ['password', 'currentPassword', 'newPassword', 'otp', 'token', 'preAuthToken', 'secret', 'apiKey', 'authorization'];
   const sanitized = { ...body };
 
   for (const field of sensitiveFields) {
@@ -119,6 +119,8 @@ export const activityLogger = async (
   const startTime = Date.now();
   const originalSend = res.send;
   const originalJson = res.json;
+  // res.json() calls res.send() internally; make sure a response is logged only once.
+  let logged = false;
 
   // Capture request details (available at middleware execution time)
   const requestBody = sanitizeRequestBody(req.body);
@@ -148,6 +150,7 @@ export const activityLogger = async (
 
   // Override res.json to capture response (runs after authMiddleware)
   res.json = function (body: any) {
+    logged = true;
     const statusCode = res.statusCode;
     const responseTime = Date.now() - startTime;
 
@@ -209,6 +212,9 @@ export const activityLogger = async (
 
   // Override res.send to capture response (for non-JSON responses)
   res.send = function (body: any) {
+    if (logged) {
+      return originalSend.call(this, body);
+    }
     const statusCode = res.statusCode;
     const responseTime = Date.now() - startTime;
 

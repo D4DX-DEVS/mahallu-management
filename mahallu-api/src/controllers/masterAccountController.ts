@@ -1,8 +1,11 @@
 import { Request, Response } from 'express';
+import { rangeStart, rangeEnd } from '../utils/dayWindow';
 import { InstituteAccount, MahalluAccount, Category, MasterWallet, Ledger, LedgerItem } from '../models/MasterAccount';
 import { AuthRequest } from '../middleware/authMiddleware';
 import { getPaginationParams, createPaginationResponse } from '../utils/pagination';
 import { verifyTenantOwnership } from '../utils/tenantCheck';
+import { stripImmutable } from '../utils/sanitizeUpdate';
+import { ensurePeriodOpen } from '../utils/periodLock';
 
 // Institute Accounts
 export const getAllInstituteAccounts = async (req: AuthRequest, res: Response) => {
@@ -237,8 +240,8 @@ export const getLedgerItems = async (req: AuthRequest, res: Response) => {
     }
     if (startDate || endDate) {
       query.date = {};
-      if (startDate) query.date.$gte = new Date(startDate as string);
-      if (endDate) query.date.$lte = new Date(endDate as string);
+      if (startDate) query.date.$gte = rangeStart(startDate as string);
+      if (endDate) query.date.$lte = rangeEnd(endDate as string);
     }
 
     const [items, total] = await Promise.all([
@@ -271,6 +274,8 @@ export const createLedgerItem = async (req: AuthRequest, res: Response) => {
       });
     }
 
+    if (!(await ensurePeriodOpen(res, itemData.tenantId, itemData.date))) return;
+
     const item = new LedgerItem(itemData);
     await item.save();
     const populated = await LedgerItem.findById(item._id)
@@ -292,7 +297,7 @@ export const updateInstituteAccount = async (req: AuthRequest, res: Response) =>
     }
     if (!verifyTenantOwnership(req, res, existing.tenantId, 'InstituteAccount')) return;
 
-    const account = await InstituteAccount.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true })
+    const account = await InstituteAccount.findByIdAndUpdate(req.params.id, stripImmutable(req.body), { new: true, runValidators: true })
       .populate('instituteId', 'name');
     res.json({ success: true, data: account });
   } catch (error: any) {
@@ -308,7 +313,7 @@ export const updateCategory = async (req: AuthRequest, res: Response) => {
     }
     if (!verifyTenantOwnership(req, res, existing.tenantId, 'Category')) return;
 
-    const category = await Category.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
+    const category = await Category.findByIdAndUpdate(req.params.id, stripImmutable(req.body), { new: true, runValidators: true });
     res.json({ success: true, data: category });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
@@ -323,7 +328,7 @@ export const updateWallet = async (req: AuthRequest, res: Response) => {
     }
     if (!verifyTenantOwnership(req, res, existing.tenantId, 'MasterWallet')) return;
 
-    const wallet = await MasterWallet.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
+    const wallet = await MasterWallet.findByIdAndUpdate(req.params.id, stripImmutable(req.body), { new: true, runValidators: true });
     res.json({ success: true, data: wallet });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
@@ -338,7 +343,7 @@ export const updateLedger = async (req: AuthRequest, res: Response) => {
     }
     if (!verifyTenantOwnership(req, res, existing.tenantId, 'Ledger')) return;
 
-    const ledger = await Ledger.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
+    const ledger = await Ledger.findByIdAndUpdate(req.params.id, stripImmutable(req.body), { new: true, runValidators: true });
     res.json({ success: true, data: ledger });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
@@ -361,7 +366,9 @@ export const updateLedgerItem = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    const item = await LedgerItem.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true })
+    if (!(await ensurePeriodOpen(res, existing.tenantId, [existing.date, req.body?.date]))) return;
+
+    const item = await LedgerItem.findByIdAndUpdate(req.params.id, stripImmutable(req.body), { new: true, runValidators: true })
       .populate('ledgerId', 'name')
       .populate('categoryId', 'name');
     res.json({ success: true, data: item });
@@ -466,6 +473,8 @@ export const deleteLedgerItem = async (req: AuthRequest, res: Response) => {
       });
     }
 
+    if (!(await ensurePeriodOpen(res, existing.tenantId, existing.date))) return;
+
     await LedgerItem.findByIdAndDelete(req.params.id);
     res.json({ success: true, message: 'Ledger item deleted successfully' });
   } catch (error: any) {
@@ -527,7 +536,7 @@ export const updateMahalluAccount = async (req: AuthRequest, res: Response) => {
     }
     if (!verifyTenantOwnership(req, res, existing.tenantId, 'MahalluAccount')) return;
 
-    const updated = await MahalluAccount.findByIdAndUpdate(req.params.id, req.body, {
+    const updated = await MahalluAccount.findByIdAndUpdate(req.params.id, stripImmutable(req.body), {
       new: true,
       runValidators: true,
     });

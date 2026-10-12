@@ -45,11 +45,11 @@ export default function Dropdown({
       {isOpen && (
         <div
           className={cn(
-            'absolute z-10 mt-2 w-56 rounded-md shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5 focus:outline-none',
+            'absolute z-10 mt-2 w-56 overflow-hidden rounded-xl border border-line bg-white shadow-pop focus:outline-none dark:border-surface-border dark:bg-surface-raised',
             align === 'right' ? 'right-0' : 'left-0'
           )}
         >
-          <div className="py-1" role="menu" aria-orientation="vertical">
+          <div className="p-1" role="menu" aria-orientation="vertical">
             {items.map((item, index) => (
               <button
                 key={index}
@@ -59,9 +59,9 @@ export default function Dropdown({
                 }}
                 disabled={item.disabled}
                 className={cn(
-                  'w-full text-left px-4 py-2 text-sm flex items-center gap-2',
-                  'text-gray-700 dark:text-gray-200',
-                  'hover:bg-gray-100 dark:hover:bg-gray-700',
+                  'flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-[12.5px] font-semibold',
+                  'text-[#3A4741] dark:text-surface-text',
+                  'hover:bg-[#F4F7F5] dark:hover:bg-surface-hover focus-visible:outline-none focus-visible:bg-[#F4F7F5]',
                   'disabled:opacity-50 disabled:cursor-not-allowed',
                   item.className
                 )}

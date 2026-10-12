@@ -1,20 +1,29 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiFileMinus, FiTrash2 } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
+import { FiFileMinus, FiDownload, FiFileText, FiFile, FiTrendingUp, FiTrendingDown, FiDollarSign } from 'react-icons/fi';
 import Card from '@/components/ui/Card';
+import RowActions from '@/components/ui/RowActions';
+import Alert from '@/components/ui/Alert';
+import Badge from '@/components/ui/Badge';
+import StatCard from '@/components/ui/StatCard';
+import PageHeader from '@/components/ui/PageHeader';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import Select from '@/components/ui/Select';
 import Table from '@/components/ui/Table';
 import Pagination from '@/components/ui/Pagination';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
-import TableToolbar from '@/components/ui/TableToolbar';
+import FilterBar from '@/components/ui/FilterBar';
+import Dropdown from '@/components/ui/Dropdown';
 import { TableColumn, Pagination as PaginationType } from '@/types';
 import { masterAccountService, LedgerItem, Ledger } from '@/services/masterAccountService';
 import { formatDate } from '@/utils/format';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
 import { ROUTES } from '@/constants/routes';
+import { toast } from '@/store/toastStore';
+import { getFriendlyError } from '@/utils/apiMessages';
+import { pct } from '@/utils/statSeries';
+import StatusBadge from '@/components/ui/StatusBadge';
 
 export default function MahalluLedgerItemsList() {
   const navigate = useNavigate();
@@ -49,7 +58,7 @@ export default function MahalluLedgerItemsList() {
       setItems(Array.isArray(result.data) ? result.data : []);
       if (result.pagination) setPagination(result.pagination);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch ledger items');
+      setError(getFriendlyError(err, "Couldn't load ledger items. Refresh the page or try again."));
       setItems([]);
     } finally {
       setLoading(false);
@@ -63,8 +72,9 @@ export default function MahalluLedgerItemsList() {
       await masterAccountService.deleteLedgerItem(selected.id);
       setShowDeleteModal(false);
       fetchItems();
+      toast.success('Ledger entry deleted');
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to delete ledger item');
+      toast.error(getFriendlyError(err, "Couldn't delete ledger entry. Try again in a moment."));
     } finally {
       setDeleting(false);
     }
@@ -75,11 +85,11 @@ export default function MahalluLedgerItemsList() {
       setIsExporting(true);
       const result = await masterAccountService.getLedgerItems({ limit: 10000, scope: 'mahallu' });
       const data = Array.isArray(result.data) ? result.data : [];
-      if (!data.length) { alert('No data to export'); return; }
+      if (!data.length) { toast.info('Nothing to export. Change your filters and try again.'); return; }
       if (type === 'csv') exportToCSV(columns, data, 'mahallu-ledger-items');
       else if (type === 'json') exportToJSON(columns, data, 'mahallu-ledger-items');
       else exportToPDF(columns, data, 'mahallu-ledger-items', 'Mahallu Ledger Items');
-    } catch (err: any) { alert(err?.message || 'Export failed'); }
+    } catch (err: any) { toast.error(getFriendlyError(err, "Couldn't export ledger entries. Check your connection and try again.")); }
     finally { setIsExporting(false); }
   };
 
@@ -93,72 +103,68 @@ export default function MahalluLedgerItemsList() {
     { key: 'date', label: 'Date', render: (d) => formatDate(d) },
     { key: 'description', label: 'Description' },
     { key: 'type', label: 'Type', render: (t) => (
-      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${t === 'income' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{t}</span>
+      <Badge variant={t === 'income' ? 'success' : 'danger'} dot className="capitalize">{t}</Badge>
     )},
-    { key: 'amount', label: 'Amount', render: (a) => `₹${(a || 0).toLocaleString()}` },
-    { key: 'paymentMethod', label: 'Method' },
-    { key: 'source', label: 'Source', render: (s) => s || 'manual' },
+    { key: 'amount', label: 'Amount', render: (a, row) => <span className={row.type === 'income' ? 'font-semibold text-[#0B4837] dark:text-brand-lime' : 'font-semibold text-[#B3261E] dark:text-red-300'}>{`₹${(a || 0).toLocaleString()}`}</span> },
+    { key: 'paymentMethod', label: 'Method', render: (m) => (m ? <StatusBadge status={m} tone="neutral" dot={false} /> : '-') },
+    { key: 'source', label: 'Source', render: (s) => <StatusBadge status={s || 'manual'} tone="neutral" dot={false} /> },
     { key: 'actions', label: 'Actions', render: (_, row) => row.source === 'manual' ? (
-      <button onClick={() => { setSelected(row); setShowDeleteModal(true); }} className="p-1.5 rounded-md hover:bg-red-50 text-red-600"><FiTrash2 className="h-4 w-4" /></button>
+      <RowActions onDelete={() => { setSelected(row); setShowDeleteModal(true); }} ariaLabels={{ delete: 'Delete' }} />
     ) : null },
   ];
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Mahallu Ledger Items</h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Manual journal entries for the Mahallu</p>
-        </div>
-        <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Mahallu Finance', path: '/mahallu-finance/accounts' }, { label: 'Ledger Items' }]} />
+    <div className="space-y-4">
+      <PageHeader title="Mahallu Ledger Items" description="Manual journal entries for the Mahallu"
+        actions={
+          <Button onClick={() => navigate(ROUTES.MAHALLU_FINANCE.LEDGER_ITEMS_CREATE)}><FiFileMinus className="h-3.5 w-3.5" />Add Entry</Button>
+        }
+      />
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <StatCard variant="inline" title="Total Income" value={`₹${totalIncome.toLocaleString()}`} tone="green" icon={<FiTrendingUp className="h-[17px] w-[17px]" />} />
+        <StatCard variant="inline" viz={totalIncome > 0 ? { type: 'bullet', percent: pct(totalExpense, totalIncome), target: 100, color: totalExpense > totalIncome ? '#B3261E' : '#04563A' } : undefined} summary={`Expense ₹${(totalExpense).toLocaleString()}, ${pct(totalExpense, totalIncome)} percent of income`} title="Total Expense" value={`₹${totalExpense.toLocaleString()}`} tone="red" icon={<FiTrendingDown className="h-[17px] w-[17px]" />} />
+        <StatCard variant="inline" viz={totalIncome + totalExpense > 0 ? { type: 'pair', a: totalIncome, b: totalExpense, colorB: '#E0B400' } : undefined} summary={`Income ₹${(totalIncome).toLocaleString()} compared with expense ₹${(totalExpense).toLocaleString()}`} title="Net Balance" value={`₹${(totalIncome - totalExpense).toLocaleString()}`} tone="neutral" icon={<FiDollarSign className="h-[17px] w-[17px]" />} />
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
-          <p className="text-sm text-green-600">Total Income</p>
-          <p className="text-2xl font-bold text-green-700">₹{totalIncome.toLocaleString()}</p>
-        </div>
-        <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg">
-          <p className="text-sm text-red-600">Total Expense</p>
-          <p className="text-2xl font-bold text-red-700">₹{totalExpense.toLocaleString()}</p>
-        </div>
-        <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-          <p className="text-sm text-blue-600">Net Balance</p>
-          <p className="text-2xl font-bold text-blue-700">₹{(totalIncome - totalExpense).toLocaleString()}</p>
-        </div>
-      </div>
-
-      <Card>
-        <div className="flex flex-wrap items-center gap-3 mb-4">
-          <div className="w-48">
-            <Select
-              label="Filter by Ledger"
-              options={[{ value: 'all', label: 'All Ledgers' }, ...ledgers.map(l => ({ value: l.id, label: l.name }))]}
-              value={ledgerFilter}
-              onChange={e => { setLedgerFilter(e.target.value); setCurrentPage(1); }}
-            />
-          </div>
-        </div>
-        <TableToolbar
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-          onExport={handleExport}
-          isExporting={isExporting}
-          actionButtons={<Button onClick={() => navigate(ROUTES.MAHALLU_FINANCE.LEDGER_ITEMS_CREATE)} size="sm"><FiFileMinus className="h-4 w-4 mr-2" />Add Entry</Button>}
+      <Card padding="none" className="overflow-visible">
+        <FilterBar
+          search={{ value: searchQuery, onChange: setSearchQuery, placeholder: 'Search ledger items' }}
+          actions={
+            <>
+              <Dropdown
+                trigger={
+                  <Button variant="secondary" isLoading={isExporting}>
+                    {!isExporting && <FiDownload className="h-3.5 w-3.5" />}
+                    Export
+                  </Button>
+                }
+                items={[
+                  { label: 'Export CSV', icon: <FiFileText />, onClick: () => handleExport('csv'), disabled: isExporting },
+                  { label: 'Export JSON', icon: <FiFile />, onClick: () => handleExport('json'), disabled: isExporting },
+                  { label: 'Export PDF', icon: <FiDownload />, onClick: () => handleExport('pdf'), disabled: isExporting },
+                ]}
+              />
+            </>
+          }
         />
-        {loading ? <div className="flex justify-center py-12"><LoadingSpinner /></div>
-          : error ? <p className="text-center py-8 text-red-600">{error}</p>
-          : <>
-            <Table columns={columns} data={filtered} emptyMessage="No entries found" />
-            {pagination && <Pagination currentPage={currentPage} totalPages={pagination.totalPages || 1} totalItems={pagination.total || 0} itemsPerPage={itemsPerPage} onPageChange={setCurrentPage} />}
-          </>}
+
+        <div className="p-3.5">
+          {loading ? <div className="flex justify-center py-12"><LoadingSpinner /></div>
+            : error ? <Alert tone="danger">{error}</Alert>
+            : <>
+              <Table columns={columns} data={filtered} emptyMessage="No entries found" />
+              {pagination && <Pagination currentPage={currentPage} totalPages={pagination.totalPages || 1} totalItems={pagination.total || 0} itemsPerPage={itemsPerPage} onPageChange={setCurrentPage} />}
+            </>}
+      
+        </div>
       </Card>
 
-      <Modal isOpen={showDeleteModal} onClose={() => setShowDeleteModal(false)} title="Delete Entry">
-        <p className="text-gray-600 dark:text-gray-400 mb-6">Delete entry: <strong>{selected?.description}</strong>?</p>
+      <Modal isOpen={showDeleteModal} onClose={() => setShowDeleteModal(false)} title="Delete entry?">
+        <p className="text-[#5B6963] dark:text-surface-muted mb-6">Delete entry: <strong>{selected?.description}</strong>?</p>
         <div className="flex justify-end gap-3">
           <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>Cancel</Button>
-          <Button variant="danger" onClick={handleDelete} disabled={deleting}>{deleting ? 'Deleting...' : 'Delete'}</Button>
+          <Button variant="danger-solid" onClick={handleDelete} disabled={deleting}>{deleting ? 'Deleting...' : 'Delete'}</Button>
         </div>
       </Modal>
     </div>

@@ -3,7 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/store/authStore';
 import { memberPortalService } from '@/services/memberPortalService';
 import { ROUTES } from '@/constants/routes';
+import { FiCheckCircle } from 'react-icons/fi';
 import Card from '@/components/ui/Card';
+import Button from '@/components/ui/Button';
+import Input, { controlClasses, labelClasses } from '@/components/ui/Input';
+import PageHeader from '@/components/ui/PageHeader';
+import Alert from '@/components/ui/Alert';
+import { toast } from '@/store/toastStore';
+import { getFriendlyError } from '@/utils/apiMessages';
 
 type NOCType = 'nikah' | 'common' | null;
 
@@ -77,10 +84,10 @@ export default function MemberNOCRequest() {
       setSubmitting(true);
       setErrorMsg(null);
       await memberPortalService.requestNOC(payload);
-      setSuccessMsg('NOC request submitted successfully! Awaiting admin approval.');
+      setSuccessMsg('NOC request submitted. An admin will review it next.');
       setTimeout(() => navigate(ROUTES.MEMBER.NOC_LIST), 2000);
     } catch (err: any) {
-      setErrorMsg(err.response?.data?.message || 'Failed to submit NOC request');
+      toast.error(getFriendlyError(err, "Couldn't submit NOC request. Try again in a moment."));
     } finally {
       setSubmitting(false);
     }
@@ -88,50 +95,60 @@ export default function MemberNOCRequest() {
 
   if (successMsg) {
     return (
-      <div className="max-w-xl mx-auto mt-10">
-        <Card>
-          <div className="text-center space-y-3 py-4">
-            <div className="text-4xl text-green-500">✓</div>
-            <p className="text-green-600 dark:text-green-400 font-semibold text-lg">{successMsg}</p>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Redirecting to your NOC list…</p>
+      <div className="mx-auto mt-10 max-w-xl">
+        <Card padding="lg">
+          <div className="space-y-3 py-4 text-center">
+            <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-mint text-primary-600 dark:bg-brand-lime/10 dark:text-brand-lime">
+              <FiCheckCircle className="h-6 w-6" aria-hidden="true" />
+            </span>
+            <p className="text-base font-bold text-primary-700 dark:text-brand-lime">{successMsg}</p>
+            <p className="text-xs text-[#7B8983] dark:text-surface-muted">Redirecting to your NOC list…</p>
           </div>
         </Card>
       </div>
     );
   }
 
+  const typeCard =
+    'block w-full rounded-card border border-line bg-white p-5 text-left shadow-card transition-[border-color,box-shadow] hover:border-primary-600 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-lime/[.28] dark:border-surface-border dark:bg-surface-card dark:hover:border-brand-lime';
+
+  const formActions = (
+    <div className="mt-5 flex gap-2 border-t border-line-soft pt-4 dark:border-surface-border">
+      <Button onClick={handleSubmit} isLoading={submitting} className="flex-1">
+        {submitting ? 'Submitting…' : 'Submit Request'}
+      </Button>
+      <Button variant="secondary" onClick={() => navigate(ROUTES.MEMBER.NOC_LIST)}>
+        Cancel
+      </Button>
+    </div>
+  );
+
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
-      <div className="flex items-center gap-4">
-        <button
-          onClick={() => navigate(ROUTES.MEMBER.NOC_LIST)}
-          className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
-        >
-          ← Back
-        </button>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Request NOC</h1>
-      </div>
+    <div className="mx-auto max-w-2xl space-y-4">
+      <PageHeader
+        title="Request NOC"
+        description="Apply for a no-objection certificate"
+        actions={
+          <Button variant="secondary" onClick={() => navigate(ROUTES.MEMBER.NOC_LIST)}>
+            ← Back
+          </Button>
+        }
+      />
 
       {/* Step 1: Select Type */}
       {!selectedType && (
-        <div className="space-y-4">
-          <p className="text-gray-600 dark:text-gray-400 text-sm">Select the type of NOC you want to apply for:</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <button
-              onClick={() => setSelectedType('nikah')}
-              className="block w-full text-left p-5 rounded-xl border-2 border-gray-200 dark:border-gray-700 hover:border-primary-500 dark:hover:border-primary-500 transition-colors bg-white dark:bg-gray-900 shadow-sm"
-            >
-              <div className="text-2xl mb-2">💍</div>
-              <h3 className="font-semibold text-gray-900 dark:text-gray-100">Nikah (Marriage) NOC</h3>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">For marriage (nikah) ceremony</p>
+        <div className="space-y-3">
+          <p className="text-[13px] text-[#5B6963] dark:text-surface-muted">Select the type of NOC you want to apply for:</p>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <button onClick={() => setSelectedType('nikah')} className={typeCard}>
+              <div className="mb-2 text-2xl">💍</div>
+              <h3 className="text-sm font-bold text-[#18231E] dark:text-surface-text">Nikah (Marriage) NOC</h3>
+              <p className="mt-1 text-xs text-[#7B8983] dark:text-surface-muted">For marriage (nikah) ceremony</p>
             </button>
-            <button
-              onClick={() => setSelectedType('common')}
-              className="block w-full text-left p-5 rounded-xl border-2 border-gray-200 dark:border-gray-700 hover:border-primary-500 dark:hover:border-primary-500 transition-colors bg-white dark:bg-gray-900 shadow-sm"
-            >
-              <div className="text-2xl mb-2">📄</div>
-              <h3 className="font-semibold text-gray-900 dark:text-gray-100">Common NOC</h3>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">For general or other purposes</p>
+            <button onClick={() => setSelectedType('common')} className={typeCard}>
+              <div className="mb-2 text-2xl">📄</div>
+              <h3 className="text-sm font-bold text-[#18231E] dark:text-surface-text">Common NOC</h3>
+              <p className="mt-1 text-xs text-[#7B8983] dark:text-surface-muted">For general or other purposes</p>
             </button>
           </div>
         </div>
@@ -139,171 +156,110 @@ export default function MemberNOCRequest() {
 
       {/* Step 2a: Nikah Form */}
       {selectedType === 'nikah' && (
-        <Card>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">💍 Nikah NOC Details</h2>
-            <button onClick={() => setSelectedType(null)} className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+        <Card padding="lg">
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <h2 className="text-sm font-bold text-[#18231E] dark:text-surface-text">💍 Nikah NOC Details</h2>
+              <p className="mt-0.5 text-xs text-[#7B8983] dark:text-surface-muted">Tell us about the nikah</p>
+            </div>
+            <Button size="sm" variant="ghost" onClick={() => setSelectedType(null)}>
               Change type
-            </button>
+            </Button>
           </div>
           <div className="space-y-4">
+            <Input label="Groom Name (Your Name)" type="text" value={user?.name || ''} readOnly />
+            <Input
+              label="Bride Name"
+              type="text"
+              required
+              value={nikahForm.brideName}
+              onChange={(e) => setNikahForm({ ...nikahForm, brideName: e.target.value })}
+              placeholder="Enter bride's full name"
+              error={errors.brideName}
+            />
+            <Input
+              label="Bride Age"
+              type="number"
+              value={nikahForm.brideAge}
+              onChange={(e) => setNikahForm({ ...nikahForm, brideAge: e.target.value })}
+              placeholder="Age in years"
+              min={1}
+              max={120}
+            />
+            <Input
+              label="Nikah Date"
+              type="date"
+              required
+              value={nikahForm.nikahDate}
+              onChange={(e) => setNikahForm({ ...nikahForm, nikahDate: e.target.value })}
+              error={errors.nikahDate}
+            />
+            <Input
+              label="Venue / Location"
+              type="text"
+              required
+              value={nikahForm.venue}
+              onChange={(e) => setNikahForm({ ...nikahForm, venue: e.target.value })}
+              placeholder="Where will the nikah take place?"
+              error={errors.venue}
+            />
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Groom Name (Your Name)</label>
-              <input
-                type="text"
-                value={user?.name || ''}
-                readOnly
-                className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400 text-sm cursor-not-allowed"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Bride Name <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={nikahForm.brideName}
-                onChange={(e) => setNikahForm({ ...nikahForm, brideName: e.target.value })}
-                placeholder="Enter bride's full name"
-                className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-              />
-              {errors.brideName && <p className="text-red-500 text-xs mt-1">{errors.brideName}</p>}
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Bride Age</label>
-              <input
-                type="number"
-                value={nikahForm.brideAge}
-                onChange={(e) => setNikahForm({ ...nikahForm, brideAge: e.target.value })}
-                placeholder="Age in years"
-                min={1}
-                max={120}
-                className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Nikah Date <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="date"
-                value={nikahForm.nikahDate}
-                onChange={(e) => setNikahForm({ ...nikahForm, nikahDate: e.target.value })}
-                className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-              />
-              {errors.nikahDate && <p className="text-red-500 text-xs mt-1">{errors.nikahDate}</p>}
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Venue / Location <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={nikahForm.venue}
-                onChange={(e) => setNikahForm({ ...nikahForm, venue: e.target.value })}
-                placeholder="Where will the nikah take place?"
-                className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-              />
-              {errors.venue && <p className="text-red-500 text-xs mt-1">{errors.venue}</p>}
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Additional Remarks</label>
+              <label className={labelClasses}>Additional Remarks</label>
               <textarea
                 value={nikahForm.remarks}
                 onChange={(e) => setNikahForm({ ...nikahForm, remarks: e.target.value })}
                 placeholder="Any additional information…"
                 rows={3}
-                className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
+                className={`${controlClasses} resize-none py-2`}
               />
             </div>
           </div>
-          {errorMsg && (
-            <p className="text-red-500 text-sm mt-4 bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-lg">{errorMsg}</p>
-          )}
-          <div className="flex gap-3 mt-6">
-            <button
-              onClick={handleSubmit}
-              disabled={submitting}
-              className="flex-1 py-2 px-4 bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white font-medium rounded-lg text-sm transition-colors"
-            >
-              {submitting ? 'Submitting…' : 'Submit Request'}
-            </button>
-            <button
-              onClick={() => navigate(ROUTES.MEMBER.NOC_LIST)}
-              className="py-2 px-4 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-sm hover:bg-gray-50 dark:hover:bg-gray-800"
-            >
-              Cancel
-            </button>
-          </div>
+          {errorMsg && <Alert tone="danger" className="mt-4">{errorMsg}</Alert>}
+          {formActions}
         </Card>
       )}
 
       {/* Step 2b: Common Form */}
       {selectedType === 'common' && (
-        <Card>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">📄 Common NOC Details</h2>
-            <button onClick={() => setSelectedType(null)} className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+        <Card padding="lg">
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <h2 className="text-sm font-bold text-[#18231E] dark:text-surface-text">📄 Common NOC Details</h2>
+              <p className="mt-0.5 text-xs text-[#7B8983] dark:text-surface-muted">Describe the purpose of this NOC</p>
+            </div>
+            <Button size="sm" variant="ghost" onClick={() => setSelectedType(null)}>
               Change type
-            </button>
+            </Button>
           </div>
           <div className="space-y-4">
+            <Input label="Applicant Name" type="text" value={user?.name || ''} readOnly />
+            <Input
+              label="Purpose Title"
+              type="text"
+              required
+              value={commonForm.purposeTitle}
+              onChange={(e) => setCommonForm({ ...commonForm, purposeTitle: e.target.value })}
+              placeholder="Brief title for this NOC"
+              error={errors.purposeTitle}
+            />
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Applicant Name</label>
-              <input
-                type="text"
-                value={user?.name || ''}
-                readOnly
-                className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400 text-sm cursor-not-allowed"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Purpose Title <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={commonForm.purposeTitle}
-                onChange={(e) => setCommonForm({ ...commonForm, purposeTitle: e.target.value })}
-                placeholder="Brief title for this NOC"
-                className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-              />
-              {errors.purposeTitle && <p className="text-red-500 text-xs mt-1">{errors.purposeTitle}</p>}
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Description / Reason <span className="text-red-500">*</span>
+              <label className={labelClasses}>
+                Description / Reason <span className="text-[#D9534F]">*</span>
               </label>
               <textarea
                 value={commonForm.purposeDescription}
                 onChange={(e) => setCommonForm({ ...commonForm, purposeDescription: e.target.value })}
                 placeholder="Describe the purpose and reason for this NOC request…"
                 rows={5}
-                className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
+                className={`${controlClasses} resize-none py-2`}
               />
               {errors.purposeDescription && (
-                <p className="text-red-500 text-xs mt-1">{errors.purposeDescription}</p>
+                <p role="alert" className="mt-1.5 text-[12px] font-medium text-[#B3261E] dark:text-red-300">{errors.purposeDescription}</p>
               )}
             </div>
           </div>
-          {errorMsg && (
-            <p className="text-red-500 text-sm mt-4 bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-lg">{errorMsg}</p>
-          )}
-          <div className="flex gap-3 mt-6">
-            <button
-              onClick={handleSubmit}
-              disabled={submitting}
-              className="flex-1 py-2 px-4 bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white font-medium rounded-lg text-sm transition-colors"
-            >
-              {submitting ? 'Submitting…' : 'Submit Request'}
-            </button>
-            <button
-              onClick={() => navigate(ROUTES.MEMBER.NOC_LIST)}
-              className="py-2 px-4 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-sm hover:bg-gray-50 dark:hover:bg-gray-800"
-            >
-              Cancel
-            </button>
-          </div>
+          {errorMsg && <Alert tone="danger" className="mt-4">{errorMsg}</Alert>}
+          {formActions}
         </Card>
       )}
     </div>

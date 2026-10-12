@@ -3,14 +3,18 @@ import { Link } from 'react-router-dom';
 import { memberPortalService } from '@/services/memberPortalService';
 import { downloadNocPdf } from '@/utils/nocPdf';
 import { ROUTES } from '@/constants/routes';
+import { FiRefreshCw, FiDownload } from 'react-icons/fi';
 import Card from '@/components/ui/Card';
+import Button from '@/components/ui/Button';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
-
-const statusColors: Record<string, string> = {
-  pending: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
-  approved: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
-  rejected: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
-};
+import PageHeader from '@/components/ui/PageHeader';
+import StatusBadge from '@/components/ui/StatusBadge';
+import Table from '@/components/ui/Table';
+import EmptyState from '@/components/ui/EmptyState';
+import Alert from '@/components/ui/Alert';
+import { TableColumn } from '@/types';
+import RowActions from '@/components/ui/RowActions';
+import { getFriendlyError } from '@/utils/apiMessages';
 
 export default function MemberNOCList() {
   const [nocs, setNocs] = useState<any[]>([]);
@@ -26,7 +30,7 @@ export default function MemberNOCList() {
       const result = await memberPortalService.getOwnRegistrations('noc');
       setNocs(result.noc || []);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to load NOC records');
+      setError(getFriendlyError(err, "Couldn't load NOC records. Refresh the page or try again."));
     } finally {
       setLoading(false);
     }
@@ -44,7 +48,7 @@ export default function MemberNOCList() {
   }, []);
 
   const handleDownload = async (noc: any) => {
-    setDownloading(noc._id);
+    setDownloading(noc.id);
     try {
       const mahalluName =
         noc.tenantId && typeof noc.tenantId === 'object'
@@ -52,7 +56,7 @@ export default function MemberNOCList() {
           : undefined;
       await downloadNocPdf(
         {
-          id: noc._id,
+          id: noc.id,
           applicantName: noc.applicantName,
           applicantPhone: noc.applicantPhone,
           type: noc.type,
@@ -67,7 +71,7 @@ export default function MemberNOCList() {
           mahalluName,
           approvedBy: noc.approvedBy,
         } as any,
-        `noc-${noc.type}-${noc._id}`
+        `noc-${noc.type}-${noc.id}`
       );
     } finally {
       setDownloading(null);
@@ -84,106 +88,99 @@ export default function MemberNOCList() {
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center h-[calc(100vh-140px)] gap-4">
-        <p className="text-red-600 dark:text-red-400">{error}</p>
+      <div className="py-6">
+        <Alert tone="danger">{error}</Alert>
       </div>
     );
   }
 
+  const columns: TableColumn<any>[] = [
+    {
+      key: 'type',
+      label: 'Type',
+      render: (v) => <StatusBadge status={v} label={v === 'nikah' ? 'Nikah' : 'Common'} tone={v === 'nikah' ? 'info' : 'neutral'} dot={false} />,
+    },
+    {
+      key: 'purposeTitle',
+      label: 'Purpose / Title',
+      render: (_, noc) => (
+        <span className="block max-w-xs truncate">
+          {noc.purposeTitle ||
+            (noc.nikahRegistrationId?.brideName
+              ? `Nikah with ${noc.nikahRegistrationId.brideName}`
+              : '—')}
+        </span>
+      ),
+    },
+    {
+      key: 'createdAt',
+      label: 'Applied On',
+      render: (v) => (v ? new Date(v).toLocaleDateString('en-IN') : '—'),
+    },
+    {
+      key: 'status',
+      label: 'Status',
+      render: (v) => <StatusBadge status={v || 'pending'} />,
+    },
+    {
+      key: 'actions',
+      hideable: false,
+      label: 'Actions',
+      render: (_, noc) =>
+        <RowActions
+          extra={[
+            {
+              label: 'Download certificate',
+              icon: <FiDownload />,
+              onClick: () => handleDownload(noc),
+              disabledReason:
+                noc.status === 'approved'
+                  ? downloading === noc.id ? 'Generating…' : undefined
+                  : noc.status === 'pending' ? 'Awaiting approval' : 'Not available: this request was rejected',
+            },
+          ]}
+        />,
+    },
+  ];
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">My NOCs</h1>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => setRefreshKey(k => k + 1)}
-            className="text-sm text-gray-500 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
-            title="Refresh list"
-          >
-            ↻ Refresh
-          </button>
-        <Link
-          to={ROUTES.MEMBER.NOC_REQUEST}
-          className="py-2 px-4 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg text-sm transition-colors"
-        >
-          + Request NOC
-        </Link>
-        </div>
-      </div>
+    <div className="space-y-4">
+      <PageHeader
+        title="My NOCs"
+        description="Track your no-objection certificate requests"
+        actions={
+          <>
+            <Button variant="secondary" onClick={() => setRefreshKey((k) => k + 1)}>
+              <FiRefreshCw className="h-3.5 w-3.5" />
+              Refresh
+            </Button>
+            <Link to={ROUTES.MEMBER.NOC_REQUEST}>
+              <Button>+ Request NOC</Button>
+            </Link>
+          </>
+        }
+      />
 
       {nocs.length === 0 ? (
         <Card>
-          <div className="text-center py-12 space-y-3">
-            <p className="text-gray-500 dark:text-gray-400">No NOC requests found.</p>
+          <EmptyState
+            title="No NOC requests found"
+            description="Submit your first NOC request to get started."
+            action={undefined}
+          />
+          <div className="pb-6 text-center">
             <Link
               to={ROUTES.MEMBER.NOC_REQUEST}
-              className="text-primary-600 dark:text-primary-400 text-sm font-medium hover:underline"
+              className="text-[13px] font-semibold text-primary-600 hover:underline dark:text-brand-lime"
             >
               Submit your first NOC request →
             </Link>
           </div>
         </Card>
       ) : (
-        <Card>
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
-              <thead>
-                <tr className="text-left border-b border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-400">
-                  <th className="py-2 pr-4">Type</th>
-                  <th className="py-2 pr-4">Purpose / Title</th>
-                  <th className="py-2 pr-4">Applied On</th>
-                  <th className="py-2 pr-4">Status</th>
-                  <th className="py-2">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {nocs.map((noc: any, index: number) => (
-                  <tr
-                    key={noc._id || index}
-                    className="border-b border-gray-100 dark:border-gray-900 text-gray-900 dark:text-gray-100"
-                  >
-                    <td className="py-3 pr-4">
-                      {noc.type === 'nikah' ? '💍 Nikah' : '📄 Common'}
-                    </td>
-                    <td className="py-3 pr-4 max-w-xs truncate">
-                      {noc.purposeTitle ||
-                        (noc.nikahRegistrationId?.brideName
-                          ? `Nikah with ${noc.nikahRegistrationId.brideName}`
-                          : '—')}
-                    </td>
-                    <td className="py-3 pr-4 text-gray-500 dark:text-gray-400">
-                      {noc.createdAt
-                        ? new Date(noc.createdAt).toLocaleDateString('en-IN')
-                        : '—'}
-                    </td>
-                    <td className="py-3 pr-4">
-                      <span
-                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          statusColors[noc.status] || statusColors.pending
-                        }`}
-                      >
-                        {noc.status || 'pending'}
-                      </span>
-                    </td>
-                    <td className="py-3">
-                      {noc.status === 'approved' ? (
-                        <button
-                          onClick={() => handleDownload(noc)}
-                          disabled={downloading === noc._id}
-                          className="text-xs text-primary-600 dark:text-primary-400 hover:underline disabled:opacity-50"
-                        >
-                          {downloading === noc._id ? 'Generating…' : 'Download Certificate'}
-                        </button>
-                      ) : (
-                        <span className="text-xs text-gray-400 dark:text-gray-600">
-                          {noc.status === 'pending' ? 'Awaiting approval' : 'Rejected'}
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        <Card padding="none">
+          <div className="p-3.5">
+            <Table columns={columns} data={nocs} showExport={false} getRowId={(row, i) => String(row.id ?? i)} />
           </div>
         </Card>
       )}

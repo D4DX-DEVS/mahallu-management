@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiSave, FiX } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
+import Alert from '@/components/ui/Alert';
+import PageHeader from '@/components/ui/PageHeader';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
@@ -10,6 +11,8 @@ import { ROUTES } from '@/constants/routes';
 import { masterAccountService } from '@/services/masterAccountService';
 import { useAuthStore } from '@/store/authStore';
 import { getTenantId } from '@/utils/tenantHelper';
+import { toast } from '@/store/toastStore';
+import { getFriendlyError } from '@/utils/apiMessages';
 
 const emptyForm = {
   name: '',
@@ -35,36 +38,23 @@ export default function CreateMahalluCategory() {
       await masterAccountService.createCategory({ ...form, ...(tenantId ? { tenantId } : {}) });
       navigate(ROUTES.MAHALLU_FINANCE.CATEGORIES);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to create category. Please try again.');
+      toast.error(getFriendlyError(err, "Couldn't create category. Check the details and try again."));
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Add Category</h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Create a new income or expense category</p>
-        </div>
-        <Breadcrumb
-          items={[
-            { label: 'Dashboard', path: '/dashboard' },
-            { label: 'Mahallu Finance', path: ROUTES.MAHALLU_FINANCE.ACCOUNTS },
-            { label: 'Categories', path: ROUTES.MAHALLU_FINANCE.CATEGORIES },
-            { label: 'Create' },
-          ]}
-        />
-      </div>
+    <div className="space-y-4">
+      <PageHeader title="Add Category" description="Create a new income or expense category" />
 
       <form onSubmit={handleSubmit}>
-        <Card className="space-y-6">
-          {error && (
-            <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm dark:bg-red-900/30 dark:border-red-700 dark:text-red-300">
-              {error}
-            </div>
-          )}
+        <div className="space-y-4">
+          {error && <Alert tone="danger">{error}</Alert>}
+
+          <Card padding="lg">
+          <h3 className="text-sm font-bold text-primary-700 dark:text-surface-text">Category details</h3>
+          <p className="mb-3.5 mt-0.5 text-xs text-[#7B8983] dark:text-surface-muted">Name and type of the category</p>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input
@@ -95,16 +85,17 @@ export default function CreateMahalluCategory() {
               placeholder="Optional description"
             />
           </div>
+          </Card>
 
-          <div className="flex items-center justify-end gap-3 pt-2">
+          <div className="sticky bottom-0 z-10 -mx-1 flex flex-wrap justify-end gap-2 pb-[calc(0.75rem+env(safe-area-inset-bottom))] [&>button]:flex-1 sm:[&>button]:flex-none rounded-b-card border-t border-line bg-white/90 px-4 py-3 backdrop-blur dark:border-surface-border dark:bg-surface-card/90">
             <Button type="button" variant="secondary" onClick={() => navigate(ROUTES.MAHALLU_FINANCE.CATEGORIES)}>
-              <FiX className="h-4 w-4 mr-2" />Cancel
+              <FiX className="h-3.5 w-3.5" />Cancel
             </Button>
             <Button type="submit" disabled={saving || !form.name.trim()}>
-              <FiSave className="h-4 w-4 mr-2" />{saving ? 'Saving...' : 'Create Category'}
+              <FiSave className="h-3.5 w-3.5" />{saving ? 'Saving...' : 'Create Category'}
             </Button>
           </div>
-        </Card>
+        </div>
       </form>
     </div>
   );

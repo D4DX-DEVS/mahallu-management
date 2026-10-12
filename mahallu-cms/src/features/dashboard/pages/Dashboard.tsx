@@ -1,340 +1,265 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiUsers, FiHome, FiInbox, FiDollarSign } from 'react-icons/fi';
-import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area } from 'recharts';
+import { FiUsers, FiHome, FiInbox, FiDollarSign, FiUser } from 'react-icons/fi';
 import StatCard from '@/components/ui/StatCard';
-import Breadcrumb from '@/components/layout/Breadcrumb';
-import Card from '@/components/ui/Card';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
-import { dashboardService, DashboardStats, RecentFamily, ActivityTimelineData, FinancialSummary } from '@/services/dashboardService';
+import PageHeader from '@/components/ui/PageHeader';
+import HijriDate from '@/components/HijriDate';
+import Button from '@/components/ui/Button';
+import { useAuthStore } from '@/store/authStore';
+import {
+  dashboardService,
+  DashboardStats,
+  RecentFamily,
+  ActivityTimelineData,
+  FinancialSummary,
+  DashboardOverview,
+} from '@/services/dashboardService';
+import { welfareService, WelfareSummary } from '@/services/welfareService';
+import { meetingService } from '@/services/meetingService';
+import { masterAccountService, LedgerItem } from '@/services/masterAccountService';
 import { ROUTES } from '@/constants/routes';
-import { formatDate } from '@/utils/format';
+import { formatINR } from '@/utils/formatINR';
+import PhaseAInsights from '../components/PhaseAInsights';
+import NeedsAttention from '../components/NeedsAttention';
+import QuickActionsCard from '../components/QuickActionsCard';
+import OnboardingChecklist from '../components/OnboardingChecklist';
+import InstituteHome from '../components/InstituteHome';
+import {
+  IncomeExpenseCard,
+  CommunityMixCard,
+  WardBarsCard,
+  WelfarePipelineCard,
+  NextMeetingCard,
+  RegistrationsCard,
+  RecentActivityCard,
+  NextMeeting,
+  ActivityItem,
+} from '../components/DashboardWidgets';
+import { getFriendlyError } from '@/utils/apiMessages';
+import { canReadCommittees, canReadFinancialDashboard, canReadLedger, canReadWelfare } from '@/utils/apiAccess';
 
-const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444'];
+const initials = (name?: string) => {
+  if (!name) return 'NA';
+  const w = name.split(' ').filter(Boolean);
+  return (w.length >= 2 ? w[0][0] + w[1][0] : name.substring(0, 2)).toUpperCase();
+};
 
 export default function Dashboard() {
+  const role = useAuthStore((s) => s.user?.role);
+  if (role === 'institute') return <InstituteHome />;
+  return <CommunityDashboard />;
+}
+
+function CommunityDashboard() {
   const navigate = useNavigate();
+  const user = useAuthStore((st) => st.user);
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [recentFamilies, setRecentFamilies] = useState<RecentFamily[]>([]);
-  const [activityTimeline, setActivityTimeline] = useState<ActivityTimelineData[]>([]);
-  const [financialSummary, setFinancialSummary] = useState<FinancialSummary | null>(null);
+  const [timeline, setTimeline] = useState<ActivityTimelineData[]>([]);
+  const [financial, setFinancial] = useState<FinancialSummary | null>(null);
+  const [overview, setOverview] = useState<DashboardOverview | null>(null);
+  const [welfare, setWelfare] = useState<WelfareSummary | null>(null);
+  const [nextMeeting, setNextMeeting] = useState<NextMeeting | null>(null);
+  const [ledger, setLedger] = useState<{ items: LedgerItem[]; total: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchDashboardData();
-  }, []);
-
-  const fetchDashboardData = async () => {
+  const load = useCallback(async () => {
     try {
       setLoading(true);
-      const [statsData, familiesData, timelineData, financialData] = await Promise.all([
+      setError(null);
+      // Core data must load; everything else is optional per role / tenant modules.
+      const [statsData, familiesData, timelineData] = await Promise.all([
         dashboardService.getStats(),
         dashboardService.getRecentFamilies(5),
         dashboardService.getActivityTimeline(7),
-        dashboardService.getFinancialSummary().catch(() => null),
       ]);
       setStats(statsData);
       setRecentFamilies(familiesData);
-      setActivityTimeline(timelineData);
-      setFinancialSummary(financialData);
+      setTimeline(timelineData);
+      setLoading(false);
+
+      // Only ask for what the role may read (the API would answer 403 and log a console error).
+      const { user: u, isSuperAdmin: sa } = useAuthStore.getState();
+      const [fin, ov, wf, meetings, items] = await Promise.all([
+        canReadFinancialDashboard(u?.role, sa) ? dashboardService.getFinancialSummary().catch(() => null) : null,
+        canReadFinancialDashboard(u?.role, sa) ? dashboardService.getOverview().catch(() => null) : null,
+        canReadWelfare(u?.role, sa) ? welfareService.getSummary().catch(() => null) : null,
+        canReadCommittees(u?.role, sa) ? meetingService.getAll({ status: 'scheduled', limit: 100 }).catch(() => null) : null,
+        canReadLedger(u?.role, sa) ? masterAccountService.getLedgerItems({ limit: 5 }).catch(() => null) : null,
+      ]);
+      setFinancial(fin);
+      setOverview(ov);
+      setWelfare(wf);
+      setLedger(items ? { items: items.data, total: items.pagination?.total ?? items.data.length } : null);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const upcoming = (meetings?.data ?? [])
+        .filter((m) => new Date(m.meetingDate) >= today)
+        .sort((a, b) => +new Date(a.meetingDate) - +new Date(b.meetingDate))[0];
+      setNextMeeting(
+        upcoming ? { id: upcoming.id, title: upcoming.title, committee: upcoming.committeeName || (upcoming as any).committeeId?.name, date: upcoming.meetingDate } : null
+      );
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to load dashboard data');
-      console.error('Error fetching dashboard data:', err);
-    } finally {
+      setError(getFriendlyError(err, "Couldn't load dashboard data. Refresh the page or try again."));
       setLoading(false);
     }
-  };
+  }, []);
 
-  const getInitials = (name: string | undefined) => {
-    if (!name) return 'NA';
-    const words = name.split(' ').filter(word => word.length > 0);
-    if (words.length >= 2) {
-      return (words[0][0] + words[1][0]).toUpperCase();
-    }
-    return name.substring(0, 2).toUpperCase();
-  };
-
-  const getTimeAgo = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffInMs = now.getTime() - date.getTime();
-    const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
-    
-    if (diffInDays === 0) return 'Today';
-    if (diffInDays === 1) return 'Yesterday';
-    if (diffInDays < 7) return `${diffInDays} days ago`;
-    if (diffInDays < 30) return `${Math.floor(diffInDays / 7)} weeks ago`;
-    return formatDate(dateString);
-  };
-
-  const statCards = stats
-    ? [
-        {
-          title: 'Total Users',
-          value: stats.users.total.toString(),
-          icon: <FiUsers className="h-5 w-5" />,
-          onClick: () => navigate(ROUTES.USERS.MAHALL),
-        },
-        {
-          title: 'Total Families',
-          value: stats.families.total.toString(),
-          icon: <FiHome className="h-5 w-5" />,
-          onClick: () => navigate(ROUTES.FAMILIES.LIST),
-        },
-        {
-          title: 'Monthly Income',
-          value: `₹${(financialSummary?.monthlyIncome || 0).toLocaleString()}`,
-          icon: <FiDollarSign className="h-5 w-5" />,
-          trend: financialSummary?.incomeGrowthPercent != null
-            ? { value: Math.abs(financialSummary.incomeGrowthPercent), isPositive: financialSummary.incomeGrowthPercent >= 0 }
-            : undefined,
-        },
-        {
-          title: 'Bank Balance',
-          value: `₹${(financialSummary?.totalBankBalance || 0).toLocaleString()}`,
-          icon: <FiInbox className="h-5 w-5" />,
-        },
-      ]
-    : [];
-
-  const genderData = stats
-    ? [
-        { name: 'Male', value: stats.members.male },
-        { name: 'Female', value: stats.members.female },
-      ]
-    : [];
-
-  const familyStatusData = stats
-    ? [
-        { name: 'Approved', value: stats.families.approved },
-        { name: 'Pending', value: stats.families.pending },
-        { name: 'Unapproved', value: stats.families.unapproved },
-      ]
-    : [];
+  useEffect(() => {
+    load();
+  }, [load]);
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-[calc(100vh-100px)]">
+      <div className="flex h-[calc(100vh-100px)] items-center justify-center">
         <LoadingSpinner />
       </div>
     );
   }
 
-  if (error) {
+  if (error || !stats) {
     return (
-      <div className="flex flex-col items-center justify-center h-[calc(100vh-100px)]">
-        <p className="text-red-600 dark:text-red-400 mb-4 text-lg">{error}</p>
-        <button
-          onClick={fetchDashboardData}
-          className="px-6 py-2.5 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-colors shadow-sm font-medium"
-        >
-          Retry
-        </button>
+      <div className="flex h-[calc(100vh-100px)] flex-col items-center justify-center">
+        <p className="mb-4 text-lg text-red-600 dark:text-red-400">{error}</p>
+        <Button onClick={load}>Retry</Button>
       </div>
     );
   }
 
+  const incomeSeries = overview?.monthlyTrend.map((m) => m.income) ?? [];
+  const regSeries = timeline.map((t) => t.value);
+
+  const statCards = [
+    {
+      title: 'Total Families',
+      value: stats.families.total.toLocaleString('en-IN'),
+      icon: <FiHome />,
+      tone: 'lime' as const,
+      pills: [`${stats.families.approved} approved`, `${stats.families.pending} pending`],
+      viz: regSeries.some((v) => v > 0) ? { type: 'bars' as const, values: regSeries } : undefined,
+      summary: `Total families ${stats.families.total}, ${stats.families.approved} approved, ${stats.families.pending} pending`,
+      onClick: () => navigate(ROUTES.FAMILIES.LIST),
+    },
+    {
+      title: 'Total Members',
+      value: stats.members.total.toLocaleString('en-IN'),
+      icon: <FiUser />,
+      tone: 'green' as const,
+      pills: [`${stats.members.male} male`, `${stats.members.female} female`],
+      viz: { type: 'segments' as const, segments: [{ value: stats.members.male }, { value: stats.members.female, color: '#8EC13E' }] },
+      summary: `Total members ${stats.members.total}: ${stats.members.male} male, ${stats.members.female} female`,
+      onClick: () => navigate(ROUTES.MEMBERS.LIST),
+    },
+    ...(financial
+      ? [
+          {
+            title: 'Monthly Income',
+            value: formatINR(financial.monthlyIncome),
+            icon: <FiDollarSign />,
+            tone: 'gold' as const,
+            viz: incomeSeries.some((v) => v > 0) ? { type: 'area' as const, values: incomeSeries } : undefined,
+            trend:
+              financial.incomeGrowthPercent != null
+                ? { value: Math.abs(financial.incomeGrowthPercent), isPositive: financial.incomeGrowthPercent >= 0, suffix: 'vs last month' }
+                : undefined,
+          },
+          { title: 'Bank Balance', value: formatINR(financial.totalBankBalance), icon: <FiInbox />, tone: 'green' as const, pills: [`${financial.bankAccountCount} accounts`] },
+        ]
+      : [
+          {
+            title: 'Total Users',
+            value: stats.users.total.toLocaleString('en-IN'),
+            icon: <FiUsers />,
+            tone: 'green' as const,
+            pills: [`${stats.users.active} active`, `${stats.users.inactive} inactive`],
+            viz: { type: 'segments' as const, segments: [{ value: stats.users.active }, { value: stats.users.inactive, color: '#FDD817' }] },
+            onClick: () => navigate(ROUTES.USERS.MAHALL),
+          },
+        ]),
+  ];
+
+  // Merge newest family registrations and ledger entries into one feed.
+  const feed: (ActivityItem & { ts: number })[] = [
+    ...recentFamilies.map((f) => ({
+      id: `f-${f.id}`,
+      title: f.familyName,
+      sub: 'Family registered',
+      at: f.createdAt,
+      to: `/families/${f.id}`,
+      status: f.status,
+      initials: initials(f.familyName),
+      avatarName: f.familyName,
+      ts: +new Date(f.createdAt),
+    })),
+    ...(ledger?.items ?? []).map((l) => ({
+      id: `l-${l.id}`,
+      title: l.description || 'Ledger entry',
+      sub: l.type === 'income' ? 'Income recorded' : 'Expense recorded',
+      at: l.date || l.createdAt,
+      to: '/master-accounts/ledger-items',
+      initials: l.type === 'income' ? '+' : '−',
+      badge: (
+        <span className={l.type === 'income' ? 'text-[12.5px] font-extrabold text-primary-600 dark:text-brand-lime' : 'text-[12.5px] font-extrabold text-[#B3261E] dark:text-red-300'}>
+          {l.type === 'income' ? '+' : '−'}
+          {formatINR(l.amount)}
+        </span>
+      ),
+      ts: +new Date(l.date || l.createdAt),
+    })),
+  ]
+    .sort((a, b) => b.ts - a.ts)
+    .slice(0, 7);
+
+  const isMahall = user?.role === 'mahall' || user?.role === 'super_admin';
+
   return (
-    <div className="space-y-4 animate-in fade-in duration-500">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
-          Dashboard
-        </h1>
-        <div className="hidden sm:block">
-            {/* Action buttons could go here */}
+    <div className="space-y-4">
+      <PageHeader
+        title={user?.name ? `Assalamu alaikum, ${user.name.split(' ')[0]}` : 'Dashboard'}
+        description={<>Here is how your Mahallu is doing today. <HijriDate withGregorian className="font-semibold" /></>}
+      />
+
+      {isMahall && (
+        <OnboardingChecklist familyCount={stats.families.total} userCount={stats.users.total} ledgerCount={ledger ? ledger.total : null} />
+      )}
+
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+        <div className="xl:col-span-2">
+          <NeedsAttention pendingFamilies={stats.families.pending} />
+        </div>
+        <div className="space-y-4">
+          <QuickActionsCard />
+          <NextMeetingCard meeting={nextMeeting} />
         </div>
       </div>
 
-      {/* Statistics Cards */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {statCards.map((stat, index) => (
-          <StatCard key={index} {...stat} />
+        {statCards.map((s) => (
+          <StatCard key={s.title} {...s} />
         ))}
       </div>
 
+      {overview && (
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+          <div className="xl:col-span-2">
+            <IncomeExpenseCard trend={overview.monthlyTrend} />
+          </div>
+          <CommunityMixCard male={stats.members.male} female={stats.members.female} />
+        </div>
+      )}
+
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-        {/* Main Chart Area */}
-        <Card className="lg:col-span-2 h-full">
-            <div className="mb-4 flex items-center justify-between">
-                <div>
-                    <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">
-                        Attendance Timeline
-                    </h2>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">Weekly overview</p>
-                </div>
-            </div>
-            <div className="h-[250px] w-full">
-                 <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={activityTimeline}>
-                        <defs>
-                            <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.1}/>
-                                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
-                            </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
-                        <XAxis 
-                            dataKey="name" 
-                            axisLine={false}
-                            tickLine={false}
-                            tick={{ fill: '#9ca3af', fontSize: 12 }}
-                            dy={10}
-                        />
-                        <YAxis 
-                            axisLine={false}
-                            tickLine={false}
-                            tick={{ fill: '#9ca3af', fontSize: 12 }}
-                        />
-                        <Tooltip 
-                            contentStyle={{ 
-                                backgroundColor: '#fff', 
-                                border: '1px solid #e5e7eb',
-                                borderRadius: '8px',
-                                boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
-                            }}
-                        />
-                        <Area 
-                            type="monotone" 
-                            dataKey="value" 
-                            stroke="#3b82f6" 
-                            strokeWidth={3}
-                            fillOpacity={1} 
-                            fill="url(#colorValue)" 
-                        />
-                    </AreaChart>
-                </ResponsiveContainer>
-            </div>
-        </Card>
-
-        {/* Latest Registrations / List */}
-        <Card className="h-full">
-          <div className="mb-4">
-            <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">
-                    Latest Registrations
-                </h2>
-             <p className="text-xs text-gray-500 dark:text-gray-400">Recent family entries</p>
-            </div>
-          <div className="space-y-2.5">
-                {recentFamilies.length > 0 ? (
-                  recentFamilies.map((family) => (
-                    <div 
-                      key={family.id} 
-                className="flex cursor-pointer items-center gap-3 rounded-lg border border-transparent p-2.5 transition-colors hover:border-gray-100 hover:bg-gray-50 dark:hover:border-gray-800 dark:hover:bg-gray-800/50"
-                      onClick={() => navigate(`/families/${family.id}`)}
-                    >
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary-100 text-xs font-bold text-primary-600 dark:bg-primary-900/30 dark:text-primary-400">
-                            {getInitials(family.familyName)}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                  <p className="truncate text-[0.82rem] font-semibold text-gray-900 dark:text-white">
-                                {family.familyName}
-                            </p>
-                  <p className="truncate text-[0.72rem] text-gray-500 dark:text-gray-400">
-                                {getTimeAgo(family.createdAt)}
-                            </p>
-                        </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                    No recent families
-                  </div>
-                )}
-            </div>
-        </Card>
+        {overview && <WardBarsCard rows={overview.varisangyaByWard} />}
+        {welfare && <WelfarePipelineCard summary={welfare} />}
+        <RegistrationsCard data={timeline} />
+        {!overview && <CommunityMixCard male={stats.members.male} female={stats.members.female} />}
       </div>
 
-      {/* Secondary Charts Section */}
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-        <Card className="h-full">
-          <div className="mb-4">
-            <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">
-              Gender Distribution
-            </h2>
-            <p className="text-xs text-gray-500 dark:text-gray-400">Overview of member demographics</p>
-          </div>
-          {genderData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={250}>
-              <PieChart>
-                <Pie
-                  data={genderData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={80}
-                  paddingAngle={5}
-                  dataKey="value"
-                >
-                  {genderData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: '#fff',
-                    borderRadius: '8px',
-                    border: '1px solid #e5e7eb',
-                    boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
-                  }}
-                />
-                <Legend verticalAlign="bottom" height={36}/>
-              </PieChart>
-            </ResponsiveContainer>
-          ) : (
-            <div className="h-64 flex items-center justify-center text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
-              No data available
-            </div>
-          )}
-        </Card>
-        <Card className="h-full">
-          <div className="mb-4">
-            <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">
-              Family Status
-            </h2>
-             <p className="text-xs text-gray-500 dark:text-gray-400">Registration status overview</p>
-          </div>
-          {familyStatusData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={250}>
-              <BarChart data={familyStatusData}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
-                <XAxis 
-                  dataKey="name" 
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fill: '#6b7280', fontSize: 12 }}
-                  dy={10}
-                />
-                <YAxis 
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fill: '#6b7280', fontSize: 12 }}
-                />
-                <Tooltip
-                  cursor={{ fill: 'rgba(0,0,0,0.05)' }}
-                  contentStyle={{ 
-                    backgroundColor: '#fff',
-                    borderRadius: '8px',
-                    border: '1px solid #e5e7eb',
-                    boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
-                  }}
-                />
-                <Bar 
-                  dataKey="value" 
-                  fill="#3b82f6" 
-                  radius={[4, 4, 0, 0]}
-                  barSize={40}
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          ) : (
-             <div className="h-64 flex items-center justify-center text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
-              No data available
-            </div>
-          )}
-        </Card>
-      </div>
+      <RecentActivityCard items={feed} />
+
+      <PhaseAInsights />
     </div>
   );
 }
-

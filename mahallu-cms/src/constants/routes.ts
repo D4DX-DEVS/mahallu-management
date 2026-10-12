@@ -103,6 +103,8 @@ export const ROUTES = {
   COLLECTIBLES: {
     OVERVIEW: '/collections',
     VARISANGYA: '/collectibles/varisangya',
+    QUICK: '/collectibles/quick',
+    PAYMENT_APPROVALS: '/collectibles/payment-approvals',
     FAMILY_VARISANGYA: {
       BASE: '/collectibles/family-varisangya',
       LIST: '/collectibles/family-varisangya',
@@ -116,6 +118,7 @@ export const ROUTES = {
       WALLET: '/collectibles/member-varisangya',
     },
     ZAKAT: '/collectibles/zakat',
+    DUES: '/collectibles/dues',
   },
   
   // Social
@@ -182,6 +185,13 @@ export const ROUTES = {
     CREATE: '/assets/create',
     DETAIL: (id: string) => `/assets/${id}`,
     EDIT: (id: string) => `/assets/${id}/edit`,
+  },
+
+  // Religious Services
+  RELIGIOUS: {
+    KHUTBAHS: '/religious/khutbahs',
+    KHUTBAHS_CREATE: '/religious/khutbahs/create',
+    KHATEEBS: '/religious/khateebs',
   },
 } as const;
 

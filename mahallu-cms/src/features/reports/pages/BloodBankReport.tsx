@@ -1,12 +1,18 @@
 import { useState, useEffect } from 'react';
 import { FiDownload, FiPrinter } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
+import StatCard from '@/components/ui/StatCard';
+import PageHeader from '@/components/ui/PageHeader';
 import Button from '@/components/ui/Button';
+import { PersonCell } from '@/components/ui/Avatar';
+import BloodGroupBadge from '@/components/ui/BloodGroupBadge';
+import GenderChip from '@/components/ui/GenderChip';
 import Select from '@/components/ui/Select';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { reportService, BloodBankReport } from '@/services/reportService';
 import { exportToPDF } from '@/utils/exportUtils';
+import { getFriendlyError } from '@/utils/apiMessages';
+import ScrollX from '@/features/_shared/ScrollX';
 
 export default function BloodBankReportPage() {
   const [bloodGroupFilter, setBloodGroupFilter] = useState('all');
@@ -29,7 +35,7 @@ export default function BloodBankReportPage() {
       const data = await reportService.getBloodBankReport(params);
       setReport(data);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch blood bank report');
+      setError(getFriendlyError(err, "Couldn't load blood bank report. Refresh the page or try again."));
       console.error('Error fetching report:', err);
     } finally {
       setLoading(false);
@@ -103,8 +109,8 @@ export default function BloodBankReportPage() {
   if (error || !report) {
     return (
       <div className="text-center py-12">
-        <p className="text-red-600 dark:text-red-400">{error || 'Report not available'}</p>
-        <Button onClick={fetchReport} className="mt-4" variant="outline">
+        <p className="text-[#B3261E] dark:text-red-300">{error || 'Report not available'}</p>
+        <Button onClick={fetchReport} className="mt-4" variant="secondary">
           Retry
         </Button>
       </div>
@@ -112,109 +118,102 @@ export default function BloodBankReportPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Blood Bank Report' }]} />
+    <div className="space-y-4">
+      <PageHeader
+        title="Blood Bank Report"
+        description="Blood group statistics and member details"
+        actions={
+          <>
+            <Button
+              onClick={handleExportCSV}
+              variant="secondary"
+            >
+              <FiDownload className="h-3.5 w-3.5" />
+              Export CSV
+            </Button>
+            <Button
+              onClick={handlePrintPDF}
+              variant="secondary"
+            >
+              <FiPrinter className="h-3.5 w-3.5" />
+              Print PDF
+            </Button>
+            <Select
+            options={[
+              { value: 'all', label: 'All Blood Groups' },
+              { value: 'A +ve', label: 'A +ve' },
+              { value: 'A -ve', label: 'A -ve' },
+              { value: 'B +ve', label: 'B +ve' },
+              { value: 'B -ve', label: 'B -ve' },
+              { value: 'AB +ve', label: 'AB +ve' },
+              { value: 'AB -ve', label: 'AB -ve' },
+              { value: 'O +ve', label: 'O +ve' },
+              { value: 'O -ve', label: 'O -ve' },
+            ]}
+            value={bloodGroupFilter}
+            onChange={(e) => setBloodGroupFilter(e.target.value)}
+            className="w-48"
+            />
+          </>
+        }
+      />
 
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Blood Bank Report</h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Blood group statistics and member details</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <Button
-            onClick={handleExportCSV}
-            variant="outline"
-            className="flex items-center gap-2"
-          >
-            <FiDownload className="h-4 w-4" />
-            Export CSV
-          </Button>
-          <Button
-            onClick={handlePrintPDF}
-            variant="outline"
-            className="flex items-center gap-2"
-          >
-            <FiPrinter className="h-4 w-4" />
-            Print PDF
-          </Button>
-          <Select
-          options={[
-            { value: 'all', label: 'All Blood Groups' },
-            { value: 'A +ve', label: 'A +ve' },
-            { value: 'A -ve', label: 'A -ve' },
-            { value: 'B +ve', label: 'B +ve' },
-            { value: 'B -ve', label: 'B -ve' },
-            { value: 'AB +ve', label: 'AB +ve' },
-            { value: 'AB -ve', label: 'AB -ve' },
-            { value: 'O +ve', label: 'O +ve' },
-            { value: 'O -ve', label: 'O -ve' },
-          ]}
-          value={bloodGroupFilter}
-          onChange={(e) => setBloodGroupFilter(e.target.value)}
-          className="w-48"
-          />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <div className="text-sm text-gray-500 dark:text-gray-400">Total Members</div>
-          <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{report.total}</div>
-        </Card>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard variant="inline" title="Total Members" value={report.total} />
         {Object.entries(report.bloodGroupStats).map(([group, count]) => (
           <Card key={group}>
-            <div className="text-sm text-gray-500 dark:text-gray-400">{group}</div>
-            <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{count}</div>
+            <div className="text-sm text-[#7B8983] dark:text-surface-muted"><BloodGroupBadge value={group} /></div>
+            <div className="text-2xl font-bold text-[#18231E] dark:text-surface-text">{count}</div>
           </Card>
         ))}
       </div>
 
-      <Card>
-        <h2 className="text-lg font-semibold mb-4">Member Details</h2>
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-            <thead className="bg-gray-50 dark:bg-gray-800">
+      <Card padding="lg">
+        <h2 className="mb-3.5 text-sm font-bold text-primary-700 dark:text-surface-text">Member Details</h2>
+        <ScrollX>
+          <table className="w-full border-collapse text-[12.5px]">
+            <thead className="bg-[#FAFCFB] dark:bg-surface-base/60">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <th className="whitespace-nowrap px-3.5 py-2.5 text-left text-[12px] font-bold text-[#7B8983] dark:text-surface-muted uppercase tracking-[0.06em]">
                   Name
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <th className="whitespace-nowrap px-3.5 py-2.5 text-left text-[12px] font-bold text-[#7B8983] dark:text-surface-muted uppercase tracking-[0.06em]">
                   Blood Group
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <th className="whitespace-nowrap px-3.5 py-2.5 text-left text-[12px] font-bold text-[#7B8983] dark:text-surface-muted uppercase tracking-[0.06em]">
                   Age
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <th className="whitespace-nowrap px-3.5 py-2.5 text-left text-[12px] font-bold text-[#7B8983] dark:text-surface-muted uppercase tracking-[0.06em]">
                   Gender
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <th className="whitespace-nowrap px-3.5 py-2.5 text-left text-[12px] font-bold text-[#7B8983] dark:text-surface-muted uppercase tracking-[0.06em]">
                   Phone
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+            <tbody className="divide-y divide-line-soft bg-white dark:divide-surface-border dark:bg-surface-card">
               {report.members.map((member) => (
-                <tr key={member.id}>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
-                    {member.name}
+                <tr key={member.id} className="hover:bg-[#F6FAF8] dark:hover:bg-surface-hover/60">
+                  <td className="px-3.5 py-2 whitespace-nowrap text-[12.5px] text-[#18231E] dark:text-surface-text">
+                    <PersonCell name={member.name} size={32} />
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-red-600 dark:text-red-400">
-                    {member.bloodGroup}
+                  <td className="px-3.5 py-2 whitespace-nowrap text-[12.5px]">
+                    <BloodGroupBadge value={member.bloodGroup} />
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                  <td className="px-3.5 py-2 whitespace-nowrap text-[12.5px] text-[#7B8983] dark:text-surface-muted">
                     {member.age || '-'}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 capitalize">
-                    {member.gender || '-'}
+                  <td className="px-3.5 py-2 whitespace-nowrap text-[12.5px] text-[#7B8983] dark:text-surface-muted">
+                    <GenderChip value={member.gender} />
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                  <td className="px-3.5 py-2 whitespace-nowrap text-[12.5px] text-[#7B8983] dark:text-surface-muted">
                     {member.phone || '-'}
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-        </div>
+        </ScrollX>
       </Card>
     </div>
   );

@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FiEdit2, FiTrash2, FiEye, FiPackage, FiCheckCircle, FiAlertTriangle, FiXCircle } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
+import { FiPackage, FiCheckCircle, FiAlertTriangle, FiXCircle, FiRefreshCw, FiDownload, FiFileText, FiFile } from 'react-icons/fi';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import StatCard from '@/components/ui/StatCard';
@@ -9,7 +8,6 @@ import Table from '@/components/ui/Table';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import Modal from '@/components/ui/Modal';
 import Pagination from '@/components/ui/Pagination';
-import TableToolbar from '@/components/ui/TableToolbar';
 import { TableColumn, Pagination as PaginationType } from '@/types';
 import { Asset } from '@/types';
 import { ROUTES } from '@/constants/routes';
@@ -17,6 +15,18 @@ import { assetService } from '@/services/assetService';
 import { useDebounce } from '@/hooks/useDebounce';
 import { formatDate } from '@/utils/format';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
+import { toast } from '@/store/toastStore';
+import { getFriendlyError } from '@/utils/apiMessages';
+import type { BadgeVariant } from '@/components/ui/Badge';
+import PageHeader from '@/components/ui/PageHeader';
+import { controlClasses } from '@/components/ui/Input';
+import FilterBar from '@/components/ui/FilterBar';
+import StatusBadge from '@/components/ui/StatusBadge';
+import RowActions from '@/components/ui/RowActions';
+import { PersonCell } from '@/components/ui/Avatar';
+import Dropdown from '@/components/ui/Dropdown';
+import { useUndoableAction } from '@/hooks/useUndoableAction';
+import { shareViz } from '@/utils/statSeries';
 
 const categoryLabels: Record<string, string> = {
   furniture: 'Furniture',
@@ -36,18 +46,18 @@ const statusLabels: Record<string, string> = {
   damaged: 'Damaged',
 };
 
-const statusColors: Record<string, string> = {
-  active: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-  in_use: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-  under_maintenance: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
-  disposed: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200',
-  damaged: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
+const statusTones: Record<string, BadgeVariant> = {
+  active: 'success',
+  in_use: 'info',
+  under_maintenance: 'warning',
+  disposed: 'neutral',
+  damaged: 'danger',
 };
 
 export default function AssetsList() {
+  const undo = useUndoableAction('asset');
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
-  const [isFilterVisible, setIsFilterVisible] = useState(false);
   const [assets, setAssets] = useState<Asset[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -106,7 +116,7 @@ export default function AssetsList() {
       const dataToExport = result.data;
 
       if (dataToExport.length === 0) {
-        alert('No data to export');
+        toast.info('Nothing to export. Change your filters and try again.');
         return;
       }
 
@@ -126,7 +136,7 @@ export default function AssetsList() {
       }
     } catch (error: any) {
       console.error('Export error:', error);
-      alert(error?.message || 'Failed to export data');
+      toast.error(getFriendlyError(error, "Couldn't export data. Check your connection and try again."));
     } finally {
       setIsExporting(false);
     }
@@ -134,26 +144,26 @@ export default function AssetsList() {
 
   const handleDelete = async () => {
     if (!selectedAsset) return;
-    try {
-      setDeleting(true);
-      await assetService.delete(selectedAsset.id);
-      await fetchAssets();
-      setShowDeleteModal(false);
-      setSelectedAsset(null);
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to delete asset');
-    } finally {
-      setDeleting(false);
-    }
+    const target = selectedAsset;
+    setShowDeleteModal(false);
+    setSelectedAsset(null);
+    // Confirmed first (cascades to maintenance records); the API call itself waits out the undo window
+    undo.run({
+      id: target.id,
+      label: `${target.name || 'Asset'} deleted`,
+      commit: () => assetService.delete(target.id),
+      onCommitted: fetchAssets,
+      errorMessage: "Couldn't delete the asset. Try again in a moment.",
+    });
   };
 
   const columns: TableColumn<Asset>[] = [
     { key: 'id', label: 'No.', render: (_, __, index) => index + 1 },
-    { key: 'name', label: 'Name', sortable: true },
+    { key: 'name', label: 'Name', sortable: true, render: (name) => <PersonCell name={name} /> },
     {
       key: 'category',
       label: 'Category',
-      render: (category) => categoryLabels[category] || category,
+      render: (category) => (category ? <StatusBadge status={category} label={categoryLabels[category] || String(category)} tone="neutral" dot={false} /> : '-'),
     },
     {
       key: 'estimatedValue',
@@ -169,114 +179,98 @@ export default function AssetsList() {
       key: 'status',
       label: 'Status',
       render: (status) => (
-        <span className={`px-2 py-1 text-xs font-medium rounded-full ${statusColors[status] || 'bg-gray-100 text-gray-800'}`}>
-          {statusLabels[status] || status}
-        </span>
+        <StatusBadge status={status} tone={statusTones[status] ?? 'neutral'} label={statusLabels[status] || status} />
       ),
     },
     {
       key: 'actions',
       label: 'Actions',
       render: (_, row) => (
-        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(ROUTES.ASSETS.DETAIL(row.id));
-            }}
-            className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
-            title="View"
-          >
-            <FiEye className="h-4 w-4" />
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(ROUTES.ASSETS.EDIT(row.id));
-            }}
-            className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
-            title="Edit"
-          >
-            <FiEdit2 className="h-4 w-4" />
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setSelectedAsset(row);
-              setShowDeleteModal(true);
-            }}
-            className="p-1.5 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 transition-colors"
-            title="Delete"
-          >
-            <FiTrash2 className="h-4 w-4" />
-          </button>
-        </div>
+        <RowActions
+          onView={() => navigate(ROUTES.ASSETS.DETAIL(row.id))}
+          onEdit={() => navigate(ROUTES.ASSETS.EDIT(row.id))}
+          onDelete={() => {
+            setSelectedAsset(row);
+            setShowDeleteModal(true);
+          }}
+          deleteLabel="Delete"
+          ariaLabels={{ view: 'View asset', edit: 'Edit asset', delete: 'Delete asset' }}
+        />
       ),
     },
   ];
 
   const stats = [
-    { title: 'Total Assets', value: pagination?.total || assets.length, icon: <FiPackage className="h-5 w-5" /> },
+    { title: 'Total Assets', value: pagination?.total || assets.length, icon: <FiPackage className="h-[17px] w-[17px]" />,
+      tone: 'green' as const },
     {
       title: 'Active',
-      value: assets.filter((a) => a.status === 'active' || a.status === 'in_use').length,
-      icon: <FiCheckCircle className="h-5 w-5" />,
+      value: assets.filter((a) => a.status === 'active' || a.status === 'in_use').length, viz: shareViz(assets.filter((a) => a.status === 'active' || a.status === 'in_use').length, assets.length), summary: `Active: ${assets.filter((a) => a.status === 'active' || a.status === 'in_use').length} of ${assets.length}`,
+      icon: <FiCheckCircle className="h-[17px] w-[17px]" />,
+      tone: 'lime' as const,
     },
     {
       title: 'Under Maintenance',
-      value: assets.filter((a) => a.status === 'under_maintenance').length,
-      icon: <FiAlertTriangle className="h-5 w-5" />,
+      value: assets.filter((a) => a.status === 'under_maintenance').length, viz: shareViz(assets.filter((a) => a.status === 'under_maintenance').length, assets.length), summary: `Under Maintenance: ${assets.filter((a) => a.status === 'under_maintenance').length} of ${assets.length}`,
+      icon: <FiAlertTriangle className="h-[17px] w-[17px]" />,
+      tone: 'neutral' as const,
     },
     {
       title: 'Disposed / Damaged',
-      value: assets.filter((a) => a.status === 'disposed' || a.status === 'damaged').length,
-      icon: <FiXCircle className="h-5 w-5" />,
+      value: assets.filter((a) => a.status === 'disposed' || a.status === 'damaged').length, viz: shareViz(assets.filter((a) => a.status === 'disposed' || a.status === 'damaged').length, assets.length), summary: `Disposed / Damaged: ${assets.filter((a) => a.status === 'disposed' || a.status === 'damaged').length} of ${assets.length}`,
+      icon: <FiXCircle className="h-[17px] w-[17px]" />,
+      tone: 'neutral' as const,
     },
   ];
 
   return (
     <div className="space-y-4">
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Asset Management</h1>
-            <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">Manage your mahallu assets</p>
-          </div>
-          <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Assets' }]} />
-        </div>
+      <PageHeader
+        title="Asset Management"
+        description="Manage your mahallu assets"
+        actions={
+          <Link to={ROUTES.ASSETS.CREATE}>
+            <Button>+ New Asset</Button>
+          </Link>
+        }
+      />
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
+<div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
           {stats.map((stat, index) => (
-            <StatCard key={index} {...stat} />
+            <StatCard key={index} variant="inline" {...stat} />
           ))}
         </div>
-      </div>
 
-      <Card>
-        <TableToolbar
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-          onFilterClick={() => setIsFilterVisible(!isFilterVisible)}
-          isFilterVisible={isFilterVisible}
-          hasFilters={!!statusFilter || !!categoryFilter}
-          onRefresh={fetchAssets}
-          onExport={handleExport}
-          isExporting={isExporting}
-          actionButtons={
-            <Link to={ROUTES.ASSETS.CREATE}>
-              <Button size="md">
-                + New Asset
+      <Card padding="none" className="overflow-visible">
+        <FilterBar
+          search={{ value: searchQuery, onChange: setSearchQuery, placeholder: 'Search assets' }}
+          actions={
+            <>
+              <Button variant="secondary" iconOnly aria-label="Refresh list" onClick={fetchAssets}>
+                <FiRefreshCw className="h-3.5 w-3.5" />
               </Button>
-            </Link>
+              <Dropdown
+                trigger={
+                  <Button variant="secondary" isLoading={isExporting}>
+                    {!isExporting && <FiDownload className="h-3.5 w-3.5" />}
+                    Export
+                  </Button>
+                }
+                items={[
+                  { label: 'Export CSV', icon: <FiFileText />, onClick: () => handleExport('csv'), disabled: isExporting },
+                  { label: 'Export JSON', icon: <FiFile />, onClick: () => handleExport('json'), disabled: isExporting },
+                  { label: 'Export PDF', icon: <FiDownload />, onClick: () => handleExport('pdf'), disabled: isExporting },
+                ]}
+              />
+            </>
           }
-        />
-
-        {isFilterVisible && (
-          <div className="flex flex-wrap gap-3 p-4 border-b border-gray-200 dark:border-gray-700">
+        >
+          <div className="w-44">
             <select
+              aria-label="Filter by status"
               value={statusFilter}
               onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
-              className="px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200"
+              className={`${controlClasses} h-[34px] text-xs`}
             >
               <option value="">All Status</option>
               <option value="active">Active</option>
@@ -285,10 +279,13 @@ export default function AssetsList() {
               <option value="disposed">Disposed</option>
               <option value="damaged">Damaged</option>
             </select>
+          </div>
+          <div className="w-40">
             <select
+              aria-label="Filter by category"
               value={categoryFilter}
               onChange={(e) => { setCategoryFilter(e.target.value); setCurrentPage(1); }}
-              className="px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200"
+              className={`${controlClasses} h-[34px] text-xs`}
             >
               <option value="">All Categories</option>
               <option value="furniture">Furniture</option>
@@ -299,16 +296,19 @@ export default function AssetsList() {
               <option value="equipment">Equipment</option>
               <option value="other">Other</option>
             </select>
-            {(statusFilter || categoryFilter) && (
-              <button
-                onClick={() => { setStatusFilter(''); setCategoryFilter(''); setCurrentPage(1); }}
-                className="px-3 py-2 text-sm text-red-600 hover:text-red-700 dark:text-red-400"
-              >
-                Clear Filters
-              </button>
-            )}
           </div>
-        )}
+          {(statusFilter || categoryFilter) && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => { setStatusFilter(''); setCategoryFilter(''); setCurrentPage(1); }}
+            >
+              Clear filters
+            </Button>
+          )}
+        </FilterBar>
+
+        <div className="p-3.5">
 
         {loading ? (
           <div className="flex justify-center items-center py-12">
@@ -317,14 +317,14 @@ export default function AssetsList() {
         ) : error ? (
           <div className="text-center py-12">
             <p className="text-red-600 dark:text-red-400">{error}</p>
-            <Button onClick={fetchAssets} className="mt-4" variant="outline">
+            <Button onClick={fetchAssets} className="mt-4" variant="secondary">
               Retry
             </Button>
           </div>
         ) : (
           <Table
             columns={columns}
-            data={assets}
+            data={undo.filterHidden(assets, (a) => a.id)}
             emptyMessage="No assets found"
             showExport={false}
             onRowClick={(row) => navigate(ROUTES.ASSETS.DETAIL(row.id))}
@@ -332,7 +332,7 @@ export default function AssetsList() {
         )}
 
         {pagination && (
-          <div className="mt-4">
+          <div className="mt-3.5">
             <Pagination
               currentPage={pagination.page}
               totalPages={pagination.totalPages}
@@ -344,6 +344,7 @@ export default function AssetsList() {
             />
           </div>
         )}
+        </div>
       </Card>
 
       <Modal
@@ -352,11 +353,11 @@ export default function AssetsList() {
           setShowDeleteModal(false);
           setSelectedAsset(null);
         }}
-        title="Delete Asset"
+        title="Delete asset?"
         footer={
           <>
             <Button
-              variant="outline"
+              variant="secondary"
               onClick={() => {
                 setShowDeleteModal(false);
                 setSelectedAsset(null);
@@ -370,8 +371,8 @@ export default function AssetsList() {
           </>
         }
       >
-        <p className="text-gray-600 dark:text-gray-400">
-          Are you sure you want to delete <strong>{selectedAsset?.name}</strong>? This will also delete all maintenance records. This action cannot be undone.
+        <p className="text-[#5B6963] dark:text-surface-muted">
+          Delete <strong>{selectedAsset?.name}</strong>? This will also delete all maintenance records. This cannot be undone.
         </p>
       </Modal>
     </div>

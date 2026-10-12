@@ -1,6 +1,8 @@
 import { Request, Response } from 'express';
 import { Asset, AssetMaintenance } from '../models/Asset';
 import { AuthRequest } from '../middleware/authMiddleware';
+import { tenantScope } from '../utils/tenantScope';
+import { stripImmutable, clearableUpdate } from '../utils/sanitizeUpdate';
 import { getPaginationParams, createPaginationResponse } from '../utils/pagination';
 
 // ==================== ASSET CRUD ====================
@@ -39,9 +41,9 @@ export const getAllAssets = async (req: AuthRequest, res: Response) => {
   }
 };
 
-export const getAssetById = async (req: Request, res: Response) => {
+export const getAssetById = async (req: AuthRequest, res: Response) => {
   try {
-    const asset = await Asset.findById(req.params.id);
+    const asset = await Asset.findOne({ _id: req.params.id, ...tenantScope(req) });
     if (!asset) {
       return res.status(404).json({ success: false, message: 'Asset not found' });
     }
@@ -54,7 +56,7 @@ export const getAssetById = async (req: Request, res: Response) => {
 export const createAsset = async (req: AuthRequest, res: Response) => {
   try {
     const assetData = {
-      ...req.body,
+      ...stripImmutable(req.body),
       tenantId: req.tenantId || req.body.tenantId,
     };
 
@@ -75,11 +77,11 @@ export const createAsset = async (req: AuthRequest, res: Response) => {
   }
 };
 
-export const updateAsset = async (req: Request, res: Response) => {
+export const updateAsset = async (req: AuthRequest, res: Response) => {
   try {
-    const asset = await Asset.findByIdAndUpdate(
-      req.params.id,
-      req.body,
+    const asset = await Asset.findOneAndUpdate(
+      { _id: req.params.id, ...tenantScope(req) },
+      clearableUpdate(stripImmutable(req.body)),
       { new: true, runValidators: true }
     );
     if (!asset) {
@@ -91,14 +93,14 @@ export const updateAsset = async (req: Request, res: Response) => {
   }
 };
 
-export const deleteAsset = async (req: Request, res: Response) => {
+export const deleteAsset = async (req: AuthRequest, res: Response) => {
   try {
-    const asset = await Asset.findByIdAndDelete(req.params.id);
+    const asset = await Asset.findOneAndDelete({ _id: req.params.id, ...tenantScope(req) });
     if (!asset) {
       return res.status(404).json({ success: false, message: 'Asset not found' });
     }
     // Also delete all maintenance records for this asset
-    await AssetMaintenance.deleteMany({ assetId: req.params.id });
+    await AssetMaintenance.deleteMany({ assetId: req.params.id, tenantId: asset.tenantId });
     res.json({ success: true, message: 'Asset deleted successfully' });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
@@ -131,15 +133,15 @@ export const getAssetMaintenanceRecords = async (req: AuthRequest, res: Response
 export const createMaintenanceRecord = async (req: AuthRequest, res: Response) => {
   try {
     // Verify asset exists
-    const asset = await Asset.findById(req.params.id);
+    const asset = await Asset.findOne({ _id: req.params.id, ...tenantScope(req) });
     if (!asset) {
       return res.status(404).json({ success: false, message: 'Asset not found' });
     }
 
     const maintenanceData = {
-      ...req.body,
+      ...stripImmutable(req.body),
       assetId: req.params.id,
-      tenantId: req.tenantId || req.body.tenantId || asset.tenantId,
+      tenantId: asset.tenantId,
     };
 
     const record = new AssetMaintenance(maintenanceData);
@@ -150,11 +152,11 @@ export const createMaintenanceRecord = async (req: AuthRequest, res: Response) =
   }
 };
 
-export const updateMaintenanceRecord = async (req: Request, res: Response) => {
+export const updateMaintenanceRecord = async (req: AuthRequest, res: Response) => {
   try {
     const record = await AssetMaintenance.findOneAndUpdate(
-      { _id: req.params.maintenanceId, assetId: req.params.id },
-      req.body,
+      { _id: req.params.maintenanceId, assetId: req.params.id, ...tenantScope(req) },
+      stripImmutable(req.body),
       { new: true, runValidators: true }
     );
     if (!record) {
@@ -166,11 +168,12 @@ export const updateMaintenanceRecord = async (req: Request, res: Response) => {
   }
 };
 
-export const deleteMaintenanceRecord = async (req: Request, res: Response) => {
+export const deleteMaintenanceRecord = async (req: AuthRequest, res: Response) => {
   try {
     const record = await AssetMaintenance.findOneAndDelete({
       _id: req.params.maintenanceId,
       assetId: req.params.id,
+      ...tenantScope(req),
     });
     if (!record) {
       return res.status(404).json({ success: false, message: 'Maintenance record not found' });

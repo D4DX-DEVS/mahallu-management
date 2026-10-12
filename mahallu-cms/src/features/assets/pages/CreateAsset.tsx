@@ -1,16 +1,17 @@
-import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useNavigate } from 'react-router-dom';
 import { FiSave, FiX } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
-import Input from '@/components/ui/Input';
+import Input, { controlClasses, labelClasses } from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import { ROUTES } from '@/constants/routes';
 import { assetService } from '@/services/assetService';
+import PageHeader from '@/components/ui/PageHeader';
+import { toast } from '@/store/toastStore';
+import { getFriendlyError } from '@/utils/apiMessages';
 
 const assetSchema = z.object({
   name: z.string().min(1, 'Asset name is required').max(200),
@@ -30,7 +31,6 @@ type AssetFormData = z.infer<typeof assetSchema>;
 
 export default function CreateAsset() {
   const navigate = useNavigate();
-  const [error, setError] = useState<string | null>(null);
   const {
     register,
     handleSubmit,
@@ -45,7 +45,6 @@ export default function CreateAsset() {
 
   const onSubmit = async (data: AssetFormData) => {
     try {
-      setError(null);
       const assetData: any = {
         name: data.name,
         nameMl: data.nameMl,
@@ -61,38 +60,24 @@ export default function CreateAsset() {
       await assetService.create(assetData);
       navigate(ROUTES.ASSETS.LIST);
     } catch (err: any) {
-      const message = err.response?.data?.message 
-        || err.response?.data?.errors?.[0]?.msg 
-        || err.message 
-        || 'Failed to create asset. Please try again.';
-      setError(message);
+      toast.error(getFriendlyError(err, "Couldn't create the asset. Check the details and try again."));
       console.error('Error creating asset:', err.response?.data || err);
     }
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Add New Asset</h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Register a new asset</p>
-        </div>
-        <Breadcrumb
-          items={[
-            { label: 'Dashboard', path: '/dashboard' },
-            { label: 'Assets', path: ROUTES.ASSETS.LIST },
-            { label: 'Create' },
-          ]}
-        />
-      </div>
+    <div className="space-y-4">
+      <PageHeader
+        title="Add New Asset"
+        description="Register a new asset"
+      />
 
       <form onSubmit={handleSubmit(onSubmit)}>
         <Card className="space-y-6">
-          {error && (
-            <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm dark:bg-red-900 dark:border-red-700 dark:text-red-200">
-              {error}
-            </div>
-          )}
+          <div>
+            <h2 className="text-[13.5px] font-bold text-[#18231E] dark:text-surface-text">Asset details</h2>
+            <p className="mt-0.5 text-xs text-[#7B8983] dark:text-surface-muted">Name, category, value and location</p>
+          </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input
@@ -170,23 +155,23 @@ export default function CreateAsset() {
             />
             </div>
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
+              <label className={labelClasses}>Description</label>
               <textarea
                 {...register('description')}
                 rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                className={`${controlClasses} py-2`}
                 placeholder="Brief description about the asset..."
               />
             </div>
           </div>
 
-          <div className="flex justify-end gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-            <Button type="button" variant="outline" onClick={() => navigate(ROUTES.ASSETS.LIST)}>
-              <FiX className="h-4 w-4 mr-2" />
+          <div className="sticky bottom-0 z-10 -mx-4 -mb-4 flex flex-wrap justify-end gap-2 pb-[calc(0.75rem+env(safe-area-inset-bottom))] [&>button]:flex-1 sm:[&>button]:flex-none rounded-b-card border-t border-line bg-white/90 px-4 py-3 backdrop-blur dark:border-surface-border dark:bg-surface-card/90">
+            <Button type="button" variant="secondary" onClick={() => navigate(ROUTES.ASSETS.LIST)}>
+              <FiX className="h-3.5 w-3.5" />
               Cancel
             </Button>
             <Button type="submit" isLoading={isSubmitting}>
-              <FiSave className="h-4 w-4 mr-2" />
+              <FiSave className="h-3.5 w-3.5" />
               Create Asset
             </Button>
           </div>

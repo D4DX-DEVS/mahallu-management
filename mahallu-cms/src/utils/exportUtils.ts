@@ -57,7 +57,7 @@ function extractCellValue<T>(
 ): string {
   if (column.render) {
     try {
-      const rendered = column.render(value, row);
+      const rendered = column.render(value, row, 0);
       
       // Handle primitive types directly
       if (typeof rendered === 'string' || typeof rendered === 'number') {
@@ -213,12 +213,12 @@ export function exportToPDF<T extends Record<string, any>>(
       cellPadding: 3,
     },
     headStyles: {
-      fillColor: [79, 70, 229], // primary-600 color
+      fillColor: [4, 86, 58], // primary-600 (ZAAD forest #04563A)
       textColor: 255,
       fontStyle: 'bold',
     },
     alternateRowStyles: {
-      fillColor: [249, 250, 251], // gray-50
+      fillColor: [240, 249, 244], // primary-50
     },
     margin: { top: startY, left: 14, right: 14 },
   });

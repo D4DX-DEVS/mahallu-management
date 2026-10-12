@@ -1,5 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -7,47 +5,47 @@
 @layer base {
   :root {
     --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --foreground: 350 6% 12%;
     --card: 0 0% 100%;
     --card-foreground: 222.2 84% 4.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
-    --primary: 173 80% 40%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 174 34% 94%;
+    --primary: 159 95% 18%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 150 30% 94%;
     --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 174 34% 94%;
+    --muted: 150 30% 94%;
     --muted-foreground: 215.4 16.3% 40%;
-    --accent: 36 100% 92%;
+    --accent: 52 100% 90%;
     --accent-foreground: 222.2 47.4% 11.2%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
-    --border: 172 23% 88%;
-    --input: 172 23% 88%;
-    --ring: 173 80% 40%;
-    --radius: 1rem;
+    --border: 150 18% 88%;
+    --input: 150 18% 88%;
+    --ring: 159 95% 18%;
+    --radius: 0.875rem;
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
+    --background: 150 12% 7%;
     --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
+    --card: 150 9% 10%;
     --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
+    --popover: 150 9% 10%;
     --popover-foreground: 210 40% 98%;
-    --primary: 173 74% 42%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --secondary: 214 32% 16%;
+    --primary: 84 56% 50%;
+    --primary-foreground: 150 12% 7%;
+    --secondary: 150 8% 14%;
     --secondary-foreground: 210 40% 98%;
-    --muted: 214 32% 16%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 36 100% 18%;
+    --muted: 150 8% 14%;
+    --muted-foreground: 150 6% 65%;
+    --accent: 150 8% 16%;
     --accent-foreground: 210 40% 98%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
-    --border: 215 28% 19%;
-    --input: 215 28% 19%;
-    --ring: 173 74% 42%;
+    --border: 150 8% 18%;
+    --input: 150 8% 18%;
+    --ring: 84 56% 50%;
   }
 }
 
@@ -58,6 +56,43 @@
     min-height: 100%;
   }
 
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Controls react to the first tap (no 300ms double-tap-zoom wait) */
+  button,
+  [role='button'],
+  a,
+  select,
+  summary,
+  label {
+    touch-action: manipulation;
+  }
+
+  /* iOS Safari zooms the page when a focused field is smaller than 16px: phones always get 16px fields. */
+  @media (max-width: 639px) {
+    input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):not([type='hidden']):not([type='color']),
+    select,
+    textarea {
+      font-size: 16px !important;
+    }
+  }
+
+  /* Media never makes a card wider than the screen */
+  img,
+  video,
+  canvas,
+  svg {
+    max-width: 100%;
+  }
+  img,
+  video {
+    height: auto;
+  }
+
   * {
     border-color: hsl(var(--border));
   }
@@ -66,7 +101,9 @@
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
     font-feature-settings: "rlig" 1, "calt" 1;
-    font-family: 'Plus Jakarta Sans', 'Avenir Next', 'Segoe UI', sans-serif;
+    font-family: 'Plus Jakarta Sans', 'Noto Sans Malayalam', 'Avenir Next', 'Segoe UI', sans-serif;
+    font-size: 13px;
+    line-height: 1.5;
     @apply antialiased;
   }
 
@@ -90,20 +127,26 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background-color: #d1d5db;
+  background-color: #b9e2cb;
   border-radius: 9999px;
 }
 
 .dark ::-webkit-scrollbar-thumb {
-  background-color: #4b5563;
+  background-color: #2F3B36;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background-color: #9ca3af;
+  background-color: #4fa57c;
 }
 
 .dark ::-webkit-scrollbar-thumb:hover {
-  background-color: #6b7280;
+  background-color: #8EC13E;
+}
+
+/* Visible brand focus ring for keyboard users */
+:focus-visible {
+  outline: 2px solid #8EC13E;
+  outline-offset: 2px;
 }
 
 /* Malayalam font utility */
@@ -112,6 +155,12 @@
 }
 
 @layer utilities {
+  /* App shell height: dynamic viewport (mobile browser chrome) with a 100vh fallback */
+  .h-app {
+    height: 100vh;
+    height: 100dvh;
+  }
+
   .no-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;
@@ -120,4 +169,177 @@
   .no-scrollbar::-webkit-scrollbar {
     display: none;
   }
+}
+/* ZAAD redesign tokens as Tailwind utilities.
+   Defined here (not in tailwind.config.js) so they hot-reload in the running dev server; Vite caches the config.
+   They are generated on demand and support every variant (hover:, focus:, dark: ...). */
+@layer utilities {
+  .bg-mint { background-color: #E7F1EC; }
+  .bg-canvas { background-color: #F4F7F5; }
+  .border-mint-deep { border-color: #D3E3DA; }
+  .ring-mint-deep { --tw-ring-color: #D3E3DA; }
+  .border-line { border-color: #E3EAE6; }
+  .border-line-soft { border-color: #EEF3F0; }
+  .border-line-strong { border-color: #DCE5E0; }
+  .divide-line-soft > :not([hidden]) ~ :not([hidden]) { border-color: #EEF3F0; }
+  .bg-btn-primary { background-image: linear-gradient(180deg, #0F5A45, #0B4837); }
+  .bg-progress-brand { background-image: linear-gradient(90deg, #04563A, #8EC13E); }
+  .rounded-card { border-radius: 14px; }
+  .rounded-modal { border-radius: 16px; }
+  .rounded-b-modal { border-bottom-left-radius: 16px; border-bottom-right-radius: 16px; }
+  .shadow-card { --tw-shadow: 0 1px 2px rgba(11,72,55,.04), 0 10px 28px -18px rgba(11,72,55,.18); --tw-shadow-colored: 0 1px 2px var(--tw-shadow-color), 0 10px 28px -18px var(--tw-shadow-color); box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow); }
+  .shadow-card-hover { --tw-shadow: 0 1px 2px rgba(11,72,55,.05), 0 14px 32px -16px rgba(11,72,55,.26); --tw-shadow-colored: 0 1px 2px var(--tw-shadow-color), 0 14px 32px -16px var(--tw-shadow-color); box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow); }
+  .shadow-focus { --tw-shadow: 0 0 0 4px rgba(142,193,62,.28); --tw-shadow-colored: 0 0 0 4px var(--tw-shadow-color); box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow); }
+  .shadow-focus-error { --tw-shadow: 0 0 0 4px rgba(217,83,79,.14); --tw-shadow-colored: 0 0 0 4px var(--tw-shadow-color); box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow); }
+  .shadow-btn { --tw-shadow: 0 1px 0 rgba(255,255,255,.18) inset, 0 6px 14px -6px rgba(11,72,55,.6); --tw-shadow-colored: 0 1px 0 var(--tw-shadow-color) inset, 0 6px 14px -6px var(--tw-shadow-color); box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow); }
+  .shadow-pop { --tw-shadow: 0 18px 48px -12px rgba(11,72,55,.28); --tw-shadow-colored: 0 18px 48px -12px var(--tw-shadow-color); box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow); }
+}
+
+/* ZAAD dark-mode surface remap. The app uses gray and slate `dark:` utilities everywhere;
+   in dark mode these resolve to ZAAD neutral charcoal surfaces (green is accent only).
+   The doubled `html.dark.dark` prefix out-ranks Tailwind's `:is(.dark *)` variant specificity. Light mode is untouched. Generated from the token tables below (see tailwind.config.js `surface`). */
+html.dark.dark .dark\:bg-gray-600{background-color:#2F3B36}
+html.dark.dark .dark\:bg-gray-700{background-color:#27322D}
+html.dark.dark .dark\:bg-gray-800{background-color:#1E2622}
+html.dark.dark .dark\:bg-gray-900{background-color:#171D1A}
+html.dark.dark .dark\:border-gray-600{border-color:#3A4741}
+html.dark.dark .dark\:border-gray-700{border-color:#2B3631}
+html.dark.dark .dark\:border-gray-800{border-color:#222B27}
+html.dark.dark .dark\:border-gray-900{border-color:#1A211E}
+html.dark.dark .dark\:divide-gray-700> :not([hidden]) ~ :not([hidden]){border-color:#2B3631}
+html.dark.dark .dark\:divide-gray-800> :not([hidden]) ~ :not([hidden]){border-color:#222B27}
+html.dark.dark .dark\:ring-gray-800{--tw-ring-color:#222B27}
+html.dark.dark .dark\:bg-gray-700\/50{background-color:color-mix(in srgb, #27322D 50%, transparent)}
+html.dark.dark .dark\:bg-gray-800\/50{background-color:color-mix(in srgb, #1E2622 50%, transparent)}
+html.dark.dark .dark\:bg-gray-900\/50{background-color:color-mix(in srgb, #171D1A 50%, transparent)}
+html.dark.dark .dark\:border-gray-700\/50{border-color:color-mix(in srgb, #2B3631 50%, transparent)}
+html.dark.dark .dark\:border-gray-800\/50{border-color:color-mix(in srgb, #222B27 50%, transparent)}
+html.dark.dark .dark\:bg-gray-800\/80{background-color:color-mix(in srgb, #1E2622 80%, transparent)}
+html.dark.dark .dark\:bg-gray-900\/80{background-color:color-mix(in srgb, #171D1A 80%, transparent)}
+html.dark.dark .dark\:text-gray-100{color:#F1F4F2}
+html.dark.dark .dark\:text-gray-200{color:#DFE5E2}
+html.dark.dark .dark\:text-gray-300{color:#C5CEC9}
+html.dark.dark .dark\:text-gray-400{color:#A5B0AA}
+html.dark.dark .dark\:text-gray-500{color:#8F9B95}
+html.dark.dark .dark\:text-gray-600{color:#7D8984}
+html.dark.dark .dark\:hover\:bg-gray-600:hover{background-color:#2F3B36}
+html.dark.dark .dark\:hover\:bg-gray-700:hover{background-color:#27322D}
+html.dark.dark .dark\:hover\:bg-gray-800:hover{background-color:#1E2622}
+html.dark.dark .dark\:hover\:border-gray-500:hover{border-color:#4A5750}
+html.dark.dark .dark\:hover\:border-gray-600:hover{border-color:#3A4741}
+html.dark.dark .dark\:hover\:border-gray-800:hover{border-color:#222B27}
+html.dark.dark .dark\:hover\:bg-gray-700\/50:hover{background-color:color-mix(in srgb, #27322D 50%, transparent)}
+html.dark.dark .dark\:hover\:bg-gray-800\/50:hover{background-color:color-mix(in srgb, #1E2622 50%, transparent)}
+html.dark.dark .dark\:hover\:bg-gray-700\/80:hover{background-color:color-mix(in srgb, #27322D 80%, transparent)}
+html.dark.dark .dark\:hover\:bg-gray-800\/80:hover{background-color:color-mix(in srgb, #1E2622 80%, transparent)}
+html.dark.dark .dark\:hover\:bg-gray-800\/30:hover{background-color:color-mix(in srgb, #1E2622 30%, transparent)}
+html.dark.dark .dark\:hover\:text-gray-200:hover{color:#DFE5E2}
+html.dark.dark .dark\:hover\:text-gray-300:hover{color:#C5CEC9}
+html.dark.dark .group:hover .dark\:group-hover\:text-gray-100{color:#F1F4F2}
+html.dark.dark .dark\:placeholder\:text-gray-500::placeholder{color:#8F9B95}
+html.dark.dark .dark\:placeholder-gray-500::placeholder{color:#8F9B95}
+html.dark.dark .dark\:ring-offset-gray-950{--tw-ring-offset-color:#0F1412}
+html.dark.dark .dark\:bg-slate-800{background-color:#1E2622}
+html.dark.dark .dark\:bg-slate-900{background-color:#171D1A}
+html.dark.dark .dark\:bg-slate-950{background-color:#0F1412}
+html.dark.dark .dark\:bg-slate-900\/40{background-color:color-mix(in srgb, #171D1A 40%, transparent)}
+html.dark.dark .dark\:bg-slate-900\/62{background-color:color-mix(in srgb, #171D1A 62%, transparent)}
+html.dark.dark .dark\:text-slate-50{color:#F7F9F8}
+html.dark.dark .dark\:text-slate-300{color:#C5CEC9}
+html.dark.dark .dark\:text-slate-400{color:#A5B0AA}
+html.dark.dark .dark\:text-slate-500{color:#8F9B95}
+
+
+/* Primary-green text is too dark on night-green surfaces: lift to brand lime unless a dark: text class is set. */
+html.dark.dark :is(.text-primary-500, .text-primary-600, .text-primary-700):not([class*="dark:text-"]) { color: #8EC13E; }
+html.dark.dark :is(.hover\:text-primary-600, .hover\:text-primary-700):hover:not([class*="dark:hover:text-"]) { color: #ACD81E; }
+
+/* Native controls (file picker, date, scrollbars, select popups) follow the dark scheme */
+.dark { color-scheme: dark; }
+html.dark.dark input[type="file"]::file-selector-button { background-color: #27322D; color: #F1F4F2; border-color: #3A4741; }
+
+/* KPI-card graphics: deep greens lift to brand lime on charcoal surfaces. */
+html.dark .stat-viz [fill="#0B4837"], html.dark .stat-viz [fill="#04563A"] { fill: #8EC13E; }
+html.dark .stat-viz [stroke="#0B4837"], html.dark .stat-viz [stroke="#04563A"] { stroke: #8EC13E; }
+
+/* ---- Route modals (components/routing/ModalRoutes) ---------------------------------------------
+   Body has no bottom padding so action bars sit flush at the modal's bottom edge. */
+.route-modal-body {
+  padding-bottom: 0 !important;
+}
+.route-modal-body:not(:has([class*='sticky'][class*='bottom-0'])) {
+  padding-bottom: 1rem !important;
+}
+/* Any sticky action bar (StickyActionBar and the hand-rolled `sticky bottom-0` bars inside page Cards)
+   becomes the modal footer: full width, flush bottom, top border, solid background, safe-area padding. */
+.route-modal-body [class*='sticky'][class*='bottom-0'] {
+  bottom: 0 !important;
+  margin: 1rem -1rem 0 !important;
+  border-width: 1px 0 0 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  background: #fff !important;
+  padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom)) !important;
+}
+@media (min-width: 640px) {
+  .route-modal-body [class*='sticky'][class*='bottom-0'] {
+    margin: 1rem -1.25rem 0 !important;
+    padding: 0.75rem 1.25rem calc(0.75rem + env(safe-area-inset-bottom)) !important;
+  }
+}
+/* Action bars inside a modal on phones: buttons share the row, never overflow */
+@media (max-width: 639px) {
+  .route-modal-body [class*='sticky'][class*='bottom-0'] > span:last-child {
+    margin-left: 0 !important;
+    width: 100%;
+  }
+  .route-modal-body [class*='sticky'][class*='bottom-0'] > span:first-child {
+    width: 100%;
+  }
+}
+.dark .route-modal-body [class*='sticky'][class*='bottom-0'] {
+  background: #171D1A !important;
+}
+/* The page's outer Card (a Card that wraps / is the form) loses its frame inside a modal. */
+.route-modal-body form > [class*='rounded-card'],
+.route-modal-body [class*='rounded-card']:has(> form) {
+  border: 0 !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+}
+
+/* ---- Pop-up inner scrolling ---------------------------------------------------------------------
+   Only the dialog body scrolls (components/ui/Modal). Anything that scrolls on its own inside it
+   (tables, member pickers, textareas) must not grow a second scrollbar for the whole dialog, and
+   must not chain its scroll to the dialog / page when it reaches the end. */
+[data-modal-body] [data-table-scroll] {
+  max-height: none !important;
+}
+[data-modal-body] .overflow-y-auto,
+[data-modal-body] .overflow-auto,
+[data-modal-body] textarea {
+  overscroll-behavior: auto contain;
+}
+/* nested scroll areas stay keyboard reachable */
+[data-modal-body] [class*='overflow-y-auto']:focus-visible {
+  outline: 2px solid #8EC13E;
+  outline-offset: -2px;
+}
+
+/* Global toast (components/ui/Toaster.tsx) */
+@keyframes zaad-toast-in {
+  from { opacity: 0; transform: translateY(12px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes zaad-toast-bar {
+  from { transform: scaleX(1); }
+  to { transform: scaleX(0); }
+}
+.zaad-toast { animation: zaad-toast-in 180ms ease-out both; }
+.zaad-toast-bar { animation-name: zaad-toast-bar; animation-timing-function: linear; animation-fill-mode: forwards; opacity: 0.85; }
+@media (prefers-reduced-motion: reduce) {
+  .zaad-toast { animation: none; }
+  .zaad-toast-bar { animation: none; transform: scaleX(0.5); }
 }

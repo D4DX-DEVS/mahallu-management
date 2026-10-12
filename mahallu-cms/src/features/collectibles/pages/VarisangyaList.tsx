@@ -1,70 +1,68 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { FiCreditCard, FiDollarSign, FiDownload, FiEdit2, FiX } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
+import { FiCreditCard, FiDollarSign, FiDownload, FiX, FiFilter, FiRefreshCw, FiFileText, FiFile } from 'react-icons/fi';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
+import DateRangePicker from '@/components/ui/DateRangePicker';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import Pagination from '@/components/ui/Pagination';
-import TableToolbar from '@/components/ui/TableToolbar';
 import Modal from '@/components/ui/Modal';
+import PageHeader from '@/components/ui/PageHeader';
+import FilterBar from '@/components/ui/FilterBar';
+import Dropdown from '@/components/ui/Dropdown';
+import SavedViews from '@/components/ui/SavedViews';
+import AppliedFilters from '@/components/ui/AppliedFilters';
+import TableColumnMenu from '@/components/ui/TableColumnMenu';
+import BulkBarButton from '@/components/ui/BulkBarButton';
+import { useUrlFilters } from '@/hooks/useUrlFilters';
+import { useTableView } from '@/hooks/useTableView';
 import { TableColumn, Pagination as PaginationType } from '@/types';
 import { collectibleService, Varisangya } from '@/services/collectibleService';
+import {
+  buildVarisangyaColumns,
+  getPayerName,
+  getFamilyName,
+} from '../varisangyaColumns';
+import { filterByDateRange } from '../varisangyaFilters';
 import { formatDate } from '@/utils/format';
 import { exportToCSV, exportToJSON } from '@/utils/exportUtils';
-import { exportInvoicesToPdf, downloadInvoicePdf, InvoiceDetails } from '@/utils/invoiceUtils';
+import { exportInvoicesToPdf, InvoiceDetails } from '@/utils/invoiceUtils';
+import { CancelReceiptDialog, ReceiptDetailModal, useReceiptPermissions, isCancelled } from '../receiptUi';
+import { printReceipt } from '../receiptPrint';
 import { familyService } from '@/services/familyService';
 import { memberService } from '@/services/memberService';
+import { toast } from '@/store/toastStore';
+import { getFriendlyError } from '@/utils/apiMessages';
+import { monthlySeries } from '@/utils/statSeries';
 
 export default function VarisangyaList() {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [isFilterVisible, setIsFilterVisible] = useState(false);
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
-  const [familyNameFilter, setFamilyNameFilter] = useState('');
+  const filters = useUrlFilters({ from: '', to: '', family: '' });
+  const { search: searchQuery, setSearch: setSearchQuery, debouncedSearch, page: currentPage, setPage: setCurrentPage, pageSize: itemsPerPage } = filters;
+  const dateFrom = filters.values.from;
+  const dateTo = filters.values.to;
+  const familyNameFilter = filters.values.family;
+  const setDateFrom = (v: string) => filters.setFilter('from', v);
+  const setDateTo = (v: string) => filters.setFilter('to', v);
+  const setFamilyNameFilter = (v: string) => filters.setFilter('family', v, { replace: true });
+  const [isFilterVisible, setIsFilterVisible] = useState(() => Boolean(filters.values.from || filters.values.to || filters.values.family));
   const [varisangyas, setVarisangyas] = useState<Varisangya[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [editingRow, setEditingRow] = useState<Varisangya | null>(null);
   const [savingEdit, setSavingEdit] = useState(false);
+  const { canCancel } = useReceiptPermissions();
+  const [detailRow, setDetailRow] = useState<Varisangya | null>(null);
+  const [cancelRow, setCancelRow] = useState<Varisangya | null>(null);
   const [editForm, setEditForm] = useState({ amount: 0, paymentDate: '', paymentMethod: '', remarks: '' });
-
-  const parseYMD = (s: string): { y: number; m: number; d: number } | null => {
-    const parts = s.trim().split('-').map(Number);
-    if (parts.length !== 3 || parts.some((n) => isNaN(n))) return null;
-    const [a, b, c] = parts;
-    if (a > 31 || a >= 1000) return { y: a, m: b, d: c };
-    if (c > 31 || c >= 1000) return { y: c, m: b, d: a };
-    return null;
-  };
-
-  const filterByDateRange = (rows: Varisangya[], from?: string, to?: string): Varisangya[] => {
-    if (!from && !to) return rows;
-    const fromParsed = from ? parseYMD(from) : null;
-    const toParsed = to ? parseYMD(to) : null;
-    if (!fromParsed && !toParsed) return rows;
-    const startMs = fromParsed
-      ? Date.UTC(fromParsed.y, fromParsed.m - 1, fromParsed.d, 0, 0, 0, 0)
-      : 0;
-    const endMs = toParsed
-      ? Date.UTC(toParsed.y, toParsed.m - 1, toParsed.d, 23, 59, 59, 999)
-      : Number.MAX_SAFE_INTEGER;
-    return rows.filter((row) => {
-      const t = row.paymentDate ? new Date(row.paymentDate).getTime() : 0;
-      return t >= startMs && t <= endMs;
-    });
-  };
 
   useEffect(() => {
     fetchVarisangyas();
-  }, [currentPage, dateFrom, dateTo, familyNameFilter]);
+  }, [currentPage, itemsPerPage, dateFrom, dateTo, familyNameFilter, debouncedSearch]);
 
   const fetchVarisangyas = async () => {
     try {
@@ -72,8 +70,10 @@ export default function VarisangyaList() {
       setError(null);
       const hasDateFilter = Boolean(dateFrom || dateTo);
       const hasFamilyFilter = familyNameFilter.trim().length > 0;
-      const hasClientFilter = hasDateFilter || hasFamilyFilter;
+      const hasSearch = debouncedSearch.trim().length > 0;
+      const hasClientFilter = hasDateFilter || hasFamilyFilter || hasSearch;
       const params: Record<string, unknown> = {
+        includeCancelled: true,
         page: hasClientFilter ? 1 : currentPage,
         limit: hasClientFilter ? 10000 : itemsPerPage,
       };
@@ -87,6 +87,10 @@ export default function VarisangyaList() {
       if (hasFamilyFilter) {
         const q = familyNameFilter.trim().toLowerCase();
         data = data.filter((row) => getPayerName(row).toLowerCase().includes(q));
+      }
+      if (hasSearch) {
+        const q = debouncedSearch.trim().toLowerCase();
+        data = data.filter((row) => getPayerName(row).toLowerCase().includes(q) || getFamilyName(row).toLowerCase().includes(q) || String(row.receiptNo ?? '').toLowerCase().includes(q));
       }
       if (hasClientFilter) {
         total = data.length;
@@ -112,7 +116,7 @@ export default function VarisangyaList() {
         });
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch varisangyas');
+      setError(getFriendlyError(err, "Couldn't load varisangyas. Refresh the page or try again."));
       console.error('Error fetching varisangyas:', err);
     } finally {
       setLoading(false);
@@ -135,7 +139,7 @@ export default function VarisangyaList() {
       }
 
       if (dataToExport.length === 0) {
-        alert('No data to export');
+        toast.info('Nothing to export. Change your filters and try again.');
         return;
       }
 
@@ -197,14 +201,14 @@ export default function VarisangyaList() {
       }
     } catch (error: any) {
       console.error('Export error:', error);
-      alert(error?.message || 'Failed to export data');
+      toast.error(getFriendlyError(error, "Couldn't export varisangya data. Check your connection and try again."));
     } finally {
       setIsExporting(false);
     }
   };
 
-  const getId = (x: string | { _id: string } | undefined): string | undefined =>
-    x && typeof x === 'object' ? x._id : (typeof x === 'string' ? x : undefined);
+  const getId = (x: string | { id: string } | undefined): string | undefined =>
+    x && typeof x === 'object' ? x.id : (typeof x === 'string' ? x : undefined);
   const handleViewPdf = async (entry: Varisangya) => {
     try {
       let payerName: string | undefined;
@@ -239,12 +243,14 @@ export default function VarisangyaList() {
         paymentDate: entry.paymentDate,
         paymentMethod: entry.paymentMethod,
         remarks: entry.remarks,
+        receiptRef: { type: 'varisangya', id: entry.id },
       };
 
-      await downloadInvoicePdf(invoiceDetails);
+      // Logged on the server; anything after the first print is stamped DUPLICATE
+      await printReceipt(invoiceDetails, { forceDuplicate: true });
     } catch (error: any) {
       console.error('Error generating PDF:', error);
-      alert(error?.message || 'Failed to generate PDF');
+      toast.error(getFriendlyError(error, "Couldn't generate PDF. Try again in a moment."));
     }
   };
 
@@ -270,132 +276,105 @@ export default function VarisangyaList() {
       });
       setEditingRow(null);
       await fetchVarisangyas();
+      toast.success('Varisangya payment updated');
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to update payment');
+      toast.error(getFriendlyError(err, "Couldn't update varisangya payment. Try again in a moment."));
     } finally {
       setSavingEdit(false);
     }
   };
 
-  const getPayerName = (row: Varisangya): string => {
-    const m = row.memberId;
-    const f = row.familyId;
-    if (m && typeof m === 'object' && m.name) return m.name;
-    if (f && typeof f === 'object' && f.houseName) return f.houseName;
-    return '-';
+  const handleCancel = async (reason: string) => {
+    if (!cancelRow) return;
+    await collectibleService.cancelReceipt('varisangya', cancelRow.id, reason);
+    toast.success(`Receipt ${cancelRow.receiptNo ?? ''} cancelled. The amounts are reversed and the number is kept.`);
+    setCancelRow(null);
+    setDetailRow(null);
+    await fetchVarisangyas();
   };
 
-  const getFamilyName = (row: Varisangya): string => {
-    const f = row.familyId;
-    const m = row.memberId;
-    if (f && typeof f === 'object' && f.houseName) return f.houseName;
-    const member = m && typeof m === 'object' ? (m as Record<string, unknown>) : null;
-    if (member?.familyName && typeof member.familyName === 'string') return member.familyName as string;
-    const memberFamily = member?.familyId as { houseName?: string } | undefined;
-    if (memberFamily?.houseName) return memberFamily.houseName;
-    return '-';
+  const columns = buildVarisangyaColumns({ openEdit, handleViewPdf, openCancel: setCancelRow, canCancel });
+  const view = useTableView('varisangya', columns);
+  const exportSelected = (ids: string[]) => {
+    const rows = varisangyas.filter((v) => ids.includes(String(v.id)));
+    exportToCSV(columns.filter((c) => c.key !== 'actions'), rows, 'varisangya-selected');
+    toast.success(`Exported ${rows.length} ${rows.length === 1 ? 'payment' : 'payments'}`);
   };
 
-  const columns: TableColumn<Varisangya>[] = [
-    { key: 'id', label: 'No.', render: (_, __, index) => index + 1 },
-    { key: 'name', label: 'Name', render: (_, row) => getPayerName(row) },
-    { key: 'familyName', label: 'Family name', render: (_, row) => getFamilyName(row) },
-    {
-      key: 'amount',
-      label: 'Amount',
-      render: (amount) => `₹${amount?.toLocaleString() || 0}`,
-    },
-    {
-      key: 'paymentDate',
-      label: 'Payment Date',
-      render: (date) => formatDate(date),
-    },
-    { key: 'paymentMethod', label: 'Payment Method' },
-    {
-      key: 'receiptNo',
-      label: 'Receipt No.',
-      render: (receiptNo) => receiptNo || '-',
-    },
-    {
-      key: 'actions',
-      label: 'Actions',
-      render: (_, row) => (
-        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              openEdit(row);
-            }}
-            className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
-            title="Edit payment"
-          >
-            <FiEdit2 className="h-4 w-4" />
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              handleViewPdf(row);
-            }}
-            className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
-            title="View/Download PDF"
-          >
-            <FiDownload className="h-4 w-4" />
-          </button>
-        </div>
-      ),
-    },
-  ];
+  const totalAmount = varisangyas.reduce((sum, v) => sum + (isCancelled(v) ? 0 : v.amount || 0), 0);
 
-  const totalAmount = varisangyas.reduce((sum, v) => sum + (v.amount || 0), 0);
-
+  const countSeries = monthlySeries(varisangyas, (v) => v.paymentDate);
+  const amountSeries = monthlySeries(varisangyas, (v) => v.paymentDate, (v) => v.amount);
   const stats = [
-    { title: 'Total Payments', value: pagination?.total || varisangyas.length, icon: <FiCreditCard className="h-5 w-5" /> },
-    { title: 'Total Amount', value: `₹${totalAmount.toLocaleString()}`, icon: <FiDollarSign className="h-5 w-5" /> },
+    { title: 'Total Payments', value: pagination?.total || varisangyas.length, icon: <FiCreditCard className="h-[17px] w-[17px]" />, viz: countSeries.length ? { type: 'bars' as const, values: countSeries } : undefined },
+    { title: 'Total Amount', value: `₹${totalAmount.toLocaleString()}`, icon: <FiDollarSign className="h-[17px] w-[17px]" />, tone: 'lime' as const, viz: amountSeries.length ? { type: 'area' as const, values: amountSeries } : undefined },
   ];
 
   return (
     <div className="space-y-4">
       <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Varisangyas</h1>
-            <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">Manage varisangya payments</p>
-          </div>
-          <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Varisangyas' }]} />
-        </div>
+        <PageHeader
+          title="Varisangyas"
+          description="Manage varisangya payments"
+          actions={
+            <>
+              <Link to="/collectibles/varisangya/create">
+                <Button>
+                  + New Payment
+                </Button>
+              </Link>
+            </>
+          }
+        />
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {stats.map((stat, index) => (
-            <StatCard key={index} {...stat} />
+            <StatCard key={index} variant="inline" {...stat} />
           ))}
         </div>
       </div>
 
-      <Card>
-        <TableToolbar
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-          onFilterClick={() => setIsFilterVisible(!isFilterVisible)}
-          isFilterVisible={isFilterVisible}
-          hasFilters={true}
-          onRefresh={fetchVarisangyas}
-          onExport={handleExport}
-          isExporting={isExporting}
-          actionButtons={
-            <Link to="/collectibles/varisangya/create">
-              <Button size="md">
-                + New Payment
+      <Card padding="none" className="overflow-visible">
+        <FilterBar
+          search={{ value: searchQuery, onChange: setSearchQuery, placeholder: 'Search payments' }}
+          actions={
+            <>
+              <Button variant={isFilterVisible ? 'soft' : 'secondary'} onClick={() => setIsFilterVisible(!isFilterVisible)}>
+                <FiFilter className="h-3.5 w-3.5" />
+                Filter
               </Button>
-            </Link>
+              <Button variant="secondary" iconOnly aria-label="Refresh list" onClick={fetchVarisangyas}>
+                <FiRefreshCw className="h-3.5 w-3.5" />
+              </Button>
+              <TableColumnMenu {...view.menuProps} />
+              <Dropdown
+                trigger={
+                  <Button variant="secondary" isLoading={isExporting}>
+                    {!isExporting && <FiDownload className="h-3.5 w-3.5" />}
+                    Export
+                  </Button>
+                }
+                items={[
+                  { label: 'Export CSV', icon: <FiFileText />, onClick: () => handleExport('csv'), disabled: isExporting },
+                  { label: 'Export JSON', icon: <FiFile />, onClick: () => handleExport('json'), disabled: isExporting },
+                  { label: 'Export PDF', icon: <FiDownload />, onClick: () => handleExport('pdf'), disabled: isExporting },
+                ]}
+              />
+            </>
           }
+        >
+          <SavedViews pageKey="varisangya" filters={filters} />
+        </FilterBar>
+        <AppliedFilters
+          filters={filters}
+          config={{ from: { label: 'From' }, to: { label: 'To' }, family: { label: 'Family' } }}
         />
-
         {isFilterVisible && (
-          <div className="relative flex flex-wrap items-end gap-4 p-4 mb-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800/50">
+          <div className="flex flex-wrap items-end gap-4 border-b border-line-soft bg-[#F4F7F5] px-3.5 py-3 dark:border-surface-border dark:bg-surface-base">
             <button
               type="button"
               onClick={() => setIsFilterVisible(false)}
-              className="absolute right-4 top-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 sm:relative sm:right-0 sm:top-0 order-last sm:order-none"
+              className="text-[#98A59F] hover:text-[#3A4741] sm:relative sm:right-0 sm:top-0 order-last sm:order-none"
               aria-label="Close filter"
             >
               <FiX className="h-4 w-4" />
@@ -407,32 +386,25 @@ export default function VarisangyaList() {
                 value={familyNameFilter}
                 onChange={(e) => {
                   setFamilyNameFilter(e.target.value);
-                  setCurrentPage(1);
                 }}
                 placeholder="Filter by name"
               />
-              <Input
-                label="From Date"
-                type="date"
-                value={dateFrom}
-                onChange={(e) => {
-                  setDateFrom(e.target.value);
-                  setCurrentPage(1);
-                }}
-              />
-              <Input
-                label="To Date"
-                type="date"
-                value={dateTo}
-                onChange={(e) => {
-                  setDateTo(e.target.value);
-                  setCurrentPage(1);
-                }}
-              />
+              <div className="sm:col-span-2">
+                <DateRangePicker
+                  label="Date range"
+                  from={dateFrom}
+                  to={dateTo}
+                  onChange={(f, t) => {
+                    setDateFrom(f);
+                    setDateTo(t);
+                    setCurrentPage(1);
+                  }}
+                />
+              </div>
             </div>
             <div className="flex flex-wrap gap-2">
               <Button
-                variant="outline"
+                variant="secondary"
                 size="sm"
                 onClick={() => {
                   const now = new Date();
@@ -447,7 +419,7 @@ export default function VarisangyaList() {
                 This month
               </Button>
               <Button
-                variant="outline"
+                variant="secondary"
                 size="sm"
                 onClick={() => {
                   const now = new Date();
@@ -463,7 +435,7 @@ export default function VarisangyaList() {
                 Last month
               </Button>
               <Button
-                variant="outline"
+                variant="secondary"
                 size="sm"
                 onClick={() => {
                   setDateFrom('');
@@ -478,6 +450,7 @@ export default function VarisangyaList() {
           </div>
         )}
 
+        <div className="p-3.5">
         {loading ? (
           <div className="flex justify-center items-center py-12">
             <LoadingSpinner />
@@ -485,17 +458,32 @@ export default function VarisangyaList() {
         ) : error ? (
           <div className="text-center py-12">
             <p className="text-red-600 dark:text-red-400">{error}</p>
-            <Button onClick={fetchVarisangyas} className="mt-4" variant="outline">
+            <Button onClick={fetchVarisangyas} className="mt-4" variant="secondary">
               Retry
             </Button>
           </div>
         ) : (
-          <Table columns={columns} data={varisangyas} emptyMessage="No varisangya payments found" showExport={false} />
+          <Table
+            columns={view.columns}
+            density={view.density}
+            data={varisangyas}
+            emptyMessage="No varisangya payments found"
+            showExport={false}
+            selectable
+            onRowClick={(row) => setDetailRow(row)}
+            filtersActive={filters.activeCount > 0}
+            onClearFilters={filters.clear}
+            bulkActions={(ids) => (
+              <BulkBarButton onClick={() => exportSelected(ids)}>
+                <FiDownload className="h-3.5 w-3.5" /> Export selected
+              </BulkBarButton>
+            )}
+          />
         )}
 
         {/* Pagination */}
         {pagination && (
-          <div className="mt-4">
+          <div className="mt-3.5">
             <Pagination
               currentPage={pagination.page}
               totalPages={pagination.totalPages}
@@ -507,7 +495,31 @@ export default function VarisangyaList() {
             />
           </div>
         )}
+        </div>
       </Card>
+
+      <ReceiptDetailModal
+        isOpen={!!detailRow}
+        onClose={() => setDetailRow(null)}
+        title={detailRow ? getPayerName(detailRow) : ''}
+        row={detailRow}
+        fields={detailRow ? [{ label: 'Family', value: getFamilyName(detailRow) }] : []}
+        canEdit
+        onEdit={() => {
+          if (detailRow) openEdit(detailRow);
+          setDetailRow(null);
+        }}
+        onReprint={() => detailRow && handleViewPdf(detailRow)}
+        onCancel={() => detailRow && setCancelRow(detailRow)}
+      />
+
+      <CancelReceiptDialog
+        isOpen={!!cancelRow}
+        receiptNo={cancelRow?.receiptNo}
+        payer={cancelRow ? getPayerName(cancelRow) : undefined}
+        onClose={() => setCancelRow(null)}
+        onConfirm={handleCancel}
+      />
 
       <Modal
         isOpen={!!editingRow}
@@ -516,7 +528,7 @@ export default function VarisangyaList() {
         size="md"
         footer={
           <>
-            <Button variant="outline" onClick={() => setEditingRow(null)}>
+            <Button variant="secondary" onClick={() => setEditingRow(null)}>
               Cancel
             </Button>
             <Button onClick={handleSaveEdit} isLoading={savingEdit}>
@@ -527,7 +539,7 @@ export default function VarisangyaList() {
       >
         {editingRow && (
           <div className="space-y-4">
-            <p className="text-sm text-gray-600 dark:text-gray-400">
+            <p className="text-sm text-[#5B6963] dark:text-surface-muted">
               Receipt: {editingRow.receiptNo ?? '-'} · {getPayerName(editingRow)}
             </p>
             <Input

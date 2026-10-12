@@ -4,9 +4,11 @@ export interface NikahRegistration {
   id: string;
   tenantId?: string;
   groomName: string;
+  groomNameMl?: string;
   groomAge?: number;
   groomId?: string;
   brideName: string;
+  brideNameMl?: string;
   brideAge?: number;
   brideId?: string;
   mahallMemberType?: 'groom' | 'bride';
@@ -19,6 +21,17 @@ export interface NikahRegistration {
   mahrDescription?: string;
   status?: 'pending' | 'approved' | 'rejected';
   remarks?: string;
+  venue?: string;
+  certificateNo?: string;
+  groomFatherName?: string;
+  brideFatherName?: string;
+  groomAddress?: string;
+  brideAddress?: string;
+  officiantName?: string;
+  /** 'stay' (default) moves nobody; 'move' puts the bride in the groom's family; 'newFamily' creates a family for the couple. */
+  brideFamilyAction?: 'stay' | 'move' | 'newFamily';
+  newFamilyHouseName?: string;
+  effectsApplied?: boolean;
   createdAt: string;
 }
 
@@ -26,6 +39,7 @@ export interface DeathRegistration {
   id: string;
   tenantId?: string;
   deceasedName: string;
+  deceasedNameMl?: string;
   deceasedId?: string;
   deathDate: string;
   placeOfDeath?: string;
@@ -37,22 +51,38 @@ export interface DeathRegistration {
   informantPhone?: string;
   status?: 'pending' | 'approved' | 'rejected';
   remarks?: string;
+  graveId?: string;
+  spouseMemberId?: string;
+  certificateNo?: string;
+  effectsApplied?: boolean;
   createdAt: string;
+}
+
+/** What approving a registration will change (from POST /registrations/{death|nikah}/preview). */
+export interface SideEffectsPreview {
+  effects: Array<{ kind: string; memberId?: string; memberName?: string; message: string }>;
+  warnings: string[];
+  suggestions?: {
+    graves?: Array<{ id: string; graveNo: string; cemetery?: string; deceasedName?: string }>;
+    spouseCandidates?: Array<{ id: string; name: string; gender?: string }>;
+  };
 }
 
 export interface NOC {
   id: string;
-  tenantId?: string | { _id: string; name: string };
+  tenantId?: string | { id: string; name: string };
   mahalluName?: string;
   applicantName: string;
+  applicantNameMl?: string;
   applicantId?: string;
   applicantPhone?: string;
   purposeTitle?: string;
+  purposeTitleMl?: string;
   purposeDescription?: string;
   purpose?: string;
   type: 'common' | 'nikah';
   nikahRegistrationId?: string | {
-    _id?: string;
+    id?: string;
     groomName?: string;
     groomAge?: number;
     brideName?: string;
@@ -98,6 +128,26 @@ export const registrationService = {
   updateNikah: async (id: string, data: Partial<NikahRegistration>) => {
     const response = await api.put<{ success: boolean; data: NikahRegistration }>(`/registrations/nikah/${id}`, data);
     return response.data.data;
+  },
+
+  deleteNikah: async (id: string) => {
+    const response = await api.delete<{ success: boolean; message: string }>(`/registrations/nikah/${id}`);
+    return response.data;
+  },
+
+  previewNikah: async (payload: Record<string, any>) => {
+    const response = await api.post<{ success: boolean; data: SideEffectsPreview }>('/registrations/nikah/preview', payload);
+    return response.data.data;
+  },
+
+  previewDeath: async (payload: Record<string, any>) => {
+    const response = await api.post<{ success: boolean; data: SideEffectsPreview }>('/registrations/death/preview', payload);
+    return response.data.data;
+  },
+
+  deleteDeath: async (id: string) => {
+    const response = await api.delete<{ success: boolean; message: string }>(`/registrations/death/${id}`);
+    return response.data;
   },
 
   // Death Registrations

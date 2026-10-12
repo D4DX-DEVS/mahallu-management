@@ -43,6 +43,11 @@ export interface FinancialSummary {
   bankAccountCount: number;
 }
 
+export interface DashboardOverview {
+  monthlyTrend: Array<{ name: string; month: string; income: number; expense: number }>;
+  varisangyaByWard: Array<{ ward: string; amount: number; payments: number }>;
+}
+
 export const dashboardService = {
   getStats: async () => {
     const response = await api.get<{ success: boolean; data: DashboardStats }>('/dashboard/stats');
@@ -67,5 +72,9 @@ export const dashboardService = {
     const response = await api.get<{ success: boolean; data: FinancialSummary }>('/dashboard/financial-summary');
     return response.data.data;
   },
-};
 
+  getOverview: async () => {
+    const response = await api.get<{ success: boolean; data: DashboardOverview }>('/dashboard/overview');
+    return response.data.data;
+  },
+};

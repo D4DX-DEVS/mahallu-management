@@ -4,16 +4,24 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useNavigate } from 'react-router-dom';
 import { FiSave, FiX } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
+import Alert from '@/components/ui/Alert';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import SearchableSelect from '@/components/ui/SearchableSelect';
+import PageHeader from '@/components/ui/PageHeader';
 import { ROUTES } from '@/constants/routes';
 import { registrationService } from '@/services/registrationService';
 import { memberService } from '@/services/memberService';
 import { Member } from '@/types';
+import { useUnsavedChangesGuard } from '@/hooks/useUnsavedChangesGuard';
+import UnsavedChangesDialog from '@/components/ui/UnsavedChangesDialog';
+import AmountInput from '@/components/ui/AmountInput';
+import SideEffectsSummary, { ApprovalConfirmDialog, useSideEffectsPreview } from '../components/SideEffectsSummary';
+import PartnerMemberPicker from '../components/PartnerMemberPicker';
+import { toast } from '@/store/toastStore';
+import { getFriendlyError } from '@/utils/apiMessages';
 
 const nikahSchema = z.object({
   groomName: z.string().min(1, 'Groom name is required'),
@@ -22,6 +30,9 @@ const nikahSchema = z.object({
   brideName: z.string().min(1, 'Bride name is required'),
   brideNameMl: z.string().optional(),
   brideAge: z.preprocess((val) => (val === '' || Number.isNaN(val) ? undefined : val), z.number().min(0).max(150).optional()),
+  status: z.enum(['pending', 'approved', 'rejected']).optional(),
+  brideFamilyAction: z.enum(['stay', 'move', 'newFamily']).optional(),
+  newFamilyHouseName: z.string().optional(),
   mahallMemberType: z.enum(['groom', 'bride']).optional().or(z.literal('')),
   mahallMemberId: z.string().optional(),
   nikahDate: z.string().min(1, 'Nikah date is required'),
@@ -47,16 +58,42 @@ export default function CreateNikahRegistration() {
     handleSubmit,
     watch,
     setValue,
-    formState: { errors, isSubmitting },
+    formState: { errors, isSubmitting, isDirty },
   } = useForm<NikahFormData>({
+    mode: 'onTouched',
     resolver: zodResolver(nikahSchema),
     defaultValues: {
       nikahDate: new Date().toISOString().split('T')[0],
+      status: 'pending',
+      brideFamilyAction: 'stay',
     },
   });
+  const guard = useUnsavedChangesGuard(isDirty);
 
   const selectedMahallMemberType = watch('mahallMemberType') || '';
   const selectedMahallMemberId = watch('mahallMemberId') || '';
+  const [partnerId, setPartnerId] = useState('');
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [pendingData, setPendingData] = useState<NikahFormData | null>(null);
+  const brideFamilyAction = watch('brideFamilyAction') || 'stay';
+  const newFamilyHouseName = watch('newFamilyHouseName') || '';
+  const statusVal = watch('status');
+  const willApprove = statusVal === 'approved';
+  // The member picked above is the groom or the bride; the optional partner is the other one
+  const groomMemberId = selectedMahallMemberType === 'groom' ? selectedMahallMemberId : selectedMahallMemberType === 'bride' ? partnerId : '';
+  const brideMemberId = selectedMahallMemberType === 'bride' ? selectedMahallMemberId : selectedMahallMemberType === 'groom' ? partnerId : '';
+  const { preview, loading: previewLoading } = useSideEffectsPreview(
+    'nikah',
+    {
+      groomId: groomMemberId || undefined,
+      brideId: brideMemberId || undefined,
+      groomName: watch('groomName'),
+      brideName: watch('brideName'),
+      brideFamilyAction,
+      newFamilyHouseName: newFamilyHouseName || undefined,
+    },
+    willApprove
+  );
 
   // Reset member search when member type changes
   useEffect(() => {
@@ -105,7 +142,7 @@ export default function CreateNikahRegistration() {
   // Handle member selection - auto-fill name and age
   const handleMemberSelect = useCallback(
     (memberId: string) => {
-      setValue('mahallMemberId', memberId);
+      setValue('mahallMemberId', memberId, { shouldDirty: true });
       if (!memberId) return;
       const selectedMember = members.find((m) => m.id === memberId);
       if (!selectedMember) return;
@@ -120,7 +157,18 @@ export default function CreateNikahRegistration() {
     [members, selectedMahallMemberType, setValue]
   );
 
+  // Ask for confirmation first when approving will change member records
   const onSubmit = async (data: NikahFormData) => {
+    if (willApprove && preview && preview.effects.some((e) => e.kind !== 'no_move')) {
+      setPendingData(data);
+      setConfirmOpen(true);
+      return;
+    }
+    await save(data);
+  };
+
+  const save = async (data: NikahFormData) => {
+    setConfirmOpen(false);
     try {
       setError(null);
       await registrationService.createNikah({
@@ -130,8 +178,11 @@ export default function CreateNikahRegistration() {
         brideName: data.brideName,
         brideNameMl: data.brideNameMl || undefined,
         brideAge: data.brideAge || undefined,
-        groomId: data.mahallMemberType === 'groom' ? data.mahallMemberId : undefined,
-        brideId: data.mahallMemberType === 'bride' ? data.mahallMemberId : undefined,
+        groomId: groomMemberId || undefined,
+        brideId: brideMemberId || undefined,
+        brideFamilyAction: groomMemberId && brideMemberId ? data.brideFamilyAction : data.brideFamilyAction === 'newFamily' ? 'newFamily' : 'stay',
+        newFamilyHouseName: data.newFamilyHouseName || undefined,
+        status: data.status,
         mahallMemberType: data.mahallMemberType || undefined,
         nikahDate: data.nikahDate,
         mahallId: data.mahallId,
@@ -144,153 +195,228 @@ export default function CreateNikahRegistration() {
       });
       navigate(ROUTES.REGISTRATIONS.NIKAH);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to create nikah registration. Please try again.');
+      toast.error(getFriendlyError(err, "Couldn't create nikah registration. Check the details and try again."));
       console.error('Error creating registration:', err);
     }
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Create Nikah Registration</h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Register a new nikah</p>
-        </div>
-        <Breadcrumb
-          items={[
-            { label: 'Dashboard', path: '/dashboard' },
-            { label: 'Nikah Registrations', path: ROUTES.REGISTRATIONS.NIKAH },
-            { label: 'Create' },
-          ]}
-        />
-      </div>
+    <div className="space-y-4">
+      <PageHeader
+        title="Create Nikah Registration"
+        description="Register a new nikah"
+      />
 
       <form onSubmit={handleSubmit(onSubmit)}>
-        <Card className="space-y-6">
+        <div className="space-y-4">
           {error && (
-            <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm dark:bg-red-900 dark:border-red-700 dark:text-red-200">
-              {error}
-            </div>
+            <Alert tone="danger">{error}</Alert>
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <h3 className="md:col-span-2 text-lg font-semibold text-gray-900 dark:text-gray-100">
-              Mahall Member Selection
-            </h3>
-            <Select
-              label="Mahall Member"
-              options={[
-                { value: '', label: 'Select who is Mahall member' },
-                { value: 'groom', label: 'Groom' },
-                { value: 'bride', label: 'Bride' },
-              ]}
-              {...register('mahallMemberType')}
-              error={errors.mahallMemberType?.message as string | undefined}
-              className="md:col-span-2"
-            />
-            {selectedMahallMemberType && (
-              <SearchableSelect
-                label="Search and select member"
-                placeholder="Type a name to search members..."
-                options={memberOptions}
-                value={selectedMahallMemberId}
-                onChange={handleMemberSelect}
-                onSearch={handleMemberSearch}
-                isLoading={isMemberSearching}
+          <Card>
+            <div className="mb-3.5">
+              <h2 className="text-sm font-bold text-[#18231E] dark:text-surface-text">Mahall Member Selection</h2>
+              <p className="mt-0.5 text-xs text-[#7B8983] dark:text-surface-muted">Pick existing members to pre-fill the couple details</p>
+            </div>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <Select
+                label="Mahall Member"
+                options={[
+                  { value: '', label: 'Select who is Mahall member' },
+                  { value: 'groom', label: 'Groom' },
+                  { value: 'bride', label: 'Bride' },
+                ]}
+                {...register('mahallMemberType')}
+                error={errors.mahallMemberType?.message as string | undefined}
                 className="md:col-span-2"
               />
-            )}
-            <h3 className="md:col-span-2 text-lg font-semibold text-gray-900 dark:text-gray-100">Groom Information</h3>
-            <Input
-              label="Groom Name"
-              {...register('groomName')}
-              error={errors.groomName?.message}
-              required
-              placeholder="Groom Name"
-            />
-            <div className="hidden">
-            <Input
-              label="Groom Name (Malayalam)"
-              {...register('groomNameMl')}
-              placeholder="വരന്റെ പേര്"
-              className="font-malayalam"
-            />
+              {selectedMahallMemberType && (
+                <SearchableSelect
+                  label="Search and select member"
+                  placeholder="Type a name to search members..."
+                  options={memberOptions}
+                  value={selectedMahallMemberId}
+                  onChange={handleMemberSelect}
+                  onSearch={handleMemberSearch}
+                  isLoading={isMemberSearching}
+                  className="md:col-span-2"
+                />
+              )}
+              {selectedMahallMemberType && selectedMahallMemberId && (
+                <div className="md:col-span-2">
+                  <PartnerMemberPicker
+                    role={selectedMahallMemberType === 'groom' ? 'bride' : 'groom'}
+                    value={partnerId}
+                    onChange={(id, m) => {
+                      setPartnerId(id);
+                      if (m) {
+                        if (selectedMahallMemberType === 'groom') { setValue('brideName', m.name, { shouldDirty: true }); if (m.age) setValue('brideAge', m.age); }
+                        else { setValue('groomName', m.name, { shouldDirty: true }); if (m.age) setValue('groomAge', m.age); }
+                      }
+                    }}
+                  />
+                </div>
+              )}
             </div>
-            <Input
-              label="Groom Age"
-              type="number"
-              {...register('groomAge', { valueAsNumber: true })}
-              error={errors.groomAge?.message}
-              placeholder="Age"
-            />
-            <h3 className="md:col-span-2 text-lg font-semibold text-gray-900 dark:text-gray-100 mt-4">Bride Information</h3>
-            <Input
-              label="Bride Name"
-              {...register('brideName')}
-              error={errors.brideName?.message}
-              required
-              placeholder="Bride Name"
-            />
-            <div className="hidden">
-            <Input
-              label="Bride Name (Malayalam)"
-              {...register('brideNameMl')}
-              placeholder="വധുവിന്റെ പേര്"
-              className="font-malayalam"
-            />
-            </div>
-            <Input
-              label="Bride Age"
-              type="number"
-              {...register('brideAge', { valueAsNumber: true })}
-              error={errors.brideAge?.message}
-              placeholder="Age"
-            />
-            <h3 className="md:col-span-2 text-lg font-semibold text-gray-900 dark:text-gray-100 mt-4">Nikah Details</h3>
-            <Input
-              label="Nikah Date"
-              type="date"
-              {...register('nikahDate')}
-              error={errors.nikahDate?.message}
-              required
-            />
-            <Input label="Mahall ID" {...register('mahallId')} placeholder="Mahall ID" />
-            <Input label="Wali Name" {...register('waliName')} placeholder="Wali Name" />
-            <Input label="Witness 1" {...register('witness1')} placeholder="Witness 1" />
-            <Input label="Witness 2" {...register('witness2')} placeholder="Witness 2" />
-            <Input
-              label="Mahr Amount"
-              type="number"
-              {...register('mahrAmount', { valueAsNumber: true })}
-              error={errors.mahrAmount?.message}
-              placeholder="Amount"
-            />
-            <Input
-              label="Mahr Description"
-              {...register('mahrDescription')}
-              placeholder="Mahr Description"
-              className="md:col-span-2"
-            />
-            <Input
-              label="Remarks"
-              {...register('remarks')}
-              placeholder="Remarks"
-              className="md:col-span-2"
-            />
-          </div>
+          </Card>
 
-          <div className="flex justify-end gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-            <Button type="button" variant="outline" onClick={() => navigate(ROUTES.REGISTRATIONS.NIKAH)}>
-              <FiX className="h-4 w-4 mr-2" />
+          <Card>
+            <div className="mb-3.5">
+              <h2 className="text-sm font-bold text-[#18231E] dark:text-surface-text">Groom Information</h2>
+              <p className="mt-0.5 text-xs text-[#7B8983] dark:text-surface-muted">Details of the groom</p>
+            </div>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <Input
+                label="Groom Name"
+                {...register('groomName')}
+                error={errors.groomName?.message}
+                required
+                placeholder="Groom Name"
+              />
+              <div className="hidden">
+              <Input
+                label="Groom Name (Malayalam)"
+                {...register('groomNameMl')}
+                placeholder="വരന്റെ പേര്"
+                className="font-malayalam"
+              />
+              </div>
+              <Input
+                label="Groom Age"
+                type="number"
+                {...register('groomAge', { valueAsNumber: true })}
+                error={errors.groomAge?.message}
+                placeholder="Age"
+              />
+            </div>
+          </Card>
+
+          <Card>
+            <div className="mb-3.5">
+              <h2 className="text-sm font-bold text-[#18231E] dark:text-surface-text">Bride Information</h2>
+              <p className="mt-0.5 text-xs text-[#7B8983] dark:text-surface-muted">Details of the bride</p>
+            </div>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <Input
+                label="Bride Name"
+                {...register('brideName')}
+                error={errors.brideName?.message}
+                required
+                placeholder="Bride Name"
+              />
+              <div className="hidden">
+              <Input
+                label="Bride Name (Malayalam)"
+                {...register('brideNameMl')}
+                placeholder="വധുവിന്റെ പേര്"
+                className="font-malayalam"
+              />
+              </div>
+              <Input
+                label="Bride Age"
+                type="number"
+                {...register('brideAge', { valueAsNumber: true })}
+                error={errors.brideAge?.message}
+                placeholder="Age"
+              />
+            </div>
+          </Card>
+
+          <Card>
+            <div className="mb-3.5">
+              <h2 className="text-sm font-bold text-[#18231E] dark:text-surface-text">Nikah Details</h2>
+              <p className="mt-0.5 text-xs text-[#7B8983] dark:text-surface-muted">Date, wali and other nikah details</p>
+            </div>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <Input
+                label="Nikah Date"
+                type="date"
+                {...register('nikahDate')}
+                error={errors.nikahDate?.message}
+                required
+              />
+              <Input label="Mahall ID" {...register('mahallId')} placeholder="Mahall ID" />
+              <Input label="Wali Name" {...register('waliName')} placeholder="Wali Name" />
+              <Input label="Witness 1" {...register('witness1')} placeholder="Witness 1" />
+              <Input label="Witness 2" {...register('witness2')} placeholder="Witness 2" />
+              <AmountInput
+                label="Mahr Amount"
+                {...register('mahrAmount', { valueAsNumber: true })}
+                error={errors.mahrAmount?.message}
+                placeholder="Amount"
+              />
+              <Input
+                label="Mahr Description"
+                {...register('mahrDescription')}
+                placeholder="Mahr Description"
+                className="md:col-span-2"
+              />
+              <Input
+                label="Remarks"
+                {...register('remarks')}
+                placeholder="Remarks"
+                className="md:col-span-2"
+              />
+            </div>
+          </Card>
+
+          <Card>
+            <div className="mb-3.5">
+              <h2 className="text-sm font-bold text-[#18231E] dark:text-surface-text">Approval and family</h2>
+              <p className="mt-0.5 text-xs text-[#7B8983] dark:text-surface-muted">Approving updates the member records of the couple.</p>
+            </div>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <Select
+                label="Status"
+                options={[
+                  { value: 'pending', label: 'Pending' },
+                  { value: 'approved', label: 'Approved' },
+                ]}
+                {...register('status')}
+              />
+              <Select
+                label="Where does the bride live after the nikah?"
+                options={[
+                  { value: 'stay', label: 'No change (stays in her family)' },
+                  { value: 'move', label: "Move her to the groom's family" },
+                  { value: 'newFamily', label: 'Create a new family for the couple' },
+                ]}
+                {...register('brideFamilyAction')}
+                helperText="Only used when approved. Nobody moves unless you choose it."
+              />
+              {brideFamilyAction === 'newFamily' && (
+                <Input label="New family house name" {...register('newFamilyHouseName')} placeholder="Leave blank to use the groom's name" />
+              )}
+            </div>
+            <div className="mt-3">
+              {willApprove ? (
+                <SideEffectsSummary preview={preview} loading={previewLoading} title="Saving as approved will:" />
+              ) : (
+                <Alert tone="info">Nothing changes on member records while this is pending or rejected.</Alert>
+              )}
+            </div>
+          </Card>
+
+          <div className="sticky bottom-0 z-10 -mx-1 flex flex-wrap justify-end gap-2 pb-[calc(0.75rem+env(safe-area-inset-bottom))] [&>button]:flex-1 sm:[&>button]:flex-none border-t border-line bg-white/90 px-4 py-3 backdrop-blur dark:border-surface-border dark:bg-surface-card/90">
+            <Button type="button" variant="secondary" onClick={() => guard.guardedNavigate(ROUTES.REGISTRATIONS.NIKAH)}>
+              <FiX className="h-3.5 w-3.5" />
               Cancel
             </Button>
             <Button type="submit" isLoading={isSubmitting}>
-              <FiSave className="h-4 w-4 mr-2" />
+              <FiSave className="h-3.5 w-3.5" />
               Create Registration
             </Button>
           </div>
-        </Card>
+        </div>
       </form>
+      <UnsavedChangesDialog guard={guard} />
+      <ApprovalConfirmDialog
+        open={confirmOpen}
+        preview={preview}
+        isSaving={isSubmitting}
+        onCancel={() => setConfirmOpen(false)}
+        onConfirm={() => pendingData && save(pendingData)}
+      />
     </div>
   );
 }

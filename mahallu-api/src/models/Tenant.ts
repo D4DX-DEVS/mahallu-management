@@ -1,10 +1,12 @@
 import mongoose, { Schema, Document } from 'mongoose';
+import { TENANT_CLASSIFICATIONS, TenantClassification } from '../config/moduleFeatures';
 
 export interface ITenant extends Document {
   name: string;
   nameMl?: string;
   code: string;
   type: 'standard' | 'premium' | 'enterprise';
+  classification: TenantClassification;
   since: Date;
   location: string;
   locationMl?: string;
@@ -26,6 +28,13 @@ export interface ITenant extends Document {
   };
   settings: {
     varisangyaAmount: number;
+    receiptPrefixes?: { varisangya?: string; zakat?: string };
+    /** Optional 'YYYY-MM': billing start for every family (overrides family join month). */
+    varisangyaBillingStart?: string;
+    /** Optional day of month (1-28) for the monthly dues reminder; default 5. */
+    varisangyaReminderDay?: number;
+    /** Optional switch; reminders are on unless explicitly false. */
+    varisangyaRemindersEnabled?: boolean;
     varisangyaGrades: Array<{
       name: string;
       amount: number;
@@ -63,6 +72,11 @@ const TenantSchema = new Schema<ITenant>(
       enum: ['standard', 'premium', 'enterprise'],
       default: 'standard',
     },
+    classification: {
+      type: String,
+      enum: TENANT_CLASSIFICATIONS,
+      default: 'fully_functional',
+    },
     since: {
       type: Date,
       default: Date.now,
@@ -97,6 +111,14 @@ const TenantSchema = new Schema<ITenant>(
     },
     settings: {
       varisangyaAmount: { type: Number, default: 0 },
+      // Optional receipt number prefixes (default VAR / ZAK). Format: PREFIX/2026-27/00042
+      receiptPrefixes: {
+        varisangya: { type: String, trim: true, uppercase: true, maxlength: 8, match: /^[A-Z0-9]*$/ },
+        zakat: { type: String, trim: true, uppercase: true, maxlength: 8, match: /^[A-Z0-9]*$/ },
+      },
+      varisangyaBillingStart: { type: String, match: /^\d{4}-(0[1-9]|1[0-2])$/ },
+      varisangyaReminderDay: { type: Number, min: 1, max: 28 },
+      varisangyaRemindersEnabled: { type: Boolean },
       varisangyaGrades: {
         type: [
           {

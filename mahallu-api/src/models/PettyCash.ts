@@ -21,6 +21,8 @@ export interface IPettyCashTransaction extends Document {
   categoryId?: mongoose.Types.ObjectId;
   receiptNo?: string;
   date: Date;
+  /** Set when the expense has been posted to the ledger (on replenishment) */
+  postedAt?: Date;
   createdBy?: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
@@ -49,6 +51,7 @@ const PettyCashTransactionSchema = new Schema<IPettyCashTransaction>(
     categoryId: { type: Schema.Types.ObjectId, ref: 'Category' },
     receiptNo: String,
     date: { type: Date, required: true },
+    postedAt: { type: Date },
     createdBy: { type: Schema.Types.ObjectId, ref: 'User' },
   },
   { timestamps: true }

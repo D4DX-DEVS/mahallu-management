@@ -1,14 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FiTrash2, FiCheckCircle, FiXCircle, FiEye, FiX, FiGlobe, FiAlertCircle } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
+import { FiCheckCircle, FiXCircle, FiGlobe, FiAlertCircle, FiRefreshCw, FiDownload, FiFileText, FiFile } from 'react-icons/fi';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
 import Modal from '@/components/ui/Modal';
-import TableToolbar from '@/components/ui/TableToolbar';
 import { TableColumn } from '@/types';
 import { Tenant } from '@/types/tenant';
 import { tenantService } from '@/services/tenantService';
@@ -16,6 +14,15 @@ import { useAuthStore } from '@/store/authStore';
 import { formatDate } from '@/utils/format';
 import { useDebounce } from '@/hooks/useDebounce';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
+import { toast } from '@/store/toastStore';
+import { getFriendlyError } from '@/utils/apiMessages';
+import PageHeader from '@/components/ui/PageHeader';
+import FilterBar from '@/components/ui/FilterBar';
+import StatusBadge from '@/components/ui/StatusBadge';
+import RowActions from '@/components/ui/RowActions';
+import { PersonCell } from '@/components/ui/Avatar';
+import Dropdown from '@/components/ui/Dropdown';
+import { monthlySeries, shareViz } from '@/utils/statSeries';
 
 export default function TenantsList() {
   const { isSuperAdmin } = useAuthStore();
@@ -23,7 +30,6 @@ export default function TenantsList() {
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [isFilterVisible, setIsFilterVisible] = useState(false);
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedTenant, setSelectedTenant] = useState<Tenant | null>(null);
   const [showSuspendModal, setShowSuspendModal] = useState(false);
@@ -62,7 +68,7 @@ export default function TenantsList() {
       if (debouncedSearch) params.search = debouncedSearch;
       const response = await tenantService.getAll(params);
       const dataToExport = response.data || [];
-      if (dataToExport.length === 0) { alert('No data to export'); return; }
+      if (dataToExport.length === 0) { toast.info('Nothing to export. Change your filters and try again.'); return; }
       const filename = 'tenants';
       const title = 'All Tenants';
       switch (type) {
@@ -72,7 +78,7 @@ export default function TenantsList() {
       }
     } catch (error: any) {
       console.error('Export error:', error);
-      alert(error?.message || 'Failed to export data');
+      toast.error(getFriendlyError(error, "Couldn't export data. Check your connection and try again."));
     } finally {
       setIsExporting(false);
     }
@@ -86,13 +92,15 @@ export default function TenantsList() {
 
   const handleSuspend = async () => {
     if (selectedTenant) {
+      const name = selectedTenant.name;
       try {
         await tenantService.suspend(selectedTenant.id);
         await loadTenants();
         setShowSuspendModal(false);
         setSelectedTenant(null);
-      } catch (error) {
-        console.error('Error suspending tenant:', error);
+        toast.success(`${name} suspended`);
+      } catch (error: any) {
+        toast.error(getFriendlyError(error, `Couldn't suspend ${name}. Try again in a moment.`));
       }
     }
   };
@@ -101,35 +109,36 @@ export default function TenantsList() {
     try {
       await tenantService.activate(tenant.id);
       await loadTenants();
-    } catch (error) {
-      console.error('Error activating tenant:', error);
+      toast.success(`${tenant.name} activated`);
+    } catch (error: any) {
+      toast.error(getFriendlyError(error, `Couldn't activate ${tenant.name}. Try again in a moment.`));
     }
   };
 
   const handleDelete = async () => {
     if (selectedTenant) {
+      const name = selectedTenant.name;
       try {
         await tenantService.delete(selectedTenant.id);
         await loadTenants();
         setShowDeleteModal(false);
         setSelectedTenant(null);
-      } catch (error) {
-        console.error('Error deleting tenant:', error);
+        toast.success(`${name} deleted`);
+      } catch (error: any) {
+        toast.error(getFriendlyError(error, `Couldn't delete ${name}. Try again in a moment.`));
       }
     }
   };
 
   const columns: TableColumn<Tenant>[] = [
     { key: 'id', label: 'No.', render: (_, __, index) => index + 1 },
-    { key: 'name', label: 'Tenant Name', sortable: true },
+    { key: 'name', label: 'Tenant Name', sortable: true, render: (name) => <PersonCell name={name} /> },
     { key: 'code', label: 'Code' },
     {
       key: 'type',
       label: 'Type',
       render: (type) => (
-        <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-          {type}
-        </span>
+        <StatusBadge status={type} tone="info" dot={false} />
       ),
     },
     { key: 'location', label: 'Location' },
@@ -137,26 +146,14 @@ export default function TenantsList() {
       key: 'userCount',
       label: 'Users',
       render: (count) => (
-        <span className="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200">
-          {count ?? 0}
-        </span>
+        <StatusBadge status={String(count ?? 0)} tone="neutral" dot={false} />
       ),
     },
     {
       key: 'status',
       label: 'Status',
       render: (status) => (
-        <span
-          className={`px-2 py-1 text-xs font-medium rounded-full ${
-            status === 'active'
-              ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-              : status === 'suspended'
-              ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-              : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
-          }`}
-        >
-          {status}
-        </span>
+        <StatusBadge status={status} tone={status === 'suspended' ? 'warning' : undefined} />
       ),
     },
     {
@@ -168,53 +165,27 @@ export default function TenantsList() {
       key: 'actions',
       label: 'Actions',
       render: (_, row) => (
-        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(`/admin/tenants/${row.id}`);
-            }}
-            className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
-            title="View Details"
-          >
-            <FiEye className="h-4 w-4" />
-          </button>
-          {row.status === 'active' ? (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setSelectedTenant(row);
-                setShowSuspendModal(true);
-              }}
-              className="p-1.5 rounded-md hover:bg-yellow-50 dark:hover:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400 transition-colors"
-              title="Suspend"
-            >
-              <FiXCircle className="h-4 w-4" />
-            </button>
-          ) : (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                handleActivate(row);
-              }}
-              className="p-1.5 rounded-md hover:bg-green-50 dark:hover:bg-green-900/20 text-green-600 dark:text-green-400 transition-colors"
-              title="Activate"
-            >
-              <FiCheckCircle className="h-4 w-4" />
-            </button>
-          )}
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setSelectedTenant(row);
-              setShowDeleteModal(true);
-            }}
-            className="p-1.5 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 transition-colors"
-            title="Delete"
-          >
-            <FiTrash2 className="h-4 w-4" />
-          </button>
-        </div>
+        <RowActions
+          onView={() => navigate(`/admin/tenants/${row.id}`)}
+          viewLabel="View details"
+          onDelete={() => {
+            setSelectedTenant(row);
+            setShowDeleteModal(true);
+          }}
+          deleteLabel="Delete"
+          extra={[
+            row.status === 'active'
+              ? {
+                  label: 'Suspend',
+                  icon: <FiXCircle />,
+                  onClick: () => {
+                    setSelectedTenant(row);
+                    setShowSuspendModal(true);
+                  },
+                }
+              : { label: 'Activate', icon: <FiCheckCircle />, onClick: () => handleActivate(row) },
+          ]}
+        />
       ),
     },
   ];
@@ -222,25 +193,28 @@ export default function TenantsList() {
   const stats = [
     {
       title: 'Total Tenants',
-      value: tenants.length,
-      icon: <FiGlobe className="h-5 w-5" />,
+      value: tenants.length, viz: monthlySeries(tenants as any[], (r: any) => r.createdAt).length ? { type: 'bars' as const, values: monthlySeries(tenants as any[], (r: any) => r.createdAt) } : undefined,
+      icon: <FiGlobe className="h-[17px] w-[17px]" />,
+      tone: 'green' as const,
     },
     {
       title: 'Active Tenants',
-      value: tenants.filter((t) => t.status === 'active').length,
-      icon: <FiCheckCircle className="h-5 w-5" />,
+      value: tenants.filter((t) => t.status === 'active').length, viz: shareViz(tenants.filter((t) => t.status === 'active').length, tenants.length), summary: `Active Tenants: ${tenants.filter((t) => t.status === 'active').length} of ${tenants.length}`,
+      icon: <FiCheckCircle className="h-[17px] w-[17px]" />,
+      tone: 'lime' as const,
     },
     {
       title: 'Suspended',
-      value: tenants.filter((t) => t.status === 'suspended').length,
-      icon: <FiAlertCircle className="h-5 w-5" />,
+      value: tenants.filter((t) => t.status === 'suspended').length, viz: shareViz(tenants.filter((t) => t.status === 'suspended').length, tenants.length), summary: `Suspended: ${tenants.filter((t) => t.status === 'suspended').length} of ${tenants.length}`,
+      icon: <FiAlertCircle className="h-[17px] w-[17px]" />,
+      tone: 'neutral' as const,
     },
   ];
 
   if (!isSuperAdmin) {
     return (
       <div className="flex items-center justify-center h-64">
-        <p className="text-gray-500 dark:text-gray-400">
+        <p className="text-[#7B8983] dark:text-surface-muted">
           Super admin access required
         </p>
       </div>
@@ -249,67 +223,64 @@ export default function TenantsList() {
 
   return (
     <div className="space-y-4">
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">
-              Tenants Management
-            </h1>
-            <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
-              Manage all tenants (Mahalls) in the system
-            </p>
-          </div>
-          <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Tenants Management' }]} />
-        </div>
+      <PageHeader
+        title="Tenants Management"
+        description="Manage all tenants (Mahalls) in the system"
+        actions={
+          <Link to="/admin/tenants/create">
+            <Button>+ New Tenant</Button>
+          </Link>
+        }
+      />
 
-        {/* Statistics Cards */}
+{/* Statistics Cards */}
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           {stats.map((stat, index) => (
-            <StatCard key={index} {...stat} />
+            <StatCard key={index} variant="inline" {...stat} />
           ))}
         </div>
-      </div>
 
       {/* Actions and Table */}
-      <Card>
-        <TableToolbar
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-          onFilterClick={() => setIsFilterVisible(!isFilterVisible)}
-          isFilterVisible={isFilterVisible}
-          hasFilters={true}
-          onRefresh={loadTenants}
-          onExport={handleExport}
-          isExporting={isExporting}
-          actionButtons={
-            <Link to="/admin/tenants/create">
-              <Button size="md">+ New Tenant</Button>
-            </Link>
-          }
-        />
-
-        {isFilterVisible && (
-          <div className="relative flex flex-wrap items-center gap-4 mb-6 p-4 border border-gray-200 rounded-lg bg-white dark:bg-gray-800 dark:border-gray-700">
-            <button
-              onClick={() => setIsFilterVisible(false)}
-              className="absolute right-4 top-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-            >
-              <FiX className="h-4 w-4" />
-            </button>
-            <div className="w-40">
-              <Select
-                options={[
-                  { value: 'all', label: 'All Status' },
-                  { value: 'active', label: 'Active' },
-                  { value: 'suspended', label: 'Suspended' },
-                  { value: 'inactive', label: 'Inactive' },
+      <Card padding="none" className="overflow-visible">
+        <FilterBar
+          search={{ value: searchQuery, onChange: setSearchQuery, placeholder: 'Search tenants' }}
+          actions={
+            <>
+              <Button variant="secondary" iconOnly aria-label="Refresh list" onClick={loadTenants}>
+                <FiRefreshCw className="h-3.5 w-3.5" />
+              </Button>
+              <Dropdown
+                trigger={
+                  <Button variant="secondary" isLoading={isExporting}>
+                    {!isExporting && <FiDownload className="h-3.5 w-3.5" />}
+                    Export
+                  </Button>
+                }
+                items={[
+                  { label: 'Export CSV', icon: <FiFileText />, onClick: () => handleExport('csv'), disabled: isExporting },
+                  { label: 'Export JSON', icon: <FiFile />, onClick: () => handleExport('json'), disabled: isExporting },
+                  { label: 'Export PDF', icon: <FiDownload />, onClick: () => handleExport('pdf'), disabled: isExporting },
                 ]}
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
               />
-            </div>
+            </>
+          }
+        >
+          <div className="w-40">
+            <Select
+              aria-label="Filter by status"
+              options={[
+                { value: 'all', label: 'All Status' },
+                { value: 'active', label: 'Active' },
+                { value: 'suspended', label: 'Suspended' },
+                { value: 'inactive', label: 'Inactive' },
+              ]}
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+            />
           </div>
-        )}
+        </FilterBar>
+
+        <div className="p-3.5">
 
         <Table
           columns={columns}
@@ -318,6 +289,7 @@ export default function TenantsList() {
           emptyMessage="No tenants found"
           showExport={false}
         />
+        </div>
       </Card>
 
       {/* Suspend Modal */}
@@ -327,11 +299,11 @@ export default function TenantsList() {
           setShowSuspendModal(false);
           setSelectedTenant(null);
         }}
-        title="Suspend Tenant"
+        title="Suspend tenant?"
         footer={
           <>
             <Button
-              variant="outline"
+              variant="secondary"
               onClick={() => {
                 setShowSuspendModal(false);
                 setSelectedTenant(null);
@@ -345,8 +317,8 @@ export default function TenantsList() {
           </>
         }
       >
-        <p className="text-gray-600 dark:text-gray-400">
-          Are you sure you want to suspend <strong>{selectedTenant?.name}</strong>? This will prevent all users from accessing this tenant.
+        <p className="text-[#5B6963] dark:text-surface-muted">
+          Suspend <strong>{selectedTenant?.name}</strong>? This will prevent all users from accessing this tenant.
         </p>
       </Modal>
 
@@ -357,11 +329,11 @@ export default function TenantsList() {
           setShowDeleteModal(false);
           setSelectedTenant(null);
         }}
-        title="Delete Tenant"
+        title="Delete tenant?"
         footer={
           <>
             <Button
-              variant="outline"
+              variant="secondary"
               onClick={() => {
                 setShowDeleteModal(false);
                 setSelectedTenant(null);
@@ -375,8 +347,8 @@ export default function TenantsList() {
           </>
         }
       >
-        <p className="text-gray-600 dark:text-gray-400">
-          Are you sure you want to delete <strong>{selectedTenant?.name}</strong>? This action cannot be undone and will delete all associated data.
+        <p className="text-[#5B6963] dark:text-surface-muted">
+          Delete <strong>{selectedTenant?.name}</strong>? This cannot be undone and will delete all associated data.
         </p>
       </Modal>
     </div>

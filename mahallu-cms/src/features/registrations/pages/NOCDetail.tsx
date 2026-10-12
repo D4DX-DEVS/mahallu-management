@@ -1,13 +1,17 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { FiArrowLeft, FiEdit2 } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import PageHeader from '@/components/ui/PageHeader';
+import Avatar from '@/components/ui/Avatar';
+import StatusBadge from '@/components/ui/StatusBadge';
+import Badge from '@/components/ui/Badge';
 import { ROUTES } from '@/constants/routes';
 import { registrationService, NOC } from '@/services/registrationService';
 import { formatDate } from '@/utils/format';
+import { getFriendlyError } from '@/utils/apiMessages';
 
 export default function NOCDetail() {
   const { id } = useParams<{ id: string }>();
@@ -29,7 +33,7 @@ export default function NOCDetail() {
       const data = await registrationService.getNOCById(id!);
       setNOC(data);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to load NOC');
+      setError(getFriendlyError(err, "Couldn't load NOC. Refresh the page or try again."));
       console.error('Error fetching NOC:', err);
     } finally {
       setLoading(false);
@@ -46,13 +50,7 @@ export default function NOCDetail() {
 
   if (error || !noc) {
     return (
-      <div className="space-y-6">
-        <Breadcrumb
-          items={[
-            { label: 'Dashboard', path: '/dashboard' },
-            { label: 'NOC', path: noc?.type === 'nikah' ? ROUTES.REGISTRATIONS.NOC.NIKAH : ROUTES.REGISTRATIONS.NOC.COMMON },
-          ]}
-        />
+      <div className="space-y-4">
         <Card>
           <div className="text-center py-12">
             <p className="text-red-600 dark:text-red-400">{error || 'NOC not found'}</p>
@@ -69,129 +67,96 @@ export default function NOCDetail() {
     );
   }
 
-  const statusColors: Record<string, string> = {
-    pending: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
-    approved: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-    rejected: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
-  };
-
-  const typeColors: Record<string, string> = {
-    common: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-    nikah: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
-  };
-
   return (
-    <div className="space-y-6">
-      <Breadcrumb
-        items={[
-          { label: 'Dashboard', path: '/dashboard' },
-          {
-            label: 'NOC',
-            path: noc.type === 'nikah' ? ROUTES.REGISTRATIONS.NOC.NIKAH : ROUTES.REGISTRATIONS.NOC.COMMON,
-          },
-          { label: noc.applicantName },
-        ]}
+    <div className="space-y-4">
+      <PageHeader
+        leading={<Avatar size={56} name={noc.applicantName} />}
+        title={<>NOC - {noc.applicantName}</>}
+        description="NOC details"
+        actions={
+          <>
+            <div className="flex gap-2">
+              <Link to={`/registrations/noc/${noc.id}/edit`}>
+                <Button variant="secondary">
+                  <FiEdit2 className="h-3.5 w-3.5" />
+                  Edit
+                </Button>
+              </Link>
+              <Link
+                to={noc.type === 'nikah' ? ROUTES.REGISTRATIONS.NOC.NIKAH : ROUTES.REGISTRATIONS.NOC.COMMON}
+              >
+                <Button variant="secondary">
+                  <FiArrowLeft className="h-3.5 w-3.5" />
+                  Back to List
+                </Button>
+              </Link>
+            </div>
+          </>
+        }
       />
 
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-            NOC - {noc.applicantName}
-          </h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">NOC details</p>
-        </div>
-        <div className="flex gap-2">
-          <Link to={`/registrations/noc/${noc.id}/edit`}>
-            <Button variant="outline">
-              <FiEdit2 className="h-4 w-4 mr-2" />
-              Edit
-            </Button>
-          </Link>
-          <Link
-            to={noc.type === 'nikah' ? ROUTES.REGISTRATIONS.NOC.NIKAH : ROUTES.REGISTRATIONS.NOC.COMMON}
-          >
-            <Button variant="outline">
-              <FiArrowLeft className="h-4 w-4 mr-2" />
-              Back to List
-            </Button>
-          </Link>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card>
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+          <h2 className="text-sm font-bold text-[#18231E] dark:text-surface-text mb-3.5">
             Applicant Information
           </h2>
           <div className="space-y-3">
             <div>
-              <span className="text-sm text-gray-500 dark:text-gray-400">Applicant Name</span>
-              <p className="text-gray-900 dark:text-gray-100 font-medium">{noc.applicantName}</p>
+              <span className="text-xs text-[#7B8983] dark:text-surface-muted">Applicant Name</span>
+              <p className="mt-1 flex items-center gap-2 text-[#18231E] dark:text-surface-text font-medium"><Avatar size={24} name={noc.applicantName} />{noc.applicantName}</p>
             </div>
             {noc.applicantPhone && (
               <div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">Phone</span>
-                <p className="text-gray-900 dark:text-gray-100">{noc.applicantPhone}</p>
+                <span className="text-xs text-[#7B8983] dark:text-surface-muted">Phone</span>
+                <p className="text-[#18231E] dark:text-surface-text">{noc.applicantPhone}</p>
               </div>
             )}
             <div>
-              <span className="text-sm text-gray-500 dark:text-gray-400">Type</span>
+              <span className="text-xs text-[#7B8983] dark:text-surface-muted">Type</span>
               <div className="mt-1">
-                <span
-                  className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                    typeColors[noc.type || 'common']
-                  }`}
-                >
-                  {noc.type === 'nikah' ? 'Nikah NOC' : 'Common NOC'}
-                </span>
+                <Badge variant="info">{noc.type === 'nikah' ? 'Nikah NOC' : 'Common NOC'}</Badge>
               </div>
             </div>
             <div>
-              <span className="text-sm text-gray-500 dark:text-gray-400">Status</span>
+              <span className="text-xs text-[#7B8983] dark:text-surface-muted">Status</span>
               <div className="mt-1">
-                <span
-                  className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                    statusColors[noc.status || 'pending']
-                  }`}
-                >
-                  {noc.status || 'pending'}
-                </span>
+                <StatusBadge status={noc.status || 'pending'} />
               </div>
             </div>
           </div>
         </Card>
 
         <Card>
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">NOC Details</h2>
+          <h2 className="text-sm font-bold text-[#18231E] dark:text-surface-text mb-3.5">NOC Details</h2>
           <div className="space-y-3">
             <div>
-              <span className="text-sm text-gray-500 dark:text-gray-400">Purpose Title</span>
-              <p className="text-gray-900 dark:text-gray-100">{noc.purposeTitle || noc.purpose}</p>
+              <span className="text-xs text-[#7B8983] dark:text-surface-muted">Purpose Title</span>
+              <p className="text-[#18231E] dark:text-surface-text">{noc.purposeTitle || noc.purpose}</p>
             </div>
             {(noc.purposeDescription || noc.purpose) && (
               <div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">Purpose Description</span>
+                <span className="text-xs text-[#7B8983] dark:text-surface-muted">Purpose Description</span>
                 <div
-                  className="prose prose-sm max-w-none text-gray-900 dark:text-gray-100"
+                  className="prose prose-sm max-w-none text-[#18231E] dark:text-surface-text"
                   dangerouslySetInnerHTML={{ __html: noc.purposeDescription || noc.purpose || '' }}
                 />
               </div>
             )}
             {noc.issuedDate && (
               <div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">Issued Date</span>
-                <p className="text-gray-900 dark:text-gray-100">{formatDate(noc.issuedDate)}</p>
+                <span className="text-xs text-[#7B8983] dark:text-surface-muted">Issued Date</span>
+                <p className="text-[#18231E] dark:text-surface-text">{formatDate(noc.issuedDate)}</p>
               </div>
             )}
             {noc.expiryDate && (
               <div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">Expiry Date</span>
-                <p className="text-gray-900 dark:text-gray-100">{formatDate(noc.expiryDate)}</p>
+                <span className="text-xs text-[#7B8983] dark:text-surface-muted">Expiry Date</span>
+                <p className="text-[#18231E] dark:text-surface-text">{formatDate(noc.expiryDate)}</p>
               </div>
             )}
             {noc.nikahRegistrationId && (
               <div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">Related Nikah Registration</span>
+                <span className="text-xs text-[#7B8983] dark:text-surface-muted">Related Nikah Registration</span>
                 <Link
                   to={`/registrations/nikah/${noc.nikahRegistrationId}`}
                   className="text-primary-600 hover:text-primary-700 dark:text-primary-400"
@@ -206,21 +171,21 @@ export default function NOCDetail() {
 
       {noc.remarks && (
         <Card>
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Remarks</h2>
-          <p className="text-gray-700 dark:text-gray-300">{noc.remarks}</p>
+          <h2 className="text-sm font-bold text-[#18231E] dark:text-surface-text mb-3.5">Remarks</h2>
+          <p className="text-[#3A4741] dark:text-surface-text">{noc.remarks}</p>
         </Card>
       )}
 
       <Card>
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Registration Information</h2>
+        <h2 className="text-sm font-bold text-[#18231E] dark:text-surface-text mb-3.5">Registration Information</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <span className="text-sm text-gray-500 dark:text-gray-400">NOC ID</span>
-            <p className="text-gray-900 dark:text-gray-100 font-mono text-sm">{noc.id}</p>
+            <span className="text-xs text-[#7B8983] dark:text-surface-muted">NOC ID</span>
+            <p className="text-[#18231E] dark:text-surface-text font-mono text-sm">{noc.id}</p>
           </div>
           <div>
-            <span className="text-sm text-gray-500 dark:text-gray-400">Created At</span>
-            <p className="text-gray-900 dark:text-gray-100">{formatDate(noc.createdAt)}</p>
+            <span className="text-xs text-[#7B8983] dark:text-surface-muted">Created At</span>
+            <p className="text-[#18231E] dark:text-surface-text">{formatDate(noc.createdAt)}</p>
           </div>
         </div>
       </Card>

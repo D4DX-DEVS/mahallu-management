@@ -2,6 +2,8 @@ import { Request, Response } from 'express';
 import Notification from '../models/Notification';
 import User from '../models/User';
 import { AuthRequest } from '../middleware/authMiddleware';
+import { tenantScope } from '../utils/tenantScope';
+import { stripImmutable } from '../utils/sanitizeUpdate';
 import { getPaginationParams, createPaginationResponse } from '../utils/pagination';
 import { sendPushSilent } from '../services/oneSignalService';
 
@@ -87,10 +89,10 @@ export const createNotification = async (req: AuthRequest, res: Response) => {
   }
 };
 
-export const markAsRead = async (req: Request, res: Response) => {
+export const markAsRead = async (req: AuthRequest, res: Response) => {
   try {
-    const notification = await Notification.findByIdAndUpdate(
-      req.params.id,
+    const notification = await Notification.findOneAndUpdate(
+      { _id: req.params.id, ...tenantScope(req) },
       { isRead: true },
       { new: true }
     );

@@ -2,9 +2,8 @@ import api from './api';
 
 export interface PettyCashFund {
   id: string;
-  _id?: string;
   tenantId?: string;
-  instituteId?: string | { _id: string; name?: string };
+  instituteId?: string | { id: string; name?: string };
   custodianName: string;
   floatAmount: number;
   currentBalance: number;
@@ -15,15 +14,14 @@ export interface PettyCashFund {
 
 export interface PettyCashTransaction {
   id: string;
-  _id?: string;
   pettyCashId: string;
   type: 'float' | 'expense' | 'replenishment';
   amount: number;
   description: string;
-  categoryId?: string | { _id: string; name?: string };
+  categoryId?: string | { id: string; name?: string };
   receiptNo?: string;
   date: string;
-  createdBy?: string | { _id: string; name?: string };
+  createdBy?: string | { id: string; name?: string };
   createdAt: string;
 }
 

@@ -3,6 +3,7 @@ import Tenant from '../models/Tenant';
 import User from '../models/User';
 import { AuthRequest } from '../middleware/authMiddleware';
 import { getPaginationParams, createPaginationResponse } from '../utils/pagination';
+import { defaultFeaturesFor } from '../config/moduleFeatures';
 
 export const getAllTenants = async (req: AuthRequest, res: Response) => {
   try {
@@ -72,8 +73,15 @@ export const createTenant = async (req: AuthRequest, res: Response) => {
       });
     }
 
+    // Classification seeds the default module feature set (spec 3); admins can toggle after.
+    const settings = { ...(tenantData.settings || {}) };
+    if (!settings.features || Object.keys(settings.features).length === 0) {
+      settings.features = defaultFeaturesFor(tenantData.classification);
+    }
+
     const tenant = new Tenant({
       ...tenantData,
+      settings,
       code: tenantData.code.toUpperCase(),
     });
     await tenant.save();
@@ -90,8 +98,32 @@ export const updateTenant = async (req: AuthRequest, res: Response) => {
       return res.status(403).json({ success: false, message: 'Access denied' });
     }
     // Handle nested settings update properly
-    const updateData = { ...req.body };
-    
+    const updateData: Record<string, any> = { ...req.body };
+    delete updateData._id;
+    delete updateData.__v;
+
+    // A Mahallu admin may edit their own profile/settings, but never their plan, status,
+    // identity (code/type/classification) or module feature flags - those are super-admin only.
+    if (!req.isSuperAdmin) {
+      ['status', 'subscription', 'code', 'type', 'classification'].forEach((k) => delete updateData[k]);
+      if (updateData.settings && typeof updateData.settings === 'object') {
+        updateData.settings = { ...updateData.settings };
+        delete updateData.settings.features;
+      }
+    }
+
+    // Changing classification re-seeds the default feature set, unless the caller
+    // sent an explicit features map in the same request.
+    if (updateData.classification && !updateData.settings?.features) {
+      const current = await Tenant.findById(req.params.id).select('classification settings');
+      if (current && current.classification !== updateData.classification) {
+        updateData.settings = {
+          ...(updateData.settings || {}),
+          features: defaultFeaturesFor(updateData.classification),
+        };
+      }
+    }
+
     // If settings is being updated, ensure it's merged correctly
     if (updateData.settings) {
       const existingTenant = await Tenant.findById(req.params.id);

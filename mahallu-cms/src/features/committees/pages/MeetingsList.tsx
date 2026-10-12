@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FiEye, FiTrash2, FiCalendar, FiX, FiClock, FiCheckCircle } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
+import { FiCalendar, FiClock, FiCheckCircle, FiRefreshCw, FiDownload, FiFileText, FiFile } from 'react-icons/fi';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
@@ -10,18 +9,25 @@ import Table from '@/components/ui/Table';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import Modal from '@/components/ui/Modal';
 import Pagination from '@/components/ui/Pagination';
-import TableToolbar from '@/components/ui/TableToolbar';
+import { toast } from '@/store/toastStore';
+import { getFriendlyError } from '@/utils/apiMessages';
 import { TableColumn, Pagination as PaginationType } from '@/types';
 import { Meeting, Committee } from '@/types';
 import { meetingService } from '@/services/meetingService';
 import { committeeService } from '@/services/committeeService';
 import { formatDate } from '@/utils/format';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
+import PageHeader from '@/components/ui/PageHeader';
+import FilterBar from '@/components/ui/FilterBar';
+import StatusBadge from '@/components/ui/StatusBadge';
+import RowActions from '@/components/ui/RowActions';
+import Dropdown from '@/components/ui/Dropdown';
+import { monthlySeries, pct } from '@/utils/statSeries';
+import { PersonCell } from '@/components/ui/Avatar';
 
 export default function MeetingsList() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
-  const [isFilterVisible, setIsFilterVisible] = useState(false);
   const [committeeFilter, setCommitteeFilter] = useState('all');
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [committees, setCommittees] = useState<Committee[]>([]);
@@ -42,7 +48,7 @@ export default function MeetingsList() {
 
   const fetchCommittees = async () => {
     try {
-      const result = await committeeService.getAll();
+      const result = await committeeService.getAll({ limit: 1000 });
       setCommittees(result.data || []);
     } catch (err) {
       console.error('Error fetching committees:', err);
@@ -67,7 +73,7 @@ export default function MeetingsList() {
         setPagination(result.pagination);
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch meetings');
+      setError(getFriendlyError(err, "Couldn't load meetings. Refresh the page or try again."));
       console.error('Error fetching meetings:', err);
     } finally {
       setLoading(false);
@@ -85,7 +91,7 @@ export default function MeetingsList() {
       const dataToExport = result.data;
 
       if (dataToExport.length === 0) {
-        alert('No data to export');
+        toast.info('Nothing to export. Change your filters and try again.');
         return;
       }
 
@@ -105,7 +111,7 @@ export default function MeetingsList() {
       }
     } catch (error: any) {
       console.error('Export error:', error);
-      alert(error?.message || 'Failed to export data');
+      toast.error(getFriendlyError(error, "Couldn't export meetings. Check your connection and try again."));
     } finally {
       setIsExporting(false);
     }
@@ -120,18 +126,18 @@ export default function MeetingsList() {
       setShowDeleteModal(false);
       setSelectedMeeting(null);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to delete meeting');
+      toast.error(getFriendlyError(err, "Couldn't delete meeting. Try again in a moment."));
       setDeleting(false);
     }
   };
 
   const columns: TableColumn<Meeting>[] = [
     { key: 'id', label: 'No.', render: (_, __, index) => index + 1 },
-    { key: 'title', label: 'Title', sortable: true },
+    { key: 'title', label: 'Title', sortable: true, render: (v) => <PersonCell name={v} /> },
     {
       key: 'committeeName',
       label: 'Committee',
-      render: (name, row) => name || (row.committeeId as any)?.name || '-',
+      render: (name, row) => { const n = name || (row.committeeId as any)?.name; return n ? <PersonCell name={n} size={24} /> : '-'; },
     },
     {
       key: 'meetingDate',
@@ -141,18 +147,7 @@ export default function MeetingsList() {
     {
       key: 'status',
       label: 'Status',
-      render: (status) => {
-        const statusColors: Record<string, string> = {
-          scheduled: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-          completed: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-          cancelled: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
-        };
-        return (
-          <span className={`px-2 py-1 text-xs font-medium rounded-full ${statusColors[status || 'scheduled']}`}>
-            {status || 'scheduled'}
-          </span>
-        );
-      },
+      render: (status) => <StatusBadge status={status || 'scheduled'} />,
     },
     {
       key: 'attendancePercent',
@@ -163,104 +158,98 @@ export default function MeetingsList() {
       key: 'actions',
       label: 'Actions',
       render: (_, row) => (
-        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(`/committees/meetings/${row.id}`);
-            }}
-            className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
-            title="View"
-          >
-            <FiEye className="h-4 w-4" />
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setSelectedMeeting(row);
-              setShowDeleteModal(true);
-            }}
-            className="p-1.5 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 transition-colors"
-            title="Delete"
-          >
-            <FiTrash2 className="h-4 w-4" />
-          </button>
-        </div>
+        <RowActions
+          onView={() => navigate(`/committees/meetings/${row.id}`)}
+          viewLabel="View"
+          onDelete={() => {
+            setSelectedMeeting(row);
+            setShowDeleteModal(true);
+          }}
+          deleteLabel="Delete"
+          ariaLabels={{ view: 'View meeting', delete: 'Delete meeting' }}
+        />
       ),
     },
   ];
 
   const stats = [
-    { title: 'Total Meetings', value: pagination?.total || meetings.length, icon: <FiCalendar className="h-5 w-5" /> },
+    { title: 'Total Meetings', value: pagination?.total || meetings.length, icon: <FiCalendar className="h-[17px] w-[17px]" />,
+      tone: 'green' as const,
+      viz: monthlySeries(meetings, (m) => m.meetingDate).length ? { type: 'bars' as const, values: monthlySeries(meetings, (m) => m.meetingDate) } : undefined },
     {
       title: 'Scheduled',
       value: meetings.filter((m) => m.status === 'scheduled' || !m.status).length,
-      icon: <FiClock className="h-5 w-5" />,
+      icon: <FiClock className="h-[17px] w-[17px]" />,
+      tone: 'lime' as const,
+      viz: meetings.filter((m) => m.status === 'scheduled' || !m.status).length > 0 ? { type: 'dots' as const, count: meetings.filter((m) => m.status === 'scheduled' || !m.status).length } : undefined,
+      summary: `${meetings.filter((m) => m.status === 'scheduled' || !m.status).length} meetings scheduled`,
     },
     {
       title: 'Completed',
       value: meetings.filter((m) => m.status === 'completed').length,
-      icon: <FiCheckCircle className="h-5 w-5" />,
+      icon: <FiCheckCircle className="h-[17px] w-[17px]" />,
+      tone: 'neutral' as const,
+      viz: meetings.length > 0 ? { type: 'ring' as const, percent: pct(meetings.filter((m) => m.status === 'completed').length, meetings.length) } : undefined,
+      summary: `${meetings.filter((m) => m.status === 'completed').length} of ${meetings.length} meetings completed`,
     },
   ];
 
   return (
     <div className="space-y-4">
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Meetings</h1>
-            <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">Manage committee meetings</p>
-          </div>
-          <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Meetings' }]} />
-        </div>
+      <PageHeader
+        title="Meetings"
+        description="Manage committee meetings"
+        actions={
+          <Link to="/committees/meetings/create">
+            <Button>+ New Meeting</Button>
+          </Link>
+        }
+      />
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+<div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {stats.map((stat, index) => (
-            <StatCard key={index} {...stat} />
+            <StatCard key={index} variant="inline" {...stat} />
           ))}
         </div>
-      </div>
 
-      <Card>
-        <TableToolbar
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-          onFilterClick={() => setIsFilterVisible(!isFilterVisible)}
-          isFilterVisible={isFilterVisible}
-          hasFilters={true}
-          onRefresh={fetchMeetings}
-          onExport={handleExport}
-          isExporting={isExporting}
-          actionButtons={
-            <Link to="/committees/meetings/create">
-              <Button size="md">
-                + New Meeting
+      <Card padding="none" className="overflow-visible">
+        <FilterBar
+          search={{ value: searchQuery, onChange: setSearchQuery, placeholder: 'Search meetings' }}
+          actions={
+            <>
+              <Button variant="secondary" iconOnly aria-label="Refresh list" onClick={fetchMeetings}>
+                <FiRefreshCw className="h-3.5 w-3.5" />
               </Button>
-            </Link>
-          }
-        />
-
-        {isFilterVisible && (
-          <div className="relative flex flex-wrap items-center gap-4 mb-6 p-4 border border-gray-200 rounded-lg bg-white dark:bg-gray-800 dark:border-gray-700">
-            <button
-              onClick={() => setIsFilterVisible(false)}
-              className="absolute right-4 top-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-            >
-              <FiX className="h-4 w-4" />
-            </button>
-            <div className="w-64">
-              <Select
-                options={[
-                  { value: 'all', label: 'All Committees' },
-                  ...(Array.isArray(committees) ? committees : []).map((c) => ({ value: c.id, label: c.name })),
+              <Dropdown
+                trigger={
+                  <Button variant="secondary" isLoading={isExporting}>
+                    {!isExporting && <FiDownload className="h-3.5 w-3.5" />}
+                    Export
+                  </Button>
+                }
+                items={[
+                  { label: 'Export CSV', icon: <FiFileText />, onClick: () => handleExport('csv'), disabled: isExporting },
+                  { label: 'Export JSON', icon: <FiFile />, onClick: () => handleExport('json'), disabled: isExporting },
+                  { label: 'Export PDF', icon: <FiDownload />, onClick: () => handleExport('pdf'), disabled: isExporting },
                 ]}
-                value={committeeFilter}
-                onChange={(e) => setCommitteeFilter(e.target.value)}
               />
-            </div>
+            </>
+          }
+        >
+          <div className="w-64">
+            <Select
+              aria-label="Filter by committee"
+              options={[
+                { value: 'all', label: 'All Committees' },
+                ...(Array.isArray(committees) ? committees : []).map((c) => ({ value: c.id, label: c.name })),
+              ]}
+              value={committeeFilter}
+              onChange={(e) => setCommitteeFilter(e.target.value)}
+            />
           </div>
-        )}
+        </FilterBar>
+
+        <div className="p-3.5">
 
         {loading ? (
           <div className="flex justify-center items-center py-12">
@@ -269,7 +258,7 @@ export default function MeetingsList() {
         ) : error ? (
           <div className="text-center py-12">
             <p className="text-red-600 dark:text-red-400">{error}</p>
-            <Button onClick={fetchMeetings} className="mt-4" variant="outline">
+            <Button onClick={fetchMeetings} className="mt-4" variant="secondary">
               Retry
             </Button>
           </div>
@@ -285,7 +274,7 @@ export default function MeetingsList() {
 
         {/* Pagination */}
         {pagination && (
-          <div className="mt-4">
+          <div className="mt-3.5">
             <Pagination
               currentPage={pagination.page}
               totalPages={pagination.totalPages}
@@ -297,6 +286,7 @@ export default function MeetingsList() {
             />
           </div>
         )}
+        </div>
       </Card>
 
       <Modal
@@ -305,11 +295,11 @@ export default function MeetingsList() {
           setShowDeleteModal(false);
           setSelectedMeeting(null);
         }}
-        title="Delete Meeting"
+        title="Delete meeting?"
         footer={
           <>
             <Button
-              variant="outline"
+              variant="secondary"
               onClick={() => {
                 setShowDeleteModal(false);
                 setSelectedMeeting(null);
@@ -323,8 +313,8 @@ export default function MeetingsList() {
           </>
         }
       >
-        <p className="text-gray-600 dark:text-gray-400">
-          Are you sure you want to delete <strong>{selectedMeeting?.title}</strong>? This action cannot be undone.
+        <p className="text-[#5B6963] dark:text-surface-muted">
+          Delete <strong>{selectedMeeting?.title}</strong>? This cannot be undone.
         </p>
       </Modal>
     </div>

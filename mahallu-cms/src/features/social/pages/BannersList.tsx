@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { FiTrash2, FiImage, FiCheckCircle, FiEdit2 } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
+import { Link, useNavigate } from 'react-router-dom';
+import { FiImage, FiCheckCircle } from 'react-icons/fi';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import StatCard from '@/components/ui/StatCard';
@@ -9,15 +8,21 @@ import Table from '@/components/ui/Table';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import Modal from '@/components/ui/Modal';
 import Pagination from '@/components/ui/Pagination';
-import TableToolbar from '@/components/ui/TableToolbar';
+import PageHeader from '@/components/ui/PageHeader';
+import StatusBadge from '@/components/ui/StatusBadge';
+import RowActions from '@/components/ui/RowActions';
+import ListToolbar from '../components/ListToolbar';
 import { TableColumn, Pagination as PaginationType } from '@/types';
 import { socialService, Banner } from '@/services/socialService';
 import { formatDate } from '@/utils/format';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
+import { toast } from '@/store/toastStore';
+import { getFriendlyError } from '@/utils/apiMessages';
+import { shareViz } from '@/utils/statSeries';
 
 export default function BannersList() {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
-  const [isFilterVisible, setIsFilterVisible] = useState(false);
   const [banners, setBanners] = useState<Banner[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -47,7 +52,7 @@ export default function BannersList() {
         setPagination(result.pagination);
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch banners');
+      setError(getFriendlyError(err, "Couldn't load banners. Refresh the page or try again."));
       console.error('Error fetching banners:', err);
     } finally {
       setLoading(false);
@@ -63,7 +68,7 @@ export default function BannersList() {
       const dataToExport = result.data;
 
       if (dataToExport.length === 0) {
-        alert('No data to export');
+        toast.info('Nothing to export. Change your filters and try again.');
         return;
       }
 
@@ -83,7 +88,7 @@ export default function BannersList() {
       }
     } catch (error: any) {
       console.error('Export error:', error);
-      alert(error?.message || 'Failed to export data');
+      toast.error(getFriendlyError(error, "Couldn't export data. Check your connection and try again."));
     } finally {
       setIsExporting(false);
     }
@@ -98,7 +103,7 @@ export default function BannersList() {
       setShowDeleteModal(false);
       setSelectedBanner(null);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to delete banner');
+      toast.error(getFriendlyError(err, "Couldn't delete banner. Try again in a moment."));
     } finally {
       setDeleting(false);
     }
@@ -110,17 +115,7 @@ export default function BannersList() {
     {
       key: 'status',
       label: 'Status',
-      render: (status) => (
-        <span
-          className={`px-2 py-1 text-xs font-medium rounded-full ${
-            status === 'active'
-              ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-              : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
-          }`}
-        >
-          {status || 'active'}
-        </span>
-      ),
+      render: (status) => <StatusBadge status={status || 'active'} />,
     },
     {
       key: 'createdAt',
@@ -131,106 +126,87 @@ export default function BannersList() {
       key: 'actions',
       label: 'Actions',
       render: (_, row) => (
-        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-          <Link
-            to={`/social/banners/${row.id}/edit`}
-            className="p-1.5 rounded-md hover:bg-blue-50 dark:hover:bg-blue-900/20 text-blue-600 dark:text-blue-400 transition-colors"
-            title="Edit"
-          >
-            <FiEdit2 className="h-4 w-4" />
-          </Link>
-
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setSelectedBanner(row);
-              setShowDeleteModal(true);
-            }}
-            className="p-1.5 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 transition-colors"
-            title="Delete"
-          >
-            <FiTrash2 className="h-4 w-4" />
-          </button>
-        </div>
+        <RowActions
+          onEdit={() => navigate(`/social/banners/${row.id}/edit`)}
+          onDelete={() => {
+            setSelectedBanner(row);
+            setShowDeleteModal(true);
+          }}
+          ariaLabels={{ edit: 'Edit banner', delete: 'Delete banner' }}
+        />
       ),
     },
   ];
 
   const stats = [
-    { title: 'Total Banners', value: pagination?.total || banners.length, icon: <FiImage className="h-5 w-5" /> },
+    { title: 'Total Banners', value: pagination?.total || banners.length, icon: <FiImage className="h-[17px] w-[17px]" />, tone: 'green' as const },
     {
       title: 'Active',
-      value: banners.filter((b) => b.status === 'active' || !b.status).length,
-      icon: <FiCheckCircle className="h-5 w-5" />,
+      value: banners.filter((b) => b.status === 'active' || !b.status).length, viz: shareViz(banners.filter((b) => b.status === 'active' || !b.status).length, banners.length), summary: `Active: ${banners.filter((b) => b.status === 'active' || !b.status).length} of ${banners.length}`,
+      icon: <FiCheckCircle className="h-[17px] w-[17px]" />,
+      tone: 'lime' as const,
     },
   ];
 
   return (
     <div className="space-y-4">
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Banners</h1>
-            <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">Manage banners</p>
-          </div>
-          <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Banners' }]} />
-        </div>
+      <PageHeader
+        title="Banners"
+        description="Manage banners"
+        actions={
+          <Link to="/social/banners/create">
+            <Button>+ New banner</Button>
+          </Link>
+        }
+      />
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {stats.map((stat, index) => (
-            <StatCard key={index} {...stat} />
-          ))}
-        </div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {stats.map((stat, index) => (
+          <StatCard key={index} variant="inline" {...stat} />
+        ))}
       </div>
 
-      <Card>
-        <TableToolbar
+      <Card padding="none" className="overflow-visible">
+        <ListToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
-          onFilterClick={() => setIsFilterVisible(!isFilterVisible)}
-          isFilterVisible={isFilterVisible}
-          hasFilters={false}
+          searchPlaceholder="Search banners"
           onRefresh={fetchBanners}
           onExport={handleExport}
           isExporting={isExporting}
-          actionButtons={
-            <Link to="/social/banners/create">
-              <Button size="md">
-                + New Banner
-              </Button>
-            </Link>
-          }
         />
 
-        {loading ? (
-          <div className="flex justify-center items-center py-12">
-            <LoadingSpinner />
-          </div>
-        ) : error ? (
-          <div className="text-center py-12">
-            <p className="text-red-600 dark:text-red-400">{error}</p>
-            <Button onClick={fetchBanners} className="mt-4" variant="outline">
-              Retry
-            </Button>
-          </div>
-        ) : (
-          <Table columns={columns} data={banners} emptyMessage="No banners found" showExport={false} />
-        )}
+        <div className="p-3.5">
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <LoadingSpinner />
+            </div>
+          ) : error ? (
+            <div className="py-12 text-center">
+              <p className="text-red-600 dark:text-red-400">{error}</p>
+              <Button onClick={fetchBanners} className="mt-4" variant="outline">
+                Retry
+              </Button>
+            </div>
+          ) : (
+            <Table columns={columns} data={banners} emptyMessage="No banners found" showExport={false} />
+          )}
 
-        {/* Pagination */}
-        {pagination && (
-          <div className="mt-4">
-            <Pagination
-              currentPage={pagination.page}
-              totalPages={pagination.totalPages}
-              totalItems={pagination.total}
-              itemsPerPage={pagination.limit}
-              onPageChange={(page) => {
-                setCurrentPage(page);
-              }}
-            />
-          </div>
-        )}
+          {/* Pagination */}
+          {pagination && (
+            <div className="mt-3.5">
+              <Pagination
+                currentPage={pagination.page}
+                totalPages={pagination.totalPages}
+                totalItems={pagination.total}
+                itemsPerPage={pagination.limit}
+                onPageChange={(page) => {
+                  setCurrentPage(page);
+                }}
+              />
+            </div>
+          )}
+        </div>
       </Card>
 
       <Modal
@@ -240,11 +216,11 @@ export default function BannersList() {
           setSelectedBanner(null);
           setDeleting(false);
         }}
-        title="Delete Banner"
+        title="Delete banner?"
         footer={
           <>
             <Button
-              variant="outline"
+              variant="secondary"
               onClick={() => {
                 setShowDeleteModal(false);
                 setSelectedBanner(null);
@@ -259,8 +235,8 @@ export default function BannersList() {
           </>
         }
       >
-        <p className="text-gray-600 dark:text-gray-400">
-          Are you sure you want to delete <strong>{selectedBanner?.title}</strong>? This action cannot be undone.
+        <p className="text-[13px] text-[#3A4741] dark:text-surface-muted">
+          Delete <strong>{selectedBanner?.title}</strong>? This cannot be undone.
         </p>
       </Modal>
     </div>

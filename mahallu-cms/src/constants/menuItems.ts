@@ -44,6 +44,9 @@ import {
   FiPackage,
   FiSend
 } from 'react-icons/fi';
+import type { ModuleKey, SensitiveModuleKey } from './modules';
+import { communityMenu } from './menu/communityMenu';
+import { servicesMenu } from './menu/servicesMenu';
 
 export interface MenuItem {
   id: string;
@@ -53,6 +56,10 @@ export interface MenuItem {
   children?: MenuItem[];
   superAdminOnly?: boolean;
   allowedRoles?: ('super_admin' | 'mahall' | 'survey' | 'institute' | 'member')[];
+  /** Hidden when the tenant has this module switched off. Omit = always visible. */
+  moduleKey?: ModuleKey;
+  /** Hidden unless the user's permissions.sensitiveModules includes this key (super admin always sees). */
+  sensitiveKey?: SensitiveModuleKey;
 }
 
 export const menuItems: MenuItem[] = [
@@ -64,9 +71,17 @@ export const menuItems: MenuItem[] = [
     allowedRoles: ['super_admin', 'mahall', 'survey', 'institute'],
   },
   {
+    id: 'ai-assistant',
+    label: 'AI Assistant',
+    icon: FiMessageCircle,
+    path: '/assistant',
+    allowedRoles: ['super_admin', 'mahall'],
+  },
+  {
     id: 'member-space',
     label: 'My Space',
     icon: FiUserCheck,
+    allowedRoles: ['member'],
     children: [
       {
         id: 'member-overview',
@@ -105,126 +120,8 @@ export const menuItems: MenuItem[] = [
       },
     ],
   },
-  {
-    id: 'community',
-    label: 'Community',
-    icon: FiUsers,
-    children: [
-      {
-        id: 'families',
-        label: 'Families',
-        icon: FiHome,
-        path: '/families',
-        allowedRoles: ['super_admin', 'mahall', 'survey'],
-      },
-      {
-        id: 'members',
-        label: 'Members',
-        icon: FiUsers,
-        path: '/members',
-        allowedRoles: ['super_admin', 'mahall', 'survey'],
-      },
-      {
-        id: 'committees',
-        label: 'Committees',
-        icon: FiUsers,
-        allowedRoles: ['super_admin', 'mahall'],
-        children: [
-          { id: 'all-committees', label: 'All Committees', icon: FiList, path: '/committees', allowedRoles: ['super_admin', 'mahall'] },
-          { id: 'all-meetings', label: 'Meetings', icon: FiClock, path: '/committees/meetings', allowedRoles: ['super_admin', 'mahall'] },
-        ],
-      },
-      {
-        id: 'programs',
-        label: 'Programs',
-        icon: FiCalendar,
-        path: '/programs',
-        allowedRoles: ['super_admin', 'mahall'],
-      },
-      {
-        id: 'assets',
-        label: 'Asset Management',
-        icon: FiPackage,
-        path: '/assets',
-        allowedRoles: ['super_admin', 'mahall'],
-      },
-      {
-        id: 'reports',
-        label: 'Reports',
-        icon: FiBarChart2,
-        allowedRoles: ['super_admin', 'mahall', 'survey'],
-        children: [
-          { id: 'area', label: 'Area Report', icon: FiMap, path: '/reports/area', allowedRoles: ['super_admin', 'mahall', 'survey'] },
-          { id: 'blood-bank', label: 'Blood Bank Report', icon: FiDroplet, path: '/reports/blood-bank', allowedRoles: ['super_admin', 'mahall', 'survey'] },
-          { id: 'orphans', label: 'Orphans Report', icon: FiSmile, path: '/reports/orphans', allowedRoles: ['super_admin', 'mahall', 'survey'] },
-        ],
-      },
-    ],
-  },
-  {
-    id: 'services',
-    label: 'Services',
-    icon: FiLayers,
-    children: [
-      {
-        id: 'collectibles',
-        label: 'Collections',
-        icon: FiDollarSign,
-        allowedRoles: ['super_admin', 'mahall'],
-        children: [
-          { id: 'varisangya', label: 'Varisangyas', icon: FiArchive, path: '/collectibles/varisangya', allowedRoles: ['super_admin', 'mahall'] },
-          { id: 'family-varisangya', label: 'Family Varisangya', icon: FiHome, path: '/collectibles/family-varisangya', allowedRoles: ['super_admin', 'mahall'] },
-          { id: 'member-varisangya', label: 'Member Varisangya', icon: FiUser, path: '/collectibles/member-varisangya', allowedRoles: ['super_admin', 'mahall'] },
-          { id: 'zakat', label: 'Zakat', icon: FiGift, path: '/collectibles/zakat', allowedRoles: ['super_admin', 'mahall'] },
-          { id: 'all-collections', label: 'All Collections', icon: FiDollarSign, path: '/collections', allowedRoles: ['super_admin', 'mahall'] },
-        ],
-      },
-      {
-        id: 'registrations',
-        label: 'Registrations',
-        icon: FiFileText,
-        allowedRoles: ['super_admin', 'mahall'],
-        children: [
-          { id: 'nikah', label: 'Nikah Registrations', icon: FiHeart, path: '/registrations/nikah', allowedRoles: ['super_admin', 'mahall'] },
-          { id: 'death', label: 'Death Registrations', icon: FiMinusCircle, path: '/registrations/death', allowedRoles: ['super_admin', 'mahall'] },
-          {
-            id: 'noc',
-            label: 'NOC Services',
-            icon: FiFile,
-            allowedRoles: ['super_admin', 'mahall'],
-            children: [
-              { id: 'common-noc', label: 'Common NOC', icon: FiFileText, path: '/registrations/noc/common', allowedRoles: ['super_admin', 'mahall'] },
-              { id: 'nikah-noc', label: 'Nikah NOC', icon: FiFilePlus, path: '/registrations/noc/nikah', allowedRoles: ['super_admin', 'mahall'] },
-            ],
-          },
-        ],
-      },
-      {
-        id: 'notifications',
-        label: 'Notifications',
-        icon: FiBell,
-        allowedRoles: ['super_admin', 'mahall'],
-        children: [
-          { id: 'send-notification', label: 'Send Notification', icon: FiSend, path: '/notifications/send', allowedRoles: ['super_admin', 'mahall'] },
-          { id: 'individual', label: 'Individual', icon: FiMessageSquare, path: '/notifications/individual', allowedRoles: ['super_admin', 'mahall'] },
-          { id: 'collection', label: 'Collection', icon: FiMessageCircle, path: '/notifications/collection', allowedRoles: ['super_admin', 'mahall'] },
-        ],
-      },
-      {
-        id: 'social',
-        label: 'Social Media',
-        icon: FiShare2,
-        allowedRoles: ['super_admin', 'mahall'],
-        children: [
-          { id: 'banners', label: 'Banners', icon: FiImage, path: '/social/banners', allowedRoles: ['super_admin', 'mahall'] },
-          { id: 'feeds', label: 'Feeds', icon: FiCast, path: '/social/feeds', allowedRoles: ['super_admin', 'mahall'] },
-          { id: 'super-feeds', label: 'Super Feeds', icon: FiStar, path: '/social/super-feeds', allowedRoles: ['super_admin', 'mahall'] },
-          { id: 'activity-logs', label: 'Activity Logs', icon: FiActivity, path: '/social/activity-logs', allowedRoles: ['super_admin', 'mahall'] },
-          { id: 'support', label: 'Support', icon: FiHelpCircle, path: '/social/support', allowedRoles: ['super_admin', 'mahall'] },
-        ],
-      },
-    ],
-  },
+  communityMenu,
+  servicesMenu,
   {
     id: 'institute-operations',
     label: 'Institute & Finance',
@@ -297,6 +194,7 @@ export const menuItems: MenuItem[] = [
         allowedRoles: ['super_admin', 'mahall'],
         children: [
           { id: 'mahall-main', label: 'Mahall Settings', icon: FiSettings, path: '/mahall-main', allowedRoles: ['super_admin', 'mahall'] },
+          { id: 'security-settings', label: 'Security & Access History', icon: FiShield, path: '/settings/security', allowedRoles: ['super_admin', 'mahall'] },
           {
             id: 'users',
             label: 'User Management',
@@ -338,6 +236,16 @@ export const menuItems: MenuItem[] = [
           { id: 'mahallu-ledgers', label: 'Ledgers', icon: FiBookOpen, path: '/mahallu-finance/ledgers', allowedRoles: ['super_admin', 'mahall'] },
           { id: 'mahallu-ledger-items', label: 'Ledger Items', icon: FiFileMinus, path: '/mahallu-finance/ledger-items', allowedRoles: ['super_admin', 'mahall'] },
           { id: 'mahallu-categories', label: 'Categories', icon: FiList, path: '/mahallu-finance/categories', allowedRoles: ['super_admin', 'mahall'] },
+        ],
+      },
+      {
+        id: 'mahallu-year-planning',
+        label: 'Year and Budget',
+        icon: FiBarChart2,
+        allowedRoles: ['super_admin', 'mahall'],
+        children: [
+          { id: 'mahallu-financial-years', label: 'Financial Years', icon: FiBookOpen, path: '/mahallu-finance/periods', allowedRoles: ['super_admin', 'mahall'] },
+          { id: 'mahallu-budgets', label: 'Budget', icon: FiList, path: '/mahallu-finance/budgets', allowedRoles: ['super_admin', 'mahall'] },
         ],
       },
       {

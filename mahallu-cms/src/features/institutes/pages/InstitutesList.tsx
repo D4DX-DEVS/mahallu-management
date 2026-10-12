@@ -1,8 +1,13 @@
 import { useState, useEffect } from 'react';
+import SavedViews from '@/components/ui/SavedViews';
+import AppliedFilters from '@/components/ui/AppliedFilters';
+import TableColumnMenu from '@/components/ui/TableColumnMenu';
+import { useUrlFilters } from '@/hooks/useUrlFilters';
+import { useTableView } from '@/hooks/useTableView';
 import { Link, useNavigate } from 'react-router-dom';
-import { FiEdit2, FiTrash2, FiX, FiEye, FiInbox, FiCheckCircle, FiXCircle } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
+import { FiInbox, FiCheckCircle, FiXCircle, FiRefreshCw, FiDownload, FiFileText, FiFile } from 'react-icons/fi';
 import Card from '@/components/ui/Card';
+import PageHeader from '@/components/ui/PageHeader';
 import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
 import StatCard from '@/components/ui/StatCard';
@@ -10,36 +15,41 @@ import Table from '@/components/ui/Table';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import Modal from '@/components/ui/Modal';
 import Pagination from '@/components/ui/Pagination';
-import TableToolbar from '@/components/ui/TableToolbar';
+import FilterBar from '@/components/ui/FilterBar';
+import Dropdown from '@/components/ui/Dropdown';
+import Badge from '@/components/ui/Badge';
+import StatusBadge from '@/components/ui/StatusBadge';
+import RowActions from '@/components/ui/RowActions';
+import { PersonCell } from '@/components/ui/Avatar';
+import { toast } from '@/store/toastStore';
+import { getFriendlyError } from '@/utils/apiMessages';
 import { TableColumn, Pagination as PaginationType } from '@/types';
 import { Institute } from '@/types';
 import { ROUTES } from '@/constants/routes';
 import { instituteService } from '@/services/instituteService';
-import { useDebounce } from '@/hooks/useDebounce';
 import { formatDate } from '@/utils/format';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
+import { shareViz } from '@/utils/statSeries';
 
 export default function InstitutesList() {
   const navigate = useNavigate();
-  const [searchQuery, setSearchQuery] = useState('');
-  const [isFilterVisible, setIsFilterVisible] = useState(false);
-  const [typeFilter, setTypeFilter] = useState('all');
+  const filters = useUrlFilters({ type: 'all' });
+  const { search: searchQuery, setSearch: setSearchQuery, debouncedSearch, page: currentPage, setPage: setCurrentPage, pageSize: itemsPerPage } = filters;
+  const typeFilter = filters.values.type;
+  const setTypeFilter = (v: string) => filters.setFilter('type', v);
   const [institutes, setInstitutes] = useState<Institute[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedInstitute, setSelectedInstitute] = useState<Institute | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
   const [isExporting, setIsExporting] = useState(false);
 
-  const debouncedSearch = useDebounce(searchQuery, 500);
 
   useEffect(() => {
     fetchInstitutes();
-  }, [debouncedSearch, typeFilter, currentPage]);
+  }, [debouncedSearch, typeFilter, currentPage, itemsPerPage]);
 
   const fetchInstitutes = async () => {
     try {
@@ -61,7 +71,7 @@ export default function InstitutesList() {
         setPagination(result.pagination);
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch institutes');
+      setError(getFriendlyError(err, "Couldn't load institutes. Refresh the page or try again."));
       console.error('Error fetching institutes:', err);
     } finally {
       setLoading(false);
@@ -76,7 +86,7 @@ export default function InstitutesList() {
       if (typeFilter && typeFilter !== 'all') params.type = typeFilter;
       const result = await instituteService.getAll(params);
       const dataToExport = result.data;
-      if (dataToExport.length === 0) { alert('No data to export'); return; }
+      if (dataToExport.length === 0) { toast.info('Nothing to export. Change your filters and try again.'); return; }
       const filename = 'institutes';
       const title = 'All Institutes';
       switch (type) {
@@ -86,7 +96,7 @@ export default function InstitutesList() {
       }
     } catch (error: any) {
       console.error('Export error:', error);
-      alert(error?.message || 'Failed to export data');
+      toast.error(getFriendlyError(error, "Couldn't export institutes. Check your connection and try again."));
     } finally {
       setIsExporting(false);
     }
@@ -101,23 +111,19 @@ export default function InstitutesList() {
       setShowDeleteModal(false);
       setSelectedInstitute(null);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to delete institute');
+      toast.error(getFriendlyError(err, "Couldn't delete institute. Try again in a moment."));
       setDeleting(false);
     }
   };
 
   const columns: TableColumn<Institute>[] = [
     { key: 'id', label: 'No.', render: (_, __, index) => index + 1 },
-    { key: 'name', label: 'Name', sortable: true },
+    { key: 'name', label: 'Name', sortable: true, render: (name, row) => <PersonCell name={name} subtitle={row.place} /> },
     { key: 'place', label: 'Place' },
     {
       key: 'type',
       label: 'Type',
-      render: (type) => (
-        <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 capitalize">
-          {type}
-        </span>
-      ),
+      render: (type) => <Badge variant="info" className="capitalize">{type}</Badge>,
     },
     {
       key: 'joinDate',
@@ -127,151 +133,118 @@ export default function InstitutesList() {
     {
       key: 'status',
       label: 'Status',
-      render: (status) => (
-        <span
-          className={`px-2 py-1 text-xs font-medium rounded-full ${
-            status === 'active'
-              ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-              : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
-          }`}
-        >
-          {status || 'active'}
-        </span>
-      ),
+      render: (status) => <StatusBadge status={status || 'active'} />,
     },
     {
       key: 'actions',
       label: 'Actions',
+      hideable: false,
       render: (_, row) => (
-        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(ROUTES.INSTITUTES.DETAIL(row.id));
-            }}
-            className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
-            title="View"
-          >
-            <FiEye className="h-4 w-4" />
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(`/institutes/${row.id}/edit`);
-            }}
-            className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
-            title="Edit"
-          >
-            <FiEdit2 className="h-4 w-4" />
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setSelectedInstitute(row);
-              setShowDeleteModal(true);
-            }}
-            className="p-1.5 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 transition-colors"
-            title="Delete"
-          >
-            <FiTrash2 className="h-4 w-4" />
-          </button>
-        </div>
+        <RowActions
+          onView={() => navigate(ROUTES.INSTITUTES.DETAIL(row.id))}
+          onEdit={() => navigate(`/institutes/${row.id}/edit`)}
+          onDelete={() => { setSelectedInstitute(row); setShowDeleteModal(true); }}
+          ariaLabels={{ view: 'View institute', edit: 'Edit institute', delete: 'Delete institute' }}
+        />
       ),
     },
   ];
 
+  const view = useTableView('institutes', columns);
+
   const stats = [
-    { title: 'Total Institutes', value: pagination?.total || institutes.length, icon: <FiInbox className="h-5 w-5" /> },
+    { title: 'Total Institutes', value: pagination?.total || institutes.length, icon: <FiInbox className="h-[17px] w-[17px]" />, tone: 'green' as const },
     {
       title: 'Active',
-      value: institutes.filter((i) => i.status === 'active' || !i.status).length,
-      icon: <FiCheckCircle className="h-5 w-5" />,
+      value: institutes.filter((i) => i.status === 'active' || !i.status).length, viz: shareViz(institutes.filter((i) => i.status === 'active' || !i.status).length, institutes.length), summary: `Active: ${institutes.filter((i) => i.status === 'active' || !i.status).length} of ${institutes.length}`,
+      icon: <FiCheckCircle className="h-[17px] w-[17px]" />, tone: 'lime' as const,
     },
     {
       title: 'Inactive',
-      value: institutes.filter((i) => i.status === 'inactive').length,
-      icon: <FiXCircle className="h-5 w-5" />,
+      value: institutes.filter((i) => i.status === 'inactive').length, viz: shareViz(institutes.filter((i) => i.status === 'inactive').length, institutes.length, '#E0B400'), summary: `Inactive: ${institutes.filter((i) => i.status === 'inactive').length} of ${institutes.length}`,
+      icon: <FiXCircle className="h-[17px] w-[17px]" />, tone: 'neutral' as const,
     },
   ];
 
   return (
     <div className="space-y-4">
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">
-              Institutes
-            </h1>
-            <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
-              Manage institutes, madrasas, and other institutions
-            </p>
-          </div>
-          <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Institutes' }]} />
-        </div>
+      <PageHeader
+        title="Institutes"
+        description="Manage institutes, madrasas, and other institutions"
+        actions={
+          <Link to={ROUTES.INSTITUTES.CREATE}>
+            <Button>+ New institute</Button>
+          </Link>
+        }
+      />
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          {stats.map((stat, index) => (
-            <StatCard key={index} {...stat} />
-          ))}
-        </div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        {stats.map((stat, index) => (
+          <StatCard key={index} variant="inline" {...stat} />
+        ))}
       </div>
 
-      <Card>
-        <TableToolbar
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-          onFilterClick={() => setIsFilterVisible(!isFilterVisible)}
-          isFilterVisible={isFilterVisible}
-          hasFilters={true}
-          onRefresh={fetchInstitutes}
-          onExport={handleExport}
-          isExporting={isExporting}
-          actionButtons={
-            <Link to={ROUTES.INSTITUTES.CREATE}>
-              <Button size="md">+ New Institute</Button>
-            </Link>
-          }
-        />
-
-        {isFilterVisible && (
-          <div className="relative flex flex-wrap items-center gap-4 mb-6 p-4 border border-gray-200 rounded-lg bg-white dark:bg-gray-800 dark:border-gray-700">
-            <button
-              onClick={() => setIsFilterVisible(false)}
-              className="absolute right-4 top-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-            >
-              <FiX className="h-4 w-4" />
-            </button>
-            <div className="w-40">
-              <Select
-                options={[
-                  { value: 'all', label: 'All Types' },
-                  { value: 'institute', label: 'Institute' },
-                  { value: 'madrasa', label: 'Madrasa' },
-                  { value: 'orphanage', label: 'Orphanage' },
-                  { value: 'hospital', label: 'Hospital' },
-                  { value: 'other', label: 'Other' },
+      <Card padding="none" className="overflow-visible">
+        <FilterBar
+          search={{ value: searchQuery, onChange: setSearchQuery, placeholder: 'Search institutes' }}
+          actions={
+            <>
+              <Button variant="secondary" iconOnly aria-label="Refresh list" onClick={fetchInstitutes}>
+                <FiRefreshCw className="h-3.5 w-3.5" />
+              </Button>
+              <TableColumnMenu {...view.menuProps} />
+              <Dropdown
+                trigger={
+                  <Button variant="secondary" isLoading={isExporting}>
+                    {!isExporting && <FiDownload className="h-3.5 w-3.5" />}
+                    Export
+                  </Button>
+                }
+                items={[
+                  { label: 'Export CSV', icon: <FiFileText />, onClick: () => handleExport('csv'), disabled: isExporting },
+                  { label: 'Export JSON', icon: <FiFile />, onClick: () => handleExport('json'), disabled: isExporting },
+                  { label: 'Export PDF', icon: <FiDownload />, onClick: () => handleExport('pdf'), disabled: isExporting },
                 ]}
-                value={typeFilter}
-                onChange={(e) => setTypeFilter(e.target.value)}
               />
-            </div>
+            </>
+          }
+        >
+          <div className="w-40">
+            <Select
+              options={[
+                { value: 'all', label: 'All Types' },
+                { value: 'institute', label: 'Institute' },
+                { value: 'madrasa', label: 'Madrasa' },
+                { value: 'orphanage', label: 'Orphanage' },
+                { value: 'hospital', label: 'Hospital' },
+                { value: 'other', label: 'Other' },
+              ]}
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+            />
           </div>
-        )}
+          <SavedViews pageKey="institutes" filters={filters} />
+        </FilterBar>
+        <AppliedFilters filters={filters} config={{type: { label: 'Type' }}} />
 
+        <div className="p-3.5">
         {loading ? (
           <div className="flex justify-center items-center py-12">
             <LoadingSpinner />
           </div>
         ) : error ? (
           <div className="text-center py-12">
-            <p className="text-red-600 dark:text-red-400">{error}</p>
+            <p className="text-[#B3261E] dark:text-red-300">{error}</p>
             <Button onClick={fetchInstitutes} className="mt-4" variant="outline">
               Retry
             </Button>
           </div>
         ) : (
           <Table
-            columns={columns}
+            columns={view.columns}
+            density={view.density}
+            filtersActive={filters.activeCount > 0}
+            onClearFilters={filters.clear}
             data={institutes}
             emptyMessage="No institutes found"
             exportFilename="institutes"
@@ -296,7 +269,7 @@ export default function InstitutesList() {
 
         {/* Pagination */}
         {pagination && (
-          <div className="mt-4">
+          <div className="mt-3.5">
             <Pagination
               currentPage={pagination.page}
               totalPages={pagination.totalPages}
@@ -308,6 +281,7 @@ export default function InstitutesList() {
             />
           </div>
         )}
+        </div>
       </Card>
 
       <Modal
@@ -316,7 +290,7 @@ export default function InstitutesList() {
           setShowDeleteModal(false);
           setSelectedInstitute(null);
         }}
-        title="Delete Institute"
+        title="Delete institute?"
         footer={
           <>
             <Button variant="outline" onClick={() => {
@@ -325,14 +299,14 @@ export default function InstitutesList() {
             }}>
               Cancel
             </Button>
-            <Button variant="danger" onClick={handleDelete} isLoading={deleting}>
+            <Button variant="danger-solid" onClick={handleDelete} isLoading={deleting}>
               Delete
             </Button>
           </>
         }
       >
-        <p className="text-gray-600 dark:text-gray-400">
-          Are you sure you want to delete <strong>{selectedInstitute?.name}</strong>? This action cannot be undone.
+        <p className="text-[13px] text-[#5B6963] dark:text-surface-muted">
+          Delete <strong>{selectedInstitute?.name}</strong>? This cannot be undone.
         </p>
       </Modal>
     </div>

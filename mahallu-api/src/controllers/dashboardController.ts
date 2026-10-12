@@ -4,7 +4,9 @@ import Family from '../models/Family';
 import Member from '../models/Member';
 import { LedgerItem, InstituteAccount } from '../models/MasterAccount';
 import { AuthRequest } from '../middleware/authMiddleware';
+import { Varisangya, APPROVED_FILTER } from '../models/Collectible';
 import mongoose from 'mongoose';
+import { ACTIVE_FAMILY_FILTER, ACTIVE_MEMBER_FILTER } from '../utils/archiveFilters';
 
 export const getDashboardStats = async (req: AuthRequest, res: Response) => {
   try {
@@ -26,23 +28,23 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
     // Get counts
     const [totalUsers, totalFamilies, totalMembers, activeUsers, inactiveUsers] = await Promise.all([
       User.countDocuments(userQuery),
-      Family.countDocuments(familyQuery),
-      Member.countDocuments(memberQuery),
+      Family.countDocuments({ ...familyQuery, ...ACTIVE_FAMILY_FILTER }),
+      Member.countDocuments({ ...memberQuery, ...ACTIVE_MEMBER_FILTER }),
       User.countDocuments({ ...userQuery, status: 'active' }),
       User.countDocuments({ ...userQuery, status: 'inactive' }),
     ]);
 
     // Get gender distribution
     const [maleCount, femaleCount] = await Promise.all([
-      Member.countDocuments({ ...memberQuery, gender: 'male' }),
-      Member.countDocuments({ ...memberQuery, gender: 'female' }),
+      Member.countDocuments({ ...memberQuery, ...ACTIVE_MEMBER_FILTER, gender: 'male' }),
+      Member.countDocuments({ ...memberQuery, ...ACTIVE_MEMBER_FILTER, gender: 'female' }),
     ]);
 
     // Get status distribution for families
     const [approvedFamilies, pendingFamilies, unapprovedFamilies] = await Promise.all([
-      Family.countDocuments({ ...familyQuery, status: 'approved' }),
-      Family.countDocuments({ ...familyQuery, status: 'pending' }),
-      Family.countDocuments({ ...familyQuery, status: 'unapproved' }),
+      Family.countDocuments({ ...familyQuery, ...ACTIVE_FAMILY_FILTER, status: 'approved' }),
+      Family.countDocuments({ ...familyQuery, ...ACTIVE_FAMILY_FILTER, status: 'pending' }),
+      Family.countDocuments({ ...familyQuery, ...ACTIVE_FAMILY_FILTER, status: 'unapproved' }),
     ]);
 
     res.json({
@@ -82,15 +84,15 @@ export const getRecentFamilies = async (req: AuthRequest, res: Response) => {
       query.tenantId = tenantId;
     }
 
-    const families = await Family.find(query)
+    const families = await Family.find({ ...query, ...ACTIVE_FAMILY_FILTER })
       .sort({ createdAt: -1 })
       .limit(limit)
-      .select('familyName mahallId createdAt status')
+      .select('houseName familyHead mahallId createdAt status')
       .lean();
 
     res.json({
       success: true,
-      data: families,
+      data: families.map((f: any) => ({ ...f, familyName: f.houseName || f.familyHead })),
     });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
@@ -103,9 +105,9 @@ export const getActivityTimeline = async (req: AuthRequest, res: Response) => {
     const days = parseInt(req.query.days as string) || 7;
 
     const query: any = {};
-    // Apply tenant filter
+    // Apply tenant filter (aggregate does not auto-cast, so convert to ObjectId)
     if (tenantId) {
-      query.tenantId = tenantId;
+      query.tenantId = new mongoose.Types.ObjectId(String(tenantId));
     }
 
     // Calculate date range
@@ -118,6 +120,7 @@ export const getActivityTimeline = async (req: AuthRequest, res: Response) => {
       {
         $match: {
           ...query,
+          ...ACTIVE_FAMILY_FILTER,
           createdAt: { $gte: startDate, $lte: endDate },
         },
       },
@@ -249,6 +252,72 @@ export const getFinancialSummary = async (req: AuthRequest, res: Response) => {
         bankAccountCount: bank.accountCount,
       },
     });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * Read-only chart data for the dashboard: 6-month income vs expense trend and
+ * approved varisangya collected per ward (last 12 months). Tenant-scoped.
+ */
+export const getDashboardOverview = async (req: AuthRequest, res: Response) => {
+  try {
+    const tenantId = req.tenantId;
+    const tenantMatch: any = {};
+    if (tenantId) tenantMatch.tenantId = new mongoose.Types.ObjectId(String(tenantId));
+
+    const now = new Date();
+    const trendStart = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+    const wardStart = new Date(now.getFullYear(), now.getMonth() - 11, 1);
+
+    const [trendRows, wardRows] = await Promise.all([
+      LedgerItem.aggregate([
+        { $match: { ...tenantMatch, date: { $gte: trendStart } } },
+        { $lookup: { from: 'ledgers', localField: 'ledgerId', foreignField: '_id', as: 'ledger' } },
+        { $unwind: '$ledger' },
+        {
+          $group: {
+            _id: { y: { $year: '$date' }, m: { $month: '$date' } },
+            income: { $sum: { $cond: [{ $eq: ['$ledger.type', 'income'] }, '$amount', 0] } },
+            expense: { $sum: { $cond: [{ $eq: ['$ledger.type', 'expense'] }, '$amount', 0] } },
+          },
+        },
+      ]),
+      Varisangya.aggregate([
+        { $match: { ...tenantMatch, ...APPROVED_FILTER, paymentDate: { $gte: wardStart }, familyId: { $exists: true } } },
+        { $lookup: { from: 'families', localField: 'familyId', foreignField: '_id', as: 'family' } },
+        { $unwind: '$family' },
+        {
+          $group: {
+            _id: { $ifNull: ['$family.wardNumber', ''] },
+            amount: { $sum: '$amount' },
+            payments: { $sum: 1 },
+          },
+        },
+        { $sort: { amount: -1 } },
+        { $limit: 12 },
+      ]),
+    ]);
+
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const monthlyTrend = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const row = trendRows.find((r: any) => r._id.y === d.getFullYear() && r._id.m === d.getMonth() + 1);
+      monthlyTrend.push({
+        name: monthNames[d.getMonth()],
+        month: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
+        income: row?.income || 0,
+        expense: row?.expense || 0,
+      });
+    }
+
+    const varisangyaByWard = wardRows
+      .filter((r: any) => r._id)
+      .map((r: any) => ({ ward: String(r._id), amount: r.amount, payments: r.payments }));
+
+    res.json({ success: true, data: { monthlyTrend, varisangyaByWard } });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
   }

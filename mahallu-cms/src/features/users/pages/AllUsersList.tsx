@@ -1,7 +1,11 @@
 import { useState, useEffect } from 'react';
+import SavedViews from '@/components/ui/SavedViews';
+import AppliedFilters from '@/components/ui/AppliedFilters';
+import TableColumnMenu from '@/components/ui/TableColumnMenu';
+import { useUrlFilters } from '@/hooks/useUrlFilters';
+import { useTableView } from '@/hooks/useTableView';
 import { Link, useNavigate } from 'react-router-dom';
-import { FiEye, FiEdit2, FiX, FiUsers, FiCheckCircle, FiXCircle } from 'react-icons/fi';
-import Breadcrumb from '@/components/layout/Breadcrumb';
+import { FiUsers, FiCheckCircle, FiXCircle, FiRefreshCw, FiDownload, FiFileText, FiFile } from 'react-icons/fi';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
@@ -9,33 +13,39 @@ import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import Pagination from '@/components/ui/Pagination';
-import TableToolbar from '@/components/ui/TableToolbar';
 import { TableColumn, Pagination as PaginationType } from '@/types';
 import { User } from '@/types';
 import { userService } from '@/services/userService';
-import { useDebounce } from '@/hooks/useDebounce';
 import { formatDate } from '@/utils/format';
 import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
+import { toast } from '@/store/toastStore';
+import { getFriendlyError } from '@/utils/apiMessages';
+import PageHeader from '@/components/ui/PageHeader';
+import FilterBar from '@/components/ui/FilterBar';
+import StatusBadge from '@/components/ui/StatusBadge';
+import RowActions from '@/components/ui/RowActions';
+import { PersonCell } from '@/components/ui/Avatar';
+import Dropdown from '@/components/ui/Dropdown';
+import { shareViz } from '@/utils/statSeries';
 
 export default function AllUsersList() {
   const navigate = useNavigate();
-  const [searchQuery, setSearchQuery] = useState('');
-  const [roleFilter, setRoleFilter] = useState('all');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [isFilterVisible, setIsFilterVisible] = useState(false);
-  const [users, setUsers] = useState<User[]>([]);
+  const filters = useUrlFilters({ role: 'all', status: 'all' });
+  const { search: searchQuery, setSearch: setSearchQuery, debouncedSearch, page: currentPage, setPage: setCurrentPage, pageSize: itemsPerPage } = filters;
+  const roleFilter = filters.values.role;
+  const statusFilter = filters.values.status;
+  const setRoleFilter = (v: string) => filters.setFilter('role', v);
+  const setStatusFilter = (v: string) => filters.setFilter('status', v);
+    const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
   const [isExporting, setIsExporting] = useState(false);
 
-  const debouncedSearch = useDebounce(searchQuery, 500);
 
   useEffect(() => {
     fetchUsers();
-  }, [debouncedSearch, roleFilter, statusFilter, currentPage]);
+  }, [debouncedSearch, roleFilter, statusFilter, currentPage, itemsPerPage]);
 
   const fetchUsers = async () => {
     try {
@@ -60,7 +70,7 @@ export default function AllUsersList() {
         setPagination(result.pagination);
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch users');
+      setError(getFriendlyError(err, "Couldn't load users. Refresh the page or try again."));
       console.error('Error fetching users:', err);
     } finally {
       setLoading(false);
@@ -81,7 +91,7 @@ export default function AllUsersList() {
       const dataToExport = result.data;
 
       if (dataToExport.length === 0) {
-        alert('No data to export');
+        toast.info('Nothing to export. Change your filters and try again.');
         return;
       }
 
@@ -101,7 +111,7 @@ export default function AllUsersList() {
       }
     } catch (error: any) {
       console.error('Export error:', error);
-      alert(error?.message || 'Failed to export data');
+      toast.error(getFriendlyError(error, "Couldn't export data. Check your connection and try again."));
     } finally {
       setIsExporting(false);
     }
@@ -109,31 +119,21 @@ export default function AllUsersList() {
 
   const columns: TableColumn<User>[] = [
     { key: 'id', label: 'No.', render: (_, __, index) => index + 1 },
-    { key: 'name', label: 'Name', sortable: true },
+    { key: 'name', label: 'Name', sortable: true, render: (name, row) => <PersonCell name={name} src={row.photoUrl} /> },
     { key: 'phone', label: 'Phone' },
     { key: 'email', label: 'Email', render: (email) => email || '-' },
     {
       key: 'role',
       label: 'Role',
       render: (role) => (
-        <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 capitalize">
-          {role}
-        </span>
+        <StatusBadge status={role} tone="info" dot={false} />
       ),
     },
     {
       key: 'status',
       label: 'Status',
       render: (status) => (
-        <span
-          className={`px-2 py-1 text-xs font-medium rounded-full ${
-            status === 'active'
-              ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-              : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
-          }`}
-        >
-          {status || 'active'}
-        </span>
+        <StatusBadge status={status || 'active'} />
       ),
     },
     {
@@ -144,119 +144,107 @@ export default function AllUsersList() {
     {
       key: 'actions',
       label: 'Actions',
+      hideable: false,
       render: (_, row) => (
-        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(`/admin/users/${row.id}`);
-            }}
-            className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
-            title="View"
-          >
-            <FiEye className="h-4 w-4" />
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(`/admin/users/${row.id}/edit`);
-            }}
-            className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
-            title="Edit"
-          >
-            <FiEdit2 className="h-4 w-4" />
-          </button>
-        </div>
+        <RowActions
+          onView={() => navigate(`/admin/users/${row.id}`)}
+          onEdit={() => navigate(`/admin/users/${row.id}/edit`)}
+          ariaLabels={{ view: 'View user', edit: 'Edit user' }}
+        />
       ),
     },
   ];
 
+  const view = useTableView('users', columns);
+
   const stats = [
-    { title: 'Total Users', value: pagination?.total || users.length, icon: <FiUsers className="h-5 w-5" /> },
+    { title: 'Total Users', value: pagination?.total || users.length, icon: <FiUsers className="h-[17px] w-[17px]" />, tone: 'green' as const },
     {
       title: 'Active',
-      value: users.filter((u) => u.status === 'active' || !u.status).length,
-      icon: <FiCheckCircle className="h-5 w-5" />,
+      value: users.filter((u) => u.status === 'active' || !u.status).length, viz: shareViz(users.filter((u) => u.status === 'active' || !u.status).length, users.length), summary: `Active: ${users.filter((u) => u.status === 'active' || !u.status).length} of ${users.length}`,
+      icon: <FiCheckCircle className="h-[17px] w-[17px]" />, tone: 'lime' as const,
     },
     {
       title: 'Inactive',
-      value: users.filter((u) => u.status === 'inactive').length,
-      icon: <FiXCircle className="h-5 w-5" />,
+      value: users.filter((u) => u.status === 'inactive').length, viz: shareViz(users.filter((u) => u.status === 'inactive').length, users.length, '#E0B400'), summary: `Inactive: ${users.filter((u) => u.status === 'inactive').length} of ${users.length}`,
+      icon: <FiXCircle className="h-[17px] w-[17px]" />, tone: 'neutral' as const,
     },
   ];
 
   return (
     <div className="space-y-4">
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">All Users</h1>
-            <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">Manage all system users</p>
-          </div>
-          <Breadcrumb items={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'All Users' }]} />
-        </div>
+      <PageHeader
+        title="All Users"
+        description="Manage all system users"
+        actions={
+          <Link to="/admin/users/create">
+            <Button>+ New User</Button>
+          </Link>
+        }
+      />
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          {stats.map((stat, index) => (
-            <StatCard key={index} {...stat} />
-          ))}
-        </div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        {stats.map((stat, index) => (
+          <StatCard key={index} variant="inline" {...stat} />
+        ))}
       </div>
 
-      <Card>
-        <TableToolbar
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-          onFilterClick={() => setIsFilterVisible(!isFilterVisible)}
-          isFilterVisible={isFilterVisible}
-          hasFilters={true}
-          onRefresh={fetchUsers}
-          onExport={handleExport}
-          isExporting={isExporting}
-          actionButtons={
-            <Link to="/admin/users/create">
-              <Button size="md">
-                + New User
+      <Card padding="none" className="overflow-visible">
+        <FilterBar
+          search={{ value: searchQuery, onChange: setSearchQuery, placeholder: 'Search' }}
+          actions={
+            <>
+              <Button variant="secondary" iconOnly aria-label="Refresh list" onClick={fetchUsers}>
+                <FiRefreshCw className="h-3.5 w-3.5" />
               </Button>
-            </Link>
+              <TableColumnMenu {...view.menuProps} />
+              <Dropdown
+                trigger={
+                  <Button variant="secondary" isLoading={isExporting}>
+                    {!isExporting && <FiDownload className="h-3.5 w-3.5" />}
+                    Export
+                  </Button>
+                }
+                items={[
+                  { label: 'Export CSV', icon: <FiFileText />, onClick: () => handleExport('csv'), disabled: isExporting },
+                  { label: 'Export JSON', icon: <FiFile />, onClick: () => handleExport('json'), disabled: isExporting },
+                  { label: 'Export PDF', icon: <FiDownload />, onClick: () => handleExport('pdf'), disabled: isExporting },
+                ]}
+              />
+            </>
           }
-        />
-
-        {isFilterVisible && (
-          <div className="relative flex flex-wrap items-center gap-4 mb-6 p-4 border border-gray-200 rounded-lg bg-white dark:bg-gray-800 dark:border-gray-700 animate-in fade-in slide-in-from-top-2 duration-200">
-            <button
-              onClick={() => setIsFilterVisible(false)}
-              className="absolute right-4 top-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-            >
-              <FiX className="h-4 w-4" />
-            </button>
-            <div className="w-40">
-              <Select
-                options={[
-                  { value: 'all', label: 'All Roles' },
-                  { value: 'super_admin', label: 'Super Admin' },
-                  { value: 'mahall', label: 'Mahall' },
-                  { value: 'survey', label: 'Survey' },
-                  { value: 'institute', label: 'Institute' },
-                ]}
-                value={roleFilter}
-                onChange={(e) => setRoleFilter(e.target.value)}
-              />
-            </div>
-            <div className="w-32">
-              <Select
-                options={[
-                  { value: 'all', label: 'All Status' },
-                  { value: 'active', label: 'Active' },
-                  { value: 'inactive', label: 'Inactive' },
-                ]}
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-              />
-            </div>
+        >
+          <div className="w-40">
+            <Select
+              aria-label="Filter by role"
+              options={[
+                { value: 'all', label: 'All Roles' },
+                { value: 'super_admin', label: 'Super Admin' },
+                { value: 'mahall', label: 'Mahall' },
+                { value: 'survey', label: 'Survey' },
+                { value: 'institute', label: 'Institute' },
+              ]}
+              value={roleFilter}
+              onChange={(e) => setRoleFilter(e.target.value)}
+            />
           </div>
-        )}
+          <div className="w-32">
+            <Select
+              aria-label="Filter by status"
+              options={[
+                { value: 'all', label: 'All Status' },
+                { value: 'active', label: 'Active' },
+                { value: 'inactive', label: 'Inactive' },
+              ]}
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+            />
+          </div>
+          <SavedViews pageKey="users" filters={filters} />
+        </FilterBar>
+        <AppliedFilters filters={filters} config={{role: { label: 'Role', format: (v) => v.replace(/_/g, ' ') }, status: { label: 'Status' }}} />
 
+        <div className="p-3.5">
         {loading ? (
           <div className="flex justify-center items-center py-12">
             <LoadingSpinner />
@@ -264,13 +252,16 @@ export default function AllUsersList() {
         ) : error ? (
           <div className="text-center py-12">
             <p className="text-red-600 dark:text-red-400">{error}</p>
-            <Button onClick={fetchUsers} className="mt-4" variant="outline">
+            <Button onClick={fetchUsers} className="mt-4" variant="secondary">
               Retry
             </Button>
           </div>
         ) : (
           <Table
-            columns={columns}
+            columns={view.columns}
+            density={view.density}
+            filtersActive={filters.activeCount > 0}
+            onClearFilters={filters.clear}
             data={users}
             emptyMessage="No users found"
             showExport={false}
@@ -280,7 +271,7 @@ export default function AllUsersList() {
 
         {/* Pagination */}
         {pagination && (
-          <div className="mt-4">
+          <div className="mt-3.5">
             <Pagination
               currentPage={pagination.page}
               totalPages={pagination.totalPages}
@@ -292,6 +283,7 @@ export default function AllUsersList() {
             />
           </div>
         )}
+        </div>
       </Card>
     </div>
   );

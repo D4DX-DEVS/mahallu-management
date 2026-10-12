@@ -2,11 +2,27 @@ import { Request, Response } from 'express';
 import Committee from '../models/Committee';
 import Meeting from '../models/Meeting';
 import { AuthRequest } from '../middleware/authMiddleware';
+import Member from '../models/Member';
+import { tenantScope } from '../utils/tenantScope';
+import { stripImmutable, clearableUpdate } from '../utils/sanitizeUpdate';
 import { getPaginationParams, createPaginationResponse } from '../utils/pagination';
+import { termWarningCutoff } from '../services/committeeTermService';
+
+// True when every referenced member id exists in the given tenant (absent/empty list is fine).
+const membersBelongToTenant = async (members: unknown, tenantId: unknown): Promise<boolean> => {
+  if (members === undefined || members === null) return true;
+  if (!Array.isArray(members)) return false;
+  if (members.length === 0) return true;
+  if (!tenantId) return false;
+  const ids = Array.from(new Set(members.map(String)));
+  if (!ids.every((id) => /^[a-f\d]{24}$/i.test(id))) return false;
+  const count = await Member.countDocuments({ _id: { $in: ids }, tenantId });
+  return count === ids.length;
+};
 
 export const getAllCommittees = async (req: AuthRequest, res: Response) => {
   try {
-    const { status, search, tenantId } = req.query;
+    const { status, search, tenantId, expiring } = req.query;
     const { page, limit, skip } = getPaginationParams(req);
     const query: any = {};
 
@@ -20,6 +36,10 @@ export const getAllCommittees = async (req: AuthRequest, res: Response) => {
     if (status) query.status = status;
     if (search) {
       query.name = { $regex: search, $options: 'i' };
+    }
+    // Committees whose term ends within the warning window (spec 29)
+    if (expiring === 'true') {
+      query.termEndDate = { $ne: null, $lte: termWarningCutoff() };
     }
 
     const [committees, total] = await Promise.all([
@@ -37,9 +57,9 @@ export const getAllCommittees = async (req: AuthRequest, res: Response) => {
   }
 };
 
-export const getCommitteeById = async (req: Request, res: Response) => {
+export const getCommitteeById = async (req: AuthRequest, res: Response) => {
   try {
-    const committee = await Committee.findById(req.params.id)
+    const committee = await Committee.findOne({ _id: req.params.id, ...tenantScope(req) })
       .populate('members', 'name familyName');
     if (!committee) {
       return res.status(404).json({ success: false, message: 'Committee not found' });
@@ -52,8 +72,8 @@ export const getCommitteeById = async (req: Request, res: Response) => {
 
 export const createCommittee = async (req: AuthRequest, res: Response) => {
   try {
-    const committeeData = {
-      ...req.body,
+    const committeeData: Record<string, any> = {
+      ...(stripImmutable(req.body) as Record<string, any>),
       tenantId: req.tenantId || req.body.tenantId,
     };
 
@@ -62,6 +82,10 @@ export const createCommittee = async (req: AuthRequest, res: Response) => {
         success: false,
         message: 'Tenant ID is required',
       });
+    }
+
+    if (!(await membersBelongToTenant(committeeData.members, committeeData.tenantId))) {
+      return res.status(400).json({ success: false, message: 'One or more members do not belong to this Mahallu' });
     }
 
     const committee = new Committee(committeeData);
@@ -73,11 +97,19 @@ export const createCommittee = async (req: AuthRequest, res: Response) => {
   }
 };
 
-export const updateCommittee = async (req: Request, res: Response) => {
+export const updateCommittee = async (req: AuthRequest, res: Response) => {
   try {
+    const body = stripImmutable(req.body) as Record<string, any>;
+    const existing = await Committee.findOne({ _id: req.params.id, ...tenantScope(req) }).select('tenantId');
+    if (!existing) {
+      return res.status(404).json({ success: false, message: 'Committee not found' });
+    }
+    if (!(await membersBelongToTenant(body.members, existing.tenantId))) {
+      return res.status(400).json({ success: false, message: 'One or more members do not belong to this Mahallu' });
+    }
     const committee = await Committee.findByIdAndUpdate(
-      req.params.id,
-      req.body,
+      existing._id,
+      clearableUpdate(body),
       { new: true, runValidators: true }
     ).populate('members', 'name');
     if (!committee) {
@@ -89,9 +121,9 @@ export const updateCommittee = async (req: Request, res: Response) => {
   }
 };
 
-export const deleteCommittee = async (req: Request, res: Response) => {
+export const deleteCommittee = async (req: AuthRequest, res: Response) => {
   try {
-    const committee = await Committee.findByIdAndDelete(req.params.id);
+    const committee = await Committee.findOneAndDelete({ _id: req.params.id, ...tenantScope(req) });
     if (!committee) {
       return res.status(404).json({ success: false, message: 'Committee not found' });
     }
@@ -103,9 +135,9 @@ export const deleteCommittee = async (req: Request, res: Response) => {
   }
 };
 
-export const getCommitteeMeetings = async (req: Request, res: Response) => {
+export const getCommitteeMeetings = async (req: AuthRequest, res: Response) => {
   try {
-    const meetings = await Meeting.find({ committeeId: req.params.id })
+    const meetings = await Meeting.find({ committeeId: req.params.id, ...tenantScope(req) })
       .populate('attendance', 'name')
       .sort({ meetingDate: -1 });
     res.json({ success: true, data: meetings });
