@@ -26,10 +26,11 @@ export default function LandingFooter() {
   return (
     <footer className="relative z-10 bg-[#0E3B27] text-white">
       <div className={`${CONTAINER} grid grid-cols-[auto_minmax(0,1fr)] gap-8 py-10 sm:grid-cols-2 sm:gap-10 sm:py-14 lg:grid-cols-[1.5fr_1fr_1.3fr]`}>
-        {/* Phones: the brand on top, then quick links and contact side by side. */}
+        {/* Phones: the brand and demo button on top, then quick links and contact side by side. */}
         <Reveal className="col-span-2 lg:col-span-1">
           <BrandLogo tone="light" tagline={false} />
           <p className="mt-5 max-w-[280px] text-[13px] leading-[1.65] text-white/75">{BRAND_TAGLINE}</p>
+          <RequestDemoButton label={CONTACT.demoLabel} className={`${BTN_INVERSE} mt-6 px-5 py-[10px] text-[13px]`} />
         </Reveal>
 
         <Reveal delay={100}>
@@ -70,7 +71,6 @@ export default function LandingFooter() {
               </address>
             </ContactRow>
           </dl>
-          <RequestDemoButton label={CONTACT.demoLabel} className={`${BTN_INVERSE} mt-6 px-5 py-[10px] text-[13px] max-sm:mt-5 max-sm:gap-[6px] max-sm:whitespace-nowrap max-sm:px-[14px] max-sm:py-[9px] max-sm:text-[11.5px]`} />
         </Reveal>
       </div>
 

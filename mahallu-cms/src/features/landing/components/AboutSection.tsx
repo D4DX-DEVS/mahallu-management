@@ -2,6 +2,27 @@ import { ABOUT } from '../content';
 import { CARD, CONTAINER } from '../styles';
 import Reveal from './Reveal';
 
+/** The paragraph with ABOUT.link's phrase, wherever it appears, turned into a link. */
+function withLink(paragraph: string) {
+  const { text, href } = ABOUT.link;
+  const at = paragraph.indexOf(text);
+  if (at === -1) return paragraph;
+  return (
+    <>
+      {paragraph.slice(0, at)}
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="font-semibold text-[#15603B] underline decoration-[#15603B]/30 underline-offset-[3px] transition-colors hover:decoration-[#15603B]"
+      >
+        {text}
+      </a>
+      {paragraph.slice(at + text.length)}
+    </>
+  );
+}
+
 export default function AboutSection() {
   return (
     <section id="about-us" className="scroll-mt-[80px] bg-[#EEF5F0] py-10 sm:py-20">
@@ -15,7 +36,7 @@ export default function AboutSection() {
             <div className="mt-4 space-y-3 sm:mt-6 sm:space-y-4">
               {ABOUT.paragraphs.map((paragraph) => (
                 <p key={paragraph} className="text-[14px] leading-[1.65] text-[#5D696F] sm:text-[15px] sm:leading-[1.75]">
-                  {paragraph}
+                  {withLink(paragraph)}
                 </p>
               ))}
             </div>
