@@ -121,7 +121,23 @@ const invalidExternalIds = (data: any, batch: string[]): string[] => {
   return Array.isArray(invalid) ? invalid.map(String) : [];
 };
 
-const reason = (err: any): string => String(err?.response?.status || err?.code || err?.message || 'error').slice(0, 200);
+/**
+ * Why a push failed, as stored in the notification's pushError: the HTTP status plus OneSignal's own
+ * explanation when it sent one ("403: Access denied …"). A bare "403" could not say whether the key,
+ * the app id or the audience was wrong. Anything shaped like an API key is masked, because pushError
+ * is returned to admins.
+ */
+const reason = (err: any): string => {
+  const status = err?.response?.status;
+  const errors = err?.response?.data?.errors;
+  const detail = Array.isArray(errors)
+    ? errors.join('; ')
+    : errors && typeof errors === 'object'
+      ? JSON.stringify(errors)
+      : '';
+  const text = status ? (detail ? `${status}: ${detail}` : String(status)) : String(err?.code || err?.message || 'error');
+  return text.replace(/os_v2_[A-Za-z0-9_-]+/g, '[key]').slice(0, 200);
+};
 
 /**
  * Push to users of the app, addressed by their user id: the app calls OneSignal.login(userId), so the

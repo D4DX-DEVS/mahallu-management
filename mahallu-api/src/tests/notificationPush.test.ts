@@ -153,6 +153,17 @@ describe('notification push', () => {
     assert.equal(stored().pushRecipients, 0);
   });
 
+  test("OneSignal's own reason is stored with the status, with any API key masked", async () => {
+    reply = () => {
+      throw Object.assign(new Error('Request failed'), {
+        response: { status: 403, data: { errors: ['Access denied for key os_v2_app_abc123'] } },
+      });
+    };
+    await call(createNotification, { body: { recipientType: 'all', title: 'x', message: 'm' } });
+    assert.equal(stored().pushStatus, 'failed');
+    assert.equal(stored().pushError, '403: Access denied for key [key]');
+  });
+
   test('more than 2,000 users are sent in batches of at most 2,000', async () => {
     const many = Array.from({ length: 4500 }, () => ({ _id: oid() }));
     const result = await sendPushToUsers(many, { title: 't', message: 'm' });
