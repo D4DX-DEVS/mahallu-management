@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import User from '../models/User';
 import Member from '../models/Member';
+import Institute from '../models/Institute';
 import bcrypt from 'bcryptjs';
 import { randomUnusablePasswordHash } from '../utils/credentials';
 import { AuthRequest } from '../middleware/authMiddleware';
@@ -281,7 +282,20 @@ export const updateUser = async (req: AuthRequest, res: Response) => {
       return;
     }
 
-    const { name, phone, email, status, permissions } = req.body;
+    const { name, phone, email, status, permissions, instituteId } = req.body;
+
+    // The institute of an institute account could only be chosen when the account was created, so an
+    // account created without one (or with the wrong one) could never be fixed. It can now be set here,
+    // to one of the account's own Mahallu's institutes.
+    if (instituteId !== undefined) {
+      if (existingUser.role !== 'institute') {
+        return res.status(400).json({ success: false, message: 'Only an institute account can be linked to an institute.' });
+      }
+      const institute = await Institute.findOne({ _id: instituteId, tenantId: existingUser.tenantId }).select('_id');
+      if (!institute) {
+        return res.status(404).json({ success: false, message: "We couldn't find that institute in this Mahallu." });
+      }
+    }
 
     // The phone number is what links one person's accounts together: switch-account
     // trusts "same phone" as proof the target account is also yours. If an admin could
@@ -300,7 +314,14 @@ export const updateUser = async (req: AuthRequest, res: Response) => {
     // already holds ends (tokenVersion), so a token obtained before the change cannot be carried
     // across it.
     const phoneChanged = phone !== undefined && phone !== existingUser.phone;
-    const update: Record<string, unknown> = { name, phone, email, status, ...permissionsUpdate(permissions) };
+    const update: Record<string, unknown> = {
+      name,
+      phone,
+      email,
+      status,
+      ...(instituteId !== undefined ? { instituteId } : {}),
+      ...permissionsUpdate(permissions),
+    };
     const user = await User.findByIdAndUpdate(
       req.params.id,
       phoneChanged ? { ...update, $inc: { tokenVersion: 1 } } : update,

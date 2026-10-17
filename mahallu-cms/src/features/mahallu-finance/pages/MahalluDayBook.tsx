@@ -2,7 +2,8 @@ import { useState } from 'react';
 import Card from '@/components/ui/Card';
 import StatCard from '@/components/ui/StatCard';
 import Button from '@/components/ui/Button';
-import Input from '@/components/ui/Input';
+import DateRangePicker from '@/components/ui/DateRangePicker';
+import { monthStartISO, todayISO } from '@/utils/dates';
 import Alert from '@/components/ui/Alert';
 import Pagination from '@/components/ui/Pagination';
 import { PageSkeleton } from '@/components/ui/Skeleton';
@@ -27,12 +28,8 @@ export default function MahalluDayBook() {
   const [applied, setApplied] = useState<{ startDate: string; endDate: string } | null>(null);
   const [pageSize, setPageSize] = useState(50);
   const [paging, setPaging] = useState(false);
-  const [startDate, setStartDate] = useState(() => {
-    const d = new Date();
-    d.setDate(1);
-    return d.toISOString().split('T')[0];
-  });
-  const [endDate, setEndDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [startDate, setStartDate] = useState(() => monthStartISO());
+  const [endDate, setEndDate] = useState(() => todayISO());
 
   const loadPage = async (
     range: { startDate: string; endDate: string },
@@ -86,20 +83,16 @@ export default function MahalluDayBook() {
 
       <Card>
         <div className="flex flex-wrap items-end gap-4 mb-4">
-          <div className="w-full sm:w-44">
-            <Input
-              label="Start Date"
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-            />
-          </div>
-          <div className="w-full sm:w-44">
-            <Input
-              label="End Date"
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
+          <div className="w-full sm:w-72">
+            <DateRangePicker
+              label="Date range"
+              from={startDate}
+              to={endDate}
+              onChange={(from, to) => {
+                setStartDate(from);
+                setEndDate(to);
+              }}
+              className="h-10 max-sm:h-10"
             />
           </div>
           <Button onClick={fetchData} disabled={loading}>
