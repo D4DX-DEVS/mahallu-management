@@ -131,6 +131,18 @@ const hasWalletOwner = (spec: KindSpec, doc: any) => spec.hasWallet && !!walletK
 
 const actorId = (req: AuthRequest) => toObjectId((req.user as any)?._id);
 
+/**
+ * Creates the wallet a payment will credit, BEFORE the money flow starts.
+ *
+ * A MongoDB transaction reads from a snapshot taken at its first operation. A wallet created after that
+ * point (or inside the transaction) is invisible to the credit step, so the first payment for a family or
+ * member that had no wallet yet failed with "The wallet could not be credited", and a retry worked only
+ * because the wallet existed by then. Call this before `runAtomic` on every path that can credit a wallet.
+ */
+async function ensureWallet(spec: KindSpec, owner: Record<string, any>): Promise<void> {
+  if (hasWalletOwner(spec, owner)) await findOrCreateWallet(walletOwnerOf(owner));
+}
+
 // ---------------------------------------------------------------------------
 // Input parsing
 // ---------------------------------------------------------------------------
@@ -231,7 +243,8 @@ const undoDebit = (walletId: mongoose.Types.ObjectId, amount: number) => async (
 
 async function applyPaymentEffects(spec: KindSpec, doc: any, { session, comp }: Ctx): Promise<void> {
   if (hasWalletOwner(spec, doc)) {
-    // The wallet document is created outside the transaction on purpose (see findOrCreateWallet).
+    // The wallet already exists here: callers run ensureWallet before the transaction starts, because a wallet
+    // created inside it is invisible to the credit below. This only re-reads it.
     const wallet = await findOrCreateWallet(walletOwnerOf(doc));
     const credited = await creditWallet(wallet._id, doc.amount, doc.paymentDate, session);
     if (!credited) throw new Error('The wallet could not be credited.');
@@ -594,6 +607,7 @@ async function respondIdempotent(
       return sendConflict(res, 'This payment is still being saved. Please wait a moment and check the list before trying again.');
     }
     // An earlier attempt inserted the row and never finished verifying it (it died): complete it now.
+    await ensureWallet(spec, existing);
     payment = await runAtomic(
       (session, comp) =>
         verifyPaymentCore(spec, existing._id, { tenantId: existing.tenantId }, actorId(req), { session, comp }),
@@ -701,6 +715,9 @@ async function createPayment(spec: KindSpec, req: AuthRequest, res: Response) {
     data.receiptNo = suppliedReceipt;
   }
 
+  // The payer's wallet must exist before the transaction below starts (see ensureWallet).
+  await ensureWallet(spec, data);
+
   for (let attempt = 0; attempt < 3; attempt++) {
     if (!suppliedReceipt) data.receiptNo = await allocateReceiptNo(spec.name, Model as any, tenantOid);
     try {
@@ -772,6 +789,13 @@ async function verifyPayment(spec: KindSpec, req: AuthRequest, res: Response) {
   if (!scope) return;
   const id = toObjectId(req.params.id);
   if (!id || !isValidId(req.params.id)) return sendBadRequest(res, MSG.badId);
+
+  // The payer's wallet must exist before the transaction below starts (see ensureWallet). A payment that is
+  // missing, out of scope or not pending is left to verifyPaymentCore, which answers 404 or 409.
+  const target: any = await spec.Model.findOne({ _id: id, status: 'pending', ...scope })
+    .select('tenantId familyId memberId')
+    .lean();
+  if (spec.hasWallet && target) await ensureWallet(spec, target);
 
   const payment = await runAtomic(
     (session, comp) => verifyPaymentCore(spec, id, scope, actorId(req), { session, comp }),

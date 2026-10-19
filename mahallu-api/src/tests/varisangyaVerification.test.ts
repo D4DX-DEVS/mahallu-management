@@ -170,6 +170,23 @@ describe('verify: compensation when a step fails', () => {
   });
 });
 
+describe('verify: wallet exists before the transaction', () => {
+  test('verifying a member payment creates the missing wallet before the claim, then credits it', async () => {
+    const row = seedPending();
+    assert.equal(world.stores.wallet.docs.length, 0, 'the payer starts with no wallet');
+    let walletsAtClaim = -1;
+    world.stores.varisangya.failOn('Varisangya.findOneAndUpdate', new Error('spy only'), 1, () => {
+      walletsAtClaim = world.stores.wallet.docs.length;
+      return false;
+    });
+    const reply = await verify(row._id);
+    assert.equal(reply.status, 200);
+    assert.equal(walletsAtClaim, 1, 'the wallet was created before the payment was claimed');
+    assert.equal(walletBalance(), 500);
+    assert.equal(world.stores.wallet.docs.length, 1);
+  });
+});
+
 describe('create (admin)', () => {
   const create = (body: Record<string, any>, as = world.asAdmin()) => call(createVarisangya, { ...as, body });
 
@@ -182,6 +199,24 @@ describe('create (admin)', () => {
     assert.equal(world.accountABalance(), 250);
     assert.ok(reply.body.data.receiptNo);
     assert.equal(world.stores.txn.docs[0].entryKey, `varisangya:${reply.body.data._id}:payment`);
+  });
+
+  test("the payer's wallet exists before the transaction starts, so a first-ever payment is not lost", async () => {
+    // A MongoDB transaction reads a snapshot taken at its first write. A wallet created after that point
+    // is invisible to the credit step, which made the first payment for a payer with no wallet fail with
+    // "The wallet could not be credited" while a retry worked. So the wallet must already be there when
+    // the payment row (the transaction's first write) is inserted.
+    assert.equal(world.stores.wallet.docs.length, 0, 'the payer starts with no wallet');
+    let walletsWhenRowInserted = -1;
+    world.stores.varisangya.failOn('Varisangya.create', new Error('spy only'), 1, () => {
+      walletsWhenRowInserted = world.stores.wallet.docs.length;
+      return false;
+    });
+    const reply = await create({ memberId: String(world.ids.memberA1), amount: 75, paymentDate: '2026-03-02' });
+    assert.equal(reply.status, 201);
+    assert.equal(walletsWhenRowInserted, 1, 'the wallet was created before the payment row');
+    assert.equal(world.stores.wallet.docs.length, 1, 'still one wallet, not two');
+    assert.equal(walletBalance(), 75);
   });
 
   test('the client cannot choose status, source, verifier, tenant or id', async () => {
