@@ -9,6 +9,7 @@ import { AuthRequest } from '../middleware/authMiddleware';
 
 import { sendFailure } from '../utils/userMessages';
 import { getPhoneVariants, samePhone } from '../utils/phone';
+import { bearerToken, hashToken, tokenExpiry, MAX_REVOKED_TOKENS } from '../utils/revokedTokens';
 import { signSessionToken, signImpersonationToken, toPublicUser } from '../utils/sessionToken';
 import { isTenantActive, TENANT_SUSPENDED_MESSAGE } from '../services/tenantStatusService';
 
@@ -386,15 +387,28 @@ export const switchAccount = async (req: AuthRequest, res: Response) => {
 };
 
 /**
- * Sign out of every session of this account (all devices): the account's tokenVersion moves on, so
- * every token issued before this call stops working. A Super Admin "View As" session just ends on the
- * client — bumping the version would sign the real super admin out everywhere — and that token
+ * Sign out of THIS session only. The token that made the request is remembered as revoked (a hash of
+ * it, until it would have expired anyway), so the same account stays signed in on its other devices:
+ * signing out of the web no longer signs the phone out. A password or phone change still ends every
+ * session (tokenVersion). A Super Admin "View As" session just ends on the client, and that token
  * expires on its own within hours.
  */
 export const logout = async (req: AuthRequest, res: Response) => {
   try {
     if (!req.impersonation?.isImpersonating) {
-      await User.findByIdAndUpdate(req.user?._id, { $inc: { tokenVersion: 1 } });
+      const token = bearerToken(req.headers?.authorization);
+      const exp = token ? tokenExpiry(token) : null;
+      if (token && exp) {
+        // Drop entries that have expired by themselves, then add this one (two steps: one update
+        // cannot both $pull from and $push to the same field).
+        await User.findByIdAndUpdate(req.user?._id, { $pull: { revokedTokens: { exp: { $lt: new Date() } } } });
+        await User.findByIdAndUpdate(req.user?._id, {
+          $push: { revokedTokens: { $each: [{ h: hashToken(token), exp }], $slice: -MAX_REVOKED_TOKENS } },
+        });
+      } else {
+        // No readable token (should not happen behind authMiddleware): fall back to ending every session.
+        await User.findByIdAndUpdate(req.user?._id, { $inc: { tokenVersion: 1 } });
+      }
     }
     res.json({ success: true, message: 'Signed out' });
   } catch (error: any) {

@@ -4,6 +4,8 @@ import fs from 'fs';
 import path from 'path';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { hashToken } from '../utils/revokedTokens';
+import { toPublicUser } from '../utils/sessionToken';
 import { authMiddleware } from '../middleware/authMiddleware';
 import { logout, changePassword, login } from '../controllers/authController';
 import { verifyOTP, sendOTP } from '../controllers/otpController';
@@ -106,7 +108,7 @@ test('REVOCATION: tokens minted before the field existed (no tv) keep working un
   });
 });
 
-test('REVOCATION: logout bumps the account\'s tokenVersion; a View-As session does not sign the real super admin out', async () => {
+test('REVOCATION: logout ends only THIS session; a View-As session signs nobody out', async () => {
   const original = User.findByIdAndUpdate;
   const calls: any[] = [];
   (User as any).findByIdAndUpdate = async (id: any, update: any) => {
@@ -114,19 +116,58 @@ test('REVOCATION: logout bumps the account\'s tokenVersion; a View-As session do
     return {};
   };
   try {
+    const token = sign({ userId: 'adminId', tv: 0 });
     const normal = makeRes();
-    await logout({ user: { _id: 'adminId' } } as any, normal.res);
+    await logout({ user: { _id: 'adminId' }, headers: { authorization: `Bearer ${token}` } } as any, normal.res);
     assert.equal(normal.out.status, 200);
-    assert.deepEqual(calls, [{ id: 'adminId', update: { $inc: { tokenVersion: 1 } } }]);
+    const pushed = calls.find((c) => c.update.$push);
+    assert.ok(pushed, 'the token is remembered as revoked');
+    assert.equal(pushed.update.$push.revokedTokens.$each[0].h, hashToken(token));
+    assert.ok(pushed.update.$push.revokedTokens.$each[0].exp instanceof Date);
+    assert.equal(
+      calls.some((c) => c.update.$inc),
+      false,
+      'logout must NOT bump tokenVersion: that would sign every other device out'
+    );
 
     calls.length = 0;
     const viewAs = makeRes();
-    await logout({ user: { _id: 'superId' }, impersonation: { isImpersonating: true } } as any, viewAs.res);
+    await logout({ user: { _id: 'superId' }, impersonation: { isImpersonating: true }, headers: {} } as any, viewAs.res);
     assert.equal(viewAs.out.status, 200);
-    assert.deepEqual(calls, [], 'impersonation logout must not bump the real super admin\'s version');
+    assert.deepEqual(calls, [], 'impersonation logout must not touch the real super admin');
   } finally {
     (User as any).findByIdAndUpdate = original;
   }
+});
+
+test('REVOCATION: after logout on one device the same account stays signed in on its other device', async () => {
+  const web = sign({ userId: 'adminId', tv: 0, jti: 'web' });
+  const phone = sign({ userId: 'adminId', tv: 0, jti: 'phone' });
+  // The account record as it is once the web session has signed out.
+  const revoked = [{ h: hashToken(web), exp: new Date(Date.now() + 60_000) }];
+  await withAccount({ ...mahallAdmin, tokenVersion: 0, revokedTokens: revoked }, 'active', async () => {
+    const afterLogout = await runAuth(web);
+    assert.equal(afterLogout.nextCalled, false, 'the signed-out session is rejected');
+    assert.equal(afterLogout.out.status, 401);
+
+    const other = await runAuth(phone);
+    assert.equal(other.nextCalled, true, 'the other device is NOT signed out');
+  });
+});
+
+test('REVOCATION: a password change still ends every session', async () => {
+  const phone = sign({ userId: 'adminId', tv: 0 });
+  await withAccount({ ...mahallAdmin, tokenVersion: 1 }, 'active', async () => {
+    const r = await runAuth(phone);
+    assert.equal(r.nextCalled, false);
+    assert.equal(r.out.status, 401);
+  });
+});
+
+test('REVOCATION: the revoked list is never sent to a client', () => {
+  const shown = toPublicUser({ _id: 'u', role: 'mahall', tokenVersion: 2, revokedTokens: [{ h: 'x', exp: new Date() }] });
+  assert.equal('revokedTokens' in shown, false);
+  assert.equal('tokenVersion' in shown, false);
 });
 
 test('REVOCATION: changing the password ends other sessions and hands the caller a token at the new version', async () => {
