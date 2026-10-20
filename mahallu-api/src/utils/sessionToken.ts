@@ -71,6 +71,7 @@ export const toPublicUser = (user: any): any => {
   if (!user) return user;
   const plain = typeof user.toObject === 'function' ? user.toObject() : { ...user };
   delete plain.tokenVersion;
+  delete plain.revokedTokens;
   if (plain.role === 'institute') plain.instituteId = instituteIdOf(plain);
   return plain;
 };

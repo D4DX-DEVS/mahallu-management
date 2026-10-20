@@ -29,6 +29,11 @@ export interface IUser extends Document {
    * the value they were issued with (`tv`); authMiddleware rejects a token that no longer matches.
    */
   tokenVersion: number;
+  /**
+   * Tokens signed out one at a time (see utils/revokedTokens.ts): a hash of each and the moment it
+   * would have expired anyway. Never selected by default; authMiddleware asks for it.
+   */
+  revokedTokens?: { h: string; exp: Date }[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -117,6 +122,11 @@ const UserSchema = new Schema<IUser>(
     tokenVersion: {
       type: Number,
       default: 0,
+    },
+    revokedTokens: {
+      type: [{ _id: false, h: { type: String, required: true }, exp: { type: Date, required: true } }],
+      default: [],
+      select: false,
     },
   },
   {
