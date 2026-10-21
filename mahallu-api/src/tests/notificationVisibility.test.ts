@@ -2,6 +2,7 @@ import { describe, test, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import mongoose from 'mongoose';
 import Notification, { isReadBy, notificationForViewer } from '../models/Notification';
+import Member from '../models/Member';
 import { getAllNotifications, markAsRead, markAllAsRead } from '../controllers/notificationController';
 
 /**
@@ -30,6 +31,8 @@ const SURVEY = { _id: oid(), role: 'survey', name: 'Surveyor' };
 const INSTITUTE = { _id: oid(), role: 'institute', instituteId: oid(), name: 'Institute' };
 
 let rows: any[] = [];
+/** Mahallu stored on a member's own record (defaults to TENANT, the account's). */
+let memberTenants = new Map<string, any>();
 
 const same = (a: any, b: any) => String(a) === String(b);
 const contains = (docVal: any, v: any): boolean =>
@@ -92,6 +95,10 @@ describe('notification visibility', () => {
   let foreign: any;
 
   beforeEach(() => {
+    memberTenants = new Map();
+    stub(Member, 'findById', (id: any) => ({
+      select: async () => ({ tenantId: memberTenants.get(String(id)) ?? TENANT }),
+    }));
     stub(Notification, 'find', (query: any) => {
       let list = rows.filter((r) => matches(r, query));
       const chain: any = {
@@ -258,5 +265,34 @@ describe('notification visibility', () => {
   test('the model keeps readBy out of default reads', () => {
     const path: any = Notification.schema.path('readBy');
     assert.equal(path.options.select, false);
+  });
+
+  test("a member's notifications are marked in the Mahallu their own list shows them from, even if the account's differs", async () => {
+    // The member record lives in OTHER_TENANT; the signed-in account says TENANT.
+    memberTenants.set(String(MEMBER_A.memberId), OTHER_TENANT);
+    const rejected = make({ tenantId: OTHER_TENANT, recipientType: 'member', recipientId: MEMBER_A.memberId });
+    const other = make({ tenantId: OTHER_TENANT, recipientType: 'member', recipientId: MEMBER_A.memberId });
+    rows = [rejected, other];
+
+    const one = await call(markAsRead, MEMBER_A, { params: { id: String(rejected._id) } });
+    assert.equal(one.status, 200);
+    assert.equal(rejected.isRead, true);
+    assert.equal(other.isRead, false);
+
+    const all = await call(markAllAsRead, MEMBER_A);
+    assert.equal(all.status, 200);
+    assert.equal(other.isRead, true, `"mark all" reaches what the member's list shows, so the count stays at zero`);
+  });
+
+  test("a member still cannot mark another Mahallu's notification or someone else's", async () => {
+    memberTenants.set(String(MEMBER_A.memberId), OTHER_TENANT);
+    const mine = make({ tenantId: OTHER_TENANT, recipientType: 'member', recipientId: MEMBER_A.memberId });
+    const notMine = make({ tenantId: OTHER_TENANT, recipientType: 'member', recipientId: MEMBER_B._id });
+    const home = make({ tenantId: TENANT, recipientType: 'member', recipientId: MEMBER_A.memberId });
+    rows = [mine, notMine, home];
+    assert.equal((await call(markAsRead, MEMBER_A, { params: { id: String(notMine._id) } })).status, 404);
+    assert.equal((await call(markAsRead, MEMBER_A, { params: { id: String(home._id) } })).status, 404);
+    assert.equal(notMine.isRead, false);
+    assert.equal(home.isRead, false);
   });
 });

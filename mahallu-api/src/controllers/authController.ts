@@ -159,11 +159,11 @@ export const setTwoFactor = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ success: false, message: 'Please turn this setting on or off.' });
     }
 
-    // A security setting changed: end every other session of this account. The caller keeps working
-    // on a fresh token returned below.
+    // Flip the flag only. tokenVersion is NOT bumped: the apps never store the token returned below,
+    // so a bump would sign the caller out. Only password / phone changes end sessions.
     const user = await User.findByIdAndUpdate(
       req.user?._id,
-      { twoFactorEnabled: enabled, $inc: { tokenVersion: 1 } },
+      { twoFactorEnabled: enabled },
       { new: true }
     ).select('-password');
 
@@ -180,6 +180,73 @@ export const setTwoFactor = async (req: AuthRequest, res: Response) => {
     });
   } catch (error: any) {
     sendFailure(res, error, 'We couldn\'t update the two factor. Please try again.');
+  }
+};
+
+const SELF_SERVICE_VIEW_AS = "This isn't available while viewing as another account.";
+
+/**
+ * Edit the CALLING user's own name and email.
+ *
+ * PUT /users/:id is for Mahallu admins (it can also change status, permissions and institute), so a
+ * survey or institute account could not save its own profile (403). This touches only the caller's own
+ * record and only the fields a person owns. The phone number is what links a person's accounts
+ * together, so it cannot be changed here; a number that differs from the current one is refused.
+ */
+export const updateOwnAccount = async (req: AuthRequest, res: Response) => {
+  try {
+    if (req.impersonation?.isImpersonating) {
+      return res.status(403).json({ success: false, message: SELF_SERVICE_VIEW_AS });
+    }
+    const existing = await User.findById(req.user?._id);
+    if (!existing) {
+      return res.status(404).json({ success: false, message: "We couldn't find that user. It may have been removed." });
+    }
+
+    const { name, email, phone } = req.body || {};
+    if (phone !== undefined && phone !== null && String(phone).trim() !== '' && !samePhone(String(phone), existing.phone)) {
+      return res.status(403).json({
+        success: false,
+        message: "You can't change your own phone number here. Please ask your Mahallu admin or request a change from your profile.",
+      });
+    }
+
+    const update: Record<string, unknown> = {};
+    if (typeof name === 'string' && name.trim()) update.name = name.trim();
+    if (typeof email === 'string') update.email = email.trim();
+    if (Object.keys(update).length === 0) {
+      return res.status(400).json({ success: false, message: 'Please enter a name or an email address.' });
+    }
+
+    const user = await User.findByIdAndUpdate(existing._id, update, { new: true, runValidators: true }).select('-password');
+    res.json({ success: true, data: user });
+  } catch (error: any) {
+    sendFailure(res, error, "We couldn't update your profile. Please try again.");
+  }
+};
+
+/**
+ * Delete the CALLING user's own account (the in-app "Delete account").
+ *
+ * The login is deactivated and every session of it ends. Records the Mahallu keeps about the person (a
+ * member's place in the family register, payments they made) are not touched: those belong to the
+ * Mahallu's books. A Super Admin cannot remove their own account this way.
+ */
+export const deleteOwnAccount = async (req: AuthRequest, res: Response) => {
+  try {
+    if (req.impersonation?.isImpersonating) {
+      return res.status(403).json({ success: false, message: SELF_SERVICE_VIEW_AS });
+    }
+    if (req.user?.role === 'super_admin' || req.isSuperAdmin) {
+      return res.status(403).json({ success: false, message: "A platform administrator account can't be deleted from the app. Please contact support." });
+    }
+    const user = await User.findByIdAndUpdate(req.user?._id, { status: 'inactive', $inc: { tokenVersion: 1 } }, { new: true });
+    if (!user) {
+      return res.status(404).json({ success: false, message: "We couldn't find that user. It may have been removed." });
+    }
+    res.json({ success: true, message: 'Your account has been deleted.' });
+  } catch (error: any) {
+    sendFailure(res, error, "We couldn't delete your account. Please try again.");
   }
 };
 
