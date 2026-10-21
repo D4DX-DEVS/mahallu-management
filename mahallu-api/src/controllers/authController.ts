@@ -159,11 +159,11 @@ export const setTwoFactor = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ success: false, message: 'Please turn this setting on or off.' });
     }
 
-    // A security setting changed: end every other session of this account. The caller keeps working
-    // on a fresh token returned below.
+    // Flip the flag only. tokenVersion is NOT bumped: the apps never store the token returned below,
+    // so a bump would sign the caller out. Only password / phone changes end sessions.
     const user = await User.findByIdAndUpdate(
       req.user?._id,
-      { twoFactorEnabled: enabled, $inc: { tokenVersion: 1 } },
+      { twoFactorEnabled: enabled },
       { new: true }
     ).select('-password');
 

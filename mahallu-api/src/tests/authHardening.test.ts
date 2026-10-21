@@ -604,7 +604,7 @@ describe('[isolated] auth hardening', () => {
   // ───────────────────────── D7: session revocation ─────────────────────────
 
   describe('session revocation', () => {
-    it('turning two-factor on or off ends every other session and returns a token at the new version', async () => {
+    it('turning two-factor on or off keeps the session: tokenVersion is not bumped and the token stays valid', async () => {
       const original = User.findByIdAndUpdate;
       const calls: any[] = [];
       (User as any).findByIdAndUpdate = (id: any, update: any) => {
@@ -615,7 +615,9 @@ describe('[isolated] auth hardening', () => {
         const { res, out } = makeRes();
         await setTwoFactor({ user: { _id: 'u1' }, provenPhone: '919000000000', body: { enabled: true } } as any, res);
         assert.equal(out.status, 200);
-        assert.deepEqual(calls[0].update.$inc, { tokenVersion: 1 });
+        assert.equal(calls[0].update.$inc, undefined);
+        assert.equal(calls[0].update.tokenVersion, undefined);
+        assert.equal(calls[0].update.twoFactorEnabled, true);
         const claims: any = jwt.verify(out.body.data.token, SECRET);
         assert.equal(claims.tv, 5);
         assert.equal(claims.pp, '919000000000');
