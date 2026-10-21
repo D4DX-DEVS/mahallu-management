@@ -30,6 +30,23 @@ const viewerOf = (req: AuthRequest) => {
   return { id, ids, isAdmin: req.isSuperAdmin === true || role === 'super_admin' || role === 'mahall' };
 };
 
+/**
+ * The Mahallu a notification must belong to for THIS caller to read or mark it.
+ *
+ * A member's own list (GET /member-user/notifications) is scoped by the MEMBER record's Mahallu, so marking has
+ * to use the same one. Using the account's Mahallu instead meant that, wherever the two ever differed, the list
+ * showed a notification that "mark as read" answered "not found" for, and "mark all as read" matched nothing yet
+ * reported success, so the unread count came back on the next refresh. Everyone else keeps their account's Mahallu.
+ */
+const inboxTenantOf = async (req: AuthRequest, callerTenantId: string | undefined): Promise<string | undefined> => {
+  const memberId = req.user?.memberId;
+  if (req.user?.role === 'member' && memberId && isValidId(String(memberId))) {
+    const member: any = await Member.findById(memberId).select('tenantId');
+    if (member?.tenantId) return String(member.tenantId);
+  }
+  return callerTenantId;
+};
+
 /** Notifications in the viewer's own inbox: addressed to them, to a group they are in, or a broadcast. */
 const inboxCondition = (viewer: ReturnType<typeof viewerOf>) => ({
   $or: [{ recipientId: { $in: viewer.ids } }, { recipientIds: { $in: viewer.ids } }, { recipientType: 'all' }],
@@ -229,9 +246,10 @@ export const markAsRead = async (req: AuthRequest, res: Response) => {
 
     // Marking is limited to the caller's own inbox (addressed to them, or a broadcast) in their own
     // Mahallu: an id from anywhere else answers "not found", it never changes someone else's state.
+    const inboxTenantId = await inboxTenantOf(req, caller.tenantId);
     const filter: Record<string, any> = {
       $and: [
-        { _id: req.params.id, ...(caller.tenantId ? { tenantId: caller.tenantId } : {}) },
+        { _id: req.params.id, ...(inboxTenantId ? { tenantId: inboxTenantId } : {}) },
         inboxCondition(viewer),
       ],
     };
@@ -269,12 +287,13 @@ export const markAllAsRead = async (req: AuthRequest, res: Response) => {
     const caller = requireWriteScope(req, res);
     if (!caller) return;
     const viewer = viewerOf(req);
+    const inboxTenantId = (await inboxTenantOf(req, caller.tenantId)) as string;
 
     // Individual notifications addressed to this person: their own flag. (A family/committee
     // notification's recipientId is the group's id, never a viewer id.)
     if (viewer.ids.length > 0) {
       await Notification.updateMany(
-        { tenantId: caller.tenantId, recipientType: { $ne: 'all' }, recipientId: { $in: viewer.ids }, isRead: { $ne: true } },
+        { tenantId: inboxTenantId, recipientType: { $ne: 'all' }, recipientId: { $in: viewer.ids }, isRead: { $ne: true } },
         { isRead: true }
       );
     }
@@ -283,12 +302,12 @@ export const markAllAsRead = async (req: AuthRequest, res: Response) => {
     if (viewer.id) {
       const me = new mongoose.Types.ObjectId(viewer.id);
       await Notification.updateMany(
-        { tenantId: caller.tenantId, recipientType: 'all', isRead: { $ne: true }, readBy: { $ne: me } },
+        { tenantId: inboxTenantId, recipientType: 'all', isRead: { $ne: true }, readBy: { $ne: me } },
         { $addToSet: { readBy: me } }
       );
       if (viewer.ids.length > 0) {
         await Notification.updateMany(
-          { tenantId: caller.tenantId, recipientIds: { $in: viewer.ids }, isRead: { $ne: true }, readBy: { $ne: me } },
+          { tenantId: inboxTenantId, recipientIds: { $in: viewer.ids }, isRead: { $ne: true }, readBy: { $ne: me } },
           { $addToSet: { readBy: me } }
         );
       }

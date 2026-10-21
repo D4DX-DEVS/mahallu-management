@@ -29,6 +29,10 @@ export default function NotificationsList() {
   const [unreadTotal, setUnreadTotal] = useState<number | null>(null);
   const { fetchUnreadCount } = useNotificationStore();
   const currentUserId = useAuthStore((s) => s.user?.id);
+  /* Read state is per person: a broadcast or a notification addressed to this account is theirs. The "All" list
+     also holds notifications addressed to other people, which this account can never mark read (the server
+     answers "not found") — they must not show as unread or offer "Mark read". */
+  const isMine = (n: Notification) => n.recipientType === 'all' || n.recipientId === currentUserId;
 
   useEffect(() => {
     fetchNotifications();
@@ -67,11 +71,13 @@ export default function NotificationsList() {
         fetchUnreadCount();
       }
 
-      // The Unread / Read cards must cover every page of this filter, not just the 20 rows loaded. One
-      // cheap count request (limit 1) with the same filter; if it fails the cards fall back to the page.
+      // The Unread card must cover every page, not just the rows loaded, and only count what this account can
+      // actually read: its own inbox (recipientType 'individual' scopes the server query to it, as the bell
+      // badge does). Counting other people's notifications made the number return after "Mark all as read".
+      // One cheap count request (limit 1); if it fails the card falls back to this page's own unread.
       try {
         const unread = await notificationService.getAll({
-          ...(typeFilter !== 'all' ? { recipientType: typeFilter } : {}),
+          recipientType: 'individual',
           isRead: false,
           page: 1,
           limit: 1,
@@ -109,7 +115,7 @@ export default function NotificationsList() {
   };
 
   const totalCount = pagination?.total ?? notifications.length;
-  const unreadCount = unreadTotal ?? notifications.filter((n) => !n.isRead).length;
+  const unreadCount = unreadTotal ?? notifications.filter((n) => !n.isRead && isMine(n)).length;
 
   const stats = [
     {
@@ -180,7 +186,9 @@ export default function NotificationsList() {
                 <div
                   key={notification.id}
                   className={`rounded-lg border p-4 ${
-                    notification.isRead ? 'border-border bg-subtle/50' : 'border-primary/25 bg-primary/5'
+                    notification.isRead || !isMine(notification)
+                      ? 'border-border bg-subtle/50'
+                      : 'border-primary/25 bg-primary/5'
                   }`}
                 >
                   <div className="flex items-start justify-between">
@@ -190,7 +198,7 @@ export default function NotificationsList() {
                         <h3 className="font-semibold text-foreground">
                           {notification.title}
                         </h3>
-                        {!notification.isRead && (
+                        {!notification.isRead && isMine(notification) && (
                           <Badge variant="primary">New</Badge>
                         )}
                       </div>
@@ -206,7 +214,7 @@ export default function NotificationsList() {
                         {formatDate(notification.createdAt)}
                       </p>
                     </div>
-                    {!notification.isRead && (
+                    {!notification.isRead && isMine(notification) && (
                       <Button variant="outline" size="sm" icon={<FiCheck />} onClick={() => handleMarkAsRead(notification.id)}>
                         Mark read
                       </Button>
