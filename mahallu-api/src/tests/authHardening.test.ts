@@ -12,7 +12,7 @@ import {
   selectAccountRateLimiter,
 } from '../middleware/rateLimit';
 import { authMiddleware, allowRoles } from '../middleware/authMiddleware';
-import { getCurrentUser, selectAccount, setTwoFactor } from '../controllers/authController';
+import { getCurrentUser, selectAccount, setTwoFactor, updateOwnAccount, deleteOwnAccount } from '../controllers/authController';
 import { listCertificates, downloadCertificate } from '../controllers/certificateController';
 import { signSessionToken, signImpersonationToken, toPublicUser } from '../utils/sessionToken';
 import authRoutes from '../routes/authRoutes';
@@ -624,6 +624,89 @@ describe('[isolated] auth hardening', () => {
       } finally {
         (User as any).findByIdAndUpdate = original;
       }
+    });
+
+    describe('own account: edit and delete', () => {
+      const withUser = async (existing: any, fn: (calls: any[]) => Promise<void>) => {
+        const origFind = User.findById;
+        const origUpdate = User.findByIdAndUpdate;
+        const calls: any[] = [];
+        (User as any).findById = async () => existing;
+        (User as any).findByIdAndUpdate = (id: any, update: any) => {
+          calls.push({ id, update });
+          return { select: async () => ({ ...existing, ...update }), then: (r: any) => r({ ...existing, ...update }) };
+        };
+        try {
+          await fn(calls);
+        } finally {
+          (User as any).findById = origFind;
+          (User as any).findByIdAndUpdate = origUpdate;
+        }
+      };
+
+      it('a survey or institute user can save their own name and email', async () => {
+        for (const role of ['survey', 'institute']) {
+          await withUser({ _id: 'u1', role, phone: '9876543210' }, async (calls) => {
+            const { res, out } = makeRes();
+            await updateOwnAccount({ user: { _id: 'u1', role }, body: { name: ' New Name ', email: 'a@b.co', phone: '9876543210' } } as any, res);
+            assert.equal(out.status, 200, role);
+            assert.deepEqual(calls[0].update, { name: 'New Name', email: 'a@b.co' });
+          });
+        }
+      });
+
+      it('the profile update never touches status, role, permissions or institute', async () => {
+        await withUser({ _id: 'u1', role: 'survey', phone: '9876543210' }, async (calls) => {
+          const { res } = makeRes();
+          await updateOwnAccount(
+            { user: { _id: 'u1' }, body: { name: 'X', status: 'active', role: 'super_admin', permissions: {}, instituteId: 'i', tenantId: 't' } } as any,
+            res
+          );
+          assert.deepEqual(Object.keys(calls[0].update), ['name']);
+        });
+      });
+
+      it('a different phone number is refused (the number links a person accounts)', async () => {
+        await withUser({ _id: 'u1', role: 'institute', phone: '9876543210' }, async (calls) => {
+          const { res, out } = makeRes();
+          await updateOwnAccount({ user: { _id: 'u1' }, body: { name: 'X', phone: '9000000000' } } as any, res);
+          assert.equal(out.status, 403);
+          assert.equal(calls.length, 0);
+        });
+      });
+
+      it('a View-As session cannot edit or delete the real account behind it', async () => {
+        await withUser({ _id: 'super1', role: 'super_admin' }, async (calls) => {
+          for (const fn of [updateOwnAccount, deleteOwnAccount]) {
+            const { res, out } = makeRes();
+            await fn({ user: { _id: 'super1', role: 'super_admin' }, impersonation: { isImpersonating: true }, body: { name: 'X' } } as any, res);
+            assert.equal(out.status, 403);
+          }
+          assert.equal(calls.length, 0);
+        });
+      });
+
+      it('deleting your own account deactivates it and ends every session, for survey, institute and member', async () => {
+        for (const role of ['survey', 'institute', 'member']) {
+          await withUser({ _id: 'u1', role }, async (calls) => {
+            const { res, out } = makeRes();
+            await deleteOwnAccount({ user: { _id: 'u1', role } } as any, res);
+            assert.equal(out.status, 200, role);
+            assert.equal(calls[0].update.status, 'inactive');
+            assert.deepEqual(calls[0].update.$inc, { tokenVersion: 1 });
+            assert.equal(calls.length, 1, 'only the login is touched, not the member record');
+          });
+        }
+      });
+
+      it('a super admin cannot delete their own account from the app', async () => {
+        await withUser({ _id: 's1', role: 'super_admin' }, async (calls) => {
+          const { res, out } = makeRes();
+          await deleteOwnAccount({ user: { _id: 's1', role: 'super_admin' }, isSuperAdmin: true } as any, res);
+          assert.equal(out.status, 403);
+          assert.equal(calls.length, 0);
+        });
+      });
     });
 
     it('a deactivated account is refused on its very next request, even with an unexpired token', async () => {

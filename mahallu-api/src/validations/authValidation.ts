@@ -96,6 +96,11 @@ export const registerDeviceValidation = [
     .withMessage("We couldn't set up notifications on this device. Please try again."),
 ];
 
+export const updateOwnAccountValidation = [
+  body('name').optional({ values: 'falsy' }).isString().isLength({ max: 100 }).withMessage('Please enter a shorter name.'),
+  body('email').optional({ values: 'falsy' }).isEmail().withMessage('Please enter a valid email address.'),
+];
+
 export const twoFactorValidation = [
   body('enabled').isBoolean().withMessage('Please turn this setting on or off.'),
 ];
