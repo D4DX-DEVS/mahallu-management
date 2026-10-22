@@ -14,6 +14,8 @@ import { regexLiteral } from '../utils/queryGuard';
 import { isValidId, MSG, tenantFilterFor } from '../utils/scope';
 import { createWithSequence, maxNumericSuffix, reserveBlock } from '../utils/idCounter';
 
+const BLOOD_GROUPS = ['A +ve', 'A -ve', 'B +ve', 'B -ve', 'AB +ve', 'AB -ve', 'O +ve', 'O -ve'];
+
 /** Counter key for member ids: one sequence per family (ids read FID12-1, FID12-2 ...), per Mahallu. */
 const memberKey = (tenantId: string, familyId: unknown) => `member:${tenantId}:${String(familyId)}`;
 
@@ -87,6 +89,14 @@ export const getAllMembers = async (req: AuthRequest, res: Response) => {
 
     if (familyId) query.familyId = familyId;
     if (gender) query.gender = gender;
+    // Exact blood group, spelled as the app stores it ('O -ve'); same list the blood bank report accepts.
+    const bloodGroup = req.query.bloodGroup;
+    if (bloodGroup !== undefined && bloodGroup !== '') {
+      if (typeof bloodGroup !== 'string' || !BLOOD_GROUPS.includes(bloodGroup)) {
+        return res.status(400).json({ success: false, message: 'Please choose a valid blood group.' });
+      }
+      query.bloodGroup = bloodGroup;
+    }
     if (req.query.institutionId) query.educationInstitutionId = req.query.institutionId;
     if (req.query.localityFacilityId) query.localityFacilityId = req.query.localityFacilityId;
     if (req.query.unenrolled === 'true') {
