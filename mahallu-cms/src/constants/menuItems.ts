@@ -484,13 +484,6 @@ export const menuItems: MenuItem[] = [
         allowedRoles: ADMIN_ROLES,
       },
       {
-        id: 'common-noc',
-        label: 'Common NOC',
-        icon: RiFileTextLine,
-        path: '/registrations/noc/common',
-        allowedRoles: ADMIN_ROLES,
-      },
-      {
         id: 'nikah-noc',
         label: 'Nikah NOC',
         icon: RiFileAddLine,

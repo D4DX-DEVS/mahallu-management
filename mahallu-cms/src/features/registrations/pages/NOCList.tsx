@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -28,6 +28,8 @@ import { exportToCSV, exportToJSON, exportToPDF } from '@/utils/exportUtils';
 import { downloadNocPdf } from '@/utils/nocPdf';
 import { DEFAULT_NOC_DESCRIPTION, createNocSchema, CreateNocFormData } from '../nocFormConfig';
 import { sanitizeDigits } from '@/utils/validation';
+import { useMemberAutofill } from '@/hooks/useMemberAutofill';
+import { applicantFill } from '@/utils/memberAutofill';
 import { buildNocColumns } from '../nocColumns';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
@@ -66,6 +68,7 @@ export default function NOCList() {
     handleSubmit,
     watch,
     setValue,
+    getValues,
     reset,
     formState: { errors: createErrors, isSubmitting: isCreating },
   } = useForm<CreateNocFormData>({
@@ -77,6 +80,8 @@ export default function NOCList() {
   });
 
   const selectedApplicantId = watch('applicantId');
+  const selectedMember = useMemo(() => members.find((m) => m.id === selectedApplicantId), [members, selectedApplicantId]);
+  const autofill = useMemberAutofill({ setValue, getValues });
   const purposeDescription = watch('purposeDescription');
 
   useEffect(() => {
@@ -112,13 +117,10 @@ export default function NOCList() {
     fetchMembers();
   }, []);
 
+  // The selected member supplies the applicant's name, Malayalam name and phone number.
   useEffect(() => {
-    if (!selectedApplicantId) return;
-    const selectedMember = members.find((m) => m.id === selectedApplicantId);
-    if (!selectedMember) return;
-    setValue('applicantName', selectedMember.name);
-    setValue('applicantPhone', selectedMember.phone || '');
-  }, [selectedApplicantId, members, setValue]);
+    void autofill(selectedMember, (member) => applicantFill(member));
+  }, [selectedMember, autofill]);
 
   const fetchNOCs = async () => {
     try {
@@ -167,6 +169,7 @@ export default function NOCList() {
         type: data.type,
         purposeDescription: DEFAULT_NOC_DESCRIPTION,
       });
+      autofill.forget();
       setShowCreate(false);
       await fetchNOCs();
     } catch (err: any) {

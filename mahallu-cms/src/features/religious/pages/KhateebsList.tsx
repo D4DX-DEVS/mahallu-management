@@ -16,6 +16,8 @@ import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import { Khateeb, religiousService, KHATEEB_STATUS_OPTIONS } from '@/services/religiousService';
 import { memberService } from '@/services/memberService';
+import { useMemberAutofill } from '@/hooks/useMemberAutofill';
+import { khateebFill } from '@/utils/memberAutofill';
 import { useDebounce } from '@/hooks/useDebounce';
 import { ROUTES } from '@/constants/routes';
 import { Member } from '@/types';
@@ -63,12 +65,14 @@ export default function KhateebsList() {
     formState: { errors, isSubmitting },
     reset,
     watch,
+    getValues,
   } = useForm<KhateebFormData>({
     resolver: zodResolver(khateebSchema),
     defaultValues: {
       status: 'active',
     },
   });
+  const autofill = useMemberAutofill({ setValue, getValues });
 
   useEffect(() => {
     fetchMembers();
@@ -112,6 +116,7 @@ export default function KhateebsList() {
   };
 
   const handleOpenModal = (khateeb?: Khateeb) => {
+    autofill.forget();
     if (khateeb) {
       setEditingKhateeb(khateeb);
       reset({
@@ -285,7 +290,13 @@ export default function KhateebsList() {
 
           <Select
             label="Member (Optional)"
-            {...register('memberId')}
+            {...register('memberId', {
+              // Linking a member fills the khateeb's name, Malayalam name and contact number (user selection only).
+              onChange: (event) => {
+                const picked = event.target.value ? members.find((m) => m.id === event.target.value) : undefined;
+                void autofill(picked ?? null, (member) => khateebFill(member));
+              },
+            })}
             options={memberOptions}
             placeholder="Link to a member record"
           />

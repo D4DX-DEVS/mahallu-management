@@ -80,6 +80,8 @@ export interface Member {
   marriageCount?: number;
   isOrphan?: boolean;
   isDead?: boolean;
+  /** Set by the API when an approved death registration marks the member deceased. */
+  dateOfDeath?: string;
   status?: 'active' | 'inactive' | 'deleted';
   isFamilyHead?: boolean;
   relationship?: 'head' | 'spouse' | 'son' | 'daughter' | 'father' | 'mother' | 'other';
