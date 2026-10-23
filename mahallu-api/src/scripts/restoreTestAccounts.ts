@@ -133,6 +133,7 @@ async function getOrCreateMember(tenantId: mongoose.Types.ObjectId, phone: strin
     familyId: family._id,
     familyName: family.houseName,
     phone,
+    gender: 'male',
     status: 'active',
   });
   await member.save();

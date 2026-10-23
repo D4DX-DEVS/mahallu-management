@@ -265,12 +265,14 @@ test('the member form needs a name, and checks the phone number and date of birt
   ]);
   try {
     assert.deepEqual(await validate({ name: 'Aisha K', gender: 'female', relationship: 'daughter', phone: '9000000002', dateOfBirth: '2012-05-01' }), []);
-    assert.deepEqual(await validate({ name: 'Aisha K' }), []);
+    // Gender is required now: a name alone is refused.
+    assert.deepEqual(await validate({ name: 'Aisha K' }), ['gender: Please choose the gender.']);
+    assert.deepEqual(await validate({ name: 'Aisha K', gender: 'female' }), []);
     assert.equal((await validate({})).length > 0, true, 'no name');
     assert.equal((await validate({ name: 'A' })).length > 0, true, 'name too short');
-    assert.equal((await validate({ name: 'Aisha K', phone: '123' })).length > 0, true, 'bad phone');
-    assert.equal((await validate({ name: 'Aisha K', dateOfBirth: '2999-01-01' })).length > 0, true, 'future date');
-    assert.equal((await validate({ name: 'Aisha K', dateOfBirth: 'yesterday' })).length > 0, true, 'not a date');
+    assert.equal((await validate({ name: 'Aisha K', gender: 'female', phone: '123' })).length > 0, true, 'bad phone');
+    assert.equal((await validate({ name: 'Aisha K', gender: 'female', dateOfBirth: '2999-01-01' })).length > 0, true, 'future date');
+    assert.equal((await validate({ name: 'Aisha K', gender: 'female', dateOfBirth: 'yesterday' })).length > 0, true, 'not a date');
     assert.equal((await validate({ name: 'Aisha K', gender: 'unknown-value' })).length > 0, true, 'unknown category value');
   } finally {
     cats.restore();

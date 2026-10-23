@@ -96,7 +96,7 @@ export const sendOTP = async (req: Request, res: Response) => {
         let family = await Family.findOne({ tenantId, houseName: 'App Store Test House' });
         if (!family) family = await Family.create({ tenantId, houseName: 'App Store Test House', familyHead: 'Test User', status: 'approved' });
         let member = await Member.findOne({ phone: { $in: testVariants } });
-        if (!member) member = await Member.create({ tenantId, name: 'Test User (Member)', familyId: (family as any)._id, familyName: 'App Store Test House', phone: testLocalPhone, status: 'active' });
+        if (!member) member = await Member.create({ tenantId, name: 'Test User (Member)', familyId: (family as any)._id, familyName: 'App Store Test House', phone: testLocalPhone, gender: 'male', status: 'active' });
         await User.create({ name: 'Test User (Member)', phone: testLocalPhone, role: 'member', tenantId, memberId: (member as any)._id, status: 'active', isSuperAdmin: false, permissions: fullPerms, password: hashedPw });
 
         console.info('[OTP] App Store test accounts auto-created');
