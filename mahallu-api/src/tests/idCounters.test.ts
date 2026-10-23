@@ -240,7 +240,7 @@ describe('atomic id counters', () => {
   test('member bulk import reserves a block and keeps the format', async () => {
     const familyId = String(oid());
     members = [{ tenantId: T1, familyId, mahallId: 'FID5-1' }];
-    const out = await run(bulkImportMembers, { tenantId: String(T1), body: { familyId, members: [{ name: 'A' }, { name: 'B' }] } });
+    const out = await run(bulkImportMembers, { tenantId: String(T1), body: { familyId, members: [{ name: 'A', gender: 'male' }, { name: 'B', gender: 'female' }] } });
     // refBelongsToTenant looks the family up through Family.findById(...).select().lean(): tenant T1 above
     assert.equal(out.status, 201, JSON.stringify(out.body));
     assert.deepEqual(members.slice(1).map((m) => m.mahallId).sort(), ['FID5-2', 'FID5-3']);

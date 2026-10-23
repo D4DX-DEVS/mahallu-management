@@ -32,6 +32,8 @@ export const createMemberValidation = [
       if (isFutureDate(value)) throw new Error('Date of birth cannot be in the future');
       return true;
     }),
+  // Required on a new member: counts by gender (Male + Female) must add up to the total.
+  body('gender').trim().notEmpty().withMessage('Please choose the gender.'),
   validCategoryValue('gender', 'gender'),
   validCategoryValue('blood_group', 'bloodGroup'),
   body('healthStatus').optional().trim(),

@@ -88,7 +88,15 @@ const MemberSchema = new Schema<IMember>(
     gender: {
       // Valid values now come from the Category system (key: 'gender') and
       // are enforced by validCategoryValue in memberValidation.ts.
+      // Required on a new member, whichever route creates it; members that
+      // already exist without one can still be saved.
       type: String,
+      required: [
+        function (this: { isNew?: boolean }) {
+          return this.isNew === true;
+        },
+        'Please choose the gender.',
+      ],
     },
     bloodGroup: {
       // Category key: 'blood_group'.
