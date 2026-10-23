@@ -190,6 +190,17 @@ describe('the other dashboard handlers fail closed', () => {
     for (const q of queries) assert.equal(q.arg.tenantId, T_A, q.op);
   });
 
+  test('member counts leave out deleted and deceased members, like the Members list', async () => {
+    const out = await run(getDashboardStats, {});
+    assert.equal(out.status, 200);
+    const memberCounts = queries.filter((q) => q.op === 'Member.countDocuments');
+    assert.ok(memberCounts.length >= 3);
+    for (const q of memberCounts) {
+      assert.deepEqual(q.arg.status, { $ne: 'deleted' });
+      assert.deepEqual(q.arg.isDead, { $ne: true });
+    }
+  });
+
   test('recent families clamps an oversized limit', async () => {
     const out = await run(getRecentFamilies, { query: { limit: '1000000000' } });
     assert.equal(out.status, 200);
