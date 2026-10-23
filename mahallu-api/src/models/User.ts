@@ -20,6 +20,13 @@ export interface IUser extends Document {
     sensitiveModules?: ('counselling' | 'maslahat' | 'inheritance' | 'health' | 'welfare')[];
   };
   password: string;
+  /**
+   * Sign-in name for staff accounts (mahall, survey, institute), used instead of the phone number.
+   * Globally unique and stored lowercase. Accounts created before usernames existed have none.
+   */
+  username?: string;
+  /** Set when an administrator issued the current password; cleared when the owner changes it. */
+  passwordResetRequired?: boolean;
   isSuperAdmin: boolean;
   /** Task C5 — when on, password login stops at an OTP step instead of issuing a token. */
   twoFactorEnabled: boolean;
@@ -107,6 +114,15 @@ const UserSchema = new Schema<IUser>(
       required: [true, 'Password is required'],
       select: false,
     },
+    username: {
+      type: String,
+      trim: true,
+      lowercase: true,
+    },
+    passwordResetRequired: {
+      type: Boolean,
+      default: false,
+    },
     isSuperAdmin: {
       type: Boolean,
       default: false,
@@ -136,6 +152,9 @@ const UserSchema = new Schema<IUser>(
 
 // Compound index for phone + tenantId + role (same person can have multiple roles in the same mahallu)
 UserSchema.index({ phone: 1, tenantId: 1, role: 1 }, { unique: true, sparse: true });
+
+// One account per username. Partial, so the many accounts without a username never collide.
+UserSchema.index({ username: 1 }, { unique: true, partialFilterExpression: { username: { $type: 'string' } } });
 
 export default mongoose.model<IUser>('User', UserSchema);
 

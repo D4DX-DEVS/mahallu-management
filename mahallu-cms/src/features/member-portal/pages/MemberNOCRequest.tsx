@@ -210,7 +210,8 @@ export default function MemberNOCRequest() {
     }
   };
 
-  const isFamilyHead = overview?.member.id === user?.id;
+  // The server says whether this member heads their family (a Member id never equals the signed-in User id).
+  const isFamilyHead = overview?.isFamilyHead === true;
 
   if (successMsg) {
     return (

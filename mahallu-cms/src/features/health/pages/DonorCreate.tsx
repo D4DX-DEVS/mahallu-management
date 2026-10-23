@@ -10,6 +10,7 @@ import Input from '@/components/ui/Input';
 import { errorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { phoneSchema, sanitizeDigits } from '@/utils/validation';
+import Select from '@/components/ui/Select';
 
 const donorSchema = z.object({
   name: z.string().max(200, 'Please keep the name to 200 characters or less.').min(1, 'Name is required'),
@@ -83,21 +84,15 @@ export default function DonorCreate() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Blood Group *</label>
-              <select
+              <Select
                 aria-label="Blood Group"
                 {...register('bloodGroup')}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 ${
-                  errors.bloodGroup ? 'border-red-500' : 'border-gray-300'
-                }`}
-              >
-                <option value="">Select blood group</option>
-                {bloodGroups.map((bg) => (
-                  <option key={bg} value={bg}>
-                    {bg}
-                  </option>
-                ))}
-              </select>
-              {errors.bloodGroup && <span className="text-red-500 text-sm">{errors.bloodGroup.message}</span>}
+                error={errors.bloodGroup?.message}
+                options={[
+                  { value: '', label: 'Select blood group' },
+                  ...bloodGroups.map((bg) => ({ value: bg, label: bg })),
+                ]}
+              />
             </div>
 
             <div>

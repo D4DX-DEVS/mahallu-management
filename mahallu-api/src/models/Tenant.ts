@@ -1,11 +1,12 @@
 import mongoose, { Schema, Document } from 'mongoose';
 import { TENANT_CLASSIFICATIONS, TenantClassification } from '../config/moduleFeatures';
+import { LEGACY_TENANT_TYPES, LegacyTenantType, TENANT_TYPES, TenantType } from '../config/tenantTypes';
 
 export interface ITenant extends Document {
   name: string;
   nameMl?: string;
   code: string;
-  type: 'standard' | 'premium' | 'enterprise';
+  type: TenantType | LegacyTenantType;
   classification: TenantClassification;
   since: Date;
   location: string;
@@ -15,7 +16,7 @@ export interface ITenant extends Document {
     district: string;
     pinCode?: string;
     postOffice?: string;
-    lsgName: string;
+    lsgName?: string;
     village: string;
   };
   logo?: string;
@@ -62,8 +63,8 @@ const TenantSchema = new Schema<ITenant>(
     },
     type: {
       type: String,
-      enum: ['standard', 'premium', 'enterprise'],
-      default: 'standard',
+      enum: [...TENANT_TYPES, ...LEGACY_TENANT_TYPES],
+      default: 'mahallu',
     },
     classification: {
       type: String,
@@ -87,7 +88,7 @@ const TenantSchema = new Schema<ITenant>(
       district: { type: String, required: true },
       pinCode: String,
       postOffice: String,
-      lsgName: { type: String, required: true },
+      lsgName: { type: String },
       village: { type: String, required: true },
     },
     logo: String,

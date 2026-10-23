@@ -1,24 +1,38 @@
 import mongoose, { Schema, Document } from 'mongoose';
 import { sanitizeRichText } from '../utils/htmlSanitizer';
 
+/** What the mahr (dowry) is. `other` is described in `mahrTypeOther`. Older records have only `mahrAmount`. */
+export const MAHR_TYPES = ['gold_or_ornaments', 'cash', 'land', 'other'] as const;
+export type MahrType = (typeof MAHR_TYPES)[number];
+
 export interface INikahRegistration extends Document {
   tenantId: mongoose.Types.ObjectId;
   groomName: string;
   groomNameMl?: string;
   groomAge?: number;
+  groomAddress?: string;
+  groomPhotoId?: mongoose.Types.ObjectId; // DocumentFile id (private image, read through a signed URL)
   groomId?: mongoose.Types.ObjectId; // Member ID
   brideName: string;
   brideNameMl?: string;
   brideAge?: number;
+  brideAddress?: string;
+  bridePhotoId?: mongoose.Types.ObjectId; // DocumentFile id
   brideId?: mongoose.Types.ObjectId; // Member ID
   mahallMemberType?: 'groom' | 'bride';
   nikahDate: Date;
   venue?: string;
   mahallId?: string;
   waliName?: string;
-  witness1?: string;
-  witness2?: string;
-  mahrAmount?: number;
+  witness1?: string; // name (the original field)
+  witness1Phone?: string;
+  witness1Address?: string;
+  witness2?: string; // name (the original field)
+  witness2Phone?: string;
+  witness2Address?: string;
+  mahrAmount?: number; // kept as recorded on older registrations; the form no longer asks for it
+  mahrType?: MahrType;
+  mahrTypeOther?: string;
   mahrDescription?: string;
   submittedByMemberId?: mongoose.Types.ObjectId; // Member who submitted (self or family head)
   documents?: mongoose.Types.ObjectId[]; // Supporting DocumentFile ids
@@ -84,10 +98,14 @@ const NikahRegistrationSchema = new Schema<INikahRegistration>(
     groomName: { type: String, required: true, trim: true },
     groomNameMl: { type: String, trim: true },
     groomAge: Number,
+    groomAddress: { type: String, trim: true, maxlength: 500 },
+    groomPhotoId: { type: Schema.Types.ObjectId, ref: 'DocumentFile' },
     groomId: { type: Schema.Types.ObjectId, ref: 'Member' },
     brideName: { type: String, required: true, trim: true },
     brideNameMl: { type: String, trim: true },
     brideAge: Number,
+    brideAddress: { type: String, trim: true, maxlength: 500 },
+    bridePhotoId: { type: Schema.Types.ObjectId, ref: 'DocumentFile' },
     brideId: { type: Schema.Types.ObjectId, ref: 'Member' },
     mahallMemberType: {
       type: String,
@@ -98,8 +116,14 @@ const NikahRegistrationSchema = new Schema<INikahRegistration>(
     mahallId: String,
     waliName: String,
     witness1: String,
+    witness1Phone: { type: String, trim: true, maxlength: 20 },
+    witness1Address: { type: String, trim: true, maxlength: 500 },
     witness2: String,
+    witness2Phone: { type: String, trim: true, maxlength: 20 },
+    witness2Address: { type: String, trim: true, maxlength: 500 },
     mahrAmount: Number,
+    mahrType: { type: String, enum: MAHR_TYPES },
+    mahrTypeOther: { type: String, trim: true, maxlength: 100 },
     mahrDescription: String,
     submittedByMemberId: { type: Schema.Types.ObjectId, ref: 'Member' },
     documents: [{ type: Schema.Types.ObjectId, ref: 'DocumentFile' }],

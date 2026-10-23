@@ -978,7 +978,7 @@ export const menuItems: MenuItem[] = [
         path: '/assistant',
         allowedRoles: ADMIN_ROLES,
       },
-      { id: 'tenants', label: 'Tenants', icon: RiLayoutGridLine, path: '/admin/tenants', superAdminOnly: true },
+      { id: 'tenants', label: 'Mahalls', icon: RiLayoutGridLine, path: '/admin/tenants', superAdminOnly: true },
       {
         id: 'demo-requests',
         label: 'Demo requests',

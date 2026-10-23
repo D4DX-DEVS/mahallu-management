@@ -12,6 +12,7 @@ import PageHeader from '@/components/layout/PageHeader';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import { toTitleCase } from '@/utils/format';
 import { PageSkeleton } from '@/components/ui/Skeleton';
+import Select from '@/components/ui/Select';
 
 const PROJECT_AREAS: Record<string, string> = {
   roads: 'Roads',
@@ -205,18 +206,18 @@ export default function ProjectDetail() {
 
             <div>
               <label className="block text-sm font-medium mb-1">Status</label>
-              <select
+              <Select
                 aria-label="Status"
                 value={status}
                 onChange={(e) => setStatus(e.target.value)}
-                className="w-full px-3 py-2 border rounded"
-              >
-                <option value="proposed">Proposed</option>
-                <option value="approved">Approved</option>
-                <option value="in_progress">In Progress</option>
-                <option value="completed">Completed</option>
-                <option value="dropped">Dropped</option>
-              </select>
+                options={[
+                  { value: 'proposed', label: 'Proposed' },
+                  { value: 'approved', label: 'Approved' },
+                  { value: 'in_progress', label: 'In Progress' },
+                  { value: 'completed', label: 'Completed' },
+                  { value: 'dropped', label: 'Dropped' },
+                ]}
+              />
             </div>
 
             <Button type="submit" disabled={updating}>

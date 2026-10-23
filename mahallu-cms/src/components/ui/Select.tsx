@@ -55,6 +55,7 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
       id,
       required,
       placeholder,
+      'aria-label': ariaLabel,
       ...props
     },
     ref
@@ -102,7 +103,8 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
     }, []);
     const listOptions = options.filter((option) => !isPrompt(option));
     const promptOption = options.find(isPrompt);
-    const needsSearch = listOptions.length > 7;
+    /* Every list with a real choice is searchable. */
+    const needsSearch = listOptions.length >= 2;
     const showSearch = needsSearch && isOpen;
     const filteredOptions = showSearch
       ? listOptions.filter((option) => option.label.toLowerCase().includes(searchQuery.toLowerCase()))
@@ -169,6 +171,19 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
         window.removeEventListener('resize', positionMenu);
       };
     }, [isOpen, positionMenu]);
+    /* The search never survives a close, however the menu was closed. */
+    useEffect(() => {
+      if (isOpen) return;
+      setSearchQuery('');
+      setFocusedIndex(-1);
+    }, [isOpen]);
+    /* Keep the keyboard-focused option visible inside the scrolling list. */
+    useEffect(() => {
+      if (!isOpen || focusedIndex < 0) return;
+      document
+        .getElementById(listboxId + '-opt-' + focusedIndex)
+        ?.scrollIntoView?.({ block: 'nearest' });
+    }, [isOpen, focusedIndex, listboxId]);
     useEffect(() => {
       if (!isOpen) return;
       const handlePointerDown = (event: MouseEvent) => {
@@ -212,10 +227,13 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
           setFocusedIndex((prev) => Math.max(prev - 1, 0));
           break;
         case 'Home':
+          // In the search box Home/End move the text caret instead.
+          if (event.target === searchInputRef.current) break;
           event.preventDefault();
           setFocusedIndex(0);
           break;
         case 'End':
+          if (event.target === searchInputRef.current) break;
           event.preventDefault();
           setFocusedIndex(filteredOptions.length - 1);
           break;
@@ -227,6 +245,8 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
           break;
         case 'Tab':
           setIsOpen(false);
+          setSearchQuery('');
+          setFocusedIndex(-1);
           break;
         default:
           break;
@@ -237,6 +257,7 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
     const menu = isOpen && menuRect && (
       <div
         ref={menuRef}
+        data-select-menu=""
         style={{
           position: 'fixed',
           top: menuRect.top,
@@ -272,6 +293,7 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
                   type="button"
                   onClick={() => {
                     setSearchQuery('');
+                    setFocusedIndex(0);
                     searchInputRef.current?.focus();
                   }}
                   aria-label="Clear search"
@@ -356,6 +378,7 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
             tabIndex={-1}
             aria-hidden="true"
             disabled={disabled}
+            aria-label={ariaLabel}
             {...props}
           >
             {options.map((option, i) => (
@@ -369,6 +392,7 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
             type="button"
             role="combobox"
             aria-haspopup="listbox"
+            aria-label={label ? undefined : ariaLabel}
             aria-expanded={isOpen}
             aria-controls={isOpen ? listboxId : undefined}
             aria-activedescendant={activeOptionId}

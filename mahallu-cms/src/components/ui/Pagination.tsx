@@ -1,5 +1,6 @@
 import { RiArrowLeftDoubleLine, RiArrowLeftSLine, RiArrowRightDoubleLine, RiArrowRightSLine } from 'react-icons/ri';
 import { cn } from '@/utils/cn';
+import Select from './Select';
 export interface PaginationProps {
   currentPage: number;
   totalPages: number;
@@ -115,20 +116,17 @@ export default function Pagination({
 
       <div className="flex justify-end">
         {onItemsPerPageChange && (
-          <select
-            aria-label="Rows per page"
-            value={safePerPage}
-            onChange={(e) => onItemsPerPageChange(Number(e.target.value))}
-            className="!h-8 rounded-lg !border-border bg-card !px-2.5 text-sm text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            {Array.from(new Set([...PAGE_SIZES, safePerPage]))
-              .sort((a, b) => a - b)
-              .map((size) => (
-                <option key={size} value={size}>
-                  {size} / page
-                </option>
-              ))}
-          </select>
+          <div className="w-32">
+            <Select
+              aria-label="Rows per page"
+              value={String(safePerPage)}
+              onChange={(e) => onItemsPerPageChange(Number(e.target.value))}
+              className="!h-8 !px-2.5 text-sm"
+              options={Array.from(new Set([...PAGE_SIZES, safePerPage]))
+                .sort((x, y) => x - y)
+                .map((size) => ({ value: String(size), label: size + ' / page' }))}
+            />
+          </div>
         )}
       </div>
     </nav>

@@ -55,9 +55,12 @@ export default function PageHeader({ title, eyebrow, description, icon, actions,
   const Icon = icon === undefined ? resolveNavIcon(pathname) : icon;
 
   return (
-    <div className={cn('mb-6 border-b border-border pb-5', className)}>
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
-        <div className="flex min-w-0 items-center gap-3.5">
+    <div className={cn('mb-6 min-w-0 border-b border-border pb-5', className)}>
+      {/* `sm:flex-wrap` + a floor on the title block: with the sidebar open a tablet has ~430px of content, and
+          three labelled actions (`flex-shrink-0`, so never wrapping) plus the icon disc were wider than that,
+          pushing the whole page sideways. When the actions do not fit beside the title they now drop below it. */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-x-6">
+        <div className="flex min-w-0 items-center gap-3.5 sm:min-w-[14rem] sm:flex-1">
           {Icon && (
             <span
               aria-hidden="true"
@@ -69,14 +72,14 @@ export default function PageHeader({ title, eyebrow, description, icon, actions,
           <div className="min-w-0">
             {/* No `truncate`: a page title that does not fit wraps. */}
             {eyebrow && <p className="mb-0.5 text-xs font-medium uppercase tracking-wider text-primary">{eyebrow}</p>}
-            <h1 className="text-lg font-semibold leading-tight tracking-tight text-foreground">{title}</h1>
-            {description && <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{description}</p>}
+            <h1 className="text-lg font-semibold leading-tight tracking-tight text-foreground [overflow-wrap:anywhere]">{title}</h1>
+            {description && <p className="mt-1 max-w-2xl text-sm text-muted-foreground [overflow-wrap:anywhere]">{description}</p>}
           </div>
         </div>
         {/* Pass actions as `Button`s with `icon` + `collapseLabel` so they
             collapse to their glyphs on a phone instead of folding. */}
         {actions && (
-          <div className="flex min-w-0 flex-shrink-0 flex-wrap items-center justify-start gap-2 sm:justify-end">
+          <div className="flex min-w-0 flex-wrap items-center justify-start gap-2 sm:ml-auto sm:justify-end">
             {actions}
           </div>
         )}

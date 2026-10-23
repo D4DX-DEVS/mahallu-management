@@ -16,6 +16,10 @@ export interface User {
   permissions?: Permission;
   isSuperAdmin?: boolean;
   twoFactorEnabled?: boolean;
+  /** Sign-in name for staff accounts, used instead of the phone number. */
+  username?: string;
+  /** True while the password is one an administrator issued: the owner should choose their own. */
+  passwordResetRequired?: boolean;
   tenant?: { id?: string; name: string };
 }
 
