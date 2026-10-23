@@ -7,6 +7,7 @@ import { FiSave, FiX } from 'react-icons/fi';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
+import Select from '@/components/ui/Select';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import { ROUTES } from '@/constants/routes';
 import { userService } from '@/services/userService';
@@ -153,20 +154,14 @@ export default function EditSurveyUser() {
                 className="md:col-span-2"
               />
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Status
-                </label>
-                <select
-                  aria-label="Status"
+                <Select
+                  label="Status"
+                  options={[
+                    { value: 'active', label: 'Active' },
+                    { value: 'inactive', label: 'Inactive' },
+                  ]}
                   {...register('status')}
-                  className="flex h-10 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
-                >
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
-                </select>
-                {errors.status && (
-                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.status.message}</p>
-                )}
+                />
               </div>
             </div>
           </div>

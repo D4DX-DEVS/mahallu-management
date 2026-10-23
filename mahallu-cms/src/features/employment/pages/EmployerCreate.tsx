@@ -7,6 +7,7 @@ import { errorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { useFormValidation } from '@/hooks/useFormValidation';
 import { FieldRule, LIMITS, firstError, sanitizeDigits, validateForm } from '@/utils/validation';
+import Select from '@/components/ui/Select';
 
 /**
  * The same limits the API applies, so a form that passes here is not
@@ -163,16 +164,16 @@ export default function EmployerCreate() {
 
             <div>
               <label className="block text-sm font-medium text-gray-900 mb-2">Status</label>
-              <select
+              <Select
                 aria-label="Status"
                 name="status"
                 value={formData.status}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-              </select>
+                options={[
+                  { value: 'active', label: 'Active' },
+                  { value: 'inactive', label: 'Inactive' },
+                ]}
+              />
             </div>
           </div>
 

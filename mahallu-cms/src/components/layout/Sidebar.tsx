@@ -128,7 +128,6 @@ const MENU_GROUPS: Record<string, Record<string, string>> = {
   registrations: {
     nikah: 'Registration desk',
     death: 'Registration desk',
-    'common-noc': 'Registration desk',
     'nikah-noc': 'Registration desk',
     'marriage-assistance': 'Registration desk',
     certificates: 'Documents & requests',

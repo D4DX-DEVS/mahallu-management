@@ -15,6 +15,7 @@ import { sanitizeHtml } from '@/utils/sanitizeHtml';
 import StatusBadge from '@/components/ui/StatusBadge';
 import PageHeader from '@/components/layout/PageHeader';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import { NIKAH_NOC_LABELS_ML, type NikahNocLabelKey } from '../nocLabelsMl';
 
 export default function NOCDetail() {
   const { id } = useParams<{ id: string }>();
@@ -116,6 +117,10 @@ export default function NOCDetail() {
     );
   }
 
+  // A Nikah NOC's details are shown in Malayalam (labels only; the saved values are never translated).
+  const isNikahNoc = noc.type === 'nikah';
+  const t = (key: NikahNocLabelKey, english: string) => (isNikahNoc ? NIKAH_NOC_LABELS_ML[key] : english);
+
   const typeColors: Record<string, string> = {
     common: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
     nikah: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
@@ -150,33 +155,33 @@ export default function NOCDetail() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card>
           <h2 className="text-lg font-semibold mb-3 text-foreground">
-            Applicant Information
+            {t('applicantInformation', 'Applicant Information')}
           </h2>
           <div className="space-y-3">
             <div>
-              <span className="text-sm text-gray-500 dark:text-gray-400">Applicant Name</span>
+              <span className="text-sm text-gray-500 dark:text-gray-400">{t('applicantName', 'Applicant Name')}</span>
               <p className="text-gray-900 dark:text-gray-100 font-medium">{toTitleCase(noc.applicantName)}</p>
             </div>
             {noc.applicantPhone && (
               <div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">Phone</span>
+                <span className="text-sm text-gray-500 dark:text-gray-400">{t('phone', 'Phone')}</span>
                 <p className="text-gray-900 dark:text-gray-100">{noc.applicantPhone}</p>
               </div>
             )}
             <div>
-              <span className="text-sm text-gray-500 dark:text-gray-400">Type</span>
+              <span className="text-sm text-gray-500 dark:text-gray-400">{t('type', 'Type')}</span>
               <div className="mt-1">
                 <span
                   className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
                     typeColors[noc.type || 'common']
                   }`}
                 >
-                  {noc.type === 'nikah' ? 'Nikah NOC' : 'Common NOC'}
+                  {isNikahNoc ? NIKAH_NOC_LABELS_ML.typeNikahNoc : 'Common NOC'}
                 </span>
               </div>
             </div>
             <div>
-              <span className="text-sm text-gray-500 dark:text-gray-400">Status</span>
+              <span className="text-sm text-gray-500 dark:text-gray-400">{t('status', 'Status')}</span>
               <div className="mt-1">
                 <StatusBadge status={noc.status} />
               </div>
@@ -185,15 +190,15 @@ export default function NOCDetail() {
         </Card>
 
         <Card>
-          <h2 className="text-lg font-semibold mb-3 text-foreground">NOC Details</h2>
+          <h2 className="text-lg font-semibold mb-3 text-foreground">{t('nocDetails', 'NOC Details')}</h2>
           <div className="space-y-3">
             <div>
-              <span className="text-sm text-gray-500 dark:text-gray-400">Purpose Title</span>
+              <span className="text-sm text-gray-500 dark:text-gray-400">{t('purposeTitle', 'Purpose Title')}</span>
               <p className="text-gray-900 dark:text-gray-100">{toTitleCase(noc.purposeTitle || noc.purpose)}</p>
             </div>
             {(noc.purposeDescription || noc.purpose) && (
               <div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">Purpose Description</span>
+                <span className="text-sm text-gray-500 dark:text-gray-400">{t('purposeDescription', 'Purpose Description')}</span>
                 <div
                   className="prose prose-sm max-w-none text-gray-900 dark:text-gray-100"
                   dangerouslySetInnerHTML={{ __html: sanitizeHtml(noc.purposeDescription || noc.purpose || '') }}
@@ -202,24 +207,24 @@ export default function NOCDetail() {
             )}
             {noc.issuedDate && (
               <div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">Issued Date</span>
+                <span className="text-sm text-gray-500 dark:text-gray-400">{t('issuedDate', 'Issued Date')}</span>
                 <p className="text-gray-900 dark:text-gray-100">{formatDate(noc.issuedDate)}</p>
               </div>
             )}
             {noc.expiryDate && (
               <div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">Expiry Date</span>
+                <span className="text-sm text-gray-500 dark:text-gray-400">{t('expiryDate', 'Expiry Date')}</span>
                 <p className="text-gray-900 dark:text-gray-100">{formatDate(noc.expiryDate)}</p>
               </div>
             )}
             {noc.nikahRegistrationId && (
               <div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">Related Nikah Registration</span>
+                <span className="text-sm text-gray-500 dark:text-gray-400">{t('relatedNikahRegistration', 'Related Nikah Registration')}</span>
                 <Link
                   to={`/registrations/nikah/${noc.nikahRegistrationId}`}
                   className="text-primary-600 hover:text-primary-700 dark:text-primary-400"
                 >
-                  View Registration
+                  {t('viewRegistration', 'View Registration')}
                 </Link>
               </div>
             )}
@@ -229,29 +234,29 @@ export default function NOCDetail() {
 
       {noc.remarks && (
         <Card>
-          <h2 className="text-lg font-semibold mb-3 text-foreground">Remarks</h2>
+          <h2 className="text-lg font-semibold mb-3 text-foreground">{t('remarks', 'Remarks')}</h2>
           <p className="text-gray-700 dark:text-gray-300">{noc.remarks}</p>
         </Card>
       )}
 
       <Card>
         <h2 className="text-lg font-semibold mb-3 text-foreground">
-          Registration Information
+          {t('registrationInformation', 'Registration Information')}
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <span className="text-sm text-gray-500 dark:text-gray-400">NOC ID</span>
+            <span className="text-sm text-gray-500 dark:text-gray-400">{t('nocId', 'NOC ID')}</span>
             <p className="text-gray-900 dark:text-gray-100 font-mono text-sm">{noc.id}</p>
           </div>
           <div>
-            <span className="text-sm text-gray-500 dark:text-gray-400">Created At</span>
+            <span className="text-sm text-gray-500 dark:text-gray-400">{t('createdAt', 'Created At')}</span>
             <p className="text-gray-900 dark:text-gray-100">{formatDate(noc.createdAt)}</p>
           </div>
         </div>
       </Card>
 
       <Card>
-        <h2 className="text-lg font-semibold mb-3 text-foreground">Attached Documents</h2>
+        <h2 className="text-lg font-semibold mb-3 text-foreground">{t('attachedDocuments', 'Attached Documents')}</h2>
         <DocumentsPanel ownerType="noc" ownerId={noc.id} isAdmin={true} />
       </Card>
 

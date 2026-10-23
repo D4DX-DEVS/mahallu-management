@@ -1,5 +1,6 @@
 import { body, param, query } from 'express-validator';
 import { EMAIL_KEEP_AS_TYPED } from './common';
+import { isStrongPassword, isValidUsername, PASSWORD_MESSAGE, USERNAME_MESSAGE } from '../utils/credentials';
 
 /** The restricted modules a grant can name. Mirrors the User.permissions.sensitiveModules enum. */
 export const SENSITIVE_MODULE_NAMES = ['counselling', 'maslahat', 'inheritance', 'health', 'welfare'] as const;
@@ -59,6 +60,15 @@ export const createUserValidation = [
     // hashing cost with no security value.
     .isLength({ min: 6, max: 128 })
     .withMessage('Please use between 6 and 128 characters for the password.'),
+  // A username is a second way to sign in, so it needs a password that meets the stronger rule.
+  body('username')
+    .optional({ values: 'falsy' })
+    .custom((value: unknown) => isValidUsername(value))
+    .withMessage(USERNAME_MESSAGE),
+  body('password')
+    .if(body('username').exists({ values: 'falsy' }))
+    .custom((value: unknown) => isStrongPassword(value))
+    .withMessage(PASSWORD_MESSAGE),
   body('tenantId')
     .optional()
     .isMongoId()
@@ -95,6 +105,33 @@ export const updateUserValidation = [
     .withMessage('Please choose a valid status.'),
   body('instituteId').optional().isMongoId().withMessage('Please select a valid institute.'),
   ...permissionsValidation,
+];
+
+/** PUT /users/:id/username - `null` or an empty value removes the username. */
+export const setUsernameValidation = [
+  param('id').isMongoId().withMessage('Please select a valid user.'),
+  body('username')
+    .optional({ values: 'null' })
+    .custom((value: unknown) => value === '' || isValidUsername(value))
+    .withMessage(USERNAME_MESSAGE),
+];
+
+/**
+ * POST /users/:id/reset-password
+ * `confirm` is the administrator's explicit yes. Leave `newPassword` out to have a one-time password
+ * generated; send it (with a matching `confirmPassword`) to set a specific one.
+ */
+export const resetPasswordValidation = [
+  param('id').isMongoId().withMessage('Please select a valid user.'),
+  body('confirm').custom((value: unknown) => value === true).withMessage('Please confirm that you want to reset this password.'),
+  body('newPassword')
+    .optional({ values: 'falsy' })
+    .custom((value: unknown) => isStrongPassword(value))
+    .withMessage(PASSWORD_MESSAGE),
+  body('confirmPassword')
+    .if(body('newPassword').exists({ values: 'falsy' }))
+    .custom((value: unknown, { req }: any) => value === req.body?.newPassword)
+    .withMessage('The two passwords do not match.'),
 ];
 
 export const getUserValidation = [

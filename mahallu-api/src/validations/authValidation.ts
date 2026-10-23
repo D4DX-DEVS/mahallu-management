@@ -1,7 +1,20 @@
 import { body, param } from 'express-validator';
 
+/** True when the sign-in names an account by username rather than by phone number. */
+const signsInByUsername = (req: any): boolean => req.body?.username !== undefined && req.body?.username !== null && req.body?.username !== '';
+
 export const loginValidation = [
+  // A staff account may sign in with its username instead of its phone number.
+  body('username')
+    .optional({ values: 'falsy' })
+    .isString()
+    .withMessage('Please enter your username.')
+    .bail()
+    .trim()
+    .isLength({ min: 1, max: 30 })
+    .withMessage('That username or password is incorrect. Please try again.'),
   body('phone')
+    .if((_value: unknown, { req }: any) => !signsInByUsername(req))
     .trim()
     .notEmpty()
     .withMessage('Please enter your phone number.')

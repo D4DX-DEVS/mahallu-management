@@ -8,6 +8,9 @@ import Modal from '@/components/ui/Modal';
 import { ROUTES } from '@/constants/routes';
 import { userService } from '@/services/userService';
 import { instituteService } from '@/services/instituteService';
+import { tenantService } from '@/services/tenantService';
+import CredentialsCard from '../components/CredentialsCard';
+import { canManageCredentials } from '../credentialRules';
 import { User } from '@/types';
 import { formatDate, formatDateTime, toTitleCase } from '@/utils/format';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
@@ -20,6 +23,8 @@ export default function UserDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const currentUser = useAuthStore((state) => state.user);
+  const isSuperAdmin = useAuthStore((state) => state.isSuperAdmin);
+  const isImpersonating = useAuthStore((state) => state.isImpersonating);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -41,6 +46,13 @@ export default function UserDetail() {
       setLoading(true);
       const data = await userService.getById(id!);
       setUser(data);
+      // The user record carries only the Mahall's id; show its name.
+      if (data.tenantId && !data.tenant) {
+        tenantService
+          .getById(data.tenantId)
+          .then((tenant) => setUser((current) => (current ? { ...current, tenant: { id: tenant.id, name: tenant.name } } : current)))
+          .catch(() => undefined);
+      }
       if (data.instituteId) {
         instituteService
           .getById(data.instituteId)
@@ -158,6 +170,12 @@ export default function UserDetail() {
           )}
         </div>
       </Card>
+
+      <CredentialsCard
+        user={user}
+        canManage={canManageCredentials(currentUser, isSuperAdmin, isImpersonating, user)}
+        onUserChanged={(changed) => setUser((current) => (current ? { ...current, ...changed, tenant: current.tenant } : changed))}
+      />
 
       {user.permissions && (
         <Card>

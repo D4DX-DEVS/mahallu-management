@@ -23,6 +23,7 @@ import {
   getOwnCertificates,
   downloadOwnCertificate,
 } from '../controllers/memberUserController';
+import { createFamilyMember } from '../controllers/familyHeadController';
 import { authMiddleware, memberUserOnly } from '../middleware/authMiddleware';
 import { validationHandler } from '../middleware/validationHandler';
 import {
@@ -30,6 +31,7 @@ import {
   paymentsQueryValidation,
   registrationsQueryValidation,
   updateOwnProfileValidation,
+  createFamilyMemberValidation,
   varisangyaPaymentValidation,
   zakatPaymentValidation,
   nikahRequestValidation,
@@ -106,6 +108,29 @@ router.get('/overview', getOwnOverview);
  *         description: Member profile not found
  */
 router.put('/profile', updateOwnProfileValidation, validationHandler, updateOwnProfile);
+
+/**
+ * @swagger
+ * /member-user/family-members:
+ *   post:
+ *     summary: Add a member to your own family
+ *     tags: [Member User]
+ *     description: |
+ *       A Family Head adds a person to their own family. The family, Mahallu and status come from the
+ *       server; only the person's details are read. A person with a phone number gets a linked member
+ *       account that signs in with an OTP (no password is created). The family must be approved.
+ *       **Access:** the Family Head only
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       201:
+ *         description: Member added
+ *       403:
+ *         description: Not a Family Head
+ *       409:
+ *         description: Family not approved, or the person (or phone number) already exists
+ */
+router.post('/family-members', createFamilyMemberValidation, validationHandler, createFamilyMember);
 
 /**
  * @swagger

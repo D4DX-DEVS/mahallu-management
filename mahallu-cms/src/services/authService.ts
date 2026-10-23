@@ -2,9 +2,13 @@ import api from './api';
 import { User } from '@/types';
 import { useAuthStore } from '@/store/authStore';
 
-export interface LoginCredentials {
+/** Sign in with a phone number or, for staff accounts, a username - plus the password. */
+export type LoginCredentials = { password: string } & ({ phone: string; username?: never } | { username: string; phone?: never });
+
+/** A password sign-in for an account with two-factor on: the token is withheld until the OTP step. */
+export interface OtpRequired {
+  requiresOtp: true;
   phone: string;
-  password: string;
 }
 
 export interface OTPCredentials {
@@ -46,7 +50,7 @@ export interface StartImpersonationPayload {
 
 export const authService = {
   login: async (credentials: LoginCredentials) => {
-    const response = await api.post<{ success: boolean; data: AuthResponse }>('/auth/login', credentials);
+    const response = await api.post<{ success: boolean; data: AuthResponse | OtpRequired }>('/auth/login', credentials);
     return response.data.data;
   },
 

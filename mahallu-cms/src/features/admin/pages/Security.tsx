@@ -8,6 +8,7 @@ import { useAuthStore } from '@/store/authStore';
 import { formatDateTime } from '@/utils/format';
 import { errorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import ChangePasswordCard from '@/features/auth/components/ChangePasswordCard';
 import SortableTh from '@/components/ui/SortableTh';
 import { useSortableRows } from '@/hooks/useSortableRows';
 
@@ -74,8 +75,10 @@ export default function Security() {
   return (
     <div className="space-y-4">
       <div>
-        <PageHeader title="Security" description="Two-factor login and the access history for your account" />
+        <PageHeader title="Security" description="Your password, two-factor login and the access history for your account" />
       </div>
+
+      <ChangePasswordCard />
 
       <Card>
         <div className="flex flex-wrap items-start justify-between gap-3">

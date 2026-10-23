@@ -7,6 +7,8 @@ import Pagination from '@/components/ui/Pagination';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
+import Select from '@/components/ui/Select';
+import AddFamilyMember from '../components/AddFamilyMember';
 
 const FAMILY_EDITABLE_FIELDS = ['contactNo', 'wardNumber', 'houseNo', 'area', 'place', 'houseName'];
 const MEMBER_EDITABLE_FIELDS = [
@@ -30,6 +32,7 @@ export default function MemberFamily() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [reloadKey, setReloadKey] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
   // Family change modal
@@ -69,7 +72,7 @@ export default function MemberFamily() {
     };
 
     load();
-  }, [page]);
+  }, [page, reloadKey]);
 
   const handleFamilyChange = async () => {
     if (!familyChangeField || !familyChangeValue.trim()) {
@@ -134,11 +137,15 @@ export default function MemberFamily() {
     );
   }
 
-  const isFamilyHead = overview.member.id === user?.id;
+  // The server says whether this member heads their family (a Member id never equals the signed-in User id).
+  const isFamilyHead = overview.isFamilyHead === true;
 
   return (
     <div className="space-y-4 max-w-4xl w-full mx-auto">
-      <PageHeader title="My Family" />
+      <PageHeader
+        title="My Family"
+        actions={overview.isFamilyHead ? <AddFamilyMember onAdded={() => setReloadKey((key) => key + 1)} /> : undefined}
+      />
       {/* Family Details */}
       {overview.family.details && (
         <Card>
@@ -215,18 +222,12 @@ export default function MemberFamily() {
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Field to Change
                   </label>
-                  <select
+                  <Select
                     aria-label="Field to Change"
                     value={familyChangeField}
                     onChange={(e) => setFamilyChangeField(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  >
-                    {FAMILY_EDITABLE_FIELDS.map((field) => (
-                      <option key={field} value={field}>
-                        {field.replace(/([A-Z])/g, ' $1').trim()}
-                      </option>
-                    ))}
-                  </select>
+                    options={FAMILY_EDITABLE_FIELDS.map((field) => ({ value: field, label: field.replace(/([A-Z])/g, ' $1').trim() }))}
+                  />
                 </div>
 
                 <div>
@@ -352,19 +353,15 @@ export default function MemberFamily() {
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                           Field to Change
                         </label>
-                        <select
+                        <Select
                           aria-label="Field to Change"
                           value={memberChangeField}
                           onChange={(e) => setMemberChangeField(e.target.value)}
-                          className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-                        >
-                          <option value="">Select a field…</option>
-                          {MEMBER_EDITABLE_FIELDS.map((field) => (
-                            <option key={field} value={field}>
-                              {field.replace(/([A-Z])/g, ' $1').trim()}
-                            </option>
-                          ))}
-                        </select>
+                          options={[
+                            { value: '', label: 'Select a field…' },
+                            ...MEMBER_EDITABLE_FIELDS.map((field) => ({ value: field, label: field.replace(/([A-Z])/g, ' $1').trim() })),
+                          ]}
+                        />
                       </div>
 
                       <div>

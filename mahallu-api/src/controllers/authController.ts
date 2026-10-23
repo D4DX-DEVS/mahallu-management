@@ -12,22 +12,40 @@ import { getPhoneVariants, samePhone } from '../utils/phone';
 import { bearerToken, hashToken, tokenExpiry, MAX_REVOKED_TOKENS } from '../utils/revokedTokens';
 import { signSessionToken, signImpersonationToken, toPublicUser } from '../utils/sessionToken';
 import { isTenantActive, TENANT_SUSPENDED_MESSAGE } from '../services/tenantStatusService';
+import { DUMMY_PASSWORD_HASH, normalizeUsername } from '../utils/credentials';
+
+const WRONG_USERNAME_OR_PASSWORD = 'That username or password is incorrect. Please try again.';
 
 export const login = async (req: Request, res: Response) => {
   try {
     const { phone, password } = req.body;
+    // A staff account may sign in by username instead of phone number.
+    const username = normalizeUsername(req.body.username);
 
-    if (!phone || !password) {
+    if ((!phone && !username) || !password) {
       return res.status(400).json({
         success: false,
-        message: 'Please enter your phone number and password.',
+        message: username ? 'Please enter your username and password.' : 'Please enter your phone number and password.',
       });
     }
 
-    const phoneVariants = getPhoneVariants(phone);
+    let user;
+    if (username) {
+      user = await User.findOne({ username }).select('+password');
+      if (!user) {
+        // Spend the same time as a real check, and answer exactly as for a wrong password.
+        await bcrypt.compare(String(password), DUMMY_PASSWORD_HASH);
+        return res.status(401).json({ success: false, message: WRONG_USERNAME_OR_PASSWORD });
+      }
+      if (!(await bcrypt.compare(String(password), user.password))) {
+        return res.status(401).json({ success: false, message: WRONG_USERNAME_OR_PASSWORD });
+      }
+    }
+
+    const phoneVariants = username ? [] : getPhoneVariants(phone);
 
     // Try to find user by phone
-    let user = await User.findOne({ phone: { $in: phoneVariants } }).select('+password');
+    if (!username) user = await User.findOne({ phone: { $in: phoneVariants } }).select('+password');
     
     // If no user found, check if it's a member trying to login
     if (!user) {
@@ -50,7 +68,8 @@ export const login = async (req: Request, res: Response) => {
       }
     }
 
-    const isPasswordValid = await bcrypt.compare(password, user.password);
+    // (A username sign-in has already had its password checked above.)
+    const isPasswordValid = username ? true : await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
       return res.status(401).json({
         success: false,
@@ -501,6 +520,7 @@ export const changePassword = async (req: AuthRequest, res: Response) => {
     }
 
     user.password = await bcrypt.hash(newPassword, 10);
+    user.passwordResetRequired = false;
     // Every other session of this account ends; the caller gets a fresh token so they are not signed out.
     user.tokenVersion = (user.tokenVersion ?? 0) + 1;
     await user.save();

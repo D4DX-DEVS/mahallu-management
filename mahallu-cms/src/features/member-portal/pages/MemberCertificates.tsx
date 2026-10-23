@@ -11,6 +11,7 @@ import { TableColumn } from '@/types';
 import { toast } from '@/store/toastStore';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import { toTitleCase } from '@/utils/format';
+import { openInNewTab } from '@/utils/openInNewTab';
 
 export default function MemberCertificates() {
   const [certificates, setCertificates] = useState<Certificate[]>([]);
@@ -45,8 +46,11 @@ export default function MemberCertificates() {
   const handleDownload = async (cert: Certificate) => {
     setDownloading(cert.id);
     try {
-      const urlData = await memberPortalService.getCertificateUrl(cert.id);
-      window.open(urlData.url, '_blank');
+      // Opened in the click, before the link is fetched, so a pop-up blocker lets the new tab through.
+      const result = await openInNewTab(async () => (await memberPortalService.getCertificateUrl(cert.id)).url);
+      if (result === 'blocked') {
+        toast.error('Your browser blocked the new tab. Please allow pop-ups for this site and try again.');
+      }
     } catch (err) {
       toast.error(errorMessage(err, { action: 'download this certificate' }));
     } finally {

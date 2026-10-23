@@ -10,6 +10,7 @@ import { tenantService } from '@/services/tenantService';
 import { formatDate, toTitleCase } from '@/utils/format';
 import { loadErrorMessage, errorMessage } from '@/utils/errors';
 import StatusBadge from '@/components/ui/StatusBadge';
+import { tenantTypeLabel } from '@/constants/tenantTypes';
 import { toast } from '@/store/toastStore';
 import { CLASSIFICATION_LABELS, TenantClassification } from '@/constants/modules';
 
@@ -165,7 +166,7 @@ export default function TenantDetails() {
             </div>
             <div>
               <p className="text-sm text-gray-500 dark:text-gray-400">Type</p>
-              <p className="font-medium text-gray-900 dark:text-white capitalize">{tenant.type}</p>
+              <p className="font-medium text-gray-900 dark:text-white ">{tenantTypeLabel(tenant.type)}</p>
             </div>
           </div>
 

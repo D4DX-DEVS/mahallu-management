@@ -7,6 +7,9 @@ import { FiSave, FiX } from 'react-icons/fi';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
+import Select from '@/components/ui/Select';
+import CredentialFields from '../components/CredentialFields';
+import { credentialFields, passwordsMatch, withoutConfirmation } from '../credentialRules';
 import { ROUTES } from '@/constants/routes';
 import { userService } from '@/services/userService';
 import { tenantService } from '@/services/tenantService';
@@ -32,7 +35,8 @@ const userSchema = z.object({
     edit: z.boolean().default(false),
     delete: z.boolean().default(false),
   }),
-});
+  ...credentialFields,
+}).refine(passwordsMatch.check, passwordsMatch.message);
 
 type UserFormData = z.infer<typeof userSchema>;
 
@@ -87,7 +91,7 @@ export default function CreateSurveyUser() {
       }
 
       await userService.create({
-        ...data,
+        ...withoutConfirmation(data),
         role: 'survey',
         tenantId: isSuperAdmin ? data.tenantId : undefined,
       });
@@ -127,24 +131,16 @@ export default function CreateSurveyUser() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {isSuperAdmin && (
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Tenant <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    aria-label="Tenant"
+                  <Select
+                    label="Tenant"
+                    required
+                    options={[
+                      { value: '', label: 'Select Tenant' },
+                      ...tenants.map((tenant) => ({ value: tenant.id, label: `${toTitleCase(tenant.name)} (${tenant.code})` })),
+                    ]}
                     {...register('tenantId')}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-800 dark:border-gray-600 dark:text-gray-100"
-                  >
-                    <option value="">Select Tenant</option>
-                    {tenants.map((tenant) => (
-                      <option key={tenant.id} value={tenant.id}>
-                        {toTitleCase(tenant.name)} ({tenant.code})
-                      </option>
-                    ))}
-                  </select>
-                  {errors.tenantId && (
-                    <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.tenantId.message}</p>
-                  )}
+                    error={errors.tenantId?.message}
+                  />
                 </div>
               )}
               <Input
@@ -185,6 +181,8 @@ export default function CreateSurveyUser() {
               />
             </div>
           </div>
+
+          <CredentialFields register={register} errors={errors} />
 
           {/* Permissions */}
           <div>

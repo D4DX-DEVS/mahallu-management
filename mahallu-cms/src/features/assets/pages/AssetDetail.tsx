@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import Select from '@/components/ui/Select';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { FiEdit2, FiArrowLeft, FiPlus, FiTrash2, FiTool } from 'react-icons/fi';
 import Card from '@/components/ui/Card';
@@ -256,7 +257,7 @@ export default function AssetDetail() {
     <div className="space-y-4">
       {/* Header */}
       <div className="flex gap-2 items-center justify-between">
-        <div className="flex items-center gap-4">
+        <div className="flex min-w-0 flex-wrap items-center gap-4">
           <PageHeader
             description="Asset Details"
             title={toTitleCase(asset.name)}
@@ -465,17 +466,17 @@ export default function AssetDetail() {
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Status
               </label>
-              <select
+              <Select
                 aria-label="Status"
                 value={maintenanceForm.status}
                 onChange={(e) => setMaintenanceForm({ ...maintenanceForm, status: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-              >
-                <option value="scheduled">Scheduled</option>
-                <option value="in_progress">In Progress</option>
-                <option value="completed">Completed</option>
-                <option value="cancelled">Cancelled</option>
-              </select>
+                options={[
+                  { value: 'scheduled', label: 'Scheduled' },
+                  { value: 'in_progress', label: 'In Progress' },
+                  { value: 'completed', label: 'Completed' },
+                  { value: 'cancelled', label: 'Cancelled' },
+                ]}
+              />
             </div>
             <div>
               <DatePicker

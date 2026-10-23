@@ -480,7 +480,12 @@ function Table<T extends Record<string, any>>({
       </ul>
 
       {/* ---- Tablet and up: the table ------------------------------------ */}
-      <div className="hidden overflow-x-auto md:block">
+      {/* `relative` is load-bearing: the empty-label actions header holds a position:absolute `sr-only`
+          span. With a static scroller its containing block was far outside it, so the 1px span kept its
+          place at the table's far right edge and escaped this overflow clip, making the whole page
+          scroll sideways by the width of the table. Making the scroller the containing block keeps it
+          inside the scroll region. */}
+      <div className="relative hidden overflow-x-auto md:block">
         <table
           className="data-table w-full"
           style={{ minWidth, ...(fixedLayout ? { tableLayout: 'fixed' as const } : {}) }}

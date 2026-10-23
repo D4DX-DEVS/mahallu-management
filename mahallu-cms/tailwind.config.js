@@ -72,6 +72,27 @@ export default {
           700: '#207d50',
           800: '#1d6442',
           900: '#174f36',
+          950: '#012A1C',
+        },
+
+        /* ---- ZAAD dark-surface and accent tokens -------------------------
+         * Used by the shared components added from zaad-branding (pickers,
+         * filter bar, chips) in their `dark:` and focus styles. The values are
+         * ZAAD's own. No original screen uses these names.
+         */
+        surface: {
+          base: '#0F1412',
+          card: '#171D1A',
+          raised: '#1E2622',
+          hover: '#27322D',
+          border: '#2B3631',
+          'border-strong': '#3A4741',
+          text: '#F1F4F2',
+          muted: '#A5B0AA',
+        },
+        brand: {
+          lime: '#8EC13E',
+          night: '#012A1C',
         },
       },
 

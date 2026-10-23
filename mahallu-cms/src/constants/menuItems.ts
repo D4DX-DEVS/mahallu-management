@@ -484,13 +484,6 @@ export const menuItems: MenuItem[] = [
         allowedRoles: ADMIN_ROLES,
       },
       {
-        id: 'common-noc',
-        label: 'Common NOC',
-        icon: RiFileTextLine,
-        path: '/registrations/noc/common',
-        allowedRoles: ADMIN_ROLES,
-      },
-      {
         id: 'nikah-noc',
         label: 'Nikah NOC',
         icon: RiFileAddLine,
@@ -985,7 +978,7 @@ export const menuItems: MenuItem[] = [
         path: '/assistant',
         allowedRoles: ADMIN_ROLES,
       },
-      { id: 'tenants', label: 'Tenants', icon: RiLayoutGridLine, path: '/admin/tenants', superAdminOnly: true },
+      { id: 'tenants', label: 'Mahalls', icon: RiLayoutGridLine, path: '/admin/tenants', superAdminOnly: true },
       {
         id: 'demo-requests',
         label: 'Demo requests',

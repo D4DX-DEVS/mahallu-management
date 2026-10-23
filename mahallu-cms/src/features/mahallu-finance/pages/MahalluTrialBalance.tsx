@@ -2,7 +2,8 @@ import { useState } from 'react';
 import Card from '@/components/ui/Card';
 import StatCard from '@/components/ui/StatCard';
 import Button from '@/components/ui/Button';
-import Input from '@/components/ui/Input';
+import DateRangePicker from '@/components/ui/DateRangePicker';
+import { monthStartISO, todayISO } from '@/utils/dates';
 import Alert from '@/components/ui/Alert';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import { accountingReportService, TrialBalanceEntry } from '@/services/accountingReportService';
@@ -14,12 +15,8 @@ export default function MahalluTrialBalance() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<LoadErrorInfo | null>(null);
   const [entries, setEntries] = useState<TrialBalanceEntry[]>([]);
-  const [startDate, setStartDate] = useState(() => {
-    const d = new Date();
-    d.setDate(1);
-    return d.toISOString().split('T')[0];
-  });
-  const [endDate, setEndDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [startDate, setStartDate] = useState(() => monthStartISO());
+  const [endDate, setEndDate] = useState(() => todayISO());
 
   const fetchData = async () => {
     try {
@@ -47,20 +44,16 @@ export default function MahalluTrialBalance() {
 
       <Card>
         <div className="flex flex-wrap items-end gap-4 mb-4">
-          <div className="w-full sm:w-44">
-            <Input
-              label="Start Date"
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-            />
-          </div>
-          <div className="w-full sm:w-44">
-            <Input
-              label="End Date"
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
+          <div className="w-full sm:w-72">
+            <DateRangePicker
+              label="Date range"
+              from={startDate}
+              to={endDate}
+              onChange={(from, to) => {
+                setStartDate(from);
+                setEndDate(to);
+              }}
+              className="h-10 max-sm:h-10"
             />
           </div>
           <Button onClick={fetchData} disabled={loading}>
