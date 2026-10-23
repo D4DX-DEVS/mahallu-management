@@ -6,6 +6,8 @@ import {
   updateUser,
   deleteUser,
   updateUserStatus,
+  setUserUsername,
+  resetUserPassword,
 } from '../controllers/userController';
 import { authMiddleware, allowRoles } from '../middleware/authMiddleware';
 import { tenantMiddleware, tenantFilter } from '../middleware/tenantMiddleware';
@@ -15,6 +17,8 @@ import {
   updateUserValidation,
   getUserValidation,
   deleteUserValidation,
+  setUsernameValidation,
+  resetPasswordValidation,
 } from '../validations/userValidation';
 import { param } from 'express-validator';
 import { idParam, listQuery } from '../validations/common';
@@ -387,6 +391,54 @@ router.put('/:id', updateUserValidation, validationHandler, updateUser);
  *       404:
  *         $ref: '#/components/responses/NotFound'
  */
+/**
+ * @swagger
+ * /users/{id}/username:
+ *   put:
+ *     summary: Set, change or remove a staff account's username
+ *     tags: [Users]
+ *     description: |
+ *       Usernames are globally unique, lowercase, 4-30 characters. An empty value removes it.
+ *       **Access:** Super Admin (any Mahallu admin, survey or institute account), or a Mahallu admin for
+ *       the survey and institute accounts of their own Mahallu. Not for members, other admins, platform
+ *       admins or yourself. Recorded in the activity log.
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Username saved
+ *       403:
+ *         description: Not allowed to manage this account's sign-in details
+ *       404:
+ *         description: User not found (or in another Mahallu)
+ *       409:
+ *         description: Username already taken
+ * /users/{id}/reset-password:
+ *   post:
+ *     summary: Reset a staff account's password
+ *     tags: [Users]
+ *     description: |
+ *       Send "confirm": true. With no "newPassword" a one-time password is generated and returned once as
+ *       "data.temporaryPassword" (never stored in the clear, never retrievable). The account's sessions end and
+ *       the owner is asked to choose a new password at next sign-in. The person is not messaged.
+ *       **Access:** same as the username route.
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Password reset
+ *       400:
+ *         description: Missing confirmation, weak password, or a member account
+ *       403:
+ *         description: Not allowed to manage this account's sign-in details
+ *       404:
+ *         description: User not found (or in another Mahallu)
+ */
+// Sign-in details. Super Admin: any staff account. Mahallu admin: survey and institute accounts of their own
+// Mahallu (decided in the controller from the signed-in account and the target record).
+router.put('/:id/username', setUsernameValidation, validationHandler, setUserUsername);
+router.post('/:id/reset-password', resetPasswordValidation, validationHandler, resetUserPassword);
+
 router.put('/:id/status', [param('id').isMongoId().withMessage('Invalid user ID')], validationHandler, updateUserStatus);
 
 /**

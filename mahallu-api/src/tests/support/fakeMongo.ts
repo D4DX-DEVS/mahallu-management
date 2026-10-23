@@ -155,6 +155,19 @@ export class FakeStore {
     Object.defineProperty(copy, 'toObject', { value: () => ({ ...doc }), enumerable: false });
     Object.defineProperty(copy, 'toJSON', { value: () => ({ ...doc }), enumerable: false });
     Object.defineProperty(copy, 'id', { value: String(doc._id), enumerable: false });
+    // doc.field = x; await doc.save() writes the enumerable fields back to the stored row
+    const store = this;
+    Object.defineProperty(copy, 'save', {
+      value: async function (this: Doc) {
+        await tick();
+        const row = store.docs.find((d) => String(d._id) === String(doc._id));
+        if (row) Object.assign(row, { ...this });
+        return this;
+      },
+      enumerable: false,
+      configurable: true,
+      writable: true,
+    });
     return copy;
   }
 
@@ -274,18 +287,42 @@ export class FakeStore {
 }
 
 /** A thenable query that runs after one tick; every builder method is accepted. */
+const hideFields = (row: any, hidden: string[]): any => {
+  if (!row || typeof row !== 'object') return row;
+  if (Array.isArray(row)) return row.map((r) => hideFields(r, hidden));
+  const full = typeof row.toObject === 'function' ? row.toObject() : { ...row };
+  const without = (source: Doc) => {
+    const out: Doc = { ...source };
+    hidden.forEach((k) => delete out[k]);
+    return out;
+  };
+  const out: Doc = without(row);
+  Object.defineProperty(out, 'toObject', { value: () => without(full), enumerable: false });
+  Object.defineProperty(out, 'toJSON', { value: () => without(full), enumerable: false });
+  Object.defineProperty(out, 'id', { value: row.id, enumerable: false });
+  if (row.save) Object.defineProperty(out, 'save', { value: row.save, enumerable: false });
+  return out;
+};
+
 const query = (run: () => any, sortRef: { sort?: Doc; skip?: number; limit?: number }): any => {
+  let hidden: string[] = [];
+  const finish = (rows: any) => (hidden.length ? hideFields(rows, hidden) : rows);
   const q: any = {
     sort: (s: Doc) => ((sortRef.sort = s), q),
     skip: (n: number) => ((sortRef.skip = n), q),
     limit: (n: number) => ((sortRef.limit = n), q),
-    select: () => q,
+    select: (spec?: unknown) => {
+      if (typeof spec === 'string') {
+        hidden = spec.split(/\s+/).filter((t) => t.startsWith('-')).map((t) => t.slice(1));
+      }
+      return q;
+    },
     populate: () => q,
     lean: () => q,
     session: () => q,
     then: (resolve: any, reject: any) =>
-      tick().then(() => run()).then(resolve, reject),
-    catch: (reject: any) => tick().then(() => run()).catch(reject),
+      tick().then(() => finish(run())).then(resolve, reject),
+    catch: (reject: any) => tick().then(() => finish(run())).catch(reject),
   };
   return q;
 };
@@ -434,6 +471,8 @@ let realConsoleError: typeof console.error = console.error;
 export interface Reply {
   status: number;
   body: any;
+  /** Response headers set with res.set(). */
+  headers: Record<string, string>;
 }
 
 /** Run an Express-style handler with a fake request/response and return what it answered. */
@@ -446,14 +485,20 @@ export async function call(
     tenantId?: string;
     isSuperAdmin?: boolean;
     user?: Doc;
+    impersonation?: Doc;
+    file?: Doc;
   } = {}
 ): Promise<Reply> {
-  const reply: Reply = { status: 200, body: undefined };
+  const reply: Reply = { status: 200, body: undefined, headers: {} };
   let done: () => void = () => undefined;
   const finished = new Promise<void>((resolve) => (done = resolve));
   const res: any = {
     status(code: number) {
       reply.status = code;
+      return res;
+    },
+    set(name: string, value: string) {
+      reply.headers[name] = value;
       return res;
     },
     json(body: any) {

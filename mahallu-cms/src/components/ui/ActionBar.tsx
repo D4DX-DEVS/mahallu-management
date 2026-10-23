@@ -33,15 +33,18 @@ export interface ActionBarProps {
  * cluster, and sits on one line from `sm`.
  */
 export default function ActionBar({ leading, children, className }: ActionBarProps) {
-  const actions = <div className="flex min-w-0 items-center justify-end gap-2 sm:flex-1">{children}</div>;
+  // `flex-wrap`: a right-aligned row that is wider than its card grows toward the LEFT, which no scrollbar
+  // can reach, so at tablet widths (sidebar open, ~420px of card) the search field was cut off. Wrapping
+  // puts the controls that do not fit on a second line instead.
+  const actions = <div className="flex min-w-0 flex-wrap items-center justify-end gap-2 sm:flex-1">{children}</div>;
 
   if (!leading) {
-    return <div className={cn('mb-3 flex min-w-0 items-center justify-end gap-2', className)}>{children}</div>;
+    return <div className={cn('mb-3 flex min-w-0 flex-wrap items-center justify-end gap-2', className)}>{children}</div>;
   }
 
   return (
-    <div className={cn('mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3', className)}>
-      <div className="min-w-0 sm:flex-shrink-0">{leading}</div>
+    <div className={cn('mb-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-3', className)}>
+      <div className="min-w-0 sm:max-w-full sm:flex-shrink-0">{leading}</div>
       {actions}
     </div>
   );

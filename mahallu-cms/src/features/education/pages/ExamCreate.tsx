@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import Select from '@/components/ui/Select';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
@@ -103,21 +104,20 @@ export default function ExamCreate() {
         <form onSubmit={handleSubmit} className="space-y-4 max-w-2xl">
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Class *</label>
-            <select
+            <Select
               aria-label="Class"
               name="classId"
               value={formData.classId}
               onChange={handleChange}
               required
-              className="w-full rounded border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-            >
-              <option value="">Select a class</option>
-              {classes.map((cls) => (
-                <option key={cls.id} value={cls.id}>
-                  {toTitleCase(cls.name)} ({cls.academicYear})
-                </option>
-              ))}
-            </select>
+              options={[
+                { value: '', label: 'Select a class' },
+                ...classes.map((cls) => ({
+                  value: cls.id,
+                  label: `${toTitleCase(cls.name)} (${cls.academicYear})`,
+                })),
+              ]}
+            />
           </div>
 
           <div>
@@ -166,17 +166,17 @@ export default function ExamCreate() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Status</label>
-            <select
+            <Select
               aria-label="Status"
               name="status"
               value={formData.status}
               onChange={handleChange}
-              className="w-full rounded border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-            >
-              <option value="scheduled">Scheduled</option>
-              <option value="completed">Completed</option>
-              <option value="cancelled">Cancelled</option>
-            </select>
+              options={[
+                { value: 'scheduled', label: 'Scheduled' },
+                { value: 'completed', label: 'Completed' },
+                { value: 'cancelled', label: 'Cancelled' },
+              ]}
+            />
           </div>
 
           <div className="flex flex-wrap gap-2 border-t border-gray-200 pt-4 dark:border-gray-700">

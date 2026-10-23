@@ -89,11 +89,18 @@ export const verifyOtpRateLimiter = limiter(
  * genuinely forgotten their password room to think, and takes scripted guessing
  * off the table.
  */
+/** A username sign-in is counted per username (so one shared address is not locked out by it); otherwise per phone. */
+const loginKey = (req: Request): string => {
+  const username = req.body?.username;
+  if (typeof username === 'string' && username.trim()) return `u:${username.trim().toLowerCase().slice(0, 30)}`;
+  return phoneKey(req);
+};
+
 export const loginRateLimiter = limiter(
   'login',
   5 * 60 * 1000,
   10,
-  phoneKey,
+  loginKey,
   'Too many sign-in attempts. Please wait a few minutes and try again.'
 );
 

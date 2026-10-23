@@ -15,13 +15,13 @@ import { isValidId, MSG, tenantFilterFor } from '../utils/scope';
 import { createWithSequence, maxNumericSuffix, reserveBlock } from '../utils/idCounter';
 
 /** Counter key for member ids: one sequence per family (ids read FID12-1, FID12-2 ...), per Mahallu. */
-const memberKey = (tenantId: string, familyId: unknown) => `member:${tenantId}:${String(familyId)}`;
+export const memberKey = (tenantId: string, familyId: unknown) => `member:${tenantId}:${String(familyId)}`;
 
 /**
  * First use of a family's counter starts after the highest number already used in it, and never
  * below the number of members the family has (the old "count + 1" rule), so nothing is reissued.
  */
-const memberSeed = (tenantId: string, family: { _id: unknown; mahallId?: string }) => async () => {
+export const memberSeed = (tenantId: string, family: { _id: unknown; mahallId?: string }) => async () => {
   const [count, max] = await Promise.all([
     Member.countDocuments({ familyId: family._id }),
     maxNumericSuffix(

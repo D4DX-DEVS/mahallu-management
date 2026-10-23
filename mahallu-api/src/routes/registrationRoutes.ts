@@ -163,6 +163,14 @@ router.get('/nikah/:id', getNikahRegistrationValidation, validationHandler, getN
  *     description: |
  *       Create a new Nikah (marriage) registration.
  *       **Access:** Super Admin (any tenant), Mahall Admin (own tenant)
+ *
+ *       Optional detail fields: groomAddress, brideAddress (multi-line, max 500), witness1Phone / witness2Phone
+ *       (local or international), witness1Address / witness2Address, mahrType (gold_or_ornaments, cash, land,
+ *       other) with mahrTypeOther (required for "other"), multi-line mahrDescription and remarks, and
+ *       groomPhotoId / bridePhotoId - ids of images uploaded with POST /documents/upload
+ *       (documentType "photo", ownerType "nikah", purpose "person_photo"; JPEG/PNG/WebP up to 5 MB, private,
+ *       read through GET /documents/{id}/url). On update a photo field that is left out is kept; null removes it.
+ *       mahrAmount is kept on older registrations and is still accepted.
  *     security:
  *       - bearerAuth: []
  *     requestBody:

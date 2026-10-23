@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -19,9 +19,13 @@ import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
 import { optionalPhoneSchema, sanitizeDigits } from '@/utils/validation';
+import { useMemberAutofill } from '@/hooks/useMemberAutofill';
+import { deceasedFill } from '@/utils/memberAutofill';
+import { causeOfDeathOptions, canonicalCause } from '../deathCause';
 
 const deathSchema = z.object({
-  deceasedName: z.string().max(200, 'Please keep the deceased name to 200 characters or less.').min(1, 'Deceased name is required'),
+  // Not typed: kept from the record, and replaced by the member's name when another member is selected.
+  deceasedName: z.string().max(200, 'Please keep the deceased name to 200 characters or less.').optional(),
   deceasedId: z.string().max(200, 'Please keep the deceased to 200 characters or less.').optional(),
   deathDate: z.string().max(200, 'Please keep the death date to 200 characters or less.').min(1, 'Death date is required'),
   placeOfDeath: z.string().max(300, 'Please keep the place of death to 300 characters or less.').optional(),
@@ -33,6 +37,10 @@ const deathSchema = z.object({
   informantPhone: optionalPhoneSchema,
   status: z.enum(['pending', 'correction_required', 'approved', 'rejected']).optional(),
   remarks: z.string().max(2000, 'Please keep the remarks to 2000 characters or less.').optional(),
+}).refine((data) => Boolean(data.deceasedId || data.deceasedName?.trim()), {
+  // An older record may have a name but no linked member; one with neither cannot be saved.
+  message: 'Please select the member.',
+  path: ['deceasedId'],
 });
 
 type DeathFormData = z.infer<typeof deathSchema>;
@@ -48,6 +56,7 @@ export default function EditDeathRegistration() {
     handleSubmit,
     watch,
     setValue,
+    getValues,
     reset,
     formState: { errors, isSubmitting },
   } = useForm<DeathFormData>({
@@ -55,6 +64,10 @@ export default function EditDeathRegistration() {
   });
 
   const selectedMemberId = watch('deceasedId') || '';
+  const selectedMember = useMemo(() => members.find((m) => m.id === selectedMemberId), [members, selectedMemberId]);
+  const autofill = useMemberAutofill({ setValue, getValues });
+  const storedName = watch('deceasedName') || '';
+  const causeValue = watch('causeOfDeath');
 
   useEffect(() => {
     const fetchRegistration = async () => {
@@ -78,7 +91,7 @@ export default function EditDeathRegistration() {
           deceasedId: deceasedIdStr,
           deathDate: data.deathDate ? new Date(data.deathDate).toISOString().split('T')[0] : '',
           placeOfDeath: data.placeOfDeath || '',
-          causeOfDeath: data.causeOfDeath || '',
+          causeOfDeath: canonicalCause(data.causeOfDeath),
           mahallId: data.mahallId || '',
           familyId: familyIdStr,
           informantName: data.informantName || '',
@@ -111,25 +124,20 @@ export default function EditDeathRegistration() {
     fetchMembers();
   }, []);
 
+  // The selected member supplies the deceased's name, family and member id (the Malayalam name is not on this form).
   useEffect(() => {
-    if (!selectedMemberId) return;
-    const selectedMember = members.find((m) => m.id === selectedMemberId);
-    if (!selectedMember) return;
-    setValue('deceasedName', selectedMember.name);
-    // Extract string ID from potentially populated familyId object
-    const fid = selectedMember.familyId;
-    const familyIdStr = typeof fid === 'object' && fid !== null ? (fid as any).id || (fid as any)._id : fid;
-    setValue('familyId', familyIdStr);
-    if (selectedMember.mahallId) {
-      setValue('mahallId', selectedMember.mahallId);
-    }
-  }, [selectedMemberId, members, setValue]);
+    void autofill(selectedMember, (member) => {
+      const fill = deceasedFill(member);
+      delete fill.deceasedNameMl;
+      return fill;
+    });
+  }, [selectedMember, autofill]);
 
   const onSubmit = async (data: DeathFormData) => {
     try {
       setError(null);
       await registrationService.updateDeath(id!, {
-        deceasedName: data.deceasedName,
+        deceasedName: (data.deceasedName || selectedMember?.name || '').trim(),
         deceasedId: data.deceasedId || undefined,
         deathDate: data.deathDate,
         placeOfDeath: data.placeOfDeath || undefined,
@@ -157,7 +165,7 @@ export default function EditDeathRegistration() {
     <div className="space-y-4">
       <PageHeader
         title="Edit Death Registration"
-        description="Update death registration details"
+        description={storedName ? `Update death registration details for ${toTitleCase(storedName)}` : 'Update death registration details'}
         breadcrumbs={[{ label: 'Death Registrations', path: ROUTES.REGISTRATIONS.DEATH }]}
       />
 
@@ -189,14 +197,7 @@ export default function EditDeathRegistration() {
                 })),
               ]}
               {...register('deceasedId')}
-              className="md:col-span-2"
-            />
-            <Input
-              label="Deceased Name"
-              {...register('deceasedName')}
-              error={errors.deceasedName?.message}
-              required
-              placeholder="Deceased Name"
+              error={errors.deceasedId?.message}
               className="md:col-span-2"
             />
             <Input
@@ -207,7 +208,7 @@ export default function EditDeathRegistration() {
               required
             />
             <Input label="Place of Death" {...register('placeOfDeath')} placeholder="Place of Death" />
-            <Input label="Cause of Death" {...register('causeOfDeath')} placeholder="Cause of Death" />
+            <Select label="Cause of Death" options={causeOfDeathOptions(causeValue)} {...register('causeOfDeath')} />
             <Input label="Mahall ID" {...register('mahallId')} placeholder="Mahall ID" />
             <h3 className="md:col-span-2 text-lg font-semibold mt-4 text-foreground">
               Informant Information

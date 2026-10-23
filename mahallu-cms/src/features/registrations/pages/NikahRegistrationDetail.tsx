@@ -14,6 +14,11 @@ import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import StatusBadge from '@/components/ui/StatusBadge';
 import PageHeader from '@/components/layout/PageHeader';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import PersonPhotoView from '../components/PersonPhotoView';
+import { mahrTypeDisplay } from '../nikahFields';
+
+/* Addresses and notes are typed on several lines: keep the line breaks and wrap long words. */
+const MULTILINE = ' whitespace-pre-wrap break-words [overflow-wrap:anywhere]';
 
 export default function NikahRegistrationDetail() {
   const { id } = useParams<{ id: string }>();
@@ -142,6 +147,16 @@ export default function NikahRegistrationDetail() {
                 <p className="text-gray-900 dark:text-gray-100">{registration.groomAge}</p>
               </div>
             )}
+            {registration.groomAddress && (
+              <div>
+                <span className="text-sm text-gray-500 dark:text-gray-400">Groom Address</span>
+                <p className={'text-gray-900 dark:text-gray-100' + MULTILINE}>{registration.groomAddress}</p>
+              </div>
+            )}
+            <div>
+              <span className="mb-1 block text-sm text-gray-500 dark:text-gray-400">Groom Photo</span>
+              <PersonPhotoView photoId={registration.groomPhotoId} person="Groom" />
+            </div>
           </div>
         </Card>
 
@@ -158,6 +173,16 @@ export default function NikahRegistrationDetail() {
                 <p className="text-gray-900 dark:text-gray-100">{registration.brideAge}</p>
               </div>
             )}
+            {registration.brideAddress && (
+              <div>
+                <span className="text-sm text-gray-500 dark:text-gray-400">Bride Address</span>
+                <p className={'text-gray-900 dark:text-gray-100' + MULTILINE}>{registration.brideAddress}</p>
+              </div>
+            )}
+            <div>
+              <span className="mb-1 block text-sm text-gray-500 dark:text-gray-400">Bride Photo</span>
+              <PersonPhotoView photoId={registration.bridePhotoId} person="Bride" />
+            </div>
           </div>
         </Card>
       </div>
@@ -190,32 +215,76 @@ export default function NikahRegistrationDetail() {
         </div>
       </Card>
 
-      {(registration.witness1 || registration.witness2) && (
+      {(registration.witness1 || registration.witness2 || registration.witness1Phone || registration.witness1Address ||
+        registration.witness2Phone || registration.witness2Address) && (
         <Card>
           <h2 className="text-lg font-semibold mb-3 text-foreground">Witnesses</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {registration.witness1 && (
-              <div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">Witness 1</span>
-                <p className="text-gray-900 dark:text-gray-100">{toTitleCase(registration.witness1)}</p>
+            {(registration.witness1 || registration.witness1Phone || registration.witness1Address) && (
+              <div className="min-w-0 space-y-2">
+                <span className="text-sm font-semibold text-foreground">Witness 1</span>
+                {registration.witness1 && (
+                  <div>
+                    <span className="text-sm text-gray-500 dark:text-gray-400">Name</span>
+                    <p className="text-gray-900 dark:text-gray-100">{toTitleCase(registration.witness1)}</p>
+                  </div>
+                )}
+                {registration.witness1Phone && (
+                  <div>
+                    <span className="text-sm text-gray-500 dark:text-gray-400">Phone Number</span>
+                    <p className="text-gray-900 dark:text-gray-100">{registration.witness1Phone}</p>
+                  </div>
+                )}
+                {registration.witness1Address && (
+                  <div>
+                    <span className="text-sm text-gray-500 dark:text-gray-400">Address</span>
+                    <p className={'text-gray-900 dark:text-gray-100' + MULTILINE}>{registration.witness1Address}</p>
+                  </div>
+                )}
               </div>
             )}
-            {registration.witness2 && (
-              <div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">Witness 2</span>
-                <p className="text-gray-900 dark:text-gray-100">{toTitleCase(registration.witness2)}</p>
+            {(registration.witness2 || registration.witness2Phone || registration.witness2Address) && (
+              <div className="min-w-0 space-y-2">
+                <span className="text-sm font-semibold text-foreground">Witness 2</span>
+                {registration.witness2 && (
+                  <div>
+                    <span className="text-sm text-gray-500 dark:text-gray-400">Name</span>
+                    <p className="text-gray-900 dark:text-gray-100">{toTitleCase(registration.witness2)}</p>
+                  </div>
+                )}
+                {registration.witness2Phone && (
+                  <div>
+                    <span className="text-sm text-gray-500 dark:text-gray-400">Phone Number</span>
+                    <p className="text-gray-900 dark:text-gray-100">{registration.witness2Phone}</p>
+                  </div>
+                )}
+                {registration.witness2Address && (
+                  <div>
+                    <span className="text-sm text-gray-500 dark:text-gray-400">Address</span>
+                    <p className={'text-gray-900 dark:text-gray-100' + MULTILINE}>{registration.witness2Address}</p>
+                  </div>
+                )}
               </div>
             )}
           </div>
         </Card>
       )}
 
-      {(registration.mahrAmount || registration.mahrDescription) && (
+      {(registration.mahrAmount || registration.mahrType || registration.mahrDescription) && (
         <Card>
           <h2 className="text-lg font-semibold mb-3 text-foreground">Mahr Details</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {registration.mahrType && (
+              <div>
+                <span className="text-sm text-gray-500 dark:text-gray-400">Mahr Type</span>
+                <p className={'text-gray-900 dark:text-gray-100' + MULTILINE}>
+                  {mahrTypeDisplay(registration.mahrType, registration.mahrTypeOther)}
+                </p>
+              </div>
+            )}
             {registration.mahrAmount && (
               <div>
+                {/* Registrations saved before mahr types existed carry only an amount: shown as recorded. */}
                 <span className="text-sm text-gray-500 dark:text-gray-400">Mahr Amount</span>
                 <p className="text-gray-900 dark:text-gray-100">
                   ₹{registration.mahrAmount.toLocaleString()}
@@ -225,7 +294,7 @@ export default function NikahRegistrationDetail() {
             {registration.mahrDescription && (
               <div>
                 <span className="text-sm text-gray-500 dark:text-gray-400">Mahr Description</span>
-                <p className="text-gray-900 dark:text-gray-100">{registration.mahrDescription}</p>
+                <p className={'text-gray-900 dark:text-gray-100' + MULTILINE}>{registration.mahrDescription}</p>
               </div>
             )}
           </div>
@@ -235,7 +304,7 @@ export default function NikahRegistrationDetail() {
       {registration.remarks && (
         <Card>
           <h2 className="text-lg font-semibold mb-3 text-foreground">Remarks</h2>
-          <p className="text-gray-700 dark:text-gray-300">{registration.remarks}</p>
+          <p className={'text-gray-700 dark:text-gray-300' + MULTILINE}>{registration.remarks}</p>
         </Card>
       )}
 

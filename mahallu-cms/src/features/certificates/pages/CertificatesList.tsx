@@ -14,6 +14,7 @@ import { registrationService, Certificate } from '@/services/registrationService
 import { useDebounce } from '@/hooks/useDebounce';
 import { formatDate, toTitleCase } from '@/utils/format';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import { openInNewTab } from '@/utils/openInNewTab';
 import PageHeader from '@/components/layout/PageHeader';
 import StatusBadge from '@/components/ui/StatusBadge';
 
@@ -73,18 +74,18 @@ export default function CertificatesList() {
     }
   };
 
-  const handleDownload = async (id: string, certificateNo: string) => {
+  // The certificate opens in its own tab; this page stays where it is. The tab is opened right here,
+  // in the click, before the link is fetched, so a pop-up blocker lets it through.
+  const handleDownload = async (id: string) => {
     try {
-      const data = await registrationService.getCertificateUrl(id);
-      const link = document.createElement('a');
-      link.href = data.url;
-      link.download = data.fileName || `certificate-${certificateNo}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      toast.success('Certificate downloaded');
+      const result = await openInNewTab(async () => (await registrationService.getCertificateUrl(id)).url);
+      if (result === 'blocked') {
+        toast.error('Your browser blocked the new tab. Please allow pop-ups for this site and try again.');
+        return;
+      }
+      toast.success('Certificate opened in a new tab');
     } catch (err: any) {
-      toast.error("Couldn't download certificate. Please try again.");
+      toast.error("Couldn't open the certificate. Please try again.");
     }
   };
 
@@ -312,7 +313,7 @@ export default function CertificatesList() {
             {selectedCert && (
               <Button
                 variant="outline"
-                onClick={() => handleDownload(selectedCert.id || selectedCert._id || '', selectedCert.certificateNo)}
+                onClick={() => handleDownload(selectedCert.id || selectedCert._id || '')}
               >
                 Download
               </Button>

@@ -5,9 +5,13 @@ import { z } from 'zod';
 import { FiCheckCircle, FiHome, FiPhone, FiMessageCircle, FiSend } from 'react-icons/fi';
 import Modal from '@/components/ui/Modal';
 import Input from '@/components/ui/Input';
+import Select from '@/components/ui/Select';
 import Button from '@/components/ui/Button';
 import { demoRequestService, type DemoRequestInput } from '@/services/demoRequestService';
+import { TENANT_TYPE_OPTIONS } from '@/constants/tenantTypes';
+import { STATES, getDistrictsByState } from '@/constants/locations';
 import { errorMessage } from '@/utils/errors';
+import { optionalPinCodeSchema, sanitizeDigits } from '@/utils/validation';
 
 /* Indian mobile numbers only, like sign-in: the field holds the bare 10 digits. */
 const PHONE_LENGTH = 10;
@@ -21,11 +25,28 @@ const schema = z.object({
     .max(150, 'Please keep the name to 150 characters or less.'),
   contactNumber: phoneSchema('contact number'),
   whatsappNumber: phoneSchema('WhatsApp number'),
+  // The same details the tenant form asks for, so staff can create the Mahallu from the request.
+  type: z.enum(['mahallu', 'juma_masjid']),
+  location: z.string().trim().min(1, 'Enter the location').max(300, 'Please keep the location to 300 characters or less.'),
+  address: z.object({
+    state: z.string().min(1, 'Select the state'),
+    district: z.string().min(1, 'Select the district'),
+    pinCode: optionalPinCodeSchema,
+    postOffice: z.string().trim().max(200, 'Please keep the post office to 200 characters or less.').optional(),
+    village: z.string().trim().min(1, 'Enter the village').max(200, 'Please keep the village to 200 characters or less.'),
+  }),
 });
 
 /* Not z.infer: with strictNullChecks off, zod's inferred keys all turn optional. */
-type FormData = DemoRequestInput;
+type FormData = Required<Pick<DemoRequestInput, 'mahalluName' | 'contactNumber' | 'whatsappNumber' | 'type' | 'location'>> & {
+  address: { state: string; district: string; pinCode?: string; postOffice?: string; village: string };
+};
 type PhoneField = 'contactNumber' | 'whatsappNumber';
+
+const DEFAULT_VALUES: Partial<FormData> = {
+  type: 'mahallu',
+  address: { state: 'Kerala', district: '', village: '' },
+};
 
 interface DemoRequestDialogProps {
   isOpen: boolean;
@@ -39,13 +60,18 @@ export default function DemoRequestDialog({ isOpen, onClose }: DemoRequestDialog
     register,
     handleSubmit,
     reset,
+    watch,
+    setValue,
     formState: { errors, isSubmitting },
-  } = useForm<FormData>({ resolver: zodResolver(schema) });
+  } = useForm<FormData>({ resolver: zodResolver(schema), defaultValues: DEFAULT_VALUES });
+
+  const selectedState = watch('address.state');
+  const districtOptions = selectedState ? getDistrictsByState(selectedState) : [];
 
   // Every opening starts from a clean form.
   useEffect(() => {
     if (isOpen) {
-      reset();
+      reset(DEFAULT_VALUES);
       setSent(false);
       setError('');
     }
@@ -65,6 +91,18 @@ export default function DemoRequestDialog({ isOpen, onClose }: DemoRequestDialog
     };
   };
 
+  /* Digits only, like the tenant form's pin code. */
+  const pinCodeRegister = () => {
+    const registration = register('address.pinCode');
+    return {
+      ...registration,
+      onChange: (event: ChangeEvent<HTMLInputElement>) => {
+        event.target.value = sanitizeDigits(event.target.value, 6);
+        return registration.onChange(event);
+      },
+    };
+  };
+
   const onSubmit = async (data: FormData) => {
     try {
       setError('');
@@ -79,7 +117,7 @@ export default function DemoRequestDialog({ isOpen, onClose }: DemoRequestDialog
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      size="sm"
+      size="md"
       className="font-landing"
       title={sent ? 'Request sent' : 'സൗജന്യ ഡെമോ ബുക്ക് ചെയ്യുക'}
       description={sent ? undefined : 'Tell us about your Mahallu and we will call you to arrange a free demo.'}
@@ -134,6 +172,58 @@ export default function DemoRequestDialog({ isOpen, onClose }: DemoRequestDialog
             error={errors.whatsappNumber?.message}
             {...phoneRegister('whatsappNumber')}
           />
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Select
+              label="Type"
+              options={[...TENANT_TYPE_OPTIONS]}
+              required
+              error={errors.type?.message}
+              {...register('type')}
+            />
+            <Input
+              label="Location"
+              placeholder="e.g. Beypore"
+              required
+              error={errors.location?.message}
+              {...register('location')}
+            />
+            <Select
+              label="State"
+              options={STATES}
+              required
+              error={errors.address?.state?.message}
+              {...register('address.state', { onChange: () => setValue('address.district', '') })}
+            />
+            <Select
+              label="District"
+              options={[{ value: '', label: 'Select district...' }, ...districtOptions]}
+              required
+              disabled={!selectedState || districtOptions.length === 0}
+              error={errors.address?.district?.message}
+              {...register('address.district')}
+            />
+            <Input
+              label="Village"
+              placeholder="e.g. Beypore"
+              required
+              error={errors.address?.village?.message}
+              {...register('address.village')}
+            />
+            <Input
+              label="Post office"
+              placeholder="e.g. Beypore"
+              error={errors.address?.postOffice?.message}
+              {...register('address.postOffice')}
+            />
+            <Input
+              label="Pin code"
+              type="text"
+              inputMode="numeric"
+              placeholder="e.g. 673015"
+              error={errors.address?.pinCode?.message}
+              {...pinCodeRegister()}
+            />
+          </div>
           <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
             <Button type="button" variant="outline" className="text-[13px]" onClick={onClose} disabled={isSubmitting}>
               Cancel

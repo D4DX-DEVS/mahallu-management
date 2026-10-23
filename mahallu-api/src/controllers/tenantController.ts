@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import Tenant from '../models/Tenant';
+import DemoRequest from '../models/DemoRequest';
 import User from '../models/User';
 import { AuthRequest } from '../middleware/authMiddleware';
 import { getPaginationParams, createPaginationResponse } from '../utils/pagination';
@@ -66,8 +67,9 @@ export const getTenantById = async (req: AuthRequest, res: Response) => {
 
 export const createTenant = async (req: AuthRequest, res: Response) => {
   try {
-    const tenantData = req.body;
-    
+    // `demoRequestId` links the new Mahallu to the accepted request it came from; it is not a tenant field.
+    const { demoRequestId, ...tenantData } = req.body;
+
     // Check if code already exists
     const existingTenant = await Tenant.findOne({ code: tenantData.code.toUpperCase() });
     if (existingTenant) {
@@ -88,7 +90,36 @@ export const createTenant = async (req: AuthRequest, res: Response) => {
       settings,
       code: tenantData.code.toUpperCase(),
     });
-    await tenant.save();
+
+    if (demoRequestId) {
+      // Claim the request before saving, so a retry or a second admin cannot create a second
+      // Mahallu from it. The claim is handed back if the Mahallu then fails to save.
+      const claimed = await DemoRequest.findOneAndUpdate(
+        { _id: demoRequestId, status: 'accepted', tenantId: { $exists: false } },
+        { $set: { tenantId: tenant._id } },
+        { new: true }
+      );
+      if (!claimed) {
+        const request = await DemoRequest.findById(demoRequestId);
+        if (!request) {
+          return res.status(404).json({ success: false, message: "We couldn't find that demo request. It may have been removed." });
+        }
+        return res.status(409).json({
+          success: false,
+          message: request.tenantId
+            ? 'A Mahallu has already been created from this request.'
+            : 'Only an accepted request can be turned into a Mahallu. Please accept it first.',
+        });
+      }
+      try {
+        await tenant.save();
+      } catch (error) {
+        await DemoRequest.updateOne({ _id: demoRequestId, tenantId: tenant._id }, { $unset: { tenantId: 1 } });
+        throw error;
+      }
+    } else {
+      await tenant.save();
+    }
 
     res.status(201).json({ success: true, data: tenant });
   } catch (error: any) {

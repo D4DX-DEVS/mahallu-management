@@ -1,6 +1,7 @@
 import { body, param, query } from 'express-validator';
 import { EMAIL_KEEP_AS_TYPED } from './common';
 import { sanitizeRichText } from '../utils/htmlSanitizer';
+import { validCategoryValue } from './categoryValueValidation';
 
 /**
  * Rules for `/api/member-user/*` — the twenty endpoints the member portal and
@@ -331,4 +332,40 @@ export const resubmitRegistrationValidation = [
   optionalRichText('purpose', 'purpose', 300),
   optionalPhone('applicantPhone', 'phone number'),
   documentIds,
+];
+
+/**
+ * POST /member-user/family-members - a Family Head describes a new person in their own family.
+ * Only the person's details are read: the family, Mahallu, status and head flag come from the server.
+ */
+export const createFamilyMemberValidation = [
+  body('name')
+    .trim()
+    .notEmpty()
+    .withMessage('Please enter the name.')
+    .bail()
+    .isLength({ min: 2, max: 100 })
+    .withMessage('Please keep the name between 2 and 100 characters.'),
+  body('nameMl').optional({ values: 'falsy' }).trim().isLength({ max: 100 }).withMessage('Please keep the name to 100 characters or less.'),
+  body('dateOfBirth')
+    .optional({ values: 'falsy' })
+    .isISO8601()
+    .withMessage('Please choose a valid date of birth.')
+    .bail()
+    .custom((value: string) => new Date(value).getTime() <= Date.now())
+    .withMessage('Date of birth cannot be in the future'),
+  body('phone')
+    .optional({ values: 'falsy' })
+    .trim()
+    .matches(/^[0-9]{10}$/)
+    .withMessage('Please enter a 10-digit phone number.'),
+  validCategoryValue('gender', 'gender'),
+  validCategoryValue('blood_group', 'bloodGroup'),
+  validCategoryValue('marital_status', 'maritalStatus'),
+  validCategoryValue('relationship', 'relationship'),
+  body('relationshipOther')
+    .optional({ values: 'falsy' })
+    .trim()
+    .isLength({ max: 100 })
+    .withMessage('Please keep the relationship to 100 characters or less.'),
 ];

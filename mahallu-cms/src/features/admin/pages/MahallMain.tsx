@@ -274,7 +274,9 @@ export default function MahallMain() {
 
       <div className="grid gap-8 lg:grid-cols-[13.5rem_minmax(0,1fr)] xl:gap-12">
         {/* ---- Section navigation ------------------------------------- */}
-        <nav aria-label="Settings sections" className="lg:sticky lg:top-0 lg:self-start">
+        {/* min-w-0: below lg this is a one-column grid, and the nav's no-wrap tab list gave that column its full
+            max-content width, so the whole page was as wide as the tabs and scrolled sideways. */}
+        <nav aria-label="Settings sections" className="min-w-0 lg:sticky lg:top-0 lg:self-start">
           <ul className="no-scrollbar -mx-1 flex gap-1 overflow-x-auto px-1 lg:mx-0 lg:flex-col lg:px-0">
             {SECTIONS.map(({ id, label, icon: Icon }) => {
               const active = activeSection === id;

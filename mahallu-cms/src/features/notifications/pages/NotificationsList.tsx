@@ -191,18 +191,18 @@ export default function NotificationsList() {
                       : 'border-primary/25 bg-primary/5'
                   }`}
                 >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
                         <FiBell className="h-4 w-4 text-gray-500" />
-                        <h3 className="font-semibold text-foreground">
+                        <h3 className="min-w-0 font-semibold text-foreground [overflow-wrap:anywhere]">
                           {notification.title}
                         </h3>
                         {!notification.isRead && isMine(notification) && (
                           <Badge variant="primary">New</Badge>
                         )}
                       </div>
-                      <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">{notification.message}</p>
+                      <p className="mt-1 text-sm text-gray-600 [overflow-wrap:anywhere] dark:text-gray-300">{notification.message}</p>
                       {notification.imageUrl && (
                         <img
                           src={notification.imageUrl}
