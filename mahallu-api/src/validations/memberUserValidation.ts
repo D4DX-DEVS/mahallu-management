@@ -359,6 +359,8 @@ export const createFamilyMemberValidation = [
     .trim()
     .matches(/^[0-9]{10}$/)
     .withMessage('Please enter a 10-digit phone number.'),
+  // Required: Male + Female must add up to the member total.
+  body('gender').trim().notEmpty().withMessage('Please choose the gender.'),
   validCategoryValue('gender', 'gender'),
   validCategoryValue('blood_group', 'bloodGroup'),
   validCategoryValue('marital_status', 'maritalStatus'),

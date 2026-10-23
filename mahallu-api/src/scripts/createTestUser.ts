@@ -115,6 +115,7 @@ async function getOrCreateMember(tenantId: mongoose.Types.ObjectId): Promise<mon
     familyId: family._id,
     familyName: 'App Store Test House',
     phone: TEST_PHONE,
+    gender: 'male',
     status: 'active',
   });
   await member.save();
