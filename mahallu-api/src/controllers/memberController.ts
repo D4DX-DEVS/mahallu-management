@@ -530,12 +530,18 @@ export const bulkImportMembers = async (req: AuthRequest, res: Response) => {
         return;
       }
 
+      // Gender is required: Male + Female must add up to the total on the dashboard.
+      if (!['male', 'female'].includes(m.gender)) {
+        errors.push({ row: i + 1, message: 'Please choose the gender (male or female).' });
+        return;
+      }
+
       docs.push({
         name: m.name.trim(),
         nameMl: m.nameMl || m.name_ml || undefined,
         familyId,
         familyName: family.houseName,
-        gender: ['male', 'female'].includes(m.gender) ? m.gender : undefined,
+        gender: m.gender,
         age: m.age && Number(m.age) > 0 ? Number(m.age) : undefined,
         maritalStatus: ['single', 'married', 'divorced', 'widowed'].includes(m.maritalStatus)
           ? m.maritalStatus
