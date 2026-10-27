@@ -50,6 +50,7 @@ import './impersonation.test';
 import './indexPreflight.test';
 import './inputValidation.test';
 import './memberGenderRequired.test';
+import './memberBloodGroupFilter.test';
 import './instituteAccess.test';
 import './instituteAccountsList.test';
 import './institutePrivacy.test';
