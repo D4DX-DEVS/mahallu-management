@@ -44,7 +44,9 @@ export default function CommunitySnapshot({ children }: CommunitySnapshotProps) 
   const [registers, setRegisters] = useState<RegisterSummaryRow[]>([]);
   const [surveyOverdue, setSurveyOverdue] = useState(false);
   const [expiringCommittees, setExpiringCommittees] = useState(0);
-  const [approvedNikahCount, setApprovedNikahCount] = useState(0);
+  // null until the count is known, and left null when the request is refused (a Mahallu admin cannot read
+  // Nikah registrations): the register's own count is then shown instead of a made-up 0.
+  const [approvedNikahCount, setApprovedNikahCount] = useState<number | null>(null);
   const [activeVolunteerCount, setActiveVolunteerCount] = useState(0);
   useEffect(() => {
     registerService
@@ -62,15 +64,13 @@ export default function CommunitySnapshot({ children }: CommunitySnapshotProps) 
     registrationService
       .getAllNikah({ status: 'approved', limit: 1 })
       .then((result) => setApprovedNikahCount(result?.pagination?.total ?? 0))
-      .catch(() => setApprovedNikahCount(0));
+      .catch(() => setApprovedNikahCount(null));
     // HIDDEN per CEO decision (Youth Volunteer Wing / Sevana Vedi + Women's Forum) — volunteer summary fetching disabled; import retained for future reactivation.
     void volunteerService;
     void activeVolunteerCount;
     void setActiveVolunteerCount;
   }, []);
-  const COUNT_OVERRIDES: Record<string, number> = {
-    marriageable: approvedNikahCount,
-  };
+  const COUNT_OVERRIDES: Record<string, number> = approvedNikahCount === null ? {} : { marriageable: approvedNikahCount };
   // HIDDEN per CEO decision — Employment (job-seekers) and Volunteers hidden from dashboard snapshot. Retained in service layer for future reactivation.
   const HIDDEN_REGISTER_KEYS = new Set<string>([
     'volunteers', // Youth Volunteer Wing / Sevana Vedi + Women's Forum / Vanitha Vedi

@@ -13,7 +13,7 @@ import User from '../models/User';
 import Tenant from '../models/Tenant';
 import { ActivityLog } from '../models/Social';
 import { login, changePassword } from '../controllers/authController';
-import { createUser, resetUserPassword, setUserUsername, updateUser } from '../controllers/userController';
+import { createUser, getAllUsers, getUserById, resetUserPassword, setUserUsername, updateUser } from '../controllers/userController';
 import { decideCredentialAccess, widensPermissions } from '../utils/credentialAccess';
 import {
   generateTemporaryPassword,
@@ -598,5 +598,59 @@ test('a Super Admin can grant access, and a Mahallu admin can grant it to someon
     const row = users.store.find({ _id: admin1._id })[0];
     // the fake keeps a dotted  path as written
     assert.deepEqual([...(row.permissions?.sensitiveModules ?? row['permissions.sensitiveModules'])], ['welfare']);
+  });
+});
+
+// ------------------------------------------------------------------ user details never carry secrets
+
+test('user details and the user list never return a password or hash, and show the username', async () => {
+  const target = staff({ username: 'asha.survey' });
+  await withWorld([target], async () => {
+    const detail = await call(getUserById, ctx(target));
+    assert.equal(detail.status, 200);
+    assert.equal(detail.body.data.username, 'asha.survey');
+    assert.equal(String(detail.body.data.tenantId), String(TENANT_A));
+    const detailText = JSON.stringify(detail.body);
+    assert.doesNotMatch(detailText, /"password"/);
+    assert.equal(detailText.includes('$2'), false, 'no bcrypt hash');
+
+    const list = await call(getAllUsers, { ...admin(), query: {} });
+    assert.equal(list.status, 200);
+    const listText = JSON.stringify(list.body);
+    assert.match(listText, /asha\.survey/);
+    assert.doesNotMatch(listText, /"password"/);
+    assert.equal(listText.includes('$2'), false, 'no bcrypt hash');
+  });
+});
+
+test('a Mahallu admin cannot open a user of another Mahallu or a platform admin, but a Super Admin can open any staff user', async () => {
+  const other = staff({ tenantId: TENANT_B, phone: '9000000031', username: 'other.survey' });
+  const root = staff({ role: 'super_admin', tenantId: null, isSuperAdmin: true, phone: '9000000032' });
+  await withWorld([other, root], async () => {
+    for (const target of [other, root]) {
+      const reply = await call(getUserById, ctx(target));
+      assert.equal(reply.status, 403);
+      assert.equal(reply.body.data, undefined);
+    }
+    const asSuper = await call(getUserById, {
+      isSuperAdmin: true,
+      user: { _id: oid(), role: 'super_admin' },
+      params: { id: String(other._id) },
+    });
+    assert.equal(asSuper.status, 200);
+    assert.equal(asSuper.body.data.username, 'other.survey');
+    assert.doesNotMatch(JSON.stringify(asSuper.body), /"password"/);
+  });
+});
+
+test('after a reset the chosen password signs the person in by phone too, and the old password is refused', async () => {
+  const target = staff({ username: 'asha.survey' });
+  await withWorld([target], async () => {
+    const chosen = 'Chosen1password';
+    const reset = await call(resetUserPassword, ctx(target, { body: { confirm: true, newPassword: chosen, confirmPassword: chosen } }));
+    assert.equal(reset.status, 200);
+    assert.equal((await signIn({ phone: '9000000001', password: chosen })).status, 200);
+    assert.equal((await signIn({ username: 'asha.survey', password: chosen })).status, 200);
+    assert.equal((await signIn({ phone: '9000000001', password: PASSWORD })).status, 401);
   });
 });
