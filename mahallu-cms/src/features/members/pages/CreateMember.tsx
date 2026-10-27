@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { requiredGenderSchema } from '../memberGender';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { FiSave } from 'react-icons/fi';
 import { RiHome5Line, RiLock2Line } from 'react-icons/ri';
@@ -54,7 +55,7 @@ const memberSchemaShape = z.object({
     (val) => (val === '' || Number.isNaN(val) ? undefined : val),
     z.number().min(0).max(150).optional()
   ),
-  gender: z.enum(['male', 'female']).optional().or(z.literal('')),
+  gender: requiredGenderSchema,
   bloodGroup: z
     .enum(['A +ve', 'A -ve', 'B +ve', 'B -ve', 'AB +ve', 'AB -ve', 'O +ve', 'O -ve'])
     .optional()
@@ -206,7 +207,7 @@ export default function CreateMember() {
           Object.entries({
             ...data,
             age: data.age == null || Number.isNaN(data.age) ? undefined : Number(data.age),
-            gender: data.gender === '' ? undefined : data.gender,
+            gender: data.gender,
             bloodGroup: data.bloodGroup === '' ? undefined : data.bloodGroup,
             maritalStatus: data.maritalStatus === '' ? undefined : data.maritalStatus,
             marriageCount:
@@ -435,6 +436,7 @@ export default function CreateMember() {
 
               <RadioCardGroup
                 label="Gender"
+                required
                 options={genderOptions}
                 value={watch('gender') || ''}
                 onChange={(value) => setValue('gender', value as 'male' | 'female')}

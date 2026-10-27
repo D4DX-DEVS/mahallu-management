@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { requiredGenderSchema } from '@/features/members/memberGender';
 import { FiSave, FiX } from 'react-icons/fi';
 import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
@@ -16,7 +17,7 @@ import { errorMessage } from '@/utils/errors';
 const memberSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   familyId: z.string().min(1, 'Family is required'),
-  gender: z.enum(['male', 'female']).optional().or(z.literal('')),
+  gender: requiredGenderSchema,
 });
 
 type MemberFormData = z.infer<typeof memberSchema>;
@@ -68,7 +69,7 @@ export default function QuickAddMember({ open, onClose, onCreated }: Props) {
           name: data.name,
           familyId: data.familyId,
           familyName: selectedFamily?.houseName,
-          gender: data.gender === '' ? undefined : data.gender,
+          gender: data.gender,
         }).filter(([_, v]) => v !== '' && v !== undefined)
       );
 
@@ -82,7 +83,7 @@ export default function QuickAddMember({ open, onClose, onCreated }: Props) {
   };
 
   const genderOptions = [
-    { value: '', label: 'Select gender (optional)' },
+    { value: '', label: 'Select gender' },
     { value: 'male', label: 'Male' },
     { value: 'female', label: 'Female' },
   ];
@@ -126,6 +127,7 @@ export default function QuickAddMember({ open, onClose, onCreated }: Props) {
             options={genderOptions}
             {...register('gender')}
             error={errors.gender?.message}
+            required
           />
         </div>
 

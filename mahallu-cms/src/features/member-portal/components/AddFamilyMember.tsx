@@ -9,9 +9,9 @@ import { memberPortalService } from '@/services/memberPortalService';
 import { toast } from '@/store/toastStore';
 import { errorMessage } from '@/utils/errors';
 import { sanitizeDigits } from '@/utils/validation';
+import { GENDER_REQUIRED_MESSAGE, GENDER_VALUES } from '@/features/members/memberGender';
 
 const GENDERS = [
-  { value: '', label: 'Not set' },
   { value: 'male', label: 'Male' },
   { value: 'female', label: 'Female' },
 ];
@@ -70,6 +70,7 @@ export default function AddFamilyMember({ onAdded }: AddFamilyMemberProps) {
     const found: Record<string, string> = {};
     if (name.trim().length < 2) found.name = 'Please enter the name (at least 2 characters).';
     if (name.trim().length > 100) found.name = 'Please keep the name to 100 characters or less.';
+    if (!(GENDER_VALUES as readonly string[]).includes(gender)) found.gender = GENDER_REQUIRED_MESSAGE;
     if (dateOfBirth && dateOfBirth > today()) found.dateOfBirth = 'Date of birth cannot be in the future.';
     if (phone && !/^[0-9]{10}$/.test(phone)) found.phone = 'Please enter a 10-digit phone number.';
     setErrors(found);
@@ -85,7 +86,7 @@ export default function AddFamilyMember({ onAdded }: AddFamilyMemberProps) {
       const result = await memberPortalService.addFamilyMember({
         name: name.trim(),
         ...(relationship ? { relationship } : {}),
-        ...(gender ? { gender } : {}),
+        gender,
         ...(dateOfBirth ? { dateOfBirth } : {}),
         ...(phone ? { phone } : {}),
       });
@@ -139,7 +140,15 @@ export default function AddFamilyMember({ onAdded }: AddFamilyMemberProps) {
           />
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Select label="Relationship to you" options={RELATIONSHIPS} value={relationship} onChange={(event) => setRelationship(event.target.value)} />
-            <Select label="Gender" options={GENDERS} value={gender} onChange={(event) => setGender(event.target.value)} />
+            <Select
+              label="Gender"
+              options={GENDERS}
+              placeholder="Select gender"
+              value={gender}
+              onChange={(event) => setGender(event.target.value)}
+              error={errors.gender}
+              required
+            />
           </div>
           <Input
             label="Date of birth"

@@ -20,7 +20,8 @@ export interface User {
   username?: string;
   /** True while the password is one an administrator issued: the owner should choose their own. */
   passwordResetRequired?: boolean;
-  tenant?: { id?: string; name: string };
+  /** The user's Mahall; `code` is its Mahall ID (the same code the Tenant pages show). */
+  tenant?: { id?: string; name: string; code?: string };
 }
 
 export interface Permission {

@@ -107,6 +107,14 @@ export default function CredentialsCard({ user, canManage, onUserChanged }: Cred
             <p className="text-gray-900 dark:text-gray-100">{user.tenant.name}</p>
           </div>
         )}
+        {user.tenant?.code && (
+          <div>
+            <span className="text-sm text-gray-500 dark:text-gray-400">Mahall ID</span>
+            <p className="text-gray-900 dark:text-gray-100">
+              <span className="font-mono">{user.tenant.code}</span>
+            </p>
+          </div>
+        )}
       </div>
 
       {canManage && (

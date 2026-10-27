@@ -9,6 +9,11 @@ export interface ColumnSpec {
   key: string;
   label: string;
   required?: boolean;
+  /**
+   * Cleans a non-empty cell, or refuses it with a message that names what is wrong. A refused cell fails
+   * its row before anything is sent.
+   */
+  normalize?: (value: string) => { value: string } | { error: string };
 }
 
 interface BulkImportCsvProps {
@@ -81,19 +86,27 @@ function parseCsv(text: string, columns: ColumnSpec[]): ParseResult {
   lines.slice(1).forEach((line, i) => {
     const cells = parseCsvLine(line);
     const row: Record<string, any> = {};
+    const cellErrors: string[] = [];
     let hasData = false;
 
     columns.forEach((col) => {
       const idx = colIndex(col.key.toLowerCase());
       const value = idx >= 0 ? cells[idx] : '';
       if (value) {
-        row[col.key] = value;
         hasData = true;
+        const cleaned = col.normalize ? col.normalize(value) : { value };
+        if ('error' in cleaned) cellErrors.push(cleaned.error);
+        else row[col.key] = cleaned.value;
       }
     });
 
     if (!hasData) {
       errors.push(`Row ${i + 2}: is empty`);
+      return;
+    }
+
+    if (cellErrors.length > 0) {
+      errors.push(`Row ${i + 2}: ${cellErrors.join(' ')}`);
       return;
     }
 
