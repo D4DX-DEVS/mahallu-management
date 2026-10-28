@@ -51,6 +51,7 @@ import './indexPreflight.test';
 import './inputValidation.test';
 import './memberGenderRequired.test';
 import './memberBloodGroupFilter.test';
+import './memberFamilySort.test';
 import './instituteAccess.test';
 import './instituteAccountsList.test';
 import './institutePrivacy.test';

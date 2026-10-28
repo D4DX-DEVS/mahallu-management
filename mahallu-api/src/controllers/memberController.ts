@@ -116,7 +116,14 @@ export const getAllMembers = async (req: AuthRequest, res: Response) => {
     const sort: any = {};
     if (sortBy === 'mahallId') sort.mahallId = 1;
     else if (sortBy === 'name') sort.name = 1;
-    else sort.createdAt = -1;
+    else if (sortBy === 'family') {
+      // Family-wise: members of one family stay together, keyed on the family's own id. The denormalised
+      // familyName is not used: renaming a family does not update it, so it could split one family in two.
+      // Within a family, members come in the order they joined it; _id makes the order identical on every page.
+      sort.familyId = 1;
+      sort.createdAt = 1;
+      sort._id = 1;
+    } else sort.createdAt = -1;
 
     const [members, total] = await Promise.all([
       Member.find(query)
