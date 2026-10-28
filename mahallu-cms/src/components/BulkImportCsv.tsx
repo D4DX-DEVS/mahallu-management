@@ -4,17 +4,11 @@ import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import Button from '@/components/ui/Button';
 import { FiUpload } from 'react-icons/fi';
 import { errorMessage, safeApiMessage } from '@/utils/errors';
+import { formatServerRowErrors, parseCsv } from '@/utils/csvImport';
+import type { ColumnSpec } from '@/utils/csvImport';
 
-export interface ColumnSpec {
-  key: string;
-  label: string;
-  required?: boolean;
-  /**
-   * Cleans a non-empty cell, or refuses it with a message that names what is wrong. A refused cell fails
-   * its row before anything is sent.
-   */
-  normalize?: (value: string) => { value: string } | { error: string };
-}
+/* Callers import the column type from here; it now lives with the parser. */
+export type { ColumnSpec };
 
 interface BulkImportCsvProps {
   title: string;
@@ -29,105 +23,8 @@ interface BulkImportCsvProps {
 /** Reading a huge file into memory locks up the tab long before the row cap. */
 const MAX_CSV_BYTES = 5 * 1024 * 1024;
 
-/** Minimal CSV line parser — handles quoted fields with commas. */
-function parseCsvLine(line: string): string[] {
-  const cells: string[] = [];
-  let cur = '';
-  let inQuotes = false;
-  for (let i = 0; i < line.length; i++) {
-    const ch = line[i];
-    if (ch === '"') {
-      if (inQuotes && line[i + 1] === '"') {
-        cur += '"';
-        i++;
-      } else {
-        inQuotes = !inQuotes;
-      }
-    } else if (ch === ',' && !inQuotes) {
-      cells.push(cur.trim());
-      cur = '';
-    } else {
-      cur += ch;
-    }
-  }
-  cells.push(cur.trim());
-  return cells;
-}
-
-interface ParseResult {
-  rows: Record<string, any>[];
-  errors: string[];
-}
-
-function parseCsv(text: string, columns: ColumnSpec[]): ParseResult {
-  const lines = text.split(/\r?\n/).filter((l) => l.trim());
-  if (lines.length < 2) {
-    return { rows: [], errors: ['File needs a header row and at least one data row'] };
-  }
-
-  const header = parseCsvLine(lines[0]).map((h) => h.toLowerCase().replace(/\s+/g, ''));
-  const colIndex = (name: string) => header.indexOf(name);
-
-  // Check required columns
-  const missingColumns = columns
-    .filter((c) => c.required)
-    .filter((c) => colIndex(c.key.toLowerCase()) === -1);
-
-  if (missingColumns.length > 0) {
-    return {
-      rows: [],
-      errors: [`Missing required columns: ${missingColumns.map((c) => c.label).join(', ')}`],
-    };
-  }
-
-  const rows: Record<string, any>[] = [];
-  const errors: string[] = [];
-
-  lines.slice(1).forEach((line, i) => {
-    const cells = parseCsvLine(line);
-    const row: Record<string, any> = {};
-    const cellErrors: string[] = [];
-    let hasData = false;
-
-    columns.forEach((col) => {
-      const idx = colIndex(col.key.toLowerCase());
-      const value = idx >= 0 ? cells[idx] : '';
-      if (value) {
-        hasData = true;
-        const cleaned = col.normalize ? col.normalize(value) : { value };
-        if ('error' in cleaned) cellErrors.push(cleaned.error);
-        else row[col.key] = cleaned.value;
-      }
-    });
-
-    if (!hasData) {
-      errors.push(`Row ${i + 2}: is empty`);
-      return;
-    }
-
-    if (cellErrors.length > 0) {
-      errors.push(`Row ${i + 2}: ${cellErrors.join(' ')}`);
-      return;
-    }
-
-    // Check required fields
-    const missingRequired = columns.filter((c) => c.required && !row[c.key]);
-    if (missingRequired.length > 0) {
-      errors.push(
-        `Row ${i + 2}: missing required field(s) ${missingRequired.map((c) => c.label).join(', ')}`
-      );
-      return;
-    }
-
-    rows.push(row);
-  });
-
-  if (rows.length > 500) {
-    errors.push(`Maximum 500 rows per import (found ${rows.length})`);
-  }
-
-  return { rows, errors };
-}
+/** Heads the list of row errors the server returned. */
+const IMPORT_REFUSED_NOTE = 'Nothing was imported. Fix the rows below in your file, then upload it again.';
 
 export default function BulkImportCsv({
   title,
@@ -199,8 +96,14 @@ export default function BulkImportCsv({
       setRows([]);
       onImported();
     } catch (err: unknown) {
-      const message = safeApiMessage(err, '') || errorMessage(err, { action: 'import these rows' });
-      setErrors([message]);
+      // A refused import lists which rows are wrong (the server saves nothing when any row is refused).
+      const rowLines = formatServerRowErrors(err);
+      if (rowLines.length > 0) {
+        setErrors([IMPORT_REFUSED_NOTE, ...rowLines]);
+      } else {
+        const message = safeApiMessage(err, '') || errorMessage(err, { action: 'import these rows' });
+        setErrors([message]);
+      }
     } finally {
       setImporting(false);
     }
@@ -270,7 +173,7 @@ export default function BulkImportCsv({
         )}
 
         {errors.length > 0 && (
-          <ul className="max-h-32 space-y-1 overflow-y-auto rounded-lg bg-destructive/10 p-3 text-label text-destructive">
+          <ul className="max-h-72 space-y-1 overflow-y-auto rounded-lg bg-destructive/10 p-3 text-label text-destructive">
             {errors.map((e, i) => (
               <li key={i}>{e}</li>
             ))}
