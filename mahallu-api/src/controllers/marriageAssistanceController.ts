@@ -5,6 +5,7 @@ import {
   MARRIAGE_ASSISTANCE_STATUSES,
   MARRIAGE_ASSISTANCE_TRANSITIONS,
   MARRIAGE_ASSISTANCE_INITIAL_STATUS,
+  FINANCIAL_MARRIAGE_ASSISTANCE_TYPE,
   MarriageAssistanceStatus,
 } from '../models/MarriageAssistance';
 import Member from '../models/Member';
@@ -105,6 +106,14 @@ export const createAssistance = async (req: AuthRequest, res: Response) => {
       return sendInvalid(res, 'Please choose a member or a family.');
     }
 
+    // Only a financial assistance request has to state an amount.
+    const sentAmount = req.body.amount;
+    const noAmount = sentAmount === undefined || sentAmount === null || (typeof sentAmount === 'string' && !sentAmount.trim());
+    if (req.body.type === FINANCIAL_MARRIAGE_ASSISTANCE_TYPE) {
+      if (noAmount) return sendInvalid(res, 'Please enter the amount.');
+      if (!(Number(sentAmount) > 0)) return sendInvalid(res, 'The amount must be greater than zero.');
+    }
+
     // Validate tenant scope if IDs provided
     if (memberId) {
       const member = await Member.findById(memberId);
@@ -121,8 +130,10 @@ export const createAssistance = async (req: AuthRequest, res: Response) => {
     }
 
     // A request always starts as `requested`; approval and completion go through the status endpoint.
+    const details = pick(req.body, CREATE_FIELDS);
+    if (noAmount) delete details.amount;
     const assistance = await MarriageAssistance.create({
-      ...pick(req.body, CREATE_FIELDS),
+      ...details,
       tenantId,
       status: MARRIAGE_ASSISTANCE_INITIAL_STATUS,
     });
@@ -171,6 +182,20 @@ export const updateAssistance = async (req: AuthRequest, res: Response) => {
         return sendInvalid(res, 'Please enter a valid amount, with at most 2 decimals.');
       }
       payload.amount = round2(Number(req.body.amount));
+    }
+
+    // Financial assistance is the sum paid out, so it can't be zero. A request that is (or becomes) financial
+    // needs an amount above zero: from this edit, or already on record when the type is being switched.
+    const becomesFinancial = (payload.type ?? existing.type) === FINANCIAL_MARRIAGE_ASSISTANCE_TYPE;
+    if (becomesFinancial && payload.amount !== undefined && !(payload.amount > 0)) {
+      return sendInvalid(res, 'The amount must be greater than zero.');
+    }
+    if (
+      payload.type === FINANCIAL_MARRIAGE_ASSISTANCE_TYPE &&
+      existing.type !== FINANCIAL_MARRIAGE_ASSISTANCE_TYPE &&
+      !((payload.amount ?? existing.amount) > 0)
+    ) {
+      return sendInvalid(res, 'Please enter the amount.');
     }
 
     const assistance = await MarriageAssistance.findOneAndUpdate(

@@ -66,6 +66,7 @@ import './memberNikahGroomName.test';
 import './memberRegistrationAllowList.test';
 import './migrationGuard.test';
 import './moduleAmountValidation.test';
+import './reliefMarriageAmountRules.test';
 import './multiRoleEndToEnd.test';
 import './notificationPush.test';
 import './notificationVisibility.test';
