@@ -4,8 +4,8 @@ import Family from '../models/Family';
 import Member from '../models/Member';
 import { Varisangya, Zakat } from '../models/Collectible';
 import { NikahRegistration, DeathRegistration, NOC } from '../models/Registration';
-import { exportEntityCsv, csvEscape } from '../controllers/exportController';
-import exportRoutes from '../routes/exportRoutes';
+import { exportEntityCsv, csvEscape, SUPER_ADMIN_ONLY_EXPORTS } from '../controllers/exportController';
+import exportRoutes, { registrationExportGuard } from '../routes/exportRoutes';
 import { authMiddleware } from '../middleware/authMiddleware';
 
 // One root suite so stubs installed by this file's hooks never leak into other suites when every test
@@ -280,6 +280,77 @@ describe('[isolated] backend CSV export', () => {
         status = -1;
       });
       assert.equal(status, 403);
+    });
+  });
+
+  describe('registration exports are Super Admin only', () => {
+    type Role = 'super_admin' | 'mahall' | 'survey' | 'institute' | 'member';
+    const ROLES: Role[] = ['super_admin', 'mahall', 'survey', 'institute', 'member'];
+    const REGISTRATION_ENTITIES = ['nikah', 'death', 'noc'];
+    const OTHER_ENTITIES = ['families', 'members', 'varisangya', 'zakat'];
+
+    const stack: any[] = (exportRoutes as any).stack;
+    const routerGuard = stack.find((l) => l.handle?.isRoleGuard)!.handle;
+    const routeLayer = stack.find((l) => l.route?.path === '/:entity');
+
+    /** Runs one middleware as `role` asking for `entity`; true when the request was let through. */
+    const lets = (handle: any, role: Role, entity: string): boolean => {
+      let passed = false;
+      let status = 0;
+      handle(
+        { params: { entity }, user: { role }, isSuperAdmin: role === 'super_admin' },
+        { status: (code: number) => ((status = code), { json: () => undefined }) },
+        () => (passed = true)
+      );
+      if (!passed) assert.equal(status, 403, `${role} ${entity}: a refusal is a 403`);
+      return passed;
+    };
+    /** The router's own role guard first, then the per-entity guard: what a real request meets before the controller. */
+    const reachesController = (role: Role, entity: string): boolean =>
+      lets(routerGuard, role, entity) && lets(registrationExportGuard, role, entity);
+
+    it('the Super Admin-only exports are exactly nikah, death and noc', () => {
+      assert.deepEqual([...SUPER_ADMIN_ONLY_EXPORTS].sort(), [...REGISTRATION_ENTITIES].sort());
+    });
+
+    it('the guard sits on GET /:entity, after the router role guard and before the controller', () => {
+      const handlers: any[] = routeLayer.route.stack.map((l: any) => l.handle);
+      const guard = handlers.indexOf(registrationExportGuard);
+      assert.ok(guard >= 0, 'registrationExportGuard is on the route');
+      assert.equal(handlers.indexOf(exportEntityCsv), handlers.length - 1, 'the controller is last');
+      assert.ok(guard < handlers.indexOf(exportEntityCsv), 'the guard runs before the controller');
+      assert.ok(stack.indexOf(stack.find((l) => l.handle?.isRoleGuard)) < stack.indexOf(routeLayer), 'the router role guard runs first');
+    });
+
+    for (const entity of REGISTRATION_ENTITIES) {
+      it(`${entity}: the Super Admin is let through`, () => {
+        assert.equal(reachesController('super_admin', entity), true);
+      });
+
+      it(`${entity}: a Mahallu admin, survey worker, institute admin and member are all refused with 403`, () => {
+        for (const role of ['mahall', 'survey', 'institute', 'member'] as Role[]) {
+          assert.equal(reachesController(role, entity), false, `${role} must not reach the ${entity} export`);
+        }
+      });
+
+      it(`${entity}: the Mahallu admin passes the router role guard, so it is this guard that refuses them`, () => {
+        assert.equal(lets(routerGuard, 'mahall', entity), true);
+        assert.equal(lets(registrationExportGuard, 'mahall', entity), false);
+      });
+    }
+
+    it('every other export keeps its permissions: Mahallu admin and Super Admin only', () => {
+      for (const entity of OTHER_ENTITIES) {
+        for (const role of ROLES) {
+          assert.equal(reachesController(role, entity), role === 'super_admin' || role === 'mahall', `${role} ${entity}`);
+        }
+      }
+    });
+
+    it('an entity name that is not an export is not special-cased (the controller still answers 400)', () => {
+      for (const entity of ['users', 'constructor', '__proto__', 'Nikah', 'nikah ']) {
+        assert.equal(lets(registrationExportGuard, 'mahall', entity), !SUPER_ADMIN_ONLY_EXPORTS.includes(entity), entity);
+      }
     });
   });
 });

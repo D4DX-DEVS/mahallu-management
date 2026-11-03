@@ -376,6 +376,8 @@ describe('[isolated] upload flow safety', () => {
     const memberOwner = newId();
     const memberOther = newId();
     const admin = { role: 'mahall', name: 'Admin' };
+    /** Certificates are administered by the platform Super Admin (the Mahallu admin has no admin view of them). */
+    const superAdmin = { role: 'super_admin', name: 'Super Admin' };
 
     const certificate = () => {
       const row = world.certs.store.insert({
@@ -392,8 +394,10 @@ describe('[isolated] upload flow safety', () => {
 
     test('certificate download: own-tenant admin and the subject member get a URL for that certificate key only', async () => {
       const cert = certificate();
-      const asAdmin = await run(downloadCertificate, { tenantId: tenantA, params: { id: String(cert._id) }, user: admin });
+      const asAdmin = await run(downloadCertificate, { tenantId: tenantA, params: { id: String(cert._id) }, user: superAdmin, isSuperAdmin: true });
       assert.equal(asAdmin.status, 200);
+      const asMahallAdmin = await run(downloadCertificate, { tenantId: tenantA, params: { id: String(cert._id) }, user: admin });
+      assert.equal(asMahallAdmin.status, 403, 'a Mahallu admin is not a certificate administrator');
       const asMember = await run(downloadCertificate, { tenantId: tenantA, params: { id: String(cert._id) }, user: { role: 'member', memberId: memberOwner } });
       assert.equal(asMember.status, 200);
       assert.deepEqual(signed, [cert.pdfKey, cert.pdfKey]);
@@ -468,7 +472,7 @@ describe('[isolated] upload flow safety', () => {
       const filters: any[] = [];
       const realFind = (Certificate as any).find;
       stub(Certificate, 'find', (filter: any) => { filters.push(filter); return realFind(filter); });
-      await run(listCertificates, { tenantId: tenantA, user: admin, query: { type: 'nikah' } });
+      await run(listCertificates, { tenantId: tenantA, user: superAdmin, isSuperAdmin: true, query: { type: 'nikah' } });
       await run(listCertificates, { tenantId: tenantA, user: { role: 'member', memberId: memberOwner }, query: { type: 'nikah', status: 'revoked' } });
       const noMember = await run(listCertificates, { tenantId: tenantA, user: { role: 'member' } });
       assert.deepEqual(filters[0], { tenantId: tenantA, type: 'nikah' });
@@ -501,7 +505,7 @@ describe('[isolated] upload flow safety', () => {
         return wrapped;
       });
       const asMember = await run(listCertificates, { tenantId: tenantA, user: { role: 'member', memberId: memberOwner } });
-      const asAdmin = await run(listCertificates, { tenantId: tenantA, user: admin });
+      const asAdmin = await run(listCertificates, { tenantId: tenantA, user: superAdmin, isSuperAdmin: true });
       assert.equal(asAdmin.body.data.length, 1);
       const adminRow = asAdmin.body.data[0];
       assert.equal(adminRow.pdfKey, own.pdfKey, 'admin responses are unchanged');

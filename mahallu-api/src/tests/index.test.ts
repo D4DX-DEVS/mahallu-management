@@ -31,6 +31,7 @@ import './demoRequest.test';
 import './credentialManagement.test';
 import './familyHeadMembers.test';
 import './nikahRegistration.test';
+import './registrationsAccess.test';
 import './demoRequestReview.test';
 import './development.test';
 import './developmentIndex.test';
