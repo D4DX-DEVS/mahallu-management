@@ -648,10 +648,13 @@ describe('startup order', () => {
     let release!: () => void;
     FakeCollection.gate = new Promise<void>((resolve) => (release = resolve));
     const startedAt = Date.now();
+    // The gate holds no I/O handle and waitUpTo's timer is unref'd, so nothing keeps the event loop alive while
+    // the step waits; Node 22's runner then cancels the test. Stand in for the real build's open DB connection.
+    const keepAlive = setInterval(() => undefined, 1000);
     await runStartupIndexStep({ NODE_ENV: 'production', INDEX_BUILD_WAIT_MS: '30' } as unknown as NodeJS.ProcessEnv, {
       preflight: async () => reportWith(),
       build: (options) => runGatedIndexBuild({ ...options, models: fakes, log: quiet }),
-    });
+    }).finally(() => clearInterval(keepAlive));
     assert.ok(Date.now() - startedAt < 5000, 'the step returned although the build is held open');
     assert.equal(getIndexBuildPhase(), 'building');
     const mid = getIndexReadiness();
