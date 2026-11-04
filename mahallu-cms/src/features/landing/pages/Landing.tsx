@@ -4,6 +4,7 @@ import HeroSection from '../components/HeroSection';
 import ScriptureSection from '../components/ScriptureSection';
 import StatsStrip from '../components/StatsStrip';
 import { HowItWorks, KeyFeatures } from '../components/FeaturesSection';
+import CouncilBanner from '../components/CouncilBanner';
 import BenefitsSection from '../components/BenefitsSection';
 import ProductSection from '../components/ProductSection';
 import AboutSection from '../components/AboutSection';
@@ -68,6 +69,7 @@ export default function Landing() {
             <ScriptureSection />
             <StatsStrip />
             <KeyFeatures />
+            <CouncilBanner />
             <BenefitsSection />
             <AboutSection />
             <HowItWorks />

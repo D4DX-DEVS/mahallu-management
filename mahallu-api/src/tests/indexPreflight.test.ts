@@ -426,7 +426,10 @@ describe('runIndexPreflight', () => {
     });
     failing.set('Member', () => new Promise<never>(() => undefined));
     const started = Date.now();
-    const report = await runIndexPreflight({ timeoutMs: 300 });
+    // The never-answering aggregation holds no I/O handle and the deadline timer is unref'd, so nothing keeps the
+    // event loop alive while it waits; Node 22's runner then cancels the test. Stand in for the real DB connection.
+    const keepAlive = setInterval(() => undefined, 1000);
+    const report = await runIndexPreflight({ timeoutMs: 300 }).finally(() => clearInterval(keepAlive));
     assert.ok(Date.now() - started < 5000, 'bounded in time');
     assert.equal(report.specs.find((s) => s.model === 'Family')!.status, 'unknown');
     const member = report.specs.find((s) => s.model === 'Member')!;
