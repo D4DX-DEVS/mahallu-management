@@ -29,7 +29,7 @@ export const tenantService = {
     return response.data.data;
   },
 
-  create: async (tenantData: Partial<Tenant>) => {
+  create: async (tenantData: Partial<Tenant> & { demoRequestId?: string }) => {
     const response = await api.post<{ success: boolean; data: Tenant }>('/tenants', tenantData);
     return response.data.data;
   },

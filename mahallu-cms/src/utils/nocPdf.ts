@@ -1,5 +1,6 @@
 import jsPDF from 'jspdf';
 import { NOC } from '@/services/registrationService';
+import { ICON_PATH } from '@/constants/theme';
 
 const stripHtml = (html: string) =>
   html
@@ -29,7 +30,7 @@ const getCertNumber = (id: string, year: string): string => {
 
 const loadLogo = async (): Promise<string | null> => {
   try {
-    const response = await fetch('/Logo-512x512.png');
+    const response = await fetch(ICON_PATH);
     const blob = await response.blob();
     return await new Promise((resolve) => {
       const reader = new FileReader();

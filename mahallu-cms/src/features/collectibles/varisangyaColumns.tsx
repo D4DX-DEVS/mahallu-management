@@ -13,7 +13,14 @@ interface VarisangyaColumnDeps {
   onDelete?: (row: Varisangya) => void;
 }
 
-/** Table config split out of VarisangyaList to keep the page under 500 lines. */
+/**
+ * Table config split out of VarisangyaList to keep the page under 500 lines.
+ *
+ * Column widths add up to 56.5rem. The table uses a fixed layout, whose width is the greater of its
+ * container and the sum of its columns, so a larger sum (these used to total 75.5rem) forces a sideways
+ * scroll inside the card on every laptop and desktop. Cells wrap to two lines, so the narrower columns
+ * lose nothing.
+ */
 export const getPayerName = (row: Varisangya): string => {
   const m = row.memberId;
   const f = row.familyId;
@@ -39,39 +46,51 @@ export const buildVarisangyaColumns = ({
   onVerify,
   onDelete,
 }: VarisangyaColumnDeps): TableColumn<Varisangya>[] => [
-  { key: 'name', label: 'Name', width: '6.75rem', render: (_, row) => toTitleCase(getPayerName(row)) },
-  { key: 'familyName', label: 'Family name', width: '10rem', render: (_, row) => toTitleCase(getFamilyName(row)) },
+  {
+    key: 'name',
+    label: 'Name',
+    sortable: false,
+    width: '8.5rem',
+    render: (_, row) => <span className="font-medium text-foreground">{toTitleCase(getPayerName(row))}</span>,
+  },
+  { key: 'familyName', label: 'Family name', sortable: false, priority: 'secondary', width: '8rem', render: (_, row) => toTitleCase(getFamilyName(row)) },
   {
     key: 'amount',
     label: 'Amount',
-    width: '9.25rem',
-    align: 'center',
-    render: (amount) => `₹${amount?.toLocaleString() || 0}`,
+    width: '7rem',
+    align: 'right',
+    sortable: true,
+    render: (amount) => `₹${amount?.toLocaleString('en-IN') || 0}`,
   },
   {
     key: 'paymentDate',
-    label: 'Payment Date',
-    width: '10.75rem',
+    label: 'Payment date',
+    sortable: true,
+    width: '8.5rem',
     render: (date) => formatDate(date),
   },
-  { key: 'paymentMethod', label: 'Payment Method', width: '12rem' },
+  { key: 'paymentMethod', label: 'Method', sortable: true, priority: 'secondary', width: '7.5rem' },
   {
     key: 'receiptNo',
-    label: 'Receipt No.',
-    width: '9.5rem',
-    render: (receiptNo) => receiptNo || '-',
+    label: 'Receipt no.',
+    sortable: true,
+    priority: 'secondary',
+    width: '7rem',
+    render: (receiptNo) => receiptNo || '—',
   },
   {
     key: 'status',
     label: 'Status',
-    width: '7.25rem',
+    sortable: true,
+    width: '7rem',
     render: (status) => <StatusBadge status={status || 'verified'} />,
   },
   {
     key: 'actions',
-    label: 'Actions',
-    width: '8rem',
-    align: 'center',
+    label: '',
+    width: '3rem',
+    align: 'right',
+    sortable: false,
     render: (_, row) => (
       <div onClick={(e) => e.stopPropagation()}>
         <ActionsMenu

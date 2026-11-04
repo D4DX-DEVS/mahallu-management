@@ -132,7 +132,7 @@ export default function Header() {
         )}
         {/* Tenant switcher shares the flex row instead of being absolutely centred, which collided with the search and action clusters at narrow desktop widths. Below lg it was hidden outright, leaving a super admin on a phone with no way to switch tenants — the switcher itself already collapses to an icon-only button there, so it fits. */}
         {isSuperAdmin && (
-          <div className="ml-2 min-w-0 flex-shrink sm:max-w-xs sm:flex-shrink-0 lg:flex-1">
+          <div className="ml-2 min-w-0 flex-shrink sm:max-w-xs lg:flex-1">
             <TenantSwitcher />
           </div>
         )}
@@ -148,10 +148,13 @@ export default function Header() {
           {!isMember && (
             <button
               onClick={openCommandPalette}
-              className="hidden h-10 min-w-44 items-center gap-2 rounded-lg border border-border bg-muted/60 px-3 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:flex"
+              aria-label="Search"
+              className="hidden h-10 w-10 items-center justify-center gap-2 rounded-lg border border-border bg-muted/60 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:flex lg:w-auto lg:min-w-44 lg:justify-start lg:px-3"
             >
-              <FiSearch className="h-4 w-4" aria-hidden="true" /> <span>Search</span>
-              <kbd className="ml-2 rounded-sm border border-border px-1.5 py-0.5 text-xs">Ctrl K</kbd>
+              {/* Icon-only from md to lg: the sidebar already takes 272px there, and the labelled button
+                  pushed the account avatar past the right edge of the (overflow-hidden) content column. */}
+              <FiSearch className="h-4 w-4" aria-hidden="true" /> <span className="hidden lg:inline">Search</span>
+              <kbd className="ml-2 hidden rounded-sm border border-border px-1.5 py-0.5 text-xs lg:inline">Ctrl K</kbd>
             </button>
           )}
           <button

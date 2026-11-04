@@ -9,7 +9,7 @@
  * menu gives its page an icon; there is no second list to keep in step.
  */
 import type { IconType } from 'react-icons';
-import { FiDollarSign, FiFileText, FiLayers, FiSettings, FiShield, FiUser } from 'react-icons/fi';
+import { RiMoneyDollarCircleLine, RiFileTextLine, RiStackLine, RiSettings2Line, RiShieldCheckLine, RiUser3Line } from 'react-icons/ri';
 import { menuItems, MenuItem } from './menuItems';
 
 type IconComponent = IconType | React.ComponentType<{ className?: string }>;
@@ -52,16 +52,16 @@ const prefixes = [...byPath.keys()].filter((path) => path !== '/').sort((a, b) =
  * ones with a bare heading.
  */
 const extraPaths: Array<[string, IconComponent]> = [
-  ['/settings/security', FiShield],
-  ['/settings', FiSettings],
-  ['/profile', FiUser],
-  ['/member/profile', FiUser],
+  ['/settings/security', RiShieldCheckLine],
+  ['/settings', RiSettings2Line],
+  ['/profile', RiUser3Line],
+  ['/member/profile', RiUser3Line],
   /* Routed under a different prefix from the menu entry that opens them:
    * the petty cash list is /accounting/petty-cash but a voucher is
    * /petty-cash/:id, and the consolidated report answers on two paths. */
-  ['/petty-cash', FiDollarSign],
-  ['/accounting/consolidated', FiLayers],
-  ['/registrations/noc', FiFileText],
+  ['/petty-cash', RiMoneyDollarCircleLine],
+  ['/accounting/consolidated', RiStackLine],
+  ['/registrations/noc', RiFileTextLine],
 ];
 
 /**
@@ -91,4 +91,4 @@ export function resolveNavIcon(pathname: string): IconComponent | undefined {
 }
 
 /** Used by the report pages, which are generated rather than routed one by one. */
-export const FALLBACK_PAGE_ICON: IconComponent = FiFileText;
+export const FALLBACK_PAGE_ICON: IconComponent = RiFileTextLine;

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { FiEdit2, FiEye, FiFile, FiFileText, FiPlus, FiUser, FiUserCheck, FiUsers } from 'react-icons/fi';
+import { FiEdit2, FiEye, FiFile, FiFileText, FiPlus, FiUsers } from 'react-icons/fi';
+import { RiMenLine, RiWomenLine } from 'react-icons/ri';
 import TableCard from '@/components/ui/TableCard';
 import FilterPanel from '@/components/ui/FilterPanel';
 import Button from '@/components/ui/Button';
@@ -8,7 +9,6 @@ import Select from '@/components/ui/Select';
 import StatCard from '@/components/ui/StatCard';
 import Table from '@/components/ui/Table';
 import EmptyState from '@/components/ui/EmptyState';
-import { PageSkeleton } from '@/components/ui/Skeleton';
 import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
 import Dropdown from '@/components/ui/Dropdown';
@@ -45,7 +45,7 @@ export default function MembersList() {
     const page = Number(searchParams.get('page'));
     return page > 0 ? page : 1;
   });
-  const [itemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -77,7 +77,7 @@ export default function MembersList() {
 
   useEffect(() => {
     fetchMembers();
-  }, [debouncedSearch, sortBy, activeTab, genderFilter, currentPage]);
+  }, [debouncedSearch, sortBy, activeTab, genderFilter, currentPage, itemsPerPage]);
 
   useEffect(() => {
     setSelectedIds([]);
@@ -163,7 +163,7 @@ export default function MembersList() {
         <div className="flex min-w-0 items-center gap-3">
           <Avatar name={name} size="md" />
           <div className="min-w-0">
-            <div className="truncate font-semibold">{toTitleCase(name)}</div>
+            <div className="truncate font-medium text-foreground">{toTitleCase(name)}</div>
             <div className="truncate text-xs text-muted-foreground">{row.phone || 'No phone added'}</div>
           </div>
         </div>
@@ -211,6 +211,8 @@ export default function MembersList() {
     .filter((column) => column.key !== 'actions')
     .map((column) => (column.key === 'name' ? { ...column, render: (name: string) => toTitleCase(name) } : column));
 
+  const isFiltered = Boolean(debouncedSearch || genderFilter || activeTab !== 'all');
+
   const stats = [
     {
       title: 'Total Family Members',
@@ -220,17 +222,17 @@ export default function MembersList() {
     {
       title: 'Total Males',
       value: memberStats.maleCount,
-      icon: <FiUser className="h-5 w-5" />,
+      icon: <RiMenLine />,
     },
     {
       title: 'Total Females',
       value: memberStats.femaleCount,
-      icon: <FiUserCheck className="h-5 w-5" />,
+      icon: <RiWomenLine />,
     },
   ];
 
   return (
-    <div className="space-y-4">
+    <div>
       <PageHeader
         title="Members"
         description="People registered across all families"
@@ -241,13 +243,13 @@ export default function MembersList() {
         }
       />
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
         {stats.map((stat, index) => (
           <StatCard key={index} {...stat} size="compact" />
         ))}
       </div>
 
-      <TableCard borderless padding="lg">
+      <TableCard>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -262,12 +264,14 @@ export default function MembersList() {
           sortOptions={[
             { value: 'date', label: 'Newest first' },
             { value: 'name', label: 'Name' },
+            { value: 'family', label: 'Family' },
             { value: 'mahallId', label: 'Mahall ID' },
           ]}
           sortValue={sortBy}
           onSortChange={(value) => { setSortBy(value); setCurrentPage(1); }}
           tabs={
             <Tabs
+              variant="segmented"
               ariaLabel="Member status"
               value={activeTab}
               onChange={(value) => { setActiveTab(value); setCurrentPage(1); }}
@@ -281,83 +285,106 @@ export default function MembersList() {
         />
 
           {isFilterVisible && (
-            <div className="mt-4">
-              <FilterPanel onClose={() => setIsFilterVisible(false)}>
-                <div className="w-full sm:w-40">
-                  <Select
-                    label="Gender"
-                    options={[
-                      { value: '', label: 'All genders' },
-                      { value: 'male', label: 'Male' },
-                      { value: 'female', label: 'Female' },
-                    ]}
-                    value={genderFilter}
-                    onChange={(e) => {
-                      setGenderFilter(e.target.value);
-                      setCurrentPage(1);
-                    }}
-                  />
-                </div>
-              </FilterPanel>
+          <FilterPanel onClose={() => setIsFilterVisible(false)}>
+            <div className="w-full sm:w-52">
+              <Select
+                label="Gender"
+                options={[
+                  { value: '', label: 'All genders' },
+                  { value: 'male', label: 'Male' },
+                  { value: 'female', label: 'Female' },
+                ]}
+                value={genderFilter}
+                onChange={(e) => {
+                  setGenderFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
+              />
             </div>
-          )}
+            {genderFilter && (
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setGenderFilter('');
+                  setCurrentPage(1);
+                }}
+              >
+                Clear filters
+              </Button>
+            )}
+          </FilterPanel>
+        )}
 
-        {loading ? (
-          <PageSkeleton variant="section" />
-        ) : error ? (
+        {error ? (
           <EmptyState
             variant="error"
             entity="members"
             description={error}
-            action={{ label: 'Retry', onClick: fetchMembers }}
+            action={{ label: 'Try again', onClick: fetchMembers }}
           />
         ) : (
-          <Table
-            fixedLayout
-            striped
-            columns={columns}
-            data={members}
-            entity="members"
-            selectable
-            selectedKeys={selectedIds}
-            onSelectionChange={setSelectedIds}
-            bulkActions={
-              <Dropdown
-                label="Bulk member actions"
-                trigger={<Button variant="outline" size="sm">Export selected</Button>}
-                items={[
-                  {
-                    label: 'Export as CSV',
-                    icon: <FiFileText />,
-                    onClick: () => exportToCSV(exportColumns, members.filter((member) => selectedIds.includes(member.id)), 'members'),
-                  },
-                  {
-                    label: 'Export as PDF',
-                    icon: <FiFile />,
-                    onClick: () => void exportToPDF(exportColumns, members.filter((member) => selectedIds.includes(member.id)), 'members', 'Members'),
-                  },
-                ]}
-              />
-            }
-            emptyMessage="No Members Yet"
-            emptyAction={{ label: 'Add member', onClick: () => navigate(ROUTES.MEMBERS.CREATE) }}
-            onRowClick={(row) => navigate(ROUTES.MEMBERS.DETAIL(row.id))}
-          />
-        )}
-
-        {/* Pagination */}
-        {pagination && (
-          <div className="mt-4">
-            <Pagination
-              currentPage={pagination.page}
-              totalPages={pagination.totalPages}
-              totalItems={pagination.total}
-              itemsPerPage={pagination.limit}
-              onPageChange={(page) => {
-                setCurrentPage(page);
-              }}
+          <>
+            <Table
+              fixedLayout
+              columns={columns}
+              data={members}
+              isLoading={loading}
+              entity="members"
+              emptyVariant={isFiltered ? 'no-results' : 'empty'}
+              emptyAction={
+                isFiltered
+                  ? {
+                      label: 'Clear filters',
+                      onClick: () => {
+                        setSearchQuery('');
+                        setGenderFilter('');
+                        setActiveTab('all');
+                        setCurrentPage(1);
+                      },
+                    }
+                  : { label: 'Add member', onClick: () => navigate(ROUTES.MEMBERS.CREATE) }
+              }
+              selectable
+              selectedKeys={selectedIds}
+              onSelectionChange={setSelectedIds}
+              bulkActions={
+                <Dropdown
+                  label="Bulk member actions"
+                  trigger={<Button variant="outline" size="sm">Export selected</Button>}
+                  items={[
+                    {
+                      label: 'Export as CSV',
+                      icon: <FiFileText />,
+                      onClick: () => exportToCSV(exportColumns, members.filter((member) => selectedIds.includes(member.id)), 'members'),
+                    },
+                    {
+                      label: 'Export as PDF',
+                      icon: <FiFile />,
+                      onClick: () => void exportToPDF(exportColumns, members.filter((member) => selectedIds.includes(member.id)), 'members', 'Members'),
+                    },
+                  ]}
+                />
+              }
+              onRowClick={(row) => navigate(ROUTES.MEMBERS.DETAIL(row.id))}
             />
-          </div>
+
+            {pagination && (
+              <div className="mt-4">
+                <Pagination
+                  currentPage={pagination.page}
+                  totalPages={pagination.totalPages}
+                  totalItems={pagination.total}
+                  itemsPerPage={pagination.limit}
+                  entity="members"
+                  onPageChange={setCurrentPage}
+                  onItemsPerPageChange={(size) => {
+                    setItemsPerPage(size);
+                    setCurrentPage(1);
+                  }}
+                />
+              </div>
+            )}
+          </>
         )}
       </TableCard>
     </div>

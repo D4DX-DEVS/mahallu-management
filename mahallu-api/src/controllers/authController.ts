@@ -9,24 +9,43 @@ import { AuthRequest } from '../middleware/authMiddleware';
 
 import { sendFailure } from '../utils/userMessages';
 import { getPhoneVariants, samePhone } from '../utils/phone';
+import { bearerToken, hashToken, tokenExpiry, MAX_REVOKED_TOKENS } from '../utils/revokedTokens';
 import { signSessionToken, signImpersonationToken, toPublicUser } from '../utils/sessionToken';
 import { isTenantActive, TENANT_SUSPENDED_MESSAGE } from '../services/tenantStatusService';
+import { DUMMY_PASSWORD_HASH, normalizeUsername } from '../utils/credentials';
+
+const WRONG_USERNAME_OR_PASSWORD = 'That username or password is incorrect. Please try again.';
 
 export const login = async (req: Request, res: Response) => {
   try {
     const { phone, password } = req.body;
+    // A staff account may sign in by username instead of phone number.
+    const username = normalizeUsername(req.body.username);
 
-    if (!phone || !password) {
+    if ((!phone && !username) || !password) {
       return res.status(400).json({
         success: false,
-        message: 'Please enter your phone number and password.',
+        message: username ? 'Please enter your username and password.' : 'Please enter your phone number and password.',
       });
     }
 
-    const phoneVariants = getPhoneVariants(phone);
+    let user;
+    if (username) {
+      user = await User.findOne({ username }).select('+password');
+      if (!user) {
+        // Spend the same time as a real check, and answer exactly as for a wrong password.
+        await bcrypt.compare(String(password), DUMMY_PASSWORD_HASH);
+        return res.status(401).json({ success: false, message: WRONG_USERNAME_OR_PASSWORD });
+      }
+      if (!(await bcrypt.compare(String(password), user.password))) {
+        return res.status(401).json({ success: false, message: WRONG_USERNAME_OR_PASSWORD });
+      }
+    }
+
+    const phoneVariants = username ? [] : getPhoneVariants(phone);
 
     // Try to find user by phone
-    let user = await User.findOne({ phone: { $in: phoneVariants } }).select('+password');
+    if (!username) user = await User.findOne({ phone: { $in: phoneVariants } }).select('+password');
     
     // If no user found, check if it's a member trying to login
     if (!user) {
@@ -49,7 +68,8 @@ export const login = async (req: Request, res: Response) => {
       }
     }
 
-    const isPasswordValid = await bcrypt.compare(password, user.password);
+    // (A username sign-in has already had its password checked above.)
+    const isPasswordValid = username ? true : await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
       return res.status(401).json({
         success: false,
@@ -129,7 +149,14 @@ export const registerDevice = async (req: AuthRequest, res: Response) => {
     if (!oneSignalPlayerId) {
       return res.status(400).json({ success: false, message: "We couldn't set up notifications on this device. Please try again." });
     }
-    await User.findByIdAndUpdate(req.user?._id, { oneSignalPlayerId });
+    // Saved on the account the session token belongs to. A device belongs to one signed-in account at a
+    // time, so any other account still holding this id (an earlier sign-in or role on the same phone)
+    // lets go of it and stops receiving this device's pushes.
+    const saved = await User.findByIdAndUpdate(req.user?._id, { oneSignalPlayerId }, { new: true });
+    if (!saved) {
+      return res.status(404).json({ success: false, message: "We couldn't find your account. Please sign in again." });
+    }
+    await User.updateMany({ oneSignalPlayerId, _id: { $ne: saved._id } }, { $set: { oneSignalPlayerId: null } });
     res.json({ success: true, message: 'Notifications are on for this device' });
   } catch (error: any) {
     sendFailure(res, error, 'We couldn\'t save the device. Please try again.');
@@ -151,11 +178,11 @@ export const setTwoFactor = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ success: false, message: 'Please turn this setting on or off.' });
     }
 
-    // A security setting changed: end every other session of this account. The caller keeps working
-    // on a fresh token returned below.
+    // Flip the flag only. tokenVersion is NOT bumped: the apps never store the token returned below,
+    // so a bump would sign the caller out. Only password / phone changes end sessions.
     const user = await User.findByIdAndUpdate(
       req.user?._id,
-      { twoFactorEnabled: enabled, $inc: { tokenVersion: 1 } },
+      { twoFactorEnabled: enabled },
       { new: true }
     ).select('-password');
 
@@ -172,6 +199,73 @@ export const setTwoFactor = async (req: AuthRequest, res: Response) => {
     });
   } catch (error: any) {
     sendFailure(res, error, 'We couldn\'t update the two factor. Please try again.');
+  }
+};
+
+const SELF_SERVICE_VIEW_AS = "This isn't available while viewing as another account.";
+
+/**
+ * Edit the CALLING user's own name and email.
+ *
+ * PUT /users/:id is for Mahallu admins (it can also change status, permissions and institute), so a
+ * survey or institute account could not save its own profile (403). This touches only the caller's own
+ * record and only the fields a person owns. The phone number is what links a person's accounts
+ * together, so it cannot be changed here; a number that differs from the current one is refused.
+ */
+export const updateOwnAccount = async (req: AuthRequest, res: Response) => {
+  try {
+    if (req.impersonation?.isImpersonating) {
+      return res.status(403).json({ success: false, message: SELF_SERVICE_VIEW_AS });
+    }
+    const existing = await User.findById(req.user?._id);
+    if (!existing) {
+      return res.status(404).json({ success: false, message: "We couldn't find that user. It may have been removed." });
+    }
+
+    const { name, email, phone } = req.body || {};
+    if (phone !== undefined && phone !== null && String(phone).trim() !== '' && !samePhone(String(phone), existing.phone)) {
+      return res.status(403).json({
+        success: false,
+        message: "You can't change your own phone number here. Please ask your Mahallu admin or request a change from your profile.",
+      });
+    }
+
+    const update: Record<string, unknown> = {};
+    if (typeof name === 'string' && name.trim()) update.name = name.trim();
+    if (typeof email === 'string') update.email = email.trim();
+    if (Object.keys(update).length === 0) {
+      return res.status(400).json({ success: false, message: 'Please enter a name or an email address.' });
+    }
+
+    const user = await User.findByIdAndUpdate(existing._id, update, { new: true, runValidators: true }).select('-password');
+    res.json({ success: true, data: user });
+  } catch (error: any) {
+    sendFailure(res, error, "We couldn't update your profile. Please try again.");
+  }
+};
+
+/**
+ * Delete the CALLING user's own account (the in-app "Delete account").
+ *
+ * The login is deactivated and every session of it ends. Records the Mahallu keeps about the person (a
+ * member's place in the family register, payments they made) are not touched: those belong to the
+ * Mahallu's books. A Super Admin cannot remove their own account this way.
+ */
+export const deleteOwnAccount = async (req: AuthRequest, res: Response) => {
+  try {
+    if (req.impersonation?.isImpersonating) {
+      return res.status(403).json({ success: false, message: SELF_SERVICE_VIEW_AS });
+    }
+    if (req.user?.role === 'super_admin' || req.isSuperAdmin) {
+      return res.status(403).json({ success: false, message: "A platform administrator account can't be deleted from the app. Please contact support." });
+    }
+    const user = await User.findByIdAndUpdate(req.user?._id, { status: 'inactive', $inc: { tokenVersion: 1 } }, { new: true });
+    if (!user) {
+      return res.status(404).json({ success: false, message: "We couldn't find that user. It may have been removed." });
+    }
+    res.json({ success: true, message: 'Your account has been deleted.' });
+  } catch (error: any) {
+    sendFailure(res, error, "We couldn't delete your account. Please try again.");
   }
 };
 
@@ -379,15 +473,28 @@ export const switchAccount = async (req: AuthRequest, res: Response) => {
 };
 
 /**
- * Sign out of every session of this account (all devices): the account's tokenVersion moves on, so
- * every token issued before this call stops working. A Super Admin "View As" session just ends on the
- * client — bumping the version would sign the real super admin out everywhere — and that token
+ * Sign out of THIS session only. The token that made the request is remembered as revoked (a hash of
+ * it, until it would have expired anyway), so the same account stays signed in on its other devices:
+ * signing out of the web no longer signs the phone out. A password or phone change still ends every
+ * session (tokenVersion). A Super Admin "View As" session just ends on the client, and that token
  * expires on its own within hours.
  */
 export const logout = async (req: AuthRequest, res: Response) => {
   try {
     if (!req.impersonation?.isImpersonating) {
-      await User.findByIdAndUpdate(req.user?._id, { $inc: { tokenVersion: 1 } });
+      const token = bearerToken(req.headers?.authorization);
+      const exp = token ? tokenExpiry(token) : null;
+      if (token && exp) {
+        // Drop entries that have expired by themselves, then add this one (two steps: one update
+        // cannot both $pull from and $push to the same field).
+        await User.findByIdAndUpdate(req.user?._id, { $pull: { revokedTokens: { exp: { $lt: new Date() } } } });
+        await User.findByIdAndUpdate(req.user?._id, {
+          $push: { revokedTokens: { $each: [{ h: hashToken(token), exp }], $slice: -MAX_REVOKED_TOKENS } },
+        });
+      } else {
+        // No readable token (should not happen behind authMiddleware): fall back to ending every session.
+        await User.findByIdAndUpdate(req.user?._id, { $inc: { tokenVersion: 1 } });
+      }
     }
     res.json({ success: true, message: 'Signed out' });
   } catch (error: any) {
@@ -413,6 +520,7 @@ export const changePassword = async (req: AuthRequest, res: Response) => {
     }
 
     user.password = await bcrypt.hash(newPassword, 10);
+    user.passwordResetRequired = false;
     // Every other session of this account ends; the caller gets a fresh token so they are not signed out.
     user.tokenVersion = (user.tokenVersion ?? 0) + 1;
     await user.save();

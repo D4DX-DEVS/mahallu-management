@@ -148,17 +148,28 @@ export default function EditFamily() {
     return <PageSkeleton />;
   }
 
+  /* The family may hold a grade or area its mahallu no longer lists (renamed or
+   * removed in Settings). Keep it selectable so the form doesn't show it as blank. */
+  const currentGrade = watch('varisangyaGrade') || '';
+  const currentArea = watch('area') || '';
+
   const gradeOptions = [
     { value: '', label: 'Select grade...' },
     ...grades.map((grade) => ({
       value: grade.name,
       label: `${toTitleCase(grade.name)} - ₹${grade.amount}`,
     })),
+    ...(currentGrade && !grades.some((grade) => grade.name === currentGrade)
+      ? [{ value: currentGrade, label: toTitleCase(currentGrade) }]
+      : []),
   ];
 
   const areaSelectOptions = [
     { value: '', label: 'Select area...' },
     ...areaOptions.map((area) => ({ value: area, label: toTitleCase(area) })),
+    ...(currentArea && !areaOptions.includes(currentArea)
+      ? [{ value: currentArea, label: toTitleCase(currentArea) }]
+      : []),
   ];
 
   const statusOptions = [
@@ -187,7 +198,7 @@ export default function EditFamily() {
                 disabled
                 className="bg-muted"
               />
-              <Select label="Status" options={statusOptions} {...register('status')} />
+              <Select label="Status" options={statusOptions} value={watch('status') || ''} {...register('status')} />
               <Input
                 label="House Name"
                 {...register('houseName')}
@@ -196,7 +207,7 @@ export default function EditFamily() {
                 placeholder="e.g. Al-Hamd House"
               />
               <Input label="House No." {...register('houseNo')} placeholder="e.g. 12/345" />
-              <Select label="Varisangya Grade" options={gradeOptions} {...register('varisangyaGrade')} />
+              <Select label="Varisangya Grade" options={gradeOptions} value={currentGrade} {...register('varisangyaGrade')} />
               <Input label="Family Head" {...register('familyHead')} placeholder="Head name" />
               <div className="hidden">
                 <Input label="House Name (Malayalam)" {...register('houseNameMl')} placeholder="വീട് പേര്" className="font-malayalam" />
@@ -227,7 +238,7 @@ export default function EditFamily() {
           <section className="space-y-4 border-t border-border pt-6">
             <h2 className="text-sm font-semibold text-foreground">Location</h2>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <Select label="Area" options={areaSelectOptions} {...register('area')} />
+              <Select label="Area" options={areaSelectOptions} value={currentArea} {...register('area')} />
               <Input label="Address" {...register('place')} placeholder="Address" />
               <div className="hidden">
                 <Input label="Area (Malayalam)" {...register('areaMl')} placeholder="പ്രദേശം" className="font-malayalam" />
@@ -239,7 +250,7 @@ export default function EditFamily() {
           </section>
 
           <div className="border-t border-border pt-6">
-            <WelfareSection register={register} defaultOpen />
+            <WelfareSection register={register} watch={watch} defaultOpen />
           </div>
 
           <div className="flex flex-col-reverse gap-3 border-t border-border pt-6 sm:flex-row sm:justify-end">

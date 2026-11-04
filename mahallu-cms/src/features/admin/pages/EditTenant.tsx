@@ -9,6 +9,7 @@ import Select from '@/components/ui/Select';
 import { Tenant } from '@/types/tenant';
 import { tenantService } from '@/services/tenantService';
 import { CLASSIFICATION_OPTIONS, TenantClassification } from '@/constants/modules';
+import { tenantTypeOptionsFor } from '@/constants/tenantTypes';
 import ModuleFeatureToggles from '../components/ModuleFeatureToggles';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import { toTitleCase } from '@/utils/format';
@@ -26,7 +27,7 @@ export default function EditTenant() {
     code: '',
     location: '',
     locationMl: '',
-    type: 'standard' as 'standard' | 'premium' | 'enterprise',
+    type: 'mahallu' as Tenant['type'],
     classification: 'fully_functional' as TenantClassification,
     features: {} as Record<string, boolean>,
     status: 'active' as 'active' | 'suspended' | 'inactive',
@@ -57,7 +58,7 @@ export default function EditTenant() {
         code: tenant.code || '',
         location: tenant.location || '',
         locationMl: tenant.locationMl || '',
-        type: tenant.type || 'standard',
+        type: tenant.type || 'mahallu',
         classification: ((tenant as any).classification || 'fully_functional') as TenantClassification,
         features: ((tenant as any).settings?.features || {}) as Record<string, boolean>,
         status: tenant.status || 'active',
@@ -219,11 +220,7 @@ export default function EditTenant() {
                 label="Type"
                 value={formData.type}
                 onChange={(e) => handleChange('type', e.target.value)}
-                options={[
-                  { value: 'standard', label: 'Standard' },
-                  { value: 'premium', label: 'Premium' },
-                  { value: 'enterprise', label: 'Enterprise' },
-                ]}
+                options={tenantTypeOptionsFor(formData.type)}
                 required
               />
 

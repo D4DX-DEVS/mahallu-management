@@ -34,6 +34,10 @@ export default {
           DEFAULT: 'hsl(var(--accent) / <alpha-value>)',
           foreground: 'hsl(var(--accent-foreground) / <alpha-value>)',
         },
+        subtle: {
+          DEFAULT: 'hsl(var(--subtle) / <alpha-value>)',
+          foreground: 'hsl(var(--subtle-foreground) / <alpha-value>)',
+        },
         destructive: {
           DEFAULT: 'hsl(var(--destructive) / <alpha-value>)',
           foreground: 'hsl(var(--destructive-foreground) / <alpha-value>)',
@@ -68,6 +72,27 @@ export default {
           700: '#207d50',
           800: '#1d6442',
           900: '#174f36',
+          950: '#012A1C',
+        },
+
+        /* ---- ZAAD dark-surface and accent tokens -------------------------
+         * Used by the shared components added from zaad-branding (pickers,
+         * filter bar, chips) in their `dark:` and focus styles. The values are
+         * ZAAD's own. No original screen uses these names.
+         */
+        surface: {
+          base: '#0F1412',
+          card: '#171D1A',
+          raised: '#1E2622',
+          hover: '#27322D',
+          border: '#2B3631',
+          'border-strong': '#3A4741',
+          text: '#F1F4F2',
+          muted: '#A5B0AA',
+        },
+        brand: {
+          lime: '#8EC13E',
+          night: '#012A1C',
         },
       },
 
@@ -94,15 +119,13 @@ export default {
 
       width: {
         /* The collapsed navigation rail. Paired with `ml-rail` on the content. */
-        rail: '5.625rem',
+        rail: '4.5rem',
+        /* The expanded navigation panel. Paired with `ml-sidebar`. */
+        sidebar: '17rem',
       },
       margin: {
-        rail: '5.625rem',
-        /* Five-pixel visual inset keeps the 90px rail aligned with the page. */
-        'rail-content': '5.9375rem',
-        /* Content offsets while a 14rem submenu flyout remains visible. */
-        'rail-flyout-content': '19.9375rem',
-        'expanded-flyout-content': '29rem',
+        rail: '4.5rem',
+        sidebar: '17rem',
       },
       padding: {
         /* The iOS home-indicator inset, under the mobile tab bar. */
@@ -153,6 +176,10 @@ export default {
         body: ['Manrope', 'Noto Sans Malayalam', 'system-ui', 'sans-serif'],
         title: ['Manrope', 'Noto Sans Malayalam', 'system-ui', 'sans-serif'],
         malayalam: ['Noto Sans Malayalam', 'sans-serif'],
+        /* The public landing page sets everything in Anek Malayalam, which has its own Latin glyphs. */
+        landing: ['Anek Malayalam', 'system-ui', 'sans-serif'],
+        /* The ayah and hadith Arabic on the landing page. */
+        arabic: ['Noto Sans Arabic', 'sans-serif'],
       },
 
       keyframes: {

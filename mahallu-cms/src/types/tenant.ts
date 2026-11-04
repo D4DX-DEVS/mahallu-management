@@ -1,9 +1,11 @@
+import type { LegacyTenantType, TenantType } from '@/constants/tenantTypes';
+
 export interface Tenant {
   id: string;
   name: string;
   nameMl?: string;
   code: string;
-  type: 'standard' | 'premium' | 'enterprise';
+  type: TenantType | LegacyTenantType;
   since: string;
   location: string;
   locationMl?: string;

@@ -1,3 +1,4 @@
+import { isTokenRevoked } from '../utils/revokedTokens';
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import User from '../models/User';
@@ -112,7 +113,7 @@ export const authMiddleware = async (
     // there may be no User document at all for the role being impersonated, so
     // every request re-resolves the REAL account first, exactly like a normal
     // session, before optionally overlaying an impersonated context on top.
-    const user = await User.findById(decoded.userId).select('-password');
+    const user = await User.findById(decoded.userId).select('-password +revokedTokens');
 
     if (!user) {
       return res.status(401).json({ success: false, message: "We couldn't find that user. It may have been removed." });
@@ -127,6 +128,10 @@ export const authMiddleware = async (
     // existed carry no `tv` and count as version 0, which is what an untouched account holds,
     // so existing sessions stay valid until the first security event.
     if ((decoded.tv ?? 0) !== ((user as any).tokenVersion ?? 0)) {
+      return res.status(401).json({ success: false, message: 'Your session has ended. Please sign in again to continue.' });
+    }
+    // This one session was signed out (logout). The user record is already loaded, so this costs no query.
+    if (isTokenRevoked((user as any).revokedTokens, token)) {
       return res.status(401).json({ success: false, message: 'Your session has ended. Please sign in again to continue.' });
     }
 

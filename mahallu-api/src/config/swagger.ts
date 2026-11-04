@@ -631,9 +631,9 @@ All responses follow this format:
           },
           type: {
             type: 'string',
-            enum: ['standard', 'premium', 'enterprise'],
-            example: 'standard',
-            default: 'standard',
+            enum: ['mahallu', 'juma_masjid'],
+            example: 'mahallu',
+            default: 'mahallu',
           },
           location: {
             type: 'string',
@@ -642,7 +642,7 @@ All responses follow this format:
           },
           address: {
             type: 'object',
-            required: ['state', 'district', 'lsgName', 'village'],
+            required: ['state', 'district', 'village'],
             properties: {
               state: {
                 type: 'string',
@@ -724,9 +724,9 @@ All responses follow this format:
           },
           type: {
             type: 'string',
-            enum: ['standard', 'premium', 'enterprise'],
-            example: 'standard',
-            default: 'standard',
+            enum: ['mahallu', 'juma_masjid'],
+            example: 'mahallu',
+            default: 'mahallu',
             description: 'Tenant subscription type',
           },
           location: {
@@ -736,7 +736,7 @@ All responses follow this format:
           },
           address: {
             type: 'object',
-            required: ['state', 'district', 'lsgName', 'village'],
+            required: ['state', 'district', 'village'],
             properties: {
               state: {
                 type: 'string',

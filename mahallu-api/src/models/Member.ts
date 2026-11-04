@@ -23,6 +23,8 @@ export interface IMember extends Document {
   marriageCount?: number;
   isOrphan?: boolean;
   isDead?: boolean;
+  dateOfDeath?: Date; // Set when a death registration for this member is approved
+  deathRecordId?: mongoose.Types.ObjectId; // The approved DeathRegistration that marked this member dead
   isFamilyHead?: boolean;
   relationship?: string; // Category key: 'relationship'
   relationshipOther?: string; // Free-text relationship, captured when relationship is 'other'
@@ -86,7 +88,15 @@ const MemberSchema = new Schema<IMember>(
     gender: {
       // Valid values now come from the Category system (key: 'gender') and
       // are enforced by validCategoryValue in memberValidation.ts.
+      // Required on a new member, whichever route creates it; members that
+      // already exist without one can still be saved.
       type: String,
+      required: [
+        function (this: { isNew?: boolean }) {
+          return this.isNew === true;
+        },
+        'Please choose the gender.',
+      ],
     },
     bloodGroup: {
       // Category key: 'blood_group'.
@@ -140,6 +150,8 @@ const MemberSchema = new Schema<IMember>(
       default: false,
       index: true,
     },
+    dateOfDeath: Date,
+    deathRecordId: { type: Schema.Types.ObjectId, ref: 'DeathRegistration' },
     isFamilyHead: {
       type: Boolean,
       default: false,

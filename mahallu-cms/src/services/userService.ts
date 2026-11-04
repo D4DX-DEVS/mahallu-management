@@ -65,6 +65,27 @@ export const userService = {
     return response.data.data;
   },
 
+  /** Set, change or (with '') remove a staff account's username. */
+  setUsername: async (id: string, username: string) => {
+    const response = await api.put<{ success: boolean; message: string; data: User }>(`/users/${id}/username`, {
+      username,
+    });
+    return response.data;
+  },
+
+  /**
+   * Replace a staff account's password. With no `newPassword` the server generates a one-time password and
+   * returns it ONCE as `temporaryPassword`; nothing here keeps it.
+   */
+  resetPassword: async (id: string, options: { newPassword?: string; confirmPassword?: string } = {}) => {
+    const response = await api.post<{
+      success: boolean;
+      message: string;
+      data: { userId: string; temporaryPassword?: string };
+    }>(`/users/${id}/reset-password`, { confirm: true, ...options });
+    return response.data;
+  },
+
   delete: async (id: string) => {
     const response = await api.delete<{ success: boolean; message: string }>(`/users/${id}`);
     return response.data;

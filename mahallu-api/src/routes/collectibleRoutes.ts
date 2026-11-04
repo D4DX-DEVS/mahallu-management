@@ -16,6 +16,8 @@ import {
   getCollectionsSummary,
   verifyVarisangya,
   verifyZakat,
+  rejectVarisangya,
+  rejectZakat,
 } from '../controllers/collectibleController';
 import { authMiddleware, allowRoles, requireAdmin } from '../middleware/authMiddleware';
 import { tenantMiddleware, tenantFilter } from '../middleware/tenantMiddleware';
@@ -29,6 +31,7 @@ import {
   collectionsSummaryValidation,
   walletQueryValidation,
   walletListValidation,
+  rejectPaymentValidation,
 } from '../validations/collectibleValidation';
 import { idParam, listQuery } from '../validations/common';
 
@@ -175,6 +178,8 @@ router.get('/dues', listQuery(), validationHandler, getFamilyDues);
  */
 router.post('/varisangya', createVarisangyaValidation, validationHandler, createVarisangya);
 router.put('/varisangya/:id/verify', idParam('id', 'payment'), validationHandler, allowRoles(['super_admin', 'mahall']), verifyVarisangya);
+// A pending member submission the admin did not receive: { rejectionReason? }. No receipt number is given.
+router.put('/varisangya/:id/reject', idParam('id', 'payment'), rejectPaymentValidation, validationHandler, allowRoles(['super_admin', 'mahall']), rejectVarisangya);
 router.put('/varisangya/:id', updateVarisangyaValidation, validationHandler, updateVarisangya);
 router.delete('/varisangya/:id', idParam('id', 'payment'), validationHandler, deleteVarisangya);
 
@@ -310,6 +315,7 @@ router.get('/zakat', listQuery(), validationHandler, getAllZakats);
  */
 router.post('/zakat', createZakatValidation, validationHandler, createZakat);
 router.put('/zakat/:id/verify', idParam('id', 'payment'), validationHandler, allowRoles(['super_admin', 'mahall']), verifyZakat);
+router.put('/zakat/:id/reject', idParam('id', 'payment'), rejectPaymentValidation, validationHandler, allowRoles(['super_admin', 'mahall']), rejectZakat);
 router.put('/zakat/:id', updateZakatValidation, validationHandler, updateZakat);
 router.delete('/zakat/:id', idParam('id', 'payment'), validationHandler, deleteZakat);
 

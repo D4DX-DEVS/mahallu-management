@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import Card from '@/components/ui/Card';
 import StatCard from '@/components/ui/StatCard';
 import Button from '@/components/ui/Button';
-import Input from '@/components/ui/Input';
+import DateRangePicker from '@/components/ui/DateRangePicker';
 import Select from '@/components/ui/Select';
 import Alert from '@/components/ui/Alert';
 import Pagination from '@/components/ui/Pagination';
@@ -21,6 +21,7 @@ import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
 import { fetchAllPages } from '@/services/api';
 import { logError } from '@/utils/safeLog';
+import { monthStartISO, todayISO } from '@/utils/dates';
 
 export default function DayBook() {
   const { currentInstituteId: userInstituteId } = useAuthStore();
@@ -36,12 +37,8 @@ export default function DayBook() {
   const [paging, setPaging] = useState(false);
   const [institutes, setInstitutes] = useState<{ id: string; name: string }[]>([]);
   const [instituteFilter, setInstituteFilter] = useState(userInstituteId || 'all');
-  const [startDate, setStartDate] = useState(() => {
-    const d = new Date();
-    d.setDate(1);
-    return d.toISOString().split('T')[0];
-  });
-  const [endDate, setEndDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [startDate, setStartDate] = useState(() => monthStartISO());
+  const [endDate, setEndDate] = useState(() => todayISO());
 
   useEffect(() => {
     if (!userInstituteId) fetchInstitutes();
@@ -105,20 +102,16 @@ export default function DayBook() {
 
       <Card>
         <div className="flex flex-wrap items-end gap-4 mb-4">
-          <div className="w-full sm:w-44">
-            <Input
-              label="Start Date"
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-            />
-          </div>
-          <div className="w-full sm:w-44">
-            <Input
-              label="End Date"
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
+          <div className="w-full sm:w-72">
+            <DateRangePicker
+              label="Date range"
+              from={startDate}
+              to={endDate}
+              onChange={(from, to) => {
+                setStartDate(from);
+                setEndDate(to);
+              }}
+              className="h-10 max-sm:h-10"
             />
           </div>
           {!userInstituteId && (

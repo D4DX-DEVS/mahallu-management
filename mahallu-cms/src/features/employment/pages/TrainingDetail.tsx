@@ -17,6 +17,7 @@ import PageHeader from '@/components/layout/PageHeader';
 import Input from '@/components/ui/Input';
 import { FieldRule, validateForm, firstError, LIMITS } from '@/utils/validation';
 import { toTitleCase } from '@/utils/format';
+import Select from '@/components/ui/Select';
 
 /** The same rules as the create form and the API. */
 const RULES: Record<string, FieldRule> = {
@@ -284,18 +285,18 @@ export default function TrainingDetail() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-900 mb-2">Status</label>
-                <select
+                <Select
                   aria-label="Status"
                   name="status"
                   value={formData.status || 'planned'}
                   onChange={handleChange}
-                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="planned">Planned</option>
-                  <option value="ongoing">Ongoing</option>
-                  <option value="completed">Completed</option>
-                  <option value="cancelled">Cancelled</option>
-                </select>
+                  options={[
+                    { value: 'planned', label: 'Planned' },
+                    { value: 'ongoing', label: 'Ongoing' },
+                    { value: 'completed', label: 'Completed' },
+                    { value: 'cancelled', label: 'Cancelled' },
+                  ]}
+                />
               </div>
             </div>
 
@@ -353,19 +354,18 @@ export default function TrainingDetail() {
             <div className="bg-gray-50 p-4 rounded-lg space-y-3">
               <div>
                 <label className="block text-sm font-medium text-gray-900 mb-2">Select Member</label>
-                <select
+                <Select
                   aria-label="Select Member"
                   value={selectedMemberId}
                   onChange={(e) => setSelectedMemberId(e.target.value)}
-                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">Choose a member...</option>
-                  {members.map((member) => (
-                    <option key={member.id} value={member.id}>
-                      {toTitleCase(member.name)} ({toTitleCase(member.familyName)})
-                    </option>
-                  ))}
-                </select>
+                  options={[
+                    { value: '', label: 'Choose a member...' },
+                    ...members.map((member) => ({
+                      value: member.id,
+                      label: `${toTitleCase(member.name)} (${toTitleCase(member.familyName)})`,
+                    })),
+                  ]}
+                />
               </div>
               <div className="flex flex-wrap gap-2">
                 <Button
@@ -403,18 +403,13 @@ export default function TrainingDetail() {
                       </td>
                       <td className="px-4 py-3 text-sm">
                         {editingParticipantId === getMemberId(participant) ? (
-                          <select
+                          <Select
                             aria-label="Filter"
                             value={editingOutcome}
                             onChange={(e) => setEditingOutcome(e.target.value)}
-                            className="px-2 py-1 border rounded text-sm"
-                          >
-                            {EMPLOYMENT_OUTCOME_OPTIONS.map((opt) => (
-                              <option key={opt.value} value={opt.value}>
-                                {opt.label}
-                              </option>
-                            ))}
-                          </select>
+                            className="!h-8 text-sm"
+                            options={EMPLOYMENT_OUTCOME_OPTIONS.map((opt) => ({ value: opt.value, label: opt.label }))}
+                          />
                         ) : (
                           <span className="capitalize">
                             {EMPLOYMENT_OUTCOME_OPTIONS.find(

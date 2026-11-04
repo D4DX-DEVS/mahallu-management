@@ -7,6 +7,8 @@ import SearchableSelect from '@/components/ui/SearchableSelect';
 import { FiTrash2, FiPlus } from 'react-icons/fi';
 import { createInheritanceCase } from '@/services/counsellingService';
 import { memberService } from '@/services/memberService';
+import { useMemberAutofill } from '@/hooks/useMemberAutofill';
+import { inheritanceFill } from '@/utils/memberAutofill';
 import { fetchAllPages } from '@/services/api';
 import { errorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
@@ -27,12 +29,14 @@ export default function InheritanceCreate() {
     control,
     handleSubmit,
     setValue,
+    getValues,
     formState: { errors },
   } = useForm<FormData>({
     defaultValues: {
       heirs: [{ name: '', relation: '', contactNo: '' }],
     },
   });
+  const autofill = useMemberAutofill({ setValue, getValues });
   const {
     fields: heirsFields,
     append: appendHeir,
@@ -105,7 +109,12 @@ export default function InheritanceCreate() {
                       <SearchableSelect
                         label="Deceased Member (Optional)"
                         value={field.value}
-                        onChange={field.onChange}
+                        onChange={(value: string) => {
+                          field.onChange(value);
+                          // The selected member supplies the deceased's name.
+                          const picked = value ? members.find((m) => (m._id || m.id) === value) : undefined;
+                          void autofill(picked ?? null, (member) => inheritanceFill(member));
+                        }}
                         options={members.map((member: any) => ({
                           value: member._id || member.id,
                           label: `${toTitleCase(member.name)}${member.familyName ? ` - ${toTitleCase(member.familyName)}` : ''}`,

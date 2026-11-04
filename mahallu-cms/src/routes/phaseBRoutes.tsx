@@ -83,7 +83,7 @@ import AnnualReport from '@/features/reports/pages/AnnualReport';
 import DevelopmentIndex from '@/features/reports/pages/DevelopmentIndex';
 import Assistant from '@/features/assistant/pages/Assistant';
 import Security from '@/features/admin/pages/Security';
-import { route, AppRole } from './routeHelpers';
+import { route, superAdminRoute, AppRole } from './routeHelpers';
 
 const mahallOnly: { allowedRoles: AppRole[] } = { allowedRoles: ['super_admin', 'mahall'] };
 const educationRoles: { allowedRoles: AppRole[] } = {
@@ -187,8 +187,8 @@ export const phaseBRoutes = [
   route('/inheritance/:id', <InheritanceDetail />, mahallOnly),
 
   // Marriage services (B9)
-  route('/registrations/marriage-assistance', <MarriageAssistanceList />, mahallOnly),
-  route('/registrations/marriage-assistance/create', <CreateMarriageAssistance />, mahallOnly, { label: 'New Marriage Assistance' }),
+  superAdminRoute('/registrations/marriage-assistance', <MarriageAssistanceList />),
+  superAdminRoute('/registrations/marriage-assistance/create', <CreateMarriageAssistance />, { label: 'New Marriage Assistance' }),
 
   // Cemetery (B10)
   route('/cemetery', <CemeteriesList />, mahallOnly),

@@ -11,6 +11,10 @@ export interface ICommittee extends Document {
   termEndDate?: Date;
   maxTermYears: number;
   status: 'active' | 'inactive';
+  /** 'mahallu' is the Mahallu's own governing committee: at most one per tenant. */
+  kind: 'general' | 'mahallu';
+  /** Office bearers (President, Secretary, ...) of the committee. */
+  officeBearers: Array<{ member: mongoose.Types.ObjectId; role: string }>;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -61,6 +65,18 @@ const CommitteeSchema = new Schema<ICommittee>(
       enum: ['active', 'inactive'],
       default: 'active',
     },
+    kind: {
+      type: String,
+      enum: ['general', 'mahallu'],
+      default: 'general',
+    },
+    officeBearers: [
+      {
+        _id: false,
+        member: { type: Schema.Types.ObjectId, ref: 'Member', required: true },
+        role: { type: String, required: true, trim: true, maxlength: 60 },
+      },
+    ],
   },
   {
     timestamps: true,
@@ -70,6 +86,8 @@ const CommitteeSchema = new Schema<ICommittee>(
 // Hot list queries: status board and the "term expiring" sweep
 CommitteeSchema.index({ tenantId: 1, status: 1 });
 CommitteeSchema.index({ tenantId: 1, termEndDate: 1 });
+// One governing (Mahallu) committee per tenant
+CommitteeSchema.index({ tenantId: 1, kind: 1 }, { unique: true, partialFilterExpression: { kind: 'mahallu' } });
 
 export default mongoose.model<ICommittee>('Committee', CommitteeSchema);
 

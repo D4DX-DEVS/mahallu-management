@@ -6,18 +6,30 @@ export interface NikahRegistration {
   groomName: string;
   groomNameMl?: string;
   groomAge?: number;
+  groomAddress?: string;
+  /** Document id of the groom's photo (read through GET /documents/:id/url). null removes it on update. */
+  groomPhotoId?: string | null;
   groomId?: string;
   brideName: string;
   brideNameMl?: string;
   brideAge?: number;
+  brideAddress?: string;
+  bridePhotoId?: string | null;
   brideId?: string;
   mahallMemberType?: 'groom' | 'bride';
   nikahDate: string;
   mahallId?: string;
   waliName?: string;
   witness1?: string;
+  witness1Phone?: string;
+  witness1Address?: string;
   witness2?: string;
+  witness2Phone?: string;
+  witness2Address?: string;
+  /** Recorded on older registrations only; the form asks for a mahr type now. */
   mahrAmount?: number;
+  mahrType?: 'gold_or_ornaments' | 'cash' | 'land' | 'other';
+  mahrTypeOther?: string;
   mahrDescription?: string;
   status?: 'pending' | 'correction_required' | 'approved' | 'rejected';
   remarks?: string;

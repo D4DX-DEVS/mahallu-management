@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import Select from '@/components/ui/Select';
 import { useParams, useNavigate } from 'react-router-dom';
 import { FiArrowLeft, FiEdit2, FiSave, FiTrash2 } from 'react-icons/fi';
 import Button from '@/components/ui/Button';
@@ -157,18 +158,12 @@ export default function DisputesDetail() {
               <div className="space-y-3">
                 <div>
                   <label className="block text-sm font-medium mb-2">Status</label>
-                  <select
+                  <Select
                     aria-label="Status"
                     value={editStatus}
                     onChange={(e) => setEditStatus(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                  >
-                    {STATUSES.map((sts) => (
-                      <option key={sts} value={sts}>
-                        {sts.charAt(0).toUpperCase() + sts.slice(1)}
-                      </option>
-                    ))}
-                  </select>
+                    options={STATUSES.map((sts) => ({ value: sts, label: sts.charAt(0).toUpperCase() + sts.slice(1) }))}
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-2">Resolution Notes</label>

@@ -30,11 +30,14 @@ const router = express.Router();
 router.use(authMiddleware);
 router.use(tenantMiddleware);
 router.use(tenantFilter);
-// Welfare records (beneficiaries, assistance) are sensitive: the CMS shows them to Mahallu admin and survey
-// workers who hold the 'welfare' sensitive module, and the API now requires the same. An institute admin has
-// no welfare screen, so a granted permission cannot open it either.
+// An institute admin has no welfare screen, so a granted permission cannot open it either.
 router.use(requireFieldStaff);
-router.use(sensitiveAccess('welfare'));
+
+// Welfare records (applications, beneficiaries, assistance paid) are sensitive: the CMS shows them to Mahallu
+// admin and survey workers who hold the 'welfare' sensitive module, and the API requires the same. The scheme
+// catalogue is not a record about anyone - it is the list of programmes - and the CMS shows "Welfare schemes" to
+// every Mahallu admin without the module. Gating it here as well answered 403 on a screen the menu offers.
+const welfareRecords = sensitiveAccess('welfare');
 
 /**
  * @swagger
@@ -83,7 +86,7 @@ router.get('/schemes', listQuery(), validationHandler, getAllSchemes);
  *       200:
  *         description: Summary card data
  */
-router.get('/summary', listQuery(), validationHandler, getWelfareSummary);
+router.get('/summary', welfareRecords, listQuery(), validationHandler, getWelfareSummary);
 
 /**
  * @swagger
@@ -117,7 +120,7 @@ router.get('/summary', listQuery(), validationHandler, getWelfareSummary);
  *       200:
  *         description: Application list
  */
-router.get('/applications', listQuery(), validationHandler, getAllApplications);
+router.get('/applications', welfareRecords, listQuery(), validationHandler, getAllApplications);
 
 /**
  * @swagger
@@ -139,7 +142,7 @@ router.get('/applications', listQuery(), validationHandler, getAllApplications);
  *       404:
  *         $ref: '#/components/responses/NotFound'
  */
-router.get('/applications/:id', idParam('id', 'record'), validationHandler, getApplicationById);
+router.get('/applications/:id', welfareRecords, idParam('id', 'record'), validationHandler, getApplicationById);
 
 /**
  * @swagger
@@ -305,7 +308,7 @@ router.delete('/schemes/:id', idParam('id', 'record'), validationHandler, allowR
  *       201:
  *         description: Created
  */
-router.post('/applications', createWelfareApplicationValidation, validationHandler, allowRoles(['mahall', 'survey']), createApplication);
+router.post('/applications', welfareRecords, createWelfareApplicationValidation, validationHandler, allowRoles(['mahall', 'survey']), createApplication);
 
 /**
  * @swagger
@@ -371,7 +374,7 @@ router.post('/applications', createWelfareApplicationValidation, validationHandl
  *       404:
  *         description: Application not found
  */
-router.put('/applications/:id', updateWelfareApplicationValidation, validationHandler, allowRoles(['mahall']), updateApplication);
+router.put('/applications/:id', welfareRecords, updateWelfareApplicationValidation, validationHandler, allowRoles(['mahall']), updateApplication);
 
 /**
  * @swagger
@@ -418,7 +421,7 @@ router.put('/applications/:id', updateWelfareApplicationValidation, validationHa
  *       400:
  *         description: Illegal status transition
  */
-router.put('/applications/:id/status', updateWelfareApplicationStatusValidation, validationHandler, allowRoles(['mahall']), updateApplicationStatus);
-router.delete('/applications/:id', idParam('id', 'record'), validationHandler, allowRoles(['mahall']), deleteApplication);
+router.put('/applications/:id/status', welfareRecords, updateWelfareApplicationStatusValidation, validationHandler, allowRoles(['mahall']), updateApplicationStatus);
+router.delete('/applications/:id', welfareRecords, idParam('id', 'record'), validationHandler, allowRoles(['mahall']), deleteApplication);
 
 export default router;

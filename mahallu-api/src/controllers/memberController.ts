@@ -14,14 +14,16 @@ import { regexLiteral } from '../utils/queryGuard';
 import { isValidId, MSG, tenantFilterFor } from '../utils/scope';
 import { createWithSequence, maxNumericSuffix, reserveBlock } from '../utils/idCounter';
 
+const BLOOD_GROUPS = ['A +ve', 'A -ve', 'B +ve', 'B -ve', 'AB +ve', 'AB -ve', 'O +ve', 'O -ve'];
+
 /** Counter key for member ids: one sequence per family (ids read FID12-1, FID12-2 ...), per Mahallu. */
-const memberKey = (tenantId: string, familyId: unknown) => `member:${tenantId}:${String(familyId)}`;
+export const memberKey = (tenantId: string, familyId: unknown) => `member:${tenantId}:${String(familyId)}`;
 
 /**
  * First use of a family's counter starts after the highest number already used in it, and never
  * below the number of members the family has (the old "count + 1" rule), so nothing is reissued.
  */
-const memberSeed = (tenantId: string, family: { _id: unknown; mahallId?: string }) => async () => {
+export const memberSeed = (tenantId: string, family: { _id: unknown; mahallId?: string }) => async () => {
   const [count, max] = await Promise.all([
     Member.countDocuments({ familyId: family._id }),
     maxNumericSuffix(
@@ -87,6 +89,14 @@ export const getAllMembers = async (req: AuthRequest, res: Response) => {
 
     if (familyId) query.familyId = familyId;
     if (gender) query.gender = gender;
+    // Exact blood group, spelled as the app stores it ('O -ve'); same list the blood bank report accepts.
+    const bloodGroup = req.query.bloodGroup;
+    if (bloodGroup !== undefined && bloodGroup !== '') {
+      if (typeof bloodGroup !== 'string' || !BLOOD_GROUPS.includes(bloodGroup)) {
+        return res.status(400).json({ success: false, message: 'Please choose a valid blood group.' });
+      }
+      query.bloodGroup = bloodGroup;
+    }
     if (req.query.institutionId) query.educationInstitutionId = req.query.institutionId;
     if (req.query.localityFacilityId) query.localityFacilityId = req.query.localityFacilityId;
     if (req.query.unenrolled === 'true') {
@@ -106,7 +116,14 @@ export const getAllMembers = async (req: AuthRequest, res: Response) => {
     const sort: any = {};
     if (sortBy === 'mahallId') sort.mahallId = 1;
     else if (sortBy === 'name') sort.name = 1;
-    else sort.createdAt = -1;
+    else if (sortBy === 'family') {
+      // Family-wise: members of one family stay together, keyed on the family's own id. The denormalised
+      // familyName is not used: renaming a family does not update it, so it could split one family in two.
+      // Within a family, members come in the order they joined it; _id makes the order identical on every page.
+      sort.familyId = 1;
+      sort.createdAt = 1;
+      sort._id = 1;
+    } else sort.createdAt = -1;
 
     const [members, total] = await Promise.all([
       Member.find(query)
@@ -520,12 +537,18 @@ export const bulkImportMembers = async (req: AuthRequest, res: Response) => {
         return;
       }
 
+      // Gender is required: Male + Female must add up to the total on the dashboard.
+      if (!['male', 'female'].includes(m.gender)) {
+        errors.push({ row: i + 1, message: 'Please choose the gender (male or female).' });
+        return;
+      }
+
       docs.push({
         name: m.name.trim(),
         nameMl: m.nameMl || m.name_ml || undefined,
         familyId,
         familyName: family.houseName,
-        gender: ['male', 'female'].includes(m.gender) ? m.gender : undefined,
+        gender: m.gender,
         age: m.age && Number(m.age) > 0 ? Number(m.age) : undefined,
         maritalStatus: ['single', 'married', 'divorced', 'widowed'].includes(m.maritalStatus)
           ? m.maritalStatus

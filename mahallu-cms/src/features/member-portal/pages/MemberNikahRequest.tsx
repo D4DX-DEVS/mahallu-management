@@ -12,6 +12,7 @@ import PageHeader from '@/components/layout/PageHeader';
 import { FieldRule, validateForm as checkFields, LIMITS } from '@/utils/validation';
 import { checkUploadedFile } from '@/utils/validation';
 import { toTitleCase } from '@/utils/format';
+import { useSubjectPartyAutofill } from '@/hooks/useSubjectPartyAutofill';
 
 /** Mirrors the API's nikah rules (`memberUserValidation.ts`). */
 const NIKAH_RULES: Record<string, FieldRule> = {
@@ -63,6 +64,14 @@ export default function MemberNikahRequest() {
     'id_proof' | 'age_proof' | 'photo' | 'address_proof' | 'divorce_doc' | 'death_proof' | 'other'
   >('id_proof');
   const [uploading, setUploading] = useState(false);
+  // Picking a family member puts their name and age on the groom/bride side chosen above.
+  useSubjectPartyAutofill({
+    subject: familyMembers.find((m) => m.id === subjectMemberId),
+    side,
+    values: { groomName, groomAge, brideName, brideAge },
+    setters: { groomName: setGroomName, groomAge: setGroomAge, brideName: setBrideName, brideAge: setBrideAge },
+  });
+
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -202,7 +211,8 @@ export default function MemberNikahRequest() {
     );
   }
 
-  const isFamilyHead = overview?.member.id === user?.id;
+  // The server says whether this member heads their family (a Member id never equals the signed-in User id).
+  const isFamilyHead = overview?.isFamilyHead === true;
 
   return (
     <div className="space-y-4 max-w-2xl w-full mx-auto">

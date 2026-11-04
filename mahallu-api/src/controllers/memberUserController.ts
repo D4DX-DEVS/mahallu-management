@@ -1,7 +1,7 @@
 import { Response } from 'express';
 import Member from '../models/Member';
 import Family from '../models/Family';
-import { Varisangya, Zakat, Wallet, Transaction } from '../models/Collectible';
+import { Varisangya, Zakat, Wallet, Transaction, RECEIVED_PAYMENT_STATUS, isReceivedPayment } from '../models/Collectible';
 import { NikahRegistration, DeathRegistration, NOC } from '../models/Registration';
 import Notification, { notificationForViewer } from '../models/Notification';
 import Institute from '../models/Institute';
@@ -19,6 +19,7 @@ import { sanitizeRichText } from '../utils/htmlSanitizer';
 import { activeBannerFilter } from '../utils/bannerWindow';
 import Certificate from '../models/Certificate';
 import { getSignedDownloadUrl } from '../services/uploadService';
+import { DUPLICATE_DEATH_MESSAGE, hasOpenDeathRecord } from '../services/deathRecordService';
 
 /**
  * Validates that the given document ids were uploaded by this member,
@@ -159,7 +160,7 @@ export const getOwnOverview = async (req: AuthRequest, res: Response) => {
         {
           $match: {
             tenantId: member.tenantId,
-            status: { $ne: 'pending' },
+            status: RECEIVED_PAYMENT_STATUS,
             ...(familyId ? { familyId } : { memberId: member._id }),
           },
         },
@@ -176,7 +177,7 @@ export const getOwnOverview = async (req: AuthRequest, res: Response) => {
           $match: {
             tenantId: member.tenantId,
             payerId: member._id,
-            status: { $ne: 'pending' },
+            status: RECEIVED_PAYMENT_STATUS,
           },
         },
         {
@@ -387,15 +388,16 @@ export const getOwnVarisangya = async (req: AuthRequest, res: Response) => {
     ]);
 
     // Only a verified payment is 'paid' and counts towards the totals; a submission still waiting for
-    // an admin is 'pending' and is reported separately. (No status = an older, received payment.)
+    // an admin is 'pending' and is reported separately, a rejected one counts nowhere.
+    // (No status = an older, received payment.)
     const isPending = (v: any) => v.status === 'pending';
-    const received = (rows: any[]) => rows.filter((v) => !isPending(v));
+    const received = (rows: any[]) => rows.filter(isReceivedPayment);
     const sum = (rows: any[]) => rows.reduce((total: number, v: any) => total + (v.amount || 0), 0);
     const memberReceived = received(memberVarisangya);
     const familyReceived = received(familyVarisangya);
     const memberPending = memberVarisangya.filter(isPending);
     const familyPending = familyVarisangya.filter(isPending);
-    const label = (v: any) => ({ ...v, status: isPending(v) ? 'pending' : 'paid' });
+    const label = (v: any) => ({ ...v, status: isReceivedPayment(v) ? 'paid' : v.status });
 
     res.json({
       success: true,
@@ -916,6 +918,10 @@ export const requestDeathRegistration = async (req: AuthRequest, res: Response) 
       deceased = found;
     }
 
+    if (await hasOpenDeathRecord(member.tenantId, deceased._id)) {
+      return res.status(409).json({ success: false, message: DUPLICATE_DEATH_MESSAGE });
+    }
+
     const missingDeathDocs = await findMissingRequiredDocs(req.body.documents, member, 'death');
     if (missingDeathDocs.length > 0) {
       return res.status(400).json({
@@ -1243,6 +1249,9 @@ export const getOwnNotifications = async (req: AuthRequest, res: Response) => {
       tenantId: member.tenantId,
       $or: [
         { recipientType: 'member', recipientId: member._id },
+        ...(req.user?._id ? [{ recipientType: 'user', recipientId: req.user._id }] : []),
+        // A group this member is in (several people, their family, a committee).
+        { recipientIds: { $in: [member._id, ...(req.user?._id ? [req.user._id] : [])] } },
         { recipientType: 'all' },
       ],
     };
@@ -1366,6 +1375,7 @@ export const getPublicFeeds = async (req: AuthRequest, res: Response) => {
     const query: any = {
       tenantId: member.tenantId,
       status: 'published',
+      isDeleted: { $ne: true },
     };
 
     const [feeds, total] = await Promise.all([
@@ -1437,12 +1447,53 @@ const REGISTRATION_MODELS = { nikah: NikahRegistration, death: DeathRegistration
 type RegistrationType = keyof typeof REGISTRATION_MODELS;
 const REGISTRATION_TYPES = Object.keys(REGISTRATION_MODELS) as RegistrationType[];
 
-/** Fields of a certificate a member may see. The storage key and the internal issue key never leave the server. */
-const MEMBER_CERTIFICATE_FIELDS = 'certificateNo type status issueDate issuedBy revokedReason registrationId createdAt';
+/**
+ * The certificates a member may see: those concerning anyone in their family/house, plus those of
+ * registrations GET /member-user/registrations returns to them (and death registrations of their house).
+ * Always inside the member's own Mahallu.
+ */
+const ownCertificateScope = async (member: any): Promise<Record<string, any>> => {
+  const family = member.familyId
+    ? await Member.find({ tenantId: member.tenantId, familyId: member.familyId, status: { $ne: 'deleted' } }).select('_id').lean()
+    : [];
+  const familyIds = [member._id, ...family.map((m: any) => m._id)];
+
+  const queries = ownRegistrationQueries(member);
+  if (member.familyId) (queries.death.$or as any[]).push({ familyId: member.familyId });
+  const owned = await Promise.all(
+    REGISTRATION_TYPES.map(async (type) => {
+      const rows: any[] = await (REGISTRATION_MODELS[type] as any).find(queries[type]).select('_id').lean();
+      return { type, ids: rows.map((r) => r._id) };
+    })
+  );
+
+  return {
+    tenantId: member.tenantId,
+    $or: [
+      { subjectMemberIds: { $in: familyIds } },
+      ...owned.filter((o) => o.ids.length > 0).map((o) => ({ type: o.type, registrationId: { $in: o.ids } })),
+    ],
+  };
+};
+
+/** Who the certificate is for, from its registration (bride & groom, the deceased, the applicant). */
+const subjectNames = async (certs: any[]): Promise<Map<string, string>> => {
+  const names = new Map<string, string>();
+  const idsOf = (type: string) => certs.filter((c) => c.type === type).map((c) => c.registrationId);
+  const [nikahs, deaths, nocs] = await Promise.all([
+    NikahRegistration.find({ _id: { $in: idsOf('nikah') } }).select('groomName brideName').lean(),
+    DeathRegistration.find({ _id: { $in: idsOf('death') } }).select('deceasedName').lean(),
+    NOC.find({ _id: { $in: idsOf('noc') } }).select('applicantName').lean(),
+  ]);
+  for (const r of nikahs as any[]) names.set(String(r._id), [r.groomName, r.brideName].filter(Boolean).join(' & '));
+  for (const r of deaths as any[]) names.set(String(r._id), r.deceasedName);
+  for (const r of nocs as any[]) names.set(String(r._id), r.applicantName);
+  return names;
+};
 
 // GET /api/member-user/certificates?page&limit&type
-// A certificate is the member's when its registration is one GET /member-user/registrations returns to
-// them (same ownership queries). Revoked certificates are included so the screen can show them as such.
+// Issued (not revoked) certificates of the member and their family/house:
+// { _id, type, certificateNo, issuedAt, subjectName, status: 'issued' }.
 export const getOwnCertificates = async (req: AuthRequest, res: Response) => {
   try {
     if (!req.user?.memberId) {
@@ -1462,40 +1513,37 @@ export const getOwnCertificates = async (req: AuthRequest, res: Response) => {
 
     const { page, limit, skip } = getPaginationParams(req);
     const requested = req.query.type as RegistrationType | undefined;
-    const types = requested ? REGISTRATION_TYPES.filter((t) => t === requested) : REGISTRATION_TYPES;
-    const queries = ownRegistrationQueries(member);
-
-    const owned = await Promise.all(
-      types.map(async (type) => {
-        const rows: any[] = await (REGISTRATION_MODELS[type] as any).find(queries[type]).select('_id').lean();
-        return { type, ids: rows.map((r) => r._id) };
-      })
-    );
-    const clauses = owned.filter((o) => o.ids.length > 0).map((o) => ({ type: o.type, registrationId: { $in: o.ids } }));
-    if (clauses.length === 0) {
-      return res.json(createPaginationResponse([], 0, page, limit));
-    }
-
-    const query = { tenantId: member.tenantId, $or: clauses };
+    const query = {
+      ...(await ownCertificateScope(member)),
+      status: 'valid',
+      ...(requested ? { type: requested } : {}),
+    };
     const [certs, total] = await Promise.all([
-      Certificate.find(query).select(MEMBER_CERTIFICATE_FIELDS).sort({ createdAt: -1 }).skip(skip).limit(limit),
+      Certificate.find(query).select('certificateNo type issueDate registrationId').sort({ issueDate: -1, _id: -1 }).skip(skip).limit(limit).lean(),
       Certificate.countDocuments(query),
     ]);
 
-    res.json(createPaginationResponse(certs, total, page, limit));
+    const names = await subjectNames(certs);
+    const data = certs.map((c: any) => ({
+      _id: c._id,
+      type: c.type,
+      certificateNo: c.certificateNo,
+      issuedAt: c.issueDate,
+      subjectName: names.get(String(c.registrationId)) || null,
+      status: 'issued',
+    }));
+
+    res.json(createPaginationResponse(data, total, page, limit));
   } catch (error: any) {
     sendFailure(res, error, "We couldn't load your certificates right now. Please try again.");
   }
 };
 
-// GET /api/member-user/certificates/:id/download — a short-lived link to the PDF.
-// Not the member's certificate (or not in their Mahallu) answers 404, exactly like one that doesn't
-// exist; a revoked one answers 403.
+// GET /api/member-user/certificates/:id/download — a short-lived link to the PDF the admin issue stored.
+// Not the member's (or their family's) certificate answers 404, exactly like one that doesn't exist;
+// a revoked one answers 410.
 export const downloadOwnCertificate = async (req: AuthRequest, res: Response) => {
   try {
-    const notFound = () =>
-      res.status(404).json({ success: false, message: "We couldn't find that certificate. It may have been removed." });
-
     if (!req.user?.memberId) {
       return res.status(404).json({
         success: false,
@@ -1511,18 +1559,13 @@ export const downloadOwnCertificate = async (req: AuthRequest, res: Response) =>
       });
     }
 
-    const cert = await Certificate.findOne({ _id: req.params.id, tenantId: member.tenantId });
-    if (!cert || !REGISTRATION_TYPES.includes(cert.type as RegistrationType)) return notFound();
-
-    const ownership = ownRegistrationQueries(member)[cert.type as RegistrationType];
-    const isOwn = await (REGISTRATION_MODELS[cert.type as RegistrationType] as any).exists({
-      ...ownership,
-      _id: cert.registrationId,
-    });
-    if (!isOwn) return notFound();
+    const cert = await Certificate.findOne({ ...(await ownCertificateScope(member)), _id: req.params.id });
+    if (!cert) {
+      return res.status(404).json({ success: false, message: "We couldn't find that certificate. It may have been removed." });
+    }
 
     if (cert.status === 'revoked') {
-      return res.status(403).json({
+      return res.status(410).json({
         success: false,
         message: 'This certificate has been revoked and can no longer be downloaded.',
       });

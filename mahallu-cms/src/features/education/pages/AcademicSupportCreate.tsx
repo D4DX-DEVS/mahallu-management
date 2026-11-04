@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import Select from '@/components/ui/Select';
 import { useNavigate } from 'react-router-dom';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
@@ -121,36 +122,24 @@ export default function AcademicSupportCreate() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium mb-2">Type *</label>
-              <select
+              <Select
                 aria-label="Type"
                 name="type"
                 value={formData.type}
                 onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700"
-              >
-                {SUPPORT_CASE_TYPE_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
+                options={SUPPORT_CASE_TYPE_OPTIONS.map((opt) => ({ value: opt.value, label: opt.label }))}
+              />
             </div>
 
             <div>
               <label className="block text-sm font-medium mb-2">Status</label>
-              <select
+              <Select
                 aria-label="Status"
                 name="status"
                 value={formData.status}
                 onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700"
-              >
-                {SUPPORT_CASE_STATUS_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
+                options={SUPPORT_CASE_STATUS_OPTIONS.map((opt) => ({ value: opt.value, label: opt.label }))}
+              />
             </div>
           </div>
 

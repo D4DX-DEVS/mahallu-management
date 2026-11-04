@@ -11,8 +11,11 @@ export interface IVarisangya extends Document {
   receiptNo?: string;
   remarks?: string;
   remarksMl?: string;
-  status?: 'pending' | 'verified'; // member submissions start pending; admin entries are verified
+  status?: 'pending' | 'verified' | 'rejected'; // member submissions start pending; admin entries are verified
   source?: 'admin' | 'member';
+  rejectionReason?: string;
+  rejectedBy?: mongoose.Types.ObjectId;
+  rejectedAt?: Date;
   /** Client-generated id that makes a retried / double-submitted create idempotent (unique per tenant). */
   clientRequestId?: string;
   verifiedBy?: mongoose.Types.ObjectId;
@@ -33,8 +36,11 @@ export interface IZakat extends Document {
   category?: string;
   remarks?: string;
   remarksMl?: string;
-  status?: 'pending' | 'verified';
+  status?: 'pending' | 'verified' | 'rejected';
   source?: 'admin' | 'member';
+  rejectionReason?: string;
+  rejectedBy?: mongoose.Types.ObjectId;
+  rejectedAt?: Date;
   clientRequestId?: string;
   verifiedBy?: mongoose.Types.ObjectId;
   verifiedAt?: Date;
@@ -70,6 +76,13 @@ export interface ITransaction extends Document {
   createdAt: Date;
 }
 
+/**
+ * Payments whose money was received: verified, or older rows with no status (they predate the field and
+ * were always received). Pending (waiting for an admin) and rejected payments never count.
+ */
+export const RECEIVED_PAYMENT_STATUS = { $nin: ['pending', 'rejected'] };
+export const isReceivedPayment = (doc: { status?: string }): boolean => doc.status !== 'pending' && doc.status !== 'rejected';
+
 const VarisangyaSchema = new Schema<IVarisangya>(
   {
     tenantId: {
@@ -86,8 +99,11 @@ const VarisangyaSchema = new Schema<IVarisangya>(
     receiptNo: String,
     remarks: String,
     remarksMl: String,
-    status: { type: String, enum: ['pending', 'verified'], default: 'verified', index: true },
+    status: { type: String, enum: ['pending', 'verified', 'rejected'], default: 'verified', index: true },
     source: { type: String, enum: ['admin', 'member'], default: 'admin' },
+    rejectionReason: { type: String, trim: true, maxlength: 500 },
+    rejectedBy: { type: Schema.Types.ObjectId, ref: 'User' },
+    rejectedAt: Date,
     clientRequestId: { type: String, trim: true, minlength: 8, maxlength: 64 },
     verifiedBy: { type: Schema.Types.ObjectId, ref: 'User' },
     verifiedAt: Date,
@@ -113,8 +129,11 @@ const ZakatSchema = new Schema<IZakat>(
     category: String,
     remarks: String,
     remarksMl: String,
-    status: { type: String, enum: ['pending', 'verified'], default: 'verified', index: true },
+    status: { type: String, enum: ['pending', 'verified', 'rejected'], default: 'verified', index: true },
     source: { type: String, enum: ['admin', 'member'], default: 'admin' },
+    rejectionReason: { type: String, trim: true, maxlength: 500 },
+    rejectedBy: { type: Schema.Types.ObjectId, ref: 'User' },
+    rejectedAt: Date,
     clientRequestId: { type: String, trim: true, minlength: 8, maxlength: 64 },
     verifiedBy: { type: Schema.Types.ObjectId, ref: 'User' },
     verifiedAt: Date,

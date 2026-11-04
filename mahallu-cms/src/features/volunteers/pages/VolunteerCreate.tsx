@@ -19,6 +19,7 @@ import { useFormValidation } from '@/hooks/useFormValidation';
 import { FieldRule, LIMITS, firstError, validateForm } from '@/utils/validation';
 import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
+import Select from '@/components/ui/Select';
 
 /**
  * The same limits the API applies, so a form that passes here is not
@@ -188,18 +189,12 @@ export default function VolunteerCreate() {
             {/* Availability */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Availability</label>
-              <select
+              <Select
                 aria-label="Availability"
                 value={formData.availability}
                 onChange={(e) => setFormData((prev) => ({ ...prev, availability: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                {AVAILABILITY_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
+                options={AVAILABILITY_OPTIONS.map((opt) => ({ value: opt.value, label: opt.label }))}
+              />
             </div>
 
             {/* Notes */}

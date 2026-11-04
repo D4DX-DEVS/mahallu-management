@@ -89,11 +89,18 @@ export const verifyOtpRateLimiter = limiter(
  * genuinely forgotten their password room to think, and takes scripted guessing
  * off the table.
  */
+/** A username sign-in is counted per username (so one shared address is not locked out by it); otherwise per phone. */
+const loginKey = (req: Request): string => {
+  const username = req.body?.username;
+  if (typeof username === 'string' && username.trim()) return `u:${username.trim().toLowerCase().slice(0, 30)}`;
+  return phoneKey(req);
+};
+
 export const loginRateLimiter = limiter(
   'login',
   5 * 60 * 1000,
   10,
-  phoneKey,
+  loginKey,
   'Too many sign-in attempts. Please wait a few minutes and try again.'
 );
 
@@ -122,6 +129,15 @@ export const publicVerifyRateLimiter = limiter(
   30,
   () => 'public-verify',
   'Too many verification requests. Please wait a minute and try again.'
+);
+
+/** The landing page's demo form is open to anyone, so one address gets ten sends per hour. */
+export const demoRequestRateLimiter = limiter(
+  'demo-request',
+  60 * 60 * 1000,
+  10,
+  () => 'demo-request',
+  'Too many requests from this device. Please try again later.'
 );
 
 /** The authenticated caller's own user id — this route runs after authMiddleware. */

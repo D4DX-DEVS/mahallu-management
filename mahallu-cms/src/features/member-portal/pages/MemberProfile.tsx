@@ -14,6 +14,7 @@ import PageHeader from '@/components/layout/PageHeader';
 import { FieldRule, validateForm as checkFields, firstError } from '@/utils/validation';
 import { toTitleCase } from '@/utils/format';
 import StatusBadge from '@/components/ui/StatusBadge';
+import Select from '@/components/ui/Select';
 
 /** The two fields a member may change directly; the API allows only these. */
 const PROFILE_RULES: Record<string, FieldRule> = {
@@ -375,19 +376,15 @@ export default function MemberProfile() {
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Field to Change <span className="text-red-500">*</span>
             </label>
-            <select
+            <Select
               aria-label="Field to Change"
               value={changeField}
               onChange={(e) => setChangeField(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-            >
-              <option value="">Select a field…</option>
-              {EDITABLE_MEMBER_FIELDS.filter((f) => f !== 'phone' && f !== 'email').map((field) => (
-                <option key={field} value={field}>
-                  {field.replace(/([A-Z])/g, ' $1').trim()}
-                </option>
-              ))}
-            </select>
+              options={[
+                { value: '', label: 'Select a field…' },
+                ...EDITABLE_MEMBER_FIELDS.filter((f) => f !== 'phone' && f !== 'email').map((field) => ({ value: field, label: field.replace(/([A-Z])/g, ' $1').trim() })),
+              ]}
+            />
           </div>
 
           <div>
@@ -635,18 +632,12 @@ export default function MemberProfile() {
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Field to Change <span className="text-red-500">*</span>
             </label>
-            <select
+            <Select
               aria-label="Field to Change"
               value={editRequestField}
               onChange={(e) => setEditRequestField(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-            >
-              {EDITABLE_MEMBER_FIELDS.filter((f) => f !== 'phone' && f !== 'email').map((field) => (
-                <option key={field} value={field}>
-                  {field.replace(/([A-Z])/g, ' $1').trim()}
-                </option>
-              ))}
-            </select>
+              options={EDITABLE_MEMBER_FIELDS.filter((f) => f !== 'phone' && f !== 'email').map((field) => ({ value: field, label: field.replace(/([A-Z])/g, ' $1').trim() }))}
+            />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">

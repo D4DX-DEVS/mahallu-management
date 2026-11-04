@@ -21,10 +21,10 @@ export type RowActionVariant = 'default' | 'danger' | 'warning';
 export const ROW_ACTION_BASE =
   'inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-md text-muted-foreground ' +
   'transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:h-8 md:w-8 ' +
-  '[&>svg]:h-4 [&>svg]:w-4';
+  '[&>svg]:h-[18px] [&>svg]:w-[18px]';
 
 export const ROW_ACTION_VARIANT: Record<RowActionVariant, string> = {
-  default: 'hover:bg-accent hover:text-accent-foreground focus-visible:text-accent-foreground',
+  default: 'hover:bg-subtle hover:text-foreground focus-visible:text-foreground',
   danger: 'hover:bg-destructive/10 hover:text-destructive focus-visible:text-destructive',
   warning: 'hover:bg-warning/10 hover:text-warning focus-visible:text-warning',
 };

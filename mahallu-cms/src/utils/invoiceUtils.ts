@@ -1,5 +1,5 @@
 import { jsPDF } from 'jspdf';
-import { BRAND_NAME, LOGO_PATH } from '@/constants/theme';
+import { BRAND_NAME, ICON_PATH } from '@/constants/theme';
 import { formatDate } from '@/utils/format';
 import { PDF_FONT_FAMILY, registerPdfFont, toPdfSafeText } from '@/utils/pdfFonts';
 
@@ -24,7 +24,7 @@ const blobToDataUrl = (blob: Blob) =>
 
 const fetchLogoDataUrl = async () => {
   try {
-    const response = await fetch(LOGO_PATH);
+    const response = await fetch(ICON_PATH);
     if (!response.ok) return null;
     const blob = await response.blob();
     return await blobToDataUrl(blob);

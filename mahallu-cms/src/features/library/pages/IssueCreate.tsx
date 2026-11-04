@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import Select from '@/components/ui/Select';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -138,18 +139,17 @@ export default function IssueCreate() {
           {/* Book Selection */}
           <div>
             <label className="block text-sm font-medium mb-2">Select Book *</label>
-            <select
+            <Select
               aria-label="Select Book"
               {...register('bookId')}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">Choose a book...</option>
-              {books.map((book) => (
-                <option key={book.id} value={book.id}>
-                  {book.title} - {toTitleCase(book.author)} ({book.availableCopies}/{book.copies} available)
-                </option>
-              ))}
-            </select>
+              options={[
+                { value: '', label: 'Choose a book...' },
+                ...books.map((book) => ({
+                  value: book.id,
+                  label: `${book.title} - ${toTitleCase(book.author)} (${book.availableCopies}/${book.copies} available)`,
+                })),
+              ]}
+            />
             {errors.bookId && <p className="text-red-500 text-sm mt-1">{errors.bookId.message}</p>}
           </div>
 

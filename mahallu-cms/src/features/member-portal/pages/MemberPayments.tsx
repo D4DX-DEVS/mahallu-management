@@ -1,15 +1,18 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { memberPortalService, PaymentRecord } from '@/services/memberPortalService';
 import { fetchAllPages } from '@/services/api';
 import { downloadPaymentReceiptPdf } from '@/utils/paymentReceiptPdf';
 import { useAuthStore } from '@/store/authStore';
-import Card from '@/components/ui/Card';
 import StatCard from '@/components/ui/StatCard';
-import { PageSkeleton } from '@/components/ui/Skeleton';
+import TableCard from '@/components/ui/TableCard';
+import TableToolbar from '@/components/ui/TableToolbar';
+import Table from '@/components/ui/Table';
+import Tabs from '@/components/ui/Tabs';
+import Badge from '@/components/ui/Badge';
+import EmptyState from '@/components/ui/EmptyState';
+import { TableColumn } from '@/types';
 import { loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
-import SortableTh from '@/components/ui/SortableTh';
-import { useSortableRows } from '@/hooks/useSortableRows';
 
 type TabType = 'all' | 'varisangya' | 'zakat';
 
@@ -27,21 +30,23 @@ export default function MemberPayments() {
   const [activeTab, setActiveTab] = useState<TabType>('all');
   const [downloading, setDownloading] = useState<string | null>(null);
 
-  useEffect(() => {
-    const load = async () => {
-      try {
-        setLoading(true);
-        // Every payment, so the Varisangya / Zakat totals below are not just the first 100 rows.
-        const all = await fetchAllPages<PaymentRecord>((p) => memberPortalService.getOwnPayments(undefined, p.page, p.limit));
-        setPayments(all);
-      } catch (err: any) {
-        setError(loadErrorMessage(err, 'payment records'));
-      } finally {
-        setLoading(false);
-      }
-    };
-    load();
+  const load = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      // Every payment, so the Varisangya / Zakat totals below are not just the first 100 rows.
+      const all = await fetchAllPages<PaymentRecord>((p) => memberPortalService.getOwnPayments(undefined, p.page, p.limit));
+      setPayments(all);
+    } catch (err) {
+      setError(loadErrorMessage(err, 'payment records'));
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const filtered = activeTab === 'all' ? payments : payments.filter((p) => p.type === activeTab);
 
@@ -57,134 +62,112 @@ export default function MemberPayments() {
     }
   };
 
-  /* Type renders "Varisangya" or "Zakat" from a code, so it sorts on the word
-     shown rather than on the code. */
-  const {
-    rows: sortedPayments,
-    sort,
-    toggleSort,
-  } = useSortableRows(filtered, null, {
-    type: (row) => (row.type === 'varisangya' ? 'Varisangya' : 'Zakat'),
-  });
-
-  if (loading) {
-    return <PageSkeleton />;
-  }
-
-  if (error) {
-    return (
-      <div className="flex flex-col items-center justify-center h-screen-content gap-4">
-        <p className="text-red-600 dark:text-red-400">{error}</p>
-      </div>
-    );
-  }
+  const columns: TableColumn<PaymentRecord>[] = [
+    {
+      key: 'receiptNo',
+      label: 'Receipt no.',
+      sortable: true,
+      width: '14rem',
+      render: (v) => <span className="font-medium text-foreground tabular-nums">{v || '—'}</span>,
+    },
+    {
+      key: 'paymentDate',
+      label: 'Date',
+      sortable: true,
+      width: '10rem',
+      render: (v) => (v ? new Date(v).toLocaleDateString('en-IN') : '—'),
+    },
+    {
+      key: 'amount',
+      label: 'Amount',
+      align: 'right',
+      sortable: true,
+      width: '10rem',
+      render: (v) => <span className="font-semibold tabular-nums">{currency.format(v)}</span>,
+    },
+    {
+      key: 'type',
+      label: 'Type',
+      sortable: true,
+      width: '9rem',
+      render: (v) => <Badge variant={v === 'varisangya' ? 'info' : 'primary'}>{v === 'varisangya' ? 'Varisangya' : 'Zakat'}</Badge>,
+    },
+    {
+      key: 'paymentMethod',
+      label: 'Method',
+      sortable: true,
+      priority: 'secondary',
+      width: '9rem',
+      render: (v) => <span className="capitalize">{v || '—'}</span>,
+    },
+    {
+      key: 'receipt',
+      label: 'Receipt',
+      sortable: false,
+      width: '11rem',
+      render: (_v, payment) => (
+        <button
+          type="button"
+          onClick={() => handleDownload(payment)}
+          disabled={downloading === payment.id}
+          className="text-xs font-medium text-primary hover:underline disabled:opacity-50"
+        >
+          {downloading === payment.id ? 'Generating…' : 'Download receipt'}
+        </button>
+      ),
+    },
+  ];
 
   return (
-    <div className="space-y-4 max-w-4xl w-full mx-auto">
-      <PageHeader title="My Payments &amp; Receipts" />
-      {/* Summary Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-2 gap-3">
+    <>
+      <PageHeader title="My payments & receipts" description="Varisangya and zakat you have paid, with downloadable receipts." />
+
+      <div className="mb-6 grid grid-cols-2 gap-3">
         <StatCard
-          title="Total Varisangya Paid"
+          title="Total varisangya paid"
           value={currency.format(varisangyaTotal)}
           hint={<>{payments.filter((p) => p.type === 'varisangya').length} payments</>}
         />
         <StatCard
-          title="Total Zakat Paid"
+          title="Total zakat paid"
           value={currency.format(zakatTotal)}
           hint={<>{payments.filter((p) => p.type === 'zakat').length} payments</>}
         />
       </div>
 
-      {/* Tab Filter */}
-      <div className="flex gap-2 border-b border-gray-200 dark:border-gray-800">
-        {(['all', 'varisangya', 'zakat'] as TabType[]).map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`pb-2 px-3 text-sm font-medium border-b-2 transition-colors ${
-              activeTab === tab
-                ? 'border-primary-600 text-primary-600 dark:text-primary-400'
-                : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
-            }`}
-          >
-            {tab === 'all' ? 'All' : tab === 'varisangya' ? 'Varisangya' : 'Zakat'}
-          </button>
-        ))}
-      </div>
+      <TableCard>
+        <TableToolbar
+          tabs={
+            <Tabs
+              variant="segmented"
+              ariaLabel="Payment type"
+              value={activeTab}
+              onChange={(value) => setActiveTab(value as TabType)}
+              items={[
+                { value: 'all', label: 'All' },
+                { value: 'varisangya', label: 'Varisangya' },
+                { value: 'zakat', label: 'Zakat' },
+              ]}
+            />
+          }
+          onRefresh={load}
+        />
 
-      {/* Payments Table */}
-      {filtered.length === 0 ? (
-        <Card>
-          <div className="text-center py-10">
-            <p className="text-gray-500 dark:text-gray-400">No payment records found.</p>
-          </div>
-        </Card>
-      ) : (
-        <Card>
-          <div className="overflow-x-auto">
-            <table className="data-table min-w-full text-sm">
-              <thead>
-                <tr className="text-left border-b border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-400">
-                  <SortableTh sortKey="receiptNo" sort={sort} onSort={toggleSort} className="py-2 pr-4">
-                    Receipt No
-                  </SortableTh>
-                  <SortableTh sortKey="paymentDate" sort={sort} onSort={toggleSort} className="py-2 pr-4">
-                    Date
-                  </SortableTh>
-                  <SortableTh sortKey="amount" sort={sort} onSort={toggleSort} className="py-2 pr-4">
-                    Amount
-                  </SortableTh>
-                  <SortableTh sortKey="type" sort={sort} onSort={toggleSort} className="py-2 pr-4">
-                    Type
-                  </SortableTh>
-                  <SortableTh sortKey="paymentMethod" sort={sort} onSort={toggleSort} className="py-2 pr-4">
-                    Method
-                  </SortableTh>
-                  <th className="py-2 text-label font-semibold text-muted-foreground">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sortedPayments.map((payment) => (
-                  <tr
-                    key={payment.id}
-                    className="border-b border-gray-100 dark:border-gray-900 text-gray-900 dark:text-gray-100"
-                  >
-                    <td className="py-3 pr-4 font-mono text-xs">{payment.receiptNo || '—'}</td>
-                    <td className="py-3 pr-4 text-gray-500 dark:text-gray-400">
-                      {payment.paymentDate ? new Date(payment.paymentDate).toLocaleDateString('en-IN') : '—'}
-                    </td>
-                    <td className="py-3 pr-4 font-semibold">{currency.format(payment.amount)}</td>
-                    <td className="py-3 pr-4">
-                      <span
-                        className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                          payment.type === 'varisangya'
-                            ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'
-                            : 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400'
-                        }`}
-                      >
-                        {payment.type === 'varisangya' ? 'Varisangya' : 'Zakat'}
-                      </span>
-                    </td>
-                    <td className="py-3 pr-4 capitalize text-gray-500 dark:text-gray-400">
-                      {payment.paymentMethod || '—'}
-                    </td>
-                    <td className="py-3">
-                      <button
-                        onClick={() => handleDownload(payment)}
-                        disabled={downloading === payment.id}
-                        className="text-xs text-primary-600 dark:text-primary-400 hover:underline disabled:opacity-50"
-                      >
-                        {downloading === payment.id ? 'Generating…' : 'Download Receipt'}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Card>
-      )}
-    </div>
+        {error ? (
+          <EmptyState variant="error" entity="payments" description={error} action={{ label: 'Try again', onClick: load }} />
+        ) : (
+          <Table
+            fixedLayout
+            columns={columns}
+            data={filtered}
+            isLoading={loading}
+            entity="payments"
+            emptyVariant={activeTab === 'all' ? 'empty' : 'no-results'}
+            emptyAction={activeTab === 'all' ? undefined : { label: 'Show all payments', onClick: () => setActiveTab('all') }}
+            rowKey={(payment, index) => payment.id || String(index)}
+          />
+        )}
+      </TableCard>
+    </>
   );
 }

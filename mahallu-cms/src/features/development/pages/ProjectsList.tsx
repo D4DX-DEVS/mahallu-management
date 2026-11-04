@@ -1,18 +1,23 @@
 import { useEffect, useState } from 'react';
-import { FiTrash2 } from 'react-icons/fi';
+import { FiEye, FiPlus, FiTrash2 } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import Button from '@/components/ui/Button';
-import ExpandableSearch from '@/components/ui/ExpandableSearch';
-import Card from '@/components/ui/Card';
+import TableCard from '@/components/ui/TableCard';
+import TableToolbar from '@/components/ui/TableToolbar';
+import FilterPanel from '@/components/ui/FilterPanel';
+import Select from '@/components/ui/Select';
+import Table from '@/components/ui/Table';
+import EmptyState from '@/components/ui/EmptyState';
+import ActionsMenu from '@/components/ui/ActionsMenu';
 import Pagination from '@/components/ui/Pagination';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { toast } from '@/store/toastStore';
+import { TableColumn } from '@/types';
 import { developmentService, DevelopmentProject } from '@/services/developmentService';
 import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import StatusBadge from '@/components/ui/StatusBadge';
-import { PageSkeleton } from '@/components/ui/Skeleton';
 
 const PROJECT_AREAS = [
   { value: 'roads', label: 'Roads' },
@@ -38,9 +43,11 @@ const PROJECT_STATUSES = [
 export default function ProjectsList() {
   const navigate = useNavigate();
   const [projects, setProjects] = useState<DevelopmentProject[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isFilterVisible, setIsFilterVisible] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
   const [search, setSearch] = useState('');
@@ -48,13 +55,15 @@ export default function ProjectsList() {
   const [selectedStatus, setSelectedStatus] = useState<string>('');
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     loadProjects();
-  }, [currentPage, search, selectedArea, selectedStatus]);
+  }, [currentPage, itemsPerPage, search, selectedArea, selectedStatus]);
 
   const loadProjects = async () => {
     setLoading(true);
+    setError(null);
     try {
       const { data, pagination } = await developmentService.getProjects({
         page: currentPage,
@@ -70,7 +79,7 @@ export default function ProjectsList() {
       }
     } catch (error) {
       console.error("Couldn't load projects:", error);
-      toast.error(loadErrorMessage(error, 'projects'));
+      setError(loadErrorMessage(error, 'projects'));
     } finally {
       setLoading(false);
     }
@@ -79,6 +88,7 @@ export default function ProjectsList() {
   const handleDelete = async () => {
     if (!deleteId) return;
     try {
+      setIsDeleting(true);
       await developmentService.deleteProject(deleteId);
       toast.success('Project deleted');
       setConfirmDelete(false);
@@ -88,6 +98,8 @@ export default function ProjectsList() {
       toast.error(errorMessage(error, { action: 'delete project' }));
       setConfirmDelete(false);
       setDeleteId(null);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -107,144 +119,194 @@ export default function ProjectsList() {
     return colors[area] || 'bg-gray-100 text-gray-800';
   };
 
-  return (
-    <div>
-      <div className="flex justify-between items-center mb-4">
-        <PageHeader title="Community Development Projects" />
-        <Button onClick={() => navigate('/development/create')}>Create Project</Button>
-      </div>
+  const columns: TableColumn<DevelopmentProject>[] = [
+    {
+      key: 'name',
+      label: 'Project',
+      sortable: true,
+      width: '16rem',
+      render: (name) => <span className="font-medium text-foreground">{toTitleCase(name)}</span>,
+    },
+    {
+      key: 'area',
+      label: 'Area',
+      sortable: true,
+      width: '10rem',
+      render: (area) => (
+        <span className={`inline-flex rounded-sm px-2 py-0.5 text-xs font-medium ${getAreaBadgeColor(area)}`}>
+          {PROJECT_AREAS.find((a) => a.value === area)?.label ?? '—'}
+        </span>
+      ),
+    },
+    {
+      key: 'status',
+      label: 'Status',
+      sortable: true,
+      width: '8rem',
+      render: (status) => (
+        <StatusBadge status={status} label={PROJECT_STATUSES.find((s) => s.value === status)?.label} />
+      ),
+    },
+    {
+      key: 'progressPercent',
+      label: 'Progress',
+      sortable: true,
+      priority: 'secondary',
+      width: '10rem',
+      render: (percent) => (
+        <div className="flex items-center gap-2">
+          <div className="h-1.5 w-20 flex-shrink-0 overflow-hidden rounded-full bg-subtle">
+            <div className="h-full rounded-full bg-primary" style={{ width: `${percent || 0}%` }} />
+          </div>
+          <span className="text-xs tabular-nums text-muted-foreground">{percent || 0}%</span>
+        </div>
+      ),
+    },
+    {
+      key: 'estimatedCost',
+      label: 'Est. cost',
+      align: 'right',
+      sortable: true,
+      priority: 'secondary',
+      width: '9rem',
+      render: (cost) => <span className="tabular-nums">₹{(cost || 0).toLocaleString('en-IN')}</span>,
+    },
+    {
+      key: 'actions',
+      label: '',
+      width: '6.5rem',
+      align: 'right',
+      sortable: false,
+      render: (_, row) => (
+        <ActionsMenu
+          label={`Actions for ${toTitleCase(row.name)}`}
+          items={[
+            { label: 'View', icon: <FiEye className="h-4 w-4" />, onClick: () => navigate(`/development/${row.id}`) },
+            {
+              label: 'Delete',
+              icon: <FiTrash2 className="h-4 w-4" />,
+              variant: 'danger',
+              onClick: () => {
+                setDeleteId(row.id);
+                setConfirmDelete(true);
+              },
+            },
+          ]}
+        />
+      ),
+    },
+  ];
 
-      {/* Filters */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-4">
-        <ExpandableSearch
-          value={search}
-          onChange={(value) => {
+  const activeFilterCount = (selectedArea ? 1 : 0) + (selectedStatus ? 1 : 0);
+  const isFiltered = Boolean(search) || activeFilterCount > 0;
+  const clearFilters = () => {
+    setSelectedArea('');
+    setSelectedStatus('');
+    setCurrentPage(1);
+  };
+
+  return (
+    <>
+      <PageHeader
+        title="Development projects"
+        description="Community development projects and their progress."
+        actions={
+          <Button icon={<FiPlus />} collapseLabel onClick={() => navigate('/development/create')}>
+            New project
+          </Button>
+        }
+      />
+
+      <TableCard>
+        <TableToolbar
+          searchQuery={search}
+          onSearchChange={(value) => {
             setSearch(value);
             setCurrentPage(1);
           }}
-          entity="projects"
+          searchEntity="projects"
+          onFilterClick={() => setIsFilterVisible((open) => !open)}
+          isFilterVisible={isFilterVisible}
+          hasFilters
+          activeFilterCount={activeFilterCount}
+          onRefresh={loadProjects}
         />
-        <select
-          aria-label="Filter"
-          value={selectedArea}
-          onChange={(e) => {
-            setSelectedArea(e.target.value);
-            setCurrentPage(1);
-          }}
-          className="px-3 py-2 border rounded text-sm"
-        >
-          <option value="">All Areas</option>
-          {PROJECT_AREAS.map((area) => (
-            <option key={area.value} value={area.value}>
-              {area.label}
-            </option>
-          ))}
-        </select>
-        <select
-          aria-label="Filter"
-          value={selectedStatus}
-          onChange={(e) => {
-            setSelectedStatus(e.target.value);
-            setCurrentPage(1);
-          }}
-          className="px-3 py-2 border rounded text-sm"
-        >
-          <option value="">All Statuses</option>
-          {PROJECT_STATUSES.map((status) => (
-            <option key={status.value} value={status.value}>
-              {status.label}
-            </option>
-          ))}
-        </select>
-      </div>
 
-      {/* Projects Grid */}
-      {loading ? (
-        <PageSkeleton variant="section" />
-      ) : projects.length === 0 ? (
-        <div className="text-center py-8 text-gray-500">No projects found</div>
-      ) : (
-        <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-            {projects.map((project) => (
-              <Card
-                key={project.id}
-                onClick={() => navigate(`/development/${project.id}`)}
-                className="cursor-pointer hover:shadow-lg transition"
-              >
-                <div>
-                  <h3 className="font-semibold text-sm sm:text-base truncate">{toTitleCase(project.name)}</h3>
+        {isFilterVisible && (
+          <FilterPanel onClose={() => setIsFilterVisible(false)}>
+            <div className="w-full sm:w-52">
+              <Select
+                label="Area"
+                options={[{ value: '', label: 'All areas' }, ...PROJECT_AREAS]}
+                value={selectedArea}
+                onChange={(e) => {
+                  setSelectedArea(e.target.value);
+                  setCurrentPage(1);
+                }}
+              />
+            </div>
+            <div className="w-full sm:w-52">
+              <Select
+                label="Status"
+                options={[{ value: '', label: 'All statuses' }, ...PROJECT_STATUSES.map(({ value, label }) => ({ value, label }))]}
+                value={selectedStatus}
+                onChange={(e) => {
+                  setSelectedStatus(e.target.value);
+                  setCurrentPage(1);
+                }}
+              />
+            </div>
+            {activeFilterCount > 0 && (
+              <Button variant="ghost" onClick={clearFilters}>
+                Clear filters
+              </Button>
+            )}
+          </FilterPanel>
+        )}
 
-                  <div className="flex gap-2 mt-2 flex-wrap">
-                    <span className={`text-xs px-2 py-1 rounded ${getAreaBadgeColor(project.area)}`}>
-                      {PROJECT_AREAS.find((a) => a.value === project.area)?.label}
-                    </span>
-                    <StatusBadge
-                      status={project.status}
-                      label={PROJECT_STATUSES.find((s) => s.value === project.status)?.label}
-                    />
-                  </div>
-
-                  <div className="mt-3">
-                    <div className="flex justify-between text-xs mb-1">
-                      <span>Progress</span>
-                      <span>{project.progressPercent}%</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-1.5">
-                      <div
-                        className="bg-blue-500 h-1.5 rounded-full"
-                        style={{ width: `${project.progressPercent}%` }}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="mt-3 text-xs text-gray-600">
-                    <div>Est. Cost: ₹{(project.estimatedCost || 0).toLocaleString()}</div>
-                  </div>
-
-                  <div className="mt-3 flex gap-2 items-center">
-                    <Button
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        navigate(`/development/${project.id}`);
-                      }}
-                      className="flex-1"
-                    >
-                      View
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="danger"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setDeleteId(project.id);
-                        setConfirmDelete(true);
-                      }} icon={<FiTrash2 />} collapseLabel>Delete</Button>
-                  </div>
-                </div>
-              </Card>
-            ))}
-          </div>
-
-          <div className="mt-4">
-            <Pagination
-              currentPage={currentPage}
-              totalPages={totalPages}
-              totalItems={totalItems}
-              itemsPerPage={itemsPerPage}
-              onPageChange={setCurrentPage}
+        {error ? (
+          <EmptyState variant="error" entity="projects" description={error} action={{ label: 'Try again', onClick: loadProjects }} />
+        ) : (
+          <>
+            <Table
+              fixedLayout
+              columns={columns}
+              data={projects}
+              isLoading={loading}
+              entity="projects"
+              emptyVariant={isFiltered ? 'no-results' : 'empty'}
+              emptyAction={
+                isFiltered
+                  ? { label: 'Clear filters', onClick: () => { setSearch(''); clearFilters(); } }
+                  : { label: 'Add project', onClick: () => navigate('/development/create') }
+              }
+              onRowClick={(row) => navigate(`/development/${row.id}`)}
             />
-          </div>
-        </>
-      )}
+
+            <div className="mt-4">
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                totalItems={totalItems}
+                itemsPerPage={itemsPerPage}
+                entity="projects"
+                onPageChange={setCurrentPage}
+                onItemsPerPageChange={(size) => {
+                  setItemsPerPage(size);
+                  setCurrentPage(1);
+                }}
+              />
+            </div>
+          </>
+        )}
+      </TableCard>
 
       <ConfirmDialog
-        isLoading={loading}
+        isLoading={isDeleting}
         isOpen={confirmDelete}
-        title="Delete Project"
-        message="Delete this project? This action cannot be undone."
-        confirmLabel="Delete"
+        title="Delete this project?"
+        message="This permanently removes the project and cannot be undone."
+        confirmLabel="Delete project"
         cancelLabel="Cancel"
         variant="danger"
         onConfirm={handleDelete}
@@ -253,6 +315,6 @@ export default function ProjectsList() {
           setDeleteId(null);
         }}
       />
-    </div>
+    </>
   );
 }

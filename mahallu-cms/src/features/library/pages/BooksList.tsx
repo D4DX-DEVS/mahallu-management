@@ -1,19 +1,21 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Button from '@/components/ui/Button';
-import ExpandableSearch from '@/components/ui/ExpandableSearch';
+import TableCard from '@/components/ui/TableCard';
+import TableToolbar from '@/components/ui/TableToolbar';
+import FilterPanel from '@/components/ui/FilterPanel';
+import EmptyState from '@/components/ui/EmptyState';
 import Select from '@/components/ui/Select';
 import Table from '@/components/ui/Table';
 import Pagination from '@/components/ui/Pagination';
 import Badge from '@/components/ui/Badge';
-import { PageSkeleton } from '@/components/ui/Skeleton';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import Modal from '@/components/ui/Modal';
 import { libraryService, LibraryBook } from '@/services/libraryService';
 import { toast } from '@/store/toastStore';
 import BulkImportBooks from '../components/BulkImportBooks';
 import { FiPlus, FiUpload, FiFileText } from 'react-icons/fi';
-import { errorMessage } from '@/utils/errors';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
 
@@ -22,7 +24,9 @@ export default function BooksList() {
   const [books, setBooks] = useState<LibraryBook[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
+  const [error, setError] = useState<string | null>(null);
+  const [isFilterVisible, setIsFilterVisible] = useState(false);
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [category, setCategory] = useState('');
@@ -41,29 +45,29 @@ export default function BooksList() {
     return () => clearTimeout(timer);
   }, [search]);
 
-  // Fetch books
-  useEffect(() => {
-    const fetchBooks = async () => {
-      try {
-        setLoading(true);
-        const result = await libraryService.getBooks({
-          page: currentPage,
-          limit: itemsPerPage,
-          search: debouncedSearch,
-          category: category || undefined,
-          resourceType: resourceType || undefined,
-        });
-        setBooks(result.data);
-        setPagination(result.pagination);
-      } catch (error) {
-        console.error("Couldn't load books:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
+  const fetchBooks = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const result = await libraryService.getBooks({
+        page: currentPage,
+        limit: itemsPerPage,
+        search: debouncedSearch,
+        category: category || undefined,
+        resourceType: resourceType || undefined,
+      });
+      setBooks(result.data);
+      setPagination(result.pagination);
+    } catch (err) {
+      setError(loadErrorMessage(err, 'books'));
+    } finally {
+      setLoading(false);
+    }
+  }, [currentPage, itemsPerPage, debouncedSearch, category, resourceType]);
 
+  useEffect(() => {
     fetchBooks();
-  }, [currentPage, debouncedSearch, category, resourceType, refreshKey]);
+  }, [fetchBooks, refreshKey]);
 
   const handleDelete = async () => {
     if (!deleteId) return;
@@ -82,11 +86,11 @@ export default function BooksList() {
 
   const getAvailabilityBadge = (book: LibraryBook) => {
     if (book.resourceType === 'digital') {
-      return <Badge color="blue">Digital</Badge>;
+      return <Badge variant="info">Digital</Badge>;
     }
     const percent = book.copies ? Math.round((book.availableCopies! / book.copies) * 100) : 0;
     return (
-      <Badge color={percent > 0 ? 'green' : 'red'}>
+      <Badge variant={percent > 0 ? 'success' : 'danger'}>
         {book.availableCopies}/{book.copies} available
       </Badge>
     );
@@ -96,42 +100,67 @@ export default function BooksList() {
     {
       key: 'title',
       label: 'Title',
+      sortable: true,
+      width: '18rem',
       render: (_: any, book: LibraryBook) => (
-        <div>
-          <div className="font-medium">{book.title}</div>
-          {book.titleMl && <div className="text-xs text-gray-500">{book.titleMl}</div>}
+        <div className="min-w-0">
+          <div className="truncate font-medium text-foreground">{book.title}</div>
+          {book.titleMl && <div className="truncate text-xs text-muted-foreground">{book.titleMl}</div>}
         </div>
       ),
     },
-    { key: 'author', label: 'Author', render: (_: any, book: LibraryBook) => toTitleCase(book.author) },
+    { key: 'author', label: 'Author', sortable: true, width: '12rem', render: (_: any, book: LibraryBook) => toTitleCase(book.author) },
     {
       key: 'category',
       label: 'Category',
-      render: (_: any, book: LibraryBook) => <Badge color="purple">{book.category}</Badge>,
+      sortable: true,
+      priority: 'secondary' as const,
+      width: '9rem',
+      render: (_: any, book: LibraryBook) => <Badge variant="primary" className="capitalize">{book.category}</Badge>,
     },
     {
       key: 'availability',
       label: 'Availability',
+      sortable: false,
+      width: '12rem',
       render: (_: any, book: LibraryBook) => getAvailabilityBadge(book),
     },
     {
       key: 'status',
       label: 'Status',
+      sortable: true,
+      priority: 'secondary' as const,
+      width: '8rem',
       render: (_: any, book: LibraryBook) => (
-        <Badge color={book.status === 'active' ? 'green' : 'gray'}>{book.status}</Badge>
+        <Badge variant={book.status === 'active' ? 'success' : 'neutral'} className="capitalize">{book.status}</Badge>
       ),
     },
   ];
 
+  const activeFilterCount = (category ? 1 : 0) + (resourceType ? 1 : 0);
+  const isFiltered = Boolean(debouncedSearch) || activeFilterCount > 0;
+  const clearFilters = () => {
+    setCategory('');
+    setResourceType('');
+    setCurrentPage(1);
+  };
+
   return (
-    <div className="space-y-4">
-      <div className="flex justify-between gap-4 items-center">
-        <PageHeader title="Library Books" />
-        <div className="flex gap-2 items-center">
-          <Button variant="secondary" onClick={() => setImportOpen(true)} icon={<FiUpload />} collapseLabel>Import CSV</Button>
-          <Button onClick={() => navigate('/library/books/create')} icon={<FiPlus />} collapseLabel>Add Book</Button>
-        </div>
-      </div>
+    <>
+      <PageHeader
+        title="Library books"
+        description="Books and digital resources in the mosque library."
+        actions={
+          <>
+            <Button variant="outline" icon={<FiUpload />} collapseLabel onClick={() => setImportOpen(true)}>
+              Import CSV
+            </Button>
+            <Button icon={<FiPlus />} collapseLabel onClick={() => navigate('/library/books/create')}>
+              Add book
+            </Button>
+          </>
+        }
+      />
 
       <BulkImportBooks
         isOpen={importOpen}
@@ -139,75 +168,108 @@ export default function BooksList() {
         onImported={() => setRefreshKey((k) => k + 1)}
       />
 
-      {/* Filters */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
-        <ExpandableSearch
-          value={search}
-          onChange={(value) => {
+      <TableCard>
+        <TableToolbar
+          searchQuery={search}
+          onSearchChange={(value) => {
             setSearch(value);
             setCurrentPage(1);
           }}
-          entity="books"
-          placeholder="Search by title or author"
+          searchEntity="books"
+          onFilterClick={() => setIsFilterVisible((open) => !open)}
+          isFilterVisible={isFilterVisible}
+          hasFilters
+          activeFilterCount={activeFilterCount}
+          onRefresh={fetchBooks}
         />
-        <Select
-          value={category}
-          onChange={(e) => {
-            setCategory(e.target.value);
-            setCurrentPage(1);
-          }}
-          options={[
-            { value: '', label: 'All Categories' },
-            { value: 'quran', label: 'Quran' },
-            { value: 'hadith', label: 'Hadith' },
-            { value: 'fiqh', label: 'Fiqh' },
-            { value: 'history', label: 'History' },
-            { value: 'children', label: 'Children' },
-            { value: 'women', label: 'Women' },
-            { value: 'youth', label: 'Youth' },
-            { value: 'general', label: 'General' },
-          ]}
-        />
-        <Select
-          value={resourceType}
-          onChange={(e) => {
-            setResourceType(e.target.value);
-            setCurrentPage(1);
-          }}
-          options={[
-            { value: '', label: 'All Types' },
-            { value: 'physical', label: 'Physical' },
-            { value: 'digital', label: 'Digital' },
-          ]}
-        />
-      </div>
 
-      {/* Books Table */}
-      {loading ? (
-        <PageSkeleton variant="section" />
-      ) : (
-        <>
-          <Table
-            fixedLayout
-            striped
-            columns={columns}
-            data={books}
-            onRowClick={(book) => {
-              setSelectedBook(book);
-              setShowViewModal(true);
-            }}
-          />
-          {pagination && (
-            <Pagination
-              currentPage={pagination.page}
-              totalPages={pagination.totalPages}
-              totalItems={pagination.total}
-              itemsPerPage={itemsPerPage}
-              onPageChange={setCurrentPage}
+        {isFilterVisible && (
+          <FilterPanel onClose={() => setIsFilterVisible(false)}>
+            <div className="w-full sm:w-52">
+              <Select
+                label="Category"
+                value={category}
+                onChange={(e) => {
+                  setCategory(e.target.value);
+                  setCurrentPage(1);
+                }}
+                options={[
+                  { value: '', label: 'All categories' },
+                  { value: 'quran', label: 'Quran' },
+                  { value: 'hadith', label: 'Hadith' },
+                  { value: 'fiqh', label: 'Fiqh' },
+                  { value: 'history', label: 'History' },
+                  { value: 'children', label: 'Children' },
+                  { value: 'women', label: 'Women' },
+                  { value: 'youth', label: 'Youth' },
+                  { value: 'general', label: 'General' },
+                ]}
+              />
+            </div>
+            <div className="w-full sm:w-52">
+              <Select
+                label="Type"
+                value={resourceType}
+                onChange={(e) => {
+                  setResourceType(e.target.value);
+                  setCurrentPage(1);
+                }}
+                options={[
+                  { value: '', label: 'All types' },
+                  { value: 'physical', label: 'Physical' },
+                  { value: 'digital', label: 'Digital' },
+                ]}
+              />
+            </div>
+            {activeFilterCount > 0 && (
+              <Button variant="ghost" onClick={clearFilters}>
+                Clear filters
+              </Button>
+            )}
+          </FilterPanel>
+        )}
+
+        {error ? (
+          <EmptyState variant="error" entity="books" description={error} action={{ label: 'Try again', onClick: fetchBooks }} />
+        ) : (
+          <>
+            <Table
+              fixedLayout
+              columns={columns}
+              data={books}
+              isLoading={loading}
+              entity="books"
+              emptyVariant={isFiltered ? 'no-results' : 'empty'}
+              emptyAction={
+                isFiltered
+                  ? { label: 'Clear filters', onClick: () => { setSearch(''); clearFilters(); } }
+                  : { label: 'Add book', onClick: () => navigate('/library/books/create') }
+              }
+              onRowClick={(book) => {
+                setSelectedBook(book);
+                setShowViewModal(true);
+              }}
             />
-          )}
-        </>
-      )}
+
+            {pagination && (
+              <div className="mt-4">
+                <Pagination
+                  currentPage={pagination.page}
+                  totalPages={pagination.totalPages}
+                  totalItems={pagination.total}
+                  itemsPerPage={pagination.limit}
+                  entity="books"
+                  onPageChange={setCurrentPage}
+                  onItemsPerPageChange={(size) => {
+                    setItemsPerPage(size);
+                    setCurrentPage(1);
+                  }}
+                />
+              </div>
+            )}
+          </>
+        )}
+      </TableCard>
 
       {/* View Modal */}
       <Modal
@@ -308,9 +370,9 @@ export default function BooksList() {
       <ConfirmDialog
         isLoading={loading}
         isOpen={confirmDelete}
-        title="Delete Book"
-        message="Delete this book? This action cannot be undone."
-        confirmLabel="Delete"
+        title="Delete this book?"
+        message="This permanently removes the book and cannot be undone."
+        confirmLabel="Delete book"
         cancelLabel="Cancel"
         variant="danger"
         onConfirm={handleDelete}
@@ -319,6 +381,6 @@ export default function BooksList() {
           setDeleteId(null);
         }}
       />
-    </div>
+    </>
   );
 }

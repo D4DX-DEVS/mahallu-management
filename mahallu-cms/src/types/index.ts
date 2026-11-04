@@ -16,7 +16,12 @@ export interface User {
   permissions?: Permission;
   isSuperAdmin?: boolean;
   twoFactorEnabled?: boolean;
-  tenant?: { id?: string; name: string };
+  /** Sign-in name for staff accounts, used instead of the phone number. */
+  username?: string;
+  /** True while the password is one an administrator issued: the owner should choose their own. */
+  passwordResetRequired?: boolean;
+  /** The user's Mahall; `code` is its Mahall ID (the same code the Tenant pages show). */
+  tenant?: { id?: string; name: string; code?: string };
 }
 
 export interface Permission {
@@ -80,6 +85,8 @@ export interface Member {
   marriageCount?: number;
   isOrphan?: boolean;
   isDead?: boolean;
+  /** Set by the API when an approved death registration marks the member deceased. */
+  dateOfDeath?: string;
   status?: 'active' | 'inactive' | 'deleted';
   isFamilyHead?: boolean;
   relationship?: 'head' | 'spouse' | 'son' | 'daughter' | 'father' | 'mother' | 'other';
@@ -180,7 +187,16 @@ export interface Committee {
   termStartDate?: string;
   termEndDate?: string;
   maxTermYears?: number;
+  /** 'mahallu' is the Mahallu's own governing committee (one per Mahallu). */
+  kind?: 'general' | 'mahallu';
+  officeBearers?: CommitteeOfficeBearer[];
   createdAt: string;
+}
+
+export interface CommitteeOfficeBearer {
+  /** Populated member on read; a member id when saving. */
+  member: Member | string;
+  role: string;
 }
 
 export interface Meeting {

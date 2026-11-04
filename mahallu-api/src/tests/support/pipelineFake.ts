@@ -51,6 +51,7 @@ const evalExpr = (expr: any, doc: Doc, vars: Doc): any => {
     switch (op) {
       case '$and': return (arg as any[]).every((e) => !!ev(e));
       case '$eq': return norm(ev(arg[0])) === norm(ev(arg[1]));
+      case '$in': { const v = norm(ev(arg[0])); return (ev(arg[1]) as any[]).some((x) => norm(x) === v); }
       case '$gt': return ev(arg[0]) !== null && ev(arg[0]) !== undefined && Number(ev(arg[0])) > Number(ev(arg[1]));
       case '$ifNull': { const v = ev(arg[0]); return v === undefined || v === null ? ev(arg[1]) : v; }
       case '$cond': return ev(arg[0]) ? ev(arg[1]) : ev(arg[2]);

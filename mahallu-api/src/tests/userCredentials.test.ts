@@ -100,7 +100,7 @@ describe('create-user validation', () => {
   });
 });
 
-describe('the CMS no longer sends a password when it creates a user', () => {
+describe('the CMS never sends a default or literal password when it creates a user', () => {
   const CMS_SRC = path.resolve(__dirname, '../../../mahallu-cms/src');
   const present = fs.existsSync(path.join(CMS_SRC, 'features', 'users'));
 
@@ -119,11 +119,20 @@ describe('the CMS no longer sends a password when it creates a user', () => {
       path.join(CMS_SRC, 'services', 'userService.ts'),
     ];
     assert.ok(files.length >= 12, 'the user screens were found');
+    // The only files that declare a password the PERSON types (username + password + confirmation on the
+    // user-creation forms). They hold validation rules and input names, never a value. A literal or
+    // default password is still caught for every file below, and by the next test for the whole CMS.
+    const PERSON_TYPED_PASSWORD_FIELD = new Set(['CredentialFields.tsx', 'credentialRules.ts']);
     const offenders: string[] = [];
     for (const file of files) {
       const raw = fs.readFileSync(file, 'utf8');
       const code = stripComments(raw);
-      if (/\bpassword\b\s*[:=]/i.test(code.replace(/password\?\s*:\s*string/g, ''))) offenders.push(`${path.basename(file)}: password key`);
+      if (
+        !PERSON_TYPED_PASSWORD_FIELD.has(path.basename(file)) &&
+        /\bpassword\b\s*[:=]/i.test(code.replace(/password\?\s*:\s*string/g, ''))
+      ) {
+        offenders.push(`${path.basename(file)}: password key`);
+      }
       if (/default password/i.test(raw)) offenders.push(`${path.basename(file)}: "default password"`);
       if (raw.includes('123456')) offenders.push(`${path.basename(file)}: 123456`);
     }

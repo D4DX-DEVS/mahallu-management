@@ -1,16 +1,21 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiPlus, FiLock, FiAlertCircle } from 'react-icons/fi';
+import { FiPlus } from 'react-icons/fi';
 import Button from '@/components/ui/Button';
-import ExpandableSearch from '@/components/ui/ExpandableSearch';
-import Card from '@/components/ui/Card';
+import TableCard from '@/components/ui/TableCard';
+import TableToolbar from '@/components/ui/TableToolbar';
+import FilterPanel from '@/components/ui/FilterPanel';
+import Select from '@/components/ui/Select';
+import Table from '@/components/ui/Table';
+import StatusBadge from '@/components/ui/StatusBadge';
+import EmptyState from '@/components/ui/EmptyState';
 import Pagination from '@/components/ui/Pagination';
-import { toast } from '@/store/toastStore';
-import { getDisputeCases, IDisputeCase } from '@/services/counsellingService';
 import PageHeader from '@/components/layout/PageHeader';
+import { getDisputeCases, IDisputeCase } from '@/services/counsellingService';
+import { TableColumn } from '@/types';
+import { useDebounce } from '@/hooks/useDebounce';
 import { loadErrorMessage } from '@/utils/errors';
 import { toTitleCase } from '@/utils/format';
-import { PageSkeleton } from '@/components/ui/Skeleton';
 
 const TYPES = ['family', 'marriage', 'divorce', 'community', 'inheritance', 'other'];
 const STATUSES = ['registered', 'mediation', 'resolved', 'referred', 'closed'];
@@ -19,183 +24,181 @@ export default function DisputesList() {
   const navigate = useNavigate();
   const [cases, setCases] = useState<IDisputeCase[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [accessDenied, setAccessDenied] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
-  const [search, setSearch] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isFilterVisible, setIsFilterVisible] = useState(false);
   const [selectedType, setSelectedType] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
 
-  const itemsPerPage = 10;
+  const debouncedSearch = useDebounce(searchQuery, 500);
+  const activeFilterCount = (selectedType ? 1 : 0) + (selectedStatus ? 1 : 0);
+  const isFiltered = Boolean(debouncedSearch) || activeFilterCount > 0;
 
-  const fetchCases = useCallback(
-    async (page: number) => {
-      try {
-        setLoading(true);
-        const response = await getDisputeCases(page, itemsPerPage, selectedType, selectedStatus, search);
-        setCases(response.data);
-        setTotalPages(response.pagination.totalPages);
-        setTotalItems(response.pagination.total);
-        setCurrentPage(response.pagination.page);
-        setAccessDenied(false);
-      } catch (error: any) {
-        if (error.response?.status === 403) {
-          setAccessDenied(true);
-          setCases([]);
-        } else {
-          console.error("Couldn't load cases:", error);
-          toast.error(loadErrorMessage(error, 'dispute cases'));
-        }
-      } finally {
-        setLoading(false);
+  const fetchCases = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await getDisputeCases(currentPage, itemsPerPage, selectedType, selectedStatus, debouncedSearch);
+      setCases(response.data);
+      setTotalPages(response.pagination.totalPages);
+      setTotalItems(response.pagination.total);
+      setAccessDenied(false);
+    } catch (err: any) {
+      if (err.response?.status === 403) {
+        setAccessDenied(true);
+        setCases([]);
+      } else {
+        setError(loadErrorMessage(err, 'dispute cases'));
       }
-    },
-    [selectedType, selectedStatus, search, itemsPerPage]
-  );
+    } finally {
+      setLoading(false);
+    }
+  }, [currentPage, itemsPerPage, selectedType, selectedStatus, debouncedSearch]);
 
   useEffect(() => {
-    fetchCases(1);
-  }, [selectedType, selectedStatus, search, fetchCases]);
+    fetchCases();
+  }, [fetchCases]);
 
-  const handlePageChange = (page: number) => {
-    fetchCases(page);
+  const clearFilters = () => {
+    setSelectedType('');
+    setSelectedStatus('');
+    setCurrentPage(1);
   };
 
-  if (loading) {
-    return <PageSkeleton variant="section" />;
-  }
+  const columns: TableColumn<IDisputeCase>[] = [
+    { key: 'caseNo', label: 'Case no.', sortable: true, width: '10rem', render: (v) => <span className="font-medium text-foreground">{v}</span> },
+    { key: 'type', label: 'Type', sortable: true, width: '9rem', render: (v) => (v ? toTitleCase(v) : '—') },
+    {
+      key: 'parties',
+      label: 'Parties',
+      sortable: false,
+      width: '16rem',
+      render: (v) => ((v ?? []) as string[]).map((party) => toTitleCase(party)).join(', ') || '—',
+    },
+    {
+      key: 'mediators',
+      label: 'Mediators',
+      sortable: false,
+      priority: 'secondary',
+      width: '14rem',
+      render: (v) => ((v ?? []) as string[]).map((mediator) => toTitleCase(mediator)).join(', ') || '—',
+    },
+    { key: 'status', label: 'Status', sortable: true, width: '9rem', render: (v) => <StatusBadge status={v} /> },
+  ];
 
   if (accessDenied) {
     return (
-      <div className="flex-1 flex items-center justify-center">
-        <div className="text-center max-w-md px-4">
-          <FiLock className="w-16 h-16 mx-auto text-red-500 mb-4" />
-          <PageHeader title="Maslahat (Dispute Resolution)" />
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
-            <div className="flex gap-2">
-              <FiAlertCircle className="text-amber-600 flex-shrink-0 mt-0.5" />
-              <p className="text-amber-800 text-sm">
-                Access to dispute cases requires special permission. Please contact your administrator to
-                request access.
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
+      <>
+        <PageHeader title="Maslahat (disputes)" description="Mediation of family and community disputes." />
+        <EmptyState
+          variant="no-access"
+          title="You need permission to view this"
+          description="Access to dispute cases requires special permission. Please contact your administrator to request access."
+        />
+      </>
     );
   }
 
   return (
-    <div>
-      <div>
-        <PageHeader
-          title="Maslahat (disputes)"
-          description={`${totalItems} ${totalItems === 1 ? 'case' : 'cases'}`}
+    <>
+      <PageHeader
+        title="Maslahat (disputes)"
+        description="Mediation of family and community disputes."
+        actions={
+          <Button icon={<FiPlus />} collapseLabel onClick={() => navigate('/maslahat/create')}>
+            New case
+          </Button>
+        }
+      />
+
+      <TableCard>
+        <TableToolbar
+          searchQuery={searchQuery}
+          onSearchChange={(value) => {
+            setSearchQuery(value);
+            setCurrentPage(1);
+          }}
+          searchEntity="cases"
+          onFilterClick={() => setIsFilterVisible((open) => !open)}
+          isFilterVisible={isFilterVisible}
+          hasFilters
+          activeFilterCount={activeFilterCount}
+          onRefresh={fetchCases}
         />
-        <div className="mb-4 flex gap-4 items-center">
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={() => navigate('/maslahat/create')}
-            className="flex items-center gap-2" icon={<FiPlus />} collapseLabel>New Case</Button>
-        </div>
 
-        {/* Filters */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
-          <ExpandableSearch
-            value={search}
-            onChange={(value) => setSearch(value)}
-            entity="cases"
-          />
-          <select
-            aria-label="Filter"
-            value={selectedType}
-            onChange={(e) => setSelectedType(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg text-sm"
-          >
-            <option value="">All Types</option>
-            {TYPES.map((t) => (
-              <option key={t} value={t}>
-                {t.charAt(0).toUpperCase() + t.slice(1)}
-              </option>
-            ))}
-          </select>
-          <select
-            aria-label="Filter"
-            value={selectedStatus}
-            onChange={(e) => setSelectedStatus(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg text-sm"
-          >
-            <option value="">All Statuses</option>
-            {STATUSES.map((sts) => (
-              <option key={sts} value={sts}>
-                {sts.charAt(0).toUpperCase() + sts.slice(1)}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* Cases List */}
-        {cases.length === 0 ? (
-          <Card>
-            <div className="text-center py-10">
-              <p className="text-gray-500 mb-4">No dispute cases found</p>
-              <Button variant="primary" onClick={() => navigate('/maslahat/create')}>
-                Create First Case
-              </Button>
+        {isFilterVisible && (
+          <FilterPanel onClose={() => setIsFilterVisible(false)}>
+            <div className="w-full sm:w-52">
+              <Select
+                label="Type"
+                options={[{ value: '', label: 'All types' }, ...TYPES.map((value) => ({ value, label: toTitleCase(value.replace(/_/g, ' ')) }))]}
+                value={selectedType}
+                onChange={(e) => {
+                  setSelectedType(e.target.value);
+                  setCurrentPage(1);
+                }}
+              />
             </div>
-          </Card>
+            <div className="w-full sm:w-52">
+              <Select
+                label="Status"
+                options={[{ value: '', label: 'All statuses' }, ...STATUSES.map((value) => ({ value, label: toTitleCase(value.replace(/_/g, ' ')) }))]}
+                value={selectedStatus}
+                onChange={(e) => {
+                  setSelectedStatus(e.target.value);
+                  setCurrentPage(1);
+                }}
+              />
+            </div>
+            {activeFilterCount > 0 && (
+              <Button variant="ghost" onClick={clearFilters}>
+                Clear filters
+              </Button>
+            )}
+          </FilterPanel>
+        )}
+
+        {error ? (
+          <EmptyState variant="error" entity="dispute cases" description={error} action={{ label: 'Try again', onClick: fetchCases }} />
         ) : (
           <>
-            <div className="space-y-4 mb-4">
-              {cases.map((caseRecord) => (
-                <Card
-                  key={caseRecord.id}
-                  className="cursor-pointer transition-shadow hover:shadow-md"
-                  onClick={() => navigate(`/maslahat/${caseRecord.id}`)}
-                >
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      <h3 className="text-base sm:text-lg font-semibold">{caseRecord.caseNo}</h3>
-                      <span className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded">
-                        {caseRecord.type}
-                      </span>
-                      <span
-                        className={`text-xs px-2 py-1 rounded ${
-                          caseRecord.status === 'closed'
-                            ? 'bg-gray-100 text-gray-800'
-                            : 'bg-green-100 text-green-800'
-                        }`}
-                      >
-                        {caseRecord.status}
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-600">
-                      Parties: {(caseRecord.parties ?? []).map((party) => toTitleCase(party)).join(', ')}
-                    </p>
-                    {caseRecord.mediators && caseRecord.mediators.length > 0 && (
-                      <p className="text-sm text-gray-600">
-                        Mediators: {caseRecord.mediators.map((mediator) => toTitleCase(mediator)).join(', ')}
-                      </p>
-                    )}
-                  </div>
-                </Card>
-              ))}
-            </div>
+            <Table
+              fixedLayout
+              columns={columns}
+              data={cases}
+              isLoading={loading}
+              entity="dispute cases"
+              emptyVariant={isFiltered ? 'no-results' : 'empty'}
+              emptyAction={
+                isFiltered
+                  ? { label: 'Clear filters', onClick: () => { setSearchQuery(''); clearFilters(); } }
+                  : { label: 'Add case', onClick: () => navigate('/maslahat/create') }
+              }
+              onRowClick={(row) => navigate(`/maslahat/${row.id}`)}
+            />
 
-            {totalPages > 1 && (
+            <div className="mt-4">
               <Pagination
                 currentPage={currentPage}
                 totalPages={totalPages}
                 totalItems={totalItems}
                 itemsPerPage={itemsPerPage}
-                onPageChange={handlePageChange}
+                entity="cases"
+                onPageChange={setCurrentPage}
+                onItemsPerPageChange={(size) => {
+                  setItemsPerPage(size);
+                  setCurrentPage(1);
+                }}
               />
-            )}
+            </div>
           </>
         )}
-      </div>
-    </div>
+      </TableCard>
+    </>
   );
 }

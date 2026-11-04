@@ -1,4 +1,7 @@
 export const ROUTES = {
+  // Public landing page
+  LANDING: '/',
+
   // Auth
   LOGIN: '/login',
 
@@ -92,6 +95,7 @@ export const ROUTES = {
   // Committees
   COMMITTEES: {
     LIST: '/committees',
+    MAHALLU: '/committees/mahallu',
     MEETINGS: '/committees/meetings',
     DETAIL: (id: string) => `/committees/${id}`,
   },
@@ -113,6 +117,7 @@ export const ROUTES = {
 
   // Change Requests
   CHANGE_REQUESTS: '/admin/change-requests',
+  DEMO_REQUESTS: '/admin/demo-requests',
 
   // Collectibles
   COLLECTIBLES: {

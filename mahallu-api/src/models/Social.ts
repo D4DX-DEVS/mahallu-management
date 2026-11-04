@@ -20,6 +20,10 @@ export interface IFeed extends Document {
   authorId: mongoose.Types.ObjectId; // User ID
   isSuperFeed: boolean;
   status: 'draft' | 'published' | 'archived';
+  /** Soft delete: a deleted post is kept but never listed. */
+  isDeleted?: boolean;
+  deletedAt?: Date;
+  deletedBy?: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -112,6 +116,9 @@ const FeedSchema = new Schema<IFeed>(
       enum: ['draft', 'published', 'archived'],
       default: 'draft',
     },
+    isDeleted: { type: Boolean, default: false },
+    deletedAt: Date,
+    deletedBy: { type: Schema.Types.ObjectId, ref: 'User' },
   },
   { timestamps: true }
 );

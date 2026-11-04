@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { FiEdit2, FiTrash2 } from 'react-icons/fi';
 import Card from '@/components/ui/Card';
+import DetailSection from '@/components/ui/DetailSection';
+import { RiBriefcaseLine, RiHeartPulseLine, RiUser3Line } from 'react-icons/ri';
 import Button from '@/components/ui/Button';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import Modal from '@/components/ui/Modal';
@@ -102,6 +104,20 @@ export default function MemberDetail() {
     );
   }
 
+  const extra = member as Member & {
+    occupation?: string;
+    occupationSector?: string;
+    monthlyIncomeRange?: string;
+    skills?: string[] | string;
+    volunteerSkills?: string[] | string;
+    isJobSeeker?: boolean;
+    isZakatPayer?: boolean;
+    isZakatEligible?: boolean;
+    isWidow?: boolean;
+    isVolunteer?: boolean;
+  };
+  const listText = (value?: string[] | string) => (Array.isArray(value) ? value.join(', ') : value) || undefined;
+
   return (
     <div className="space-y-4">
       <PageHeader
@@ -118,213 +134,95 @@ export default function MemberDetail() {
         }
       />
 
-      <Card>
-        {/* One continuous field list, not two headed halves: every field here is
-            the same kind of information (the member's own record), so "Basic"
-            vs "Additional" was a layout artifact of the old two-column grid,
-            not a real distinction. */}
-        <div className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
-          <div>
-            <span className="text-sm text-gray-500 dark:text-gray-400">Name</span>
-            <p className="text-gray-900 dark:text-gray-100">{toTitleCase(member.name)}</p>
-          </div>
-          {member.nameMl && (
-            <div>
-              <span className="text-sm text-gray-500 dark:text-gray-400">Name (Malayalam)</span>
-              <p className="text-gray-900 dark:text-gray-100 font-malayalam">{member.nameMl}</p>
-            </div>
-          )}
-          <div>
-            <span className="text-sm text-gray-500 dark:text-gray-400">Family</span>
-            <Link
-              to={ROUTES.FAMILIES.DETAIL(member.familyId)}
-              className="text-primary-600 hover:text-primary-700 dark:text-primary-400"
-            >
-              {toTitleCase(member.familyName)}
-            </Link>
-          </div>
-          {member.mahallId && (
-            <div>
-              <span className="text-sm text-gray-500 dark:text-gray-400">Mahall ID</span>
-              <p className="text-gray-900 dark:text-gray-100">{member.mahallId}</p>
-            </div>
-          )}
-          {member.isFamilyHead && (
-            <div>
-              <span className="text-sm text-gray-500 dark:text-gray-400">Family Head</span>
-              <p className="text-gray-900 dark:text-gray-100">Yes</p>
-            </div>
-          )}
-          {member.relationship && (
-            <div>
-              <span className="text-sm text-gray-500 dark:text-gray-400">Relationship to Head</span>
-              <p className="text-gray-900 dark:text-gray-100">
-                {member.relationship === 'other'
+      {/* One compact record panel; empty fields are left out. */}
+      <Card padding="none" className="divide-y divide-border">
+        <DetailSection
+          title="Personal"
+          icon={RiUser3Line}
+          items={[
+            { label: 'Name', value: toTitleCase(member.name) },
+            { label: 'Name (Malayalam)', value: member.nameMl, malayalam: true },
+            {
+              label: 'Family',
+              value: member.familyId && (
+                <Link to={ROUTES.FAMILIES.DETAIL(member.familyId)} className="text-primary hover:underline">
+                  {toTitleCase(member.familyName)}
+                </Link>
+              ),
+            },
+            { label: 'Mahall ID', value: member.mahallId },
+            { label: 'Family head', value: member.isFamilyHead ? 'Yes' : undefined },
+            {
+              label: 'Relationship to head',
+              value:
+                member.relationship &&
+                (member.relationship === 'other'
                   ? member.relationshipOther || 'Other'
-                  : RELATIONSHIP_LABELS[member.relationship] || member.relationship}
-              </p>
-            </div>
-          )}
-          {member.dateOfBirth && (
-            <div>
-              <span className="text-sm text-gray-500 dark:text-gray-400">Date of Birth</span>
-              <p className="text-gray-900 dark:text-gray-100">{formatDate(member.dateOfBirth)}</p>
-            </div>
-          )}
-          {member.age && (
-            <div>
-              <span className="text-sm text-gray-500 dark:text-gray-400">Age</span>
-              <p className="text-gray-900 dark:text-gray-100">{member.age}</p>
-            </div>
-          )}
-          {member.gender && (
-            <div>
-              <span className="text-sm text-gray-500 dark:text-gray-400">Gender</span>
-              <p className="text-gray-900 dark:text-gray-100 capitalize">{member.gender}</p>
-            </div>
-          )}
-          {member.bloodGroup && (
-            <div>
-              <span className="text-sm text-gray-500 dark:text-gray-400">Blood Group</span>
-              <p className="text-gray-900 dark:text-gray-100">{member.bloodGroup}</p>
-            </div>
-          )}
-          {member.maritalStatus && (
-            <div>
-              <span className="text-sm text-gray-500 dark:text-gray-400">Marital Status</span>
-              <p className="text-gray-900 dark:text-gray-100 capitalize">{member.maritalStatus}</p>
-            </div>
-          )}
-          {typeof member.marriageCount === 'number' && (
-            <div>
-              <span className="text-sm text-gray-500 dark:text-gray-400">Number of Marriages</span>
-              <p className="text-gray-900 dark:text-gray-100">{member.marriageCount}</p>
-            </div>
-          )}
-          {member.isOrphan && (
-            <div>
-              <span className="text-sm text-gray-500 dark:text-gray-400">Orphan</span>
-              <p className="text-gray-900 dark:text-gray-100">Yes</p>
-            </div>
-          )}
-          {member.isDead && (
-            <div>
-              <span className="text-sm text-gray-500 dark:text-gray-400">Deceased</span>
-              <p className="text-gray-900 dark:text-gray-100">Yes</p>
-            </div>
-          )}
-          {member.phone && (
-            <div>
-              <span className="text-sm text-gray-500 dark:text-gray-400">Phone</span>
-              <p className="text-gray-900 dark:text-gray-100">{member.phone}</p>
-            </div>
-          )}
-          {member.healthStatus && (
-            <div>
-              <span className="text-sm text-gray-500 dark:text-gray-400">Health Status</span>
-              <p className="text-gray-900 dark:text-gray-100">{member.healthStatus}</p>
-            </div>
-          )}
-          {member.healthNotes && (
-            <div>
-              <span className="text-sm text-gray-500 dark:text-gray-400">Health Details</span>
-              <p className="text-gray-900 dark:text-gray-100">{member.healthNotes}</p>
-            </div>
-          )}
-          {member.education && (
-            <div>
-              <span className="text-sm text-gray-500 dark:text-gray-400">Education</span>
-              <p className="text-gray-900 dark:text-gray-100">{member.education}</p>
-            </div>
-          )}
-          {member.educationInstitutionId && (
-            <div>
-              <span className="text-sm text-gray-500 dark:text-gray-400">Institute</span>
-              <p className="text-gray-900 dark:text-gray-100">
-                {toTitleCase(
+                  : RELATIONSHIP_LABELS[member.relationship] || member.relationship),
+            },
+            { label: 'Date of birth', value: member.dateOfBirth && formatDate(member.dateOfBirth) },
+            { label: 'Age', value: member.age },
+            { label: 'Gender', value: member.gender && toTitleCase(member.gender) },
+            { label: 'Blood group', value: member.bloodGroup },
+            { label: 'Marital status', value: member.maritalStatus && toTitleCase(member.maritalStatus) },
+            { label: 'Number of marriages', value: typeof member.marriageCount === 'number' ? member.marriageCount : undefined },
+            { label: 'Phone', value: member.phone },
+            { label: 'Orphan', value: member.isOrphan ? 'Yes' : undefined },
+            { label: 'Deceased', value: member.isDead ? 'Yes' : undefined },
+            { label: 'Added on', value: formatDate(member.createdAt) },
+          ]}
+        />
+        <DetailSection
+          title="Health & education"
+          icon={RiHeartPulseLine}
+          items={[
+            { label: 'Health status', value: member.healthStatus && toTitleCase(String(member.healthStatus).replace(/_/g, ' ')) },
+            { label: 'Education', value: member.education },
+            {
+              label: 'Institute',
+              value:
+                member.educationInstitutionId &&
+                toTitleCase(
                   institutes.find((inst) => (inst.id || inst._id) === member.educationInstitutionId)?.name ||
                     member.educationInstitutionId
-                )}
-              </p>
-            </div>
-          )}
-          {member.externalInstitution && (
-            <div>
-              <span className="text-sm text-gray-500 dark:text-gray-400">School or College</span>
-              <p className="text-gray-900 dark:text-gray-100">{member.externalInstitution}</p>
-            </div>
-          )}
-          <div>
-            <span className="text-sm text-gray-500 dark:text-gray-400">Created At</span>
-            <p className="text-gray-900 dark:text-gray-100">{formatDate(member.createdAt)}</p>
-          </div>
-        </div>
-      </Card>
-
-      <Card>
-        <h2 className="text-lg font-semibold mb-3 text-foreground">Socio-economic Details</h2>
-        <div className="space-y-3">
-          {(member as any).occupation && (
-            <div>
-              <span className="text-sm text-gray-500 dark:text-gray-400">Occupation</span>
-              <p className="text-gray-900 dark:text-gray-100">{(member as any).occupation}</p>
-            </div>
-          )}
-          {(member as any).occupationSector && (
-            <div>
-              <span className="text-sm text-gray-500 dark:text-gray-400">Occupation Sector</span>
-              <p className="text-gray-900 dark:text-gray-100">
-                {OCCUPATION_SECTOR_LABELS[(member as any).occupationSector] || (member as any).occupationSector}
-              </p>
-            </div>
-          )}
-          {(member as any).monthlyIncomeRange && (
-            <div>
-              <span className="text-sm text-gray-500 dark:text-gray-400">Monthly Income</span>
-              <p className="text-gray-900 dark:text-gray-100">
-                {INCOME_RANGE_LABELS[(member as any).monthlyIncomeRange] || (member as any).monthlyIncomeRange}
-              </p>
-            </div>
-          )}
-          {Boolean((member as any).skills?.length) && (
-            <div>
-              <span className="text-sm text-gray-500 dark:text-gray-400">Skills</span>
-              <p className="text-gray-900 dark:text-gray-100">
-                {Array.isArray((member as any).skills) ? (member as any).skills.join(', ') : (member as any).skills}
-              </p>
-            </div>
-          )}
-          {Boolean((member as any).volunteerSkills?.length) && (
-            <div>
-              <span className="text-sm text-gray-500 dark:text-gray-400">Volunteer Skills</span>
-              <p className="text-gray-900 dark:text-gray-100">
-                {Array.isArray((member as any).volunteerSkills)
-                  ? (member as any).volunteerSkills.join(', ')
-                  : (member as any).volunteerSkills}
-              </p>
-            </div>
-          )}
-          {((member as any).isJobSeeker ||
-            (member as any).isZakatPayer ||
-            (member as any).isZakatEligible ||
-            (member as any).isWidow ||
-            (member as any).isVolunteer) && (
-            <div>
-              <span className="text-sm text-gray-500 dark:text-gray-400">Flags</span>
-              <p className="text-gray-900 dark:text-gray-100">
-                {[
-                  (member as any).isJobSeeker && 'Job seeker',
-                  (member as any).isZakatPayer && 'Zakat payer',
-                  (member as any).isZakatEligible && 'Zakat eligible',
-                  (member as any).isWidow && 'Widow',
-                  (member as any).isVolunteer && 'Volunteer',
+                ),
+            },
+            { label: 'School or college', value: member.externalInstitution },
+            { label: 'Health details', value: member.healthNotes, wide: true },
+          ]}
+        />
+        <DetailSection
+          title="Socio-economic"
+          icon={RiBriefcaseLine}
+          emptyText="No socio-economic details recorded."
+          items={[
+            { label: 'Occupation', value: extra.occupation },
+            {
+              label: 'Occupation sector',
+              value: extra.occupationSector && (OCCUPATION_SECTOR_LABELS[extra.occupationSector] || extra.occupationSector),
+            },
+            {
+              label: 'Monthly income',
+              value: extra.monthlyIncomeRange && (INCOME_RANGE_LABELS[extra.monthlyIncomeRange] || extra.monthlyIncomeRange),
+            },
+            { label: 'Skills', value: listText(extra.skills), wide: true },
+            { label: 'Volunteer skills', value: listText(extra.volunteerSkills), wide: true },
+            {
+              label: 'Flags',
+              wide: true,
+              value:
+                [
+                  extra.isJobSeeker && 'Job seeker',
+                  extra.isZakatPayer && 'Zakat payer',
+                  extra.isZakatEligible && 'Zakat eligible',
+                  extra.isWidow && 'Widow',
+                  extra.isVolunteer && 'Volunteer',
                 ]
                   .filter(Boolean)
-                  .join(', ')}
-              </p>
-            </div>
-          )}
-        </div>
+                  .join(', ') || undefined,
+            },
+          ]}
+        />
       </Card>
 
       <Modal

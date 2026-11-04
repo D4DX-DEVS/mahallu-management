@@ -1,202 +1,229 @@
-import React, { useState, useEffect } from 'react';
-import { FiPlus, FiEdit2, FiTrash2, FiPhone } from 'react-icons/fi';
-import { getHealthResources, deleteHealthResource, IHealthResource } from '@/services/healthService';
-import Pagination from '@/components/ui/Pagination';
-import ExpandableSearch from '@/components/ui/ExpandableSearch';
-import ActionBar from '@/components/ui/ActionBar';
-import Button from '@/components/ui/Button';
-import Modal from '@/components/ui/Modal';
+import { useState, useEffect, useCallback } from 'react';
+import { FiPlus, FiEdit2, FiTrash2 } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
-import { toast } from '@/store/toastStore';
+import { getHealthResources, deleteHealthResource, IHealthResource } from '@/services/healthService';
+import TableCard from '@/components/ui/TableCard';
+import TableToolbar from '@/components/ui/TableToolbar';
+import FilterPanel from '@/components/ui/FilterPanel';
+import Select from '@/components/ui/Select';
+import Table from '@/components/ui/Table';
+import Badge from '@/components/ui/Badge';
+import ActionsMenu from '@/components/ui/ActionsMenu';
+import EmptyState from '@/components/ui/EmptyState';
+import Pagination from '@/components/ui/Pagination';
+import Button from '@/components/ui/Button';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import PageHeader from '@/components/layout/PageHeader';
+import { TableColumn } from '@/types';
+import { useDebounce } from '@/hooks/useDebounce';
+import { toast } from '@/store/toastStore';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import { toTitleCase } from '@/utils/format';
-import { PageSkeleton } from '@/components/ui/Skeleton';
+
+const BLOOD_GROUPS = ['A +ve', 'A -ve', 'B +ve', 'B -ve', 'AB +ve', 'AB -ve', 'O +ve', 'O -ve'];
 
 export default function BloodDonors() {
   const navigate = useNavigate();
   const [donors, setDonors] = useState<IHealthResource[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
-  const [search, setSearch] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isFilterVisible, setIsFilterVisible] = useState(false);
   const [selectedBloodGroup, setSelectedBloodGroup] = useState('');
-  const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState<IHealthResource | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
-  const itemsPerPage = 10;
-  const bloodGroups = ['A +ve', 'A -ve', 'B +ve', 'B -ve', 'AB +ve', 'AB -ve', 'O +ve', 'O -ve'];
+  const debouncedSearch = useDebounce(searchQuery, 500);
+  const isFiltered = Boolean(debouncedSearch || selectedBloodGroup);
 
-  const fetchDonors = async (page: number, searchTerm: string = '', bloodGroup: string = '') => {
+  const fetchDonors = useCallback(async () => {
     try {
       setLoading(true);
+      setError(null);
       const response = await getHealthResources(
-        page,
+        currentPage,
         itemsPerPage,
         'blood_donor',
         'active',
-        bloodGroup,
-        searchTerm
+        selectedBloodGroup,
+        debouncedSearch
       );
       setDonors(response.data);
       setTotalPages(response.pagination.totalPages);
       setTotalItems(response.pagination.total);
-      setCurrentPage(response.pagination.page);
-    } catch (error) {
-      console.error("Couldn't load blood donors:", error);
+    } catch (err) {
+      setError(loadErrorMessage(err, 'blood donors'));
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentPage, itemsPerPage, selectedBloodGroup, debouncedSearch]);
 
   useEffect(() => {
-    fetchDonors(1, search, selectedBloodGroup);
-  }, [search, selectedBloodGroup]);
+    fetchDonors();
+  }, [fetchDonors]);
 
-  const handleDelete = async () => {
-    if (!deleteId) return;
+  const confirmDelete = async () => {
+    if (!deleting) return;
     try {
-      await deleteHealthResource(deleteId);
-      setConfirmDelete(false);
-      setDeleteId(null);
-      fetchDonors(currentPage, search, selectedBloodGroup);
+      setIsDeleting(true);
+      await deleteHealthResource(deleting.id);
       toast.success('Donor removed');
-    } catch (error) {
-      const message =
-        error instanceof Error && 'response' in error
-          ? (error.response as any)?.data?.message || "Couldn't remove donor"
-          : "Couldn't remove donor";
-      toast.error(message);
-      console.error("Couldn't delete blood donor:", error);
+      setDeleting(null);
+      fetchDonors();
+    } catch (err) {
+      toast.error(errorMessage(err, { action: 'remove this donor' }));
+    } finally {
+      setIsDeleting(false);
     }
   };
 
-  const handlePageChange = (page: number) => {
-    fetchDonors(page, search, selectedBloodGroup);
-  };
-
-  if (loading) {
-    return <PageSkeleton variant="section" />;
-  }
+  const columns: TableColumn<IHealthResource>[] = [
+    {
+      key: 'name',
+      label: 'Donor',
+      sortable: true,
+      width: '16rem',
+      render: (name) => <span className="font-medium text-foreground">{toTitleCase(name)}</span>,
+    },
+    {
+      key: 'bloodGroup',
+      label: 'Blood group',
+      sortable: true,
+      width: '9rem',
+      render: (group) => (group ? <Badge variant="danger">{group}</Badge> : '—'),
+    },
+    { key: 'contactNo', label: 'Phone', width: '9rem', render: (v) => <span className="tabular-nums">{v || '—'}</span> },
+    { key: 'availability', label: 'Availability', priority: 'secondary', width: '14rem', render: (v) => v || '—' },
+    {
+      key: 'actions',
+      label: '',
+      width: '6.5rem',
+      align: 'right',
+      sortable: false,
+      render: (_v, row) => (
+        <ActionsMenu
+          label={`Actions for ${toTitleCase(row.name)}`}
+          items={[
+            { label: 'Edit', icon: <FiEdit2 className="h-4 w-4" />, onClick: () => navigate(`/health/donors/${row.id}/edit`) },
+            { label: 'Delete', icon: <FiTrash2 className="h-4 w-4" />, variant: 'danger', onClick: () => setDeleting(row) },
+          ]}
+        />
+      ),
+    },
+  ];
 
   return (
-    <div>
-      <div className="max-w-full">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
-          <div>
-            <PageHeader title="Blood Donors" description={`${donors.length} donors found`} />
-          </div>
-          <Button onClick={() => navigate('/health/donors/create')} className="flex items-center gap-2">
-            <FiPlus /> Add Donor
+    <>
+      <PageHeader
+        title="Blood donors"
+        description="Registered donors, filterable by blood group."
+        actions={
+          <Button icon={<FiPlus />} collapseLabel onClick={() => navigate('/health/donors/create')}>
+            Add donor
           </Button>
-        </div>
+        }
+      />
 
-        <div className="mb-4 space-y-4">
-          <ActionBar className="mb-0">
-            <ExpandableSearch
-              value={search}
-              onChange={(value) => setSearch(value)}
-              entity="blood donors"
-              placeholder="Search by name"
-            />
-          </ActionBar>
+      <TableCard>
+        <TableToolbar
+          searchQuery={searchQuery}
+          onSearchChange={(value) => {
+            setSearchQuery(value);
+            setCurrentPage(1);
+          }}
+          searchEntity="blood donors"
+          onFilterClick={() => setIsFilterVisible((open) => !open)}
+          isFilterVisible={isFilterVisible}
+          hasFilters
+          activeFilterCount={selectedBloodGroup ? 1 : 0}
+          onRefresh={fetchDonors}
+        />
 
-          <div className="flex flex-wrap gap-2">
-            <button
-              onClick={() => setSelectedBloodGroup('')}
-              className={`px-3 py-1 rounded-full text-sm ${
-                selectedBloodGroup === ''
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
-              }`}
-            >
-              All Blood Types
-            </button>
-            {bloodGroups.map((bg) => (
-              <button
-                key={bg}
-                onClick={() => setSelectedBloodGroup(bg)}
-                className={`px-3 py-1 rounded-full text-sm ${
-                  selectedBloodGroup === bg
-                    ? 'bg-red-600 text-white'
-                    : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
-                }`}
+        {isFilterVisible && (
+          <FilterPanel onClose={() => setIsFilterVisible(false)}>
+            <div className="w-full sm:w-52">
+              <Select
+                label="Blood group"
+                options={[{ value: '', label: 'All blood groups' }, ...BLOOD_GROUPS.map((group) => ({ value: group, label: group }))]}
+                value={selectedBloodGroup}
+                onChange={(e) => {
+                  setSelectedBloodGroup(e.target.value);
+                  setCurrentPage(1);
+                }}
+              />
+            </div>
+            {selectedBloodGroup && (
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setSelectedBloodGroup('');
+                  setCurrentPage(1);
+                }}
               >
-                {bg}
-              </button>
-            ))}
-          </div>
-        </div>
+                Clear filters
+              </Button>
+            )}
+          </FilterPanel>
+        )}
 
-        {donors.length === 0 ? (
-          <div className="text-center py-8">
-            <p className="text-gray-500">No blood donors found</p>
-          </div>
+        {error ? (
+          <EmptyState variant="error" entity="blood donors" description={error} action={{ label: 'Try again', onClick: fetchDonors }} />
         ) : (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-              {donors.map((donor) => (
-                <div key={donor.id} className="rounded-lg border border-border bg-card p-3 sm:p-4">
-                  <div className="flex items-start justify-between mb-3">
-                    <h3 className="text-base sm:text-lg font-semibold">{toTitleCase(donor.name)}</h3>
-                    {donor.bloodGroup && (
-                      <span className="bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm font-semibold">
-                        {donor.bloodGroup}
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-700 mb-3">
-                    <FiPhone className="text-green-600" />
-                    {donor.contactNo}
-                  </div>
-                  {donor.availability && (
-                    <p className="text-xs sm:text-sm text-gray-600 mb-3">
-                      Availability: {donor.availability}
-                    </p>
-                  )}
-                  <div className="flex gap-2 items-center">
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => navigate(`/health/donors/${donor.id}/edit`)}
-                      className="flex-1 flex items-center justify-center gap-1" icon={<FiEdit2 />} collapseLabel>Edit</Button>
-                    <Button
-                      variant="danger"
-                      size="sm"
-                      onClick={() => {
-                        setDeleteId(donor.id);
-                        setConfirmDelete(true);
-                      }}
-                      className="flex-1 flex items-center justify-center gap-1" icon={<FiTrash2 />} collapseLabel>Delete</Button>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <Table
+              fixedLayout
+              columns={columns}
+              data={donors}
+              isLoading={loading}
+              entity="blood donors"
+              emptyVariant={isFiltered ? 'no-results' : 'empty'}
+              emptyAction={
+                isFiltered
+                  ? {
+                      label: 'Clear filters',
+                      onClick: () => {
+                        setSearchQuery('');
+                        setSelectedBloodGroup('');
+                        setCurrentPage(1);
+                      },
+                    }
+                  : { label: 'Add donor', onClick: () => navigate('/health/donors/create') }
+              }
+              onRowClick={(row) => navigate(`/health/donors/${row.id}/edit`)}
+            />
 
-            {totalPages > 1 && (
+            <div className="mt-4">
               <Pagination
                 currentPage={currentPage}
                 totalPages={totalPages}
                 totalItems={totalItems}
                 itemsPerPage={itemsPerPage}
-                onPageChange={handlePageChange}
+                entity="blood donors"
+                onPageChange={setCurrentPage}
+                onItemsPerPageChange={(size) => {
+                  setItemsPerPage(size);
+                  setCurrentPage(1);
+                }}
               />
-            )}
+            </div>
           </>
         )}
-      </div>
+      </TableCard>
 
-      <Modal isOpen={confirmDelete} title="Delete Blood Donor" onClose={() => setConfirmDelete(false)}>
-        <p className="text-gray-700 mb-4">Are you sure you want to delete this blood donor?</p>
-        <div className="flex gap-2 flex-col-reverse sm:flex-row sm:justify-end sm:gap-3">
-          <Button variant="secondary" onClick={() => setConfirmDelete(false)}>
-            Cancel
-          </Button>
-          <Button variant="danger" onClick={handleDelete}>
-            Delete
-          </Button>
-        </div>
-      </Modal>
-    </div>
+      <ConfirmDialog
+        isOpen={Boolean(deleting)}
+        title={`Remove ${deleting?.name ? toTitleCase(deleting.name) : 'this donor'}?`}
+        message="This permanently removes the donor record and cannot be undone."
+        confirmLabel="Remove donor"
+        variant="danger"
+        isLoading={isDeleting}
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleting(null)}
+      />
+    </>
   );
 }

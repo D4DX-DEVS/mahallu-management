@@ -14,6 +14,22 @@ import { verifyTenantOwnership } from '../utils/tenantCheck';
 import { sanitizeRichText } from '../utils/htmlSanitizer';
 import { refBelongsToTenant, stripImmutable } from '../utils/sanitizeUpdate';
 import { isValidId, MSG, tenantFilterFor } from '../utils/scope';
+import { runAtomic } from '../utils/transaction';
+import {
+  PHOTO_FIELDS,
+  PhotoField,
+  attachPhotos,
+  detachPhotos,
+  findPhotoProblem,
+  removePhoto,
+} from '../services/nikahPhotoService';
+import {
+  DUPLICATE_DEATH_MESSAGE,
+  OPEN_DEATH_STATUSES,
+  applyDeathToMember,
+  hasOpenDeathRecord,
+  revertDeathOnMember,
+} from '../services/deathRecordService';
 
 type RefProblem = { status: number; message: string };
 type RefSpec = [model: mongoose.Model<any>, id: unknown, label: string];
@@ -60,6 +76,22 @@ const refsOk = async (res: Response, tenantId: string, refs: RefSpec[], document
     return false;
   }
   return true;
+};
+
+/**
+ * The photo ids a Nikah write sets. `set` holds ids to use, `clear` the photos the request removes
+ * (null or an empty value). A field the request does not mention is in neither: it is left as it is.
+ */
+const photoChanges = (body: Record<string, unknown>) => {
+  const set: Partial<Record<PhotoField, string>> = {};
+  const clear: PhotoField[] = [];
+  for (const field of PHOTO_FIELDS) {
+    const value = body[field];
+    if (value === undefined) continue;
+    if (value === null || value === '') clear.push(field);
+    else set[field] = String(value);
+  }
+  return { set, clear };
 };
 
 const noMahallu = (res: Response) =>
@@ -133,8 +165,38 @@ export const createNikahRegistration = async (req: AuthRequest, res: Response) =
       [Member, req.body.submittedByMemberId, 'member'],
     ], req.body.documents))) return;
 
-    const registration = new NikahRegistration({ ...stripImmutable(req.body), tenantId });
-    await registration.save();
+    // Photos: only well-formed uploads of this Mahallu, by this caller, of an accepted image type and size.
+    const { set: photos } = photoChanges(req.body);
+    const photoProblem = await findPhotoProblem(
+      tenantId,
+      { userId: req.user?._id, isSuperAdmin: req.isSuperAdmin === true },
+      photos
+    );
+    if (photoProblem) return res.status(photoProblem.status).json({ success: false, message: photoProblem.message });
+
+    const data: Record<string, unknown> = { ...stripImmutable(req.body), tenantId };
+    for (const field of PHOTO_FIELDS) delete data[field];
+    Object.assign(data, photos);
+    // A custom mahr type only means something for "Other".
+    if (data.mahrType !== 'other') delete data.mahrTypeOther;
+    const registration = new NikahRegistration(data);
+    const photoIds = Object.values(photos);
+
+    // The registration and the tie to its photos succeed together; a failure removes the registration
+    // again, so no half-saved record is left. (The uploaded files stay unattached and are cleaned up by
+    // the caller, which owns them.)
+    await runAtomic(
+      async (session, comp) => {
+        await registration.save({ session });
+        comp.push('delete nikah registration', () => NikahRegistration.deleteOne({ _id: registration._id }));
+        await attachPhotos(registration._id, photoIds, session);
+        comp.push('detach nikah photos', () => detachPhotos(registration._id, photoIds));
+      },
+      {
+        description: 'create nikah registration',
+        reconcile: { flow: 'create nikah registration', entity: 'nikah registration', entityId: registration._id, tenantId: tenantId },
+      }
+    );
     res.status(201).json({ success: true, data: registration });
   } catch (error: any) {
     sendFailure(res, error, 'We couldn\'t save the nikah registration. Please try again.');
@@ -148,6 +210,8 @@ export const updateNikahRegistration = async (req: AuthRequest, res: Response) =
       groomName, groomAge, groomId, brideName, brideAge, brideId,
       mahallMemberType, nikahDate, mahallId, waliName, witness1, witness2,
       mahrAmount, mahrDescription, status, remarks,
+      groomAddress, brideAddress, witness1Phone, witness1Address, witness2Phone, witness2Address,
+      mahrType, mahrTypeOther,
     } = req.body;
 
     const registration = await NikahRegistration.findById(id);
@@ -166,17 +230,59 @@ export const updateNikahRegistration = async (req: AuthRequest, res: Response) =
       [Member, brideId, 'bride'],
     ]))) return;
 
-    const updated = await NikahRegistration.findOneAndUpdate(
-      { _id: id, tenantId: registration.tenantId },
-      {
-        groomName, groomAge, groomId, brideName, brideAge, brideId,
-        mahallMemberType, nikahDate, mahallId, waliName, witness1, witness2,
-        mahrAmount, mahrDescription, status, remarks,
+    const { set: newPhotos, clear: clearedPhotos } = photoChanges(req.body);
+    const photoProblem = await findPhotoProblem(
+      String(registration.tenantId),
+      { userId: req.user?._id, isSuperAdmin: req.isSuperAdmin === true },
+      newPhotos,
+      registration._id
+    );
+    if (photoProblem) return res.status(photoProblem.status).json({ success: false, message: photoProblem.message });
+
+    // Only what the request carries is written; a field it leaves out (the photos on an edit that did not
+    // touch them, the old mahr amount) keeps its stored value.
+    const fields: Record<string, unknown> = {
+      groomName, groomAge, groomId, brideName, brideAge, brideId,
+      mahallMemberType, nikahDate, mahallId, waliName, witness1, witness2,
+      mahrAmount, mahrDescription, status, remarks,
+      groomAddress, brideAddress, witness1Phone, witness1Address, witness2Phone, witness2Address,
+      mahrType, ...newPhotos,
+    };
+    // A custom mahr type is kept only while the type is "Other".
+    if (mahrType === 'other') fields.mahrTypeOther = mahrTypeOther;
+    const $set = Object.fromEntries(Object.entries(fields).filter(([, value]) => value !== undefined));
+    const $unset: Record<string, 1> = {};
+    for (const field of clearedPhotos) $unset[field] = 1;
+    if (mahrType !== undefined && mahrType !== 'other') $unset.mahrTypeOther = 1;
+
+    // Photos this edit replaces or removes (the stored ones), to clean up once the edit is saved.
+    const stored = registration.toObject() as Record<string, any>;
+    const replaced = [...Object.keys(newPhotos), ...clearedPhotos]
+      .filter((field) => stored[field] && String(stored[field]) !== String((newPhotos as any)[field] ?? ''))
+      .map((field) => stored[field]);
+    const newPhotoIds = Object.values(newPhotos);
+
+    let updated;
+    await runAtomic(
+      async (session, comp) => {
+        await attachPhotos(registration._id, newPhotoIds, session);
+        comp.push('detach new nikah photos', () => detachPhotos(registration._id, newPhotoIds));
+        updated = await NikahRegistration.findOneAndUpdate(
+          { _id: id, tenantId: registration.tenantId },
+          { $set, ...(Object.keys($unset).length > 0 ? { $unset } : {}) },
+          { new: true, runValidators: true, session }
+        )
+          .populate('groomId', 'name')
+          .populate('brideId', 'name');
       },
-      { new: true, runValidators: true }
-    )
-      .populate('groomId', 'name')
-      .populate('brideId', 'name');
+      {
+        description: 'update nikah registration',
+        reconcile: { flow: 'update nikah registration', entity: 'nikah registration', entityId: registration._id, tenantId: registration.tenantId },
+      }
+    );
+
+    // The edit is saved: the photos it replaced or removed are no longer used by anything.
+    for (const photoId of replaced) await removePhoto(photoId, registration.tenantId);
 
     res.json({ success: true, data: updated });
   } catch (error: any) {
@@ -252,16 +358,14 @@ export const createDeathRegistration = async (req: AuthRequest, res: Response) =
       [Member, req.body.submittedByMemberId, 'member'],
     ], req.body.documents))) return;
 
-    const registration = new DeathRegistration({ ...stripImmutable(req.body), tenantId });
-    await registration.save();
-
-    if (registration.deceasedId) {
-      // Scoped by the registration's Mahallu as well as the id, so it can never touch another Mahallu's member.
-      await Member.findOneAndUpdate(
-        { _id: registration.deceasedId, tenantId: registration.tenantId },
-        { isDead: true, status: 'inactive' }
-      );
+    if (await hasOpenDeathRecord(tenantId, req.body.deceasedId)) {
+      return res.status(409).json({ success: false, message: DUPLICATE_DEATH_MESSAGE });
     }
+
+    // Always saved as pending: the member is only marked deceased when the record is approved
+    // (updateDeathRegistration), never on create.
+    const registration = new DeathRegistration({ ...stripImmutable(req.body), tenantId, status: 'pending' });
+    await registration.save();
     res.status(201).json({ success: true, data: registration });
   } catch (error: any) {
     sendFailure(res, error, 'We couldn\'t save the death registration. Please try again.');
@@ -292,17 +396,75 @@ export const updateDeathRegistration = async (req: AuthRequest, res: Response) =
       [Family, familyId, 'family'],
     ]))) return;
 
-    const updated = await DeathRegistration.findOneAndUpdate(
-      { _id: id, tenantId: registration.tenantId },
-      {
-        deceasedName, deceasedId, deathDate, placeOfDeath, causeOfDeath,
-        mahallId, familyId, informantName, informantRelation, informantPhone,
-        status, remarks,
+    const wasApproved = registration.status === 'approved';
+    const nextStatus = status ?? registration.status;
+    const nextDeceased = deceasedId ?? registration.deceasedId;
+    const deceasedChanged = deceasedId !== undefined && String(deceasedId) !== String(registration.deceasedId ?? '');
+
+    // One open death record per member: moving this record onto a member, reopening or approving it
+    // must not leave a second one.
+    if (
+      nextDeceased &&
+      (OPEN_DEATH_STATUSES as readonly string[]).includes(nextStatus) &&
+      (deceasedChanged || nextStatus !== registration.status) &&
+      (await hasOpenDeathRecord(registration.tenantId, nextDeceased, registration._id))
+    ) {
+      return res.status(409).json({ success: false, message: DUPLICATE_DEATH_MESSAGE });
+    }
+
+    // The record and the member change together: approve marks the member deceased, leaving 'approved'
+    // (or moving an approved record to another member) reactivates the member this record had marked.
+    const updated = await runAtomic(
+      async (session, comp) => {
+        const saved: any = await DeathRegistration.findOneAndUpdate(
+          { _id: id, tenantId: registration.tenantId },
+          {
+            deceasedName, deceasedId, deathDate, placeOfDeath, causeOfDeath,
+            mahallId, familyId, informantName, informantRelation, informantPhone,
+            status, remarks,
+          },
+          { new: true, runValidators: true, session }
+        );
+        if (!saved) return null;
+        comp.push('death registration', () =>
+          DeathRegistration.updateOne(
+            { _id: id, tenantId: registration.tenantId },
+            {
+              $set: {
+                deceasedName: registration.deceasedName, deceasedId: registration.deceasedId,
+                deathDate: registration.deathDate, placeOfDeath: registration.placeOfDeath,
+                causeOfDeath: registration.causeOfDeath, mahallId: registration.mahallId,
+                familyId: registration.familyId, informantName: registration.informantName,
+                informantRelation: registration.informantRelation, informantPhone: registration.informantPhone,
+                status: registration.status, remarks: registration.remarks,
+              },
+            }
+          )
+        );
+
+        const isApproved = saved.status === 'approved';
+        if (wasApproved && (!isApproved || deceasedChanged)) {
+          await revertDeathOnMember(registration, session, comp);
+        }
+        if (isApproved) {
+          await applyDeathToMember(saved, session, comp);
+        }
+        return saved;
       },
-      { new: true, runValidators: true }
-    )
-      .populate('deceasedId', 'name')
-      .populate('familyId', 'houseName');
+      {
+        description: 'death registration update',
+        reconcile: { entity: 'DeathRegistration', entityId: id, tenantId: registration.tenantId },
+      }
+    );
+    if (!updated) {
+      return res.status(404).json({ success: false, message: "We couldn't find that death registration. It may have been removed." });
+    }
+
+    updated.$session?.(null); // the transaction's session has ended; populate must not reuse it
+    await updated.populate([
+      { path: 'deceasedId', select: 'name' },
+      { path: 'familyId', select: 'houseName' },
+    ]);
 
     res.json({ success: true, data: updated });
   } catch (error: any) {

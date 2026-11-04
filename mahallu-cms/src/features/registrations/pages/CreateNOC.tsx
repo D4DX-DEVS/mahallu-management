@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -19,6 +19,8 @@ import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
 import { optionalPhoneSchema, sanitizeDigits } from '@/utils/validation';
+import { useMemberAutofill } from '@/hooks/useMemberAutofill';
+import { applicantFill } from '@/utils/memberAutofill';
 
 const DEFAULT_NOC_DESCRIPTION = `
 <p>To Whom It May Concern,</p>
@@ -81,6 +83,7 @@ export default function CreateNOC() {
     handleSubmit,
     watch,
     setValue,
+    getValues,
     formState: { errors, isSubmitting },
   } = useForm<NOCFormData>({
     resolver: zodResolver(nocSchema),
@@ -91,6 +94,8 @@ export default function CreateNOC() {
   });
 
   const selectedApplicantId = watch('applicantId');
+  const selectedMember = useMemo(() => members.find((m) => m.id === selectedApplicantId), [members, selectedApplicantId]);
+  const autofill = useMemberAutofill({ setValue, getValues });
   const purposeDescription = watch('purposeDescription');
 
   useEffect(() => {
@@ -108,13 +113,10 @@ export default function CreateNOC() {
     fetchMembers();
   }, []);
 
+  // The selected member supplies the applicant's name, Malayalam name and phone number.
   useEffect(() => {
-    if (!selectedApplicantId) return;
-    const selectedMember = members.find((m) => m.id === selectedApplicantId);
-    if (!selectedMember) return;
-    setValue('applicantName', selectedMember.name);
-    setValue('applicantPhone', selectedMember.phone || '');
-  }, [selectedApplicantId, members, setValue]);
+    void autofill(selectedMember, (member) => applicantFill(member));
+  }, [selectedMember, autofill]);
 
   const onSubmit = async (data: NOCFormData) => {
     try {

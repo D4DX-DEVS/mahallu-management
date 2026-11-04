@@ -1,5 +1,6 @@
 import { body, param } from 'express-validator';
 import { sanitizeRichText } from '../utils/htmlSanitizer';
+import { MAHR_TYPES } from '../models/Registration';
 
 // Nikah Registration Validations
 export const createNikahRegistrationValidation = [
@@ -115,6 +116,77 @@ export const updateNikahRegistrationValidation = [
     .withMessage('Please choose a valid status.'),
   body('remarks').optional().trim(),
 ];
+
+/** Multi-line text as typed in a text area: one newline style, no trailing spaces, no outer blank space. */
+export const normalizeMultiline = (value: unknown): unknown =>
+  typeof value === 'string'
+    ? value
+        .replace(/\r\n?/g, '\n')
+        .split('\n')
+        .map((line) => line.replace(/[ \t]+$/g, ''))
+        .join('\n')
+        .trim()
+    : value;
+
+const multiline = (field: string, label: string, max: number) =>
+  body(field)
+    .optional({ values: 'falsy' })
+    .isString()
+    .withMessage(`Please enter the ${label} as text.`)
+    .bail()
+    .customSanitizer(normalizeMultiline)
+    .isLength({ max })
+    .withMessage(`Please keep the ${label} to ${max} characters or less.`);
+
+/** Local or international: digits with an optional leading +, and spaces, dashes, dots or brackets between them. */
+const WITNESS_PHONE = /^\+?\(?[0-9][0-9\s\-().]{4,18}[0-9]$/;
+
+const witnessPhone = (field: string, label: string) =>
+  body(field)
+    .optional({ values: 'falsy' })
+    .isString()
+    .bail()
+    .trim()
+    .matches(WITNESS_PHONE)
+    .withMessage(`Please enter a valid ${label} (digits, with an optional + and country code).`);
+
+/** A photo is referenced by the id of an uploaded document; `null` or an empty value removes it. */
+const photoRef = (field: string, label: string) =>
+  body(field)
+    .optional({ values: 'null' })
+    .custom((value: unknown) => value === '' || (typeof value === 'string' && /^[a-fA-F0-9]{24}$/.test(value)))
+    .withMessage(`Please choose a valid ${label}.`);
+
+/** The Nikah fields added after the first release; shared by create and update. All are optional. */
+export const nikahDetailValidation = [
+  multiline('groomAddress', 'groom address', 500),
+  multiline('brideAddress', 'bride address', 500),
+  witnessPhone('witness1Phone', 'phone number for witness 1'),
+  witnessPhone('witness2Phone', 'phone number for witness 2'),
+  multiline('witness1Address', 'address of witness 1', 500),
+  multiline('witness2Address', 'address of witness 2', 500),
+  body('mahrType')
+    .optional({ values: 'falsy' })
+    .isIn([...MAHR_TYPES])
+    .withMessage('Please choose a valid mahr type.'),
+  body('mahrTypeOther')
+    .if(body('mahrType').equals('other'))
+    .isString()
+    .withMessage('Please specify the mahr type.')
+    .bail()
+    .trim()
+    .notEmpty()
+    .withMessage('Please specify the mahr type.')
+    .isLength({ max: 100 })
+    .withMessage('Please keep the mahr type to 100 characters or less.'),
+  multiline('mahrDescription', 'mahr description', 3000),
+  multiline('remarks', 'remarks', 2000),
+  photoRef('groomPhotoId', 'groom photo'),
+  photoRef('bridePhotoId', 'bride photo'),
+];
+
+createNikahRegistrationValidation.push(...nikahDetailValidation);
+updateNikahRegistrationValidation.push(...nikahDetailValidation);
 
 // Death Registration Validations
 export const createDeathRegistrationValidation = [

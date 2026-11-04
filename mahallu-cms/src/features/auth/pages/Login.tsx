@@ -2,8 +2,9 @@ import { useState, useEffect, ChangeEvent } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
+  FiArrowLeft,
   FiRefreshCw,
   FiUser,
   FiHome,
@@ -15,6 +16,7 @@ import {
   FiUsers,
   FiBarChart2,
   FiPhone,
+  FiKey,
 } from 'react-icons/fi';
 import { FaMosque } from 'react-icons/fa';
 import { authService, AccountOption, AuthResponse } from '@/services/authService';
@@ -23,7 +25,7 @@ import { useAuthStore } from '@/store/authStore';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Alert from '@/components/ui/Alert';
-import { BRAND_NAME, LOGO_PATH } from '@/constants/theme';
+import { BRAND_NAME, BRAND_TAGLINE, ICON_PATH, LOGO_PATH } from '@/constants/theme';
 import { ROUTES } from '@/constants/routes';
 import { errorMessage } from '@/utils/errors';
 import { peekAuthNotice, clearAuthNotice } from '@/utils/authNotice';
@@ -41,12 +43,20 @@ const phoneSchema = z.object({
     .regex(/^[0-9]{10}$/, 'Enter a 10-digit mobile number'),
 });
 
+/* Staff accounts may sign in with a username and password instead of an OTP. The API rules the
+   username precisely; this only keeps empty fields from being sent. */
+const passwordLoginSchema = z.object({
+  username: z.string().trim().min(1, 'Enter your username').max(30, 'That username is too long'),
+  password: z.string().min(1, 'Enter your password').max(128, 'That password is too long'),
+});
+
 const codeSchema = z.object({
   code: z.string().max(200, 'Please keep the code to 200 characters or less.').length(6, 'Enter the 6-digit code'),
 });
 
 type PhoneFormData = z.infer<typeof phoneSchema>;
 type CodeFormData = z.infer<typeof codeSchema>;
+type PasswordLoginData = z.infer<typeof passwordLoginSchema>;
 
 // Brand name renders as "<accent>Mahal</accent> Connect" on the promo panel.
 const [BRAND_ACCENT, ...BRAND_REST] = BRAND_NAME.split(' ');
@@ -55,6 +65,7 @@ export default function Login() {
   const navigate = useNavigate();
   const { setUser, setToken, resetSessionContext } = useAuthStore();
   const [step, setStep] = useState<'phone' | 'otp' | 'select'>('phone');
+  const [usePassword, setUsePassword] = useState(false);
   const [phone, setPhone] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSendingOTP, setIsSendingOTP] = useState(false);
@@ -93,6 +104,10 @@ export default function Login() {
     phoneField.onChange(event);
   };
 
+  const passwordForm = useForm<PasswordLoginData>({
+    resolver: zodResolver(passwordLoginSchema),
+  });
+
   const otpForm = useForm<CodeFormData>({
     resolver: zodResolver(codeSchema),
   });
@@ -130,6 +145,50 @@ export default function Login() {
   const handleResendOTP = async () => {
     if (countdown > 0) return;
     await handleSendOTP({ phone });
+  };
+
+  /* Store the session, then go to the right home. A password an administrator issued is replaced first. */
+  const finishSignIn = (auth: AuthResponse) => {
+    resetSessionContext();
+    setUser(auth.user);
+    setToken(auth.token);
+
+    // Subscribe this browser to OneSignal push (fire-and-forget, non-blocking)
+    if (auth.user.role !== 'member') {
+      initAndSubscribe()
+        .then((playerId) => {
+          if (playerId) {
+            authService.registerDevice(playerId).catch(() => {});
+          }
+        })
+        .catch(() => {});
+    }
+
+    if (auth.user.passwordResetRequired) {
+      navigate('/settings/security');
+      return;
+    }
+    navigate(auth.user.role === 'member' ? ROUTES.MEMBER.OVERVIEW : ROUTES.DASHBOARD);
+  };
+
+  const handlePasswordLogin = async (data: PasswordLoginData) => {
+    try {
+      setIsLoading(true);
+      setError('');
+      const result = await authService.login({ username: data.username.trim().toLowerCase(), password: data.password });
+      if ('requiresOtp' in result) {
+        // Two-factor is on for this account: the password was right, now the code.
+        await handleSendOTP({ phone: result.phone });
+        return;
+      }
+      passwordForm.reset();
+      finishSignIn(result);
+    } catch (err) {
+      // The API answers a wrong username and a wrong password identically.
+      setError(errorMessage(err, { action: 'sign you in. please check your username and password' }));
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleVerifyOTP = async (data: CodeFormData) => {
@@ -262,13 +321,13 @@ export default function Login() {
           <div className="relative">
             <div className="flex items-center gap-3">
               <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-white p-1.5">
-                <img src={LOGO_PATH} alt="" aria-hidden="true" className="h-full w-full object-contain" />
+                <img src={ICON_PATH} alt="" aria-hidden="true" className="h-full w-full object-contain" />
               </span>
               <div>
                 <p className="text-lg font-bold leading-tight">
                   <span className="text-primary-300">{BRAND_ACCENT}</span> {BRAND_REST.join(' ')}
                 </p>
-                <p className="text-[10px] font-semibold tracking-[0.2em] text-white/60">MANAGEMENT SUITE</p>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-white/60">{BRAND_TAGLINE}</p>
               </div>
             </div>
 
@@ -310,8 +369,20 @@ export default function Login() {
         {/* Form panel */}
         <div className="flex flex-col justify-center p-5 sm:p-8 lg:p-10">
           <div className="mx-auto w-full max-w-sm">
+            {/* The landing page is the front door; this is the way back to it. */}
+            <Link
+              to={ROUTES.LANDING}
+              className="mb-6 inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-primary"
+            >
+              <FiArrowLeft className="h-4 w-4" aria-hidden="true" />
+              Back to home
+            </Link>
             <div className="text-center">
-              <img src={LOGO_PATH} alt="" aria-hidden="true" className="mx-auto h-14 w-14 object-contain" />
+              <img
+                src={LOGO_PATH}
+                alt={BRAND_NAME}
+                className="mx-auto h-16 w-auto dark:rounded-xl dark:bg-white dark:px-3 dark:py-1.5"
+              />
               <p className="mt-4 text-xs font-semibold tracking-[0.2em] text-primary">• WELCOME BACK •</p>
               <h1 className="mt-2 text-2xl font-bold tracking-tight text-foreground">
                 {step === 'otp'
@@ -322,7 +393,9 @@ export default function Login() {
               </h1>
               <p className="mt-2 text-sm text-muted-foreground">
                 {step === 'phone' &&
-                  'Use your phone number to receive a one-time passcode and access the admin workspace.'}
+                  (usePassword
+                    ? 'Enter the username and password your administrator gave you.'
+                    : 'Use your phone number to receive a one-time passcode and access the admin workspace.')}
                 {step === 'otp' && (
                   <>
                     We sent a 6-digit code to{' '}
@@ -343,7 +416,53 @@ export default function Login() {
             )}
 
             <div className="mt-6">
-              {step === 'phone' ? (
+              {step === 'phone' && usePassword ? (
+                <form onSubmit={passwordForm.handleSubmit(handlePasswordLogin)} className="space-y-4" noValidate>
+                  <Input
+                    label="Username"
+                    autoComplete="username"
+                    autoCapitalize="none"
+                    spellCheck={false}
+                    autoFocus
+                    {...passwordForm.register('username')}
+                    error={passwordForm.formState.errors.username?.message}
+                    placeholder="Your username"
+                    required
+                    icon={<FiUser className="h-4 w-4" />}
+                  />
+                  <Input
+                    label="Password"
+                    type="password"
+                    autoComplete="current-password"
+                    {...passwordForm.register('password')}
+                    error={passwordForm.formState.errors.password?.message}
+                    placeholder="Your password"
+                    required
+                    icon={<FiKey className="h-4 w-4" />}
+                  />
+                  <Button
+                    type="submit"
+                    size="lg"
+                    className="w-full bg-gradient-to-r from-primary-600 to-primary-400 hover:from-primary-700 hover:to-primary-500"
+                    icon={<FiLock />}
+                    isLoading={isLoading}
+                    loadingText="Signing in"
+                  >
+                    Sign in
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="w-full"
+                    onClick={() => {
+                      setUsePassword(false);
+                      setError('');
+                    }}
+                  >
+                    Use my phone number instead
+                  </Button>
+                </form>
+              ) : step === 'phone' ? (
                 <form onSubmit={phoneForm.handleSubmit(handleSendOTP)} className="space-y-4">
                   <Input
                     label="Phone Number"
@@ -374,6 +493,17 @@ export default function Login() {
                     loadingText="Sending"
                   >
                     Send OTP
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="w-full"
+                    onClick={() => {
+                      setUsePassword(true);
+                      setError('');
+                    }}
+                  >
+                    Sign in with a username and password
                   </Button>
                 </form>
               ) : step === 'select' ? (

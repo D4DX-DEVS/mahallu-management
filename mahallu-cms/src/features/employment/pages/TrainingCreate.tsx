@@ -8,6 +8,7 @@ import PageHeader from '@/components/layout/PageHeader';
 import Input from '@/components/ui/Input';
 import { useFormValidation } from '@/hooks/useFormValidation';
 import { FieldRule, LIMITS, firstError, validateForm } from '@/utils/validation';
+import Select from '@/components/ui/Select';
 
 /**
  * The same limits the API applies, so a form that passes here is not
@@ -138,18 +139,18 @@ export default function TrainingCreate() {
 
             <div>
               <label className="block text-sm font-medium text-gray-900 mb-2">Status</label>
-              <select
+              <Select
                 aria-label="Status"
                 name="status"
                 value={formData.status}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="planned">Planned</option>
-                <option value="ongoing">Ongoing</option>
-                <option value="completed">Completed</option>
-                <option value="cancelled">Cancelled</option>
-              </select>
+                options={[
+                  { value: 'planned', label: 'Planned' },
+                  { value: 'ongoing', label: 'Ongoing' },
+                  { value: 'completed', label: 'Completed' },
+                  { value: 'cancelled', label: 'Cancelled' },
+                ]}
+              />
             </div>
           </div>
 

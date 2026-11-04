@@ -12,6 +12,7 @@ import { toTitleCase } from '@/utils/format';
 import { cn } from '@/utils/cn';
 import { roleLabel, roleIcon } from '@/utils/roleLabels';
 import Button from '@/components/ui/Button';
+import Select from '@/components/ui/Select';
 import { useAccountSwitcher } from '@/hooks/useAccountSwitcher';
 import { AccountList } from './AccountSwitcher';
 
@@ -107,7 +108,10 @@ export default function RoleSwitcher({ className }: { className?: string } = {})
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      // A shared Select's menu is portalled to <body>, outside this panel.
+      if ((target as Element).closest?.('[data-select-menu]')) return;
+      if (dropdownRef.current && !dropdownRef.current.contains(target)) {
         setIsOpen(false);
       }
     }
@@ -118,7 +122,8 @@ export default function RoleSwitcher({ className }: { className?: string } = {})
   useEffect(() => {
     if (!isOpen) return;
     function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') setIsOpen(false);
+      // Escape inside an open Select menu only closes that menu.
+      if (event.key === 'Escape' && !event.defaultPrevented) setIsOpen(false);
     }
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
@@ -282,7 +287,7 @@ export default function RoleSwitcher({ className }: { className?: string } = {})
         )}
       >
         {roleIcon(currentRole)}
-        <span className="min-w-0 max-w-[76px] truncate sm:max-w-[150px] md:max-w-[190px]">Switch Role</span>
+        <span className="min-w-0 max-w-[76px] truncate sm:max-w-[150px] md:max-w-[190px] md:max-lg:hidden">Switch Role</span>
         <FiChevronDown className={cn('h-4 w-4 flex-shrink-0 transition-transform', isOpen && 'rotate-180')} />
       </button>
 
@@ -352,39 +357,31 @@ export default function RoleSwitcher({ className }: { className?: string } = {})
 
                 <div>
                   <label className="mb-1 block text-xs font-medium text-muted-foreground">Select Mahallu</label>
-                  <select
+                  <Select
                     aria-label="Select Mahallu"
                     value={tenantId}
                     onChange={(e) => setTenantId(e.target.value)}
                     disabled={isLoadingTenants}
-                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  >
-                    <option value="">{isLoadingTenants ? 'Loading…' : 'Choose a Mahallu'}</option>
-                    {tenants.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {toTitleCase(t.name)}
-                      </option>
-                    ))}
-                  </select>
+                    options={[
+                      { value: '', label: isLoadingTenants ? 'Loading…' : 'Choose a Mahallu' },
+                      ...tenants.map((t) => ({ value: t.id, label: toTitleCase(t.name) })),
+                    ]}
+                  />
                 </div>
 
                 {selectedRole === 'institute' && tenantId && (
                   <div>
                     <label className="mb-1 block text-xs font-medium text-muted-foreground">Select Institute</label>
-                    <select
+                    <Select
                       aria-label="Select Institute"
                       value={instituteId}
                       onChange={(e) => setInstituteId(e.target.value)}
                       disabled={isLoadingContext}
-                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    >
-                      <option value="">{isLoadingContext ? 'Loading…' : 'Choose an institute'}</option>
-                      {institutes.map((i) => (
-                        <option key={i.id} value={i.id}>
-                          {toTitleCase(i.name)}
-                        </option>
-                      ))}
-                    </select>
+                      options={[
+                        { value: '', label: isLoadingContext ? 'Loading…' : 'Choose an institute' },
+                        ...institutes.map((i) => ({ value: i.id, label: toTitleCase(i.name) })),
+                      ]}
+                    />
                     {!isLoadingContext && institutes.length === 0 && (
                       <p className="mt-1 text-xs text-muted-foreground">No institutes in this Mahallu.</p>
                     )}

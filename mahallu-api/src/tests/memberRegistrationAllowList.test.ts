@@ -58,6 +58,7 @@ const original = {
   docUpdateMany: DocumentFile.updateMany,
   nikahSave: NikahRegistration.prototype.save,
   deathSave: DeathRegistration.prototype.save,
+  deathExists: DeathRegistration.exists,
   nocSave: NOC.prototype.save,
   nocFindById: NOC.findById,
 };
@@ -94,6 +95,7 @@ before(() => {
   };
   (NikahRegistration.prototype as any).save = recordingSave;
   (DeathRegistration.prototype as any).save = recordingSave;
+  (DeathRegistration as any).exists = async () => null; // no open death record yet
   (NOC.prototype as any).save = recordingSave;
   (NOC as any).findById = () => ({ populate: async () => ({}) });
 });
@@ -103,6 +105,7 @@ after(() => {
   Object.assign(DocumentFile, { find: original.docFind, updateMany: original.docUpdateMany });
   (NikahRegistration.prototype as any).save = original.nikahSave;
   (DeathRegistration.prototype as any).save = original.deathSave;
+  (DeathRegistration as any).exists = original.deathExists;
   (NOC.prototype as any).save = original.nocSave;
   (NOC as any).findById = original.nocFindById;
 });

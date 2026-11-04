@@ -23,6 +23,7 @@ import {
   getOwnCertificates,
   downloadOwnCertificate,
 } from '../controllers/memberUserController';
+import { createFamilyMember } from '../controllers/familyHeadController';
 import { authMiddleware, memberUserOnly } from '../middleware/authMiddleware';
 import { validationHandler } from '../middleware/validationHandler';
 import {
@@ -30,6 +31,7 @@ import {
   paymentsQueryValidation,
   registrationsQueryValidation,
   updateOwnProfileValidation,
+  createFamilyMemberValidation,
   varisangyaPaymentValidation,
   zakatPaymentValidation,
   nikahRequestValidation,
@@ -106,6 +108,29 @@ router.get('/overview', getOwnOverview);
  *         description: Member profile not found
  */
 router.put('/profile', updateOwnProfileValidation, validationHandler, updateOwnProfile);
+
+/**
+ * @swagger
+ * /member-user/family-members:
+ *   post:
+ *     summary: Add a member to your own family
+ *     tags: [Member User]
+ *     description: |
+ *       A Family Head adds a person to their own family. The family, Mahallu and status come from the
+ *       server; only the person's details are read. A person with a phone number gets a linked member
+ *       account that signs in with an OTP (no password is created). The family must be approved.
+ *       **Access:** the Family Head only
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       201:
+ *         description: Member added
+ *       403:
+ *         description: Not a Family Head
+ *       409:
+ *         description: Family not approved, or the person (or phone number) already exists
+ */
+router.post('/family-members', createFamilyMemberValidation, validationHandler, createFamilyMember);
 
 /**
  * @swagger
@@ -306,8 +331,8 @@ router.get('/registrations', registrationsQueryValidation, validationHandler, ge
  *     summary: Get own certificates
  *     tags: [Member User]
  *     description: |
- *       Certificates issued for the member's own registrations (the same ones /member-user/registrations
- *       returns), revoked ones included. **Access:** Member User only
+ *       Issued (not revoked) certificates of the member and their family/house:
+ *       `{ _id, type, certificateNo, issuedAt, subjectName, status: 'issued' }`. **Access:** Member User only
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -334,10 +359,10 @@ router.get('/registrations', registrationsQueryValidation, validationHandler, ge
  *     responses:
  *       200:
  *         description: Link returned in data.url
- *       403:
- *         description: The certificate has been revoked
  *       404:
- *         description: Not found, or not the member's certificate
+ *         description: Not found, or not a certificate of the member or their family
+ *       410:
+ *         description: The certificate has been revoked
  */
 router.get('/certificates', certificatesQueryValidation, validationHandler, getOwnCertificates);
 router.get('/certificates/:id/download', ownCertificateParamValidation, validationHandler, downloadOwnCertificate);

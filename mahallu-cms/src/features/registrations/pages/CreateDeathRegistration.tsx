@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -18,11 +18,15 @@ import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
 import { optionalPhoneSchema, sanitizeDigits } from '@/utils/validation';
+import { useMemberAutofill } from '@/hooks/useMemberAutofill';
+import { deceasedFill } from '@/utils/memberAutofill';
+import { causeOfDeathOptions } from '../deathCause';
 
 const deathSchema = z.object({
-  deceasedName: z.string().max(200, 'Please keep the deceased name to 200 characters or less.').min(1, 'Deceased name is required'),
+  // Not typed: it is taken from the member selected below (the API still stores the name on the record).
+  deceasedName: z.string().max(200, 'Please keep the deceased name to 200 characters or less.').optional(),
   deceasedNameMl: z.string().max(200, 'Please keep the deceased name to 200 characters or less.').optional(),
-  deceasedId: z.string().max(200, 'Please keep the deceased to 200 characters or less.').optional(),
+  deceasedId: z.string().max(200, 'Please keep the deceased to 200 characters or less.').min(1, 'Please select the member.'),
   deathDate: z.string().max(200, 'Please keep the death date to 200 characters or less.').min(1, 'Death date is required'),
   placeOfDeath: z.string().max(300, 'Please keep the place of death to 300 characters or less.').optional(),
   causeOfDeath: z.string().max(200, 'Please keep the cause of death to 200 characters or less.').optional(),
@@ -45,6 +49,7 @@ export default function CreateDeathRegistration() {
     handleSubmit,
     watch,
     setValue,
+    getValues,
     formState: { errors, isSubmitting },
   } = useForm<DeathFormData>({
     resolver: zodResolver(deathSchema),
@@ -54,6 +59,8 @@ export default function CreateDeathRegistration() {
   });
 
   const selectedMemberId = watch('deceasedId') || '';
+  const selectedMember = useMemo(() => members.find((m) => m.id === selectedMemberId), [members, selectedMemberId]);
+  const autofill = useMemberAutofill({ setValue, getValues });
 
   useEffect(() => {
     const fetchMembers = async () => {
@@ -70,25 +77,16 @@ export default function CreateDeathRegistration() {
     fetchMembers();
   }, []);
 
+  // The selected member supplies the deceased's name, Malayalam name, family and member id.
   useEffect(() => {
-    if (!selectedMemberId) return;
-    const selectedMember = members.find((m) => m.id === selectedMemberId);
-    if (!selectedMember) return;
-    setValue('deceasedName', selectedMember.name);
-    // Extract string ID from potentially populated familyId object
-    const fid = selectedMember.familyId;
-    const familyIdStr = typeof fid === 'object' && fid !== null ? (fid as any).id || (fid as any)._id : fid;
-    setValue('familyId', familyIdStr);
-    if (selectedMember.mahallId) {
-      setValue('mahallId', selectedMember.mahallId);
-    }
-  }, [selectedMemberId, members, setValue]);
+    void autofill(selectedMember, (member) => deceasedFill(member));
+  }, [selectedMember, autofill]);
 
   const onSubmit = async (data: DeathFormData) => {
     try {
       setError(null);
       await registrationService.createDeath({
-        deceasedName: data.deceasedName,
+        deceasedName: (data.deceasedName || selectedMember?.name || '').trim(),
         deceasedNameMl: data.deceasedNameMl || undefined,
         deceasedId: data.deceasedId || undefined,
         deathDate: data.deathDate,
@@ -144,14 +142,8 @@ export default function CreateDeathRegistration() {
                 })),
               ]}
               {...register('deceasedId')}
-              className="md:col-span-2"
-            />
-            <Input
-              label="Deceased Name"
-              {...register('deceasedName')}
-              error={errors.deceasedName?.message}
+              error={errors.deceasedId?.message}
               required
-              placeholder="Deceased Name"
               className="md:col-span-2"
             />
             <div className="hidden">
@@ -170,7 +162,7 @@ export default function CreateDeathRegistration() {
               required
             />
             <Input label="Place of Death" {...register('placeOfDeath')} placeholder="Place of Death" />
-            <Input label="Cause of Death" {...register('causeOfDeath')} placeholder="Cause of Death" />
+            <Select label="Cause of Death" options={causeOfDeathOptions(watch('causeOfDeath'))} {...register('causeOfDeath')} />
             <Input label="Mahall ID" {...register('mahallId')} placeholder="Mahall ID" />
             <h3 className="md:col-span-2 text-lg font-semibold mt-4 text-foreground">
               Informant Information

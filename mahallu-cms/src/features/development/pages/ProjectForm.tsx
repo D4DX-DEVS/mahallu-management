@@ -9,6 +9,7 @@ import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import DatePicker from '@/components/ui/DatePicker';
 import { useFormValidation } from '@/hooks/useFormValidation';
 import { FieldRule, LIMITS, firstError, validateForm } from '@/utils/validation';
+import Select from '@/components/ui/Select';
 
 /**
  * The same limits the API applies, so a form that passes here is not
@@ -137,18 +138,12 @@ export default function ProjectForm({ isEdit = false }: ProjectFormProps) {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium mb-1">Area *</label>
-            <select
+            <Select
               aria-label="Area"
               value={formData.area || 'roads'}
               onChange={(e) => setFormData({ ...formData, area: e.target.value as any })}
-              className="w-full px-3 py-2 border rounded"
-            >
-              {PROJECT_AREAS.map((area) => (
-                <option key={area.value} value={area.value}>
-                  {area.label}
-                </option>
-              ))}
-            </select>
+              options={PROJECT_AREAS.map((area) => ({ value: area.value, label: area.label }))}
+            />
           </div>
           <div>
             <label className="block text-sm font-medium mb-1">Estimated Cost (₹) *</label>
@@ -236,18 +231,18 @@ export default function ProjectForm({ isEdit = false }: ProjectFormProps) {
           </div>
           <div>
             <label className="block text-sm font-medium mb-1">Status</label>
-            <select
+            <Select
               aria-label="Status"
               value={formData.status || 'proposed'}
               onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
-              className="w-full px-3 py-2 border rounded"
-            >
-              <option value="proposed">Proposed</option>
-              <option value="approved">Approved</option>
-              <option value="in_progress">In Progress</option>
-              <option value="completed">Completed</option>
-              <option value="dropped">Dropped</option>
-            </select>
+              options={[
+                { value: 'proposed', label: 'Proposed' },
+                { value: 'approved', label: 'Approved' },
+                { value: 'in_progress', label: 'In Progress' },
+                { value: 'completed', label: 'Completed' },
+                { value: 'dropped', label: 'Dropped' },
+              ]}
+            />
           </div>
         </div>
 

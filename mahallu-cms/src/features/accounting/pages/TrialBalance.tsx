@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
-import Input from '@/components/ui/Input';
+import DateRangePicker from '@/components/ui/DateRangePicker';
+import { todayISO, yearStartISO } from '@/utils/dates';
 import Select from '@/components/ui/Select';
 import Alert from '@/components/ui/Alert';
 import { PageSkeleton } from '@/components/ui/Skeleton';
@@ -13,6 +14,23 @@ import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
 import { fetchAllPages } from '@/services/api';
 import { logError } from '@/utils/safeLog';
+import {
+  TRIAL_BALANCE_COLUMNS,
+  TRIAL_BALANCE_MIN_WIDTH,
+  formatRupees,
+  summarizeTrialBalance,
+  trialBalanceFooter,
+  type FooterRow,
+} from '@/utils/trialBalance';
+
+// Amount cells: right-aligned, equal-width digits so figures line up, never wrapped.
+const AMOUNT_CELL = 'px-4 py-3 text-sm text-right tabular-nums whitespace-nowrap';
+
+const FOOTER_TONE: Record<FooterRow['tone'], string> = {
+  neutral: 'text-gray-900 dark:text-gray-100',
+  balanced: 'text-green-600',
+  unbalanced: 'text-red-600',
+};
 
 export default function TrialBalance() {
   const { currentInstituteId: userInstituteId } = useAuthStore();
@@ -21,12 +39,8 @@ export default function TrialBalance() {
   const [entries, setEntries] = useState<TrialBalanceEntry[]>([]);
   const [institutes, setInstitutes] = useState<{ id: string; name: string }[]>([]);
   const [instituteFilter, setInstituteFilter] = useState(userInstituteId || 'all');
-  const [startDate, setStartDate] = useState(() => {
-    const d = new Date();
-    d.setMonth(0, 1);
-    return d.toISOString().split('T')[0];
-  });
-  const [endDate, setEndDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [startDate, setStartDate] = useState(() => yearStartISO());
+  const [endDate, setEndDate] = useState(() => todayISO());
 
   useEffect(() => {
     if (!userInstituteId) fetchInstitutes();
@@ -56,8 +70,7 @@ export default function TrialBalance() {
     }
   };
 
-  const totalDebit = entries.reduce((sum, e) => sum + (e.debit || 0), 0);
-  const totalCredit = entries.reduce((sum, e) => sum + (e.credit || 0), 0);
+  const footer = trialBalanceFooter(summarizeTrialBalance(entries));
 
   return (
     <div className="space-y-4">
@@ -65,20 +78,16 @@ export default function TrialBalance() {
 
       <Card>
         <div className="flex flex-wrap items-end gap-4 mb-4">
-          <div className="w-full sm:w-44">
-            <Input
-              label="Start Date"
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-            />
-          </div>
-          <div className="w-full sm:w-44">
-            <Input
-              label="End Date"
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
+          <div className="w-full sm:w-72">
+            <DateRangePicker
+              label="Date range"
+              from={startDate}
+              to={endDate}
+              onChange={(from, to) => {
+                setStartDate(from);
+                setEndDate(to);
+              }}
+              className="h-10 max-sm:h-10"
             />
           </div>
           {!userInstituteId && (
@@ -115,30 +124,38 @@ export default function TrialBalance() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="data-table min-w-full divide-y divide-border">
+            {/* Fixed layout: the columns are the same width in the header, every row and the footer. */}
+            <table
+              className="data-table w-full divide-y divide-border"
+              style={{ tableLayout: 'fixed', minWidth: TRIAL_BALANCE_MIN_WIDTH }}
+            >
+              <colgroup>
+                {TRIAL_BALANCE_COLUMNS.map((column) => (
+                  <col key={column.key} style={column.width ? { width: column.width } : undefined} />
+                ))}
+              </colgroup>
               <thead className="bg-muted">
                 <tr>
-                  <th className="px-4 py-3 text-left text-label font-medium text-gray-500 dark:text-gray-400 uppercase">
-                    Ledger
-                  </th>
-                  <th className="px-4 py-3 text-left text-label font-medium text-gray-500 dark:text-gray-400 uppercase">
-                    Type
-                  </th>
-                  <th className="px-4 py-3 text-right text-label font-medium text-gray-500 dark:text-gray-400 uppercase">
-                    Debit (₹)
-                  </th>
-                  <th className="px-4 py-3 text-right text-label font-medium text-gray-500 dark:text-gray-400 uppercase">
-                    Credit (₹)
-                  </th>
+                  {TRIAL_BALANCE_COLUMNS.map((column) => (
+                    <th
+                      key={column.key}
+                      scope="col"
+                      // Inline: `.data-table th` sets text-align:left and would beat a `text-right` class.
+                      style={{ textAlign: column.align }}
+                      className="px-4 py-3 text-label font-medium text-gray-500 dark:text-gray-400 uppercase"
+                    >
+                      {column.label}
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody className="bg-white dark:bg-gray-900 divide-y divide-border">
                 {entries.map((entry, idx) => (
                   <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-800">
-                    <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100 font-medium">
+                    <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100 font-medium break-words">
                       {toTitleCase(entry.ledgerName)}
                     </td>
-                    <td className="px-4 py-3 text-sm">
+                    <td className="px-4 py-3 text-sm whitespace-nowrap">
                       <span
                         className={`px-2 py-1 text-xs font-medium rounded-full capitalize ${
                           entry.type === 'income'
@@ -151,41 +168,25 @@ export default function TrialBalance() {
                         {entry.type}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-gray-100">
-                      {entry.debit > 0 ? `₹${entry.debit.toLocaleString()}` : '-'}
+                    <td className={`${AMOUNT_CELL} text-gray-900 dark:text-gray-100`}>
+                      {entry.debit > 0 ? formatRupees(entry.debit) : '-'}
                     </td>
-                    <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-gray-100">
-                      {entry.credit > 0 ? `₹${entry.credit.toLocaleString()}` : '-'}
+                    <td className={`${AMOUNT_CELL} text-gray-900 dark:text-gray-100`}>
+                      {entry.credit > 0 ? formatRupees(entry.credit) : '-'}
                     </td>
                   </tr>
                 ))}
               </tbody>
               <tfoot className="bg-muted">
-                <tr>
-                  <td colSpan={2} className="px-4 py-3 text-sm font-semibold text-gray-900 dark:text-gray-100">
-                    Total
-                  </td>
-                  <td className="px-4 py-3 text-sm text-right font-semibold text-gray-900 dark:text-gray-100">
-                    ₹{totalDebit.toLocaleString()}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-right font-semibold text-gray-900 dark:text-gray-100">
-                    ₹{totalCredit.toLocaleString()}
-                  </td>
-                </tr>
-                <tr>
-                  <td colSpan={2} className="px-4 py-3 text-sm font-semibold text-gray-900 dark:text-gray-100">
-                    Difference
-                  </td>
-                  <td
-                    colSpan={2}
-                    className={`px-4 py-3 text-sm text-right font-semibold ${
-                      totalDebit - totalCredit === 0 ? 'text-green-600' : 'text-red-600'
-                    }`}
-                  >
-                    ₹{Math.abs(totalDebit - totalCredit).toLocaleString()}
-                    {totalDebit - totalCredit === 0 && ' (Balanced ✓)'}
-                  </td>
-                </tr>
+                {[footer.total, footer.difference].map((row) => (
+                  <tr key={row.label}>
+                    <td colSpan={row.labelSpan} className={`px-4 py-3 text-sm font-semibold ${FOOTER_TONE.neutral}`}>
+                      {row.label}
+                    </td>
+                    <td className={`${AMOUNT_CELL} font-semibold ${FOOTER_TONE[row.tone]}`}>{row.debit}</td>
+                    <td className={`${AMOUNT_CELL} font-semibold ${FOOTER_TONE[row.tone]}`}>{row.credit}</td>
+                  </tr>
+                ))}
               </tfoot>
             </table>
           </div>

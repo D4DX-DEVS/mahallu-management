@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { UseFormRegister } from 'react-hook-form';
+import { UseFormRegister, UseFormWatch } from 'react-hook-form';
 import Card from '@/components/ui/Card';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
@@ -29,11 +29,13 @@ export const HOUSING_TYPE_OPTIONS = [
 
 interface WelfareSectionProps {
   register: UseFormRegister<any>;
+  /** Pass on forms that load existing values, so the dropdowns show them. */
+  watch?: UseFormWatch<any>;
   defaultOpen?: boolean;
 }
 
 /** Household welfare profile shared by the family create and edit forms. */
-export default function WelfareSection({ register, defaultOpen = false }: WelfareSectionProps) {
+export default function WelfareSection({ register, watch, defaultOpen = false }: WelfareSectionProps) {
   const [open, setOpen] = useState(defaultOpen);
 
   return (
@@ -56,9 +58,24 @@ export default function WelfareSection({ register, defaultOpen = false }: Welfar
 
       {open && (
         <div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
-          <Select label="Economic Status" {...register('economicStatus')} options={ECONOMIC_STATUS_OPTIONS} />
-          <Select label="Welfare Status" {...register('welfareStatus')} options={WELFARE_STATUS_OPTIONS} />
-          <Select label="Housing Type" {...register('housingType')} options={HOUSING_TYPE_OPTIONS} />
+          <Select
+            label="Economic Status"
+            value={watch ? watch('economicStatus') || '' : undefined}
+            {...register('economicStatus')}
+            options={ECONOMIC_STATUS_OPTIONS}
+          />
+          <Select
+            label="Welfare Status"
+            value={watch ? watch('welfareStatus') || '' : undefined}
+            {...register('welfareStatus')}
+            options={WELFARE_STATUS_OPTIONS}
+          />
+          <Select
+            label="Housing Type"
+            value={watch ? watch('housingType') || '' : undefined}
+            {...register('housingType')}
+            options={HOUSING_TYPE_OPTIONS}
+          />
           <Input label="Special Requirements" {...register('specialRequirements')} />
         </div>
       )}

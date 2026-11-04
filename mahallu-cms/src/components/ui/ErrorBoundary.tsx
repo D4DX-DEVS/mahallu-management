@@ -2,6 +2,7 @@ import { Component, ErrorInfo, ReactNode } from 'react';
 import { useLocation } from 'react-router-dom';
 import { FiAlertTriangle } from 'react-icons/fi';
 import Button from './Button';
+import { BRAND_NAME } from '@/constants/theme';
 
 /*
  * Nothing used to stand between a render-time exception and the user.
@@ -91,7 +92,7 @@ export function AppErrorBoundary({ children }: { children: ReactNode }) {
       fallback={(_error, reset) => (
         <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4 text-center">
           <FiAlertTriangle className="mb-4 h-10 w-10 text-destructive" aria-hidden="true" />
-          <h1 className="text-lg font-semibold text-foreground">Mahal Connect ran into a problem</h1>
+          <h1 className="text-lg font-semibold text-foreground">{BRAND_NAME} ran into a problem</h1>
           <p className="mt-2 max-w-md text-sm text-muted-foreground">
             The app stopped unexpectedly. Nothing you saved has been lost. Reloading usually clears
             it.

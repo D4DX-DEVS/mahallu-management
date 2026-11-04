@@ -1,26 +1,49 @@
-import React, { useState, useEffect } from 'react';
-import { FiPlus, FiCalendar, FiMapPin } from 'react-icons/fi';
+import { useState, useEffect, useCallback } from 'react';
+import { FiPlus, FiEye, FiEdit2, FiTrash2 } from 'react-icons/fi';
 import { getMedicalCamps, deleteMedicalCamp, IMedicalCamp } from '@/services/healthService';
+import TableCard from '@/components/ui/TableCard';
+import TableToolbar from '@/components/ui/TableToolbar';
+import Tabs from '@/components/ui/Tabs';
+import Table from '@/components/ui/Table';
+import StatusBadge from '@/components/ui/StatusBadge';
+import ActionsMenu from '@/components/ui/ActionsMenu';
+import EmptyState from '@/components/ui/EmptyState';
 import Pagination from '@/components/ui/Pagination';
-import ExpandableSearch from '@/components/ui/ExpandableSearch';
-import ActionBar from '@/components/ui/ActionBar';
 import Button from '@/components/ui/Button';
-import { PageSkeleton } from '@/components/ui/Skeleton';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
-import { toast } from '@/store/toastStore';
-import { useNavigate } from 'react-router-dom';
-import PageHeader from '@/components/layout/PageHeader';
-import { toTitleCase } from '@/utils/format';
 import Modal from '@/components/ui/Modal';
+import PageHeader from '@/components/layout/PageHeader';
+import { useNavigate } from 'react-router-dom';
+import { TableColumn } from '@/types';
+import { useDebounce } from '@/hooks/useDebounce';
+import { toast } from '@/store/toastStore';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import { toTitleCase } from '@/utils/format';
+
+const STATUS_TABS = [
+  { value: '', label: 'All' },
+  { value: 'planned', label: 'Planned' },
+  { value: 'completed', label: 'Completed' },
+  { value: 'cancelled', label: 'Cancelled' },
+];
+
+const formatDate = (dateString: string) =>
+  new Date(dateString).toLocaleDateString('en-IN', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
 
 export default function CampsList() {
   const navigate = useNavigate();
   const [camps, setCamps] = useState<IMedicalCamp[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
-  const [search, setSearch] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -28,26 +51,27 @@ export default function CampsList() {
   const [selectedCamp, setSelectedCamp] = useState<IMedicalCamp | null>(null);
   const [showViewModal, setShowViewModal] = useState(false);
 
-  const itemsPerPage = 10;
+  const debouncedSearch = useDebounce(searchQuery, 500);
+  const isFiltered = Boolean(debouncedSearch || statusFilter);
 
-  const fetchCamps = async (page: number, searchTerm: string = '', status: string = '') => {
+  const fetchCamps = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await getMedicalCamps(page, itemsPerPage, status || undefined, searchTerm);
+      setError(null);
+      const response = await getMedicalCamps(currentPage, itemsPerPage, statusFilter || undefined, debouncedSearch);
       setCamps(response.data);
       setTotalPages(response.pagination.totalPages);
       setTotalItems(response.pagination.total);
-      setCurrentPage(response.pagination.page);
-    } catch (error) {
-      console.error("Couldn't load medical camps:", error);
+    } catch (err) {
+      setError(loadErrorMessage(err, 'medical camps'));
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentPage, itemsPerPage, statusFilter, debouncedSearch]);
 
   useEffect(() => {
-    fetchCamps(1, search, statusFilter);
-  }, [search, statusFilter]);
+    fetchCamps();
+  }, [fetchCamps]);
 
   const handleDelete = async () => {
     if (!deleteId) return;
@@ -56,122 +80,134 @@ export default function CampsList() {
       await deleteMedicalCamp(deleteId);
       setConfirmDelete(false);
       setDeleteId(null);
-      fetchCamps(currentPage, search, statusFilter);
+      fetchCamps();
       toast.success('Medical camp deleted');
-    } catch (error) {
-      toast.error("Couldn't delete medical camp. Please try again.");
-      console.error("Couldn't delete camp:", error);
+    } catch (err) {
+      toast.error(errorMessage(err, { action: 'delete this medical camp' }));
     } finally {
       setDeleting(false);
     }
   };
 
-  const handlePageChange = (page: number) => {
-    fetchCamps(page, search, statusFilter);
+  const openView = (camp: IMedicalCamp) => {
+    setSelectedCamp(camp);
+    setShowViewModal(true);
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-IN', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
+  const askDelete = (camp: IMedicalCamp) => {
+    setDeleteId(camp.id);
+    setConfirmDelete(true);
   };
 
-  if (loading) {
-    return <PageSkeleton />;
-  }
+  const columns: TableColumn<IMedicalCamp>[] = [
+    {
+      key: 'name',
+      label: 'Camp',
+      sortable: true,
+      width: '16rem',
+      render: (name) => <span className="font-medium text-foreground">{toTitleCase(name)}</span>,
+    },
+    { key: 'campDate', label: 'Date', sortable: true, width: '9rem', render: (date) => (date ? formatDate(date) : '—') },
+    { key: 'location', label: 'Location', sortable: true, priority: 'secondary', width: '12rem', render: (v) => (v ? toTitleCase(v) : '—') },
+    { key: 'organizer', label: 'Organizer', priority: 'secondary', width: '12rem', render: (v) => (v ? toTitleCase(v) : '—') },
+    { key: 'status', label: 'Status', sortable: true, width: '8rem', render: (v) => <StatusBadge status={v} /> },
+    {
+      key: 'actions',
+      label: '',
+      width: '6.5rem',
+      align: 'right',
+      sortable: false,
+      render: (_v, row) => (
+        <ActionsMenu
+          label={`Actions for ${toTitleCase(row.name)}`}
+          items={[
+            { label: 'View', icon: <FiEye className="h-4 w-4" />, onClick: () => openView(row) },
+            { label: 'Edit', icon: <FiEdit2 className="h-4 w-4" />, onClick: () => navigate(`/health/camps/${row.id}/edit`) },
+            { label: 'Delete', icon: <FiTrash2 className="h-4 w-4" />, variant: 'danger', onClick: () => askDelete(row) },
+          ]}
+        />
+      ),
+    },
+  ];
 
   return (
-    <div>
-      <div className="max-w-full">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
-          <div>
-            <PageHeader title="Medical Camps" description={`${camps.length} camps found`} />
-          </div>
-          <Button onClick={() => navigate('/health/camps/create')} className="flex items-center gap-2">
-            <FiPlus /> Add Camp
+    <>
+      <PageHeader
+        title="Medical camps"
+        description="Camps organised for the community, past and planned."
+        actions={
+          <Button icon={<FiPlus />} collapseLabel onClick={() => navigate('/health/camps/create')}>
+            Add camp
           </Button>
-        </div>
+        }
+      />
 
-        <div className="mb-4 space-y-3">
-          <ActionBar className="mb-0">
-            <ExpandableSearch
-              value={search}
-              onChange={(value) => setSearch(value)}
-              entity="medical camps"
-              placeholder="Search by name"
+      <TableCard>
+        <TableToolbar
+          tabs={
+            <Tabs
+              variant="segmented"
+              ariaLabel="Camp status"
+              value={statusFilter}
+              onChange={(value) => {
+                setStatusFilter(value);
+                setCurrentPage(1);
+              }}
+              items={STATUS_TABS}
             />
-          </ActionBar>
-          <div className="flex gap-2 flex-wrap">
-            {['', 'planned', 'completed', 'cancelled'].map((status) => (
-              <button
-                key={status}
-                onClick={() => setStatusFilter(status)}
-                className={`px-3 py-1 text-xs rounded-full transition-colors ${
-                  statusFilter === status
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                {status || 'All Status'}
-              </button>
-            ))}
-          </div>
-        </div>
+          }
+          searchQuery={searchQuery}
+          onSearchChange={(value) => {
+            setSearchQuery(value);
+            setCurrentPage(1);
+          }}
+          searchEntity="medical camps"
+          onRefresh={fetchCamps}
+        />
 
-        {camps.length === 0 ? (
-          <div className="text-center py-8">
-            <p className="text-gray-500">No medical camps found</p>
-          </div>
+        {error ? (
+          <EmptyState variant="error" entity="medical camps" description={error} action={{ label: 'Try again', onClick: fetchCamps }} />
         ) : (
           <>
-            <div className="space-y-3 mb-4">
-              {camps.map((camp) => (
-                <div
-                  key={camp.id}
-                  className="rounded-lg border border-border bg-card p-3 sm:p-4 cursor-pointer hover:shadow-md transition-shadow"
-                  onClick={() => {
-                    setSelectedCamp(camp);
-                    setShowViewModal(true);
-                  }}
-                >
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                    <div className="flex-1">
-                      <h3 className="text-base sm:text-lg font-semibold">{toTitleCase(camp.name)}</h3>
-                      <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 mt-2 text-xs sm:text-sm text-gray-600">
-                        <div className="flex items-center gap-1">
-                          <FiCalendar className="text-blue-600" />
-                          {formatDate(camp.campDate)}
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <FiMapPin className="text-green-600" />
-                          {toTitleCase(camp.location)}
-                        </div>
-                      </div>
-                      {camp.organizer && (
-                        <p className="text-xs sm:text-sm text-gray-600 mt-2">
-                          Organizer: <span>{toTitleCase(camp.organizer)}</span>
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <Table
+              fixedLayout
+              columns={columns}
+              data={camps}
+              isLoading={loading}
+              entity="medical camps"
+              emptyVariant={isFiltered ? 'no-results' : 'empty'}
+              emptyAction={
+                isFiltered
+                  ? {
+                      label: 'Clear filters',
+                      onClick: () => {
+                        setSearchQuery('');
+                        setStatusFilter('');
+                        setCurrentPage(1);
+                      },
+                    }
+                  : { label: 'Add camp', onClick: () => navigate('/health/camps/create') }
+              }
+              onRowClick={openView}
+            />
 
-            {totalPages > 1 && (
+            <div className="mt-4">
               <Pagination
                 currentPage={currentPage}
                 totalPages={totalPages}
                 totalItems={totalItems}
                 itemsPerPage={itemsPerPage}
-                onPageChange={handlePageChange}
+                entity="medical camps"
+                onPageChange={setCurrentPage}
+                onItemsPerPageChange={(size) => {
+                  setItemsPerPage(size);
+                  setCurrentPage(1);
+                }}
               />
-            )}
+            </div>
           </>
         )}
-      </div>
+      </TableCard>
 
       {/* View Modal */}
       <Modal
@@ -251,10 +287,10 @@ export default function CampsList() {
 
       <ConfirmDialog
         isOpen={confirmDelete}
-        title="Delete Medical Camp"
-        message="Are you sure you want to delete this medical camp?"
-        consequence="All camp details and associated records will be permanently removed."
-        confirmLabel="Delete"
+        title="Delete this medical camp?"
+        message="This permanently removes the camp and cannot be undone."
+        consequence="All camp details and associated records will be removed."
+        confirmLabel="Delete camp"
         cancelLabel="Cancel"
         variant="danger"
         isLoading={deleting}
@@ -264,6 +300,6 @@ export default function CampsList() {
           setDeleteId(null);
         }}
       />
-    </div>
+    </>
   );
 }

@@ -1,16 +1,19 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import Button from '@/components/ui/Button';
+import TableCard from '@/components/ui/TableCard';
+import TableToolbar from '@/components/ui/TableToolbar';
+import Tabs from '@/components/ui/Tabs';
+import EmptyState from '@/components/ui/EmptyState';
 import Table from '@/components/ui/Table';
 import Pagination from '@/components/ui/Pagination';
 import Badge from '@/components/ui/Badge';
-import { PageSkeleton } from '@/components/ui/Skeleton';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import Modal from '@/components/ui/Modal';
 import { libraryService, BookIssue } from '@/services/libraryService';
 import { toast } from '@/store/toastStore';
 import { FiPlus } from 'react-icons/fi';
-import { errorMessage } from '@/utils/errors';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import { toTitleCase } from '@/utils/format';
 import PageHeader from '@/components/layout/PageHeader';
 
@@ -20,7 +23,8 @@ export default function IssuesList() {
   const [issues, setIssues] = useState<BookIssue[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
+  const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string>(searchParams.get('status') || 'issued');
   const [pagination, setPagination] = useState<any>(null);
   const [confirmReturn, setConfirmReturn] = useState(false);
@@ -28,27 +32,27 @@ export default function IssuesList() {
   const [selectedIssue, setSelectedIssue] = useState<BookIssue | null>(null);
   const [showViewModal, setShowViewModal] = useState(false);
 
-  // Fetch issues
-  useEffect(() => {
-    const fetchIssues = async () => {
-      try {
-        setLoading(true);
-        const result = await libraryService.getIssues({
-          page: currentPage,
-          limit: itemsPerPage,
-          status: status || undefined,
-        });
-        setIssues(result.data);
-        setPagination(result.pagination);
-      } catch (error) {
-        console.error("Couldn't load issues:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
+  const fetchIssues = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const result = await libraryService.getIssues({
+        page: currentPage,
+        limit: itemsPerPage,
+        status: status || undefined,
+      });
+      setIssues(result.data);
+      setPagination(result.pagination);
+    } catch (err) {
+      setError(loadErrorMessage(err, 'book issues'));
+    } finally {
+      setLoading(false);
+    }
+  }, [currentPage, itemsPerPage, status]);
 
+  useEffect(() => {
     fetchIssues();
-  }, [currentPage, status]);
+  }, [fetchIssues]);
 
   const handleReturn = async () => {
     if (!returnId) return;
@@ -66,12 +70,8 @@ export default function IssuesList() {
   };
 
   const getStatusBadge = (issue: BookIssue) => {
-    const colors = {
-      issued: 'blue',
-      returned: 'green',
-      overdue: 'red',
-    };
-    return <Badge color={colors[issue.status]}>{issue.status}</Badge>;
+    const variants = { issued: 'info', returned: 'success', overdue: 'danger' } as const;
+    return <Badge variant={variants[issue.status]} className="capitalize">{issue.status}</Badge>;
   };
 
   const getDaysOverdue = (dueDate: string) => {
@@ -85,36 +85,42 @@ export default function IssuesList() {
     {
       key: 'bookId',
       label: 'Book',
+      sortable: false,
+      width: '18rem',
       render: (_: any, issue: BookIssue) => (
-        <div className="text-sm">
+        <span className="font-medium text-foreground">
           {typeof issue.bookId === 'object' && issue.bookId ? issue.bookId.title : 'N/A'}
-        </div>
+        </span>
       ),
     },
     {
       key: 'memberId',
       label: 'Member',
-      render: (_: any, issue: BookIssue) => (
-        <div className="text-sm">
-          {typeof issue.memberId === 'object' && issue.memberId && 'name' in issue.memberId
-            ? toTitleCase((issue.memberId as any).name)
-            : 'N/A'}
-        </div>
-      ),
+      sortable: false,
+      width: '14rem',
+      render: (_: any, issue: BookIssue) =>
+        typeof issue.memberId === 'object' && issue.memberId && 'name' in issue.memberId
+          ? toTitleCase((issue.memberId as any).name)
+          : 'N/A',
     },
     {
       key: 'issueDate',
       label: 'Issued',
+      sortable: true,
+      priority: 'secondary' as const,
+      width: '9rem',
       render: (_: any, issue: BookIssue) => new Date(issue.issueDate).toLocaleDateString(),
     },
     {
       key: 'dueDate',
       label: 'Due',
+      sortable: true,
+      width: '11rem',
       render: (_: any, issue: BookIssue) => (
         <div>
-          <div className="text-sm">{new Date(issue.dueDate).toLocaleDateString()}</div>
+          <div>{new Date(issue.dueDate).toLocaleDateString()}</div>
           {issue.status !== 'returned' && (
-            <div className="text-xs text-gray-500">{getDaysOverdue(issue.dueDate)}</div>
+            <div className="text-xs text-muted-foreground">{getDaysOverdue(issue.dueDate)}</div>
           )}
         </div>
       ),
@@ -122,66 +128,87 @@ export default function IssuesList() {
     {
       key: 'status',
       label: 'Status',
+      sortable: true,
+      width: '8rem',
       render: (_: any, issue: BookIssue) => getStatusBadge(issue),
     },
   ];
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <PageHeader title="Book Issues" />
-        <Button onClick={() => navigate('/library/issues/create')}>
-          <FiPlus className="h-4 w-4 mr-2" />
-          Issue Book
-        </Button>
-      </div>
+    <>
+      <PageHeader
+        title="Book issues"
+        description="Books on loan, due back and returned."
+        actions={
+          <Button icon={<FiPlus />} collapseLabel onClick={() => navigate('/library/issues/create')}>
+            Issue book
+          </Button>
+        }
+      />
 
-      {/* Status Tabs */}
-      <div className="flex gap-2 flex-wrap">
-        {['all', 'issued', 'overdue', 'returned'].map((s) => (
-          <button
-            key={s}
-            onClick={() => {
-              setStatus(s === 'all' ? '' : s);
-              setCurrentPage(1);
-            }}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-              (s === 'all' ? status === '' : status === s)
-                ? 'bg-blue-600 text-white'
-                : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
-            }`}
-          >
-            {s.charAt(0).toUpperCase() + s.slice(1)}
-          </button>
-        ))}
-      </div>
-
-      {/* Issues Table */}
-      {loading ? (
-        <PageSkeleton variant="section" />
-      ) : (
-        <>
-          <Table
-            fixedLayout
-            striped
-            columns={columns}
-            data={issues}
-            onRowClick={(issue) => {
-              setSelectedIssue(issue);
-              setShowViewModal(true);
-            }}
-          />
-          {pagination && (
-            <Pagination
-              currentPage={pagination.page}
-              totalPages={pagination.totalPages}
-              totalItems={pagination.total}
-              itemsPerPage={itemsPerPage}
-              onPageChange={setCurrentPage}
+      <TableCard>
+        <TableToolbar
+          tabs={
+            <Tabs
+              variant="segmented"
+              ariaLabel="Issue status"
+              value={status || 'all'}
+              onChange={(value) => {
+                setStatus(value === 'all' ? '' : value);
+                setCurrentPage(1);
+              }}
+              items={[
+                { value: 'all', label: 'All' },
+                { value: 'issued', label: 'Issued' },
+                { value: 'overdue', label: 'Overdue' },
+                { value: 'returned', label: 'Returned' },
+              ]}
             />
-          )}
-        </>
-      )}
+          }
+          onRefresh={fetchIssues}
+        />
+
+        {error ? (
+          <EmptyState variant="error" entity="book issues" description={error} action={{ label: 'Try again', onClick: fetchIssues }} />
+        ) : (
+          <>
+            <Table
+              fixedLayout
+              columns={columns}
+              data={issues}
+              isLoading={loading}
+              entity="book issues"
+              emptyVariant={status ? 'no-results' : 'empty'}
+              emptyAction={
+                status
+                  ? { label: 'Clear filters', onClick: () => { setStatus(''); setCurrentPage(1); } }
+                  : { label: 'Issue book', onClick: () => navigate('/library/issues/create') }
+              }
+              onRowClick={(issue) => {
+                setSelectedIssue(issue);
+                setShowViewModal(true);
+              }}
+            />
+
+            {pagination && (
+              <div className="mt-4">
+                <Pagination
+                  currentPage={pagination.page}
+                  totalPages={pagination.totalPages}
+                  totalItems={pagination.total}
+                  itemsPerPage={pagination.limit}
+                  entity="book issues"
+                  onPageChange={setCurrentPage}
+                  onItemsPerPageChange={(size) => {
+                    setItemsPerPage(size);
+                    setCurrentPage(1);
+                  }}
+                />
+              </div>
+            )}
+          </>
+        )}
+      </TableCard>
 
       {/* View Modal */}
       <Modal
@@ -263,9 +290,10 @@ export default function IssuesList() {
       <ConfirmDialog
         isLoading={loading}
         isOpen={confirmReturn}
-        title="Return Book"
-        message="Mark this book as returned?"
-        confirmLabel="Return"
+        title="Mark this book as returned?"
+        message="The copy goes back on the shelf and counts as available again."
+        confirmLabel="Mark returned"
+        variant="primary"
         cancelLabel="Cancel"
         onConfirm={handleReturn}
         onCancel={() => {
@@ -273,6 +301,6 @@ export default function IssuesList() {
           setReturnId(null);
         }}
       />
-    </div>
+    </>
   );
 }

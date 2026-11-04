@@ -5,6 +5,8 @@ import {
   changePassword,
   registerDevice,
   setTwoFactor,
+  updateOwnAccount,
+  deleteOwnAccount,
   selectAccount,
   getAvailableAccounts,
   switchAccount,
@@ -23,6 +25,7 @@ import {
   changePasswordValidation,
   registerDeviceValidation,
   twoFactorValidation,
+  updateOwnAccountValidation,
   selectAccountValidation,
   switchAccountValidation,
   startImpersonationValidation,
@@ -270,6 +273,33 @@ router.post('/verify-otp', verifyOTPValidation, validationHandler, verifyOtpRate
  *         description: Unauthorized
  */
 router.get('/me', authMiddleware, getCurrentUser);
+
+/**
+ * @swagger
+ * /auth/me:
+ *   put:
+ *     summary: Edit your own name and email
+ *     tags: [Auth]
+ *     description: Any signed-in role. The phone number cannot be changed here.
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Updated
+ *       403:
+ *         description: Phone change, or a view-as session
+ *   delete:
+ *     summary: Delete your own account
+ *     tags: [Auth]
+ *     description: Deactivates the login and ends all its sessions. Not available to a Super Admin.
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Deleted
+ */
+router.put('/me', authMiddleware, updateOwnAccountValidation, validationHandler, updateOwnAccount);
+router.delete('/me', authMiddleware, deleteOwnAccount);
 
 /**
  * @swagger

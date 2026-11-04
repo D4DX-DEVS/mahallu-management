@@ -1,5 +1,6 @@
 import { ROUTES } from '@/constants/routes';
 import TenantsList from '@/features/admin/pages/TenantsList';
+import DemoRequestsList from '@/features/admin/pages/DemoRequestsList';
 import CreateTenant from '@/features/admin/pages/CreateTenant';
 import TenantDetails from '@/features/admin/pages/TenantDetails';
 import EditTenant from '@/features/admin/pages/EditTenant';
@@ -30,6 +31,9 @@ export const adminRoutes = [
   superAdminRoute('/admin/tenants/:id', <TenantDetails />),
   superAdminRoute('/admin/tenants/:id/edit', <EditTenant />),
 
+  // Demo requests from the public landing page (super admin only)
+  superAdminRoute(ROUTES.DEMO_REQUESTS, <DemoRequestsList />),
+
   // Mahall main
   route(ROUTES.MAHALL_MAIN, <MahallMain />),
 
@@ -58,10 +62,11 @@ export const adminRoutes = [
   superAdminRoute('/admin/users/:id/edit', <EditMahallUser />),
 
   // Certificates
-  route(ROUTES.CERTIFICATES.LIST, <CertificatesList />),
+  superAdminRoute(ROUTES.CERTIFICATES.LIST, <CertificatesList />),
 
   // Change Requests
-  route(ROUTES.CHANGE_REQUESTS, <ChangeRequestsList />),
+  // Member profile edits: the Mahallu admin reviews their own Mahallu's requests, so this page is not Super Admin only.
+  route(ROUTES.CHANGE_REQUESTS, <ChangeRequestsList />, { allowedRoles: ['super_admin', 'mahall'] }),
 
   // Data Quality
   route('/admin/data-quality', <DataQualityPage />),

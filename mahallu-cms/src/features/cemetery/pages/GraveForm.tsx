@@ -17,6 +17,8 @@ import { fetchAllPages } from '@/services/api';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
+import { useMemberAutofill } from '@/hooks/useMemberAutofill';
+import { graveFill } from '@/utils/memberAutofill';
 
 const graveSchema = z.object({
   graveNo: z.string().max(50, 'Please keep the grave no to 50 characters or less.').min(1, 'Grave number is required'),
@@ -50,9 +52,19 @@ export function GraveForm() {
     handleSubmit,
     formState: { errors },
     reset,
+    setValue,
+    getValues,
   } = useForm<GraveFormData>({
     resolver: zodResolver(graveSchema),
   });
+  const autofill = useMemberAutofill({ setValue, getValues });
+
+  // Picking a member fills the deceased's name, family and (if already recorded) date of death. It runs on
+  // the user's selection only, never when an existing grave is loaded for editing.
+  const handleMemberPick = (memberId: string) => {
+    const picked = memberId ? members.find((m) => (m._id || m.id) === memberId) : undefined;
+    void autofill(picked ?? null, (member) => graveFill(member));
+  };
 
   useEffect(() => {
     // The API caps `limit` at 100 and 400s above it, so the old `limit: 200`
@@ -243,7 +255,10 @@ export function GraveForm() {
                     <SearchableSelect
                       label="Member (if family member)"
                       value={field.value}
-                      onChange={field.onChange}
+                      onChange={(value: string) => {
+                        field.onChange(value);
+                        handleMemberPick(value);
+                      }}
                       options={members.map((member: any) => ({
                         value: member._id || member.id,
                         label: `${toTitleCase(member.name)}${member.familyName ? ` - ${toTitleCase(member.familyName)}` : ''}`,

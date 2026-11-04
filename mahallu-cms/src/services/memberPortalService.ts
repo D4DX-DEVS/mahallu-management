@@ -1,6 +1,8 @@
 import api, { asList } from './api';
 
 export interface MemberOverviewResponse {
+  /** True when the signed-in member is the head of their family. */
+  isFamilyHead?: boolean;
   member: {
     id: string;
     name: string;
@@ -269,6 +271,21 @@ export const memberPortalService = {
   getFamilyMembers: async (page = 1, limit = 10) => {
     const response = await api.get<PaginationResponse<FamilyMember>>(
       `/member-user/family-members?page=${page}&limit=${limit}`
+    );
+    return response.data;
+  },
+
+  /** A Family Head adds a person to their own family; the server picks the family and Mahallu. */
+  addFamilyMember: async (data: {
+    name: string;
+    relationship?: string;
+    gender?: string;
+    dateOfBirth?: string;
+    phone?: string;
+  }) => {
+    const response = await api.post<{ success: boolean; message: string; loginAccountCreated: boolean; data: FamilyMember }>(
+      '/member-user/family-members',
+      data
     );
     return response.data;
   },

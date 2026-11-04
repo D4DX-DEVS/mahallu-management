@@ -1,15 +1,18 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { FiSave, FiX } from 'react-icons/fi';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
+import Alert from '@/components/ui/Alert';
 import { tenantService } from '@/services/tenantService';
-import { CLASSIFICATION_OPTIONS, TENANT_CLASSIFICATIONS } from '@/constants/modules';
+import { demoRequestService, requestStatus, type DemoRequest } from '@/services/demoRequestService';
+import { TENANT_TYPE_OPTIONS } from '@/constants/tenantTypes';import { formatPhoneNumber } from '@/utils/format';
+import { loadErrorMessage } from '@/utils/errors';
 import { STATES, getDistrictsByState } from '@/constants/locations';
 import PageHeader from '@/components/layout/PageHeader';
 import { toast } from '@/store/toastStore';
@@ -19,15 +22,13 @@ import { optionalPinCodeSchema, sanitizeDigits } from '@/utils/validation';
 const tenantSchema = z.object({
   name: z.string().max(200, 'Please keep the name to 200 characters or less.').min(1, 'Name is required'),
   code: z.string().max(200, 'Please keep the code to 200 characters or less.').min(1, 'Code is required').toUpperCase(),
-  type: z.enum(['standard', 'premium', 'enterprise']),
-  classification: z.enum(TENANT_CLASSIFICATIONS),
+  type: z.enum(['mahallu', 'juma_masjid']),
   location: z.string().max(300, 'Please keep the location to 300 characters or less.').min(1, 'Location is required'),
   address: z.object({
     state: z.string().max(200, 'Please keep the state to 200 characters or less.').min(1, 'State is required'),
     district: z.string().max(200, 'Please keep the district to 200 characters or less.').min(1, 'District is required'),
     pinCode: optionalPinCodeSchema,
     postOffice: z.string().max(200, 'Please keep the post office to 200 characters or less.').optional(),
-    lsgName: z.string().max(200, 'Please keep the lsg name to 200 characters or less.').min(1, 'LSG Name is required'),
     village: z.string().max(200, 'Please keep the village to 200 characters or less.').min(1, 'Village is required'),
   }),
   subscription: z.object({
@@ -40,8 +41,18 @@ const tenantSchema = z.object({
 
 type TenantFormData = z.infer<typeof tenantSchema>;
 
+/** The accepted demo request this form was opened from (?demoRequest=<id>), if any. */
+type SourceRequest =
+  | { phase: 'none' }
+  | { phase: 'loading' }
+  | { phase: 'ready'; request: DemoRequest }
+  | { phase: 'blocked'; message: string };
+
 export default function CreateTenant() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const demoRequestId = searchParams.get('demoRequest');
+  const [source, setSource] = useState<SourceRequest>(demoRequestId ? { phase: 'loading' } : { phase: 'none' });
   const {
     register,
     handleSubmit,
@@ -51,8 +62,7 @@ export default function CreateTenant() {
   } = useForm<TenantFormData>({
     resolver: zodResolver(tenantSchema),
     defaultValues: {
-      type: 'standard',
-      classification: 'fully_functional',
+      type: 'mahallu',
       code: '',
       address: {
         state: 'Kerala',
@@ -80,6 +90,48 @@ export default function CreateTenant() {
     setValue('code', generateCode());
   }, [setValue]);
 
+  // Opened from an accepted demo request: fill in what the request carried. Nothing is created
+  // until the administrator reviews the form and submits it.
+  useEffect(() => {
+    if (!demoRequestId) return;
+    let cancelled = false;
+    setSource({ phase: 'loading' });
+    demoRequestService
+      .getById(demoRequestId)
+      .then((request) => {
+        if (cancelled) return;
+        if (requestStatus(request) !== 'accepted') {
+          setSource({ phase: 'blocked', message: 'Only an accepted request can be turned into a Mahall. Please accept it first.' });
+        } else if (request.tenantId) {
+          setSource({ phase: 'blocked', message: 'A Mahall has already been created from this request.' });
+        } else {
+          setSource({ phase: 'ready', request });
+        }
+      })
+      .catch((error) => {
+        if (!cancelled) setSource({ phase: 'blocked', message: loadErrorMessage(error, 'that demo request') });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [demoRequestId]);
+
+  const sourceRequest = source.phase === 'ready' ? source.request : null;
+  useEffect(() => {
+    if (!sourceRequest) return;
+    const fill = <K extends Parameters<typeof setValue>[0]>(field: K, value: unknown) => {
+      if (value) setValue(field, value as never, { shouldDirty: true });
+    };
+    fill('name', sourceRequest.mahalluName);
+    fill('type', sourceRequest.type);
+    fill('location', sourceRequest.location);
+    fill('address.state', sourceRequest.address?.state);
+    fill('address.district', sourceRequest.address?.district);
+    fill('address.pinCode', sourceRequest.address?.pinCode);
+    fill('address.postOffice', sourceRequest.address?.postOffice);
+    fill('address.village', sourceRequest.address?.village);
+  }, [sourceRequest, setValue]);
+
   // Watch state changes to update districts
   const selectedState = watch('address.state');
 
@@ -94,7 +146,7 @@ export default function CreateTenant() {
 
   const onSubmit = async (data: TenantFormData) => {
     try {
-      await tenantService.create(data);
+      await tenantService.create(demoRequestId ? { ...data, demoRequestId } : data);
       navigate('/admin/tenants');
     } catch (error) {
       console.error('Error creating tenant:', error);
@@ -109,6 +161,18 @@ export default function CreateTenant() {
         description="Add a new tenant (Mahall) to the system"
         breadcrumbs={[{ label: 'Admin', path: '/admin/tenants' }]}
       />
+
+      {source.phase === 'blocked' && (
+        <Alert variant="error" title="This request can't be used" className="mb-4">
+          {source.message}
+        </Alert>
+      )}
+      {sourceRequest && (
+        <Alert variant="info" title={`Creating a Mahall from the request by ${sourceRequest.mahalluName}`} className="mb-4">
+          The details below came from the request. Review and edit them, then submit to create the Mahall. Contact:{' '}
+          {formatPhoneNumber(sourceRequest.contactNumber)}, WhatsApp: {formatPhoneNumber(sourceRequest.whatsappNumber)}.
+        </Alert>
+      )}
 
       <form onSubmit={handleSubmit(onSubmit)}>
         <Card className="space-y-4">
@@ -131,20 +195,9 @@ export default function CreateTenant() {
               />
               <Select
                 label="Type"
-                options={[
-                  { value: 'standard', label: 'Standard' },
-                  { value: 'premium', label: 'Premium' },
-                  { value: 'enterprise', label: 'Enterprise' },
-                ]}
+                options={[...TENANT_TYPE_OPTIONS]}
                 {...register('type')}
                 error={errors.type?.message}
-                required
-              />
-              <Select
-                label="Mahallu Classification"
-                options={[...CLASSIFICATION_OPTIONS]}
-                {...register('classification')}
-                error={errors.classification?.message}
                 required
               />
               <Input
@@ -194,13 +247,6 @@ export default function CreateTenant() {
                 placeholder="Thiruvizhamkunnu"
               />
               <Input
-                label="LSG Name"
-                {...register('address.lsgName')}
-                error={errors.address?.lsgName?.message}
-                required
-                placeholder="Koodali"
-              />
-              <Input
                 label="Village"
                 {...register('address.village')}
                 error={errors.address?.village?.message}
@@ -229,7 +275,11 @@ export default function CreateTenant() {
               <FiX className="h-4 w-4 mr-2" />
               Cancel
             </Button>
-            <Button type="submit" isLoading={isSubmitting}>
+            <Button
+              type="submit"
+              isLoading={isSubmitting}
+              disabled={source.phase === 'loading' || source.phase === 'blocked'}
+            >
               <FiSave className="h-4 w-4 mr-2" />
               Create Tenant
             </Button>

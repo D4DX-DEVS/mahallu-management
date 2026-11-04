@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import Select from '@/components/ui/Select';
 import { useParams, useNavigate } from 'react-router-dom';
 import { FiArrowLeft, FiEdit2, FiSave, FiTrash2 } from 'react-icons/fi';
 import Button from '@/components/ui/Button';
@@ -172,17 +173,17 @@ export default function CounsellingDetail() {
             </div>
             {isEditing ? (
               <div className="space-y-3">
-                <select
+                <Select
                   aria-label="Filter"
                   value={editStatus}
                   onChange={(e) => setEditStatus(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                >
-                  <option value="open">Open</option>
-                  <option value="in_progress">In Progress</option>
-                  <option value="follow_up">Follow Up</option>
-                  <option value="closed">Closed</option>
-                </select>
+                  options={[
+                    { value: 'open', label: 'Open' },
+                    { value: 'in_progress', label: 'In Progress' },
+                    { value: 'follow_up', label: 'Follow Up' },
+                    { value: 'closed', label: 'Closed' },
+                  ]}
+                />
                 <div className="flex flex-wrap gap-2">
                   <Button variant="primary" size="sm" onClick={() => setShowSaveConfirm(true)} disabled={saving}>
                     <FiSave size={16} />

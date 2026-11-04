@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import Card from '@/components/ui/Card';
 import StatCard from '@/components/ui/StatCard';
 import Button from '@/components/ui/Button';
-import Input from '@/components/ui/Input';
+import DateRangePicker from '@/components/ui/DateRangePicker';
+import { monthStartISO, todayISO } from '@/utils/dates';
 import Select from '@/components/ui/Select';
 import Pagination from '@/components/ui/Pagination';
 import { PageSkeleton } from '@/components/ui/Skeleton';
@@ -31,12 +32,8 @@ export default function MahalluCombinedReport() {
   const [institutes, setInstitutes] = useState<Institute[]>([]);
   const [selectedEntities, setSelectedEntities] = useState<string[]>(['mahallu']);
   const [reportType, setReportType] = useState<ReportType>('day-book');
-  const [startDate, setStartDate] = useState(() => {
-    const d = new Date();
-    d.setDate(1);
-    return d.toISOString().split('T')[0];
-  });
-  const [endDate, setEndDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [startDate, setStartDate] = useState(() => monthStartISO());
+  const [endDate, setEndDate] = useState(() => todayISO());
   const [reportData, setReportData] = useState<any>(null);
   /* The filters the day book was generated with, so paging is not affected by later edits to the inputs. */
   const [appliedDayBook, setAppliedDayBook] = useState<{
@@ -146,20 +143,16 @@ export default function MahalluCombinedReport() {
               onChange={(e) => setReportType(e.target.value as ReportType)}
             />
           </div>
-          <div className="w-full sm:w-44">
-            <Input
-              label="Start Date"
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-            />
-          </div>
-          <div className="w-full sm:w-44">
-            <Input
-              label="End Date"
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
+          <div className="w-full sm:w-72">
+            <DateRangePicker
+              label="Date range"
+              from={startDate}
+              to={endDate}
+              onChange={(from, to) => {
+                setStartDate(from);
+                setEndDate(to);
+              }}
+              className="h-10 max-sm:h-10"
             />
           </div>
         </div>

@@ -11,6 +11,8 @@ import Table from '@/components/ui/Table';
 import Modal from '@/components/ui/Modal';
 import TableToolbar from '@/components/ui/TableToolbar';
 import Pagination from '@/components/ui/Pagination';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import Badge from '@/components/ui/Badge';
 import { TableColumn, Pagination as PaginationType } from '@/types';
 import { Tenant } from '@/types/tenant';
 import { tenantService } from '@/services/tenantService';
@@ -26,6 +28,7 @@ import { useServerCounts } from '@/hooks/useServerCounts';
 import { toTitleCase } from '@/utils/format';
 import StatusBadge from '@/components/ui/StatusBadge';
 import { logError } from '@/utils/safeLog';
+import { tenantTypeLabel } from '@/constants/tenantTypes';
 
 export default function TenantsList() {
   const { isSuperAdmin } = useAuthStore();
@@ -41,7 +44,7 @@ export default function TenantsList() {
   const [isExporting, setIsExporting] = useState(false);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
 
   const debouncedSearch = useDebounce(searchQuery, 500);
 
@@ -88,7 +91,7 @@ export default function TenantsList() {
         return;
       }
       const filename = 'tenants';
-      const title = 'All Tenants';
+      const title = 'All Mahalls';
       switch (type) {
         case 'csv':
           exportToCSV(columns, dataToExport, filename);
@@ -154,51 +157,44 @@ export default function TenantsList() {
   const columns: TableColumn<Tenant>[] = [
     {
       key: 'name',
-      label: 'Tenant Name',
-      width: '10.25rem',
+      label: 'Mahall Name',
+      width: '16rem',
       sortable: true,
-      render: (value) => <span>{toTitleCase(value)}</span>,
+      render: (value) => <span className="font-medium text-foreground">{toTitleCase(value)}</span>,
     },
-    { key: 'code', label: 'Code', width: '6.25rem' },
+    { key: 'code', priority: 'secondary', label: 'Code', width: '8rem' },
     {
       key: 'type',
       label: 'Type',
-      width: '6.25rem',
-      render: (type) => (
-        <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-          {type}
-        </span>
-      ),
+      width: '9rem',
+      render: (type) => <Badge variant="info">{tenantTypeLabel(type)}</Badge>,
     },
-    { key: 'location', label: 'Location', width: '8rem', render: (location) => toTitleCase(location) },
+    { key: 'location', priority: 'secondary', label: 'Location', width: '12rem', render: (location) => toTitleCase(location) },
     {
       key: 'userCount',
       label: 'Users',
-      width: '8.5rem',
+      width: '7rem',
       align: 'center',
-      render: (count) => (
-        <span className="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200">
-          {count ?? 0}
-        </span>
-      ),
+      render: (count) => <span className="tabular-nums">{count ?? 0}</span>,
     },
     {
       key: 'status',
       label: 'Status',
-      width: '7.25rem',
+      width: '8rem',
       render: (status) => <StatusBadge status={status} />,
     },
     {
-      key: 'since',
+      key: 'since', priority: 'tertiary',
       label: 'Since',
-      width: '6.5rem',
+      width: '9rem',
       render: (since) => formatDate(since),
     },
     {
       key: 'actions',
-      label: 'Actions',
-      width: '8rem',
-      align: 'center',
+      label: '',
+      width: '6.5rem',
+      align: 'right',
+      sortable: false,
       render: (_, row) => (
         <ActionsMenu
           label={`Actions for ${row.name}`}
@@ -252,12 +248,12 @@ export default function TenantsList() {
 
   const stats = [
     {
-      title: 'Total Tenants',
+      title: 'Total Mahalls',
       value: pagination?.total ?? tenants.length,
       icon: <FiGlobe className="h-5 w-5" />,
     },
     {
-      title: 'Active Tenants',
+      title: 'Active Mahalls',
       value: statusCounts.active ?? tenants.filter((t) => t.status === 'active').length,
       icon: <FiCheckCircle className="h-5 w-5" />,
     },
@@ -276,43 +272,48 @@ export default function TenantsList() {
     );
   }
 
-  return (
-    <div className="space-y-4">
-      <div className="space-y-3">
-        <PageHeader title="Tenants Management" description="Manage all tenants (Mahalls) in the system" />
+  const activeFilterCount = statusFilter !== 'all' ? 1 : 0;
+  const isFiltered = Boolean(debouncedSearch) || statusFilter !== 'all';
 
-        {/* Statistics Cards */}
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          {stats.map((stat, index) => (
-            <StatCard key={index} {...stat} />
-          ))}
-        </div>
+  return (
+    <>
+      <PageHeader
+        title="Mahalls"
+        description="Manage all mahalls in the system."
+        actions={
+          <Link to="/admin/tenants/create">
+            <Button icon={<FiPlus />} collapseLabel>New mahall</Button>
+          </Link>
+        }
+      />
+
+      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
+        {stats.map((stat, index) => (
+          <StatCard key={index} {...stat} />
+        ))}
       </div>
 
-      {/* Actions and Table */}
-      <TableCard borderless>
+      <TableCard>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
-          onFilterClick={() => setIsFilterVisible(!isFilterVisible)}
+          searchEntity="mahalls"
+          onFilterClick={() => setIsFilterVisible((open) => !open)}
           isFilterVisible={isFilterVisible}
-          hasFilters={true}
+          hasFilters
+          activeFilterCount={activeFilterCount}
           onRefresh={loadTenants}
           onExport={handleExport}
           isExporting={isExporting}
-          actionButtons={
-            <Link to="/admin/tenants/create">
-              <Button size="md" icon={<FiPlus />} collapseLabel>New Tenant</Button>
-            </Link>
-          }
         />
 
         {isFilterVisible && (
           <FilterPanel onClose={() => setIsFilterVisible(false)}>
-            <div className="w-full sm:w-40">
+            <div className="w-full sm:w-52">
               <Select
+                label="Status"
                 options={[
-                  { value: 'all', label: 'All Status' },
+                  { value: 'all', label: 'All statuses' },
                   { value: 'active', label: 'Active' },
                   { value: 'suspended', label: 'Suspended' },
                   { value: 'inactive', label: 'Inactive' },
@@ -321,29 +322,40 @@ export default function TenantsList() {
                 onChange={(e) => setStatusFilter(e.target.value)}
               />
             </div>
+            {statusFilter !== 'all' && (
+              <Button variant="ghost" onClick={() => setStatusFilter('all')}>
+                Clear filters
+              </Button>
+            )}
           </FilterPanel>
         )}
 
         <Table
           fixedLayout
-          striped
           columns={columns}
           data={tenants}
           isLoading={isLoading}
-          emptyMessage="No tenants found"
-          showExport={false}
+          entity="mahalls"
+          emptyVariant={isFiltered ? 'no-results' : 'empty'}
+          emptyAction={
+            isFiltered
+              ? { label: 'Clear filters', onClick: () => { setSearchQuery(''); setStatusFilter('all'); } }
+              : { label: 'Add mahall', onClick: () => navigate('/admin/tenants/create') }
+          }
           onRowClick={(row) => navigate(`/admin/tenants/${row.id}`)}
         />
-        {pagination && pagination.totalPages > 1 && (
+
+        {pagination && (
           <div className="mt-4">
             <Pagination
               currentPage={pagination.page}
               totalPages={pagination.totalPages}
               totalItems={pagination.total}
               itemsPerPage={pagination.limit}
+              entity="mahalls"
               onPageChange={setCurrentPage}
-              onItemsPerPageChange={(items) => {
-                setItemsPerPage(items);
+              onItemsPerPageChange={(size) => {
+                setItemsPerPage(size);
                 setCurrentPage(1);
               }}
             />
@@ -358,7 +370,7 @@ export default function TenantsList() {
           setShowSuspendModal(false);
           setSelectedTenant(null);
         }}
-        title="Suspend Tenant"
+        title="Suspend Mahall"
         footer={
           <>
             <Button
@@ -371,47 +383,30 @@ export default function TenantsList() {
               Cancel
             </Button>
             <Button variant="danger" onClick={handleSuspend}>
-              Suspend Tenant
+              Suspend Mahall
             </Button>
           </>
         }
       >
         <p className="text-gray-600 dark:text-gray-400">
           Are you sure you want to suspend <strong>{toTitleCase(selectedTenant?.name)}</strong>? This will prevent all
-          users from accessing this tenant.
+          users from accessing this mahall.
         </p>
       </Modal>
 
-      {/* Delete Modal */}
-      <Modal
+      <ConfirmDialog
         isOpen={showDeleteModal}
-        onClose={() => {
+        title={`Delete ${toTitleCase(selectedTenant?.name) || 'this mahall'}?`}
+        message="This permanently removes the mahall and cannot be undone."
+        consequence="All of its data will be deleted too."
+        confirmLabel="Delete mahall"
+        variant="danger"
+        onConfirm={handleDelete}
+        onCancel={() => {
           setShowDeleteModal(false);
           setSelectedTenant(null);
         }}
-        title="Delete Tenant"
-        footer={
-          <>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setShowDeleteModal(false);
-                setSelectedTenant(null);
-              }}
-            >
-              Cancel
-            </Button>
-            <Button variant="danger" onClick={handleDelete}>
-              Delete Tenant
-            </Button>
-          </>
-        }
-      >
-        <p className="text-gray-600 dark:text-gray-400">
-          Are you sure you want to delete <strong>{toTitleCase(selectedTenant?.name)}</strong>? This action cannot be
-          undone and will delete all associated data.
-        </p>
-      </Modal>
-    </div>
+      />
+    </>
   );
 }

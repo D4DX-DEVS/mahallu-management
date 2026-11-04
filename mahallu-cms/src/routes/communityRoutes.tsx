@@ -28,6 +28,7 @@ import EditCommittee from '@/features/committees/pages/EditCommittee';
 import MeetingsList from '@/features/committees/pages/MeetingsList';
 import CreateMeeting from '@/features/committees/pages/CreateMeeting';
 import MeetingDetail from '@/features/committees/pages/MeetingDetail';
+import MahalluCommittee from '@/features/committees/pages/MahalluCommittee';
 import AssetsList from '@/features/assets/pages/AssetsList';
 import CreateAsset from '@/features/assets/pages/CreateAsset';
 import EditAsset from '@/features/assets/pages/EditAsset';
@@ -44,7 +45,7 @@ import NOCList from '@/features/registrations/pages/NOCList';
 import NOCDetail from '@/features/registrations/pages/NOCDetail';
 import CreateNOC from '@/features/registrations/pages/CreateNOC';
 import EditNOC from '@/features/registrations/pages/EditNOC';
-import { route } from './routeHelpers';
+import { route, superAdminRoute } from './routeHelpers';
 
 export const communityRoutes = [
   route(ROUTES.DASHBOARD, <Dashboard />, {
@@ -85,6 +86,7 @@ export const communityRoutes = [
   // Committees & meetings
   route(ROUTES.COMMITTEES.LIST, <CommitteesList />),
   route('/committees/create', <CreateCommittee />, {}, { label: 'New Committee' }),
+  route(ROUTES.COMMITTEES.MAHALLU, <MahalluCommittee />, {}, { label: 'Mahallu Committee' }),
   route(ROUTES.COMMITTEES.MEETINGS, <MeetingsList />),
   route('/committees/meetings/create', <CreateMeeting />, {}, { label: 'New Meeting' }),
   route('/committees/meetings/:id', <MeetingDetail />),
@@ -99,21 +101,21 @@ export const communityRoutes = [
   route(ROUTES.ASSETS.EDIT(':id'), <EditAsset />),
 
   // Registrations - Nikah
-  route(ROUTES.REGISTRATIONS.NIKAH, <NikahRegistrationsList />),
-  route('/registrations/nikah/create', <CreateNikahRegistration />, {}, { label: 'New Nikah Registration' }),
-  route('/registrations/nikah/:id', <NikahRegistrationDetail />),
-  route('/registrations/nikah/:id/edit', <EditNikahRegistration />),
+  superAdminRoute(ROUTES.REGISTRATIONS.NIKAH, <NikahRegistrationsList />),
+  superAdminRoute('/registrations/nikah/create', <CreateNikahRegistration />, { label: 'New Nikah Registration' }),
+  superAdminRoute('/registrations/nikah/:id', <NikahRegistrationDetail />),
+  superAdminRoute('/registrations/nikah/:id/edit', <EditNikahRegistration />),
 
   // Registrations - Death
-  route(ROUTES.REGISTRATIONS.DEATH, <DeathRegistrationsList />),
-  route('/registrations/death/create', <CreateDeathRegistration />, {}, { label: 'New Death Registration' }),
-  route('/registrations/death/:id', <DeathRegistrationDetail />),
-  route('/registrations/death/:id/edit', <EditDeathRegistration />),
+  superAdminRoute(ROUTES.REGISTRATIONS.DEATH, <DeathRegistrationsList />),
+  superAdminRoute('/registrations/death/create', <CreateDeathRegistration />, { label: 'New Death Registration' }),
+  superAdminRoute('/registrations/death/:id', <DeathRegistrationDetail />),
+  superAdminRoute('/registrations/death/:id/edit', <EditDeathRegistration />),
 
   // Registrations - NOC
-  route(ROUTES.REGISTRATIONS.NOC.COMMON, <NOCList />),
-  route(ROUTES.REGISTRATIONS.NOC.NIKAH, <NOCList />),
-  route('/registrations/noc/create', <CreateNOC />, {}, { label: 'New NOC' }),
-  route('/registrations/noc/:id', <NOCDetail />),
-  route('/registrations/noc/:id/edit', <EditNOC />),
+  superAdminRoute(ROUTES.REGISTRATIONS.NOC.COMMON, <NOCList />),
+  superAdminRoute(ROUTES.REGISTRATIONS.NOC.NIKAH, <NOCList />),
+  superAdminRoute('/registrations/noc/create', <CreateNOC />, { label: 'New NOC' }),
+  superAdminRoute('/registrations/noc/:id', <NOCDetail />),
+  superAdminRoute('/registrations/noc/:id/edit', <EditNOC />),
 ];

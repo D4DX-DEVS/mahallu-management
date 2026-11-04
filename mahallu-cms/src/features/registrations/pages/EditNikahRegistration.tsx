@@ -8,7 +8,11 @@ import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
+import Textarea from '@/components/ui/Textarea';
 import SearchableSelect from '@/components/ui/SearchableSelect';
+import PersonPhotoField from '../components/PersonPhotoField';
+import { EMPTY_PHOTO, PhotoUploadError, discardUploads, uploadPendingPhotos, type PhotoProgress, type PhotoValues } from '../nikahPhotos';
+import { MAHR_TYPE_OPTIONS, nikahDetailShape, requireMahrOther } from '../nikahFields';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import { ROUTES } from '@/constants/routes';
 import { registrationService } from '@/services/registrationService';
@@ -16,7 +20,9 @@ import { memberService } from '@/services/memberService';
 import { Member } from '@/types';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
-import { toTitleCase } from '@/utils/format';
+import { formatCurrency, toTitleCase } from '@/utils/format';
+import { useMemberAutofill } from '@/hooks/useMemberAutofill';
+import { nikahPartyFill } from '@/utils/memberAutofill';
 
 const nikahSchema = z.object({
   groomName: z.string().max(200, 'Please keep the groom name to 200 characters or less.').min(1, 'Groom name is required'),
@@ -36,14 +42,11 @@ const nikahSchema = z.object({
   waliName: z.string().max(200, 'Please keep the wali name to 200 characters or less.').optional(),
   witness1: z.string().max(200, 'Please keep the witness1 to 200 characters or less.').optional(),
   witness2: z.string().max(200, 'Please keep the witness2 to 200 characters or less.').optional(),
-  mahrAmount: z.preprocess(
-    (val) => (val === '' || Number.isNaN(val) ? undefined : val),
-    z.number().min(0).optional()
-  ),
   mahrDescription: z.string().max(3000, 'Please keep the mahr description to 3000 characters or less.').optional(),
   status: z.enum(['pending', 'correction_required', 'approved', 'rejected']).optional(),
   remarks: z.string().max(2000, 'Please keep the remarks to 2000 characters or less.').optional(),
-});
+  ...nikahDetailShape,
+}).superRefine(requireMahrOther);
 
 type NikahFormData = z.infer<typeof nikahSchema>;
 
@@ -57,11 +60,18 @@ export default function EditNikahRegistration() {
     []
   );
   const [isMemberSearching, setIsMemberSearching] = useState(false);
+  // Photos already stored on the registration, the change the person has made to each, and any
+  // amount recorded before mahr types existed (kept as it is).
+  const [storedPhotos, setStoredPhotos] = useState<{ groom?: string; bride?: string }>({});
+  const [photos, setPhotos] = useState<PhotoValues>({ groom: EMPTY_PHOTO, bride: EMPTY_PHOTO });
+  const [photoProgress, setPhotoProgress] = useState<PhotoProgress>({});
+  const [legacyMahrAmount, setLegacyMahrAmount] = useState<number | undefined>();
   const {
     register,
     handleSubmit,
     watch,
     setValue,
+    getValues,
     reset,
     formState: { errors, isSubmitting },
   } = useForm<NikahFormData>({
@@ -70,12 +80,21 @@ export default function EditNikahRegistration() {
 
   const selectedMahallMemberType = watch('mahallMemberType') || '';
   const selectedMahallMemberId = watch('mahallMemberId') || '';
+  const autofill = useMemberAutofill({ setValue, getValues });
+  const selectedMahrType = watch('mahrType') || '';
+
+  // The description only applies to "Other": leaving that option clears it.
+  useEffect(() => {
+    if (selectedMahrType !== 'other') setValue('mahrTypeOther', '');
+  }, [selectedMahrType, setValue]);
 
   useEffect(() => {
     const fetchRegistration = async () => {
       try {
         setLoading(true);
         const data = await registrationService.getNikahById(id!);
+        setStoredPhotos({ groom: data.groomPhotoId || undefined, bride: data.bridePhotoId || undefined });
+        setLegacyMahrAmount(data.mahrAmount && !data.mahrType ? data.mahrAmount : undefined);
         reset({
           groomName: data.groomName || '',
           groomAge: (data.groomAge || '') as any,
@@ -88,7 +107,14 @@ export default function EditNikahRegistration() {
           waliName: data.waliName || '',
           witness1: data.witness1 || '',
           witness2: data.witness2 || '',
-          mahrAmount: (data.mahrAmount || '') as any,
+          groomAddress: data.groomAddress || '',
+          brideAddress: data.brideAddress || '',
+          witness1Phone: data.witness1Phone || '',
+          witness1Address: data.witness1Address || '',
+          witness2Phone: data.witness2Phone || '',
+          witness2Address: data.witness2Address || '',
+          mahrType: data.mahrType || '',
+          mahrTypeOther: data.mahrTypeOther || '',
           mahrDescription: data.mahrDescription || '',
           status: data.status || 'pending',
           remarks: data.remarks || '',
@@ -133,28 +159,37 @@ export default function EditNikahRegistration() {
     [selectedMahallMemberType]
   );
 
-  // Handle member selection - auto-fill name and age
+  // Handle member selection - fills that side's name, Malayalam name, age and address (from the member's
+  // family) and the member id. Picking someone else replaces what the previous member filled in.
   const handleMemberSelect = useCallback(
     (memberId: string) => {
       setValue('mahallMemberId', memberId);
-      if (!memberId) return;
-      const selectedMember = members.find((m) => m.id === memberId);
-      if (!selectedMember) return;
-      if (selectedMahallMemberType === 'groom') {
-        setValue('groomName', selectedMember.name);
-        if (selectedMember.age) setValue('groomAge', selectedMember.age);
-      } else if (selectedMahallMemberType === 'bride') {
-        setValue('brideName', selectedMember.name);
-        if (selectedMember.age) setValue('brideAge', selectedMember.age);
-      }
+      if (selectedMahallMemberType !== 'groom' && selectedMahallMemberType !== 'bride') return;
+      const side = selectedMahallMemberType;
+      const selectedMember = memberId ? members.find((m) => m.id === memberId) : undefined;
+      void autofill(selectedMember ?? null, (member, family) => nikahPartyFill(side, member, family), { withFamily: true });
     },
-    [members, selectedMahallMemberType, setValue]
+    [members, selectedMahallMemberType, setValue, autofill]
   );
 
   const onSubmit = async (data: NikahFormData) => {
+    let uploaded: string[] = [];
     try {
       setError(null);
+      // Only photos the person replaced or removed are part of the request; the others are left alone.
+      const upload = await uploadPendingPhotos(photos, (progress) => setPhotoProgress((previous) => ({ ...previous, ...progress })));
+      uploaded = upload.uploaded;
       await registrationService.updateNikah(id!, {
+        ...upload.fields,
+        groomAddress: data.groomAddress ?? '',
+        brideAddress: data.brideAddress ?? '',
+        witness1Phone: data.witness1Phone?.trim() ?? '',
+        witness1Address: data.witness1Address ?? '',
+        witness2Phone: data.witness2Phone?.trim() ?? '',
+        witness2Address: data.witness2Address ?? '',
+        // The previously recorded mahr amount is not part of this request, so it stays as it was.
+        mahrType: data.mahrType || undefined,
+        mahrTypeOther: data.mahrType === 'other' ? data.mahrTypeOther?.trim() : undefined,
         groomName: data.groomName,
         groomAge: data.groomAge || undefined,
         brideName: data.brideName,
@@ -167,14 +202,15 @@ export default function EditNikahRegistration() {
         waliName: data.waliName,
         witness1: data.witness1,
         witness2: data.witness2,
-        mahrAmount: data.mahrAmount || undefined,
         mahrDescription: data.mahrDescription,
         status: data.status,
         remarks: data.remarks,
       });
       navigate(ROUTES.REGISTRATIONS.NIKAH);
     } catch (err: any) {
-      setError(errorMessage(err, { action: 'update nikah registration. please try again' }));
+      // The edit was not saved: photos uploaded for it would be orphans, so take them back out.
+      await discardUploads(uploaded);
+      setError(err instanceof PhotoUploadError ? err.message : errorMessage(err, { action: 'update nikah registration. please try again' }));
       console.error('Error updating registration:', err);
     }
   };
@@ -243,6 +279,23 @@ export default function EditNikahRegistration() {
               error={errors.groomAge?.message}
               placeholder="Age"
             />
+            <Textarea
+              label="Groom Address"
+              {...register('groomAddress')}
+              error={errors.groomAddress?.message}
+              placeholder="House name, place, post office, district, PIN code"
+              wrapperClassName="md:col-span-2"
+            />
+            <div className="md:col-span-2">
+              <PersonPhotoField
+                person="Groom"
+                storedId={storedPhotos.groom}
+                value={photos.groom}
+                onChange={(value) => setPhotos((previous) => ({ ...previous, groom: value }))}
+                uploadPercent={photoProgress.groom}
+                disabled={isSubmitting}
+              />
+            </div>
             <h3 className="md:col-span-2 text-lg font-semibold mt-4 text-foreground">
               Bride Information
             </h3>
@@ -260,6 +313,23 @@ export default function EditNikahRegistration() {
               error={errors.brideAge?.message}
               placeholder="Age"
             />
+            <Textarea
+              label="Bride Address"
+              {...register('brideAddress')}
+              error={errors.brideAddress?.message}
+              placeholder="House name, place, post office, district, PIN code"
+              wrapperClassName="md:col-span-2"
+            />
+            <div className="md:col-span-2">
+              <PersonPhotoField
+                person="Bride"
+                storedId={storedPhotos.bride}
+                value={photos.bride}
+                onChange={(value) => setPhotos((previous) => ({ ...previous, bride: value }))}
+                uploadPercent={photoProgress.bride}
+                disabled={isSubmitting}
+              />
+            </div>
             <h3 className="md:col-span-2 text-lg font-semibold mt-4 text-foreground">
               Nikah Details
             </h3>
@@ -272,20 +342,69 @@ export default function EditNikahRegistration() {
             />
             <Input label="Mahall ID" {...register('mahallId')} placeholder="Mahall ID" />
             <Input label="Wali Name" {...register('waliName')} placeholder="Wali Name" />
-            <Input label="Witness 1" {...register('witness1')} placeholder="Witness 1" />
-            <Input label="Witness 2" {...register('witness2')} placeholder="Witness 2" />
+            <h4 className="md:col-span-2 text-base font-semibold mt-2 text-foreground">Witness 1</h4>
+            <Input label="Witness 1 Name" {...register('witness1')} placeholder="Witness 1 Name" />
             <Input
-              label="Mahr Amount"
-              type="number"
-              {...register('mahrAmount', { valueAsNumber: true })}
-              error={errors.mahrAmount?.message}
-              placeholder="Amount"
+              label="Witness 1 Phone Number"
+              type="tel"
+              inputMode="tel"
+              autoComplete="off"
+              {...register('witness1Phone')}
+              error={errors.witness1Phone?.message}
+              placeholder="e.g. 9876543210 or +971 50 123 4567"
             />
+            <Textarea
+              label="Witness 1 Address"
+              {...register('witness1Address')}
+              error={errors.witness1Address?.message}
+              placeholder="Witness 1 Address"
+              wrapperClassName="md:col-span-2"
+            />
+            <h4 className="md:col-span-2 text-base font-semibold mt-2 text-foreground">Witness 2</h4>
+            <Input label="Witness 2 Name" {...register('witness2')} placeholder="Witness 2 Name" />
             <Input
+              label="Witness 2 Phone Number"
+              type="tel"
+              inputMode="tel"
+              autoComplete="off"
+              {...register('witness2Phone')}
+              error={errors.witness2Phone?.message}
+              placeholder="e.g. 9876543210 or +971 50 123 4567"
+            />
+            <Textarea
+              label="Witness 2 Address"
+              {...register('witness2Address')}
+              error={errors.witness2Address?.message}
+              placeholder="Witness 2 Address"
+              wrapperClassName="md:col-span-2"
+            />
+            <Select
+              label="Mahr Type"
+              options={[{ value: '', label: 'Select mahr type' }, ...MAHR_TYPE_OPTIONS]}
+              {...register('mahrType')}
+              error={errors.mahrType?.message as string | undefined}
+              helperText={
+                legacyMahrAmount !== undefined
+                  ? `Recorded before mahr types existed: ${formatCurrency(legacyMahrAmount)}. That amount is kept.`
+                  : undefined
+              }
+            />
+            {selectedMahrType === 'other' && (
+              <Input
+                label="Specify Mahr Type"
+                {...register('mahrTypeOther')}
+                error={errors.mahrTypeOther?.message}
+                placeholder="Describe the mahr type"
+                required
+              />
+            )}
+            <Textarea
               label="Mahr Description"
+              rows={4}
               {...register('mahrDescription')}
+              error={errors.mahrDescription?.message}
               placeholder="Mahr Description"
-              className="md:col-span-2"
+              wrapperClassName="md:col-span-2"
             />
             <Select
               label="Status"
@@ -298,7 +417,14 @@ export default function EditNikahRegistration() {
               {...register('status')}
               error={errors.status?.message as string | undefined}
             />
-            <Input label="Remarks" {...register('remarks')} placeholder="Remarks" />
+            <Textarea
+              label="Remarks"
+              rows={4}
+              {...register('remarks')}
+              error={errors.remarks?.message}
+              placeholder="Remarks"
+              wrapperClassName="md:col-span-2"
+            />
           </div>
 
           <div className="flex gap-2 flex-col-reverse sm:flex-row sm:justify-end sm:gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">

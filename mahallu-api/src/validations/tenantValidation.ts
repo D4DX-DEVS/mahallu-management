@@ -1,4 +1,5 @@
 import { body, param } from 'express-validator';
+import { TENANT_TYPES } from '../config/tenantTypes';
 
 export const createTenantValidation = [
   body('name')
@@ -17,8 +18,13 @@ export const createTenantValidation = [
     .matches(/^[A-Z0-9]+$/)
     .withMessage('Tenant code must contain only uppercase letters and numbers'),
   body('type')
-    .isIn(['standard', 'premium', 'enterprise'])
+    .isIn([...TENANT_TYPES])
     .withMessage('Please choose a valid tenant type.'),
+  // Set when the Mahallu is being created from an accepted demo request.
+  body('demoRequestId')
+    .optional({ values: 'falsy' })
+    .isMongoId()
+    .withMessage('Please choose a valid demo request.'),
   body('location').optional().trim(),
   body('locationMl').optional().trim(),
   body('address.state')
@@ -31,10 +37,7 @@ export const createTenantValidation = [
     .withMessage('Please enter the district.'),
   body('address.pinCode').optional().trim(),
   body('address.postOffice').optional().trim(),
-  body('address.lsgName')
-    .trim()
-    .notEmpty()
-    .withMessage('Please enter the LSG name.'),
+  body('address.lsgName').optional({ values: 'falsy' }).trim(),
   body('address.village')
     .trim()
     .notEmpty()

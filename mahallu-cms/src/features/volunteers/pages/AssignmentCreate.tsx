@@ -10,6 +10,7 @@ import { useFormValidation } from '@/hooks/useFormValidation';
 import { FieldRule, LIMITS, firstError, validateForm } from '@/utils/validation';
 import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
+import Select from '@/components/ui/Select';
 
 /**
  * The same limits the API applies, so a form that passes here is not
@@ -183,19 +184,15 @@ export default function AssignmentCreate() {
               {/* Service Type */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Service Type *</label>
-                <select
+                <Select
                   aria-label="Service Type"
                   value={formData.serviceType}
                   onChange={(e) => setFormData((prev) => ({ ...prev, serviceType: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">Select service type</option>
-                  {SERVICE_TYPE_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
+                  options={[
+                    { value: '', label: 'Select service type' },
+                    ...SERVICE_TYPE_OPTIONS.map((opt) => ({ value: opt.value, label: opt.label })),
+                  ]}
+                />
               </div>
 
               {/* Date */}
@@ -226,16 +223,16 @@ export default function AssignmentCreate() {
               {/* Status */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
-                <select
+                <Select
                   aria-label="Status"
                   value={formData.status}
                   onChange={(e) => setFormData((prev) => ({ ...prev, status: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="assigned">Assigned</option>
-                  <option value="completed">Completed</option>
-                  <option value="cancelled">Cancelled</option>
-                </select>
+                  options={[
+                    { value: 'assigned', label: 'Assigned' },
+                    { value: 'completed', label: 'Completed' },
+                    { value: 'cancelled', label: 'Cancelled' },
+                  ]}
+                />
               </div>
 
               {error && <div className="rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</div>}

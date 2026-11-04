@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import Select from '@/components/ui/Select';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import Button from '@/components/ui/Button';
@@ -61,18 +62,14 @@ export default function CounsellingCreate() {
             {/* Category */}
             <div>
               <label className="block text-sm font-medium mb-2">Category *</label>
-              <select
+              <Select
                 aria-label="Category"
                 {...register('category', { required: 'Please choose the category.' })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-              >
-                <option value="">Select category...</option>
-                {CATEGORIES.map((cat) => (
-                  <option key={cat} value={cat}>
-                    {cat.charAt(0).toUpperCase() + cat.slice(1)}
-                  </option>
-                ))}
-              </select>
+                options={[
+                  { value: '', label: 'Select category...' },
+                  ...CATEGORIES.map((cat) => ({ value: cat, label: cat.charAt(0).toUpperCase() + cat.slice(1) })),
+                ]}
+              />
               {errors.category && <p className="text-red-600 text-sm mt-1">{errors.category.message}</p>}
             </div>
 

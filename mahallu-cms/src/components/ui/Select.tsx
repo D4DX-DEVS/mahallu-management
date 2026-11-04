@@ -8,7 +8,7 @@ import {
   useLayoutEffect,
 } from 'react';
 import { createPortal } from 'react-dom';
-import { FiChevronDown, FiSearch, FiX, FiPlus, FiCheck } from 'react-icons/fi';
+import { RiAddLine, RiArrowDownSLine, RiCheckLine, RiCloseCircleFill, RiCloseLine, RiSearch2Line } from 'react-icons/ri';
 import { cn } from '@/utils/cn';
 import Field, { useFieldIds } from './Field';
 import { controlClasses } from './Input';
@@ -26,9 +26,19 @@ const nativeSelectValueSetter = Object.getOwnPropertyDescriptor(
   window.HTMLSelectElement.prototype,
   'value'
 )?.set;
+const nativeSelectValueGetter = Object.getOwnPropertyDescriptor(
+  window.HTMLSelectElement.prototype,
+  'value'
+)?.get;
 function setNativeSelectValue(node: HTMLSelectElement, value: string) {
   nativeSelectValueSetter?.call(node, value);
-} /** * Listbox with an optional search filter, backed by a hidden native select so * react-hook-form registration keeps working unchanged. * * The menu is portalled to document.body with fixed positioning: an absolutely * positioned menu is clipped by the overflow-x-auto wrapper that every data * table puts around it. */
+}
+const mirroredSelects = new WeakSet<HTMLSelectElement>();
+/* An empty-value option worded as an instruction ("Select grade...") is a
+ * placeholder, not a choice: it shows muted in the trigger and is left out of
+ * the list. An empty option that is a real choice ("All areas") stays. */
+const isPrompt = (option: { value: string; label: string }) =>
+  option.value === '' && (/^(select|choose|pick)\b/i.test(option.label) || /(\.\.\.|…)$/.test(option.label)); /** * Listbox with an optional search filter, backed by a hidden native select so * react-hook-form registration keeps working unchanged. * * The menu is portalled to document.body with fixed positioning: an absolutely * positioned menu is clipped by the overflow-x-auto wrapper that every data * table puts around it. */
 const Select = forwardRef<HTMLSelectElement, SelectProps>(
   (
     {
@@ -45,6 +55,7 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
       id,
       required,
       placeholder,
+      'aria-label': ariaLabel,
       ...props
     },
     ref
@@ -54,7 +65,8 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
     const [focusedIndex, setFocusedIndex] = useState(-1);
     const [internalValue, setInternalValue] = useState(value ?? '');
     const [menuRect, setMenuRect] = useState<{
-      top: number;
+      top?: number;
+      bottom?: number;
       left: number;
       width: number;
       maxHeight: number;
@@ -69,13 +81,39 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
     useEffect(() => {
       if (value !== undefined) setInternalValue(value);
     }, [value]);
-    const needsSearch = options.length > 10;
+    const valueRef = useRef(value);
+    valueRef.current = value;
+    /* react-hook-form loads values (setValue, reset, defaultValues) by assigning
+     * `node.value` on the registered element: no event, no re-render. The trigger
+     * label is drawn from `internalValue`, so it kept showing the placeholder on
+     * every edit form. Mirror those assignments into state, unless the parent
+     * controls `value` itself. Mirroring the requested value, not the DOM's, also
+     * survives options that arrive after the value was set. */
+    const mirrorNodeValue = useCallback((node: HTMLSelectElement) => {
+      if (mirroredSelects.has(node) || !nativeSelectValueGetter || !nativeSelectValueSetter) return;
+      mirroredSelects.add(node);
+      Object.defineProperty(node, 'value', {
+        configurable: true,
+        get: () => nativeSelectValueGetter.call(node),
+        set: (next: unknown) => {
+          nativeSelectValueSetter.call(node, next);
+          if (valueRef.current === undefined) setInternalValue(next == null ? '' : String(next));
+        },
+      });
+    }, []);
+    const listOptions = options.filter((option) => !isPrompt(option));
+    const promptOption = options.find(isPrompt);
+    /* Every list with a real choice is searchable. */
+    const needsSearch = listOptions.length >= 2;
     const showSearch = needsSearch && isOpen;
     const filteredOptions = showSearch
-      ? options.filter((option) => option.label.toLowerCase().includes(searchQuery.toLowerCase()))
-      : options;
+      ? listOptions.filter((option) => option.label.toLowerCase().includes(searchQuery.toLowerCase()))
+      : listOptions;
     const selectedOption = options.find((opt) => opt.value === internalValue);
-    const displayValue = selectedOption?.label ?? '';
+    const displayValue = selectedOption && !isPrompt(selectedOption) ? selectedOption.label : '';
+    /* Clearing returns to the placeholder; only offered when the list has one
+     * and the field is optional. */
+    const canClear = Boolean(promptOption) && !required && !disabled && internalValue !== '';
     const commitValue = useCallback(
       (optionValue: string) => {
         setInternalValue(optionValue);
@@ -108,11 +146,20 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
       const rect = triggerRef.current?.getBoundingClientRect();
       if (!rect) return;
       const MAX_MENU_HEIGHT = 320; // max-h-80
-      const GAP = 4;
+      const GAP = 6;
       const VIEWPORT_MARGIN = 8;
       const spaceBelow = window.innerHeight - rect.bottom - GAP - VIEWPORT_MARGIN;
-      const maxHeight = Math.min(MAX_MENU_HEIGHT, Math.max(spaceBelow, 100));
-      setMenuRect({ top: rect.bottom + GAP, left: rect.left, width: rect.width, maxHeight });
+      const spaceAbove = rect.top - GAP - VIEWPORT_MARGIN;
+      // Opens upward when the field sits low and there is more room above.
+      const flipUp = spaceBelow < 220 && spaceAbove > spaceBelow;
+      const maxHeight = Math.min(MAX_MENU_HEIGHT, Math.max(flipUp ? spaceAbove : spaceBelow, 100));
+      setMenuRect({
+        // Anchored by its bottom edge when flipped, so its unknown height cannot leave a gap.
+        ...(flipUp ? { bottom: window.innerHeight - rect.top + GAP } : { top: rect.bottom + GAP }),
+        left: rect.left,
+        width: Math.max(rect.width, 200),
+        maxHeight,
+      });
     }, []);
     useLayoutEffect(() => {
       if (!isOpen) return;
@@ -124,6 +171,19 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
         window.removeEventListener('resize', positionMenu);
       };
     }, [isOpen, positionMenu]);
+    /* The search never survives a close, however the menu was closed. */
+    useEffect(() => {
+      if (isOpen) return;
+      setSearchQuery('');
+      setFocusedIndex(-1);
+    }, [isOpen]);
+    /* Keep the keyboard-focused option visible inside the scrolling list. */
+    useEffect(() => {
+      if (!isOpen || focusedIndex < 0) return;
+      document
+        .getElementById(listboxId + '-opt-' + focusedIndex)
+        ?.scrollIntoView?.({ block: 'nearest' });
+    }, [isOpen, focusedIndex, listboxId]);
     useEffect(() => {
       if (!isOpen) return;
       const handlePointerDown = (event: MouseEvent) => {
@@ -167,10 +227,13 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
           setFocusedIndex((prev) => Math.max(prev - 1, 0));
           break;
         case 'Home':
+          // In the search box Home/End move the text caret instead.
+          if (event.target === searchInputRef.current) break;
           event.preventDefault();
           setFocusedIndex(0);
           break;
         case 'End':
+          if (event.target === searchInputRef.current) break;
           event.preventDefault();
           setFocusedIndex(filteredOptions.length - 1);
           break;
@@ -182,6 +245,8 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
           break;
         case 'Tab':
           setIsOpen(false);
+          setSearchQuery('');
+          setFocusedIndex(-1);
           break;
         default:
           break;
@@ -192,20 +257,22 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
     const menu = isOpen && menuRect && (
       <div
         ref={menuRef}
+        data-select-menu=""
         style={{
           position: 'fixed',
           top: menuRect.top,
+          bottom: menuRect.bottom,
           left: menuRect.left,
           width: menuRect.width,
           maxHeight: menuRect.maxHeight,
         }}
-        className="z-[100] overflow-hidden rounded-md border border-border bg-popover text-popover-foreground shadow-md"
+        className="z-[100] overflow-hidden rounded-xl border border-border bg-popover text-popover-foreground shadow-lg animate-fade-in"
         onKeyDown={onKeyDown}
       >
         {showSearch && (
           <div className="border-b border-border p-2">
             <div className="relative">
-              <FiSearch
+              <RiSearch2Line
                 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
                 aria-hidden="true"
               />
@@ -219,19 +286,20 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
                 }}
                 placeholder="Search options"
                 aria-label="Search options"
-                className="h-8 w-full rounded-md border border-input bg-background pl-9 pr-8 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="h-9 w-full rounded-lg border border-border bg-subtle/60 pl-9 pr-8 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-primary focus-visible:bg-card focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/10"
               />
               {searchQuery && (
                 <button
                   type="button"
                   onClick={() => {
                     setSearchQuery('');
+                    setFocusedIndex(0);
                     searchInputRef.current?.focus();
                   }}
                   aria-label="Clear search"
                   className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                 >
-                  <FiX className="h-4 w-4" />
+                  <RiCloseLine className="h-4 w-4" />
                 </button>
               )}
             </div>
@@ -241,7 +309,7 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
           role="listbox"
           id={listboxId}
           aria-label={label ?? 'Options'}
-          className="overflow-y-auto p-1"
+          className="overflow-y-auto p-1.5"
           style={{ maxHeight: showSearch ? menuRect.maxHeight - 56 : menuRect.maxHeight }}
         >
           {filteredOptions.length === 0 ? (
@@ -260,13 +328,14 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
                   onMouseEnter={() => setFocusedIndex(index)}
                   onClick={() => commitValue(option.value)}
                   className={cn(
-                    'flex cursor-pointer items-center justify-between gap-2 rounded-sm px-3 py-2 text-sm',
-                    index === focusedIndex ? 'bg-accent text-accent-foreground' : 'text-foreground'
+                    'flex h-9 cursor-pointer items-center justify-between gap-2 rounded-lg px-2.5 text-sm transition-colors',
+                    index === focusedIndex && 'bg-subtle',
+                    isSelected ? 'font-medium text-primary' : 'text-foreground'
                   )}
                 >
                   <span className="truncate">{option.label}</span>
                   {isSelected && (
-                    <FiCheck className="h-4 w-4 flex-shrink-0 text-primary" aria-hidden="true" />
+                    <RiCheckLine className="h-4 w-4 flex-shrink-0 text-primary" aria-hidden="true" />
                   )}
                 </div>
               );
@@ -274,16 +343,16 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
           )}
         </div>
         {onAddNew && (
-          <div className="border-t border-border p-1">
+          <div className="border-t border-border p-1.5">
             <button
               type="button"
               onClick={() => {
                 setIsOpen(false);
                 onAddNew();
               }}
-              className="flex w-full items-center gap-2 rounded-sm px-3 py-2 text-sm font-medium text-primary hover:bg-accent hover:text-accent-foreground"
+              className="flex h-9 w-full items-center gap-2 rounded-lg px-2.5 text-sm font-medium text-primary transition-colors hover:bg-primary/5"
             >
-              <FiPlus className="h-4 w-4" aria-hidden="true" /> {addNewLabel}
+              <RiAddLine className="h-4 w-4" aria-hidden="true" /> {addNewLabel}
             </button>
           </div>
         )}
@@ -295,6 +364,7 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
           {/* Hidden native select keeps react-hook-form registration intact. */}
           <select
             ref={(node) => {
+              if (node) mirrorNodeValue(node);
               if (typeof ref === 'function') ref(node);
               else if (ref) ref.current = node;
               selectRef.current = node;
@@ -308,6 +378,7 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
             tabIndex={-1}
             aria-hidden="true"
             disabled={disabled}
+            aria-label={ariaLabel}
             {...props}
           >
             {options.map((option, i) => (
@@ -321,26 +392,38 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
             type="button"
             role="combobox"
             aria-haspopup="listbox"
+            aria-label={label ? undefined : ariaLabel}
             aria-expanded={isOpen}
             aria-controls={isOpen ? listboxId : undefined}
             aria-activedescendant={activeOptionId}
             onClick={() => !disabled && setIsOpen((open) => !open)}
             onKeyDown={onKeyDown}
             disabled={disabled}
-            className={cn(controlClasses, 'items-center justify-between text-left', className)}
+            className={cn(controlClasses, 'items-center justify-between text-left', canClear && 'pr-14', className)}
             {...ids.controlProps}
           >
-            <span className={cn('truncate', !displayValue && 'text-muted-foreground')}>
-              {displayValue || placeholder || 'Select an option'}
+            <span className={cn('truncate', !displayValue && 'text-muted-foreground/80')}>
+              {displayValue || placeholder || promptOption?.label || 'Select an option'}
             </span>
-            <FiChevronDown
+            <RiArrowDownSLine
               className={cn(
-                'ml-2 h-4 w-4 flex-shrink-0 text-muted-foreground transition-transform',
+                'ml-2 h-[18px] w-[18px] flex-shrink-0 text-muted-foreground transition-transform duration-200',
                 isOpen && 'rotate-180'
               )}
               aria-hidden="true"
             />
           </button>
+          {canClear && (
+            <button
+              type="button"
+              onClick={() => commitValue('')}
+              aria-label={`Clear ${label ?? 'selection'}`}
+              title="Clear"
+              className="absolute right-8 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground/60 transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <RiCloseCircleFill className="h-4 w-4" aria-hidden="true" />
+            </button>
+          )}
         </div>
         {menu && createPortal(menu, document.body)}
       </Field>

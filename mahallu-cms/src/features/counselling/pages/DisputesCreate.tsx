@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import Select from '@/components/ui/Select';
 import { useNavigate } from 'react-router-dom';
 import { useForm, useFieldArray } from 'react-hook-form';
 import Button from '@/components/ui/Button';
@@ -89,18 +90,14 @@ export default function DisputesCreate() {
             {/* Type */}
             <div>
               <label className="block text-sm font-medium mb-2">Dispute Type *</label>
-              <select
+              <Select
                 aria-label="Dispute Type"
                 {...register('type', { required: 'Please choose the dispute type.' })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-              >
-                <option value="">Select type...</option>
-                {DISPUTE_TYPES.map((t) => (
-                  <option key={t} value={t}>
-                    {t.charAt(0).toUpperCase() + t.slice(1)}
-                  </option>
-                ))}
-              </select>
+                options={[
+                  { value: '', label: 'Select type...' },
+                  ...DISPUTE_TYPES.map((t) => ({ value: t, label: t.charAt(0).toUpperCase() + t.slice(1) })),
+                ]}
+              />
               {errors.type && <p className="text-red-600 text-sm mt-1">{errors.type.message}</p>}
             </div>
 

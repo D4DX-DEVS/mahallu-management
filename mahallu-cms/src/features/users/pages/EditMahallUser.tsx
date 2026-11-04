@@ -7,6 +7,7 @@ import { FiSave, FiX } from 'react-icons/fi';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
+import Select from '@/components/ui/Select';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import { ROUTES } from '@/constants/routes';
 import { userService } from '@/services/userService';
@@ -197,17 +198,14 @@ export default function EditMahallUser() {
                 className="md:col-span-2"
               />
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Status
-                </label>
-                <select
-                  aria-label="Status"
+                <Select
+                  label="Status"
+                  options={[
+                    { value: 'active', label: 'Active' },
+                    { value: 'inactive', label: 'Inactive' },
+                  ]}
                   {...register('status')}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg dark:border-gray-600 dark:bg-gray-800"
-                >
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
-                </select>
+                />
               </div>
             </div>
           </div>

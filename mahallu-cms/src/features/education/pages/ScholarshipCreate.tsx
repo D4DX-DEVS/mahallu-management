@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import Select from '@/components/ui/Select';
 import { useNavigate } from 'react-router-dom';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
@@ -160,19 +161,13 @@ export default function ScholarshipCreate() {
 
           <div className="md:w-1/2">
             <label className="block text-sm font-medium mb-2">Status</label>
-            <select
+            <Select
               aria-label="Status"
               name="status"
               value={formData.status}
               onChange={handleChange}
-              className={inputClass}
-            >
-              {SCHOLARSHIP_STATUS_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
+              options={SCHOLARSHIP_STATUS_OPTIONS.map((opt) => ({ value: opt.value, label: opt.label }))}
+            />
           </div>
 
           <div className="flex flex-wrap gap-4">

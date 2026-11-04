@@ -41,6 +41,13 @@ export const csvEscape = (value: unknown): string => {
 const toCsv = (headers: string[], rows: unknown[][]): string =>
   [headers.join(','), ...rows.map((r) => r.map(csvEscape).join(','))].join('\r\n');
 
+/**
+ * Exports that hold registration records. Registrations are handled by the platform Super Admin only
+ * (registrationRoutes), so these CSVs are too; exportRoutes enforces it. Every other entity stays open to
+ * the Mahallu admin.
+ */
+export const SUPER_ADMIN_ONLY_EXPORTS: readonly string[] = ['nikah', 'death', 'noc'];
+
 interface EntityConfig {
   model: any;
   headers: string[];

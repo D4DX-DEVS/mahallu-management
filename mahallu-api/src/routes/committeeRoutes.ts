@@ -6,6 +6,8 @@ import {
   updateCommittee,
   deleteCommittee,
   getCommitteeMeetings,
+  getMahalluCommittee,
+  saveMahalluCommittee,
 } from '../controllers/committeeController';
 import { authMiddleware, requireAdmin } from '../middleware/authMiddleware';
 import { tenantMiddleware, tenantFilter } from '../middleware/tenantMiddleware';
@@ -15,6 +17,7 @@ import {
   updateCommitteeValidation,
   getCommitteeValidation,
   deleteCommitteeValidation,
+  saveMahalluCommitteeValidation,
 } from '../validations/committeeValidation';
 import { param } from 'express-validator';
 import { idParam, listQuery } from '../validations/common';
@@ -90,6 +93,27 @@ router.use(requireAdmin);
  *         $ref: '#/components/responses/Unauthorized'
  */
 router.get('/', listQuery(), validationHandler, getAllCommittees);
+
+/**
+ * @swagger
+ * /committees/mahallu:
+ *   get:
+ *     summary: Get the Mahallu (governing) committee
+ *     tags: [Committees]
+ *     description: The tenant's governing committee with its office bearers, or `null` when not set up.
+ *     security:
+ *       - bearerAuth: []
+ *   put:
+ *     summary: Create or update the Mahallu committee
+ *     tags: [Committees]
+ *     description: |
+ *       Body: `{ name?, nameMl?, description?, termStartDate?, termEndDate?, status?,
+ *       officeBearers: [{ member, role }] }`. President, Secretary and Treasurer can each be held by one person.
+ *     security:
+ *       - bearerAuth: []
+ */
+router.get('/mahallu', getMahalluCommittee);
+router.put('/mahallu', saveMahalluCommitteeValidation, validationHandler, saveMahalluCommittee);
 
 /**
  * @swagger

@@ -1,14 +1,19 @@
 import { Response } from 'express';
 import User from '../models/User';
 import Member from '../models/Member';
+import Institute from '../models/Institute';
 import bcrypt from 'bcryptjs';
-import { randomUnusablePasswordHash } from '../utils/credentials';
+import { generateTemporaryPassword, normalizeUsername, randomUnusablePasswordHash } from '../utils/credentials';
+import { decideCredentialAccess, STAFF_LOGIN_ROLES, widensPermissions } from '../utils/credentialAccess';
+import { recordSecurityEvent } from '../utils/securityAudit';
 import { AuthRequest } from '../middleware/authMiddleware';
 import { getPaginationParams, createPaginationResponse } from '../utils/pagination';
 
 import { sendFailure } from '../utils/userMessages';
 import { regexLiteral } from '../utils/queryGuard';
 import { verifyTenantOwnership } from '../utils/tenantCheck';
+
+const USERNAME_TAKEN = 'That username is already taken. Please choose another.';
 
 export const getAllUsers = async (req: AuthRequest, res: Response) => {
   try {
@@ -42,6 +47,7 @@ export const getAllUsers = async (req: AuthRequest, res: Response) => {
         { name: { $regex: regexLiteral(search), $options: 'i' } },
         { phone: { $regex: regexLiteral(search), $options: 'i' } },
         { email: { $regex: regexLiteral(search), $options: 'i' } },
+        { username: { $regex: regexLiteral(search), $options: 'i' } },
       ];
     }
 
@@ -81,6 +87,7 @@ export const getUserById = async (req: AuthRequest, res: Response) => {
 export const createUser = async (req: AuthRequest, res: Response) => {
   try {
     const { name, phone, email, role, permissions, password, tenantId, memberId, instituteId } = req.body;
+    const username = normalizeUsername(req.body.username);
 
     // Determine the final role (default to 'mahall' if not provided)
     const finalRole = role || 'mahall';
@@ -118,6 +125,12 @@ export const createUser = async (req: AuthRequest, res: Response) => {
 
     // For member users, validate memberId and ensure phone matches
     if (finalRole === 'member') {
+      if (username) {
+        return res.status(400).json({
+          success: false,
+          message: 'Member accounts sign in with an OTP to their own phone, so they have no username.',
+        });
+      }
       if (!memberId) {
         return res.status(400).json({
           success: false,
@@ -218,6 +231,15 @@ export const createUser = async (req: AuthRequest, res: Response) => {
       });
     }
 
+    if (username) {
+      if (!(STAFF_LOGIN_ROLES as readonly string[]).includes(finalRole)) {
+        return res.status(400).json({ success: false, message: "This type of account can't have a username." });
+      }
+      if (await User.findOne({ username }).select('_id')) {
+        return res.status(409).json({ success: false, message: USERNAME_TAKEN });
+      }
+    }
+
     // Hash password
     const hashedPassword = password ? await bcrypt.hash(password, 10) : await randomUnusablePasswordHash();
 
@@ -236,9 +258,24 @@ export const createUser = async (req: AuthRequest, res: Response) => {
         delete: false,
       },
       password: hashedPassword,
+      // The administrator typed this password, so the person is asked to replace it at first sign-in.
+      ...(username ? { username, passwordResetRequired: true } : {}),
     });
 
-    await user.save();
+    try {
+      await user.save();
+    } catch (error: any) {
+      if (username && (error?.code === 11000 || error?.code === 11001) && /username/.test(String(error?.message))) {
+        return res.status(409).json({ success: false, message: USERNAME_TAKEN });
+      }
+      throw error;
+    }
+    if (username) {
+      await recordSecurityEvent(req, {
+        action: 'create user with sign-in',
+        target: { id: user._id, role: user.role, tenantId: user.tenantId },
+      });
+    }
     const userResponse = await User.findById(user._id)
       .select('-password')
       .populate('tenantId', 'name code')
@@ -246,6 +283,111 @@ export const createUser = async (req: AuthRequest, res: Response) => {
     res.status(201).json({ success: true, data: userResponse });
   } catch (error: any) {
     sendFailure(res, error, 'We couldn\'t save the user. Please try again.');
+  }
+};
+
+/** The signed-in account, as the credential rules need it. */
+const credentialActor = (req: AuthRequest) => ({
+  id: String(req.user?._id),
+  role: req.user?.role,
+  isSuperAdmin: req.isSuperAdmin === true,
+  tenantId: req.tenantId ? String(req.tenantId) : undefined,
+  impersonating: req.impersonation?.isImpersonating === true,
+});
+
+// PUT /api/users/:id/username - set, change or (with an empty value) remove a staff account's username.
+export const setUserUsername = async (req: AuthRequest, res: Response) => {
+  try {
+    const target = await User.findById(req.params.id);
+    if (!target) {
+      return res.status(404).json({ success: false, message: "We couldn't find that user. It may have been removed." });
+    }
+    const decision = decideCredentialAccess(credentialActor(req), {
+      id: String(target._id),
+      role: target.role,
+      tenantId: target.tenantId ? String(target.tenantId) : null,
+    });
+    if (!decision.ok) return res.status(decision.status).json({ success: false, message: decision.message });
+
+    const username = normalizeUsername(req.body.username);
+    const update: Record<string, unknown> = username ? { $set: { username } } : { $unset: { username: 1 } };
+
+    if (username) {
+      const taken = await User.findOne({ username, _id: { $ne: target._id } }).select('_id');
+      if (taken) return res.status(409).json({ success: false, message: USERNAME_TAKEN });
+    }
+
+    let saved;
+    try {
+      saved = await User.findByIdAndUpdate(target._id, update, { new: true, runValidators: true }).select('-password');
+    } catch (error: any) {
+      if (error?.code === 11000 || error?.code === 11001) {
+        return res.status(409).json({ success: false, message: USERNAME_TAKEN });
+      }
+      throw error;
+    }
+    if (!saved) {
+      return res.status(404).json({ success: false, message: "We couldn't find that user. It may have been removed." });
+    }
+
+    await recordSecurityEvent(req, {
+      action: 'change user username',
+      target: { id: target._id, role: target.role, tenantId: target.tenantId },
+      details: { removed: !username },
+    });
+    res.json({
+      success: true,
+      message: username ? 'Username saved.' : 'Username removed. This person can still sign in with their phone number.',
+      data: saved,
+    });
+  } catch (error: any) {
+    sendFailure(res, error, "We couldn't save the username. Please try again.");
+  }
+};
+
+// POST /api/users/:id/reset-password
+// Replaces the password. With no newPassword a one-time password is generated and returned ONCE in this
+// response (never stored in the clear, never logged, never retrievable later). Every session of the
+// account ends, and the person must choose a new password at their next password sign-in.
+// Nothing here messages the person: the administrator passes the password on, and the response says so.
+export const resetUserPassword = async (req: AuthRequest, res: Response) => {
+  try {
+    const target = await User.findById(req.params.id);
+    if (!target) {
+      return res.status(404).json({ success: false, message: "We couldn't find that user. It may have been removed." });
+    }
+    const decision = decideCredentialAccess(credentialActor(req), {
+      id: String(target._id),
+      role: target.role,
+      tenantId: target.tenantId ? String(target.tenantId) : null,
+    });
+    if (!decision.ok) return res.status(decision.status).json({ success: false, message: decision.message });
+
+    const chosen: string | undefined = req.body.newPassword || undefined;
+    const password = chosen ?? generateTemporaryPassword();
+
+    await User.findByIdAndUpdate(target._id, {
+      $set: { password: await bcrypt.hash(password, 10), passwordResetRequired: true },
+      $inc: { tokenVersion: 1 },
+    });
+
+    await recordSecurityEvent(req, {
+      action: 'reset user password',
+      target: { id: target._id, role: target.role, tenantId: target.tenantId },
+      details: { generated: !chosen },
+    });
+
+    // A secret in the body: never cache it.
+    res.set('Cache-Control', 'no-store');
+    res.json({
+      success: true,
+      message: chosen
+        ? 'Password changed. Their other sessions have been signed out. Please pass the new password on to them yourself.'
+        : 'Password reset. Their sessions have been signed out. Copy the temporary password now - it will not be shown again - and pass it on to them yourself.',
+      data: { userId: String(target._id), ...(chosen ? {} : { temporaryPassword: password }) },
+    });
+  } catch (error: any) {
+    sendFailure(res, error, "We couldn't reset the password. Please try again.");
   }
 };
 
@@ -281,7 +423,20 @@ export const updateUser = async (req: AuthRequest, res: Response) => {
       return;
     }
 
-    const { name, phone, email, status, permissions } = req.body;
+    const { name, phone, email, status, permissions, instituteId } = req.body;
+
+    // The institute of an institute account could only be chosen when the account was created, so an
+    // account created without one (or with the wrong one) could never be fixed. It can now be set here,
+    // to one of the account's own Mahallu's institutes.
+    if (instituteId !== undefined) {
+      if (existingUser.role !== 'institute') {
+        return res.status(400).json({ success: false, message: 'Only an institute account can be linked to an institute.' });
+      }
+      const institute = await Institute.findOne({ _id: instituteId, tenantId: existingUser.tenantId }).select('_id');
+      if (!institute) {
+        return res.status(404).json({ success: false, message: "We couldn't find that institute in this Mahallu." });
+      }
+    }
 
     // The phone number is what links one person's accounts together: switch-account
     // trusts "same phone" as proof the target account is also yours. If an admin could
@@ -296,11 +451,27 @@ export const updateUser = async (req: AuthRequest, res: Response) => {
       });
     }
 
+    // An administrator cannot raise their own access by editing their own record (restricted modules
+    // are checked against this very field). Keeping or lowering it is fine.
+    if (!req.isSuperAdmin && isOwnRecord && widensPermissions(existingUser.permissions as any, permissions)) {
+      return res.status(403).json({
+        success: false,
+        message: "You can't give yourself more access. Please ask the platform administrator.",
+      });
+    }
+
     // Changing the number an account is tied to is a security event: every session the account
     // already holds ends (tokenVersion), so a token obtained before the change cannot be carried
     // across it.
     const phoneChanged = phone !== undefined && phone !== existingUser.phone;
-    const update: Record<string, unknown> = { name, phone, email, status, ...permissionsUpdate(permissions) };
+    const update: Record<string, unknown> = {
+      name,
+      phone,
+      email,
+      status,
+      ...(instituteId !== undefined ? { instituteId } : {}),
+      ...permissionsUpdate(permissions),
+    };
     const user = await User.findByIdAndUpdate(
       req.params.id,
       phoneChanged ? { ...update, $inc: { tokenVersion: 1 } } : update,

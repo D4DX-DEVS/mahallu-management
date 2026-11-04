@@ -1,9 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import { FiEye, FiTrash2 } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
+import { FiPlus } from 'react-icons/fi';
 import Button from '@/components/ui/Button';
-import ExpandableSearch from '@/components/ui/ExpandableSearch';
-import Card from '@/components/ui/Card';
+import TableCard from '@/components/ui/TableCard';
+import TableToolbar from '@/components/ui/TableToolbar';
+import FilterPanel from '@/components/ui/FilterPanel';
+import Select from '@/components/ui/Select';
+import EmptyState from '@/components/ui/EmptyState';
+import StatusBadge from '@/components/ui/StatusBadge';
 import Table from '@/components/ui/Table';
 import ActionsMenu from '@/components/ui/ActionsMenu';
 import Pagination from '@/components/ui/Pagination';
@@ -18,7 +23,8 @@ import {
   supportCaseStatusLabel,
   memberName,
 } from '@/services/scholarshipService';
-import { errorMessage } from '@/utils/errors';
+import { useDebounce } from '@/hooks/useDebounce';
+import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
 import { TableColumn } from '@/types';
@@ -31,51 +37,54 @@ export default function AcademicSupportList() {
   const [type, setType] = useState('');
   const [status, setStatus] = useState('');
   const [search, setSearch] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
+  const [isFilterVisible, setIsFilterVisible] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const debouncedSearch = useDebounce(search, 500);
+  const activeFilterCount = (type ? 1 : 0) + (status ? 1 : 0);
+  const isFiltered = Boolean(debouncedSearch) || activeFilterCount > 0;
 
   const columns: TableColumn<AcademicSupportCase>[] = [
     {
       key: 'student',
       label: 'Student',
-      render: (_v, c) => toTitleCase(memberName(c.memberId)),
+      sortable: false,
+      width: '16rem',
+      render: (_v, c) => <span className="font-medium text-foreground">{toTitleCase(memberName(c.memberId))}</span>,
     },
     {
       key: 'type',
       label: 'Type',
+      sortable: true,
       priority: 'secondary',
+      width: '10rem',
       render: (_v, c) => supportCaseTypeLabel(c.type),
     },
-    {
-      key: 'description',
-      label: 'Description',
-      priority: 'tertiary',
-      render: (_v, c) => (
-        <button onClick={() => navigate(`/education/support/${c.id}`)} className="text-primary hover:underline">
-          {c.description}
-        </button>
-      ),
-    },
+    { key: 'description', label: 'Description', sortable: false, priority: 'tertiary', width: '18rem' },
     {
       key: 'mentorName',
       label: 'Mentor',
+      sortable: true,
       priority: 'tertiary',
+      width: '12rem',
       render: (_v, c) => (c.mentorName ? toTitleCase(c.mentorName) : '—'),
     },
     {
       key: 'status',
       label: 'Status',
       sortable: true,
-      render: (_v, c) => (
-        <span className="rounded bg-muted px-2 py-1 text-xs">{supportCaseStatusLabel(c.status)}</span>
-      ),
+      width: '8rem',
+      render: (_v, c) => <StatusBadge status={c.status} label={supportCaseStatusLabel(c.status)} />,
     },
     {
       key: 'actions',
-      label: 'Actions',
+      label: '',
       align: 'right',
       sortable: false,
+      width: '6.5rem',
       render: (_v, c) => (
         <ActionsMenu
           label={'Actions for ' + toTitleCase(memberName(c.memberId))}
@@ -99,26 +108,27 @@ export default function AcademicSupportList() {
 
   const fetchCases = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const { data, pagination } = await scholarshipService.getSupportCases({
         page: currentPage,
-        limit: 10,
+        limit: itemsPerPage,
         type: type || undefined,
         status: status || undefined,
-        search: search || undefined,
+        search: debouncedSearch || undefined,
       });
       setCases(data);
       setPagination(pagination);
-    } catch (error) {
-      console.error("Couldn't load:", error);
+    } catch (err) {
+      setError(loadErrorMessage(err, 'academic support cases'));
     } finally {
       setLoading(false);
     }
-  }, [currentPage, type, status, search]);
+  }, [currentPage, itemsPerPage, type, status, debouncedSearch]);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [type, status, search]);
+  }, [type, status, debouncedSearch]);
 
   useEffect(() => {
     fetchCases();
@@ -140,89 +150,111 @@ export default function AcademicSupportList() {
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <PageHeader title="Academic Support Cases" />
-        <Button onClick={() => navigate('/education/support/create')}>New Case</Button>
-      </div>
+    <>
+      <PageHeader
+        title="Academic support"
+        description="Mentoring and support cases for students."
+        actions={
+          <Button icon={<FiPlus />} collapseLabel onClick={() => navigate('/education/support/create')}>
+            New case
+          </Button>
+        }
+      />
 
-      <Card>
-        <div className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-            <select
-              aria-label="Filter"
-              value={type}
-              onChange={(e) => setType(e.target.value)}
-              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700"
-            >
-              <option value="">All types</option>
-              {SUPPORT_CASE_TYPE_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-            <select
-              aria-label="Filter"
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
-              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700"
-            >
-              <option value="">All statuses</option>
-              {SUPPORT_CASE_STATUS_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-            <ExpandableSearch
-              value={search}
-              onChange={(value) => setSearch(value)}
-              entity="academic support records"
-            />
-            <Button onClick={() => fetchCases()}>Refresh</Button>
-          </div>
+      <TableCard>
+        <TableToolbar
+          searchQuery={search}
+          onSearchChange={setSearch}
+          searchEntity="academic support records"
+          onFilterClick={() => setIsFilterVisible((open) => !open)}
+          isFilterVisible={isFilterVisible}
+          hasFilters
+          activeFilterCount={activeFilterCount}
+          onRefresh={fetchCases}
+        />
 
-          <Table
-            columns={columns}
-            data={cases}
-            isLoading={loading}
-            entity="support cases"
-            emptyVariant={search || type || status ? 'no-results' : 'empty'}
-            emptyAction={
-              !search && !type && !status
-                ? { label: 'New Case', onClick: () => navigate('/education/support/create') }
-                : undefined
-            }
-            onRowClick={(c) => navigate(`/education/support/${c.id}`)}
-            rowKey={(c) => c.id}
-          />
-
-          {!loading && pagination && cases.length > 0 && (
-            <div className="mt-4">
-              <Pagination
-                currentPage={pagination.page}
-                totalPages={pagination.totalPages}
-                totalItems={pagination.total}
-                itemsPerPage={10}
-                onPageChange={setCurrentPage}
+        {isFilterVisible && (
+          <FilterPanel onClose={() => setIsFilterVisible(false)}>
+            <div className="w-full sm:w-52">
+              <Select
+                label="Type"
+                options={[{ value: '', label: 'All types' }, ...SUPPORT_CASE_TYPE_OPTIONS]}
+                value={type}
+                onChange={(e) => setType(e.target.value)}
               />
             </div>
-          )}
-        </div>
-      </Card>
+            <div className="w-full sm:w-52">
+              <Select
+                label="Status"
+                options={[{ value: '', label: 'All statuses' }, ...SUPPORT_CASE_STATUS_OPTIONS]}
+                value={status}
+                onChange={(e) => setStatus(e.target.value)}
+              />
+            </div>
+            {activeFilterCount > 0 && (
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setType('');
+                  setStatus('');
+                }}
+              >
+                Clear filters
+              </Button>
+            )}
+          </FilterPanel>
+        )}
+
+        {error ? (
+          <EmptyState variant="error" entity="support cases" description={error} action={{ label: 'Try again', onClick: fetchCases }} />
+        ) : (
+          <>
+            <Table
+              fixedLayout
+              columns={columns}
+              data={cases}
+              isLoading={loading}
+              entity="support cases"
+              emptyVariant={isFiltered ? 'no-results' : 'empty'}
+              emptyAction={
+                isFiltered
+                  ? { label: 'Clear filters', onClick: () => { setSearch(''); setType(''); setStatus(''); } }
+                  : { label: 'Add case', onClick: () => navigate('/education/support/create') }
+              }
+              onRowClick={(c) => navigate(`/education/support/${c.id}`)}
+              rowKey={(c) => c.id}
+            />
+
+            {pagination && (
+              <div className="mt-4">
+                <Pagination
+                  currentPage={pagination.page}
+                  totalPages={pagination.totalPages}
+                  totalItems={pagination.total}
+                  itemsPerPage={pagination.limit}
+                  entity="support cases"
+                  onPageChange={setCurrentPage}
+                  onItemsPerPageChange={(size) => {
+                    setItemsPerPage(size);
+                    setCurrentPage(1);
+                  }}
+                />
+              </div>
+            )}
+          </>
+        )}
+      </TableCard>
 
       <ConfirmDialog
         isOpen={deleteConfirm !== null}
-        title="Delete Support Case"
-        message={deleteConfirm ? `Delete the support case for ${toTitleCase(deleteConfirm.name)}?` : ''}
-        consequence="This action cannot be undone."
+        title={deleteConfirm ? `Delete the case for ${toTitleCase(deleteConfirm.name)}?` : 'Delete this case?'}
+        message="This permanently removes the support case and cannot be undone."
         isLoading={deleting}
         variant="danger"
-        confirmLabel="Delete"
+        confirmLabel="Delete case"
         onConfirm={handleDelete}
         onCancel={() => setDeleteConfirm(null)}
       />
-    </div>
+    </>
   );
 }

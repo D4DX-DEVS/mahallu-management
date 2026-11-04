@@ -82,12 +82,23 @@ export default defineConfig([
     },
     rules: {
       'no-restricted-syntax': ['warn', ...DESIGN_SYSTEM_RULES],
+      // Native alert/confirm/prompt dialogs are banned: use ConfirmDialog or a toast.
+      'no-alert': 'error',
     },
   },
   {
     // The token file and the design-system primitives are where the raw values
     // legitimately live.
     files: ['src/components/ui/**', 'src/utils/chartTheme.ts', 'tailwind.config.js'],
+    rules: {
+      'no-restricted-syntax': 'off',
+    },
+  },
+  {
+    // The public landing page is marketing, not product UI. It follows the landing
+    // design mock (display type above the product scale, larger radii, its own
+    // palette), so the product-scale rules do not apply there.
+    files: ['src/features/landing/**'],
     rules: {
       'no-restricted-syntax': 'off',
     },

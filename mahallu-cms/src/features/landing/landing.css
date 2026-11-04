@@ -1,0 +1,302 @@
+/*
+ * Motion for the landing page. Every duration here collapses to ~0 under
+ * prefers-reduced-motion through the global rule in index.css, and the hooks in
+ * useMotion.ts skip their JavaScript-driven effects for the same preference.
+ */
+
+/* ---- Scroll reveal (toggled by <Reveal>) -------------------------------- */
+.lp-reveal {
+  opacity: 0;
+  transform: translate3d(0, 28px, 0);
+  transition:
+    opacity 0.8s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: opacity, transform;
+}
+.lp-reveal--left {
+  transform: translate3d(-44px, 0, 0);
+}
+.lp-reveal--right {
+  transform: translate3d(44px, 0, 0);
+}
+.lp-reveal--scale {
+  transform: scale(0.92);
+}
+.lp-reveal--fade {
+  transform: none;
+}
+.lp-reveal.is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+/* Children staggered by the parent's reveal. */
+.lp-step-body {
+  opacity: 0;
+  transform: translate3d(0, 16px, 0);
+  transition:
+    opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.is-visible .lp-step-body {
+  opacity: 1;
+  transform: none;
+}
+.lp-step-num {
+  opacity: 0;
+}
+.is-visible .lp-step-num {
+  animation: lp-pop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+.lp-step-line {
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 1.6s cubic-bezier(0.22, 1, 0.36, 1) 0.3s;
+}
+.is-visible .lp-step-line {
+  transform: scaleX(1);
+}
+/* Phones: the same line runs down the left edge, one segment per step. */
+.lp-step-vline {
+  transform: scaleY(0);
+  transform-origin: top;
+  transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.is-visible .lp-step-vline {
+  transform: scaleY(1);
+}
+
+/* ---- Page-load entrance (hero) ------------------------------------------ */
+@keyframes lp-enter {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 26px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.lp-enter {
+  opacity: 0;
+  animation: lp-enter 0.9s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* ---- Ambient loops ------------------------------------------------------ */
+@keyframes lp-float {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(0, -12px, 0);
+  }
+}
+.lp-float {
+  animation: lp-float 5s ease-in-out infinite alternate;
+}
+.lp-float--slow {
+  animation-duration: 7s;
+  animation-delay: 1.2s;
+}
+
+@keyframes lp-bounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(6px);
+  }
+}
+.lp-bounce {
+  animation: lp-bounce 1.6s ease-in-out infinite;
+}
+
+@keyframes lp-glow {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(-48px, 36px, 0) scale(1.18);
+  }
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+.lp-glow {
+  animation: lp-glow 10s ease-in-out infinite;
+}
+
+@keyframes lp-pop {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  70% {
+    transform: scale(1.25);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+.lp-pop {
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: lp-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+/* The radar polygon traces itself, then fills. */
+@keyframes lp-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes lp-fill {
+  to {
+    fill-opacity: 1;
+  }
+}
+.lp-draw {
+  stroke-dasharray: 420;
+  stroke-dashoffset: 420;
+  fill-opacity: 0;
+  animation:
+    lp-draw 2.2s ease-out 0.9s forwards,
+    lp-fill 0.8s ease-out 2.4s forwards;
+}
+
+/* ---- Hover micro-interactions ------------------------------------------- */
+@keyframes lp-shine {
+  from {
+    transform: translateX(-160%) skewX(-20deg);
+  }
+  to {
+    transform: translateX(260%) skewX(-20deg);
+  }
+}
+.lp-shine::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  width: 40%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.45), transparent);
+  transform: translateX(-160%) skewX(-20deg);
+  pointer-events: none;
+}
+.lp-shine:hover::after {
+  animation: lp-shine 0.9s ease forwards;
+}
+
+/* ---- Ayah / hadith rotation --------------------------------------------- */
+/* Both texts sit in one grid cell. The outgoing one fades first and the
+   incoming one waits for it, so the two are never on screen together. */
+.lp-scripture {
+  grid-area: 1 / 1;
+  opacity: 0;
+  transform: translate3d(0, 14px, 0);
+  transition:
+    opacity 0.6s ease,
+    transform 0.6s ease;
+}
+.lp-scripture.is-active {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity 0.9s ease 0.6s,
+    transform 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.6s;
+}
+
+/* ---- Flip cards (key features) ------------------------------------------ */
+/* Both faces share one grid cell, so the card is as tall as its longer face. */
+.lp-flip {
+  perspective: 1200px;
+}
+.lp-flip-inner {
+  display: grid;
+  height: 100%;
+  transform-style: preserve-3d;
+  transition: transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.lp-flip-face {
+  grid-area: 1 / 1;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  transform: rotateY(0deg);
+}
+.lp-flip-back {
+  transform: rotateY(180deg);
+}
+.lp-flip.is-flipped .lp-flip-inner {
+  transform: rotateY(180deg);
+}
+/* Phones: two small cards a row. A card keeps its front's height and the back
+   lies over it, so a long description scrolls inside instead of stretching the row. */
+@media (max-width: 639.98px) {
+  .lp-flip-inner {
+    position: relative;
+  }
+  .lp-flip-back {
+    position: absolute;
+    inset: 0;
+  }
+  .lp-flip-text {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  /* How it works: each step card slides in from the side as the line reaches it. */
+  .lp-step-body {
+    transform: translate3d(28px, 0, 0);
+  }
+}
+/* Only a real pointer turns a card on hover; touch screens turn it with a tap. */
+@media (hover: hover) {
+  .lp-flip:hover .lp-flip-inner {
+    transform: rotateY(180deg);
+  }
+}
+
+/* ---- Hero point details (dialog) ---------------------------------------- */
+/* Each part of a point rises in when the point is opened or its tab changes. */
+@keyframes lp-rise {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 12px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.lp-rise {
+  animation: lp-rise 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* The module switches in the customizable picture turn on one after another. */
+@keyframes lp-switch-track {
+  to {
+    background-color: #298959;
+  }
+}
+@keyframes lp-switch-knob {
+  to {
+    transform: translateX(14px);
+  }
+}
+.lp-switch-on {
+  animation: lp-switch-track 0.3s ease var(--lp-delay, 0ms) both;
+}
+.lp-switch-on > span {
+  animation: lp-switch-knob 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) var(--lp-delay, 0ms) both;
+}
+
+/* ---- Eight-point star lattice on the green panels ------------------------ */
+.lp-pattern {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='56' viewBox='0 0 56 56'%3E%3Cg fill='none' stroke='%23ffffff' stroke-opacity='0.07'%3E%3Crect x='17' y='17' width='22' height='22'/%3E%3Crect x='17' y='17' width='22' height='22' transform='rotate(45 28 28)'/%3E%3C/g%3E%3C/svg%3E");
+  background-size: 56px 56px;
+  -webkit-mask-image: radial-gradient(ellipse at 30% 20%, #000 0%, transparent 75%);
+  mask-image: radial-gradient(ellipse at 30% 20%, #000 0%, transparent 75%);
+}

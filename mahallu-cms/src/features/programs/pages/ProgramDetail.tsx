@@ -74,7 +74,7 @@ export default function ProgramDetail() {
   return (
     <div className="space-y-4">
       <div className="flex gap-2 items-center justify-between">
-        <div className="flex items-center gap-4">
+        <div className="flex min-w-0 flex-wrap items-center gap-4">
           <PageHeader
             description="Program Details"
             title={toTitleCase(program.name)}

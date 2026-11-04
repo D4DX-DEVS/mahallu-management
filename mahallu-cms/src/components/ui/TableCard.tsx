@@ -1,23 +1,24 @@
 import { forwardRef } from 'react';
 import Card, { CardProps } from './Card';
+import { TableSlotProvider } from './tableSlot';
 
-export type TableCardProps = Omit<CardProps, 'frame'> & {
-  /** Removes the redundant page-level outline while preserving table borders. */
-  borderless?: boolean;
-};
+export type TableCardProps = Omit<CardProps, 'frame'>;
 
 /**
  * The layout surface a list page uses for its toolbar, table and pagination.
  *
- * The default keeps the framed surface used by detail panels. List pages pass
- * `borderless` so the table owns the visible frame and the toolbar sits above
- * it without a second outline.
+ * From `md` up it is a framed card (border, card ground, padding) so the list
+ * reads as one clear section against the page. Below `md` the table becomes a
+ * list of bordered cards, so the surface drops its own frame there (see Card's
+ * `md-up` frame).
  *
- * Anything that is genuinely one card — a stat, a detail panel, a form
- * section — stays `Card`, which keeps its border at every width.
+ * It also hosts the slot that lets the table's sort control sit in the
+ * toolbar row (see tableSlot).
  */
-const TableCard = forwardRef<HTMLDivElement, TableCardProps>(({ borderless = false, ...props }, ref) => (
-  <Card ref={ref} frame={borderless ? 'none' : 'md-up'} {...props} />
+const TableCard = forwardRef<HTMLDivElement, TableCardProps>(({ children, ...props }, ref) => (
+  <Card ref={ref} frame="md-up" {...props}>
+    <TableSlotProvider>{children}</TableSlotProvider>
+  </Card>
 ));
 TableCard.displayName = 'TableCard';
 

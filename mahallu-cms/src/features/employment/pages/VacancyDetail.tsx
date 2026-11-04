@@ -9,6 +9,7 @@ import { toast } from '@/store/toastStore';
 import PageHeader from '@/components/layout/PageHeader';
 import { FieldRule, validateForm, firstError, LIMITS } from '@/utils/validation';
 import { toTitleCase } from '@/utils/format';
+import Select from '@/components/ui/Select';
 
 /** The same rules as the create form and the API. */
 const RULES: Record<string, FieldRule> = {
@@ -201,17 +202,17 @@ export default function VacancyDetail() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-900 mb-2">Status</label>
-                <select
+                <Select
                   aria-label="Status"
                   name="status"
                   value={formData.status || 'open'}
                   onChange={handleChange}
-                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="open">Open</option>
-                  <option value="filled">Filled</option>
-                  <option value="closed">Closed</option>
-                </select>
+                  options={[
+                    { value: 'open', label: 'Open' },
+                    { value: 'filled', label: 'Filled' },
+                    { value: 'closed', label: 'Closed' },
+                  ]}
+                />
               </div>
             </div>
 

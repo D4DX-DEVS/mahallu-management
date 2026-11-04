@@ -12,6 +12,7 @@ import {
 import { getPaginationParams, createPaginationResponse } from '../utils/pagination';
 
 import { sendFailure, UserFacingError } from '../utils/userMessages';
+import { PHOTO_MAX_BYTES, isPhotoMime } from '../services/nikahPhotoService';
 import { detectContentType, safeFileName } from '../utils/fileGuard';
 
 const MAX_DOCUMENT_SIZE = 10 * 1024 * 1024; // 10MB
@@ -69,6 +70,17 @@ export const uploadDocument = async (req: AuthRequest, res: Response) => {
     }
     req.file.mimetype = detected;
 
+    // A person photo (purpose "person_photo") must be a real JPEG, PNG or WebP image within the photo
+    // size limit - never a PDF - judged by its bytes, not by the name or the declared type.
+    if (req.body.purpose === 'person_photo') {
+      if (!isPhotoMime(detected)) {
+        return res.status(400).json({ success: false, message: 'A photo must be a JPEG, PNG or WebP image.' });
+      }
+      if (req.file.size > PHOTO_MAX_BYTES) {
+        return res.status(400).json({ success: false, message: 'That photo is too large. Please choose a smaller image.' });
+      }
+    }
+
     const fileKey = await uploadPrivateDocument(req.file, req.tenantId);
 
     // The object is already in storage: if the record cannot be saved, take the object back out (only this
@@ -98,6 +110,34 @@ export const uploadDocument = async (req: AuthRequest, res: Response) => {
     res.status(201).json({ success: true, data: doc, message: 'Document uploaded' });
   } catch (error: any) {
     sendFailure(res, error, 'We couldn\'t upload the document. Please try again.');
+  }
+};
+
+// DELETE /api/documents/:id — remove an upload that was never attached to a record (e.g. a photo chosen
+// and then replaced, or a save that failed). Only the uploader or an admin; an attached document is kept.
+export const deleteDocument = async (req: AuthRequest, res: Response) => {
+  try {
+    const doc = await DocumentFile.findOne({ _id: req.params.id, tenantId: req.tenantId });
+    if (!doc) {
+      return res.status(404).json({ success: false, message: "We couldn't find that document. It may have been removed." });
+    }
+    const isUploader = String(doc.uploadedByUserId) === String(req.user?._id);
+    if (!isUploader && !isAdmin(req)) {
+      return res.status(403).json({ success: false, message: "You don't have permission to do this. Please contact your Mahallu admin." });
+    }
+    if (doc.ownerId) {
+      return res.status(409).json({ success: false, message: 'This document is attached to a record, so it cannot be deleted here.' });
+    }
+
+    const { fileKey } = doc;
+    await DocumentFile.deleteOne({ _id: doc._id });
+    const outcome = await discardPrivateObject(fileKey);
+    if (outcome !== 'deleted' && outcome !== 'kept-referenced') {
+      reportOrphanedObject(fileKey, `document-delete:${outcome}`, { tenantId: req.tenantId });
+    }
+    res.json({ success: true, message: 'Document removed' });
+  } catch (error: any) {
+    sendFailure(res, error, "We couldn't remove the document. Please try again.");
   }
 };
 

@@ -4,7 +4,7 @@ import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
 import Table from '@/components/ui/Table';
 import EmptyState from '@/components/ui/EmptyState';
-import { PageSkeleton } from '@/components/ui/Skeleton';
+import FilterPanel from '@/components/ui/FilterPanel';
 import Pagination from '@/components/ui/Pagination';
 import TableToolbar from '@/components/ui/TableToolbar';
 import Modal from '@/components/ui/Modal';
@@ -14,6 +14,7 @@ import { registrationService, Certificate } from '@/services/registrationService
 import { useDebounce } from '@/hooks/useDebounce';
 import { formatDate, toTitleCase } from '@/utils/format';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
+import { openInNewTab } from '@/utils/openInNewTab';
 import PageHeader from '@/components/layout/PageHeader';
 import StatusBadge from '@/components/ui/StatusBadge';
 
@@ -26,7 +27,7 @@ export default function CertificatesList() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
   const [pagination, setPagination] = useState<PaginationType | null>(null);
   const [revokeModal, setRevokeModal] = useState<{ open: boolean; id?: string }>({ open: false });
   const [revokeReason, setRevokeReason] = useState('');
@@ -42,7 +43,7 @@ export default function CertificatesList() {
 
   useEffect(() => {
     fetchCertificates();
-  }, [debouncedSearch, typeFilter, statusFilter, currentPage]);
+  }, [debouncedSearch, typeFilter, statusFilter, currentPage, itemsPerPage]);
 
   const fetchCertificates = async () => {
     try {
@@ -73,18 +74,18 @@ export default function CertificatesList() {
     }
   };
 
-  const handleDownload = async (id: string, certificateNo: string) => {
+  // The certificate opens in its own tab; this page stays where it is. The tab is opened right here,
+  // in the click, before the link is fetched, so a pop-up blocker lets it through.
+  const handleDownload = async (id: string) => {
     try {
-      const data = await registrationService.getCertificateUrl(id);
-      const link = document.createElement('a');
-      link.href = data.url;
-      link.download = data.fileName || `certificate-${certificateNo}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      toast.success('Certificate downloaded');
+      const result = await openInNewTab(async () => (await registrationService.getCertificateUrl(id)).url);
+      if (result === 'blocked') {
+        toast.error('Your browser blocked the new tab. Please allow pop-ups for this site and try again.');
+        return;
+      }
+      toast.success('Certificate opened in a new tab');
     } catch (err: any) {
-      toast.error("Couldn't download certificate. Please try again.");
+      toast.error("Couldn't open the certificate. Please try again.");
     }
   };
 
@@ -119,11 +120,11 @@ export default function CertificatesList() {
   };
 
   const columns: TableColumn[] = [
-    { key: 'certificateNo', label: 'Certificate No.' },
-    { key: 'type', label: 'Type' },
-    { key: 'issueDate', label: 'Issue Date' },
-    { key: 'status', label: 'Status' },
-    { key: 'issuedBy', label: 'Issued By' },
+    { key: 'certificateNo', label: 'Certificate no.', sortable: true, width: '14rem' },
+    { key: 'type', label: 'Type', sortable: true, width: '10rem' },
+    { key: 'issueDate', label: 'Issue date', sortable: false, width: '9rem' },
+    { key: 'status', label: 'Status', sortable: false, width: '9rem' },
+    { key: 'issuedBy', label: 'Issued by', priority: 'secondary', width: '12rem' },
   ];
 
   const rows = certificates.map((cert) => ({
@@ -134,71 +135,102 @@ export default function CertificatesList() {
     issuedBy: cert.issuedBy ? toTitleCase(cert.issuedBy) : '-',
   }));
 
+  const activeFilterCount = (typeFilter !== 'all' ? 1 : 0) + (statusFilter !== 'all' ? 1 : 0);
+  const isFiltered = Boolean(debouncedSearch) || activeFilterCount > 0;
+
   return (
-    <div className="space-y-4">
-      <PageHeader description="Manage issued certificates" title="Certificates" />
+    <>
+      <PageHeader title="Certificates" description="Manage issued certificates." />
 
-      <div className="flex items-center justify-between"></div>
-
-      <TableCard borderless>
+      <TableCard>
         <TableToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
-          onFilterClick={() => setIsFilterVisible(!isFilterVisible)}
+          searchEntity="certificates"
+          onFilterClick={() => setIsFilterVisible((open) => !open)}
+          isFilterVisible={isFilterVisible}
+          hasFilters
+          activeFilterCount={activeFilterCount}
+          onRefresh={fetchCertificates}
         />
 
         {isFilterVisible && (
-          <div className="border-t border-gray-200 dark:border-gray-700 p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Select
-              label="Type"
-              value={typeFilter}
-              onChange={(e) => {
-                setTypeFilter(e.target.value);
-                setCurrentPage(1);
-              }}
-              options={[
-                { value: 'all', label: 'All Types' },
-                { value: 'nikah', label: 'Nikah' },
-                { value: 'death', label: 'Death' },
-                { value: 'noc', label: 'NOC' },
-              ]}
-            />
-            <Select
-              label="Status"
-              value={statusFilter}
-              onChange={(e) => {
-                setStatusFilter(e.target.value);
-                setCurrentPage(1);
-              }}
-              options={[
-                { value: 'all', label: 'All Status' },
-                { value: 'valid', label: 'Valid' },
-                { value: 'revoked', label: 'Revoked' },
-              ]}
-            />
-          </div>
+          <FilterPanel onClose={() => setIsFilterVisible(false)}>
+            <div className="w-full sm:w-52">
+              <Select
+                label="Type"
+                value={typeFilter}
+                onChange={(e) => {
+                  setTypeFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
+                options={[
+                  { value: 'all', label: 'All types' },
+                  { value: 'nikah', label: 'Nikah' },
+                  { value: 'death', label: 'Death' },
+                  { value: 'noc', label: 'NOC' },
+                ]}
+              />
+            </div>
+            <div className="w-full sm:w-52">
+              <Select
+                label="Status"
+                value={statusFilter}
+                onChange={(e) => {
+                  setStatusFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
+                options={[
+                  { value: 'all', label: 'All statuses' },
+                  { value: 'valid', label: 'Valid' },
+                  { value: 'revoked', label: 'Revoked' },
+                ]}
+              />
+            </div>
+            {activeFilterCount > 0 && (
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setTypeFilter('all');
+                  setStatusFilter('all');
+                  setCurrentPage(1);
+                }}
+              >
+                Clear filters
+              </Button>
+            )}
+          </FilterPanel>
         )}
 
-        {loading ? (
-          <PageSkeleton variant="section" />
-        ) : error ? (
+        {error ? (
           <EmptyState
             variant="error"
             entity="certificates"
             description={error}
-            action={{ label: 'Retry', onClick: fetchCertificates }}
+            action={{ label: 'Try again', onClick: fetchCertificates }}
           />
-        ) : certificates.length === 0 ? (
-          <div className="text-center py-8">
-            <p className="text-gray-500 dark:text-gray-400">No certificates found</p>
-          </div>
         ) : (
           <>
             <Table
               fixedLayout
-              striped
               columns={columns}
               data={rows}
+              isLoading={loading}
+              entity="certificates"
+              emptyVariant={isFiltered ? 'no-results' : 'empty'}
+              emptyAction={
+                isFiltered
+                  ? {
+                      label: 'Clear filters',
+                      onClick: () => {
+                        setSearchQuery('');
+                        setTypeFilter('all');
+                        setStatusFilter('all');
+                        setCurrentPage(1);
+                      },
+                    }
+                  : undefined
+              }
               onRowClick={(row) => {
                 const cert = certificates.find((c) => c.certificateNo === row.certificateNo);
                 if (cert) {
@@ -207,14 +239,22 @@ export default function CertificatesList() {
                 }
               }}
             />
+
             {pagination && (
-              <Pagination
-                currentPage={currentPage}
-                totalPages={pagination.totalPages || Math.ceil(pagination.total / itemsPerPage)}
-                totalItems={pagination.total}
-                itemsPerPage={itemsPerPage}
-                onPageChange={setCurrentPage}
-              />
+              <div className="mt-4">
+                <Pagination
+                  currentPage={pagination.page}
+                  totalPages={pagination.totalPages}
+                  totalItems={pagination.total}
+                  itemsPerPage={pagination.limit}
+                  entity="certificates"
+                  onPageChange={setCurrentPage}
+                  onItemsPerPageChange={(size) => {
+                    setItemsPerPage(size);
+                    setCurrentPage(1);
+                  }}
+                />
+              </div>
             )}
           </>
         )}
@@ -273,7 +313,7 @@ export default function CertificatesList() {
             {selectedCert && (
               <Button
                 variant="outline"
-                onClick={() => handleDownload(selectedCert.id || selectedCert._id || '', selectedCert.certificateNo)}
+                onClick={() => handleDownload(selectedCert.id || selectedCert._id || '')}
               >
                 Download
               </Button>
@@ -325,6 +365,6 @@ export default function CertificatesList() {
           </div>
         )}
       </Modal>
-    </div>
+    </>
   );
 }

@@ -1,5 +1,5 @@
 import mongoose, { Schema } from 'mongoose';
-import { Varisangya, IVarisangya, IZakat } from '../models/Collectible';
+import { Varisangya, IVarisangya, IZakat, RECEIVED_PAYMENT_STATUS } from '../models/Collectible';
 import Family from '../models/Family';
 import Member from '../models/Member';
 import Tenant from '../models/Tenant';
@@ -79,7 +79,7 @@ export const computeFamilyDues = async (tenantId: string | mongoose.Types.Object
           // Only RECEIVED money reduces dues. A pending member submission is unconfirmed (no wallet,
           // ledger or receipt yet), so it must neither hide a due nor suppress the reminder.
           // (A payment with no status predates the field and was always received.)
-          status: { $ne: 'pending' },
+          status: RECEIVED_PAYMENT_STATUS,
           paymentDate: { $gte: yearStart },
         },
       },

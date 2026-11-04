@@ -1,11 +1,12 @@
 import mongoose, { Schema, Document } from 'mongoose';
 import { TENANT_CLASSIFICATIONS, TenantClassification } from '../config/moduleFeatures';
+import { LEGACY_TENANT_TYPES, LegacyTenantType, TENANT_TYPES, TenantType } from '../config/tenantTypes';
 
 export interface ITenant extends Document {
   name: string;
   nameMl?: string;
   code: string;
-  type: 'standard' | 'premium' | 'enterprise';
+  type: TenantType | LegacyTenantType;
   classification: TenantClassification;
   since: Date;
   location: string;
@@ -15,7 +16,7 @@ export interface ITenant extends Document {
     district: string;
     pinCode?: string;
     postOffice?: string;
-    lsgName: string;
+    lsgName?: string;
     village: string;
   };
   logo?: string;
@@ -28,7 +29,12 @@ export interface ITenant extends Document {
   };
   settings: {
     varisangyaAmount: number;
+    varisangyaGrades: Array<{
+      name: string;
+      amount: number;
+    }>;
     educationOptions: string[];
+    areaOptions: string[];
     features: {
       [key: string]: boolean;
     };
@@ -57,8 +63,8 @@ const TenantSchema = new Schema<ITenant>(
     },
     type: {
       type: String,
-      enum: ['standard', 'premium', 'enterprise'],
-      default: 'standard',
+      enum: [...TENANT_TYPES, ...LEGACY_TENANT_TYPES],
+      default: 'mahallu',
     },
     classification: {
       type: String,
@@ -82,7 +88,7 @@ const TenantSchema = new Schema<ITenant>(
       district: { type: String, required: true },
       pinCode: String,
       postOffice: String,
-      lsgName: { type: String, required: true },
+      lsgName: { type: String },
       village: { type: String, required: true },
     },
     logo: String,
@@ -99,6 +105,20 @@ const TenantSchema = new Schema<ITenant>(
     },
     settings: {
       varisangyaAmount: { type: Number, default: 0 },
+      varisangyaGrades: {
+        type: [
+          {
+            name: { type: String, required: true },
+            amount: { type: Number, required: true },
+          },
+        ],
+        default: [
+          { name: 'Grade A', amount: 100 },
+          { name: 'Grade B', amount: 75 },
+          { name: 'Grade C', amount: 50 },
+          { name: 'Grade D', amount: 25 },
+        ],
+      },
       educationOptions: {
         type: [String],
         default: [
@@ -111,6 +131,10 @@ const TenantSchema = new Schema<ITenant>(
           'Doctorate',
           'MBBS',
         ],
+      },
+      areaOptions: {
+        type: [String],
+        default: ['Area A', 'Area B', 'Area C', 'Area D'],
       },
       features: {
         type: Map,

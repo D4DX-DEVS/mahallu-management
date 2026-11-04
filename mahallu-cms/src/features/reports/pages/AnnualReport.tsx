@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import Select from '@/components/ui/Select';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Alert from '@/components/ui/Alert';
@@ -103,18 +104,12 @@ export default function AnnualReport() {
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <PageHeader title="State of the Mahallu" />
         <div className="flex items-center gap-2">
-          <select
+          <Select
             aria-label="Filter"
-            value={year}
+            value={String(year)}
             onChange={(e) => setYear(Number(e.target.value))}
-            className="border rounded-md px-3 py-2 text-sm"
-          >
-            {years.map((y) => (
-              <option key={y} value={y}>
-                {y}
-              </option>
-            ))}
-          </select>
+            options={years.map((y) => ({ value: String(y), label: String(y) }))}
+          />
           <Button onClick={downloadPdf} disabled={!data}>
             Download PDF
           </Button>

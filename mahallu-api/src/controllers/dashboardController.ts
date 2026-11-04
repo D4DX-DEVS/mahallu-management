@@ -37,9 +37,12 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
     // Users list (/users/mahall), which only ever shows that role.
     const userQuery: any = { role: 'mahall' };
     const familyQuery: any = {};
-    // Live members only. isDead is the reliable signal - status isn't
-    // consistently set on older records, so don't filter on it here.
-    const memberQuery: any = { isDead: { $ne: true } };
+    // The same members the Members list shows: not deceased and not deleted.
+    // isDead is the reliable signal for the first - status isn't consistently
+    // set on older records, so only 'deleted' is excluded (a missing status
+    // still counts). Counting deleted members here put the dashboard a few
+    // above the list it opens.
+    const memberQuery: any = { isDead: { $ne: true }, status: { $ne: 'deleted' } };
 
     // Apply tenant filter
     if (tenantId) {

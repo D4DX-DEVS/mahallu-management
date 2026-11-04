@@ -1,11 +1,10 @@
 import { useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { useThemeStore } from './store/themeStore';
-import { useAuthStore } from './store/authStore';
 import { applyTheme } from './utils/theme';
 import { useCrossTabAuthSync } from './hooks/useCrossTabAuthSync';
-import ProtectedRoute from './components/ui/ProtectedRoute';
 import Toaster from './components/ui/Toaster';
+import Landing from './features/landing/pages/Landing';
 import Login from './features/auth/pages/Login';
 import VerifyCertificate from './features/certificates/pages/VerifyCertificate';
 import { AppErrorBoundary } from './components/ui/ErrorBoundary';
@@ -15,7 +14,6 @@ import { appRoutes } from './routes';
 
 function App() {
   const { theme } = useThemeStore();
-  const user = useAuthStore((state) => state.user);
 
   useEffect(() => {
     applyTheme();
@@ -34,16 +32,10 @@ function App() {
         }}
       >
         <Routes>
+          {/* The public front door. Opening the site lands here; sign-in is reached from its header. */}
+          <Route path={ROUTES.LANDING} element={<Landing />} />
           <Route path={ROUTES.LOGIN} element={<Login />} />
           <Route path="/verify/:certificateNo" element={<VerifyCertificate />} />
-          <Route
-            path="/"
-            element={
-              <ProtectedRoute>
-                <Navigate to={user?.role === 'member' ? ROUTES.MEMBER.OVERVIEW : ROUTES.DASHBOARD} replace />
-              </ProtectedRoute>
-            }
-          />
           {appRoutes}
           {/* No match: say so, instead of leaving an empty document behind. */}
           <Route path="*" element={<NotFound />} />

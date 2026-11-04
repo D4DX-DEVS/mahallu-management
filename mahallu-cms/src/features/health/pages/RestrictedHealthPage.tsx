@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { FiAlertCircle, FiLock, FiPlus, FiTrash2 } from 'react-icons/fi';
+import { useState, useEffect, useCallback } from 'react';
+import { FiPlus, FiTrash2 } from 'react-icons/fi';
 import {
   getSensitiveHealthResources,
   deleteSensitiveHealthResource,
@@ -10,7 +10,13 @@ import Pagination from '@/components/ui/Pagination';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
-import { PageSkeleton } from '@/components/ui/Skeleton';
+import TableCard from '@/components/ui/TableCard';
+import TableToolbar from '@/components/ui/TableToolbar';
+import Table from '@/components/ui/Table';
+import ActionsMenu from '@/components/ui/ActionsMenu';
+import EmptyState from '@/components/ui/EmptyState';
+import { TableColumn } from '@/types';
+import { loadErrorMessage } from '@/utils/errors';
 import { toast } from '@/store/toastStore';
 import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
@@ -25,9 +31,11 @@ interface RestrictedHealthPageProps {
 export default function RestrictedHealthPage({ title, type, subtitle }: RestrictedHealthPageProps) {
   const [resources, setResources] = useState<IHealthResource[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
   const [accessDenied, setAccessDenied] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -37,32 +45,30 @@ export default function RestrictedHealthPage({ title, type, subtitle }: Restrict
   const [form, setForm] = useState({ name: '', contactNo: '', availability: '', notes: '' });
   const [formErrors, setFormErrors] = useState<{ name?: string; contactNo?: string }>({});
 
-  const itemsPerPage = 10;
-
-  const fetchResources = async (page: number) => {
+  const fetchResources = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await getSensitiveHealthResources(page, itemsPerPage, type);
+      setError(null);
+      const response = await getSensitiveHealthResources(currentPage, itemsPerPage, type);
       setResources(response.data);
       setTotalPages(response.pagination.totalPages);
       setTotalItems(response.pagination.total);
-      setCurrentPage(response.pagination.page);
       setAccessDenied(false);
-    } catch (error: any) {
-      if (error.response?.status === 403) {
+    } catch (err: any) {
+      if (err.response?.status === 403) {
         setAccessDenied(true);
         setResources([]);
       } else {
-        console.error("Couldn't load resources:", error);
+        setError(loadErrorMessage(err, 'records'));
       }
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentPage, itemsPerPage, type]);
 
   useEffect(() => {
-    fetchResources(1);
-  }, []);
+    fetchResources();
+  }, [fetchResources]);
 
   const handleDelete = async () => {
     if (!deleteId) return;
@@ -71,7 +77,7 @@ export default function RestrictedHealthPage({ title, type, subtitle }: Restrict
       await deleteSensitiveHealthResource(deleteId);
       setConfirmDelete(false);
       setDeleteId(null);
-      fetchResources(currentPage);
+      fetchResources();
       toast.success('Entry deleted');
     } catch (error) {
       toast.error("Couldn't delete record. Please try again.");
@@ -79,10 +85,6 @@ export default function RestrictedHealthPage({ title, type, subtitle }: Restrict
     } finally {
       setDeleting(false);
     }
-  };
-
-  const handlePageChange = (page: number) => {
-    fetchResources(page);
   };
 
   const handleCreate = async () => {
@@ -105,7 +107,8 @@ export default function RestrictedHealthPage({ title, type, subtitle }: Restrict
       });
       setShowCreate(false);
       setForm({ name: '', contactNo: '', availability: '', notes: '' });
-      fetchResources(1);
+      setCurrentPage(1);
+      fetchResources();
       toast.success('Entry added');
     } catch (error) {
       toast.error("Couldn't save record. Please try again.");
@@ -116,85 +119,100 @@ export default function RestrictedHealthPage({ title, type, subtitle }: Restrict
     }
   };
 
-  if (loading) {
-    return <PageSkeleton variant="section" />;
-  }
+  const columns: TableColumn<IHealthResource>[] = [
+    {
+      key: 'name',
+      label: 'Name',
+      sortable: true,
+      width: '16rem',
+      render: (name) => <span className="font-medium text-foreground">{toTitleCase(name)}</span>,
+    },
+    { key: 'contactNo', label: 'Contact', sortable: false, width: '10rem', render: (v) => <span className="tabular-nums">{v || '—'}</span> },
+    { key: 'availability', label: 'Availability', sortable: false, priority: 'secondary', width: '14rem', render: (v) => v || '—' },
+    { key: 'notes', label: 'Notes', sortable: false, priority: 'tertiary', width: '20rem', render: (v) => v || '—' },
+    {
+      key: 'actions',
+      label: '',
+      align: 'right',
+      sortable: false,
+      width: '6.5rem',
+      render: (_v, resource) => (
+        <ActionsMenu
+          label={`Actions for ${toTitleCase(resource.name)}`}
+          items={[
+            {
+              label: 'Delete',
+              icon: <FiTrash2 className="h-4 w-4" />,
+              variant: 'danger',
+              onClick: () => {
+                setDeleteId(resource.id);
+                setConfirmDelete(true);
+              },
+            },
+          ]}
+        />
+      ),
+    },
+  ];
 
   if (accessDenied) {
     return (
-      <div className="flex-1 flex items-center justify-center">
-        <div className="text-center max-w-md px-4">
-          <FiLock className="w-16 h-16 mx-auto text-red-500 mb-4" />
-          <PageHeader title={title} />
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
-            <div className="flex gap-2">
-              <FiAlertCircle className="text-amber-600 flex-shrink-0 mt-0.5" />
-              <p className="text-amber-800 text-sm">
-                Access to sensitive health records requires special permission. Please contact your
-                administrator to request access to {subtitle}.
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
+      <>
+        <PageHeader title={title} description={`Restricted ${subtitle}.`} />
+        <EmptyState
+          variant="no-access"
+          title="You need permission to view this"
+          description={`Access to sensitive health records requires special permission. Please contact your administrator to request access to ${subtitle}.`}
+        />
+      </>
     );
   }
 
   return (
-    <div>
-      <div className="max-w-full">
-        <PageHeader title={title} description={`${totalItems} ${totalItems === 1 ? 'record' : 'records'}`} />
-        <div className="flex gap-3 items-center">
-          <Button onClick={() => setShowCreate(true)} icon={<FiPlus />} collapseLabel>Add Record</Button>
-        </div>
+    <>
+      <PageHeader
+        title={title}
+        description={`Restricted ${subtitle}.`}
+        actions={
+          <Button icon={<FiPlus />} collapseLabel onClick={() => setShowCreate(true)}>
+            Add record
+          </Button>
+        }
+      />
 
-        <div className="mt-4">
-          {resources.length === 0 ? (
-            <div className="text-center py-10">
-              <p className="text-gray-600 font-medium">No {subtitle} yet</p>
-              <p className="text-sm text-gray-500 mt-1 mb-4">
-                Add the first record to start tracking {subtitle}.
-              </p>
-              <Button onClick={() => setShowCreate(true)} icon={<FiPlus />} collapseLabel>Add Record</Button>
+      <TableCard>
+        <TableToolbar onRefresh={fetchResources} />
+
+        {error ? (
+          <EmptyState variant="error" entity="records" description={error} action={{ label: 'Try again', onClick: fetchResources }} />
+        ) : (
+          <>
+            <Table
+              fixedLayout
+              columns={columns}
+              data={resources}
+              isLoading={loading}
+              entity="records"
+              emptyAction={{ label: 'Add record', onClick: () => setShowCreate(true) }}
+            />
+
+            <div className="mt-4">
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                totalItems={totalItems}
+                itemsPerPage={itemsPerPage}
+                entity="records"
+                onPageChange={setCurrentPage}
+                onItemsPerPageChange={(size) => {
+                  setItemsPerPage(size);
+                  setCurrentPage(1);
+                }}
+              />
             </div>
-          ) : (
-            <>
-              <div className="space-y-3 mb-4">
-                {resources.map((resource) => (
-                  <div key={resource.id} className="rounded-lg border border-border bg-card p-3 sm:p-4">
-                    <div className="flex gap-3 items-center">
-                      <div className="flex-1">
-                        <h3 className="text-base sm:text-lg font-semibold">{toTitleCase(resource.name)}</h3>
-                        <p className="text-xs sm:text-sm text-gray-600 mt-1">Contact: {resource.contactNo}</p>
-                        {resource.notes && (
-                          <p className="text-xs sm:text-sm text-gray-600 mt-2">{resource.notes}</p>
-                        )}
-                      </div>
-                      <Button
-                        variant="danger"
-                        size="sm"
-                        onClick={() => {
-                          setDeleteId(resource.id);
-                          setConfirmDelete(true);
-                        }} icon={<FiTrash2 />} collapseLabel>Delete</Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {totalPages > 1 && (
-                <Pagination
-                  currentPage={currentPage}
-                  totalPages={totalPages}
-                  totalItems={totalItems}
-                  itemsPerPage={itemsPerPage}
-                  onPageChange={handlePageChange}
-                />
-              )}
-            </>
-          )}
-        </div>
-      </div>
+          </>
+        )}
+      </TableCard>
 
       <Modal isOpen={showCreate} title={`Add ${title}`} onClose={() => setShowCreate(false)}>
         <div className="space-y-4">
@@ -257,10 +275,10 @@ export default function RestrictedHealthPage({ title, type, subtitle }: Restrict
 
       <ConfirmDialog
         isOpen={confirmDelete}
-        title="Delete Record"
-        message="Are you sure you want to delete this record?"
-        consequence="This sensitive record will be permanently removed from the system."
-        confirmLabel="Delete"
+        title="Delete this record?"
+        message="This permanently removes the record and cannot be undone."
+        consequence="It is a sensitive health record."
+        confirmLabel="Delete record"
         cancelLabel="Cancel"
         variant="danger"
         isLoading={deleting}
@@ -270,6 +288,6 @@ export default function RestrictedHealthPage({ title, type, subtitle }: Restrict
           setDeleteId(null);
         }}
       />
-    </div>
+    </>
   );
 }

@@ -1,4 +1,4 @@
-import { UseFormRegister } from 'react-hook-form';
+import { UseFormRegister, UseFormWatch } from 'react-hook-form';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 
@@ -34,6 +34,9 @@ const FLAGS: Array<{ name: string; label: string }> = [
 
 interface SocioEconomicSectionProps {
   register: UseFormRegister<any>;
+  /** Pass on the edit form: a Select only shows a value that is handed to it, so
+   * values loaded into the form programmatically would otherwise show blank. */
+  watch?: UseFormWatch<any>;
 }
 
 /**
@@ -42,18 +45,20 @@ interface SocioEconomicSectionProps {
  * Rendered inside the parent's own "Socio-economic details" section/card —
  * no header or card of its own, to avoid a duplicated title.
  */
-export default function SocioEconomicSection({ register }: SocioEconomicSectionProps) {
+export default function SocioEconomicSection({ register, watch }: SocioEconomicSectionProps) {
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <Input label="Occupation" {...register('occupation')} placeholder="e.g. Teacher" />
         <Select
           label="Occupation Sector"
+          value={watch ? watch('occupationSector') || '' : undefined}
           {...register('occupationSector')}
           options={OCCUPATION_SECTOR_OPTIONS}
         />
         <Select
           label="Monthly Income"
+          value={watch ? watch('monthlyIncomeRange') || '' : undefined}
           {...register('monthlyIncomeRange')}
           options={INCOME_RANGE_OPTIONS}
         />

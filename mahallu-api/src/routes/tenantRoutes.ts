@@ -46,7 +46,7 @@ router.use(tenantMiddleware);
  *         name: type
  *         schema:
  *           type: string
- *           enum: [standard, premium, enterprise]
+ *           enum: [mahallu, juma_masjid, standard, premium, enterprise]
  *       - in: query
  *         name: search
  *         schema:
@@ -183,8 +183,8 @@ router.get('/:id/stats', [param('id').isMongoId().withMessage('Invalid tenant ID
  *                 example: 'KOZ001'
  *               type:
  *                 type: string
- *                 enum: [standard, premium, enterprise]
- *                 default: standard
+ *                 enum: [mahallu, juma_masjid]
+ *                 default: mahallu
  *               location:
  *                 type: string
  *               address:
@@ -192,7 +192,6 @@ router.get('/:id/stats', [param('id').isMongoId().withMessage('Invalid tenant ID
  *                 required:
  *                   - state
  *                   - district
- *                   - lsgName
  *                   - village
  *                 properties:
  *                   state:

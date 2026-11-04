@@ -1,19 +1,25 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { FiArrowLeft, FiCalendar } from 'react-icons/fi';
-import Card from '@/components/ui/Card';
-import { PageSkeleton } from '@/components/ui/Skeleton';
+import { FiArrowLeft } from 'react-icons/fi';
+import TableCard from '@/components/ui/TableCard';
+import TableToolbar from '@/components/ui/TableToolbar';
+import FilterPanel from '@/components/ui/FilterPanel';
+import Select from '@/components/ui/Select';
+import Table from '@/components/ui/Table';
+import Tabs from '@/components/ui/Tabs';
+import Button from '@/components/ui/Button';
+import StatCard from '@/components/ui/StatCard';
+import EmptyState from '@/components/ui/EmptyState';
+import StatusBadge from '@/components/ui/StatusBadge';
 import {
   memberPortalService,
   MemberVarisangyaResponse,
   VarisangyaRecord,
 } from '@/services/memberPortalService';
 import { ROUTES } from '@/constants/routes';
+import { TableColumn } from '@/types';
 import { loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
-import SortableTh from '@/components/ui/SortableTh';
-import { useSortableRows } from '@/hooks/useSortableRows';
-import StatusBadge from '@/components/ui/StatusBadge';
 
 const currency = new Intl.NumberFormat('en-IN', {
   style: 'currency',
@@ -26,70 +32,34 @@ const yearOptions = Array.from({ length: 6 }, (_, i) => currentYear - i);
 
 type Tab = 'family' | 'member';
 
-function VarisangyaTable({ records }: { records: VarisangyaRecord[] }) {
-  /* Above the empty-state return: a hook cannot sit after one. */
-  const { rows: sortedRecords, sort, toggleSort } = useSortableRows(records);
-
-  if (records.length === 0) {
-    return (
-      <div className="py-10 text-center text-sm text-gray-500 dark:text-gray-400">
-        No varisangya records found.
-      </div>
-    );
-  }
-
-  return (
-    <div className="overflow-x-auto">
-      <table className="data-table min-w-full text-sm">
-        <thead>
-          <tr className="text-left border-b border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400">
-            <SortableTh sortKey="receiptNo" sort={sort} onSort={toggleSort} className="py-2 pr-4">
-              Receipt No.
-            </SortableTh>
-            <SortableTh sortKey="amount" sort={sort} onSort={toggleSort} className="py-2 pr-4">
-              Amount
-            </SortableTh>
-            <SortableTh sortKey="paymentDate" sort={sort} onSort={toggleSort} className="py-2 pr-4">
-              Payment Date
-            </SortableTh>
-            <SortableTh sortKey="paymentMethod" sort={sort} onSort={toggleSort} className="py-2 pr-4">
-              Method
-            </SortableTh>
-            <SortableTh sortKey="remarks" sort={sort} onSort={toggleSort} className="py-2 pr-4">
-              Remarks
-            </SortableTh>
-            <th className="py-2 pr-4 text-label font-semibold text-muted-foreground">Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          {sortedRecords.map((record, idx) => (
-            <tr
-              key={idx}
-              className="border-b border-gray-100 dark:border-gray-800 text-gray-900 dark:text-gray-100"
-            >
-              <td className="py-3 pr-4">{record.receiptNo || '-'}</td>
-              <td className="py-3 pr-4 font-medium">{currency.format(record.amount)}</td>
-              <td className="py-3 pr-4">
-                {record.paymentDate
-                  ? new Date(record.paymentDate).toLocaleDateString('en-IN', {
-                      day: '2-digit',
-                      month: 'short',
-                      year: 'numeric',
-                    })
-                  : '-'}
-              </td>
-              <td className="py-3 pr-4">{record.paymentMethod || '-'}</td>
-              <td className="py-3 pr-4 text-gray-500 dark:text-gray-400">{record.remarks || '-'}</td>
-              <td className="py-3 pr-4">
-                <StatusBadge status={record.status} />
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
+const columns: TableColumn<VarisangyaRecord>[] = [
+  {
+    key: 'receiptNo',
+    label: 'Receipt no.',
+    sortable: true,
+    width: '14rem',
+    render: (v) => <span className="font-medium text-foreground tabular-nums">{v || '—'}</span>,
+  },
+  {
+    key: 'amount',
+    label: 'Amount',
+    align: 'right',
+    sortable: true,
+    width: '10rem',
+    render: (v) => <span className="font-semibold tabular-nums">{currency.format(v)}</span>,
+  },
+  {
+    key: 'paymentDate',
+    label: 'Payment date',
+    sortable: true,
+    width: '10rem',
+    render: (v) =>
+      v ? new Date(v).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—',
+  },
+  { key: 'paymentMethod', label: 'Method', sortable: true, priority: 'secondary', width: '9rem', render: (v) => <span className="capitalize">{v || '—'}</span> },
+  { key: 'remarks', label: 'Remarks', sortable: false, priority: 'tertiary', width: '16rem', render: (v) => v || '—' },
+  { key: 'status', label: 'Status', sortable: true, width: '8rem', render: (v) => <StatusBadge status={v} /> },
+];
 
 export default function MemberVarisangyaPage() {
   const [data, setData] = useState<MemberVarisangyaResponse | null>(null);
@@ -97,109 +67,105 @@ export default function MemberVarisangyaPage() {
   const [error, setError] = useState<string | null>(null);
   const [selectedYear, setSelectedYear] = useState<number | undefined>(currentYear);
   const [activeTab, setActiveTab] = useState<Tab>('family');
+  const [isFilterVisible, setIsFilterVisible] = useState(false);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const result = await memberPortalService.getMemberVarisangya(selectedYear);
-        setData(result);
-      } catch (err: any) {
-        setError(loadErrorMessage(err, 'varisangya records'));
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
+  const fetchData = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      setData(await memberPortalService.getMemberVarisangya(selectedYear));
+    } catch (err) {
+      setError(loadErrorMessage(err, 'varisangya records'));
+    } finally {
+      setLoading(false);
+    }
   }, [selectedYear]);
 
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
   const records = activeTab === 'family' ? (data?.familyVarisangya ?? []) : (data?.memberVarisangya ?? []);
-  const total = activeTab === 'family' ? (data?.summary.familyTotal ?? 0) : (data?.summary.memberTotal ?? 0);
-  const count = activeTab === 'family' ? (data?.summary.familyCount ?? 0) : (data?.summary.memberCount ?? 0);
+  const total = activeTab === 'family' ? (data?.summary?.familyTotal ?? 0) : (data?.summary?.memberTotal ?? 0);
+  const count = activeTab === 'family' ? (data?.summary?.familyCount ?? 0) : (data?.summary?.memberCount ?? 0);
+  const isFiltered = selectedYear !== currentYear;
 
   return (
-    <div className="space-y-5">
-      {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-3">
-          <Link
-            to={ROUTES.MEMBER.OVERVIEW}
-            className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-          >
-            <FiArrowLeft className="h-5 w-5" />
+    <>
+      <PageHeader
+        title="My varisangya"
+        description="Contributions paid by your family and by you."
+        actions={
+          <Link to={ROUTES.MEMBER.OVERVIEW}>
+            <Button variant="outline" icon={<FiArrowLeft />} collapseLabel>
+              Back to dashboard
+            </Button>
           </Link>
-          <PageHeader title="My Varisangya" />
-        </div>
+        }
+      />
 
-        {/* Year filter */}
-        <div className="flex items-center gap-2">
-          <FiCalendar className="h-4 w-4 text-gray-500 dark:text-gray-400" />
-          <select
-            aria-label="Filter"
-            value={selectedYear ?? ''}
-            onChange={(e) => setSelectedYear(e.target.value ? Number(e.target.value) : undefined)}
-            className="text-sm border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-1.5 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
-          >
-            <option value="">All Time</option>
-            {yearOptions.map((y) => (
-              <option key={y} value={y}>
-                {y}
-              </option>
-            ))}
-          </select>
-        </div>
+      <div className="mb-6 grid grid-cols-2 gap-3">
+        <StatCard title="Records" value={count} />
+        <StatCard title="Total paid" value={currency.format(total)} />
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-0 border-b border-gray-200 dark:border-gray-700">
-        {(
-          [
-            { key: 'family', label: 'Family Varisangya' },
-            { key: 'member', label: 'My Varisangya' },
-          ] as { key: Tab; label: string }[]
-        ).map((tab) => (
-          <button
-            key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
-            className={`px-5 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-              activeTab === tab.key
-                ? 'border-primary-600 text-primary-700 dark:text-primary-400'
-                : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      <TableCard>
+        <TableToolbar
+          tabs={
+            <Tabs
+              variant="segmented"
+              ariaLabel="Varisangya type"
+              value={activeTab}
+              onChange={(value) => setActiveTab(value as Tab)}
+              items={[
+                { value: 'family', label: 'Family varisangya' },
+                { value: 'member', label: 'My varisangya' },
+              ]}
+            />
+          }
+          onFilterClick={() => setIsFilterVisible((open) => !open)}
+          isFilterVisible={isFilterVisible}
+          hasFilters
+          activeFilterCount={isFiltered ? 1 : 0}
+          onRefresh={fetchData}
+        />
 
-      {/* Content */}
-      <Card>
-        {loading ? (
-          <PageSkeleton variant="section" />
-        ) : error ? (
-          <p className="text-center py-8 text-red-500 dark:text-red-400 text-sm">{error}</p>
-        ) : (
-          <>
-            <VarisangyaTable records={records} />
-
-            {count > 0 && (
-              <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-800 flex flex-wrap gap-4 text-sm">
-                <span className="text-gray-500 dark:text-gray-400">
-                  Total records:
-                  <span className="font-semibold text-gray-900 dark:text-gray-100">{count}</span>
-                </span>
-                <span className="text-gray-500 dark:text-gray-400">
-                  Total paid:
-                  <span className="font-semibold text-green-700 dark:text-green-400">
-                    {currency.format(total)}
-                  </span>
-                </span>
-              </div>
+        {isFilterVisible && (
+          <FilterPanel onClose={() => setIsFilterVisible(false)}>
+            <div className="w-full sm:w-52">
+              <Select
+                label="Year"
+                value={selectedYear ?? ''}
+                onChange={(e) => setSelectedYear(e.target.value ? Number(e.target.value) : undefined)}
+                options={[
+                  { value: '', label: 'All time' },
+                  ...yearOptions.map((y) => ({ value: String(y), label: String(y) })),
+                ]}
+              />
+            </div>
+            {isFiltered && (
+              <Button variant="ghost" onClick={() => setSelectedYear(currentYear)}>
+                This year
+              </Button>
             )}
-          </>
+          </FilterPanel>
         )}
-      </Card>
-    </div>
+
+        {error ? (
+          <EmptyState variant="error" entity="varisangya records" description={error} action={{ label: 'Try again', onClick: fetchData }} />
+        ) : (
+          <Table
+            fixedLayout
+            columns={columns}
+            data={records}
+            isLoading={loading}
+            entity="varisangya records"
+            emptyVariant={isFiltered ? 'no-results' : 'empty'}
+            emptyAction={isFiltered ? { label: 'Show this year', onClick: () => setSelectedYear(currentYear) } : undefined}
+            rowKey={(record, index) => record.receiptNo || String(index)}
+          />
+        )}
+      </TableCard>
+    </>
   );
 }

@@ -6,7 +6,7 @@ import Card from '@/components/ui/Card';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { registrationService, Certificate } from '@/services/registrationService';
 import { formatDate, toTitleCase } from '@/utils/format';
-import { LOGO_PATH, BRAND_NAME } from '@/constants/theme';
+import { ICON_PATH, BRAND_NAME } from '@/constants/theme';
 
 export default function VerifyCertificate() {
   const { certificateNo } = useParams<{ certificateNo: string }>();
@@ -57,7 +57,7 @@ export default function VerifyCertificate() {
         {/* Header */}
         <div className="text-center mb-4">
           <div className="inline-block mb-4">
-            <img src={LOGO_PATH} alt={BRAND_NAME} className="h-12 w-auto" />
+            <img src={ICON_PATH} alt="" aria-hidden="true" className="h-12 w-12" />
           </div>
           <h1 className="text-2xl font-semibold text-foreground">{BRAND_NAME}</h1>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Certificate Verification</p>

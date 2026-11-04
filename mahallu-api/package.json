@@ -13,7 +13,9 @@
     "migrate-multi-mosque": "ts-node src/scripts/migrateMultiMosque.ts",
     "seed-categories": "ts-node src/scripts/seedCategories.ts",
     "cleanup-health-status": "ts-node src/scripts/cleanupHealthStatus.ts",
-    "check:indexes": "ts-node src/scripts/checkIndexes.ts"
+    "check:indexes": "ts-node src/scripts/checkIndexes.ts",
+    "fix-death-members": "ts-node src/scripts/fixDeathRecordMembers.ts",
+    "fix-payment-status": "ts-node src/scripts/fixPaymentStatus.ts"
   },
   "keywords": [],
   "author": "",
@@ -34,7 +36,7 @@
     "multer": "^2.1.1",
     "pdfkit": "^0.19.1",
     "qrcode": "^1.5.4",
-    "sanitize-html": "^2.18.0",
+    "sanitize-html": "2.17.2",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.0"
   },

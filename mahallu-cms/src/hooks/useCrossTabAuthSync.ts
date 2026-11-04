@@ -8,7 +8,7 @@ const RELOAD_GUARD_KEY = 'auth-sync-reloaded-at';
 const RELOAD_GUARD_MS = 3000;
 
 /** Pages that work without a session and must not be yanked around. */
-const isPublicPath = (pathname: string) => pathname.startsWith('/verify/');
+const isPublicPath = (pathname: string) => pathname === ROUTES.LANDING || pathname.startsWith('/verify/');
 
 const recentlyReloaded = (): boolean => {
   try {

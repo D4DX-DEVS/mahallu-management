@@ -3,8 +3,10 @@ import { FiEdit2, FiPlus, FiTrash2 } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import { employmentService, type Employer } from '@/services/employmentService';
 import Button from '@/components/ui/Button';
-import ExpandableSearch from '@/components/ui/ExpandableSearch';
-import ActionBar from '@/components/ui/ActionBar';
+import TableCard from '@/components/ui/TableCard';
+import TableToolbar from '@/components/ui/TableToolbar';
+import Tabs from '@/components/ui/Tabs';
+import EmptyState from '@/components/ui/EmptyState';
 import Table from '@/components/ui/Table';
 import ActionsMenu from '@/components/ui/ActionsMenu';
 import Pagination from '@/components/ui/Pagination';
@@ -14,13 +16,16 @@ import StatusBadge from '@/components/ui/StatusBadge';
 import PageHeader from '@/components/layout/PageHeader';
 import { TableColumn } from '@/types';
 import { toTitleCase } from '@/utils/format';
+import { loadErrorMessage } from '@/utils/errors';
 
 export default function EmployersList() {
   const navigate = useNavigate();
   const [employers, setEmployers] = useState<Employer[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
+  const [totalItems, setTotalItems] = useState(0);
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -35,28 +40,29 @@ export default function EmployersList() {
     return () => clearTimeout(timer);
   }, [search]);
 
-  // Fetch employers
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        const result = await employmentService.getEmployers({
-          page: currentPage,
-          limit: itemsPerPage,
-          search: debouncedSearch,
-          status: statusFilter || undefined,
-        });
-        setEmployers(result.data);
-        setTotalPages(result.pagination?.totalPages || 1);
-      } catch (error) {
-        console.error("Couldn't load employers:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
+  const fetchData = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const result = await employmentService.getEmployers({
+        page: currentPage,
+        limit: itemsPerPage,
+        search: debouncedSearch,
+        status: statusFilter || undefined,
+      });
+      setEmployers(result.data);
+      setTotalPages(result.pagination?.totalPages || 1);
+      setTotalItems(result.pagination?.total ?? result.data.length);
+    } catch (err) {
+      setError(loadErrorMessage(err, 'employers'));
+    } finally {
+      setLoading(false);
+    }
   }, [currentPage, itemsPerPage, debouncedSearch, statusFilter]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const handleDeleteClick = (id: string) => {
     setDeleteId(id);
@@ -83,39 +89,27 @@ export default function EmployersList() {
   const columns: TableColumn<Employer>[] = [
     {
       key: 'name',
-      label: 'Name',
+      label: 'Employer',
+      sortable: true,
+      width: '16rem',
       render: (_v, employer) => (
-        <div>
-          <div className="font-medium text-foreground">{toTitleCase(employer.name)}</div>
-          <div className="text-xs text-muted-foreground">
+        <div className="min-w-0">
+          <div className="truncate font-medium text-foreground">{toTitleCase(employer.name)}</div>
+          <div className="truncate text-xs text-muted-foreground">
             {employer.businessType ? toTitleCase(employer.businessType) : '—'}
           </div>
         </div>
       ),
     },
-    {
-      key: 'contactPerson',
-      label: 'Contact',
-      priority: 'secondary',
-      render: (v) => (v ? toTitleCase(v) : '—'),
-    },
-    {
-      key: 'location',
-      label: 'Location',
-      priority: 'secondary',
-      render: (v) => (v ? toTitleCase(v) : '—'),
-    },
-    {
-      key: 'status',
-      label: 'Status',
-      sortable: true,
-      render: (_v, employer) => <StatusBadge status={employer.status} />,
-    },
+    { key: 'contactPerson', label: 'Contact', sortable: true, priority: 'secondary', width: '12rem', render: (v) => (v ? toTitleCase(v) : '—') },
+    { key: 'location', label: 'Location', sortable: true, priority: 'secondary', width: '12rem', render: (v) => (v ? toTitleCase(v) : '—') },
+    { key: 'status', label: 'Status', sortable: true, width: '8rem', render: (_v, employer) => <StatusBadge status={employer.status} /> },
     {
       key: 'actions',
-      label: 'Actions',
+      label: '',
       align: 'right',
       sortable: false,
+      width: '6.5rem',
       render: (_v, employer) => (
         <ActionsMenu
           label={'Actions for ' + employer.name}
@@ -137,73 +131,91 @@ export default function EmployersList() {
     },
   ];
 
+  const isFiltered = Boolean(debouncedSearch || statusFilter);
+
   return (
-    <div className="space-y-4">
+    <>
       <PageHeader
         title="Employers"
         description="Local employers registered with the mahallu."
-        breadcrumbs={[{ label: 'Employment' }]}
-      />
-      <div className="space-y-2">
-        <ActionBar className="mb-0">
-          <ExpandableSearch
-            value={search}
-            onChange={(value) => {
-              setSearch(value);
-              setCurrentPage(1);
-            }}
-            entity="employers"
-            placeholder="Search by employer name"
-          />
-          <Button onClick={() => navigate('/employment/employers/create')} icon={<FiPlus />} collapseLabel>
-            New Employer
+        actions={
+          <Button icon={<FiPlus />} collapseLabel onClick={() => navigate('/employment/employers/create')}>
+            New employer
           </Button>
-        </ActionBar>
-        <div className="flex gap-2 flex-wrap">
-          {['', 'active', 'inactive'].map((status) => (
-            <button
-              key={status}
-              onClick={() => {
-                setStatusFilter(status);
+        }
+      />
+
+      <TableCard>
+        <TableToolbar
+          tabs={
+            <Tabs
+              variant="segmented"
+              ariaLabel="Employer status"
+              value={statusFilter}
+              onChange={(value) => {
+                setStatusFilter(value);
                 setCurrentPage(1);
               }}
-              className={`px-3 py-1 text-xs rounded-full ${
-                statusFilter === status
-                  ? 'bg-blue-500 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              {status || 'All'}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <Table
-        columns={columns}
-        data={employers}
-        isLoading={loading}
-        entity="employers"
-        rowKey={(employer) => employer.id}
-        onRowClick={(employer) => navigate(`/employment/employers/${employer.id}`)}
-      />
-
-      {!loading && employers.length > 0 && (
-        <Pagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          totalItems={employers.length * totalPages}
-          itemsPerPage={itemsPerPage}
-          onPageChange={setCurrentPage}
+              items={[
+                { value: '', label: 'All' },
+                { value: 'active', label: 'Active' },
+                { value: 'inactive', label: 'Inactive' },
+              ]}
+            />
+          }
+          searchQuery={search}
+          onSearchChange={(value) => {
+            setSearch(value);
+            setCurrentPage(1);
+          }}
+          searchEntity="employers"
+          onRefresh={fetchData}
         />
-      )}
+
+        {error ? (
+          <EmptyState variant="error" entity="employers" description={error} action={{ label: 'Try again', onClick: fetchData }} />
+        ) : (
+          <>
+            <Table
+              fixedLayout
+              columns={columns}
+              data={employers}
+              isLoading={loading}
+              entity="employers"
+              emptyVariant={isFiltered ? 'no-results' : 'empty'}
+              emptyAction={
+                isFiltered
+                  ? { label: 'Clear filters', onClick: () => { setSearch(''); setStatusFilter(''); setCurrentPage(1); } }
+                  : { label: 'Add employer', onClick: () => navigate('/employment/employers/create') }
+              }
+              rowKey={(employer) => employer.id}
+              onRowClick={(employer) => navigate(`/employment/employers/${employer.id}`)}
+            />
+
+            <div className="mt-4">
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                totalItems={totalItems}
+                itemsPerPage={itemsPerPage}
+                entity="employers"
+                onPageChange={setCurrentPage}
+                onItemsPerPageChange={(size) => {
+                  setItemsPerPage(size);
+                  setCurrentPage(1);
+                }}
+              />
+            </div>
+          </>
+        )}
+      </TableCard>
 
       <ConfirmDialog
         isOpen={showDeleteConfirm}
-        title="Delete Employer"
-        message="Are you sure you want to delete this employer?"
-        consequence="The employer record and associated job vacancies will be removed."
-        confirmLabel="Delete"
+        title="Delete this employer?"
+        message="This permanently removes the employer and cannot be undone."
+        consequence="Its job vacancies will be removed too."
+        confirmLabel="Delete employer"
         cancelLabel="Cancel"
         variant="danger"
         isLoading={deleting}
@@ -213,6 +225,6 @@ export default function EmployersList() {
           setDeleteId(null);
         }}
       />
-    </div>
+    </>
   );
 }

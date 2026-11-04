@@ -1,6 +1,6 @@
 import { Response } from 'express';
 import mongoose, { ClientSession } from 'mongoose';
-import { Varisangya, Zakat, Wallet, Transaction } from '../models/Collectible';
+import { Varisangya, Zakat, Wallet, Transaction, RECEIVED_PAYMENT_STATUS, isReceivedPayment } from '../models/Collectible';
 import Family from '../models/Family';
 import Member from '../models/Member';
 import { AuthRequest } from '../middleware/authMiddleware';
@@ -131,6 +131,18 @@ const hasWalletOwner = (spec: KindSpec, doc: any) => spec.hasWallet && !!walletK
 
 const actorId = (req: AuthRequest) => toObjectId((req.user as any)?._id);
 
+/**
+ * Creates the wallet a payment will credit, BEFORE the money flow starts.
+ *
+ * A MongoDB transaction reads from a snapshot taken at its first operation. A wallet created after that
+ * point (or inside the transaction) is invisible to the credit step, so the first payment for a family or
+ * member that had no wallet yet failed with "The wallet could not be credited", and a retry worked only
+ * because the wallet existed by then. Call this before `runAtomic` on every path that can credit a wallet.
+ */
+async function ensureWallet(spec: KindSpec, owner: Record<string, any>): Promise<void> {
+  if (hasWalletOwner(spec, owner)) await findOrCreateWallet(walletOwnerOf(owner));
+}
+
 // ---------------------------------------------------------------------------
 // Input parsing
 // ---------------------------------------------------------------------------
@@ -231,7 +243,8 @@ const undoDebit = (walletId: mongoose.Types.ObjectId, amount: number) => async (
 
 async function applyPaymentEffects(spec: KindSpec, doc: any, { session, comp }: Ctx): Promise<void> {
   if (hasWalletOwner(spec, doc)) {
-    // The wallet document is created outside the transaction on purpose (see findOrCreateWallet).
+    // The wallet already exists here: callers run ensureWallet before the transaction starts, because a wallet
+    // created inside it is invisible to the credit below. This only re-reads it.
     const wallet = await findOrCreateWallet(walletOwnerOf(doc));
     const credited = await creditWallet(wallet._id, doc.amount, doc.paymentDate, session);
     if (!credited) throw new Error('The wallet could not be credited.');
@@ -335,6 +348,7 @@ const castIds = (filter: Record<string, any>): Record<string, any> => {
 };
 
 const isPending = { $eq: ['$status', 'pending'] };
+const notReceived = { $in: ['$status', ['pending', 'rejected']] };
 
 /** One aggregation that totals the WHOLE filtered set (not a page). */
 export const buildSummaryPipeline = (match: Record<string, any>) => [
@@ -344,7 +358,7 @@ export const buildSummaryPipeline = (match: Record<string, any>) => [
       _id: null,
       count: { $sum: 1 },
       totalAmount: { $sum: '$amount' },
-      verifiedAmount: { $sum: { $cond: [isPending, 0, '$amount'] } },
+      verifiedAmount: { $sum: { $cond: [notReceived, 0, '$amount'] } },
       pendingAmount: { $sum: { $cond: [isPending, '$amount', 0] } },
       pendingCount: { $sum: { $cond: [isPending, 1, 0] } },
     },
@@ -593,6 +607,7 @@ async function respondIdempotent(
       return sendConflict(res, 'This payment is still being saved. Please wait a moment and check the list before trying again.');
     }
     // An earlier attempt inserted the row and never finished verifying it (it died): complete it now.
+    await ensureWallet(spec, existing);
     payment = await runAtomic(
       (session, comp) =>
         verifyPaymentCore(spec, existing._id, { tenantId: existing.tenantId }, actorId(req), { session, comp }),
@@ -700,6 +715,9 @@ async function createPayment(spec: KindSpec, req: AuthRequest, res: Response) {
     data.receiptNo = suppliedReceipt;
   }
 
+  // The payer's wallet must exist before the transaction below starts (see ensureWallet).
+  await ensureWallet(spec, data);
+
   for (let attempt = 0; attempt < 3; attempt++) {
     if (!suppliedReceipt) data.receiptNo = await allocateReceiptNo(spec.name, Model as any, tenantOid);
     try {
@@ -772,6 +790,13 @@ async function verifyPayment(spec: KindSpec, req: AuthRequest, res: Response) {
   const id = toObjectId(req.params.id);
   if (!id || !isValidId(req.params.id)) return sendBadRequest(res, MSG.badId);
 
+  // The payer's wallet must exist before the transaction below starts (see ensureWallet). A payment that is
+  // missing, out of scope or not pending is left to verifyPaymentCore, which answers 404 or 409.
+  const target: any = await spec.Model.findOne({ _id: id, status: 'pending', ...scope })
+    .select('tenantId familyId memberId')
+    .lean();
+  if (spec.hasWallet && target) await ensureWallet(spec, target);
+
   const payment = await runAtomic(
     (session, comp) => verifyPaymentCore(spec, id, scope, actorId(req), { session, comp }),
     { description: `${spec.name} verify`, reconcile: { entity: spec.name, entityId: id, tenantId: (scope as any).tenantId } }
@@ -796,6 +821,57 @@ export const verifyZakat = async (req: AuthRequest, res: Response) => {
     await verifyPayment(ZAKAT, req, res);
   } catch (error: any) {
     sendFailure(res, error, 'We couldn\'t verify the zakat. Please try again.');
+  }
+};
+
+// ---------------------------------------------------------------------------
+// Reject
+// ---------------------------------------------------------------------------
+
+/** pending -> rejected. Nothing was received, so there are no effects and no receipt number. */
+async function rejectPayment(spec: KindSpec, req: AuthRequest, res: Response) {
+  const scope = tenantFilterFor(req, res);
+  if (!scope) return;
+  const id = toObjectId(req.params.id);
+  if (!id || !isValidId(req.params.id)) return sendBadRequest(res, MSG.badId);
+
+  const reason = typeof req.body?.rejectionReason === 'string' ? req.body.rejectionReason.trim() : '';
+  const actor = actorId(req);
+  const rejected = await spec.Model.findOneAndUpdate(
+    { _id: id, status: 'pending', ...scope },
+    {
+      $set: {
+        status: 'rejected',
+        rejectedAt: new Date(),
+        ...(reason ? { rejectionReason: reason } : {}),
+        ...(actor ? { rejectedBy: actor } : {}),
+      },
+    },
+    { new: true }
+  );
+  if (!rejected) {
+    return (await spec.Model.exists({ _id: id, ...scope }))
+      ? sendConflict(res, 'This payment has already been processed.')
+      : res.status(404).json({ success: false, message: "We couldn't find a pending payment. It may have been removed." });
+  }
+  res.json({ success: true, data: rejected, message: 'Payment rejected' });
+}
+
+// PUT /collectibles/varisangya/:id/reject - { rejectionReason? }
+export const rejectVarisangya = async (req: AuthRequest, res: Response) => {
+  try {
+    await rejectPayment(VARISANGYA, req, res);
+  } catch (error: any) {
+    sendFailure(res, error, 'We couldn\'t reject the varisangya. Please try again.');
+  }
+};
+
+// PUT /collectibles/zakat/:id/reject - { rejectionReason? }
+export const rejectZakat = async (req: AuthRequest, res: Response) => {
+  try {
+    await rejectPayment(ZAKAT, req, res);
+  } catch (error: any) {
+    sendFailure(res, error, 'We couldn\'t reject the zakat. Please try again.');
   }
 };
 
@@ -841,6 +917,9 @@ async function updatePayment(spec: KindSpec, req: AuthRequest, res: Response) {
 
   if (Object.keys(changes).length === 0) return respondWith(id);
 
+  // REJECTED: closed; nothing was received and nothing may change.
+  if (existing.status === 'rejected') return sendConflict(res, "A rejected payment can't be changed.");
+
   // PENDING: nothing has been received, so only the stored fields change. No wallet, journal or ledger.
   if (existing.status === 'pending') {
     const updated: any = await Model.findOneAndUpdate(
@@ -866,7 +945,7 @@ async function updatePayment(spec: KindSpec, req: AuthRequest, res: Response) {
       // Optimistic claim on the amount we read: a concurrent amount change makes this miss (409) instead
       // of both edits applying their own difference to the wallet.
       const updated: any = await Model.findOneAndUpdate(
-        { _id: id, ...scope, status: { $ne: 'pending' }, amount: oldDoc.amount },
+        { _id: id, ...scope, status: RECEIVED_PAYMENT_STATUS, amount: oldDoc.amount },
         { $set: changes },
         { new: true, runValidators: true, session }
       );
@@ -977,8 +1056,8 @@ async function deletePayment(spec: KindSpec, req: AuthRequest, res: Response) {
         await Model.create([plain]);
       });
 
-      // A pending payment never had any effect: removing the row is all there is to do.
-      if (removedDoc.status === 'pending') return 'deleted' as const;
+      // A pending or rejected payment never had any effect: removing the row is all there is to do.
+      if (!isReceivedPayment(removedDoc)) return 'deleted' as const;
 
       if (hasWalletOwner(spec, removedDoc) && (await hasPaymentCredit(removedDoc.tenantId, spec.name, id, session))) {
         const wallet = await findOrCreateWallet(walletOwnerOf(removedDoc));
