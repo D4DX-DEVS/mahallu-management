@@ -222,7 +222,11 @@ describe('reportReconciliationRequired', () => {
 
     const hanging: any = { findOneAndUpdate: () => new Promise(() => undefined) };
     const started = Date.now();
-    const c = await reportReconciliationRequired({ flow: 'f', entity: 'e', entityId: ID, step: 's' }, { model: hanging, ...connected, timeoutMs: 50 });
+    // The hung write holds no I/O handle and the timeout timer is unref'd, so nothing keeps the event loop alive
+    // while it waits; Node 22's runner then cancels the test. Stand in for the real DB connection.
+    const keepAlive = setInterval(() => undefined, 1000);
+    const c = await reportReconciliationRequired({ flow: 'f', entity: 'e', entityId: ID, step: 's' }, { model: hanging, ...connected, timeoutMs: 50 })
+      .finally(() => clearInterval(keepAlive));
     assert.equal(c.persisted, false);
     assert.ok(Date.now() - started < 2000, 'a hung write does not hold the caller');
 
