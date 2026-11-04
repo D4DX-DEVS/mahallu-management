@@ -7,7 +7,7 @@ import {
   updateAssistanceStatus,
   deleteAssistance,
 } from '../controllers/marriageAssistanceController';
-import { authMiddleware, allowRoles, requireAdmin } from '../middleware/authMiddleware';
+import { authMiddleware, allowRoles } from '../middleware/authMiddleware';
 import { tenantMiddleware, tenantFilter } from '../middleware/tenantMiddleware';
 import { validationHandler } from '../middleware/validationHandler';
 import { idParam, listQuery } from '../validations/common';
@@ -22,8 +22,10 @@ const router = express.Router();
 router.use(authMiddleware);
 router.use(tenantMiddleware);
 router.use(tenantFilter);
-// Mahallu-admin module (the CMS menu and routes are Mahallu-admin only). Reads used to be open to every staff role while every write already needed the admin.
-router.use(requireAdmin);
+// Reads used to be open to every staff role while every write already needed the Mahallu admin; the whole router is now Super Admin only.
+// Marriage assistance sits with the Registrations group: platform Super Admin only.
+// The per-route allowRoles(['mahall']) below are redundant with this guard (a Super Admin passes allowRoles whatever roles it lists, and a Mahallu admin is stopped here); they are kept so this change leaves the routes' behaviour untouched.
+router.use(allowRoles(['super_admin']));
 
 /**
  * @swagger
@@ -33,7 +35,7 @@ router.use(requireAdmin);
  *     tags: [Registrations]
  *     description: |
  *       Paginated list of marriage assistance requests.
- *       **Access:** Super Admin, Mahall Admin
+ *       **Access:** Super Admin only (Registrations belong to the platform administrator).
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -95,7 +97,7 @@ router.get('/:id', idParam('id', 'application'), validationHandler, getAssistanc
  *     tags: [Registrations]
  *     description: |
  *       Create a new marriage assistance request. Either memberId or familyId is required.
- *       **Access:** Super Admin, Mahall Admin
+ *       **Access:** Super Admin only (Registrations belong to the platform administrator).
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -133,7 +135,7 @@ router.post('/', createMarriageAssistanceValidation, validationHandler, allowRol
  *     tags: [Registrations]
  *     description: |
  *       Update record details. Use `/marriage-assistance/{id}/status` for status transitions.
- *       **Access:** Super Admin, Mahall Admin
+ *       **Access:** Super Admin only (Registrations belong to the platform administrator).
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -169,7 +171,7 @@ router.put('/:id', updateMarriageAssistanceValidation, validationHandler, allowR
  *     tags: [Registrations]
  *     description: |
  *       Move record through workflow: requested -> approved -> completed.
- *       **Access:** Super Admin, Mahall Admin
+ *       **Access:** Super Admin only (Registrations belong to the platform administrator).
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -205,7 +207,7 @@ router.put('/:id/status', updateMarriageAssistanceStatusValidation, validationHa
  *   delete:
  *     summary: Delete a marriage assistance record
  *     tags: [Registrations]
- *     description: '**Access:** Super Admin, Mahall Admin'
+ *     description: '**Access:** Super Admin only (Registrations belong to the platform administrator).'
  *     security:
  *       - bearerAuth: []
  *     parameters:

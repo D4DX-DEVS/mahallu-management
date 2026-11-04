@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
 import { useNavigate } from 'react-router-dom';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
@@ -15,25 +14,13 @@ import { Member } from '@/types/index';
 import { errorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import { toTitleCase } from '@/utils/format';
-
-const schema = z
-  .object({
-    type: z.enum(['proposal_support', 'financial_assistance', 'premarital_counselling']),
-    personType: z.enum(['member', 'family']),
-    memberId: z.string().max(200, 'Please keep the member to 200 characters or less.').optional(),
-    familyId: z.string().max(200, 'Please keep the family to 200 characters or less.').optional(),
-    amount: z.preprocess(
-      (val) => (val === '' || val === undefined ? undefined : Number(val)),
-      z.number().min(0).optional()
-    ),
-    notes: z.string().max(2000, 'Please keep the notes to 2000 characters or less.').optional(),
-  })
-  .refine((data) => data.memberId || data.familyId, {
-    message: 'Either member or family must be selected',
-    path: ['memberId'],
-  });
-
-type FormData = z.infer<typeof schema>;
+import {
+  MARRIAGE_ASSISTANCE_TYPE_OPTIONS,
+  buildMarriageAssistancePayload,
+  marriageAssistanceSchema,
+  requiresAmount,
+  type MarriageAssistanceFormData as FormData,
+} from '../marriageAssistanceForm';
 
 export default function CreateMarriageAssistance() {
   const navigate = useNavigate();
@@ -53,12 +40,14 @@ export default function CreateMarriageAssistance() {
     handleSubmit,
     watch,
     setValue,
+    clearErrors,
     formState: { errors, isSubmitting },
   } = useForm<FormData>({
-    resolver: zodResolver(schema),
+    resolver: zodResolver(marriageAssistanceSchema),
     defaultValues: {
       type: 'proposal_support',
       personType: 'member',
+      amount: '',
     },
   });
 
@@ -66,6 +55,15 @@ export default function CreateMarriageAssistance() {
   const personType = watch('personType');
   const selectedMemberId = watch('memberId');
   const selectedFamilyId = watch('familyId');
+  const needsAmount = requiresAmount(assistanceType);
+
+  // Only Financial Assistance has an amount: leaving it drops what was typed and any message about it.
+  useEffect(() => {
+    if (!needsAmount) {
+      setValue('amount', '');
+      clearErrors('amount');
+    }
+  }, [needsAmount, setValue, clearErrors]);
 
   // Reset selections when person type changes
   useEffect(() => {
@@ -130,13 +128,7 @@ export default function CreateMarriageAssistance() {
   const onSubmit = async (data: FormData) => {
     try {
       setError(null);
-      await marriageAssistanceService.create({
-        type: data.type,
-        memberId: data.personType === 'member' ? data.memberId : undefined,
-        familyId: data.personType === 'family' ? data.familyId : undefined,
-        amount: data.amount,
-        notes: data.notes,
-      });
+      await marriageAssistanceService.create(buildMarriageAssistancePayload(data));
       navigate('/registrations/marriage-assistance');
     } catch (err: any) {
       setError(errorMessage(err, { action: 'create record. please try again' }));
@@ -152,7 +144,7 @@ export default function CreateMarriageAssistance() {
         breadcrumbs={[{ label: 'Marriage Assistance', path: '/registrations/marriage-assistance' }]}
       />
 
-      <form onSubmit={handleSubmit(onSubmit)}>
+      <form onSubmit={handleSubmit(onSubmit)} noValidate>
         <Card className="space-y-4">
           {error && (
             <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm dark:bg-red-900 dark:border-red-700 dark:text-red-200">
@@ -167,11 +159,7 @@ export default function CreateMarriageAssistance() {
 
             <Select
               label="Assistance Type"
-              options={[
-                { value: 'proposal_support', label: 'Proposal Support' },
-                { value: 'financial_assistance', label: 'Financial Assistance' },
-                { value: 'premarital_counselling', label: 'Premarital Counselling' },
-              ]}
+              options={MARRIAGE_ASSISTANCE_TYPE_OPTIONS}
               {...register('type')}
               error={errors.type?.message as string | undefined}
             />
@@ -195,6 +183,7 @@ export default function CreateMarriageAssistance() {
                 onChange={(id) => setValue('memberId', id)}
                 onSearch={handleMemberSearch}
                 isLoading={isSearching}
+                error={errors.memberId?.message as string | undefined}
               />
             )}
 
@@ -207,17 +196,21 @@ export default function CreateMarriageAssistance() {
                 onChange={(id) => setValue('familyId', id)}
                 onSearch={handleFamilySearch}
                 isLoading={isSearching}
+                error={errors.familyId?.message as string | undefined}
               />
             )}
 
-            {assistanceType === 'financial_assistance' && (
+            {needsAmount && (
               <Input
-                type="number"
+                type="text"
+                inputMode="decimal"
+                autoComplete="off"
                 label="Amount (₹)"
                 placeholder="Enter amount"
+                helperText="Required for financial assistance."
+                required
                 {...register('amount')}
                 error={errors.amount?.message as string | undefined}
-                min="0"
               />
             )}
 

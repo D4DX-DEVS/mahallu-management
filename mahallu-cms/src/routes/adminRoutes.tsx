@@ -62,10 +62,11 @@ export const adminRoutes = [
   superAdminRoute('/admin/users/:id/edit', <EditMahallUser />),
 
   // Certificates
-  route(ROUTES.CERTIFICATES.LIST, <CertificatesList />),
+  superAdminRoute(ROUTES.CERTIFICATES.LIST, <CertificatesList />),
 
   // Change Requests
-  route(ROUTES.CHANGE_REQUESTS, <ChangeRequestsList />),
+  // Member profile edits: the Mahallu admin reviews their own Mahallu's requests, so this page is not Super Admin only.
+  route(ROUTES.CHANGE_REQUESTS, <ChangeRequestsList />, { allowedRoles: ['super_admin', 'mahall'] }),
 
   // Data Quality
   route('/admin/data-quality', <DataQualityPage />),

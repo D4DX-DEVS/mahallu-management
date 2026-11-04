@@ -18,8 +18,16 @@ const FAMILY_EDITABLE_FIELDS = [
   'contactNo', 'wardNumber', 'houseNo', 'area', 'place', 'houseName',
 ];
 
+// The queue is for the platform Super Admin and for the Mahallu admin, who sees and reviews only their own Mahallu's
+// requests. (Nikah, death and NOC registrations, certificates and marriage assistance are Super Admin only; a member's
+// own profile edits are still reviewed locally.)
 const isAdmin = (req: AuthRequest): boolean =>
   req.isSuperAdmin === true || req.user?.role === 'mahall';
+
+// A Mahallu admin always works inside their own Mahallu (the sign-in middleware refuses a staff account with none).
+// If that scope were ever missing the queries below would run unscoped, so refuse instead.
+const lacksMahalluScope = (req: AuthRequest): boolean => req.isSuperAdmin !== true && !req.tenantId;
+const NO_PERMISSION = "You don't have permission to do this. Please contact your Mahallu admin.";
 
 // POST /api/change-requests — member requests changes to own record / own family (head)
 export const createChangeRequest = async (req: AuthRequest, res: Response) => {
@@ -187,6 +195,9 @@ export const listChangeRequests = async (req: AuthRequest, res: Response) => {
     const query: any = { tenantId: req.tenantId };
 
     if (isAdmin(req)) {
+      if (lacksMahalluScope(req)) {
+        return res.status(403).json({ success: false, message: NO_PERMISSION });
+      }
       if (req.query.status) query.status = req.query.status;
       if (req.query.targetType) query.targetType = req.query.targetType;
     } else if (req.user?.memberId) {
@@ -213,6 +224,9 @@ export const listChangeRequests = async (req: AuthRequest, res: Response) => {
 // PUT /api/change-requests/:id/review — admin approves (applies changes) or rejects
 export const reviewChangeRequest = async (req: AuthRequest, res: Response) => {
   try {
+    if (lacksMahalluScope(req)) {
+      return res.status(403).json({ success: false, message: NO_PERMISSION });
+    }
     const { status, remarks } = req.body;
     if (!['approved', 'rejected'].includes(status)) {
       return res.status(400).json({ success: false, message: 'Please choose either approve or reject.' });

@@ -74,10 +74,12 @@ router.use(allowRoles(['super_admin', 'mahall', 'survey', 'institute']));
  *         name: sortBy
  *         schema:
  *           type: string
- *           enum: [mahallId, name, createdAt]
+ *           enum: [mahallId, name, family, createdAt]
  *         example: name
  *         default: createdAt
- *         description: Sort field
+ *         description: |
+ *           Sort order. `family` groups members by family (stable family id), and within a family lists them in
+ *           the order they joined it. An unknown value falls back to newest first.
  *       - in: query
  *         name: page
  *         schema:

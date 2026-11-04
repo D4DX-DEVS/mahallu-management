@@ -16,9 +16,9 @@ const router = express.Router();
 
 router.use(authMiddleware);
 
-router.post('/issue', issueCertificateValidation, validationHandler, allowRoles(['super_admin', 'mahall']), issueCertificateHandler);
+router.post('/issue', issueCertificateValidation, validationHandler, allowRoles(['super_admin']), issueCertificateHandler);
 router.get('/', listQuery(), validationHandler, listCertificates);
 router.get('/:id/download', idParam('id', 'certificate'), validationHandler, downloadCertificate);
-router.put('/:id/revoke', idParam('id', 'certificate'), validationHandler, allowRoles(['super_admin', 'mahall']), revokeCertificate);
+router.put('/:id/revoke', idParam('id', 'certificate'), validationHandler, allowRoles(['super_admin']), revokeCertificate);
 
 export default router;

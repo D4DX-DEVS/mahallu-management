@@ -13,6 +13,8 @@ import QuickAddCategory from '@/components/quick-add/QuickAddCategory';
 import { ROUTES } from '@/constants/routes';
 import { masterAccountService, Ledger, Category } from '@/services/masterAccountService';
 import { errorMessage } from '@/utils/errors';
+import { categoryFitsType, entryTypeForLedger, entryTypeState, UNTYPED_LEDGER_MESSAGE } from '@/utils/ledgerType';
+import LedgerTypeField from '@/components/LedgerTypeField';
 import { toTitleCase } from '@/utils/format';
 import PageHeader from '@/components/layout/PageHeader';
 import { fetchAllPages } from '@/services/api';
@@ -44,6 +46,8 @@ export default function CreateLedgerItem() {
     handleSubmit,
     watch,
     setValue,
+    getValues,
+    setError: setFieldError,
     formState: { errors, isSubmitting },
   } = useForm<LedgerItemFormData>({
     resolver: zodResolver(ledgerItemSchema),
@@ -53,22 +57,21 @@ export default function CreateLedgerItem() {
     },
   });
 
-  const selectedLedgerId = watch('ledgerId');
   const selectedType = watch('type');
+  const typeState = entryTypeState(ledgers, watch('ledgerId'));
 
   useEffect(() => {
     fetchData();
   }, []);
 
-  useEffect(() => {
-    if (selectedLedgerId) {
-      const selectedLedger = ledgers.find((l) => l.id === selectedLedgerId);
-      if (selectedLedger) {
-        // Auto-set type based on ledger type
-        // Note: This would require updating the form value, but for now we'll just filter categories
-      }
-    }
-  }, [selectedLedgerId, ledgers]);
+  // The ledger decides whether an entry is income or expense (the server refuses a mismatch), so choosing a ledger
+  // sets the type from the ledger's own `type`, and a category picked for the old type is cleared.
+  const ledgerField = register('ledgerId');
+  const applyLedgerType = (ledgerId: string, list: Ledger[]) => {
+    const nextType = entryTypeForLedger(list, ledgerId);
+    setValue('type', nextType, { shouldValidate: true });
+    if (!categoryFitsType(categories, getValues('categoryId'), nextType)) setValue('categoryId', '');
+  };
 
   const fetchData = async () => {
     try {
@@ -90,6 +93,12 @@ export default function CreateLedgerItem() {
   const filteredCategories = categories.filter((cat) => cat.type === selectedType);
 
   const onSubmit = async (data: LedgerItemFormData) => {
+    // What is saved is the chosen ledger's own type, never a value left over in the form; it is not guessed.
+    const resolved = entryTypeState(ledgers, data.ledgerId);
+    if (resolved.status !== 'typed') {
+      setFieldError('ledgerId', { type: 'manual', message: UNTYPED_LEDGER_MESSAGE });
+      return;
+    }
     try {
       setError(null);
       await masterAccountService.createLedgerItem({
@@ -97,7 +106,7 @@ export default function CreateLedgerItem() {
         categoryId: data.categoryId || undefined,
         date: data.date,
         amount: data.amount,
-        type: data.type,
+        type: resolved.type,
         description: data.description,
         paymentMethod: data.paymentMethod,
         referenceNo: data.referenceNo,
@@ -128,7 +137,11 @@ export default function CreateLedgerItem() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Select
               label="Ledger"
-              {...register('ledgerId')}
+              {...ledgerField}
+              onChange={(event) => {
+                ledgerField.onChange(event);
+                applyLedgerType(event.target.value, ledgers);
+              }}
               value={watch('ledgerId') || ''}
               onAddNew={() => setAddLedgerOpen(true)}
               addNewLabel="Add Ledger"
@@ -143,15 +156,7 @@ export default function CreateLedgerItem() {
               ]}
             />
 
-            <Select
-              label="Type"
-              {...register('type')}
-              error={errors.type?.message}
-              options={[
-                { value: 'income', label: 'Income' },
-                { value: 'expense', label: 'Expense' },
-              ]}
-            />
+            <LedgerTypeField state={typeState} />
 
             <Select
               label="Category (Optional)"
@@ -227,11 +232,10 @@ export default function CreateLedgerItem() {
         open={addLedgerOpen}
         onClose={() => setAddLedgerOpen(false)}
         onCreated={(newLedger) => {
-          setLedgers((prev) => [
-            ...prev,
-            { id: newLedger.id, name: newLedger.label, type: newLedger.type, createdAt: '' } as Ledger,
-          ]);
+          const created = { id: newLedger.id, name: newLedger.label, type: newLedger.type, createdAt: '' } as Ledger;
+          setLedgers((prev) => [...prev, created]);
           setValue('ledgerId', newLedger.id, { shouldValidate: true });
+          applyLedgerType(newLedger.id, [...ledgers, created]);
         }}
       />
 

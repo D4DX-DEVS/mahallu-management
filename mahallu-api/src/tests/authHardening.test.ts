@@ -505,7 +505,8 @@ describe('[isolated] auth hardening', () => {
         assert.ok(layer, `${method} ${routePath}`);
         const guard = layer.route.stack.map((l: any) => l.handle).find((h: any) => h.isRoleGuard);
         assert.ok(guard, `${routePath} has a role guard`);
-        assert.deepEqual(guard.allowedRoles, ['super_admin', 'mahall']);
+        // Registrations (and so certificates) belong to the platform Super Admin, not the Mahallu admin.
+        assert.deepEqual(guard.allowedRoles, ['super_admin']);
         let refused = 0;
         guard({ user: { role: 'member' }, isSuperAdmin: false }, { status: (c: number) => { refused = c; return { json: () => undefined }; } }, () => {
           refused = -1;
@@ -592,11 +593,18 @@ describe('[isolated] auth hardening', () => {
         assert.equal(download.status, 403);
       });
 
-      it('staff behaviour is unchanged: an admin lists every certificate of the Mahallu and downloads any', async () => {
-        const list = await call(listCertificates, { user: mahall, tenantId: String(TENANT), query: {} });
+      it('a Super Admin lists every certificate of the Mahallu and downloads any', async () => {
+        const list = await call(listCertificates, { user: mahall, isSuperAdmin: true, tenantId: String(TENANT), query: {} });
         assert.equal(list.body.data.length, 3);
-        const download = await call(downloadCertificate, { user: mahall, tenantId: String(TENANT), params: { id: String(CERT_OTHER) } });
+        const download = await call(downloadCertificate, { user: mahall, isSuperAdmin: true, tenantId: String(TENANT), params: { id: String(CERT_OTHER) } });
         assert.equal(download.status, 200);
+      });
+
+      it('a Mahallu admin no longer has the administrator view: they are refused like any non-member', async () => {
+        const list = await call(listCertificates, { user: mahall, tenantId: String(TENANT), query: {} });
+        assert.equal(list.status, 403);
+        const download = await call(downloadCertificate, { user: mahall, tenantId: String(TENANT), params: { id: String(CERT_OTHER) } });
+        assert.equal(download.status, 403);
       });
     });
   });

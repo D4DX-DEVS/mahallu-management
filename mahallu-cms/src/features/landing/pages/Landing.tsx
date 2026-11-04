@@ -34,6 +34,30 @@ export default function Landing() {
     };
   }, []);
 
+  // "#home" must always mean the top of the page. On wide screens the hero is `position: sticky`, so it
+  // counts as already in view wherever the visitor is, and the browser's own jump to "#home" barely scrolls.
+  useEffect(() => {
+    const goTop = () => window.scrollTo({ top: 0 });
+    const onClick = (event: MouseEvent) => {
+      if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      const link = (event.target as Element | null)?.closest?.('a[href="#home"]');
+      if (!link) return;
+      event.preventDefault();
+      if (window.location.hash !== '#home') window.location.hash = '#home';
+      goTop();
+    };
+    // Back/forward onto a "#home" entry, or a hand-typed hash, goes through the same sticky-hero jump.
+    const onHashChange = () => {
+      if (window.location.hash === '#home') goTop();
+    };
+    document.addEventListener('click', onClick);
+    window.addEventListener('hashchange', onHashChange);
+    return () => {
+      document.removeEventListener('click', onClick);
+      window.removeEventListener('hashchange', onHashChange);
+    };
+  }, []);
+
   return (
     <DemoRequestContext.Provider value={openDemo}>
       <div className="min-h-screen overflow-x-clip bg-white font-landing text-[#192024] antialiased">

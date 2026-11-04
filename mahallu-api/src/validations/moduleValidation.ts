@@ -30,7 +30,11 @@ import { HEALTH_RESOURCE_TYPES } from '../models/HealthResource';
 import { KHUTBAH_STATUSES } from '../models/Khutbah';
 import { BOOK_CATEGORIES, RESOURCE_TYPES } from '../models/Library';
 import { CLASS_TYPES, ENROLLMENT_STATUSES } from '../models/Madrasa';
-import { MARRIAGE_ASSISTANCE_TYPES, MARRIAGE_ASSISTANCE_STATUSES } from '../models/MarriageAssistance';
+import {
+  MARRIAGE_ASSISTANCE_TYPES,
+  MARRIAGE_ASSISTANCE_STATUSES,
+  FINANCIAL_MARRIAGE_ASSISTANCE_TYPE,
+} from '../models/MarriageAssistance';
 import { QARD_PURPOSES, QARD_STATUSES } from '../models/QardLoan';
 import { RELIEF_URGENCIES, RELIEF_STATUSES } from '../models/ReliefCase';
 import { AWARD_STATUSES, SUPPORT_CASE_TYPES, SUPPORT_CASE_STATUSES } from '../models/Scholarship';
@@ -520,7 +524,19 @@ const marriageAssistanceFields = (mode: Mode): ValidationChain[] => [
   enumOf(mode, 'type', MARRIAGE_ASSISTANCE_TYPES, 'assistance type'),
   // `status` is not a field of create/update: it is always "requested" on create and moves only
   // through the status endpoint.
-  money(mode, 'amount', 'amount'),
+  // The amount is checked whenever it is sent (0 to the maximum, 2 decimals). For a financial
+  // assistance request it is REQUIRED on create and must be more than zero: it is the sum paid out.
+  amountField('amount', 'amount'),
+  body('amount').custom((value, { req }) => {
+    if (req.body?.type !== FINANCIAL_MARRIAGE_ASSISTANCE_TYPE) return true;
+    const blank = value === undefined || value === null || (typeof value === 'string' && value.trim() === '');
+    if (blank) {
+      if (mode === 'create') throw new Error('Please enter the amount.');
+      return true;
+    }
+    if (Number(value) === 0) throw new Error('The amount must be greater than zero.');
+    return true;
+  }),
   optionalLongText('notes', 'notes', 2000),
 ];
 
@@ -545,7 +561,9 @@ const reliefFields = (mode: Mode): ValidationChain[] => [
   optionalLongText('description', 'description', 3000),
   enumField('urgency', RELIEF_URGENCIES, 'urgency'),
   optionalText('assistanceGiven', 'assistance given', 500),
-  money(mode, 'amount', 'amount', { min: 0.01 }),
+  // Optional on create as well: a case is reported first and the amount is recorded when assistance
+  // is given (status endpoint). If one is sent it is still checked.
+  amountField('amount', 'amount', { min: 0.01 }),
   dateField('followUpDate', 'follow-up date'),
   optionalLongText('notes', 'notes', 2000),
 ];
