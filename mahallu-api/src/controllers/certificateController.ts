@@ -8,8 +8,8 @@ import { getPaginationParams, createPaginationResponse } from '../utils/paginati
 import { sendFailure } from '../utils/userMessages';
 import { isValidId } from '../utils/scope';
 
-// Registrations are handled by the platform Super Admin only; a Mahallu admin is not an administrator here.
-const isAdmin = (req: AuthRequest): boolean => req.isSuperAdmin === true;
+const isAdmin = (req: AuthRequest): boolean =>
+  req.isSuperAdmin === true || req.user?.role === 'mahall';
 
 // POST /api/certificates/issue — admin issues certificate for an approved registration
 export const issueCertificateHandler = async (req: AuthRequest, res: Response) => {

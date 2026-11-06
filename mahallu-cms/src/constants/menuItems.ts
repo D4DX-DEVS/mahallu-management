@@ -102,7 +102,6 @@ export interface MenuItem {
  * ======================================================================== */
 
 const ADMIN_ROLES: MenuItem['allowedRoles'] = ['super_admin', 'mahall'];
-const REGISTRATION_ROLES: MenuItem['allowedRoles'] = ['super_admin'];
 const SURVEY_ROLES: MenuItem['allowedRoles'] = ['super_admin', 'mahall', 'survey'];
 const INSTITUTE_ROLES: MenuItem['allowedRoles'] = ['super_admin', 'mahall', 'institute'];
 const INSTITUTE_ONLY: MenuItem['allowedRoles'] = ['institute'];
@@ -464,60 +463,53 @@ export const menuItems: MenuItem[] = [
         moduleKey: 'library',
         hidden: true,
       },
-      // A member's own profile edits, reviewed by the Mahallu admin for their own Mahallu as well as the Super Admin.
-      // It lives here, not under Registrations, which is Super Admin only. It keeps the Registrations module switch.
-      {
-        id: 'change-requests',
-        label: 'Change requests',
-        icon: RiClipboardLine,
-        path: '/admin/change-requests',
-        allowedRoles: ADMIN_ROLES,
-        moduleKey: 'registrations',
-      },
     ],
   },
 
-  /* --------------------------------------------------------- Registrations
-   * Platform Super Admin only. The Mahallu admin ('mahall') does not see this group, and the same rule is
-   * enforced on the routes (communityRoutes/adminRoutes/phaseBRoutes) and on the API (registrationRoutes,
-   * marriageAssistanceRoutes, certificate admin actions, registration CSV exports). Change requests are not
-   * part of it: see the Services group. */
+  /* --------------------------------------------------------- Registrations */
   {
     id: 'registrations',
     label: 'Registrations',
     section: 'Services',
     icon: RiFileTextLine,
-    allowedRoles: REGISTRATION_ROLES,
+    allowedRoles: ADMIN_ROLES,
     moduleKey: 'registrations',
     children: [
-      { id: 'nikah', label: 'Nikah', icon: RiHeartLine, path: '/registrations/nikah', allowedRoles: REGISTRATION_ROLES },
+      { id: 'nikah', label: 'Nikah', icon: RiHeartLine, path: '/registrations/nikah', allowedRoles: ADMIN_ROLES },
       {
         id: 'death',
         label: 'Death',
         icon: RiIndeterminateCircleLine,
         path: '/registrations/death',
-        allowedRoles: REGISTRATION_ROLES,
+        allowedRoles: ADMIN_ROLES,
       },
       {
         id: 'nikah-noc',
         label: 'Nikah NOC',
         icon: RiFileAddLine,
         path: '/registrations/noc/nikah',
-        allowedRoles: REGISTRATION_ROLES,
+        allowedRoles: ADMIN_ROLES,
       },
       {
         id: 'marriage-assistance',
         label: 'Marriage assistance',
         icon: RiHeartLine,
         path: '/registrations/marriage-assistance',
-        allowedRoles: REGISTRATION_ROLES,
+        allowedRoles: ADMIN_ROLES,
       },
       {
         id: 'certificates',
         label: 'Certificates',
         icon: RiFileTextLine,
         path: '/admin/certificates',
-        allowedRoles: REGISTRATION_ROLES,
+        allowedRoles: ADMIN_ROLES,
+      },
+      {
+        id: 'change-requests',
+        label: 'Change requests',
+        icon: RiClipboardLine,
+        path: '/admin/change-requests',
+        allowedRoles: ADMIN_ROLES,
       },
     ],
   },

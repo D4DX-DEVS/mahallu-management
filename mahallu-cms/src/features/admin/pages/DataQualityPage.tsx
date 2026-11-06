@@ -13,11 +13,6 @@ import { errorMessage } from '@/utils/errors';
 import { toTitleCase } from '@/utils/format';
 import { downloadBlob } from '@/utils/exportUtils';
 import { logError } from '@/utils/safeLog';
-import { useAuthStore } from '@/store/authStore';
-
-/** Registration exports (nikah, death, noc) are Super Admin only on the server, so the page offers them to no one else. */
-const REGISTRATION_EXPORTS = ['nikah', 'death', 'noc'];
-const EXPORT_ENTITIES = ['families', 'members', 'varisangya', 'zakat', ...REGISTRATION_EXPORTS];
 
 interface DataQualityStat {
   label: string;
@@ -39,7 +34,6 @@ interface DuplicateNameAge {
 }
 
 export default function DataQualityPage() {
-  const { isSuperAdmin } = useAuthStore();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<LoadErrorInfo | null>(null);
   const [stats, setStats] = useState<any>(null);
@@ -266,7 +260,7 @@ export default function DataQualityPage() {
         <h3 className="text-base font-semibold mb-3 text-foreground">Export Data</h3>
         <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">Download CSV files for all entities</p>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
-          {EXPORT_ENTITIES.filter((entity) => isSuperAdmin || !REGISTRATION_EXPORTS.includes(entity)).map((entity) => (
+          {['families', 'members', 'varisangya', 'zakat', 'nikah', 'death', 'noc'].map((entity) => (
             <Button
               key={entity}
               variant="outline"
