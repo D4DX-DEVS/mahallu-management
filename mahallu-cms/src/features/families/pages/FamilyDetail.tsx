@@ -10,6 +10,7 @@ import Modal from '@/components/ui/Modal';
 import Table from '@/components/ui/Table';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import BulkImportCsv, { ColumnSpec } from '@/components/BulkImportCsv';
+import { normalizeGenderCell } from '@/features/members/memberGender';
 import { TableColumn } from '@/types';
 import { ROUTES } from '@/constants/routes';
 import { familyService } from '@/services/familyService';
@@ -26,7 +27,7 @@ import StatusBadge from '@/components/ui/StatusBadge';
 const MEMBER_COLUMNS: ColumnSpec[] = [
   { key: 'name', label: 'Name', required: true },
   { key: 'nameMl', label: 'Name (Malayalam)' },
-  { key: 'gender', label: 'Gender' },
+  { key: 'gender', label: 'Gender', required: true, normalize: normalizeGenderCell },
   { key: 'age', label: 'Age' },
   { key: 'maritalStatus', label: 'Marital Status' },
   { key: 'education', label: 'Education' },

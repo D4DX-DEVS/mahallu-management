@@ -7,6 +7,9 @@ export const MARRIAGE_ASSISTANCE_TYPES = [
 ] as const;
 export type MarriageAssistanceType = (typeof MARRIAGE_ASSISTANCE_TYPES)[number];
 
+/** The one type that pays money, so the only one that must state an amount. */
+export const FINANCIAL_MARRIAGE_ASSISTANCE_TYPE: MarriageAssistanceType = 'financial_assistance';
+
 export const MARRIAGE_ASSISTANCE_STATUSES = ['requested', 'approved', 'completed'] as const;
 export type MarriageAssistanceStatus = (typeof MARRIAGE_ASSISTANCE_STATUSES)[number];
 

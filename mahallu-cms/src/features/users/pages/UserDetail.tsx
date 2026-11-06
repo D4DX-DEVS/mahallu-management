@@ -46,11 +46,13 @@ export default function UserDetail() {
       setLoading(true);
       const data = await userService.getById(id!);
       setUser(data);
-      // The user record carries only the Mahall's id; show its name.
+      // The user record carries only the Mahall's id; show its name and Mahall ID (code).
       if (data.tenantId && !data.tenant) {
         tenantService
           .getById(data.tenantId)
-          .then((tenant) => setUser((current) => (current ? { ...current, tenant: { id: tenant.id, name: tenant.name } } : current)))
+          .then((tenant) =>
+            setUser((current) => (current ? { ...current, tenant: { id: tenant.id, name: tenant.name, code: tenant.code } } : current))
+          )
           .catch(() => undefined);
       }
       if (data.instituteId) {

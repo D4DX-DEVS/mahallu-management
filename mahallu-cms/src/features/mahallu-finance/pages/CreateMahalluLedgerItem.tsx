@@ -12,6 +12,8 @@ import { masterAccountService, Ledger } from '@/services/masterAccountService';
 import { useAuthStore } from '@/store/authStore';
 import { getTenantId } from '@/utils/tenantHelper';
 import { errorMessage } from '@/utils/errors';
+import { entryTypeForLedger, entryTypeState, UNTYPED_LEDGER_MESSAGE } from '@/utils/ledgerType';
+import LedgerTypeField from '@/components/LedgerTypeField';
 import PageHeader from '@/components/layout/PageHeader';
 import { useFormValidation } from '@/hooks/useFormValidation';
 import { FieldRule, LIMITS, sanitizeAmountInput } from '@/utils/validation';
@@ -49,6 +51,7 @@ export default function CreateMahalluLedgerItem() {
   const [loadingLedgers, setLoadingLedgers] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const typeState = entryTypeState(ledgers, form.ledgerId);
 
   useEffect(() => {
     fetchAllPages((page) => masterAccountService.getAllLedgers({ ...page, scope: 'mahallu' }))
@@ -63,11 +66,18 @@ export default function CreateMahalluLedgerItem() {
     // description and a zero amount all made Save do nothing.
     if (!validate(form)) return;
     if (saving) return;
+    // What is saved is the chosen ledger's own type, never a value left over in the form; it is not guessed.
+    const resolved = entryTypeState(ledgers, form.ledgerId);
+    if (resolved.status !== 'typed') {
+      setError(UNTYPED_LEDGER_MESSAGE);
+      return;
+    }
     try {
       setSaving(true);
       setError(null);
       await masterAccountService.createLedgerItem({
         ...form,
+        type: resolved.type,
         amount: Number(form.amount) || 0,
         source: 'manual',
         ...(tenantId ? { tenantId } : {}),
@@ -117,7 +127,8 @@ export default function CreateMahalluLedgerItem() {
               ]}
               value={form.ledgerId}
               error={errors.ledgerId}
-              onChange={(e) => setForm((f) => ({ ...f, ledgerId: e.target.value }))}
+              // The ledger decides income or expense (the server refuses a mismatch), so the type follows the ledger.
+              onChange={(e) => setForm((f) => ({ ...f, ledgerId: e.target.value, type: entryTypeForLedger(ledgers, e.target.value) }))}
             />
             <Input
               label="Date *"
@@ -127,16 +138,7 @@ export default function CreateMahalluLedgerItem() {
               onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))}
               required
             />
-            <Select
-              label="Type *"
-              options={[
-                { value: 'income', label: 'Income' },
-                { value: 'expense', label: 'Expense' },
-              ]}
-              value={form.type}
-              error={errors.type}
-              onChange={(e) => setForm((f) => ({ ...f, type: e.target.value as 'income' | 'expense' }))}
-            />
+            <LedgerTypeField state={typeState} />
             <Input
               label="Amount *"
               type="number"

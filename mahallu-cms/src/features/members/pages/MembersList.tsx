@@ -264,6 +264,7 @@ export default function MembersList() {
           sortOptions={[
             { value: 'date', label: 'Newest first' },
             { value: 'name', label: 'Name' },
+            { value: 'family', label: 'Family' },
             { value: 'mahallId', label: 'Mahall ID' },
           ]}
           sortValue={sortBy}
