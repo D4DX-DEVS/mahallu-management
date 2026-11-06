@@ -109,3 +109,4 @@ import './welfareDisbursement.test';
 import './zakat.test';
 import './zakatIntegrity.test';
 import './memberAppRequests.test';
+import './tenantContact.test';

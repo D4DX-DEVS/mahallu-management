@@ -204,7 +204,7 @@ export const getOwnOverview = async (req: AuthRequest, res: Response) => {
       })
         .sort({ paymentDate: -1, createdAt: -1 })
         .select('receiptNo paymentDate amount'),
-      Tenant.findById(member.tenantId).select('name nameMl location locationMl address').lean(),
+      Tenant.findById(member.tenantId).select('name nameMl location locationMl address contact').lean(),
     ]);
 
     const varisangyaSummary = varisangyaTotals[0] || { totalAmount: 0, paymentCount: 0 };
@@ -223,7 +223,7 @@ export const getOwnOverview = async (req: AuthRequest, res: Response) => {
           zakatCount: zakatSummary.paymentCount,
         },
       },
-      // The member's own Mahallu, for the "Mahallu" screen. A tenant has no contact fields yet.
+      // The member's own Mahallu, for the "Mahallu" screen: name, address and the contact the Mahallu chose to publish.
       mahallu: tenant
         ? {
             name: tenant.name,
@@ -237,6 +237,8 @@ export const getOwnOverview = async (req: AuthRequest, res: Response) => {
               state: tenant.address?.state || null,
               pinCode: tenant.address?.pinCode || null,
             },
+            phone: tenant.contact?.phone || null,
+            email: tenant.contact?.email || null,
           }
         : null,
       mahalluStatistics: {
