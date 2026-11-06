@@ -13,7 +13,7 @@ import {
   createNOC,
   updateNOC,
 } from '../controllers/registrationController';
-import { authMiddleware, allowRoles } from '../middleware/authMiddleware';
+import { authMiddleware, requireAdmin } from '../middleware/authMiddleware';
 import { tenantMiddleware, tenantFilter } from '../middleware/tenantMiddleware';
 import { validationHandler } from '../middleware/validationHandler';
 import {
@@ -34,9 +34,8 @@ const router = express.Router();
 router.use(authMiddleware);
 router.use(tenantMiddleware);
 router.use(tenantFilter);
-// Nikah, death and NOC registrations are civil records.
-// Registrations are handled by the platform Super Admin only.
-router.use(allowRoles(['super_admin']));
+// Nikah, death and NOC registrations are civil records handled by the Mahallu admin only.
+router.use(requireAdmin);
 
 /**
  * @swagger
@@ -46,7 +45,7 @@ router.use(allowRoles(['super_admin']));
  *     tags: [Registrations]
  *     description: |
  *       Retrieve all Nikah (marriage) registrations with pagination and filtering.
- *       **Access:** Super Admin only (Registrations belong to the platform administrator).
+ *       **Access:** Super Admin (all tenants), Mahall Admin (own tenant)
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -124,7 +123,7 @@ router.get('/nikah', listQuery(), validationHandler, getAllNikahRegistrations);
  *     tags: [Registrations]
  *     description: |
  *       Get a specific Nikah registration by ID.
- *       **Access:** Super Admin only (Registrations belong to the platform administrator).
+ *       **Access:** Super Admin (all tenants), Mahall Admin (own tenant)
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -163,7 +162,7 @@ router.get('/nikah/:id', getNikahRegistrationValidation, validationHandler, getN
  *     tags: [Registrations]
  *     description: |
  *       Create a new Nikah (marriage) registration.
- *       **Access:** Super Admin only (Registrations belong to the platform administrator).
+ *       **Access:** Super Admin (any tenant), Mahall Admin (own tenant)
  *
  *       Optional detail fields: groomAddress, brideAddress (multi-line, max 500), witness1Phone / witness2Phone
  *       (local or international), witness1Address / witness2Address, mahrType (gold_or_ornaments, cash, land,
@@ -233,7 +232,7 @@ router.post('/nikah', createNikahRegistrationValidation, validationHandler, crea
  *     tags: [Registrations]
  *     description: |
  *       Update an existing Nikah registration.
- *       **Access:** Super Admin only (Registrations belong to the platform administrator).
+ *       **Access:** Super Admin (all tenants), Mahall Admin (own tenant)
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -269,7 +268,7 @@ router.put('/nikah/:id', updateNikahRegistrationValidation, validationHandler, u
  *     tags: [Registrations]
  *     description: |
  *       Retrieve all Death registrations with pagination and filtering.
- *       **Access:** Super Admin only (Registrations belong to the platform administrator).
+ *       **Access:** Super Admin (all tenants), Mahall Admin (own tenant)
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -347,7 +346,7 @@ router.get('/death', listQuery(), validationHandler, getAllDeathRegistrations);
  *     tags: [Registrations]
  *     description: |
  *       Get a specific Death registration by ID.
- *       **Access:** Super Admin only (Registrations belong to the platform administrator).
+ *       **Access:** Super Admin (all tenants), Mahall Admin (own tenant)
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -386,7 +385,7 @@ router.get('/death/:id', getDeathRegistrationValidation, validationHandler, getD
  *     tags: [Registrations]
  *     description: |
  *       Create a new Death registration.
- *       **Access:** Super Admin only (Registrations belong to the platform administrator).
+ *       **Access:** Super Admin (any tenant), Mahall Admin (own tenant)
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -444,7 +443,7 @@ router.post('/death', createDeathRegistrationValidation, validationHandler, crea
  *     tags: [Registrations]
  *     description: |
  *       Update an existing Death registration.
- *       **Access:** Super Admin only (Registrations belong to the platform administrator).
+ *       **Access:** Super Admin (all tenants), Mahall Admin (own tenant)
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -480,7 +479,7 @@ router.put('/death/:id', updateDeathRegistrationValidation, validationHandler, u
  *     tags: [Registrations]
  *     description: |
  *       Retrieve all NOCs with pagination and filtering.
- *       **Access:** Super Admin only (Registrations belong to the platform administrator).
+ *       **Access:** Super Admin (all tenants), Mahall Admin (own tenant)
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -551,7 +550,7 @@ router.get('/noc', listQuery(), validationHandler, getAllNOCs);
  *     tags: [Registrations]
  *     description: |
  *       Get a specific NOC by ID.
- *       **Access:** Super Admin only (Registrations belong to the platform administrator).
+ *       **Access:** Super Admin (all tenants), Mahall Admin (own tenant)
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -590,7 +589,7 @@ router.get('/noc/:id', getNOCValidation, validationHandler, getNOCById);
  *     tags: [Registrations]
  *     description: |
  *       Create a new NOC (No Objection Certificate).
- *       **Access:** Super Admin only (Registrations belong to the platform administrator).
+ *       **Access:** Super Admin (any tenant), Mahall Admin (own tenant)
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -644,7 +643,7 @@ router.post('/noc', createNOCValidation, validationHandler, createNOC);
  *     tags: [Registrations]
  *     description: |
  *       Update NOC details (approve/reject, set issued/expiry dates).
- *       **Access:** Super Admin only (Registrations belong to the platform administrator).
+ *       **Access:** Super Admin (all tenants), Mahall Admin (own tenant)
  *     security:
  *       - bearerAuth: []
  *     parameters:
