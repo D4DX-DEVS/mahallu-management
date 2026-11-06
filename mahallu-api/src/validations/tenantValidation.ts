@@ -57,6 +57,16 @@ export const updateTenantValidation = [
     .withMessage('Please keep the tenant name between 2 and 200 characters.'),
   body('nameMl').optional().trim(),
   body('locationMl').optional().trim(),
+  body('contact.phone')
+    .optional({ values: 'falsy' })
+    .trim()
+    .matches(/^[+]?[0-9 ()-]{7,20}$/)
+    .withMessage('Please enter a valid contact phone number.'),
+  body('contact.email')
+    .optional({ values: 'falsy' })
+    .trim()
+    .isEmail()
+    .withMessage('Please enter a valid contact email address.'),
   body('status')
     .optional()
     .isIn(['active', 'suspended', 'inactive'])

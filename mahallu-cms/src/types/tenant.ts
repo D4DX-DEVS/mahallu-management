@@ -18,6 +18,7 @@ export interface Tenant {
     village?: string;
   };
   logo?: string;
+  contact?: { phone?: string; email?: string };
   status: 'active' | 'suspended' | 'inactive';
   subscription: {
     plan?: string;
