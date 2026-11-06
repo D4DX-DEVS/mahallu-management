@@ -5,6 +5,7 @@ import { Varisangya, Zakat, Wallet, Transaction, RECEIVED_PAYMENT_STATUS, isRece
 import { NikahRegistration, DeathRegistration, NOC } from '../models/Registration';
 import Notification, { notificationForViewer } from '../models/Notification';
 import Institute from '../models/Institute';
+import Tenant from '../models/Tenant';
 import { Banner, Feed } from '../models/Social';
 import { AuthRequest } from '../middleware/authMiddleware';
 import { getPaginationParams, createPaginationResponse } from '../utils/pagination';
@@ -143,7 +144,7 @@ export const getOwnOverview = async (req: AuthRequest, res: Response) => {
 
     const familyId = member.familyId && typeof member.familyId === 'object' ? member.familyId._id : member.familyId;
 
-    const [familyMembers, tenantUsersTotal, tenantFamiliesTotal, tenantMembersTotal, varisangyaTotals, zakatTotals, latestVarisangya, latestZakat] = await Promise.all([
+    const [familyMembers, tenantUsersTotal, tenantFamiliesTotal, tenantMembersTotal, varisangyaTotals, zakatTotals, latestVarisangya, latestZakat, tenant] = await Promise.all([
       familyId
         ? Member.find({
             familyId,
@@ -203,6 +204,7 @@ export const getOwnOverview = async (req: AuthRequest, res: Response) => {
       })
         .sort({ paymentDate: -1, createdAt: -1 })
         .select('receiptNo paymentDate amount'),
+      Tenant.findById(member.tenantId).select('name nameMl location locationMl address contact').lean(),
     ]);
 
     const varisangyaSummary = varisangyaTotals[0] || { totalAmount: 0, paymentCount: 0 };
@@ -221,6 +223,24 @@ export const getOwnOverview = async (req: AuthRequest, res: Response) => {
           zakatCount: zakatSummary.paymentCount,
         },
       },
+      // The member's own Mahallu, for the "Mahallu" screen: name, address and the contact the Mahallu chose to publish.
+      mahallu: tenant
+        ? {
+            name: tenant.name,
+            nameMl: tenant.nameMl || null,
+            location: tenant.location || null,
+            locationMl: tenant.locationMl || null,
+            address: {
+              village: tenant.address?.village || null,
+              postOffice: tenant.address?.postOffice || null,
+              district: tenant.address?.district || null,
+              state: tenant.address?.state || null,
+              pinCode: tenant.address?.pinCode || null,
+            },
+            phone: tenant.contact?.phone || null,
+            email: tenant.contact?.email || null,
+          }
+        : null,
       mahalluStatistics: {
         users: tenantUsersTotal,
         families: tenantFamiliesTotal,
