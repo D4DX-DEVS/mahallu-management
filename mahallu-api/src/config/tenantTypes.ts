@@ -1,5 +1,5 @@
 /**
- * What kind of body a tenant is. New tenants (and demo requests) choose one of these.
+ * What kind of body a tenant is. New tenants choose one of these.
  */
 export const TENANT_TYPES = ['mahallu', 'juma_masjid'] as const;
 export type TenantType = (typeof TENANT_TYPES)[number];

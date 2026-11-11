@@ -981,7 +981,7 @@ export const menuItems: MenuItem[] = [
       { id: 'tenants', label: 'Mahalls', icon: RiLayoutGridLine, path: '/admin/tenants', superAdminOnly: true },
       {
         id: 'demo-requests',
-        label: 'Demo requests',
+        label: 'ZAAD requests',
         icon: RiMailSendLine,
         path: '/admin/demo-requests',
         superAdminOnly: true,

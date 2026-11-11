@@ -19,7 +19,7 @@ import {
 
 const router = express.Router();
 
-// Public: the landing page's "Request a demo" form. Rate limited per address.
+// Public: the landing page's "Request ZAAD" form. Rate limited per address.
 router.post('/', demoRequestRateLimiter, createDemoRequestValidation, validationHandler, createDemoRequest);
 
 // Platform staff read the inbox and decide each request.

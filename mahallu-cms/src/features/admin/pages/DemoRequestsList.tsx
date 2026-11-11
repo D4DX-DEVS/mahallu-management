@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState, type MouseEvent } from 'react';
+import { useCallback, useEffect, useState, type MouseEvent, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiCheckCircle, FiEye, FiMail, FiPhone, FiPlus, FiXCircle } from 'react-icons/fi';
+import { FiCheckCircle, FiEye, FiPhone, FiPlus, FiXCircle } from 'react-icons/fi';
 import { FaWhatsapp } from 'react-icons/fa';
 import PageHeader from '@/components/layout/PageHeader';
 import TableCard from '@/components/ui/TableCard';
@@ -20,10 +20,10 @@ import { TableColumn, Pagination as PaginationType } from '@/types';
 import {
   demoRequestService,
   requestStatus,
+  ZAAD_REQUEST_LABELS as LABELS,
   DemoRequest,
   DemoRequestStatus,
 } from '@/services/demoRequestService';
-import { tenantTypeLabel } from '@/constants/tenantTypes';
 import { useDebounce } from '@/hooks/useDebounce';
 import { formatDateTime, formatPhoneNumber } from '@/utils/format';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
@@ -42,17 +42,12 @@ function RequestStatusBadge({ request }: { request: DemoRequest }) {
   );
 }
 
-const addressLine = (request: DemoRequest) =>
-  [request.address?.village, request.address?.postOffice, request.address?.district, request.address?.state]
-    .filter(Boolean)
-    .join(', ') + (request.address?.pinCode ? ` - ${request.address.pinCode}` : '');
-
 /* Numbers are stored as the 10 national digits; both links need the country code. */
 const nationalDigits = (phone: string) => phone.replace(/\D/g, '').slice(-10);
 const callHref = (phone: string) => `tel:+91${nationalDigits(phone)}`;
 const whatsappHref = (phone: string, mahalluName: string) =>
   `https://wa.me/91${nationalDigits(phone)}?text=${encodeURIComponent(
-    `Assalamu Alaikum! This is the ZAAD team about your demo request for ${mahalluName}.`
+    `Assalamu Alaikum! This is the ZAAD team about your ZAAD request for ${mahalluName}.`
   )}`;
 
 /* Rows open the detail view, so a link inside one must not also do that. */
@@ -82,7 +77,20 @@ function PhoneLink({ phone, kind, mahalluName }: { phone: string; kind: 'call' |
 const ACTION_LINK =
   'inline-flex flex-1 items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
 
-/** Super admin inbox for the landing page's "Request a demo" form. */
+const FIELD_GROUP = 'grid grid-cols-1 gap-x-6 gap-y-4 p-4 sm:grid-cols-2 sm:p-5';
+
+/** One answer from the request: its label over the full value, nothing cut short. */
+function RequestField({ label, wide, children }: { label: string; wide?: boolean; children?: ReactNode }) {
+  const blank = children === undefined || children === null || children === '' || children === false;
+  return (
+    <div className={wide ? 'min-w-0 sm:col-span-2' : 'min-w-0'}>
+      <dt className="text-xs leading-relaxed text-muted-foreground">{label}</dt>
+      <dd className="mt-1 break-words text-sm font-medium text-foreground">{blank ? '—' : children}</dd>
+    </div>
+  );
+}
+
+/** Super admin inbox for the landing page's "Request ZAAD" form. */
 export default function DemoRequestsList() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
@@ -116,7 +124,7 @@ export default function DemoRequestsList() {
       setRequests(result.data);
       setPagination(result.pagination);
     } catch (err) {
-      setError(loadErrorMessage(err, 'demo requests'));
+      setError(loadErrorMessage(err, 'ZAAD requests'));
     } finally {
       setLoading(false);
     }
@@ -187,8 +195,14 @@ export default function DemoRequestsList() {
       render: (value: string) => <span className="font-medium text-foreground">{value}</span>,
     },
     {
+      key: 'officeBearerName',
+      label: 'President / Secretary',
+      width: '12rem',
+      render: (value?: string) => value || '—',
+    },
+    {
       key: 'contactNumber',
-      label: 'Contact number',
+      label: 'Phone',
       width: '11rem',
       render: (value: string, row) => <PhoneLink phone={value} kind="call" mahalluName={row.mahalluName} />,
     },
@@ -269,7 +283,7 @@ export default function DemoRequestsList() {
 
   return (
     <>
-      <PageHeader title="Demo requests" description="Mahallus that asked for a demo from the website." />
+      <PageHeader title="ZAAD requests" description="Masjids and Mahallus that requested ZAAD from the website." />
 
       <TableCard>
         <TableToolbar
@@ -278,7 +292,7 @@ export default function DemoRequestsList() {
             setSearchQuery(value);
             setCurrentPage(1);
           }}
-          searchEntity="demo requests"
+          searchEntity="ZAAD requests"
           onFilterClick={() => setIsFilterVisible((open) => !open)}
           isFilterVisible={isFilterVisible}
           hasFilters
@@ -321,7 +335,7 @@ export default function DemoRequestsList() {
         {error ? (
           <EmptyState
             variant="error"
-            entity="demo requests"
+            entity="ZAAD requests"
             description={error}
             action={{ label: 'Try again', onClick: fetchRequests }}
           />
@@ -334,7 +348,7 @@ export default function DemoRequestsList() {
               rowKey={(row) => row.id}
               onRowClick={(row) => setSelected(row)}
               isLoading={loading}
-              entity="demo requests"
+              entity="ZAAD requests"
               emptyVariant={isFiltered ? 'no-results' : 'empty'}
               emptyAction={
                 isFiltered
@@ -357,7 +371,7 @@ export default function DemoRequestsList() {
                   totalPages={pagination.totalPages}
                   totalItems={pagination.total}
                   itemsPerPage={pagination.limit}
-                  entity="demo requests"
+                  entity="ZAAD requests"
                   onPageChange={setCurrentPage}
                   onItemsPerPageChange={(size) => {
                     setItemsPerPage(size);
@@ -374,8 +388,9 @@ export default function DemoRequestsList() {
       <Modal
         isOpen={selected !== null}
         onClose={() => setSelected(null)}
-        title="Demo request"
+        title="ZAAD request"
         description={selected?.mahalluName}
+        size="lg"
         footer={
           <>
             <Button variant="outline" onClick={() => setSelected(null)}>
@@ -420,32 +435,50 @@ export default function DemoRequestsList() {
               </a>
             </div>
 
-            <div className="rounded-lg border border-border">
-              <DetailSection
-                title="Request details"
-                icon={FiMail}
-                items={[
-                  { label: 'Mahallu name', value: selected.mahalluName, wide: true },
-                  {
-                    label: 'Contact number',
-                    value: <PhoneLink phone={selected.contactNumber} kind="call" mahalluName={selected.mahalluName} />,
-                  },
-                  {
-                    label: 'WhatsApp number',
-                    value: (
-                      <PhoneLink phone={selected.whatsappNumber} kind="whatsapp" mahalluName={selected.mahalluName} />
-                    ),
-                  },
-                  { label: 'Type', value: tenantTypeLabel(selected.type) || '—' },
-                  { label: 'Location', value: selected.location || '—' },
-                  { label: 'Address', value: addressLine(selected) || '—', wide: true },
-                  { label: 'Status', value: <RequestStatusBadge request={selected} /> },
-                  { label: 'Received', value: formatDateTime(selected.createdAt) },
-                  ...(selected.reviewedAt ? [{ label: 'Reviewed', value: formatDateTime(selected.reviewedAt) }] : []),
-                  { label: 'Reference', value: selected.id, wide: true },
-                ]}
-              />
+            {/* The answers laid out like the form itself, with its Malayalam labels. */}
+            <div className="divide-y divide-border rounded-lg border border-border">
+              <dl className={FIELD_GROUP}>
+                <RequestField wide label={LABELS.mahalluName}>{selected.mahalluName}</RequestField>
+                <RequestField wide label={LABELS.affiliationNumber}>{selected.affiliationNumber}</RequestField>
+                <RequestField wide label={LABELS.location}>{selected.location}</RequestField>
+                <RequestField wide label={LABELS.localUnit}>{selected.localUnit}</RequestField>
+                <RequestField label={LABELS.area}>{selected.area}</RequestField>
+                <RequestField label={LABELS.district}>{selected.district}</RequestField>
+              </dl>
+              <dl className={FIELD_GROUP}>
+                <RequestField wide label={LABELS.officeBearerName}>{selected.officeBearerName}</RequestField>
+                <RequestField label={LABELS.contactNumber}>
+                  <PhoneLink phone={selected.contactNumber} kind="call" mahalluName={selected.mahalluName} />
+                </RequestField>
+                <RequestField label={LABELS.whatsappNumber}>
+                  <PhoneLink phone={selected.whatsappNumber} kind="whatsapp" mahalluName={selected.mahalluName} />
+                </RequestField>
+              </dl>
+              <dl className={FIELD_GROUP}>
+                <RequestField wide label={LABELS.contactPersonName}>{selected.contactPersonName}</RequestField>
+                <RequestField label={LABELS.contactPersonPhone}>
+                  {selected.contactPersonPhone && (
+                    <PhoneLink phone={selected.contactPersonPhone} kind="call" mahalluName={selected.mahalluName} />
+                  )}
+                </RequestField>
+                <RequestField label={LABELS.contactPersonWhatsapp}>
+                  {selected.contactPersonWhatsapp && (
+                    <PhoneLink phone={selected.contactPersonWhatsapp} kind="whatsapp" mahalluName={selected.mahalluName} />
+                  )}
+                </RequestField>
+              </dl>
             </div>
+
+            <dl className={`${FIELD_GROUP} rounded-lg bg-subtle`}>
+              <RequestField label="Status">
+                <RequestStatusBadge request={selected} />
+              </RequestField>
+              <RequestField label="Received">{formatDateTime(selected.createdAt)}</RequestField>
+              {selected.reviewedAt && <RequestField label="Reviewed">{formatDateTime(selected.reviewedAt)}</RequestField>}
+              <RequestField wide label="Reference">
+                <span className="break-all font-mono text-xs">{selected.id}</span>
+              </RequestField>
+            </dl>
 
             {requestStatus(selected) === 'rejected' && (
               <div className="rounded-lg border border-border">

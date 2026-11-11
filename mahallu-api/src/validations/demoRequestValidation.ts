@@ -1,40 +1,35 @@
 import { body, ValidationChain } from 'express-validator';
-import { TENANT_TYPES } from '../config/tenantTypes';
 import { DEMO_REQUEST_STATUSES } from '../models/DemoRequest';
 import { enumQuery, idParam, optionalText, phoneField, requiredText } from './common';
 
 /**
- * The landing page's demo form: a name, two Indian mobile numbers, and the same details the
- * tenant form asks for so an administrator can create the Mahallu from the request.
- *
- * The tenant details are optional here so a submission from a page loaded before they existed
- * still goes through; the form itself asks for them.
+ * The landing page's "Request ZAAD" form: the Masjid/Mahallu's details, its president or
+ * secretary with two Indian mobile numbers, and an optional person to follow up with.
  */
 export const createDemoRequestValidation: ValidationChain[] = [
-  requiredText('mahalluName', 'Mahallu name', { min: 2, max: 150 }),
-  phoneField('contactNumber', 'contact number', { required: true }),
+  requiredText('mahalluName', 'Masjid/Mahallu name', { min: 2, max: 150 }),
+  optionalText('affiliationNumber', 'affiliation number', 100),
+  requiredText('location', 'place', { max: 300 }),
+  requiredText('localUnit', 'local unit'),
+  requiredText('area', 'area'),
+  requiredText('district', 'district'),
+  requiredText('officeBearerName', 'president/secretary name', { max: 150 }),
+  phoneField('contactNumber', 'phone number', { required: true }),
   phoneField('whatsappNumber', 'WhatsApp number', { required: true }),
-  body('type')
-    .optional({ values: 'falsy' })
-    .isIn([...TENANT_TYPES])
-    .withMessage('Please choose a valid type.'),
-  optionalText('location', 'location', 300),
-  optionalText('address.state', 'state'),
-  optionalText('address.district', 'district'),
-  optionalText('address.pinCode', 'pin code', 20),
-  optionalText('address.postOffice', 'post office'),
-  optionalText('address.village', 'village'),
+  optionalText('contactPersonName', 'contact person name', 150),
+  phoneField('contactPersonPhone', 'contact person phone number'),
+  phoneField('contactPersonWhatsapp', 'contact person WhatsApp number'),
 ];
 
 export const listDemoRequestsValidation: ValidationChain[] = [
   enumQuery('status', DEMO_REQUEST_STATUSES, 'status'),
 ];
 
-export const demoRequestIdValidation: ValidationChain[] = [idParam('id', 'demo request')];
+export const demoRequestIdValidation: ValidationChain[] = [idParam('id', 'request')];
 
 /** A rejection must say why: the requester is told this reason. */
 export const rejectDemoRequestValidation: ValidationChain[] = [
-  idParam('id', 'demo request'),
+  idParam('id', 'request'),
   body('reason')
     .isString()
     .withMessage('Please enter the reason for rejection.')

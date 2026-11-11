@@ -1,24 +1,49 @@
 import api, { asList } from './api';
 import { Pagination } from '@/types';
-import type { TenantType } from '@/constants/tenantTypes';
 
 export type DemoRequestStatus = 'pending' | 'accepted' | 'rejected';
 
-/** The tenant details a request carries, as the tenant form asks for them. */
-export interface DemoRequestDetails {
-  type?: TenantType;
-  location?: string;
-  address?: {
-    state?: string;
-    district?: string;
-    pinCode?: string;
-    postOffice?: string;
-    village?: string;
-  };
+/** What the landing page's "Request ZAAD" form sends. */
+export interface DemoRequestInput {
+  mahalluName: string;
+  affiliationNumber?: string;
+  /** Place (സ്ഥലം). */
+  location: string;
+  /** Jamaat-e-Islami local unit. */
+  localUnit: string;
+  area: string;
+  district: string;
+  /** President or secretary; `contactNumber` and `whatsappNumber` are theirs. */
+  officeBearerName: string;
+  contactNumber: string;
+  whatsappNumber: string;
+  /** Optional person to contact for follow-up. */
+  contactPersonName?: string;
+  contactPersonPhone?: string;
+  contactPersonWhatsapp?: string;
 }
 
-/** A "Request a demo" submission from the public landing page. */
-export interface DemoRequest extends DemoRequestDetails {
+/** The form's Malayalam labels, shared by the landing form and the admin detail view. */
+export const ZAAD_REQUEST_LABELS: Record<keyof DemoRequestInput, string> = {
+  mahalluName: 'മസ്ജിദ്/മഹല്ലിന്റെ പേര്',
+  affiliationNumber: 'മസ്ജിദ് കൌൺസിൽ അഫിലിയേഷൻ നമ്പർ',
+  location: 'സ്ഥലം',
+  localUnit: 'ജമാഅത്തെ ഇസ്ലാമി പ്രാദേശിക ഘടകം',
+  area: 'ഏരിയ',
+  district: 'ജില്ല',
+  officeBearerName: 'മസ്ജിദ്/മഹല്ലിന്റെ പ്രസിഡന്റ് /സെക്രട്ടറിയുടെ പേര്',
+  contactNumber: 'ഫോൺ',
+  whatsappNumber: 'വാട്സാപ്പ് നമ്പർ',
+  contactPersonName: 'തുടർ നടപടിക്കായി ബന്ധപ്പെടേണ്ട വ്യക്തിയുടെ പേര്',
+  contactPersonPhone: 'ഫോൺ നമ്പർ',
+  contactPersonWhatsapp: 'വാട്സാപ്പ് നമ്പർ',
+};
+
+/**
+ * A "Request ZAAD" submission from the public landing page. Requests saved before the current
+ * form may lack the newer fields.
+ */
+export interface DemoRequest extends Partial<DemoRequestInput> {
   /** The API layer renames Mongo `_id` to `id` on every response. */
   id: string;
   mahalluName: string;
@@ -32,12 +57,6 @@ export interface DemoRequest extends DemoRequestDetails {
   /** The Mahall created from this request, once there is one. */
   tenantId?: string;
   createdAt: string;
-}
-
-export interface DemoRequestInput extends DemoRequestDetails {
-  mahalluName: string;
-  contactNumber: string;
-  whatsappNumber: string;
 }
 
 export const requestStatus = (request: Pick<DemoRequest, 'status'>): DemoRequestStatus => request.status ?? 'pending';

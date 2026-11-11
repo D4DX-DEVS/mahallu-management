@@ -79,14 +79,14 @@ export function ScaledFrame({ width, height, children, className = '' }: ScaledF
 
 interface RequestDemoButtonProps {
   className?: string;
-  /** Button text; "Request a demo" unless a section words it differently. */
+  /** Button text; "Request ZAAD" unless a section words it differently. */
   label?: string;
   /** Runs after the form opens, e.g. to close a mobile menu. */
   onAfterClick?: () => void;
 }
 
-/** Opens the demo-request form from anywhere on the page. */
-export function RequestDemoButton({ className = BTN_PRIMARY, label = 'Request a demo', onAfterClick }: RequestDemoButtonProps) {
+/** Opens the "Request ZAAD" form from anywhere on the page. */
+export function RequestDemoButton({ className = BTN_PRIMARY, label = 'Request ZAAD', onAfterClick }: RequestDemoButtonProps) {
   const openDemo = useRequestDemo();
   return (
     <button

@@ -31,7 +31,7 @@ export const adminRoutes = [
   superAdminRoute('/admin/tenants/:id', <TenantDetails />),
   superAdminRoute('/admin/tenants/:id/edit', <EditTenant />),
 
-  // Demo requests from the public landing page (super admin only)
+  // ZAAD requests from the public landing page (super admin only)
   superAdminRoute(ROUTES.DEMO_REQUESTS, <DemoRequestsList />),
 
   // Mahall main

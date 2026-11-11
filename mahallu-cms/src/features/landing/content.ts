@@ -324,7 +324,7 @@ export const CONTACT = {
   phone: '+91 9562478805',
   email: 'help.zaad@gmail.com',
   address: ['Masjid Council Kerala,', 'Hira Centre, PB No. 833,', 'Mavoor Road, Kozhikode - 4,', '673004'],
-  demoLabel: 'സൗജന്യ ഡെമോ ആവശ്യപ്പെടുക',
+  demoLabel: 'Request ZAAD',
 };
 
 export const POWERED_BY = {
