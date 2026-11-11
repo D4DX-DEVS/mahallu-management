@@ -39,6 +39,11 @@ export interface ITenant extends Document {
       [key: string]: boolean;
     };
   };
+  /** What a member can use to reach the Mahallu; either may be empty. */
+  contact?: {
+    phone?: string;
+    email?: string;
+  };
   createdAt: Date;
   updatedAt: Date;
 }
@@ -92,6 +97,10 @@ const TenantSchema = new Schema<ITenant>(
       village: { type: String, required: true },
     },
     logo: String,
+    contact: {
+      phone: { type: String, trim: true },
+      email: { type: String, trim: true, lowercase: true },
+    },
     status: {
       type: String,
       enum: ['active', 'suspended', 'inactive'],

@@ -124,7 +124,6 @@ const MENU_GROUPS: Record<string, Record<string, string>> = {
     inheritance: 'Community services',
     cemetery: 'Community services',
     library: 'Community services',
-    'change-requests': 'Member requests',
   },
   registrations: {
     nikah: 'Registration desk',
@@ -132,6 +131,7 @@ const MENU_GROUPS: Record<string, Record<string, string>> = {
     'nikah-noc': 'Registration desk',
     'marriage-assistance': 'Registration desk',
     certificates: 'Documents & requests',
+    'change-requests': 'Documents & requests',
   },
   finance: {
     'fin-accounts': 'Ledger setup',

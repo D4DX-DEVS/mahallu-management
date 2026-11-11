@@ -20,8 +20,6 @@ import pettyCashRoutes from '../routes/pettyCashRoutes';
 import employeeRoutes from '../routes/employeeRoutes';
 import instituteRoutes from '../routes/instituteRoutes';
 import registrationRoutes from '../routes/registrationRoutes';
-import certificateRoutes from '../routes/certificateRoutes';
-import changeRequestRoutes from '../routes/changeRequestRoutes';
 import registerRoutes from '../routes/registerRoutes';
 import reportRoutes from '../routes/reportRoutes';
 import assetRoutes from '../routes/assetRoutes';
@@ -34,6 +32,7 @@ import uploadRoutes from '../routes/uploadRoutes';
 import welfareRoutes from '../routes/welfareRoutes';
 import dashboardRoutes from '../routes/dashboardRoutes';
 import notificationRoutes from '../routes/notificationRoutes';
+import surveyFormRoutes from '../routes/surveyFormRoutes';
 
 /**
  * Server-side role enforcement, checked on the routers themselves.
@@ -65,8 +64,6 @@ const STAFF_ROLES: readonly StaffRole[] = ['super_admin', 'mahall', 'survey', 'i
 const SENSITIVE_KEYS = ['counselling', 'maslahat', 'inheritance', 'health', 'welfare'] as const;
 
 const ADMIN: StaffRole[] = ['super_admin', 'mahall'];
-/** Registrations (nikah, death, NOC, marriage assistance, certificates) belong to the platform Super Admin. */
-const SUPER_ONLY: StaffRole[] = ['super_admin'];
 const INSTITUTE_STAFF: StaffRole[] = ['super_admin', 'mahall', 'institute'];
 const FIELD_STAFF: StaffRole[] = ['super_admin', 'mahall', 'survey'];
 const ALL_STAFF: StaffRole[] = ['super_admin', 'mahall', 'survey', 'institute'];
@@ -440,26 +437,15 @@ describe('petty cash, employees, institutes', () => {
 });
 
 describe('registrations and registers', () => {
-  test('nikah, death and NOC registrations are Super Admin only (a Mahallu admin is refused)', () => {
+  test('nikah, death and NOC registrations are Mahallu admin only', () => {
     for (const kind of ['nikah', 'death', 'noc']) {
-      expectAll(registrationRoutes, SUPER_ONLY, [
+      expectAll(registrationRoutes, ADMIN, [
         ['get', `/${kind}`],
         ['get', `/${kind}/x1`],
         ['post', `/${kind}`],
         ['put', `/${kind}/x1`],
       ]);
     }
-  });
-
-  test('issuing and revoking certificates are Super Admin only', () => {
-    expectAll(certificateRoutes, SUPER_ONLY, [
-      ['post', '/issue'],
-      ['put', '/x1/revoke'],
-    ]);
-  });
-
-  test('reviewing a member profile-change request is for the Mahallu admin and the Super Admin (the controller scopes it to the Mahallu)', () => {
-    expectAll(changeRequestRoutes, ADMIN, [['put', '/x1/review']]);
   });
 
   test('field registers are open to survey workers (the CMS menu lists them) but not to institute admins', () => {
@@ -626,6 +612,48 @@ describe('welfare', () => {
   });
 });
 
+
+describe('survey forms', () => {
+  test('building, publishing, opening/closing and deleting a survey are Mahallu admin only', () => {
+    expectAll(surveyFormRoutes, ADMIN, [
+      ['post', '/'],
+      ['put', '/x1'],
+      ['delete', '/x1'],
+      ['post', '/x1/status'],
+      ['get', '/x1/builder'],
+      ['put', '/x1/builder'],
+      ['post', '/x1/publish'],
+    ]);
+  });
+
+  test('the submissions list, its export and the accept/reject decision are Mahallu admin only', () => {
+    expectAll(surveyFormRoutes, ADMIN, [
+      ['get', '/x1/submissions'],
+      ['get', '/x1/submissions/export'],
+      ['post', '/submissions/x1/review'],
+    ]);
+  });
+
+  test('survey workers can see surveys, fill the published form and read their own responses', () => {
+    expectAll(surveyFormRoutes, FIELD_STAFF, [
+      ['get', '/'],
+      ['get', '/x1'],
+      ['get', '/x1/form'],
+      ['post', '/x1/submissions'],
+      ['get', '/x1/my-submissions'],
+      ['get', '/submissions/x1'],
+      ['put', '/submissions/x1'],
+      ['delete', '/submissions/x1'],
+      ['get', '/submissions/x1/files/x2'],
+    ]);
+  });
+
+  test('institute admins never reach a survey form endpoint', () => {
+    for (const { method, path: p } of listRoutes(surveyFormRoutes)) {
+      assert.ok(!inspectRoute(surveyFormRoutes, method, p).roles.includes('institute'), `${method} ${p}`);
+    }
+  });
+});
 
 describe('dashboard and notifications', () => {
   test('the financial summary is Mahallu admin only', () => {
@@ -828,6 +856,7 @@ describe('sweep of every router module', () => {
     registerRoutes: ['FIELD_STAFF'],
     reliefRoutes: ['FIELD_STAFF', 'a survey worker may log a relief case (the POST names survey); everything else is admin'],
     surveyRoutes: ['FIELD_STAFF'],
+    surveyFormRoutes: ['FIELD_STAFF', 'survey workers fill forms and read their own responses (scoped in the controller); building and review are admin'],
     welfareRoutes: ['FIELD_STAFF', 'survey workers take welfare applications; needs the welfare sensitive module'],
     // Every staff role, on purpose
     authRoutes: ['ALL_STAFF', 'login, OTP, session and account switching are reachable by whoever signs in'],
@@ -945,20 +974,11 @@ describe('sweep of every router module', () => {
 
   const routersOf = (file: string) => modules.filter((m) => m.file === file);
 
-  test('marriage assistance is Super Admin only, with the other Registrations screens', () => {
-    assert.ok(routersOf('marriageAssistanceRoutes').length > 0, 'marriageAssistanceRoutes exports a router');
-    for (const { exportName, router } of routersOf('marriageAssistanceRoutes')) {
-      for (const { method, path: p } of listRoutes(router)) {
-        const access = inspectRoute(router, method, p);
-        assert.deepEqual(sorted(access.roles), sorted(SUPER_ONLY), `marriageAssistanceRoutes:${exportName} ${method.toUpperCase()} ${p}`);
-      }
-    }
-  });
-
   test('modules guarded in the second pass: Mahallu admin only', () => {
     for (const file of [
       'announcementRoutes',
       'developmentRoutes',
+      'marriageAssistanceRoutes',
       'qardRoutes',
       'zakatDistributionRoutes',
       'cemeteryRoutes',

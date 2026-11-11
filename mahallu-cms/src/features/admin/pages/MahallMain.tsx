@@ -31,6 +31,8 @@ import { cn } from '@/utils/cn';
 type Grade = { name: string; amount: number };
 
 interface SettingsDraft {
+  contactPhone: string;
+  contactEmail: string;
   varisangyaAmount: string;
   grades: Grade[];
   educationOptions: string[];
@@ -48,6 +50,8 @@ const DEFAULT_AREAS = ['Area A', 'Area B', 'Area C', 'Area D'];
 
 function draftFromTenant(tenant: Tenant): SettingsDraft {
   return {
+    contactPhone: tenant.contact?.phone ?? '',
+    contactEmail: tenant.contact?.email ?? '',
     varisangyaAmount: String(tenant.settings?.varisangyaAmount ?? 0),
     grades: tenant.settings?.varisangyaGrades ?? DEFAULT_GRADES,
     educationOptions: tenant.settings?.educationOptions ?? DEFAULT_EDUCATION,
@@ -57,6 +61,7 @@ function draftFromTenant(tenant: Tenant): SettingsDraft {
 
 const SECTIONS = [
   { id: 'profile', label: 'Mahallu profile', icon: RiBuilding2Line },
+  { id: 'contact', label: 'Member contact', icon: RiInformationLine },
   { id: 'varisangya', label: 'Varisangya', icon: RiCoinsLine },
   { id: 'education', label: 'Education options', icon: RiGraduationCapLine },
   { id: 'areas', label: 'Area options', icon: RiMapPin2Line },
@@ -195,6 +200,7 @@ export default function MahallMain() {
     try {
       setSaving(true);
       await tenantService.update(tenantId, {
+        contact: { phone: draft.contactPhone.trim(), email: draft.contactEmail.trim() },
         settings: {
           ...tenant.settings,
           varisangyaAmount: amountNumber,
@@ -350,6 +356,44 @@ export default function MahallMain() {
               <Detail label="Post office" value={tenant.address?.postOffice && toTitleCase(tenant.address.postOffice)} />
               <Detail label="PIN code" value={tenant.address?.pinCode} />
             </dl>
+          </SettingsSection>
+
+          {/* ---- Member contact ---------------------------------------- */}
+          <SettingsSection
+            id="contact"
+            title="Member contact"
+            description="Shown to members on their Mahallu screen so they can reach you. Phone, email or both; leave blank to show neither."
+          >
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label htmlFor="contact-phone" className="text-sm font-medium text-foreground">
+                  Phone
+                </label>
+                <input
+                  id="contact-phone"
+                  type="tel"
+                  inputMode="tel"
+                  value={draft.contactPhone}
+                  onChange={(event) => update({ contactPhone: event.target.value })}
+                  placeholder="+91 98765 43210"
+                  className="mt-1.5 h-10 w-full rounded-lg border border-border bg-card px-3 text-sm text-foreground shadow-sm transition-colors focus-visible:border-primary/60 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/10"
+                />
+              </div>
+              <div>
+                <label htmlFor="contact-email" className="text-sm font-medium text-foreground">
+                  Email
+                </label>
+                <input
+                  id="contact-email"
+                  type="email"
+                  inputMode="email"
+                  value={draft.contactEmail}
+                  onChange={(event) => update({ contactEmail: event.target.value })}
+                  placeholder="office@example.com"
+                  className="mt-1.5 h-10 w-full rounded-lg border border-border bg-card px-3 text-sm text-foreground shadow-sm transition-colors focus-visible:border-primary/60 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/10"
+                />
+              </div>
+            </div>
           </SettingsSection>
 
           {/* ---- Varisangya -------------------------------------------- */}
