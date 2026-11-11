@@ -9,6 +9,7 @@ import {
   Answers,
   SurveyField,
   SurveyFormContent,
+  TableConfig,
   answerKey,
   applyAutoSums,
   fieldIdFromKey,
@@ -19,6 +20,7 @@ import {
   tableTotals,
   visibleFieldIds,
 } from '../formEngine';
+import { useTableAsCards } from '../useTableLayout';
 
 interface SurveyAnswersViewProps {
   content: SurveyFormContent;
@@ -114,49 +116,91 @@ function AnswerValue({ field, value, submissionId }: { field: SurveyField; value
     );
   }
 
-  if (field.type === 'table' && Array.isArray(value)) {
-    const table = field.table;
-    const rows = value as unknown[][];
-    const totals = table?.showTotals ? tableTotals(table, rows) : null;
-    return (
-      <div className="mt-1 overflow-x-auto rounded-lg border border-border">
-        <table className="w-full text-sm">
-          <thead className="bg-subtle text-left text-xs text-muted-foreground">
-            <tr>
-              <th className="px-3 py-1.5">{table?.rowHeader || ''}</th>
-              {(table?.columns || []).map((c, i) => (
-                <th key={i} className={`px-3 py-1.5 ${c.type === 'number' ? 'text-right' : ''}`}>{c.title}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row, r) => (
-              <tr key={r} className="border-t border-border">
-                <th scope="row" className="px-3 py-1.5 text-left font-medium">{tableRowLabel(table, r)}</th>
-                {(table?.columns || []).map((c, i) => (
-                  <td key={i} className={`px-3 py-1.5 ${c.type === 'number' ? 'text-right tabular-nums' : ''}`}>{String(row[i] ?? '')}</td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-          {totals?.hasNumberColumns && (
-            <tfoot className="border-t-2 border-border bg-subtle font-semibold">
-              <tr>
-                <th scope="row" className="px-3 py-1.5 text-left">Total</th>
-                {totals.columnTotals.map((t, i) => (
-                  <td key={i} className="px-3 py-1.5 text-right tabular-nums">{t === null ? '' : t.toLocaleString('en-IN')}</td>
-                ))}
-              </tr>
-            </tfoot>
-          )}
-        </table>
-      </div>
-    );
-  }
+  if (field.type === 'table' && Array.isArray(value)) return <TableAnswer table={field.table} rows={value as unknown[][]} />;
 
   if (field.type === 'date' && typeof value === 'string') return <>{formatDate(value)}</>;
   if ((field.type === 'number' || field.type === 'auto_sum') && typeof value === 'number') {
     return <span className="tabular-nums">{value.toLocaleString('en-IN')}</span>;
   }
   return <span className="whitespace-pre-line">{formatAnswer(field, value)}</span>;
+}
+
+/** A table answer: a table where it fits, otherwise one card per row so nothing scrolls sideways. */
+function TableAnswer({ table, rows }: { table: TableConfig | undefined; rows: unknown[][] }) {
+  const [layoutRef, asCards] = useTableAsCards<HTMLDivElement>(table);
+  const columns = table?.columns || [];
+  const totals = table?.showTotals ? tableTotals(table, rows) : null;
+  const cell = (row: unknown[], c: number) => String(row[c] ?? '');
+
+  if (asCards) {
+    return (
+      <div ref={layoutRef} className="mt-1 space-y-2">
+        {rows.map((row, r) => (
+          <div key={r} className="overflow-hidden rounded-lg border border-border">
+            <p className="border-b border-border bg-subtle px-3 py-1.5 text-sm font-semibold">{tableRowLabel(table, r)}</p>
+            <dl className="divide-y divide-border">
+              {columns.map((column, c) => (
+                <div key={c} className="flex items-baseline justify-between gap-3 px-3 py-1.5">
+                  <dt className="min-w-0 break-words text-muted-foreground">{column.title}</dt>
+                  <dd className={`min-w-0 break-words text-right ${column.type === 'number' ? 'tabular-nums' : ''}`}>
+                    {cell(row, c) || <span className="text-muted-foreground">—</span>}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        ))}
+        {totals?.hasNumberColumns && (
+          <div className="rounded-lg border-2 border-border bg-subtle px-3 py-1.5">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Total</p>
+            <dl className="mt-1 space-y-1">
+              {totals.columnTotals.map((total, c) =>
+                total === null ? null : (
+                  <div key={c} className="flex items-baseline justify-between gap-3">
+                    <dt className="min-w-0 break-words">{columns[c]?.title}</dt>
+                    <dd className="shrink-0 font-semibold tabular-nums">{total.toLocaleString('en-IN')}</dd>
+                  </div>
+                )
+              )}
+            </dl>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div ref={layoutRef} className="mt-1 overflow-x-auto rounded-lg border border-border">
+      <table className="w-full text-sm">
+        <thead className="bg-subtle text-left text-xs text-muted-foreground">
+          <tr>
+            <th className="px-3 py-1.5">{table?.rowHeader || ''}</th>
+            {columns.map((c, i) => (
+              <th key={i} className={`px-3 py-1.5 ${c.type === 'number' ? 'text-right' : ''}`}>{c.title}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, r) => (
+            <tr key={r} className="border-t border-border">
+              <th scope="row" className="px-3 py-1.5 text-left font-medium">{tableRowLabel(table, r)}</th>
+              {columns.map((c, i) => (
+                <td key={i} className={`px-3 py-1.5 ${c.type === 'number' ? 'text-right tabular-nums' : ''}`}>{cell(row, i)}</td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+        {totals?.hasNumberColumns && (
+          <tfoot className="border-t-2 border-border bg-subtle font-semibold">
+            <tr>
+              <th scope="row" className="px-3 py-1.5 text-left">Total</th>
+              {totals.columnTotals.map((t, i) => (
+                <td key={i} className="px-3 py-1.5 text-right tabular-nums">{t === null ? '' : t.toLocaleString('en-IN')}</td>
+              ))}
+            </tr>
+          </tfoot>
+        )}
+      </table>
+    </div>
+  );
 }

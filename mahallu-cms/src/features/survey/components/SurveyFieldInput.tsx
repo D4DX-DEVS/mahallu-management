@@ -19,6 +19,7 @@ import {
   tableRowLabel,
   tableTotals,
 } from '../formEngine';
+import { useTableAsCards } from '../useTableLayout';
 
 export interface SurveyFieldInputProps {
   field: SurveyField;
@@ -291,6 +292,7 @@ function TableInput({
   const canAdd = tableAllowsAddingRows(table);
   const showLabels = fixedRows > 0 || !!table.showTotals;
   const totals = table.showTotals ? tableTotals(table, grid) : null;
+  const [layoutRef, asCards] = useTableAsCards<HTMLDivElement>(table, canAdd);
 
   const setCell = (r: number, c: number, cell: string) => {
     const next = grid.map((row) => [...row]);
@@ -299,65 +301,125 @@ function TableInput({
   };
   const addRow = () => onChange([...grid, columns.map(() => '')]);
   const removeRow = (r: number) => onChange(grid.filter((_, i) => i !== r));
+  const canRemove = (r: number) => canAdd && r >= fixedRows && grid.length > 1;
+  const columnTitle = (c: number) => columns[c]?.title || `Column ${c + 1}`;
+  const isNumber = (c: number) => columns[c]?.type === 'number';
+  const cellClass = (c: number) =>
+    `h-9 rounded-md border border-input/40 bg-card px-2 text-sm focus-visible:border-primary focus-visible:outline-none ${
+      isNumber(c) ? 'text-right tabular-nums' : ''
+    }`;
+  const removeButton = (r: number) => (
+    <Button type="button" variant="ghost" size="icon-sm" aria-label={`Remove ${tableRowLabel(table, r)}`} onClick={() => removeRow(r)}>
+      <FiTrash2 />
+    </Button>
+  );
 
   return (
     <Field ids={ids} label={field.label} required={field.required} error={error} helperText={field.helpText}>
-      <div className="overflow-x-auto rounded-lg border border-border">
-        <table className="w-full min-w-[28rem] text-sm">
-          <thead className="bg-subtle text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            <tr>
-              {showLabels && <th className="px-3 py-2">{table.rowHeader || ''}</th>}
-              {columns.map((column, c) => (
-                <th key={c} className={`px-3 py-2 ${column.type === 'number' ? 'text-right' : ''}`}>
-                  {column.title || `Column ${c + 1}`}
-                </th>
-              ))}
-              {canAdd && <th className="w-10" aria-label="Row actions" />}
-            </tr>
-          </thead>
-          <tbody>
+      <div ref={layoutRef}>
+        {asCards ? (
+          <div className="space-y-2">
             {grid.map((row, r) => (
-              <tr key={r} className="border-t border-border">
-                {showLabels && <th scope="row" className="whitespace-nowrap px-3 py-1.5 text-left font-medium">{tableRowLabel(table, r)}</th>}
-                {row.map((cell, c) => (
-                  <td key={c} className="px-1.5 py-1">
-                    <input
-                      aria-label={`${tableRowLabel(table, r)}, ${columns[c]?.title || `Column ${c + 1}`}`}
-                      className={`h-9 w-full rounded-md border border-input/40 bg-card px-2 text-sm focus-visible:border-primary focus-visible:outline-none ${
-                        columns[c]?.type === 'number' ? 'text-right tabular-nums' : ''
-                      }`}
-                      inputMode={columns[c]?.type === 'number' ? 'decimal' : undefined}
-                      value={cell}
-                      onChange={(e) => setCell(r, c, e.target.value)}
-                    />
-                  </td>
-                ))}
-                {canAdd && (
-                  <td className="px-1 text-center">
-                    {r >= fixedRows && grid.length > 1 && (
-                      <Button type="button" variant="ghost" size="icon-sm" aria-label={`Remove ${tableRowLabel(table, r)}`} onClick={() => removeRow(r)}>
-                        <FiTrash2 />
-                      </Button>
-                    )}
-                  </td>
-                )}
-              </tr>
+              <div key={r} role="group" aria-labelledby={`${ids.id}-row-${r}`} className="overflow-hidden rounded-lg border border-border bg-card">
+                <div className="flex min-h-10 items-center justify-between gap-2 border-b border-border bg-subtle py-1 pl-3 pr-1">
+                  <p id={`${ids.id}-row-${r}`} className="min-w-0 break-words text-sm font-semibold text-foreground">
+                    {tableRowLabel(table, r)}
+                  </p>
+                  {canRemove(r) && removeButton(r)}
+                </div>
+                <div className="divide-y divide-border">
+                  {row.map((cell, c) =>
+                    isNumber(c) ? (
+                      <label key={c} className="flex items-center justify-between gap-3 px-3 py-2">
+                        <span className="min-w-0 break-words text-sm text-foreground">{columnTitle(c)}</span>
+                        <input
+                          aria-label={`${tableRowLabel(table, r)}, ${columnTitle(c)}`}
+                          className={`${cellClass(c)} w-28 shrink-0`}
+                          inputMode="decimal"
+                          value={cell}
+                          onChange={(e) => setCell(r, c, e.target.value)}
+                        />
+                      </label>
+                    ) : (
+                      <label key={c} className="block px-3 py-2">
+                        <span className="mb-1 block break-words text-sm text-foreground">{columnTitle(c)}</span>
+                        <input
+                          aria-label={`${tableRowLabel(table, r)}, ${columnTitle(c)}`}
+                          className={`${cellClass(c)} w-full`}
+                          value={cell}
+                          onChange={(e) => setCell(r, c, e.target.value)}
+                        />
+                      </label>
+                    )
+                  )}
+                </div>
+              </div>
             ))}
-          </tbody>
-          {totals && totals.hasNumberColumns && (
-            <tfoot className="border-t-2 border-border bg-subtle font-semibold">
-              <tr>
-                {showLabels && <th scope="row" className="px-3 py-2 text-left">Total</th>}
-                {totals.columnTotals.map((total, c) => (
-                  <td key={c} className="px-3 py-2 text-right tabular-nums">
-                    {total === null ? '' : total.toLocaleString('en-IN')}
-                  </td>
+            {totals && totals.hasNumberColumns && (
+              <div className="rounded-lg border-2 border-border bg-subtle px-3 py-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Total</p>
+                <dl className="mt-1 space-y-1">
+                  {totals.columnTotals.map((total, c) =>
+                    total === null ? null : (
+                      <div key={c} className="flex items-baseline justify-between gap-3 text-sm">
+                        <dt className="min-w-0 break-words text-foreground">{columnTitle(c)}</dt>
+                        <dd className="shrink-0 font-semibold tabular-nums">{total.toLocaleString('en-IN')}</dd>
+                      </div>
+                    )
+                  )}
+                </dl>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="overflow-x-auto rounded-lg border border-border">
+            <table className="w-full text-sm">
+              <thead className="bg-subtle text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                <tr>
+                  {showLabels && <th className="px-3 py-2">{table.rowHeader || ''}</th>}
+                  {columns.map((column, c) => (
+                    <th key={c} className={`px-3 py-2 ${column.type === 'number' ? 'text-right' : ''}`}>
+                      {columnTitle(c)}
+                    </th>
+                  ))}
+                  {canAdd && <th className="w-10" aria-label="Row actions" />}
+                </tr>
+              </thead>
+              <tbody>
+                {grid.map((row, r) => (
+                  <tr key={r} className="border-t border-border">
+                    {showLabels && <th scope="row" className="px-3 py-1.5 text-left font-medium">{tableRowLabel(table, r)}</th>}
+                    {row.map((cell, c) => (
+                      <td key={c} className="px-1.5 py-1">
+                        <input
+                          aria-label={`${tableRowLabel(table, r)}, ${columnTitle(c)}`}
+                          className={`${cellClass(c)} w-full`}
+                          inputMode={isNumber(c) ? 'decimal' : undefined}
+                          value={cell}
+                          onChange={(e) => setCell(r, c, e.target.value)}
+                        />
+                      </td>
+                    ))}
+                    {canAdd && <td className="px-1 text-center">{canRemove(r) && removeButton(r)}</td>}
+                  </tr>
                 ))}
-                {canAdd && <td />}
-              </tr>
-            </tfoot>
-          )}
-        </table>
+              </tbody>
+              {totals && totals.hasNumberColumns && (
+                <tfoot className="border-t-2 border-border bg-subtle font-semibold">
+                  <tr>
+                    {showLabels && <th scope="row" className="px-3 py-2 text-left">Total</th>}
+                    {totals.columnTotals.map((total, c) => (
+                      <td key={c} className="px-3 py-2 text-right tabular-nums">
+                        {total === null ? '' : total.toLocaleString('en-IN')}
+                      </td>
+                    ))}
+                    {canAdd && <td />}
+                  </tr>
+                </tfoot>
+              )}
+            </table>
+          </div>
+        )}
       </div>
       {canAdd && (
         <Button type="button" variant="outline" size="sm" icon={<FiPlus />} className="mt-2" onClick={addRow}>
