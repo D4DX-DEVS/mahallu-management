@@ -8,11 +8,13 @@ export interface StepperProps {
   /** Highest step index the user has reached; earlier/visited steps are clickable */
   maxVisited?: number;
   onStepClick?: (index: number) => void;
+  /** Numbers only: every label is kept for screen readers but not shown. */
+  compact?: boolean;
   className?: string;
 }
 
 /** Numbered circles joined by a connector line (ZAAD form wizard). */
-export default function Stepper({ steps, current, maxVisited = current, onStepClick, className }: StepperProps) {
+export default function Stepper({ steps, current, maxVisited = current, onStepClick, compact, className }: StepperProps) {
   return (
     <ol className={cn('flex items-center gap-2.5', className)} aria-label="Form progress">
       {steps.map((s, i) => {
@@ -42,7 +44,7 @@ export default function Stepper({ steps, current, maxVisited = current, onStepCl
               >
                 {done ? <FiCheck className="h-3 w-3" aria-hidden="true" /> : i + 1}
               </span>
-              <span className={cn(!active && 'hidden sm:inline')}>{s.label}</span>
+              <span className={cn(compact ? 'sr-only' : !active && 'hidden sm:inline')}>{s.label}</span>
             </button>
             {i < steps.length - 1 && (
               <i

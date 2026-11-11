@@ -2,9 +2,9 @@ import { useMemo, useState } from 'react';
 import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
 import Segmented from '@/components/ui/Segmented';
-import Stepper from '@/components/ui/Stepper';
 import { Answers, SurveyFormContent, validateAnswers, visibleFieldIds } from '../formEngine';
 import SurveyPageFields from './SurveyPageFields';
+import PageStepper from './PageStepper';
 
 interface FormPreviewModalProps {
   isOpen: boolean;
@@ -65,7 +65,7 @@ export default function FormPreviewModal({ isOpen, onClose, title, content }: Fo
                 </ol>
               </div>
             )}
-            {pages.length > 1 && <Stepper steps={pages.map((p) => ({ id: String(p.id), label: p.title || 'Untitled' }))} current={pageIndex} />}
+            {pages.length > 1 && <PageStepper pages={pages} current={pageIndex} />}
             <div>
               <h3 className="text-base font-semibold">{page.title}</h3>
               {page.description && <p className="text-sm text-muted-foreground">{page.description}</p>}

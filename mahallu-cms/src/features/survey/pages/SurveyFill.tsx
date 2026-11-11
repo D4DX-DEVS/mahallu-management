@@ -3,7 +3,6 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { FiArrowLeft, FiCheckCircle, FiSave, FiTrash2 } from 'react-icons/fi';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
-import Stepper from '@/components/ui/Stepper';
 import SearchableSelect, { SearchableSelectOption } from '@/components/ui/SearchableSelect';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import EmptyState from '@/components/ui/EmptyState';
@@ -24,6 +23,7 @@ import {
   visibleFieldIds,
 } from '../formEngine';
 import SurveyPageFields from '../components/SurveyPageFields';
+import PageStepper from '../components/PageStepper';
 
 const AUTOSAVE_MS = 30_000;
 
@@ -445,12 +445,7 @@ export default function SurveyFill() {
       <Card>
         {content.pages.length > 1 && (
           <div className="mb-4">
-            <Stepper
-              steps={content.pages.map((p) => ({ id: String(p.id), label: p.title || 'Untitled' }))}
-              current={pageIndex}
-              maxVisited={pageIndex}
-              onStepClick={(i) => i < pageIndex && setPageIndex(i)}
-            />
+            <PageStepper pages={content.pages} current={pageIndex} onStepClick={(i) => i < pageIndex && setPageIndex(i)} />
           </div>
         )}
         <div className="mb-4">
