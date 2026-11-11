@@ -102,7 +102,7 @@ export const createTenant = async (req: AuthRequest, res: Response) => {
       if (!claimed) {
         const request = await DemoRequest.findById(demoRequestId);
         if (!request) {
-          return res.status(404).json({ success: false, message: "We couldn't find that demo request. It may have been removed." });
+          return res.status(404).json({ success: false, message: "We couldn't find that request. It may have been removed." });
         }
         return res.status(409).json({
           success: false,

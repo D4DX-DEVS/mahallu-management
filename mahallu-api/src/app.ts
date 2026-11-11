@@ -46,6 +46,7 @@ import exportRoutes from './routes/exportRoutes';
 import { verifyCertificate } from './controllers/certificateController';
 import registerRoutes from './routes/registerRoutes';
 import surveyRoutes from './routes/surveyRoutes';
+import surveyFormRoutes from './routes/surveyFormRoutes';
 import localityFacilityRoutes from './routes/localityFacilityRoutes';
 import clusterRoutes from './routes/clusterRoutes';
 import clusterVisitRoutes from './routes/clusterVisitRoutes';
@@ -230,6 +231,7 @@ export const createApp = (): express.Express => {
   app.use('/api/export', exportRoutes);
   app.use('/api/registers', registerRoutes);
   app.use('/api/surveys', surveyRoutes);
+  app.use('/api/survey-forms', surveyFormRoutes);
   app.use('/api/locality-facilities', localityFacilityRoutes);
   app.use('/api/clusters', clusterRoutes);
   app.use('/api/cluster-visits', clusterVisitRoutes);

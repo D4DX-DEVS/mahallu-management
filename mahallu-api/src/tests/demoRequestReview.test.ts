@@ -1,5 +1,5 @@
 /**
- * Demo request review: the extra tenant details a request carries, the pending / accepted /
+ * ZAAD request review: the details a request carries, the pending / accepted /
  * rejected states, who may decide, and how an accepted request becomes a Mahallu.
  *
  *   npm test
@@ -36,10 +36,20 @@ const validate = async (chains: any[], body: any, params: any = {}) => {
 const baseRequest = { mahalluName: 'Beypore Juma Masjid', contactNumber: '9876543210', whatsappNumber: '9876543211' };
 const fullRequest = {
   ...baseRequest,
-  type: 'juma_masjid',
+  affiliationNumber: 'MCK-1234',
   location: 'Beypore',
-  address: { state: 'Kerala', district: 'Kozhikode', pinCode: '673015', postOffice: 'Beypore', village: 'Beypore' },
+  localUnit: 'Beypore',
+  area: 'Feroke',
+  district: 'Kozhikode',
+  officeBearerName: 'Abdul Rahman',
+  contactPersonName: 'Yusuf',
+  contactPersonPhone: '9876543212',
+  contactPersonWhatsapp: '9876543213',
 };
+/** Only the required fields of the form. */
+const requiredRequest = (({ affiliationNumber, contactPersonName, contactPersonPhone, contactPersonWhatsapp, ...rest }) => rest)(
+  fullRequest
+);
 
 /** Replace the WhatsApp sender for one test and put it back afterwards. */
 const withWhatsApp = async (impl: (phone: string, text: string) => Promise<unknown>, run: () => Promise<void>) => {
@@ -56,27 +66,32 @@ const admin = { isSuperAdmin: true, user: { _id: oid(), role: 'super_admin' } };
 
 // ---------------------------------------------------------------- validation
 
-test('the old three-field form still validates, and the extra tenant details are accepted', async () => {
-  assert.deepEqual(await validate(createDemoRequestValidation, baseRequest), []);
+test('the form validates with every field, and with only the required ones', async () => {
   assert.deepEqual(await validate(createDemoRequestValidation, fullRequest), []);
+  assert.deepEqual(await validate(createDemoRequestValidation, requiredRequest), []);
+  assert.deepEqual(
+    await validate(createDemoRequestValidation, { ...requiredRequest, affiliationNumber: '', contactPersonName: '', contactPersonPhone: '' }),
+    []
+  );
 });
 
-test('a demo request type must be Mahallu or Juma Masjid', async () => {
-  for (const type of ['standard', 'premium', 'enterprise', 'other']) {
-    const errors = await validate(createDemoRequestValidation, { ...baseRequest, type });
-    assert.deepEqual(errors, ['type: Please choose a valid type.'], type);
-  }
-  assert.deepEqual(await validate(createDemoRequestValidation, { ...baseRequest, type: 'mahallu' }), []);
+test('every required field is asked for', async () => {
+  const errors = await validate(createDemoRequestValidation, {});
+  assert.deepEqual(
+    errors.map((e) => e.split(':')[0]),
+    ['mahalluName', 'location', 'localUnit', 'area', 'district', 'officeBearerName', 'contactNumber', 'whatsappNumber']
+  );
 });
 
 test('over-long details and bad numbers are still refused', async () => {
   const errors = await validate(createDemoRequestValidation, {
-    ...baseRequest,
+    ...fullRequest,
     contactNumber: '123',
     location: 'x'.repeat(301),
-    address: { village: 'v'.repeat(201) },
+    area: 'a'.repeat(201),
+    contactPersonPhone: '12345',
   });
-  assert.equal(errors.length, 3);
+  assert.equal(errors.length, 4);
 });
 
 test('a tenant is created as Mahallu or Juma Masjid, and LSG name is optional', async () => {
@@ -93,7 +108,7 @@ test('a tenant is created as Mahallu or Juma Masjid, and LSG name is optional', 
     assert.deepEqual(await validate(createTenantValidation, { ...tenant, type }), ['type: Please choose a valid tenant type.'], type);
   }
   assert.deepEqual(await validate(createTenantValidation, { ...tenant, demoRequestId: 'nope' }), [
-    'demoRequestId: Please choose a valid demo request.',
+    'demoRequestId: Please choose a valid request.',
   ]);
 });
 
@@ -119,18 +134,13 @@ test('a rejection needs a non-empty reason', async () => {
 
 // ---------------------------------------------------------------- persistence
 
-test('a submission stores the tenant details and always starts pending', async () => {
+test('a submission stores every detail and always starts pending', async () => {
   const fake = installFake(DemoRequest);
   try {
     const reply = await call(createDemoRequest, { body: { ...fullRequest, status: 'accepted', tenantId: String(oid()) } });
     assert.equal(reply.status, 201);
     const [row] = fake.store.find({});
-    assert.equal(row.type, 'juma_masjid');
-    assert.equal(row.location, 'Beypore');
-    assert.deepEqual(
-      { ...row.address },
-      { state: 'Kerala', district: 'Kozhikode', pinCode: '673015', postOffice: 'Beypore', village: 'Beypore' }
-    );
+    for (const [key, value] of Object.entries(fullRequest)) assert.equal(row[key], value, key);
     assert.equal(row.status, 'pending');
     assert.equal(row.tenantId, undefined);
   } finally {
@@ -150,14 +160,16 @@ test('a submission never creates a tenant', async () => {
   }
 });
 
-test('the old three-field submission is stored without empty detail fields', async () => {
+test('optional fields left empty are not stored', async () => {
   const fake = installFake(DemoRequest);
   try {
-    await call(createDemoRequest, { body: baseRequest });
+    await call(createDemoRequest, { body: { ...requiredRequest, affiliationNumber: '', contactPersonName: '' } });
     const [row] = fake.store.find({});
     assert.equal(row.mahalluName, 'Beypore Juma Masjid');
-    assert.equal(row.type, undefined);
-    assert.equal(row.address, undefined);
+    assert.equal(row.officeBearerName, 'Abdul Rahman');
+    assert.equal(row.affiliationNumber, undefined);
+    assert.equal(row.contactPersonName, undefined);
+    assert.equal(row.contactPersonPhone, undefined);
   } finally {
     fake.restore();
   }

@@ -13,31 +13,41 @@ import { sendFailure } from '../utils/userMessages';
  */
 const PENDING = { $or: [{ status: 'pending' }, { status: { $exists: false } }] };
 
-const NOT_FOUND = "We couldn't find that demo request. It may have been removed.";
+const NOT_FOUND = "We couldn't find that request. It may have been removed.";
 
 /** Strip empty values so an untouched optional field is never stored as ''. */
 const compact = <T extends Record<string, unknown>>(values: T): Partial<T> =>
   Object.fromEntries(Object.entries(values).filter(([, value]) => value !== undefined && value !== '')) as Partial<T>;
 
-// POST /api/demo-requests — public, sent from the landing page's "Request a demo" form
+// POST /api/demo-requests — public, sent from the landing page's "Request ZAAD" form
 export const createDemoRequest = async (req: Request, res: Response) => {
   try {
-    const { mahalluName, contactNumber, whatsappNumber, type, location, address } = req.body;
-    const addressFields = compact({
-      state: address?.state,
-      district: address?.district,
-      pinCode: address?.pinCode,
-      postOffice: address?.postOffice,
-      village: address?.village,
-    });
+    const {
+      mahalluName,
+      affiliationNumber,
+      location,
+      localUnit,
+      area,
+      district,
+      officeBearerName,
+      contactNumber,
+      whatsappNumber,
+      contactPersonName,
+      contactPersonPhone,
+      contactPersonWhatsapp,
+    } = req.body;
 
     // `status` is never read from the body: every request starts pending.
     await DemoRequest.create({
       mahalluName,
+      location,
+      localUnit,
+      area,
+      district,
+      officeBearerName,
       contactNumber,
       whatsappNumber,
-      ...compact({ type, location }),
-      ...(Object.keys(addressFields).length > 0 ? { address: addressFields } : {}),
+      ...compact({ affiliationNumber, contactPersonName, contactPersonPhone, contactPersonWhatsapp }),
       status: 'pending',
     });
     return res.status(201).json({
@@ -57,7 +67,9 @@ export const listDemoRequests = async (req: AuthRequest, res: Response) => {
     const clauses: Record<string, unknown>[] = [];
     const pattern = searchRegex(req.query.search);
     if (pattern) {
-      clauses.push({ $or: [{ mahalluName: pattern }, { contactNumber: pattern }, { whatsappNumber: pattern }] });
+      clauses.push({
+        $or: [{ mahalluName: pattern }, { officeBearerName: pattern }, { contactNumber: pattern }, { whatsappNumber: pattern }],
+      });
     }
     const status = asFilterValue(req.query.status);
     if (status === 'pending') clauses.push(PENDING);
@@ -72,7 +84,7 @@ export const listDemoRequests = async (req: AuthRequest, res: Response) => {
 
     return res.json(createPaginationResponse(data, total, page, limit));
   } catch (error) {
-    return sendFailure(res, error, "We couldn't load demo requests right now. Please try again in a moment.");
+    return sendFailure(res, error, "We couldn't load ZAAD requests right now. Please try again in a moment.");
   }
 };
 
@@ -83,7 +95,7 @@ export const getDemoRequest = async (req: AuthRequest, res: Response) => {
     if (!request) return res.status(404).json({ success: false, message: NOT_FOUND });
     return res.json({ success: true, data: request });
   } catch (error) {
-    return sendFailure(res, error, "We couldn't load that demo request right now. Please try again in a moment.");
+    return sendFailure(res, error, "We couldn't load that request right now. Please try again in a moment.");
   }
 };
 
@@ -116,7 +128,7 @@ export const acceptDemoRequest = async (req: AuthRequest, res: Response) => {
 };
 
 const rejectionText = (mahalluName: string, reason: string) =>
-  `Assalamu Alaikum. Thank you for your interest in ZAAD. We are unable to go ahead with the demo request for ${mahalluName}.\n\nReason: ${reason}`;
+  `Assalamu Alaikum. Thank you for your interest in ZAAD. We are unable to go ahead with the ZAAD request for ${mahalluName}.\n\nReason: ${reason}`;
 
 // POST /api/demo-requests/:id/reject — the reason is stored, then the requester is messaged on WhatsApp.
 // The rejection stands whether or not the message goes; the response says which happened.

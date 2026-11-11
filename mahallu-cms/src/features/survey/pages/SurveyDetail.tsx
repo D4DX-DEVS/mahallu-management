@@ -61,7 +61,7 @@ export default function SurveyDetail() {
     return (
       <Card>
         <p className="text-red-600 dark:text-red-400">{error || 'Survey not found'}</p>
-        <Link to="/survey">
+        <Link to="/survey/snapshots">
           <Button variant="outline" className="mt-4">
             Back to surveys
           </Button>
@@ -78,7 +78,7 @@ export default function SurveyDetail() {
       setDeleting(true);
       await surveyService.remove(id);
       toast.success('Survey deleted');
-      navigate('/survey');
+      navigate('/survey/snapshots');
     } catch (err: any) {
       toast.error(errorMessage(err, { action: 'delete survey' }));
       setDeleting(false);
@@ -92,7 +92,7 @@ export default function SurveyDetail() {
           <PageHeader
             title={snapshot.type === 'comprehensive' ? 'Comprehensive Survey' : 'Annual Survey'}
             description={`Taken ${formatDate(snapshot.surveyDate)} · next review ${formatDate(snapshot.nextReviewDate)}${isOverdue ? ' (overdue)' : ''}`}
-            breadcrumbs={[{ label: 'Survey', path: '/survey' }]}
+            breadcrumbs={[{ label: 'Snapshots', path: '/survey/snapshots' }]}
           />
           <div className="flex gap-2 items-center">
             <Button variant="danger" onClick={() => setShowDeleteModal(true)} icon={<FiTrash2 />} collapseLabel>

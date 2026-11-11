@@ -1,5 +1,5 @@
 /**
- * Demo requests: the landing page's public form lands in an inbox that only
+ * ZAAD requests: the landing page's public form lands in an inbox that only
  * platform staff can read.
  *
  *   npm test

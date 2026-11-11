@@ -15,8 +15,8 @@ import '../landing.css';
 
 /**
  * The public front door at "/". Everything on it is static marketing content;
- * the sign-in page is reached from its header, and every "Request a demo"
- * button opens the one demo-request form owned here.
+ * the sign-in page is reached from its header, and every "Request ZAAD"
+ * button opens the one request form owned here.
  *
  * On wide screens the hero is pinned (see HeroSection) and the rest of the
  * page is a raised sheet that slides over it as the visitor scrolls.

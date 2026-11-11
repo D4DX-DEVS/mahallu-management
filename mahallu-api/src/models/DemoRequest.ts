@@ -1,5 +1,4 @@
 import mongoose, { Schema, Document, Types } from 'mongoose';
-import { TENANT_TYPES, TenantType } from '../config/tenantTypes';
 
 export const DEMO_REQUEST_STATUSES = ['pending', 'accepted', 'rejected'] as const;
 export type DemoRequestStatus = (typeof DEMO_REQUEST_STATUSES)[number];
@@ -8,7 +7,7 @@ export type DemoRequestStatus = (typeof DEMO_REQUEST_STATUSES)[number];
 export type RejectionNotificationStatus = 'sent' | 'failed';
 
 /**
- * A "Request a demo" submission from the public landing page.
+ * A "Request ZAAD" submission from the public landing page.
  *
  * There is no tenant or user behind it until platform staff accept it and create the Mahallu
  * from the tenant form (the tenant's id is then recorded in `tenantId`). Requests saved before
@@ -17,17 +16,22 @@ export type RejectionNotificationStatus = 'sent' | 'failed';
  */
 export interface IDemoRequest extends Document {
   mahalluName: string;
+  /** Masjid Council affiliation number, when the Mahallu has one. */
+  affiliationNumber?: string;
+  /** Place (സ്ഥലം). */
+  location: string;
+  /** Jamaat-e-Islami local unit (പ്രാദേശിക ഘടകം). */
+  localUnit: string;
+  area: string;
+  district: string;
+  /** President or secretary of the Masjid/Mahallu; `contactNumber` and `whatsappNumber` are theirs. */
+  officeBearerName: string;
   contactNumber: string;
   whatsappNumber: string;
-  type?: TenantType;
-  location?: string;
-  address?: {
-    state?: string;
-    district?: string;
-    pinCode?: string;
-    postOffice?: string;
-    village?: string;
-  };
+  /** Optional person to contact for follow-up. */
+  contactPersonName?: string;
+  contactPersonPhone?: string;
+  contactPersonWhatsapp?: string;
   status: DemoRequestStatus;
   reviewedAt?: Date;
   reviewedBy?: Types.ObjectId;
@@ -46,17 +50,17 @@ export interface IDemoRequest extends Document {
 const DemoRequestSchema = new Schema<IDemoRequest>(
   {
     mahalluName: { type: String, required: true, trim: true, maxlength: 150 },
+    affiliationNumber: { type: String, trim: true, maxlength: 100 },
+    location: { type: String, required: true, trim: true, maxlength: 300 },
+    localUnit: { type: String, required: true, trim: true, maxlength: 200 },
+    area: { type: String, required: true, trim: true, maxlength: 200 },
+    district: { type: String, required: true, trim: true, maxlength: 200 },
+    officeBearerName: { type: String, required: true, trim: true, maxlength: 150 },
     contactNumber: { type: String, required: true, trim: true },
     whatsappNumber: { type: String, required: true, trim: true },
-    type: { type: String, enum: TENANT_TYPES },
-    location: { type: String, trim: true, maxlength: 300 },
-    address: {
-      state: { type: String, trim: true, maxlength: 200 },
-      district: { type: String, trim: true, maxlength: 200 },
-      pinCode: { type: String, trim: true, maxlength: 20 },
-      postOffice: { type: String, trim: true, maxlength: 200 },
-      village: { type: String, trim: true, maxlength: 200 },
-    },
+    contactPersonName: { type: String, trim: true, maxlength: 150 },
+    contactPersonPhone: { type: String, trim: true },
+    contactPersonWhatsapp: { type: String, trim: true },
     status: { type: String, enum: DEMO_REQUEST_STATUSES, default: 'pending' },
     reviewedAt: Date,
     reviewedBy: { type: Schema.Types.ObjectId, ref: 'User' },

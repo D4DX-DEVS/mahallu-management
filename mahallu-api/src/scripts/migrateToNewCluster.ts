@@ -202,7 +202,7 @@ async function main() {
       // Recreate indexes (skip the automatic _id index)
       const indexes = (await srcCol.indexes()).filter((i) => i.name !== '_id_');
       for (const idx of indexes) {
-        const { key, name: idxName, unique, sparse, expireAfterSeconds, partialFilterExpression } = idx as any;
+        const { key, name: idxName, unique, sparse, expireAfterSeconds, partialFilterExpression, collation } = idx as any;
         await dstCol
           .createIndex(key, {
             name: idxName,
@@ -210,6 +210,8 @@ async function main() {
             ...(sparse ? { sparse } : {}),
             ...(expireAfterSeconds !== undefined ? { expireAfterSeconds } : {}),
             ...(partialFilterExpression ? { partialFilterExpression } : {}),
+            // A unique index with a case-insensitive collation enforces a different rule without it.
+            ...(collation ? { collation } : {}),
           })
           .catch((e: any) => console.warn(`  index ${idxName} on ${name}: ${redact(String(e?.message ?? e))}`));
       }

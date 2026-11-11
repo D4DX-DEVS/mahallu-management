@@ -1,4 +1,4 @@
-/** What a new Mahall (tenant) or demo request can be. Values are what the API stores. */
+/** What a new Mahall (tenant) can be. Values are what the API stores. */
 export const TENANT_TYPE_OPTIONS = [
   { value: 'mahallu', label: 'Mahallu' },
   { value: 'juma_masjid', label: 'Juma Masjid' },

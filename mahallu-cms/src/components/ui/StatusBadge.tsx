@@ -59,6 +59,7 @@ const STATUS_MAP: Record<string, StatusDef> = {
 
   // Accepted, in force
   approved: { label: 'Approved', tone: 'positive' },
+  accepted: { label: 'Accepted', tone: 'positive' },
   verified: { label: 'Verified', tone: 'positive' },
   success: { label: 'Approved', tone: 'positive' },
   active: { label: 'Active', tone: 'positive' },

@@ -131,7 +131,7 @@ export const publicVerifyRateLimiter = limiter(
   'Too many verification requests. Please wait a minute and try again.'
 );
 
-/** The landing page's demo form is open to anyone, so one address gets ten sends per hour. */
+/** The landing page's "Request ZAAD" form is open to anyone, so one address gets ten sends per hour. */
 export const demoRequestRateLimiter = limiter(
   'demo-request',
   60 * 60 * 1000,

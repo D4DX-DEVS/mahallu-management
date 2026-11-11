@@ -20,11 +20,11 @@ export const createTenantValidation = [
   body('type')
     .isIn([...TENANT_TYPES])
     .withMessage('Please choose a valid tenant type.'),
-  // Set when the Mahallu is being created from an accepted demo request.
+  // Set when the Mahallu is being created from an accepted ZAAD request.
   body('demoRequestId')
     .optional({ values: 'falsy' })
     .isMongoId()
-    .withMessage('Please choose a valid demo request.'),
+    .withMessage('Please choose a valid request.'),
   body('location').optional().trim(),
   body('locationMl').optional().trim(),
   body('address.state')

@@ -41,7 +41,7 @@ const tenantSchema = z.object({
 
 type TenantFormData = z.infer<typeof tenantSchema>;
 
-/** The accepted demo request this form was opened from (?demoRequest=<id>), if any. */
+/** The accepted ZAAD request this form was opened from (?demoRequest=<id>), if any. */
 type SourceRequest =
   | { phase: 'none' }
   | { phase: 'loading' }
@@ -90,7 +90,7 @@ export default function CreateTenant() {
     setValue('code', generateCode());
   }, [setValue]);
 
-  // Opened from an accepted demo request: fill in what the request carried. Nothing is created
+  // Opened from an accepted ZAAD request: fill in what the request carried. Nothing is created
   // until the administrator reviews the form and submits it.
   useEffect(() => {
     if (!demoRequestId) return;
@@ -109,7 +109,7 @@ export default function CreateTenant() {
         }
       })
       .catch((error) => {
-        if (!cancelled) setSource({ phase: 'blocked', message: loadErrorMessage(error, 'that demo request') });
+        if (!cancelled) setSource({ phase: 'blocked', message: loadErrorMessage(error, 'that request') });
       });
     return () => {
       cancelled = true;
@@ -123,13 +123,8 @@ export default function CreateTenant() {
       if (value) setValue(field, value as never, { shouldDirty: true });
     };
     fill('name', sourceRequest.mahalluName);
-    fill('type', sourceRequest.type);
     fill('location', sourceRequest.location);
-    fill('address.state', sourceRequest.address?.state);
-    fill('address.district', sourceRequest.address?.district);
-    fill('address.pinCode', sourceRequest.address?.pinCode);
-    fill('address.postOffice', sourceRequest.address?.postOffice);
-    fill('address.village', sourceRequest.address?.village);
+    fill('address.district', sourceRequest.district);
   }, [sourceRequest, setValue]);
 
   // Watch state changes to update districts
