@@ -1,6 +1,6 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
-export type DocumentOwnerType = 'member' | 'family' | 'nikah' | 'death' | 'noc';
+export type DocumentOwnerType = 'member' | 'family' | 'nikah' | 'death' | 'noc' | 'survey';
 export type DocumentType =
   | 'id_proof'
   | 'age_proof'
@@ -39,7 +39,7 @@ const DocumentFileSchema = new Schema<IDocumentFile>(
     },
     ownerType: {
       type: String,
-      enum: ['member', 'family', 'nikah', 'death', 'noc'],
+      enum: ['member', 'family', 'nikah', 'death', 'noc', 'survey'],
       required: true,
     },
     ownerId: { type: Schema.Types.ObjectId, index: true },

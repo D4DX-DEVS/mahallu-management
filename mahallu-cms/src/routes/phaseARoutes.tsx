@@ -3,6 +3,12 @@ import RegisterList from '@/features/registers/pages/RegisterList';
 import SurveyList from '@/features/survey/pages/SurveyList';
 import SurveyDetail from '@/features/survey/pages/SurveyDetail';
 import FacilitiesList from '@/features/survey/pages/FacilitiesList';
+import SurveysList from '@/features/survey/pages/SurveysList';
+import SurveyFormModal from '@/features/survey/pages/SurveyFormModal';
+import SurveyOverview from '@/features/survey/pages/SurveyOverview';
+import SurveyBuilder from '@/features/survey/pages/SurveyBuilder';
+import SurveyFill from '@/features/survey/pages/SurveyFill';
+import SubmissionDetail from '@/features/survey/pages/SubmissionDetail';
 import ClustersList from '@/features/clusters/pages/ClustersList';
 import ClusterDetail from '@/features/clusters/pages/ClusterDetail';
 import SchemesList from '@/features/welfare/pages/SchemesList';
@@ -26,10 +32,18 @@ export const phaseARoutes = [
   route('/registers', <RegistersOverview />, surveyRoles),
   route('/registers/:key', <RegisterList />, surveyRoles),
 
-  // Survey and demographics (A4)
-  route('/survey', <SurveyList />, surveyRoles),
+  // Surveys (A4): configurable survey forms, plus the demographic snapshots generated from live records
+  route('/survey', <SurveysList />, surveyRoles),
+  route('/survey/create', <SurveyFormModal />, mahallOnly, { label: 'New Survey' }),
+  route('/survey/snapshots', <SurveyList />, surveyRoles, { label: 'Demographic Snapshots' }),
+  route('/survey/snapshots/:id', <SurveyDetail />, surveyRoles),
   route('/survey/facilities', <FacilitiesList />, surveyRoles),
-  route('/survey/:id', <SurveyDetail />, surveyRoles),
+  route('/survey/:id', <SurveyOverview />, surveyRoles),
+  route('/survey/:id/edit', <SurveyFormModal />, mahallOnly),
+  route('/survey/:id/builder', <SurveyBuilder />, mahallOnly),
+  route('/survey/:id/fill', <SurveyFill />, surveyRoles),
+  route('/survey/:id/fill/:subId', <SurveyFill />, surveyRoles),
+  route('/survey/:id/responses/:subId', <SubmissionDetail />, surveyRoles),
 
   // Clusters (A7)
   route('/clusters', <ClustersList />, surveyRoles),

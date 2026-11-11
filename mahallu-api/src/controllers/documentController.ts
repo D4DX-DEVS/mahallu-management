@@ -19,7 +19,7 @@ const MAX_DOCUMENT_SIZE = 10 * 1024 * 1024; // 10MB
 
 /** Mirrors the DocumentFile schema enums, so an unknown value is a 400, not a 500. */
 const DOCUMENT_TYPES = ['id_proof', 'age_proof', 'photo', 'address_proof', 'divorce_doc', 'death_proof', 'other'];
-const OWNER_TYPES = ['member', 'family', 'nikah', 'death', 'noc'];
+const OWNER_TYPES = ['member', 'family', 'nikah', 'death', 'noc', 'survey'];
 
 export const documentUploadMiddleware = multer({
   storage: multer.memoryStorage(),

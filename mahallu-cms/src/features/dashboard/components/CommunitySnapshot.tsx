@@ -92,7 +92,7 @@ export default function CommunitySnapshot({ children }: CommunitySnapshotProps) 
             <Alert
               variant="warning"
               title="Survey renewal overdue"
-              action={{ label: 'Open survey', onClick: () => navigate('/survey') }}
+              action={{ label: 'Open snapshots', onClick: () => navigate('/survey/snapshots') }}
             >
               Generate a fresh demographic snapshot.
             </Alert>

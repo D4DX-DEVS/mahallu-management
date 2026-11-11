@@ -15,6 +15,7 @@ import { surveyService, SurveySnapshot } from '@/services/surveyService';
 import { toast } from '@/store/toastStore';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import SurveyTabsNav from '../components/SurveyTabsNav';
 
 const formatDate = (value?: string) => (value ? new Date(value).toLocaleDateString() : '—');
 
@@ -61,8 +62,8 @@ export default function SurveyList() {
       setGenerating(true);
       const snapshot = await surveyService.generate({ type: generateType });
       setGenerateOpen(false);
-      toast.success('Survey generated');
-      navigate(`/survey/${snapshot.id}`);
+      toast.success('Snapshot generated');
+      navigate(`/survey/snapshots/${snapshot.id}`);
     } catch (err: any) {
       toast.error(errorMessage(err, { action: 'generate survey' }));
     } finally {
@@ -81,14 +82,15 @@ export default function SurveyList() {
   return (
     <>
       <PageHeader
-        title="Survey & demographics"
-        description="Point-in-time snapshots of the mahallu population."
+        title="Surveys"
+        description="Point-in-time snapshots of the mahallu population, generated from family and member records."
         actions={
           <Button icon={<FiPlus />} collapseLabel onClick={() => setGenerateOpen(true)}>
-            Generate survey
+            Generate snapshot
           </Button>
         }
       />
+      <SurveyTabsNav />
 
       {status?.isOverdue && (
         <Card className="mb-4 border-l-4 border-amber-500 p-3">
@@ -113,8 +115,8 @@ export default function SurveyList() {
               data={rows}
               isLoading={loading}
               entity="survey snapshots"
-              emptyAction={{ label: 'Generate survey', onClick: () => setGenerateOpen(true) }}
-              onRowClick={(row) => navigate(`/survey/${row.id}`)}
+              emptyAction={{ label: 'Generate snapshot', onClick: () => setGenerateOpen(true) }}
+              onRowClick={(row) => navigate(`/survey/snapshots/${row.id}`)}
             />
 
             {pagination && (
