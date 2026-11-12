@@ -124,8 +124,15 @@ export default function SubmissionsTab({ survey }: { survey: SurveyForm }) {
   const isFiltered = activeFilterCount > 0 || Boolean(search);
   const counts = meta?.statusCounts;
 
+  // Present only when the Super Admin reads a global survey across all Mahallus (the server populates it).
+  const mahalluName = (row: SurveySubmission) => (row.tenantId && typeof row.tenantId === 'object' ? row.tenantId.name || '' : '');
+  const acrossMahallus = survey.scope === 'global' && rows.some((row) => mahalluName(row));
+
   const columns: TableColumn<SurveySubmission>[] = [
     { key: 'submittedAt', label: 'Submitted', width: '11rem', render: (v) => formatDateTime(v) },
+    ...(acrossMahallus
+      ? [{ key: 'tenantId', label: 'Mahallu', width: '12rem', sortable: false, render: (_v: unknown, row: SurveySubmission) => mahalluName(row) || '—' }]
+      : []),
     {
       key: 'respondentName',
       label: survey.respondentType === 'member' ? 'Member' : survey.respondentType === 'family' ? 'Family' : 'Respondent',

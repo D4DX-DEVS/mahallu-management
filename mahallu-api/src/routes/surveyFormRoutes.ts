@@ -6,6 +6,7 @@ import {
   updateSurvey,
   deleteSurvey,
   setSurveyStatus,
+  shareSurveyWithAllMahallus,
   getBuilder,
   saveBuilder,
   publishSurvey,
@@ -20,7 +21,7 @@ import {
   reviewSubmission,
   getSubmissionFileUrl,
 } from '../controllers/surveyFormController';
-import { authMiddleware, requireAdmin, requireFieldStaff } from '../middleware/authMiddleware';
+import { authMiddleware, requireAdmin, requireFieldStaff, superAdminOnly } from '../middleware/authMiddleware';
 import { tenantMiddleware, tenantFilter } from '../middleware/tenantMiddleware';
 import { validationHandler } from '../middleware/validationHandler';
 import {
@@ -44,6 +45,10 @@ import {
  *
  *   Mahallu admin / Super Admin   create surveys, build and publish the form, open/close, review responses
  *   Survey worker                 sees published surveys, fills them, and reads their own responses
+ *   Super Admin only              global surveys (one form shared with every Mahallu): create, change, share
+ *
+ * A global survey's responses are stored under the Mahallu that filled them, and every read of
+ * responses is scoped to the caller's Mahallu in the controller.
  *
  * Every endpoint is behind requireFieldStaff; the admin-only ones add requireAdmin. Reads a survey
  * worker may make (a survey, its published form, one response) are scoped to them in the controller.
@@ -56,7 +61,8 @@ import {
  *   - name: Survey forms
  *     description: |
  *       Configurable multi-page survey forms, their published versions and responses.
- *       GET / · POST / · GET|PUT|DELETE /{id} · POST /{id}/status · GET|PUT /{id}/builder · POST /{id}/publish ·
+ *       GET / · POST / · GET|PUT|DELETE /{id} · POST /{id}/status · POST /{id}/share-global (Super Admin) ·
+ *       GET|PUT /{id}/builder · POST /{id}/publish ·
  *       GET /{id}/form · POST /{id}/submissions · GET /{id}/submissions (admin) · GET /{id}/submissions/export (admin) ·
  *       GET /{id}/my-submissions · GET|PUT|DELETE /submissions/{subId} · POST /submissions/{subId}/review (admin) ·
  *       GET /submissions/{subId}/files/{docId}
@@ -82,6 +88,7 @@ router.get('/:id', surveyIdValidation, validationHandler, getSurvey);
 router.put('/:id', updateSurveyFormValidation, validationHandler, requireAdmin, updateSurvey);
 router.delete('/:id', surveyIdValidation, validationHandler, requireAdmin, deleteSurvey);
 router.post('/:id/status', surveyStatusValidation, validationHandler, requireAdmin, setSurveyStatus);
+router.post('/:id/share-global', surveyIdValidation, validationHandler, superAdminOnly, shareSurveyWithAllMahallus);
 
 // Builder
 router.get('/:id/builder', surveyIdValidation, validationHandler, requireAdmin, getBuilder);

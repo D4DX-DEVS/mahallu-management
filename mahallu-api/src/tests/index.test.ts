@@ -114,3 +114,4 @@ import './zakatIntegrity.test';
 import './memberAppRequests.test';
 import './tenantContact.test';
 import './surveyForms.test';
+import './surveyFormGlobalScope.test';

@@ -3,14 +3,11 @@ import { Link } from 'react-router-dom';
 import { FiMenu, FiX } from 'react-icons/fi';
 import { useAuthStore } from '@/store/authStore';
 import { ROUTES } from '@/constants/routes';
-import { BRAND_NAME, BRAND_TAGLINE } from '@/constants/theme';
+import { BRAND_NAME, BRAND_TAGLINE, LOGO_PATH } from '@/constants/theme';
 import { NAV_LINKS } from '../content';
 import { BTN_PRIMARY, CONTAINER } from '../styles';
 import { useScrollFrame } from '../useMotion';
 import { RequestDemoButton } from './shared';
-
-/** The full logo artwork: mark, wordmark and tagline in one image. */
-const HEADER_LOGO = '/logo-s.png';
 
 const SECTION_IDS = NAV_LINKS.map((link) => link.section);
 
@@ -78,10 +75,10 @@ export default function LandingHeader() {
       <div className={`${CONTAINER} flex h-16 items-center justify-between gap-6 sm:h-[84px]`}>
         <a href="#home" className="flex shrink-0 items-center" aria-label={`${BRAND_NAME} home`}>
           <img
-            src={HEADER_LOGO}
+            src={LOGO_PATH}
             alt={`${BRAND_NAME} – ${BRAND_TAGLINE}`}
-            width={345}
-            height={116}
+            width={350}
+            height={130}
             className="h-10 w-auto sm:h-[52px]"
           />
         </a>

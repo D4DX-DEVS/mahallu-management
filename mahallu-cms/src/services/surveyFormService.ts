@@ -6,6 +6,8 @@ export type SurveyType = 'household' | 'demographic' | 'welfare' | 'education' |
 export type SurveyStatus = 'draft' | 'published' | 'closed';
 export type FillState = 'draft' | 'scheduled' | 'open' | 'ended' | 'closed';
 export type SubmissionStatus = 'draft' | 'pending' | 'accepted' | 'rejected';
+/** `global`: one form shared with every Mahallu, changed only by the Super Admin. */
+export type SurveyScope = 'mahallu' | 'global';
 
 export const SURVEY_TYPE_OPTIONS: { value: SurveyType; label: string }[] = [
   { value: 'household', label: 'Household survey' },
@@ -44,6 +46,9 @@ export interface SurveyCounts {
 
 export interface SurveyForm {
   id: string;
+  scope: SurveyScope;
+  /** Whether this user may change the survey's details, form and status (from the server). */
+  canManage: boolean;
   title: string;
   type: SurveyType;
   description?: string;
@@ -76,6 +81,8 @@ export interface SurveyDetailsPayload {
   endDate?: string | null;
   targetCount?: number | null;
   respondentType: RespondentType;
+  /** Create only; a Super Admin creating a survey for all Mahallus sends `global`. */
+  scope?: SurveyScope;
 }
 
 export interface FormVersion {
@@ -94,6 +101,8 @@ export interface SubmissionHistory {
 
 export interface SurveySubmission {
   id: string;
+  /** Populated with the Mahallu's name only when the Super Admin reads a global survey across all Mahallus. */
+  tenantId?: string | { id: string; name?: string } | null;
   surveyId: string;
   versionId: string;
   version: number;
@@ -143,7 +152,7 @@ export interface SubmissionPayload {
 const base = '/survey-forms';
 
 export const surveyFormService = {
-  list: async (params?: { page?: number; limit?: number; status?: string; type?: string; search?: string }) => {
+  list: async (params?: { page?: number; limit?: number; status?: string; type?: string; scope?: SurveyScope; search?: string }) => {
     const response = await api.get<{ success: boolean; data: SurveyForm[]; pagination?: Pagination }>(base, { params });
     return { data: asList(response.data.data), pagination: response.data.pagination || null };
   },
@@ -159,6 +168,9 @@ export const surveyFormService = {
 
   setStatus: async (id: string, status: 'published' | 'closed') =>
     (await api.post<{ data: SurveyForm }>(`${base}/${id}/status`, { status })).data.data,
+
+  /** Super Admin: make a Mahallu's survey the one shared with every Mahallu. One way. */
+  shareWithAllMahallus: async (id: string) => (await api.post<{ data: SurveyForm }>(`${base}/${id}/share-global`)).data.data,
 
   getBuilder: async (id: string) => (await api.get<{ data: SurveyBuilderData }>(`${base}/${id}/builder`)).data.data,
 

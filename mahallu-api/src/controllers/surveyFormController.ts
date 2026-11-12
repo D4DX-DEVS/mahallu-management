@@ -36,7 +36,10 @@ const NOT_FOUND = "We couldn't find that survey. It may have been removed.";
 const SUBMISSION_NOT_FOUND = "We couldn't find that response. It may have been removed.";
 const NO_TENANT = 'Please select a Mahallu before continuing.';
 
+const GLOBAL_LOCKED = 'This survey is shared with all Mahallus. Only the Super Admin can change it.';
+
 const isAdmin = (req: AuthRequest): boolean => req.isSuperAdmin === true || req.user?.role === 'mahall';
+const isGlobal = (survey: Pick<ISurveyForm, 'scope'>): boolean => survey.scope === 'global';
 
 /** Tenant filter for this request. A Super Admin with no Mahallu selected reads across all of them. */
 const scoped = (req: AuthRequest, extra: Record<string, unknown> = {}) =>
@@ -48,11 +51,59 @@ const userName = (req: AuthRequest): string => String(req.user?.name || req.user
 /** Surveys survey workers may see: never the ones still being set up. */
 const VISIBLE_TO_WORKERS = ['published', 'closed'];
 
+/**
+ * The surveys this request can see: its own Mahallu's, plus the global ones. Outside the Super Admin,
+ * a global survey shows only once published, so nobody fills a form the Super Admin is still building.
+ * A Super Admin with no Mahallu selected sees every survey.
+ */
+const visibleSurveys = (req: AuthRequest, extra: Record<string, unknown> = {}) => {
+  if (!req.tenantId) return extra;
+  const global = req.isSuperAdmin ? { scope: 'global' } : { scope: 'global', status: { $in: VISIBLE_TO_WORKERS } };
+  return { ...extra, $or: [{ tenantId: req.tenantId }, global] };
+};
+
 const loadSurvey = async (req: AuthRequest, id: string): Promise<ISurveyForm | null> => {
-  const survey = await SurveyForm.findOne(scoped(req, { _id: id }));
+  const survey = await SurveyForm.findOne(visibleSurveys(req, { _id: id }));
   if (!survey) return null;
   if (!isAdmin(req) && !VISIBLE_TO_WORKERS.includes(survey.status)) return null;
   return survey;
+};
+
+/** Who may change a survey's details, form and status: its Mahallu's admins, or for a global survey the Super Admin. */
+const canManage = (req: AuthRequest, survey: Pick<ISurveyForm, 'scope'>): boolean =>
+  isGlobal(survey) ? req.isSuperAdmin === true : isAdmin(req);
+
+/** Loads a survey the caller may manage; answers 404 / 403 itself and returns null otherwise. */
+const loadManagedSurvey = async (req: AuthRequest, res: Response, id: string): Promise<ISurveyForm | null> => {
+  const survey = await loadSurvey(req, id);
+  if (!survey) {
+    res.status(404).json({ success: false, message: NOT_FOUND });
+    return null;
+  }
+  if (!canManage(req, survey)) {
+    res.status(403).json({ success: false, message: GLOBAL_LOCKED });
+    return null;
+  }
+  return survey;
+};
+
+const asObjectId = (id: unknown) => new mongoose.Types.ObjectId(String(id));
+
+/**
+ * Which responses of a survey this request may read. Responses are always stored under the Mahallu
+ * that filled them, so a request inside a Mahallu reads that Mahallu's responses only, global survey
+ * or not. Only a Super Admin with no Mahallu selected reads a global survey's responses from all of
+ * them. ObjectIds, because the same filter also feeds aggregations, which do not cast.
+ */
+const responseScope = (req: AuthRequest, survey: ISurveyForm): Record<string, unknown> => {
+  if (req.tenantId) return { tenantId: asObjectId(req.tenantId) };
+  return isGlobal(survey) ? {} : { tenantId: survey.tenantId };
+};
+
+/** The Mahallu a new response belongs to: the survey's own, or for a global survey the filler's. */
+const fillTenantOf = (req: AuthRequest, survey: ISurveyForm): mongoose.Types.ObjectId | null => {
+  if (!isGlobal(survey)) return survey.tenantId;
+  return req.tenantId ? asObjectId(req.tenantId) : null;
 };
 
 /** A survey worker sees only their own responses; an admin sees every response in the Mahallu. */
@@ -105,15 +156,19 @@ const toDate = (value: unknown): Date | null => {
  * Serialising
  * ---------------------------------------------------------------------------------------------- */
 
-const surveySummary = (survey: ISurveyForm, extra: Record<string, unknown> = {}, includeDraft = false) => {
+const surveySummary = (req: AuthRequest, survey: ISurveyForm, extra: Record<string, unknown> = {}) => {
   const plain = survey.toObject({ versionKey: false }) as unknown as Record<string, unknown>;
-  if (!includeDraft) delete plain.draft;
-  return { ...plain, fillState: fillStateOf(survey), ...extra };
+  delete plain.draft;
+  return { ...plain, scope: survey.scope || 'mahallu', fillState: fillStateOf(survey), canManage: canManage(req, survey), ...extra };
 };
 
-/** Response counts per survey: by status for admins, the caller's own for survey workers. */
+/**
+ * Response counts per survey: by status for admins, the caller's own for survey workers. Always
+ * inside the caller's Mahallu, so a global survey never shows another Mahallu's numbers.
+ */
 const countsBySurvey = async (req: AuthRequest, surveyIds: mongoose.Types.ObjectId[]) => {
   const match: Record<string, unknown> = { surveyId: { $in: surveyIds } };
+  if (req.tenantId) match.tenantId = asObjectId(req.tenantId);
   if (!isAdmin(req)) match.submittedBy = userId(req);
   const rows: Array<{ _id: { surveyId: mongoose.Types.ObjectId; status: SubmissionStatus }; n: number }> =
     await SurveySubmission.aggregate([
@@ -138,8 +193,9 @@ const countsBySurvey = async (req: AuthRequest, surveyIds: mongoose.Types.Object
 export const listSurveys = async (req: AuthRequest, res: Response) => {
   try {
     const { page, limit, skip } = getPaginationParams(req);
-    const query: Record<string, any> = scoped(req);
-    const { status, type, search } = req.query;
+    const query: Record<string, any> = visibleSurveys(req);
+    const { status, type, search, scope } = req.query;
+    if (scope === 'global' || scope === 'mahallu') query.scope = scope === 'global' ? 'global' : { $ne: 'global' };
     if (type) query.type = type;
     if (status) query.status = status;
     if (!isAdmin(req)) {
@@ -152,7 +208,7 @@ export const listSurveys = async (req: AuthRequest, res: Response) => {
       SurveyForm.countDocuments(query),
     ]);
     const counts = await countsBySurvey(req, surveys.map((s) => s._id as mongoose.Types.ObjectId));
-    const data = surveys.map((survey) => surveySummary(survey, { counts: counts.get(String(survey._id)) }));
+    const data = surveys.map((survey) => surveySummary(req, survey, { counts: counts.get(String(survey._id)) }));
     res.json(createPaginationResponse(data, total, page, limit));
   } catch (error) {
     sendFailure(res, error, "We couldn't load the surveys right now. Please try again.");
@@ -171,18 +227,23 @@ const surveyDetailsFromBody = (body: Record<string, any>) => ({
 
 export const createSurvey = async (req: AuthRequest, res: Response) => {
   try {
-    if (!req.tenantId) return res.status(400).json({ success: false, message: NO_TENANT });
+    const global = req.body.scope === 'global';
+    if (global && !req.isSuperAdmin) {
+      return res.status(403).json({ success: false, message: 'Only the Super Admin can create a survey for all Mahallus.' });
+    }
+    if (!global && !req.tenantId) return res.status(400).json({ success: false, message: NO_TENANT });
     const details = surveyDetailsFromBody(req.body);
     const survey = await SurveyForm.create({
       ...details,
-      tenantId: req.tenantId,
+      scope: global ? 'global' : 'mahallu',
+      tenantId: global ? null : req.tenantId,
       draft: { pages: [{ id: 1, title: 'Page 1', fields: [] }], instructions: [] },
       nextPageId: 2,
       nextFieldId: 1,
       createdBy: userId(req),
       updatedBy: userId(req),
     });
-    res.status(201).json({ success: true, data: surveySummary(survey), message: 'Survey created' });
+    res.status(201).json({ success: true, data: surveySummary(req, survey), message: 'Survey created' });
   } catch (error) {
     sendFailure(res, error, "We couldn't create the survey. Please try again.");
   }
@@ -193,7 +254,7 @@ export const getSurvey = async (req: AuthRequest, res: Response) => {
     const survey = await loadSurvey(req, req.params.id);
     if (!survey) return res.status(404).json({ success: false, message: NOT_FOUND });
     const counts = (await countsBySurvey(req, [survey._id as mongoose.Types.ObjectId])).get(String(survey._id));
-    res.json({ success: true, data: surveySummary(survey, { counts }) });
+    res.json({ success: true, data: surveySummary(req, survey, { counts }) });
   } catch (error) {
     sendFailure(res, error, "We couldn't load the survey right now. Please try again.");
   }
@@ -201,8 +262,8 @@ export const getSurvey = async (req: AuthRequest, res: Response) => {
 
 export const updateSurvey = async (req: AuthRequest, res: Response) => {
   try {
-    const survey = await loadSurvey(req, req.params.id);
-    if (!survey) return res.status(404).json({ success: false, message: NOT_FOUND });
+    const survey = await loadManagedSurvey(req, res, req.params.id);
+    if (!survey) return;
     const body = req.body as Record<string, any>;
     const details: Record<string, unknown> = {};
     if (body.title !== undefined) details.title = String(body.title).trim();
@@ -232,7 +293,7 @@ export const updateSurvey = async (req: AuthRequest, res: Response) => {
     }
     survey.set({ ...details, updatedBy: userId(req) });
     await survey.save();
-    res.json({ success: true, data: surveySummary(survey), message: 'Survey updated' });
+    res.json({ success: true, data: surveySummary(req, survey), message: 'Survey updated' });
   } catch (error) {
     sendFailure(res, error, "We couldn't update the survey. Please try again.");
   }
@@ -240,8 +301,8 @@ export const updateSurvey = async (req: AuthRequest, res: Response) => {
 
 export const deleteSurvey = async (req: AuthRequest, res: Response) => {
   try {
-    const survey = await loadSurvey(req, req.params.id);
-    if (!survey) return res.status(404).json({ success: false, message: NOT_FOUND });
+    const survey = await loadManagedSurvey(req, res, req.params.id);
+    if (!survey) return;
     const responses = await SurveySubmission.countDocuments({ surveyId: survey._id, status: { $ne: 'draft' } });
     if (responses > 0) {
       return res.status(409).json({
@@ -260,8 +321,8 @@ export const deleteSurvey = async (req: AuthRequest, res: Response) => {
 
 export const setSurveyStatus = async (req: AuthRequest, res: Response) => {
   try {
-    const survey = await loadSurvey(req, req.params.id);
-    if (!survey) return res.status(404).json({ success: false, message: NOT_FOUND });
+    const survey = await loadManagedSurvey(req, res, req.params.id);
+    if (!survey) return;
     const next = req.body.status as 'published' | 'closed';
     if (next === 'published' && !survey.publishedVersion) {
       return res.status(409).json({ success: false, message: 'Publish the form before opening the survey.' });
@@ -272,9 +333,29 @@ export const setSurveyStatus = async (req: AuthRequest, res: Response) => {
     survey.status = next;
     survey.updatedBy = userId(req);
     await survey.save();
-    res.json({ success: true, data: surveySummary(survey), message: next === 'closed' ? 'Survey closed' : 'Survey reopened' });
+    res.json({ success: true, data: surveySummary(req, survey), message: next === 'closed' ? 'Survey closed' : 'Survey reopened' });
   } catch (error) {
     sendFailure(res, error, "We couldn't change the survey status. Please try again.");
+  }
+};
+
+/**
+ * Turns a Mahallu's survey into a global one: the same survey (name, form, versions) becomes
+ * available to every Mahallu and only the Super Admin can change it from then on. Responses already
+ * collected stay with the Mahallu that filled them. One way only: once other Mahallus have responses
+ * of their own, the survey can no longer belong to a single Mahallu.
+ */
+export const shareSurveyWithAllMahallus = async (req: AuthRequest, res: Response) => {
+  try {
+    const survey = await loadSurvey(req, req.params.id);
+    if (!survey) return res.status(404).json({ success: false, message: NOT_FOUND });
+    if (isGlobal(survey)) return res.status(409).json({ success: false, message: 'This survey is already shared with all Mahallus.' });
+    survey.set({ scope: 'global', tenantId: null, updatedBy: userId(req) });
+    await survey.save();
+    await SurveyFormVersion.updateMany({ surveyId: survey._id }, { $set: { tenantId: null } });
+    res.json({ success: true, data: surveySummary(req, survey), message: 'Survey shared with all Mahallus' });
+  } catch (error) {
+    sendFailure(res, error, "We couldn't share the survey. Please try again.");
   }
 };
 
@@ -282,16 +363,16 @@ export const setSurveyStatus = async (req: AuthRequest, res: Response) => {
  * Builder
  * ---------------------------------------------------------------------------------------------- */
 
-const builderPayload = (survey: ISurveyForm) => ({
-  ...surveySummary(survey, {}, false),
+const builderPayload = (req: AuthRequest, survey: ISurveyForm) => ({
+  ...surveySummary(req, survey),
   draft: normalizeFormContent(survey.draft),
 });
 
 export const getBuilder = async (req: AuthRequest, res: Response) => {
   try {
-    const survey = await loadSurvey(req, req.params.id);
-    if (!survey) return res.status(404).json({ success: false, message: NOT_FOUND });
-    res.json({ success: true, data: builderPayload(survey) });
+    const survey = await loadManagedSurvey(req, res, req.params.id);
+    if (!survey) return;
+    res.json({ success: true, data: builderPayload(req, survey) });
   } catch (error) {
     sendFailure(res, error, "We couldn't load the form builder right now. Please try again.");
   }
@@ -303,8 +384,8 @@ export const getBuilder = async (req: AuthRequest, res: Response) => {
  */
 export const saveBuilder = async (req: AuthRequest, res: Response) => {
   try {
-    const survey = await loadSurvey(req, req.params.id);
-    if (!survey) return res.status(404).json({ success: false, message: NOT_FOUND });
+    const survey = await loadManagedSurvey(req, res, req.params.id);
+    if (!survey) return;
 
     const draft = normalizeFormContent(req.body.draft);
     const problems = validateFormStructure(draft, { forPublish: false, respondentType: survey.respondentType });
@@ -334,7 +415,7 @@ export const saveBuilder = async (req: AuthRequest, res: Response) => {
         message: 'Someone else saved this form after you opened it. Reload the builder to see their changes.',
       });
     }
-    res.json({ success: true, data: builderPayload(updated), message: 'Form saved' });
+    res.json({ success: true, data: builderPayload(req, updated), message: 'Form saved' });
   } catch (error) {
     sendFailure(res, error, "We couldn't save the form. Please try again.");
   }
@@ -343,8 +424,8 @@ export const saveBuilder = async (req: AuthRequest, res: Response) => {
 /** Freezes the saved draft as the next version; survey workers fill that version from now on. */
 export const publishSurvey = async (req: AuthRequest, res: Response) => {
   try {
-    const survey = await loadSurvey(req, req.params.id);
-    if (!survey) return res.status(404).json({ success: false, message: NOT_FOUND });
+    const survey = await loadManagedSurvey(req, res, req.params.id);
+    if (!survey) return;
     if (req.body.revision !== undefined && Number(req.body.revision) !== survey.revision) {
       return res.status(409).json({ success: false, message: 'The form changed since you opened it. Reload the builder and try again.' });
     }
@@ -383,7 +464,7 @@ export const publishSurvey = async (req: AuthRequest, res: Response) => {
       updatedBy: userId(req),
     });
     await survey.save();
-    res.json({ success: true, data: builderPayload(survey), message: `Version ${versionNumber} published` });
+    res.json({ success: true, data: builderPayload(req, survey), message: `Version ${versionNumber} published` });
   } catch (error) {
     sendFailure(res, error, "We couldn't publish the form. Please try again.");
   }
@@ -410,7 +491,7 @@ export const getFillForm = async (req: AuthRequest, res: Response) => {
     if (!survey) return res.status(404).json({ success: false, message: NOT_FOUND });
     const version = await loadPublishedVersion(survey);
     if (!version) return res.status(404).json({ success: false, message: FILL_BLOCKED.draft });
-    res.json({ success: true, data: { survey: surveySummary(survey), version: versionPayload(version) } });
+    res.json({ success: true, data: { survey: surveySummary(req, survey), version: versionPayload(version) } });
   } catch (error) {
     sendFailure(res, error, "We couldn't load the form right now. Please try again.");
   }
@@ -422,9 +503,10 @@ class InputProblem extends Error {
   }
 }
 
-/** The family / member a response is about, checked against this Mahallu. */
+/** The family / member a response is about, checked against the Mahallu the response belongs to. */
 const resolveRespondent = async (
   survey: ISurveyForm,
+  tenantId: mongoose.Types.ObjectId,
   body: Record<string, any>,
   submitting: boolean
 ): Promise<{ familyId: mongoose.Types.ObjectId | null; memberId: mongoose.Types.ObjectId | null; respondentName?: string }> => {
@@ -435,7 +517,7 @@ const resolveRespondent = async (
       if (submitting) throw new InputProblem('Please choose the family this response is about.');
       return none;
     }
-    const family = await Family.findOne({ _id: body.familyId, tenantId: survey.tenantId }).select('houseName familyHead');
+    const family = await Family.findOne({ _id: body.familyId, tenantId }).select('houseName familyHead');
     if (!family) throw new InputProblem("We couldn't find that family in this Mahallu.");
     const name = [family.houseName, family.familyHead].filter(Boolean).join(' - ');
     return { familyId: family._id as mongoose.Types.ObjectId, memberId: null, respondentName: name };
@@ -445,7 +527,7 @@ const resolveRespondent = async (
       if (submitting) throw new InputProblem('Please choose the member this response is about.');
       return none;
     }
-    const member = await Member.findOne({ _id: body.memberId, tenantId: survey.tenantId }).select('name familyId familyName');
+    const member = await Member.findOne({ _id: body.memberId, tenantId }).select('name familyId familyName');
     if (!member) throw new InputProblem("We couldn't find that member in this Mahallu.");
     const name = [member.name, member.familyName].filter(Boolean).join(' - ');
     return { familyId: member.familyId || null, memberId: member._id as mongoose.Types.ObjectId, respondentName: name };
@@ -459,13 +541,13 @@ const resolveRespondent = async (
  */
 const checkAttachments = async (
   req: AuthRequest,
-  survey: ISurveyForm,
+  tenantId: mongoose.Types.ObjectId,
   ids: string[],
   submissionId?: mongoose.Types.ObjectId
 ): Promise<mongoose.Types.ObjectId[]> => {
   if (ids.length === 0) return [];
   const unique = Array.from(new Set(ids));
-  const docs = await DocumentFile.find({ _id: { $in: unique }, tenantId: survey.tenantId, ownerType: 'survey' }).select(
+  const docs = await DocumentFile.find({ _id: { $in: unique }, tenantId, ownerType: 'survey' }).select(
     'uploadedByUserId ownerId'
   );
   const usable = docs.filter(
@@ -514,18 +596,20 @@ export const createSubmission = async (req: AuthRequest, res: Response) => {
     if (!survey) return res.status(404).json({ success: false, message: NOT_FOUND });
     const state = fillStateOf(survey);
     if (state !== 'open') return res.status(409).json({ success: false, message: FILL_BLOCKED[state] });
+    const tenantId = fillTenantOf(req, survey);
+    if (!tenantId) return res.status(400).json({ success: false, message: 'Please select the Mahallu this response is for.' });
     const version = await loadPublishedVersion(survey);
     if (!version) return res.status(409).json({ success: false, message: FILL_BLOCKED.draft });
 
     const submitting = req.body.submit === true;
     const content = normalizeFormContent(version.content);
     const answers = prepareAnswers(content, req.body.answers, submitting);
-    const respondent = await resolveRespondent(survey, req.body, submitting);
-    const attachments = await checkAttachments(req, survey, fileDocumentIds(content, answers));
+    const respondent = await resolveRespondent(survey, tenantId, req.body, submitting);
+    const attachments = await checkAttachments(req, tenantId, fileDocumentIds(content, answers));
     const now = new Date();
 
     const submission = await SurveySubmission.create({
-      tenantId: survey.tenantId,
+      tenantId,
       surveyId: survey._id,
       versionId: version._id,
       version: version.version,
@@ -570,8 +654,13 @@ export const updateSubmission = async (req: AuthRequest, res: Response) => {
     const submitting = req.body.submit === true;
     const content = normalizeFormContent(version.content);
     const answers = prepareAnswers(content, req.body.answers, submitting);
-    const respondent = await resolveRespondent(survey, req.body, submitting);
-    const attachments = await checkAttachments(req, survey, fileDocumentIds(content, answers), submission._id as mongoose.Types.ObjectId);
+    const respondent = await resolveRespondent(survey, submission.tenantId, req.body, submitting);
+    const attachments = await checkAttachments(
+      req,
+      submission.tenantId,
+      fileDocumentIds(content, answers),
+      submission._id as mongoose.Types.ObjectId
+    );
     const now = new Date();
 
     submission.set({
@@ -654,7 +743,7 @@ const answerFilters = (content: SurveyFormContent | null, raw: unknown): Record<
 
 /** The admin list filters, shared by the list and the CSV export so both hold the same rows. */
 const submissionQuery = async (req: AuthRequest, survey: ISurveyForm, includeStatus = true) => {
-  const query: Record<string, any> = { surveyId: survey._id, tenantId: survey.tenantId, status: { $ne: 'draft' } };
+  const query: Record<string, any> = { surveyId: survey._id, ...responseScope(req, survey), status: { $ne: 'draft' } };
   const { status, from, to, submittedBy, search, familyId, answers } = req.query;
   if (includeStatus && status && ['pending', 'accepted', 'rejected'].includes(String(status))) query.status = status;
   const fromDate = toDate(from);
@@ -664,8 +753,9 @@ const submissionQuery = async (req: AuthRequest, survey: ISurveyForm, includeSta
     if (fromDate) query.submittedAt.$gte = fromDate;
     if (toDay) query.submittedAt.$lt = new Date(toDay.getTime() + 24 * 60 * 60 * 1000);
   }
-  if (submittedBy && mongoose.isValidObjectId(submittedBy)) query.submittedBy = submittedBy;
-  if (familyId && mongoose.isValidObjectId(familyId)) query.familyId = familyId;
+  // ObjectIds, not strings: the same filter feeds the status-count aggregation, which does not cast.
+  if (submittedBy && mongoose.isValidObjectId(submittedBy)) query.submittedBy = asObjectId(submittedBy);
+  if (familyId && mongoose.isValidObjectId(familyId)) query.familyId = asObjectId(familyId);
   if (search) {
     const pattern = { $regex: regexLiteral(search), $options: 'i' };
     query.$or = [{ respondentName: pattern }, { submittedByName: pattern }];
@@ -691,12 +781,15 @@ export const listSubmissions = async (req: AuthRequest, res: Response) => {
     const { query: withoutStatus } = await submissionQuery(req, survey, false);
     const sort = SORTS[String(req.query.sort)] || SORTS.newest;
 
+    // A Super Admin reading a global survey across every Mahallu sees which Mahallu each response is from.
+    const acrossMahallus = !req.tenantId && isGlobal(survey);
+    const list = populateRespondent(SurveySubmission.find(query).select(LIST_FIELDS).sort(sort).skip(skip).limit(limit));
     const [rows, total, byStatus, surveyors] = await Promise.all([
-      populateRespondent(SurveySubmission.find(query).select(LIST_FIELDS).sort(sort).skip(skip).limit(limit)),
+      acrossMahallus ? list.populate('tenantId', 'name') : list,
       SurveySubmission.countDocuments(query),
       SurveySubmission.aggregate([{ $match: withoutStatus }, { $group: { _id: '$status', n: { $sum: 1 } } }]),
       SurveySubmission.aggregate([
-        { $match: { surveyId: survey._id, status: { $ne: 'draft' } } },
+        { $match: { surveyId: survey._id, ...responseScope(req, survey), status: { $ne: 'draft' } } },
         { $group: { _id: '$submittedBy', name: { $first: '$submittedByName' }, n: { $sum: 1 } } },
         { $sort: { name: 1 } },
         { $limit: 200 },
@@ -727,15 +820,26 @@ export const exportSubmissions = async (req: AuthRequest, res: Response) => {
     const questions = version
       ? allFields(normalizeFormContent(version.content)).filter((f) => f.type !== 'heading')
       : [];
-    const rows = await SurveySubmission.find(query)
-      .select(['submittedAt', 'status', 'respondentName', 'submittedByName', 'version', 'reviewNote', 'answers'].join(' '))
+    const acrossMahallus = !req.tenantId && isGlobal(survey);
+    const found = SurveySubmission.find(query)
+      .select(['tenantId', 'submittedAt', 'status', 'respondentName', 'submittedByName', 'version', 'reviewNote', 'answers'].join(' '))
       .sort(SORTS[String(req.query.sort)] || SORTS.newest)
-      .limit(EXPORT_CAP)
-      .lean();
+      .limit(EXPORT_CAP);
+    const rows = await (acrossMahallus ? found.populate('tenantId', 'name') : found).lean();
 
-    const headers = ['Submitted on', 'Status', 'Respondent', 'Surveyor', 'Form version', 'Review note', ...questions.map((q) => q.label)];
+    const headers = [
+      'Submitted on',
+      ...(acrossMahallus ? ['Mahallu'] : []),
+      'Status',
+      'Respondent',
+      'Surveyor',
+      'Form version',
+      'Review note',
+      ...questions.map((q) => q.label),
+    ];
     const lines = rows.map((row: any) => [
       row.submittedAt ? new Date(row.submittedAt).toISOString().slice(0, 10) : '',
+      ...(acrossMahallus ? [row.tenantId?.name || ''] : []),
       row.status,
       row.respondentName || '',
       row.submittedByName || '',
@@ -759,7 +863,7 @@ export const listMySubmissions = async (req: AuthRequest, res: Response) => {
     const survey = await loadSurvey(req, req.params.id);
     if (!survey) return res.status(404).json({ success: false, message: NOT_FOUND });
     const { page, limit, skip } = getPaginationParams(req);
-    const query: Record<string, unknown> = { surveyId: survey._id, tenantId: survey.tenantId, submittedBy: userId(req) };
+    const query: Record<string, unknown> = { surveyId: survey._id, ...responseScope(req, survey), submittedBy: userId(req) };
     if (req.query.status && ['draft', 'pending', 'accepted', 'rejected'].includes(String(req.query.status))) {
       query.status = req.query.status;
     }
@@ -790,7 +894,7 @@ export const getSubmission = async (req: AuthRequest, res: Response) => {
       success: true,
       data: {
         submission,
-        survey: survey ? surveySummary(survey) : null,
+        survey: survey ? surveySummary(req, survey) : null,
         version: version ? versionPayload(version) : null,
       },
     });

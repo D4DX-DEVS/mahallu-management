@@ -648,6 +648,10 @@ describe('survey forms', () => {
     ]);
   });
 
+  test('sharing a survey with all Mahallus is Super Admin only', () => {
+    expectRoles(surveyFormRoutes, 'post', '/x1/share-global', ['super_admin']);
+  });
+
   test('institute admins never reach a survey form endpoint', () => {
     for (const { method, path: p } of listRoutes(surveyFormRoutes)) {
       assert.ok(!inspectRoute(surveyFormRoutes, method, p).roles.includes('institute'), `${method} ${p}`);

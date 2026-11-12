@@ -8,7 +8,7 @@ import type { RespondentType, SurveyFormContent } from '../shared/surveyFormEngi
  * option or deleting a field later never changes how an earlier submission reads.
  */
 export interface ISurveyFormVersion extends Document {
-  tenantId: mongoose.Types.ObjectId;
+  tenantId: mongoose.Types.ObjectId | null;
   surveyId: mongoose.Types.ObjectId;
   version: number;
   content: SurveyFormContent;
@@ -19,7 +19,8 @@ export interface ISurveyFormVersion extends Document {
 
 const SurveyFormVersionSchema = new Schema<ISurveyFormVersion>(
   {
-    tenantId: { type: Schema.Types.ObjectId, ref: 'Tenant', required: true, index: true },
+    // null for a version of a global survey
+    tenantId: { type: Schema.Types.ObjectId, ref: 'Tenant', default: null, index: true },
     surveyId: { type: Schema.Types.ObjectId, ref: 'SurveyForm', required: true },
     version: { type: Number, required: true, min: 1 },
     content: { type: Schema.Types.Mixed, required: true },

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { FiEdit2, FiLayout, FiLock, FiUnlock, FiTrash2, FiEdit3 } from 'react-icons/fi';
+import { FiEdit2, FiLayout, FiLock, FiUnlock, FiTrash2, FiEdit3, FiGlobe } from 'react-icons/fi';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Tabs from '@/components/ui/Tabs';
@@ -12,9 +12,11 @@ import { PageSkeleton } from '@/components/ui/Skeleton';
 import PageHeader from '@/components/layout/PageHeader';
 import { surveyFormService, SurveyForm, FILL_STATE_LABELS, RESPONDENT_OPTIONS, surveyTypeLabel } from '@/services/surveyFormService';
 import { toast } from '@/store/toastStore';
+import { useAuthStore } from '@/store/authStore';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import SubmissionsTab from '../components/SubmissionsTab';
 import MyResponsesTab from '../components/MyResponsesTab';
+import GlobalSurveyBadge from '../components/GlobalSurveyBadge';
 import { useSurveyAccess } from '../useSurveyAccess';
 import { formatDay, formatPeriod, surveyBadge } from '../surveyDisplay';
 
@@ -24,9 +26,11 @@ export default function SurveyOverview() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { isAdmin } = useSurveyAccess();
+  const isSuperAdmin = useAuthStore((state) => state.isSuperAdmin);
+  const currentTenantId = useAuthStore((state) => state.currentTenantId);
   const [survey, setSurvey] = useState<SurveyForm | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [confirm, setConfirm] = useState<'close' | 'reopen' | 'delete' | null>(null);
+  const [confirm, setConfirm] = useState<'close' | 'reopen' | 'delete' | 'share' | null>(null);
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(() => {
@@ -60,6 +64,12 @@ export default function SurveyOverview() {
         navigate('/survey', { replace: true });
         return;
       }
+      if (confirm === 'share') {
+        const updated = await surveyFormService.shareWithAllMahallus(id);
+        setSurvey((prev) => (prev ? { ...prev, ...updated } : updated));
+        toast.success('Survey shared with all Mahallus');
+        return;
+      }
       const updated = await surveyFormService.setStatus(id, confirm === 'close' ? 'closed' : 'published');
       setSurvey((prev) => (prev ? { ...prev, ...updated } : updated));
       toast.success(confirm === 'close' ? 'Survey closed to new responses' : 'Survey reopened');
@@ -75,6 +85,10 @@ export default function SurveyOverview() {
   const responses = survey.counts?.responses || 0;
   const pct = survey.targetCount ? Math.min(100, Math.round((responses / survey.targetCount) * 100)) : null;
   const respondent = RESPONDENT_OPTIONS.find((o) => o.value === survey.respondentType);
+  const global = survey.scope === 'global';
+  const manage = survey.canManage;
+  // A global survey's response belongs to the Mahallu it is filled for, so the Super Admin picks one first.
+  const canFill = survey.fillState === 'open' && !(global && isSuperAdmin && !currentTenantId);
 
   const facts = [
     { label: 'Status', value: <StatusBadge status={badge.status} label={badge.label} /> },
@@ -101,12 +115,12 @@ export default function SurveyOverview() {
         description={survey.description}
         actions={
           <>
-            {survey.fillState === 'open' && (
+            {canFill && (
               <Button icon={<FiEdit3 />} collapseLabel onClick={() => navigate(`/survey/${id}/fill`)}>
                 Fill form
               </Button>
             )}
-            {isAdmin && (
+            {manage && (
               <>
                 <Link to={`/survey/${id}/builder`}>
                   <Button variant="outline" icon={<FiLayout />} collapseLabel>
@@ -121,6 +135,9 @@ export default function SurveyOverview() {
                       : survey.status === 'closed'
                         ? [{ label: 'Reopen survey', icon: <FiUnlock />, onClick: () => setConfirm('reopen') }]
                         : []),
+                    ...(isSuperAdmin && !global
+                      ? [{ label: 'Make global', icon: <FiGlobe />, onClick: () => setConfirm('share') }]
+                      : []),
                     { label: 'Delete survey', icon: <FiTrash2 />, onClick: () => setConfirm('delete'), variant: 'danger' as const },
                   ]}
                 />
@@ -130,7 +147,27 @@ export default function SurveyOverview() {
         }
       />
 
-      {isAdmin && survey.status === 'draft' && (
+      {global && (
+        <Card className="border-l-4 border-info">
+          <div className="flex flex-wrap items-center gap-2">
+            <GlobalSurveyBadge />
+            <p className="text-sm font-semibold text-foreground">Shared with all Mahallus</p>
+          </div>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {isSuperAdmin
+              ? `Every Mahallu fills this same form, and each Mahallu's admins see only their own responses. ${
+                  currentTenantId ? 'Showing responses from the selected Mahallu.' : 'Showing responses from all Mahallus.'
+                }`
+              : isAdmin
+                ? "The Super Admin manages this form. You see and review your Mahallu's responses only."
+                : 'The same form is used by every Mahallu.'}
+          </p>
+          {isSuperAdmin && !currentTenantId && survey.fillState === 'open' && (
+            <p className="mt-1 text-sm text-muted-foreground">To fill it yourself, select a Mahallu first.</p>
+          )}
+        </Card>
+      )}
+      {manage && survey.status === 'draft' && (
         <Card className="border-l-4 border-amber-500">
           <p className="text-sm font-semibold text-amber-700 dark:text-amber-400">Not published yet</p>
           <p className="mt-0.5 text-sm text-muted-foreground">
@@ -141,7 +178,7 @@ export default function SurveyOverview() {
           </p>
         </Card>
       )}
-      {isAdmin && survey.hasUnpublishedChanges && survey.status !== 'draft' && (
+      {manage && survey.hasUnpublishedChanges && survey.status !== 'draft' && (
         <Card className="border-l-4 border-amber-500">
           <p className="text-sm text-muted-foreground">
             The form has saved edits that are not published yet. Survey workers still fill version {survey.publishedVersion}.{' '}
@@ -198,16 +235,38 @@ export default function SurveyOverview() {
 
       <ConfirmDialog
         isOpen={confirm !== null}
-        title={confirm === 'delete' ? 'Delete this survey?' : confirm === 'close' ? 'Close this survey?' : 'Reopen this survey?'}
+        title={
+          confirm === 'delete'
+            ? 'Delete this survey?'
+            : confirm === 'close'
+              ? 'Close this survey?'
+              : confirm === 'share'
+                ? 'Share with all Mahallus?'
+                : 'Reopen this survey?'
+        }
         message={
           confirm === 'delete'
-            ? 'The survey, its form and any unsubmitted drafts will be removed. This cannot be undone.'
+            ? global
+              ? "The survey and its form will be removed for every Mahallu, with any unsubmitted drafts. This cannot be undone."
+              : 'The survey, its form and any unsubmitted drafts will be removed. This cannot be undone.'
             : confirm === 'close'
-              ? 'Survey workers will no longer be able to submit responses. Existing responses stay available for review.'
-              : 'Survey workers can submit responses again, within the survey period.'
+              ? global
+                ? 'Survey workers in every Mahallu will no longer be able to submit responses. Existing responses stay available for review.'
+                : 'Survey workers will no longer be able to submit responses. Existing responses stay available for review.'
+              : confirm === 'share'
+                ? `Every Mahallu gets "${survey.title}" with this same form, and their survey workers can fill it. Each Mahallu sees and reviews only its own responses. Responses already collected stay with this Mahallu.`
+                : 'Survey workers can submit responses again, within the survey period.'
         }
-        consequence={confirm === 'delete' && responses > 0 ? `It has ${responses} submitted response(s), so the server will refuse; close it instead.` : undefined}
-        confirmLabel={confirm === 'delete' ? 'Delete survey' : confirm === 'close' ? 'Close survey' : 'Reopen survey'}
+        consequence={
+          confirm === 'delete' && responses > 0
+            ? `It has ${responses} submitted response(s), so the server will refuse; close it instead.`
+            : confirm === 'share'
+              ? "This can't be undone. From now on only the Super Admin can change this survey."
+              : undefined
+        }
+        confirmLabel={
+          confirm === 'delete' ? 'Delete survey' : confirm === 'close' ? 'Close survey' : confirm === 'share' ? 'Share with all Mahallus' : 'Reopen survey'
+        }
         variant={confirm === 'delete' || confirm === 'close' ? 'danger' : 'primary'}
         isLoading={busy}
         onConfirm={runAction}

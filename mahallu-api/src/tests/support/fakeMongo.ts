@@ -97,6 +97,10 @@ const evalExpr = (expr: any, doc: Doc): any => {
     if ('$eq' in expr) return eq(evalExpr(expr.$eq[0], doc), evalExpr(expr.$eq[1], doc));
     if ('$in' in expr) { const v = evalExpr(expr.$in[0], doc); return (expr.$in[1] as any[]).some((x) => eq(v, x)); }
     if ('$toInt' in expr) return parseInt(String(evalExpr(expr.$toInt, doc)), 10);
+    // a compound group key such as { surveyId: '$surveyId', status: '$status' }
+    if (Object.keys(expr).every((k) => !k.startsWith('$'))) {
+      return Object.fromEntries(Object.entries(expr).map(([k, v]) => [k, evalExpr(v, doc)]));
+    }
     throw new Error(`fakeMongo: unsupported expression ${JSON.stringify(expr)}`);
   }
   return expr;
@@ -167,6 +171,21 @@ export class FakeStore {
       enumerable: false,
       configurable: true,
       writable: true,
+    });
+    // doc.set({...}) / markModified / populate / deleteOne, as the survey controllers use them
+    const method = (name: string, value: (...args: any[]) => any) =>
+      Object.defineProperty(copy, name, { value, enumerable: false, configurable: true, writable: true });
+    method('set', function (this: Doc, values: Doc) {
+      Object.assign(this, values);
+      return this;
+    });
+    method('markModified', () => undefined);
+    method('populate', async function (this: Doc) {
+      return this;
+    });
+    method('deleteOne', async () => {
+      await tick();
+      store.findOneAndDelete({ _id: doc._id });
     });
     return copy;
   }
@@ -274,6 +293,7 @@ export class FakeStore {
             const values = g.rows.map((r) => evalExpr(arg, r)).filter((v) => v !== undefined && v !== null);
             if (op === '$sum') out[name] = values.reduce((s, v) => s + Number(v), 0);
             else if (op === '$max') out[name] = values.length ? Math.max(...values.map(Number)) : null;
+            else if (op === '$first') out[name] = g.rows.length ? evalExpr(arg, g.rows[0]) ?? null : null;
             else throw new Error(`fakeMongo: unsupported accumulator ${op}`);
           }
           return out;
@@ -502,6 +522,15 @@ export async function call(
       return res;
     },
     json(body: any) {
+      reply.body = body;
+      done();
+      return res;
+    },
+    setHeader(name: string, value: string) {
+      reply.headers[name] = value;
+      return res;
+    },
+    send(body: any) {
       reply.body = body;
       done();
       return res;
