@@ -30,8 +30,8 @@ export const BRAND_COLORS = {
 
 export const BRAND_NAME = 'ZAAD';
 export const BRAND_TAGLINE = 'Zenith of Administration And Development';
-// Full wordmark (mark + "ZAAD"), wide: for places with room to show it.
-export const LOGO_PATH = '/logo.png';
+// Full logo (mark + "ZAAD" + tagline), wide: for places with room to show it.
+export const LOGO_PATH = '/new-logo1.png';
 // Square mark only (256px copy of favicon.png, kept small so PDFs stay light): for
 // compact square slots (collapsed rail, PDF headers).
 export const ICON_PATH = '/icon.png';
