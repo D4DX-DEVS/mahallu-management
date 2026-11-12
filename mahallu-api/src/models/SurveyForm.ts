@@ -19,6 +19,14 @@ export type SurveyStatus = (typeof SURVEY_STATUSES)[number];
 export const RESPONDENT_TYPES: readonly RespondentType[] = ['none', 'family', 'member'];
 
 /**
+ * `mahallu`: belongs to one Mahallu, managed by its admins.
+ * `global`: one form shared with every Mahallu, managed by the Super Admin only. It has no
+ * tenantId; each response is stored under the Mahallu that filled it and stays inside that Mahallu.
+ */
+export const SURVEY_SCOPES = ['mahallu', 'global'] as const;
+export type SurveyScope = (typeof SURVEY_SCOPES)[number];
+
+/**
  * A configurable survey: its details, the form being edited in the builder (`draft`) and a pointer
  * to the version survey workers fill (`publishedVersionId`).
  *
@@ -27,7 +35,9 @@ export const RESPONDENT_TYPES: readonly RespondentType[] = ['none', 'family', 'm
  * does not list, and the engine is the one place that knows the shape.
  */
 export interface ISurveyForm extends Document {
-  tenantId: mongoose.Types.ObjectId;
+  scope: SurveyScope;
+  /** The owning Mahallu; null for a global survey. */
+  tenantId: mongoose.Types.ObjectId | null;
   title: string;
   type: SurveyType;
   description?: string;
@@ -54,10 +64,17 @@ export interface ISurveyForm extends Document {
 
 const SurveyFormSchema = new Schema<ISurveyForm>(
   {
+    scope: { type: String, enum: SURVEY_SCOPES, default: 'mahallu' },
     tenantId: {
       type: Schema.Types.ObjectId,
       ref: 'Tenant',
-      required: [true, 'Please select a Mahallu before continuing.'],
+      default: null,
+      required: [
+        function (this: ISurveyForm) {
+          return this.scope !== 'global';
+        },
+        'Please select a Mahallu before continuing.',
+      ],
       index: true,
     },
     title: { type: String, required: true, trim: true, maxlength: 200 },

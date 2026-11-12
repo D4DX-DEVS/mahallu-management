@@ -13,9 +13,10 @@ import EmptyState from '@/components/ui/EmptyState';
 import Pagination from '@/components/ui/Pagination';
 import PageHeader from '@/components/layout/PageHeader';
 import { Pagination as PaginationType, TableColumn } from '@/types';
-import { surveyFormService, SurveyForm, SURVEY_TYPE_OPTIONS, surveyTypeLabel } from '@/services/surveyFormService';
+import { surveyFormService, SurveyForm, SurveyScope, SURVEY_TYPE_OPTIONS, surveyTypeLabel } from '@/services/surveyFormService';
 import { loadErrorMessage } from '@/utils/errors';
 import SurveyTabsNav from '../components/SurveyTabsNav';
+import GlobalSurveyBadge from '../components/GlobalSurveyBadge';
 import { useSurveyAccess } from '../useSurveyAccess';
 import { formatPeriod, surveyBadge } from '../surveyDisplay';
 
@@ -53,6 +54,7 @@ export default function SurveysList() {
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState('');
   const [type, setType] = useState('');
+  const [scope, setScope] = useState<SurveyScope | ''>('');
   const [search, setSearch] = useState('');
   const [isFilterVisible, setFilterVisible] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -68,6 +70,7 @@ export default function SurveysList() {
         limit: itemsPerPage,
         ...(status ? { status } : {}),
         ...(type ? { type } : {}),
+        ...(scope ? { scope } : {}),
         ...(search.trim() ? { search: search.trim() } : {}),
       });
       setRows(result.data);
@@ -83,7 +86,7 @@ export default function SurveysList() {
     const timer = window.setTimeout(fetchRows, search ? 300 : 0);
     return () => window.clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status, type, search, currentPage, itemsPerPage]);
+  }, [status, type, scope, search, currentPage, itemsPerPage]);
 
   const columns: TableColumn<SurveyForm>[] = [
     {
@@ -92,7 +95,10 @@ export default function SurveysList() {
       width: '16rem',
       render: (_v, row) => (
         <div className="min-w-0">
-          <p className="truncate font-medium text-foreground">{row.title}</p>
+          <div className="flex min-w-0 items-center gap-1.5">
+            <p className="truncate font-medium text-foreground">{row.title}</p>
+            {row.scope === 'global' && <GlobalSurveyBadge />}
+          </div>
           <p className="truncate text-xs text-muted-foreground">{surveyTypeLabel(row.type)}</p>
         </div>
       ),
@@ -107,7 +113,7 @@ export default function SurveysList() {
         return (
           <div className="flex flex-col items-start gap-1">
             <StatusBadge status={badge.status} label={badge.label} />
-            {isAdmin && row.hasUnpublishedChanges && <span className="text-xs text-amber-600 dark:text-amber-400">Unpublished edits</span>}
+            {row.canManage && row.hasUnpublishedChanges && <span className="text-xs text-amber-600 dark:text-amber-400">Unpublished edits</span>}
           </div>
         );
       },
@@ -155,7 +161,7 @@ export default function SurveysList() {
         ]),
   ];
 
-  const isFiltered = Boolean(status || type || search);
+  const isFiltered = Boolean(status || type || scope || search);
 
   return (
     <>
@@ -199,7 +205,7 @@ export default function SurveysList() {
           onFilterClick={() => setFilterVisible((open) => !open)}
           isFilterVisible={isFilterVisible}
           hasFilters
-          activeFilterCount={type ? 1 : 0}
+          activeFilterCount={(type ? 1 : 0) + (scope ? 1 : 0)}
           onRefresh={fetchRows}
         />
 
@@ -214,6 +220,22 @@ export default function SurveysList() {
                   setCurrentPage(1);
                 }}
                 options={[{ value: '', label: 'All types' }, ...SURVEY_TYPE_OPTIONS]}
+              />
+            </div>
+            <div className="w-full sm:w-64">
+              <Select
+                label="Available to"
+                value={scope}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setScope(value === 'global' || value === 'mahallu' ? value : '');
+                  setCurrentPage(1);
+                }}
+                options={[
+                  { value: '', label: 'All surveys' },
+                  { value: 'global', label: 'All Mahallus' },
+                  { value: 'mahallu', label: 'One Mahallu only' },
+                ]}
               />
             </div>
           </FilterPanel>

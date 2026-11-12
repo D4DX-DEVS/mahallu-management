@@ -11,7 +11,7 @@ import {
   optionalText,
   requiredText,
 } from './common';
-import { SURVEY_TYPES, SURVEY_STATUSES, RESPONDENT_TYPES } from '../models/SurveyForm';
+import { SURVEY_TYPES, SURVEY_STATUSES, RESPONDENT_TYPES, SURVEY_SCOPES } from '../models/SurveyForm';
 
 /**
  * Request shapes for /api/survey-forms. Answers and form definitions are checked in depth by the
@@ -36,9 +36,10 @@ export const listSurveyFormsValidation = [
   ...listQuery(),
   enumQuery('status', SURVEY_STATUSES, 'status'),
   enumQuery('type', SURVEY_TYPES, 'survey type'),
+  enumQuery('scope', SURVEY_SCOPES, 'survey scope'),
 ];
 
-export const createSurveyFormValidation = surveyDetails('create');
+export const createSurveyFormValidation = [...surveyDetails('create'), enumField('scope', SURVEY_SCOPES, 'survey scope')];
 export const updateSurveyFormValidation = [idParam('id', 'survey'), ...surveyDetails('update')];
 
 export const surveyIdValidation = [idParam('id', 'survey')];

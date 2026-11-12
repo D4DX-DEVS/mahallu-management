@@ -14,9 +14,11 @@ import {
   SURVEY_TYPE_OPTIONS,
   RESPONDENT_OPTIONS,
   SurveyForm,
+  SurveyScope,
 } from '@/services/surveyFormService';
 import type { RespondentType } from '../formEngine';
 import { toast } from '@/store/toastStore';
+import { useAuthStore } from '@/store/authStore';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 
 interface FormState {
@@ -27,6 +29,7 @@ interface FormState {
   endDate: string;
   targetCount: string;
   respondentType: RespondentType;
+  scope: SurveyScope;
 }
 
 const today = () => {
@@ -42,10 +45,17 @@ const EMPTY: FormState = {
   endDate: '',
   targetCount: '',
   respondentType: 'family',
+  scope: 'mahallu',
 };
 
-const validate = (form: FormState): Record<string, string> => {
+const SCOPE_OPTIONS: { value: SurveyScope; label: string }[] = [
+  { value: 'global', label: 'All Mahallus — one form for every Mahallu' },
+  { value: 'mahallu', label: 'The selected Mahallu only' },
+];
+
+const validate = (form: FormState, hasMahallu: boolean): Record<string, string> => {
   const errors: Record<string, string> = {};
+  if (form.scope === 'mahallu' && !hasMahallu) errors.scope = 'Select a Mahallu first, or make this survey available to all Mahallus.';
   if (form.title.trim().length < 3) errors.title = 'Please enter a survey name of at least 3 characters.';
   if (!form.startDate) errors.startDate = 'Please choose the start date.';
   if (form.endDate && form.startDate && form.endDate < form.startDate) errors.endDate = 'The end date cannot be before the start date.';
@@ -60,7 +70,10 @@ export default function SurveyFormModal() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const isEdit = Boolean(id);
-  const [form, setForm] = useState<FormState>(EMPTY);
+  const isSuperAdmin = useAuthStore((state) => state.isSuperAdmin);
+  const currentTenantId = useAuthStore((state) => state.currentTenantId);
+  // A Super Admin creates surveys for all Mahallus by default; a Mahallu admin always for their own.
+  const [form, setForm] = useState<FormState>(() => ({ ...EMPTY, scope: isSuperAdmin ? 'global' : 'mahallu' }));
   const [existing, setExisting] = useState<SurveyForm | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(isEdit);
@@ -80,6 +93,7 @@ export default function SurveyFormModal() {
           endDate: survey.endDate?.slice(0, 10) || '',
           targetCount: survey.targetCount ? String(survey.targetCount) : '',
           respondentType: survey.respondentType,
+          scope: survey.scope || 'mahallu',
         });
       })
       .catch((err) => toast.error(loadErrorMessage(err, 'survey')))
@@ -93,7 +107,7 @@ export default function SurveyFormModal() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const found = validate(form);
+    const found = validate(form, Boolean(currentTenantId));
     setErrors(found);
     if (Object.values(found).some(Boolean)) return;
     const payload = {
@@ -104,6 +118,7 @@ export default function SurveyFormModal() {
       endDate: form.endDate || null,
       targetCount: form.targetCount ? Number(form.targetCount) : null,
       respondentType: form.respondentType,
+      ...(isEdit ? {} : { scope: form.scope }),
     };
     try {
       setSaving(true);
@@ -135,6 +150,25 @@ export default function SurveyFormModal() {
       />
       <form onSubmit={handleSubmit} noValidate className="space-y-4">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          {isSuperAdmin && !isEdit && (
+            <div className="md:col-span-2">
+              <RadioCardGroup
+                label="Available to"
+                columns={2}
+                value={form.scope}
+                error={errors.scope}
+                onChange={(value) => set('scope', value === 'mahallu' ? 'mahallu' : 'global')}
+                options={SCOPE_OPTIONS}
+              />
+              <p className="mt-1.5 text-xs text-muted-foreground">
+                {form.scope === 'global'
+                  ? "Every Mahallu's survey workers fill this same form. Each Mahallu sees and reviews only its own responses, and only you can change the form."
+                  : currentTenantId
+                    ? 'Only the Mahallu selected in the top bar gets this survey.'
+                    : 'Select a Mahallu in the top bar first.'}
+              </p>
+            </div>
+          )}
           <div className="md:col-span-2">
             <Input
               label="Survey name"
