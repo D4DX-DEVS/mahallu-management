@@ -72,12 +72,13 @@ export const updateEmployeeValidation = [
   amountField('salary', 'salary'),
   body('instituteId').optional({ values: 'falsy' }).isMongoId().withMessage('Please select a valid institute.'),
   body('phone')
-    .optional()
+    // An empty value clears the field; only a filled one is checked.
+    .optional({ values: 'falsy' })
     .trim()
     .matches(/^[0-9]{10}$/)
     .withMessage('Please enter a 10-digit phone number.'),
   body('email')
-    .optional()
+    .optional({ values: 'falsy' })
     .trim()
     .isEmail()
     .withMessage('Please enter a valid email address.')
