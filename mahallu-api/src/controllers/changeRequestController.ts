@@ -7,6 +7,9 @@ import { normalizeIndianPhone } from '../services/dxingService';
 import { AuthRequest } from '../middleware/authMiddleware';
 import { getPaginationParams, createPaginationResponse } from '../utils/pagination';
 
+import Notification from '../models/Notification';
+import User from '../models/User';
+import { sendPushToUsers } from '../services/oneSignalService';
 import { sendFailure } from '../utils/userMessages';
 
 // Only these fields may be changed through self-service.
@@ -20,6 +23,37 @@ const FAMILY_EDITABLE_FIELDS = [
 
 const isAdmin = (req: AuthRequest): boolean =>
   req.isSuperAdmin === true || req.user?.role === 'mahall';
+
+// Tells the Mahallu admins a request is waiting. Best effort: the request is already saved, so a
+// failure here is logged and never fails the member's submit.
+const notifyAdmins = async (tenantId: unknown, memberName: string | undefined, targetType: string) => {
+  try {
+    const admins = await User.find({ tenantId, role: 'mahall', status: 'active' }).select('_id oneSignalPlayerId');
+    if (admins.length === 0) return;
+    const title = 'New change request';
+    const message = `${memberName || 'A member'} asked to change ${targetType === 'family' ? 'their house details' : 'a member record'}. Review it under Registrations > Change requests.`;
+    const note = await Notification.create({
+      tenantId,
+      recipientType: 'user',
+      recipientIds: admins.map((a) => a._id),
+      title,
+      message,
+      type: 'info',
+      pushStatus: 'pending',
+    });
+    const result = await sendPushToUsers(admins as any[], {
+      title,
+      message,
+      data: { type: 'notification', notificationId: String(note._id), notificationType: 'info' },
+    });
+    await Notification.updateOne(
+      { _id: note._id },
+      { $set: { pushStatus: result.status, pushIds: result.ids, pushRecipients: result.recipients, pushError: result.error, pushedAt: new Date() } }
+    );
+  } catch (err: any) {
+    console.error('[ChangeRequest] Could not notify admins:', err?.message);
+  }
+};
 
 // POST /api/change-requests — member requests changes to own record / own family (head)
 export const createChangeRequest = async (req: AuthRequest, res: Response) => {
@@ -103,7 +137,10 @@ export const createChangeRequest = async (req: AuthRequest, res: Response) => {
         newValue: String(c.newValue),
       })),
       status: 'pending',
+      ...(typeof req.body.remarks === 'string' && req.body.remarks.trim() ? { remarks: req.body.remarks.trim() } : {}),
     });
+
+    await notifyAdmins(member.tenantId, member.name, targetType);
 
     res.status(201).json({ success: true, data: changeRequest, message: 'Change request submitted for verification' });
   } catch (error: any) {
