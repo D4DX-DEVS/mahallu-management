@@ -94,7 +94,8 @@ export const updateUserValidation = [
     .matches(/^[0-9]{10}$/)
     .withMessage('Please enter a 10-digit phone number.'),
   body('email')
-    .optional()
+    // An empty value clears the email; only a filled one is checked.
+    .optional({ values: 'falsy' })
     .trim()
     .isEmail()
     .withMessage('Please enter a valid email address.')
