@@ -295,4 +295,16 @@ describe('notification visibility', () => {
     assert.equal(notMine.isRead, false);
     assert.equal(home.isRead, false);
   });
+
+  test('the list says which notifications are in the own inbox of the viewer, groups included', async () => {
+    const group = make({ recipientType: 'user', recipientIds: [ADMIN._id, MEMBER_B._id] });
+    const otherGroup = make({ recipientType: 'user', recipientIds: [MEMBER_B._id] });
+    rows = [broadcast, forB, forAdmin, group, otherGroup];
+    const out = await call(getAllNotifications, ADMIN);
+    assert.equal(byId(out, broadcast).inInbox, true);
+    assert.equal(byId(out, forAdmin).inInbox, true);
+    assert.equal(byId(out, group).inInbox, true);
+    assert.equal(byId(out, forB).inInbox, false);
+    assert.equal(byId(out, otherGroup).inInbox, false);
+  });
 });

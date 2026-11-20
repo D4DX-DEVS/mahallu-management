@@ -80,6 +80,14 @@ export const readsPerUser = (doc: { recipientType?: string; recipientIds?: unkno
   doc.recipientType === 'committee' ||
   (Array.isArray(doc.recipientIds) && doc.recipientIds.length > 0);
 
+/** Is it in this viewer's own inbox: a broadcast, addressed to them, or to a group they are in? */
+export const inInbox = (doc: any, viewerIds: unknown[]): boolean => {
+  if (doc.recipientType === 'all') return true;
+  const mine = new Set(viewerIds.map(String));
+  if (doc.recipientId && mine.has(String(doc.recipientId))) return true;
+  return Array.isArray(doc.recipientIds) && doc.recipientIds.some((id: unknown) => mine.has(String(id)));
+};
+
 /** Has this viewer read it? A broadcast is read per user (readBy), anything else by its own flag. */
 export const isReadBy = (doc: { isRead?: boolean; readBy?: unknown[] }, viewerId?: unknown): boolean => {
   if (doc.isRead === true) return true; // an individual one, or a broadcast read for everyone before per-user tracking

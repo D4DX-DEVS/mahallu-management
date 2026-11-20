@@ -1,6 +1,6 @@
 import { Response } from 'express';
 import mongoose from 'mongoose';
-import Notification, { notificationForViewer, readsPerUser } from '../models/Notification';
+import Notification, { inInbox, notificationForViewer, readsPerUser } from '../models/Notification';
 import User from '../models/User';
 import Member from '../models/Member';
 import Family from '../models/Family';
@@ -84,12 +84,13 @@ export const getAllNotifications = async (req: AuthRequest, res: Response) => {
     const query = conditions.length > 1 ? { $and: conditions } : conditions[0];
 
     const [notifications, total] = await Promise.all([
-      Notification.find(query).select('+readBy').sort({ createdAt: -1 }).skip(skip).limit(limit),
+      Notification.find(query).select('+readBy +recipientIds').sort({ createdAt: -1 }).skip(skip).limit(limit),
       Notification.countDocuments(query),
     ]);
 
     // `isRead` is THIS viewer's state, so the contract the CMS and apps read is unchanged.
-    const data = notifications.map((n) => notificationForViewer(n, viewer.id));
+    // `inInbox`: whether it is addressed to this viewer (an admin's list also holds other people's).
+    const data = notifications.map((n) => ({ ...notificationForViewer(n, viewer.id), inInbox: inInbox(n, viewer.ids) }));
     res.json(createPaginationResponse(data, total, page, limit));
   } catch (error: any) {
     sendFailure(res, error, 'We couldn\'t load the notifications right now. Please try again.');
