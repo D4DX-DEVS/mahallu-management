@@ -63,7 +63,6 @@ const TenantSchema = new Schema<ITenant>(
       type: String,
       required: [true, 'Tenant code is required'],
       unique: true,
-      uppercase: true,
       trim: true,
     },
     type: {

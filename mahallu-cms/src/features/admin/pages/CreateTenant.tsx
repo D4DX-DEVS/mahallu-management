@@ -21,7 +21,7 @@ import { optionalPinCodeSchema, sanitizeDigits } from '@/utils/validation';
 
 const tenantSchema = z.object({
   name: z.string().max(200, 'Please keep the name to 200 characters or less.').min(1, 'Name is required'),
-  code: z.string().max(200, 'Please keep the code to 200 characters or less.').min(1, 'Code is required').toUpperCase(),
+  code: z.string().trim().min(1, 'Code is required').min(2, 'Please keep the code between 2 and 50 characters.').max(50, 'Please keep the code between 2 and 50 characters.'),
   type: z.enum(['mahallu', 'juma_masjid']),
   location: z.string().max(300, 'Please keep the location to 300 characters or less.').min(1, 'Location is required'),
   address: z.object({
@@ -76,19 +76,6 @@ export default function CreateTenant() {
       },
     },
   });
-
-  // Auto-generate a unique tenant code on mount
-  useEffect(() => {
-    const generateCode = () => {
-      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-      const prefix = 'TN';
-      const random = Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join(
-        ''
-      );
-      return `${prefix}${random}`;
-    };
-    setValue('code', generateCode());
-  }, [setValue]);
 
   // Opened from an accepted ZAAD request: fill in what the request carried. Nothing is created
   // until the administrator reviews the form and submits it.
@@ -182,11 +169,14 @@ export default function CreateTenant() {
                 placeholder="Masjidul Ansar Thiruvizhamkunnu"
               />
               <Input
-                label="Code (Auto-generated)"
+                label="Code"
                 {...register('code')}
                 error={errors.code?.message}
                 required
-                placeholder="TN4X8K2M"
+                maxLength={50}
+                autoComplete="off"
+                spellCheck={false}
+                placeholder="e.g. Masjid-Ansar@01"
               />
               <Select
                 label="Type"
