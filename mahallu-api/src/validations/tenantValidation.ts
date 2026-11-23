@@ -14,9 +14,7 @@ export const createTenantValidation = [
     .notEmpty()
     .withMessage('Please enter the tenant code.')
     .isLength({ min: 2, max: 50 })
-    .withMessage('Please keep the tenant code between 2 and 50 characters.')
-    .matches(/^[A-Z0-9]+$/)
-    .withMessage('Tenant code must contain only uppercase letters and numbers'),
+    .withMessage('Please keep the tenant code between 2 and 50 characters.'),
   body('type')
     .isIn([...TENANT_TYPES])
     .withMessage('Please choose a valid tenant type.'),

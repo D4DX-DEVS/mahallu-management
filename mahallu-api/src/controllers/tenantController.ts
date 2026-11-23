@@ -70,8 +70,11 @@ export const createTenant = async (req: AuthRequest, res: Response) => {
     // `demoRequestId` links the new Mahallu to the accepted request it came from; it is not a tenant field.
     const { demoRequestId, ...tenantData } = req.body;
 
-    // Check if code already exists
-    const existingTenant = await Tenant.findOne({ code: tenantData.code.toUpperCase() });
+    // Codes are stored exactly as typed, but one that differs from an existing code only in
+    // letter case still counts as taken.
+    const existingTenant = await Tenant.findOne({
+      code: { $regex: `^${regexLiteral(tenantData.code)}$`, $options: 'i' },
+    });
     if (existingTenant) {
       return res.status(400).json({
         success: false,
@@ -88,7 +91,6 @@ export const createTenant = async (req: AuthRequest, res: Response) => {
     const tenant = new Tenant({
       ...tenantData,
       settings,
-      code: tenantData.code.toUpperCase(),
     });
 
     if (demoRequestId) {
