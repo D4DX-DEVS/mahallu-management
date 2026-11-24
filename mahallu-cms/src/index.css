@@ -262,6 +262,11 @@
     grid-column: span 2 / span 2 !important;
   }
 
+  /* A create/edit form sits in a modal that has its own close control: no page Back button there. */
+  .form-modal-content .page-back {
+    display: none;
+  }
+
   /* ---- Create / edit workspace (FormModalRoute) ----------------------
    * Forms come in two shapes — a Card wrapping the <form>, or a <form>
    * wrapping a Card — and either way the page's own Card is a second frame
