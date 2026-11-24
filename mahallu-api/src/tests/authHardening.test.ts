@@ -18,6 +18,7 @@ import { signSessionToken, signImpersonationToken, toPublicUser } from '../utils
 import authRoutes from '../routes/authRoutes';
 import certificateRoutes from '../routes/certificateRoutes';
 import User from '../models/User';
+import { stubFamilyHead } from './support/familyHead';
 import Tenant from '../models/Tenant';
 import Certificate from '../models/Certificate';
 import * as uploadService from '../services/uploadService';
@@ -418,6 +419,8 @@ describe('[isolated] auth hardening', () => {
       invalidateTenantStatus();
       (User as any).findById = () => ({ select: async () => account });
       (Tenant as any).findById = () => ({ select: async () => ({ status: 'active' }) });
+      // The member account is a family head's (no other member account passes the middleware).
+      const restoreHead = stubFamilyHead();
       try {
         const token = imp
           ? signImpersonationToken({ _id: account._id, tokenVersion: 0 }, imp)
@@ -430,6 +433,7 @@ describe('[isolated] auth hardening', () => {
         });
         return { out, nextCalled, req };
       } finally {
+        restoreHead();
         (User as any).findById = originalUser;
         (Tenant as any).findById = originalTenant;
         invalidateTenantStatus();

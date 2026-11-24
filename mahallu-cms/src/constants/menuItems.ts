@@ -115,6 +115,16 @@ export const menuItems: MenuItem[] = [
     path: '/dashboard',
     allowedRoles: ['super_admin', 'mahall', 'survey', 'institute'],
   },
+  {
+    // The Malayalam step-by-step guide. Always here, whether the first-login
+    // welcome was skipped or the guide was finished.
+    id: 'user-guide',
+    label: 'User guide',
+    section: 'Overview',
+    icon: RiBookOpenLine,
+    path: '/guide',
+    allowedRoles: ADMIN_ROLES,
+  },
 
   /* ---------------------------------------------------------------- Member */
   {

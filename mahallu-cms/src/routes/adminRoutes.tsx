@@ -22,6 +22,7 @@ import ChangeRequestsList from '@/features/admin/pages/ChangeRequestsList';
 import DataQualityPage from '@/features/admin/pages/DataQualityPage';
 import AdminCategoriesList from '@/features/admin/pages/CategoriesList';
 import AdminCategoryDetail from '@/features/admin/pages/CategoryDetail';
+import UserGuide from '@/features/guide/pages/UserGuide';
 import { route, superAdminRoute } from './routeHelpers';
 
 export const adminRoutes = [
@@ -73,4 +74,8 @@ export const adminRoutes = [
   // Categories (super admin only, matching the backend's superAdminOnly guard)
   superAdminRoute('/admin/categories', <AdminCategoriesList />),
   superAdminRoute('/admin/categories/:id', <AdminCategoryDetail />),
+
+  // User guide (Malayalam) for the Mahallu admin
+  route(ROUTES.GUIDE, <UserGuide />, { allowedRoles: ['mahall'] }, { label: 'User guide' }),
+  route(`${ROUTES.GUIDE}/:chapterId`, <UserGuide />, { allowedRoles: ['mahall'] }),
 ];

@@ -8,6 +8,9 @@ export const ROUTES = {
   // Dashboard
   DASHBOARD: '/dashboard',
 
+  // User guide (Mahallu admin)
+  GUIDE: '/guide',
+
   // Member Portal
   MEMBER: {
     OVERVIEW: '/member/overview',

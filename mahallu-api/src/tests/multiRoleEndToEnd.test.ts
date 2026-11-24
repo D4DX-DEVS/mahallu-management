@@ -10,6 +10,7 @@ process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-secret';
 import { sanitizeRequest } from '../middleware/sanitizeRequest';
 import authRoutes from '../routes/authRoutes';
 import User from '../models/User';
+import { stubFamilyHead } from './support/familyHead';
 
 /**
  * These exercise the full real Express router (cors, body parsing,
@@ -53,8 +54,10 @@ test('GET /auth/available-accounts: an OTP-proven multi-role identity (2 active 
   });
   (User as any).find = async () => [
     { _id: 'mahallUserId', phone: '918000000000', status: 'active', role: 'mahall', tenantId: null, instituteId: null },
-    { _id: 'memberUserId', phone: '918000000000', status: 'active', role: 'member', tenantId: null, instituteId: null },
+    { _id: 'memberUserId', phone: '918000000000', status: 'active', role: 'member', memberId: 'headMemberId', tenantId: null, instituteId: null },
   ];
+  // The member sibling is a family head: no other member account is offered.
+  const restoreHead = stubFamilyHead();
 
   const { server, port } = await startServer();
   try {
@@ -67,6 +70,7 @@ test('GET /auth/available-accounts: an OTP-proven multi-role identity (2 active 
     const otherRoles = body.data.accounts.filter((a: any) => !a.isCurrent).map((a: any) => a.role);
     assert.deepEqual(otherRoles, ['member']);
   } finally {
+    restoreHead();
     server.close();
     (User as any).findById = originalUserFindById;
     (User as any).find = originalUserFind;
@@ -137,6 +141,7 @@ test('POST /auth/switch-account: a real sibling account switch succeeds over rea
         phone: '918000000000',
         status: 'active',
         role: 'member',
+        memberId: 'headMemberId',
         tenantId: null,
         instituteId: null,
         isSuperAdmin: false,
@@ -144,6 +149,7 @@ test('POST /auth/switch-account: a real sibling account switch succeeds over rea
       };
     },
   });
+  const restoreHead = stubFamilyHead();
 
   const { server, port } = await startServer();
   try {
@@ -157,6 +163,7 @@ test('POST /auth/switch-account: a real sibling account switch succeeds over rea
     assert.equal(body.data.user.role, 'member');
     assert.ok(body.data.token);
   } finally {
+    restoreHead();
     server.close();
     (User as any).findById = originalUserFindById;
   }

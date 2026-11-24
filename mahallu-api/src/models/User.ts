@@ -27,6 +27,12 @@ export interface IUser extends Document {
   username?: string;
   /** Set when an administrator issued the current password; cleared when the owner changes it. */
   passwordResetRequired?: boolean;
+  /**
+   * Family head accounts only: the password the Mahallu issued, encrypted so the Mahallu admin can
+   * read it out again (see services/familyHeadLogin.ts). Cleared when the head sets their own.
+   * Never selected by default.
+   */
+  issuedPassword?: string;
   isSuperAdmin: boolean;
   /** Task C5 — when on, password login stops at an OTP step instead of issuing a token. */
   twoFactorEnabled: boolean;
@@ -122,6 +128,10 @@ const UserSchema = new Schema<IUser>(
     passwordResetRequired: {
       type: Boolean,
       default: false,
+    },
+    issuedPassword: {
+      type: String,
+      select: false,
     },
     isSuperAdmin: {
       type: Boolean,

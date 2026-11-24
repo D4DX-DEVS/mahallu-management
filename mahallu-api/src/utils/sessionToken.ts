@@ -72,6 +72,8 @@ export const toPublicUser = (user: any): any => {
   const plain = typeof user.toObject === 'function' ? user.toObject() : { ...user };
   delete plain.tokenVersion;
   delete plain.revokedTokens;
+  // Never selected by default; dropped here too so no query that did select it can leak it.
+  delete plain.issuedPassword;
   if (plain.role === 'institute') plain.instituteId = instituteIdOf(plain);
   return plain;
 };

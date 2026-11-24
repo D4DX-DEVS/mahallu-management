@@ -1,6 +1,8 @@
 import { ComponentType, ReactNode } from 'react';
-import { useLocation } from 'react-router-dom';
-import { resolveNavIcon } from '@/constants/navIcons';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { RiArrowLeftLine } from 'react-icons/ri';
+import { isMenuDestination, resolveNavIcon } from '@/constants/navIcons';
+import { hasInAppHistory, parentListPath } from '@/utils/formModalClose';
 import { cn } from '@/utils/cn';
 
 export interface Crumb {
@@ -45,6 +47,11 @@ export interface PageHeaderProps {
  * The title sits at 18px beside a 48px outlined icon disc, with the description
  * under it and a hairline closing the header off from the page body.
  *
+ * Every page that is not opened straight from the sidebar (a record, a report, a settings screen)
+ * starts with a Back button. It returns to the page the person came from; on a deep link or after
+ * a refresh, where there is no such page, it goes to the record's parent list. Create and edit
+ * forms open in a modal with its own close control, so the button is hidden there (index.css).
+ *
  * There is no breadcrumb. The trail it printed — "Dashboard › Families" above
  * an <h1> reading "Families" — restated the page title under a link to a
  * destination the sidebar already shows, on a product whose navigation is
@@ -52,7 +59,14 @@ export interface PageHeaderProps {
  */
 export default function PageHeader({ title, eyebrow, description, icon, actions, className }: PageHeaderProps) {
   const { pathname } = useLocation();
+  const navigate = useNavigate();
   const Icon = icon === undefined ? resolveNavIcon(pathname) : icon;
+  const showBack = !isMenuDestination(pathname);
+
+  const goBack = () => {
+    if (hasInAppHistory()) navigate(-1);
+    else navigate(parentListPath(pathname), { replace: true });
+  };
 
   return (
     <div className={cn('mb-6 min-w-0 border-b border-border pb-5', className)}>
@@ -61,6 +75,17 @@ export default function PageHeader({ title, eyebrow, description, icon, actions,
           pushing the whole page sideways. When the actions do not fit beside the title they now drop below it. */}
       <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-x-6">
         <div className="flex min-w-0 items-center gap-3.5 sm:min-w-[14rem] sm:flex-1">
+          {showBack && (
+            <button
+              type="button"
+              onClick={goBack}
+              aria-label="Go back"
+              title="Back"
+              className="page-back -mr-1 flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full border border-border bg-card text-foreground/80 shadow-sm transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <RiArrowLeftLine className="h-5 w-5" aria-hidden="true" />
+            </button>
+          )}
           {Icon && (
             <span
               aria-hidden="true"

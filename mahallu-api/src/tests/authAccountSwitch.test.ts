@@ -5,6 +5,7 @@ import { validationResult } from 'express-validator';
 import { switchAccountValidation } from '../validations/authValidation';
 import { getAvailableAccounts, switchAccount } from '../controllers/authController';
 import User from '../models/User';
+import { stubFamilyHead } from './support/familyHead';
 import Tenant from '../models/Tenant';
 import { invalidateTenantStatus } from '../services/tenantStatusService';
 
@@ -105,7 +106,7 @@ test("getAvailableAccounts: looks up siblings by the PROVEN phone, never the cur
         captured = query;
         return [
           { _id: 'callerId', phone: '918000000000', role: 'mahall', name: 'Caller', tenantId: null, instituteId: null },
-          { _id: 'siblingId', phone: '+918000000000', role: 'member', name: 'Sibling', tenantId: null, instituteId: null },
+          { _id: 'siblingId', phone: '+918000000000', role: 'member', memberId: 'headMemberId', name: 'Sibling', tenantId: null, instituteId: null },
         ];
       },
     },
@@ -113,7 +114,13 @@ test("getAvailableAccounts: looks up siblings by the PROVEN phone, never the cur
       const { res, out } = makeRes();
       // The stored phone on the current account was edited to someone else's number; the proof is the original.
       const req: any = { user: { _id: 'callerId', phone: '919111111111' }, provenPhone: '918000000000' };
-      await getAvailableAccounts(req, res);
+      // The member sibling is a family head: no other member account is offered.
+      const restoreHead = stubFamilyHead();
+      try {
+        await getAvailableAccounts(req, res);
+      } finally {
+        restoreHead();
+      }
 
       assert.equal(captured.status, 'active');
       assert.deepEqual(captured.isSuperAdmin, { $ne: true });

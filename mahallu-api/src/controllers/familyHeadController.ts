@@ -1,12 +1,10 @@
 import { Response } from 'express';
 import Member from '../models/Member';
 import Family from '../models/Family';
-import User from '../models/User';
 import { AuthRequest } from '../middleware/authMiddleware';
 import { memberKey, memberSeed } from './memberController';
 import { createWithSequence } from '../utils/idCounter';
 import { runAtomic } from '../utils/transaction';
-import { randomUnusablePasswordHash } from '../utils/credentials';
 import { calculateAge } from '../utils/age';
 import { recordSecurityEvent } from '../utils/securityAudit';
 import { regexLiteral } from '../utils/queryGuard';
@@ -81,18 +79,7 @@ export const createFamilyMember = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    if (phone) {
-      const holder = await User.findOne({ phone, tenantId: head.tenantId, role: 'member' }).select('_id');
-      if (holder) {
-        return res.status(409).json({
-          success: false,
-          message: 'A member with this phone number already exists in this Mahallu. Please use a different number.',
-        });
-      }
-    }
-
     const tenantId = String(head.tenantId);
-    const passwordHash = phone ? await randomUnusablePasswordHash() : undefined;
 
     const created = await runAtomic(
       async (session, comp) => {
@@ -121,24 +108,8 @@ export const createFamilyMember = async (req: AuthRequest, res: Response) => {
           }
         );
         comp.push('delete new family member', () => Member.deleteOne({ _id: member._id }));
-
-        let loginAccount: InstanceType<typeof User> | undefined;
-        if (phone && passwordHash) {
-          loginAccount = new User({
-            name: member.name,
-            phone,
-            role: 'member',
-            tenantId: head.tenantId,
-            memberId: member._id,
-            status: 'active',
-            isSuperAdmin: false,
-            permissions: { view: true, add: false, edit: false, delete: false },
-            password: passwordHash,
-          });
-          await loginAccount.save({ session });
-          comp.push('delete new member account', () => User.deleteOne({ _id: loginAccount!._id }));
-        }
-        return { member, loginAccount };
+        // No sign-in is created: among a family's members only the head signs in.
+        return { member };
       },
       {
         description: 'family head adds a family member',
@@ -148,18 +119,16 @@ export const createFamilyMember = async (req: AuthRequest, res: Response) => {
 
     await recordSecurityEvent(req, {
       action: 'family member created',
-      target: { id: created.loginAccount?._id ?? created.member._id, role: 'member', tenantId: head.tenantId },
-      details: { familyId: String(family._id), memberId: String(created.member._id), loginAccount: Boolean(created.loginAccount) },
+      target: { id: created.member._id, role: 'member', tenantId: head.tenantId },
+      details: { familyId: String(family._id), memberId: String(created.member._id), loginAccount: false },
     });
 
     const memberResponse = await Member.findById(created.member._id).populate('familyId', 'houseName mahallId');
     return res.status(201).json({
       success: true,
       data: memberResponse,
-      loginAccountCreated: Boolean(created.loginAccount),
-      message: created.loginAccount
-        ? `${personName} was added. They can sign in with this phone number; a one-time code is requested when they do.`
-        : `${personName} was added. They have no sign-in because no phone number was given.`,
+      loginAccountCreated: false,
+      message: `${personName} was added.`,
     });
   } catch (error: any) {
     return sendFailure(res, error, "We couldn't add the family member. Please try again.");

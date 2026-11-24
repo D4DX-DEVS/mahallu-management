@@ -84,7 +84,16 @@ const memberSchemaShape = z.object({
   ...conditionalSchemaFields,
 });
 
-const memberSchema = withConditionalRules(memberSchemaShape);
+// Only the family head signs in, with their phone number as the sign-in name: a head needs one.
+const memberSchema = withConditionalRules(memberSchemaShape).superRefine((data, ctx) => {
+  if (data.isFamilyHead && !data.phone) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['phone'],
+      message: 'Enter the family head’s phone number. They sign in with it.',
+    });
+  }
+});
 
 // Inferred off the plain object shape (not the superRefine wrapper) so the
 // concrete object type survives — resolving it off the wrapped ZodEffects
@@ -128,6 +137,7 @@ export default function CreateMember() {
   const healthStatus = watch('healthStatus');
   const education = watch('education');
   const dateOfBirth = watch('dateOfBirth');
+  const isFamilyHead = watch('isFamilyHead');
   const selectedFamily = families.find((f) => f.id === selectedFamilyId);
   const selectedFamilyName = selectedFamily?.houseName;
 
@@ -221,7 +231,13 @@ export default function CreateMember() {
         // (not undefined) so the server clears a stale value, per normalizeConditionalFields.
         ...normalizeConditionalFields(data),
       };
-      await memberService.create(memberData);
+      const created = await memberService.create(memberData);
+      if (data.isFamilyHead) {
+        // A family head gets a sign-in: land on their page, where it is shown and can be shared.
+        toast.success('Family head saved. Their sign-in details are ready to share.');
+        navigate(ROUTES.MEMBERS.DETAIL(created.id));
+        return;
+      }
       // Creating a family toasts; creating a member used to navigate silently.
       toast.success('Member saved');
       navigate(returnPath);
@@ -374,7 +390,7 @@ export default function CreateMember() {
                     helperText={
                       selectedFamily?.familyHead
                         ? `${toTitleCase(selectedFamily.familyHead)} is already the head of this family.`
-                        : undefined
+                        : 'Only the family head can sign in. A sign-in is created for them when you save.'
                     }
                   />
                 </div>
@@ -432,6 +448,8 @@ export default function CreateMember() {
                 error={errors.phone?.message}
                 placeholder="9876543210"
                 maxLength={10}
+                required={Boolean(isFamilyHead)}
+                helperText={isFamilyHead ? 'The family head signs in with this number.' : undefined}
               />
 
               <RadioCardGroup

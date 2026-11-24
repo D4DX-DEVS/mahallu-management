@@ -65,6 +65,15 @@ const extraPaths: Array<[string, IconComponent]> = [
 ];
 
 /**
+ * True for a page the sidebar opens directly (Families, Collections, a member's Dashboard…). Those are
+ * the places a person starts from; every other page is reached from one of them and gets a Back button.
+ */
+export function isMenuDestination(pathname: string): boolean {
+  const path = pathname.length > 1 ? pathname.replace(/\/+$/, '') : pathname;
+  return byPath.has(path);
+}
+
+/**
  * The icon the sidebar uses for `pathname`, or for the nearest ancestor route
  * it sits under — so `/families/new` and `/families/:id/edit` carry the
  * Families icon, and a detail page is visibly part of its module.

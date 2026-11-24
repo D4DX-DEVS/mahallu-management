@@ -48,7 +48,7 @@ export default function CredentialsCard({ user, canManage, onUserChanged }: Cred
           <h2 className="text-lg font-semibold text-foreground">Sign-in details</h2>
           <p className="text-sm text-gray-500 dark:text-gray-400">
             {memberAccount
-              ? 'Members sign in with a one-time code sent to their own phone, so they have no username or password.'
+              ? 'Only a family head signs in as a member: with their phone number and the password the Mahallu issued. Open the member’s page to see, share or reset it.'
               : 'How this person signs in, and who they are in the system.'}
           </p>
         </div>
@@ -71,7 +71,7 @@ export default function CredentialsCard({ user, canManage, onUserChanged }: Cred
             {user.username ? (
               <span className="font-mono">{user.username}</span>
             ) : (
-              <span className="text-gray-500 dark:text-gray-400">{memberAccount ? 'Not used' : 'Not set - signs in with phone number'}</span>
+              <span className="text-gray-500 dark:text-gray-400">{memberAccount ? 'Their phone number' : 'Not set - signs in with phone number'}</span>
             )}
           </p>
         </div>
@@ -82,7 +82,7 @@ export default function CredentialsCard({ user, canManage, onUserChanged }: Cred
         <div>
           <span className="text-sm text-gray-500 dark:text-gray-400">Password</span>
           <p className="text-gray-900 dark:text-gray-100">
-            {memberAccount ? 'None' : '••••••••'}
+            {memberAccount ? 'Issued by the Mahallu - see the member’s page' : '••••••••'}
             {!memberAccount && (
               <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">Stored securely - it can&apos;t be viewed, only reset.</span>
             )}

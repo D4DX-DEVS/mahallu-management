@@ -65,7 +65,8 @@ export default function Login() {
   const navigate = useNavigate();
   const { setUser, setToken, resetSessionContext } = useAuthStore();
   const [step, setStep] = useState<'phone' | 'otp' | 'select'>('phone');
-  const [usePassword, setUsePassword] = useState(false);
+  // Username and password is the default; the phone/OTP form is one click away.
+  const [usePassword, setUsePassword] = useState(true);
   const [phone, setPhone] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSendingOTP, setIsSendingOTP] = useState(false);
@@ -394,7 +395,7 @@ export default function Login() {
               <p className="mt-2 text-sm text-muted-foreground">
                 {step === 'phone' &&
                   (usePassword
-                    ? 'Enter the username and password your administrator gave you.'
+                    ? 'Enter the username and password your administrator gave you. Family heads: your username is your phone number.'
                     : 'Use your phone number to receive a one-time passcode and access the admin workspace.')}
                 {step === 'otp' && (
                   <>
@@ -419,7 +420,7 @@ export default function Login() {
               {step === 'phone' && usePassword ? (
                 <form onSubmit={passwordForm.handleSubmit(handlePasswordLogin)} className="space-y-4" noValidate>
                   <Input
-                    label="Username"
+                    label="Username or phone number"
                     autoComplete="username"
                     autoCapitalize="none"
                     spellCheck={false}

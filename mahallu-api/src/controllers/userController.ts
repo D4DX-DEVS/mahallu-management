@@ -156,6 +156,14 @@ export const createUser = async (req: AuthRequest, res: Response) => {
         });
       }
 
+      // Among members only the family head signs in.
+      if (member.isFamilyHead !== true) {
+        return res.status(400).json({
+          success: false,
+          message: 'Only a family head has a sign-in. Mark this member as the family head first.',
+        });
+      }
+
       // Use member's phone if phone not provided or ensure it matches
       const finalPhone = phone || member.phone;
       if (!finalPhone) {

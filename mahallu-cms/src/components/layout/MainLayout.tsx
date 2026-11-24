@@ -5,6 +5,7 @@ import Header from './Header';
 import TenantBanner from './TenantBanner';
 import ImpersonationBanner from './ImpersonationBanner';
 import MobileFooterNav from './MobileFooterNav';
+import GuideWelcome from '@/features/guide/components/GuideWelcome';
 import { useLayoutStore } from '@/store/layoutStore';
 import { useAuthStore } from '@/store/authStore';
 import { useLocation } from 'react-router-dom';
@@ -114,6 +115,8 @@ export default function MainLayout({ children }: MainLayoutProps) {
        * (60), so it now stays visible and tappable while the menu is open,
        * without the sheet itself losing the top slot. */}
       <MobileFooterNav />
+      {/* First-login offer of the Malayalam user guide (Mahallu admins, dashboard only). */}
+      <GuideWelcome />
     </div>
   );
 }

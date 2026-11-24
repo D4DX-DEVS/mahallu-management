@@ -4,6 +4,7 @@ import Member from '../models/Member';
 import Family from '../models/Family';
 import { verifyAndConsumeOtp } from '../services/otpService';
 import { normalizeIndianPhone } from '../services/dxingService';
+import { syncHeadLogin } from '../services/familyHeadLogin';
 import { AuthRequest } from '../middleware/authMiddleware';
 import { getPaginationParams, createPaginationResponse } from '../utils/pagination';
 
@@ -274,6 +275,8 @@ export const reviewChangeRequest = async (req: AuthRequest, res: Response) => {
         (target as any)[c.field] = c.newValue;
       });
       await target.save();
+      // A family head signs in with their phone number: an approved change reaches their sign-in too.
+      if (changeRequest.targetType === 'member') await syncHeadLogin(target);
     }
 
     changeRequest.status = status;

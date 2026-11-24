@@ -95,7 +95,9 @@ test('verifyOTP: multiple active accounts return requiresRoleSelection with the 
   stubOtpCollection(record);
   (User as any).find = async () => [
     { _id: 'mahallUserId', phone: '918000000000', status: 'active', role: 'mahall', tenantId: null, instituteId: null },
-    { _id: 'memberUserId', phone: '918000000000', status: 'active', role: 'member', tenantId: null, instituteId: null },
+    { _id: 'instituteUserId', phone: '918000000000', status: 'active', role: 'institute', tenantId: null, instituteId: null },
+    // A family head's account on the same phone is never offered: it opens with its password only.
+    { _id: 'memberUserId', phone: '918000000000', status: 'active', role: 'member', memberId: 'headMemberId', tenantId: null, instituteId: null },
   ];
   try {
     const { res, out } = makeRes();
@@ -106,7 +108,7 @@ test('verifyOTP: multiple active accounts return requiresRoleSelection with the 
     assert.equal(out.body.data.requiresRoleSelection, true);
     assert.ok(out.body.data.preAuthToken);
     const roles = out.body.data.accounts.map((a: any) => a.role).sort();
-    assert.deepEqual(roles, ['mahall', 'member']);
+    assert.deepEqual(roles, ['institute', 'mahall']);
   } finally {
     (OTP as any).findOne = originalOtpFindOne;
     (OTP as any).findOneAndUpdate = originalOtpFindOneAndUpdate;

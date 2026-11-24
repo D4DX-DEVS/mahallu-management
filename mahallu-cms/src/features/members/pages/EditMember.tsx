@@ -160,6 +160,8 @@ export default function EditMember() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const [error, setError] = useState<string | null>(null);
+  /* The family head signs in with their phone number, so theirs is required. */
+  const [isFamilyHead, setIsFamilyHead] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadingLists, setLoadingLists] = useState(true);
   const [educationOptions, setEducationOptions] = useState<string[]>([]);
@@ -174,6 +176,7 @@ export default function EditMember() {
     watch,
     reset,
     setValue,
+    setError: setFormError,
     formState: { errors, isSubmitting },
   } = useForm<MemberFormData>({
     resolver: zodResolver(memberSchema),
@@ -203,13 +206,18 @@ export default function EditMember() {
         const customEducation = !!member.education && !options.includes(member.education);
         const conditional = conditionalDefaults(member);
         setEducationOptions(options);
-        setMemberFamily({ id: member.familyId, name: member.familyName });
+        // The API sends the family as { id, houseName, mahallId } here, not as a bare id; the form
+        // holds the id. Left as the object, the Family field failed validation and nothing could be saved.
+        const familyRef = member.familyId as string | { id?: string } | undefined;
+        const familyId = (typeof familyRef === 'object' ? familyRef?.id : familyRef) ?? '';
+        setMemberFamily({ id: familyId, name: member.familyName });
+        setIsFamilyHead(Boolean(member.isFamilyHead));
         setStudyPlace(member.educationInstitutionId ? 'institute' : member.externalInstitution ? 'external' : '');
 
         reset({
           name: member.name,
           nameMl: member.nameMl || '',
-          familyId: member.familyId,
+          familyId,
           familyName: member.familyName,
           mahallId: member.mahallId || '',
           age: member.age ?? undefined,
@@ -279,6 +287,10 @@ export default function EditMember() {
 
   const onSubmit = async (data: MemberFormData) => {
     if (!id) return;
+    if (isFamilyHead && !data.phone) {
+      setFormError('phone', { message: 'Enter the family head’s phone number. They sign in with it.' });
+      return;
+    }
     try {
       setError(null);
       const memberData = {
@@ -412,6 +424,8 @@ export default function EditMember() {
                 error={errors.phone?.message}
                 placeholder="9876543210"
                 maxLength={10}
+                required={isFamilyHead}
+                helperText={isFamilyHead ? 'The family head signs in with this number. Changing it changes their sign-in.' : undefined}
               />
               <RadioCardGroup
                 label="Gender"
