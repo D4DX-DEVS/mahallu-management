@@ -1,6 +1,7 @@
 import {
   FiMenu,
   FiBell,
+  FiBookOpen,
   FiUser,
   FiLogOut,
   FiSearch,
@@ -104,6 +105,9 @@ export default function Header() {
     'hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 ' +
     'focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background';
   const isMember = user?.role === 'member';
+  /* The user guide is written for the Mahallu admin (same rule as its route). */
+  const showGuide = isSuperAdmin || user?.role === 'mahall';
+  const onGuide = location.pathname === ROUTES.GUIDE || location.pathname.startsWith(ROUTES.GUIDE + '/');
   return (
     <>
       <CommandPalette isOpen={isCommandPaletteOpen} onClose={closeCommandPalette} />
@@ -142,6 +146,22 @@ export default function Header() {
            * already-tight mobile header row. RoleSwitcher renders nothing of
            * its own when the signed-in person has no second role to switch
            * to, so this never leaves an empty placeholder in the row. */}
+          {/* The one filled control in the row besides the avatar: the guide has to be findable at a
+              glance from any page, not only from the sidebar. Icon-only below lg, like Search. */}
+          {showGuide && (
+            <Link
+              to={ROUTES.GUIDE}
+              aria-label="User guide"
+              aria-current={onGuide ? 'page' : undefined}
+              className={cn(
+                'inline-flex h-10 w-10 flex-shrink-0 items-center justify-center gap-2 rounded-lg bg-primary text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background lg:w-auto lg:px-3.5',
+                onGuide && 'ring-2 ring-primary/30 ring-offset-2 ring-offset-background'
+              )}
+            >
+              <FiBookOpen className="h-5 w-5" aria-hidden="true" />
+              <span className="hidden lg:inline">User guide</span>
+            </Link>
+          )}
           <div className="hidden md:block">
             <RoleSwitcher />
           </div>
