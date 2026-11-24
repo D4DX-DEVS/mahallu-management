@@ -15,6 +15,8 @@ import { Member } from '@/types';
 import { formatDate, toTitleCase } from '@/utils/format';
 import { errorMessage, loadErrorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
+import { useAuthStore } from '@/store/authStore';
+import FamilyHeadLoginCard from '../components/FamilyHeadLoginCard';
 
 const RELATIONSHIP_LABELS: Record<string, string> = {
   head: 'Head',
@@ -55,6 +57,9 @@ export default function MemberDetail() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [institutes, setInstitutes] = useState<any[]>([]);
+  /* A family head's sign-in details are the Mahallu admin's to see (the API refuses other roles). */
+  const { user, isSuperAdmin } = useAuthStore();
+  const canManageSignIn = isSuperAdmin || user?.role === 'mahall';
 
   useEffect(() => {
     if (id) {
@@ -116,6 +121,9 @@ export default function MemberDetail() {
     isWidow?: boolean;
     isVolunteer?: boolean;
   };
+  /* The API sends the family as { id, houseName, mahallId } here, not as a bare id. */
+  const familyRef = member.familyId as string | { id?: string } | undefined;
+  const familyId = typeof familyRef === 'object' ? familyRef?.id : familyRef;
   const listText = (value?: string[] | string) => (Array.isArray(value) ? value.join(', ') : value) || undefined;
 
   return (
@@ -134,6 +142,8 @@ export default function MemberDetail() {
         }
       />
 
+      {member.isFamilyHead && canManageSignIn && <FamilyHeadLoginCard member={member} />}
+
       {/* One compact record panel; empty fields are left out. */}
       <Card padding="none" className="divide-y divide-border">
         <DetailSection
@@ -144,8 +154,8 @@ export default function MemberDetail() {
             { label: 'Name (Malayalam)', value: member.nameMl, malayalam: true },
             {
               label: 'Family',
-              value: member.familyId && (
-                <Link to={ROUTES.FAMILIES.DETAIL(member.familyId)} className="text-primary hover:underline">
+              value: familyId && (
+                <Link to={ROUTES.FAMILIES.DETAIL(familyId)} className="text-primary hover:underline">
                   {toTitleCase(member.familyName)}
                 </Link>
               ),

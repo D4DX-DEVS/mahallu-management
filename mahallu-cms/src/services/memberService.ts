@@ -1,6 +1,11 @@
 import api, { asList } from './api';
 import { Member } from '@/types';
 
+export interface MemberCredentials {
+  username: string;
+  password: string | null;
+}
+
 export const memberService = {
   getAll: async (params?: {
     familyId?: string;
@@ -46,6 +51,18 @@ export const memberService = {
 
   update: async (id: string, memberData: Partial<Member>) => {
     const response = await api.put<{ success: boolean; data: Member }>(`/members/${id}`, memberData);
+    return response.data.data;
+  },
+
+  /** A family head's sign-in name and issued password (null when none is on record). Mahallu admin only. */
+  getCredentials: async (id: string) => {
+    const response = await api.get<{ success: boolean; data: MemberCredentials }>(`/members/${id}/credentials`);
+    return response.data.data;
+  },
+
+  /** Issues a new password for a family head; the old one stops working. Mahallu admin only. */
+  resetPassword: async (id: string) => {
+    const response = await api.post<{ success: boolean; data: MemberCredentials }>(`/members/${id}/credentials/reset`);
     return response.data.data;
   },
 
