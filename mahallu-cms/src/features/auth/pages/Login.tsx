@@ -65,7 +65,8 @@ export default function Login() {
   const navigate = useNavigate();
   const { setUser, setToken, resetSessionContext } = useAuthStore();
   const [step, setStep] = useState<'phone' | 'otp' | 'select'>('phone');
-  const [usePassword, setUsePassword] = useState(false);
+  // Username and password is the default; the phone/OTP form is one click away.
+  const [usePassword, setUsePassword] = useState(true);
   const [phone, setPhone] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSendingOTP, setIsSendingOTP] = useState(false);
