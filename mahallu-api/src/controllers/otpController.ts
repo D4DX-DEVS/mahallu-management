@@ -16,7 +16,7 @@ import { getPhoneVariants, maskPhone, samePhone } from '../utils/phone';
 import { isDevelopmentEnvironment } from '../utils/env';
 import { signSessionToken, toPublicUser } from '../utils/sessionToken';
 import { verifyAndConsumeOtp } from '../services/otpService';
-import { randomUnusablePasswordHash } from '../utils/credentials';
+import { HEAD_ONLY_MESSAGE, HEAD_PASSWORD_ONLY_MESSAGE, mayMemberSignIn, maySignIn } from '../services/familyHeadLogin';
 import { isTenantActive, TENANT_SUSPENDED_MESSAGE } from '../services/tenantStatusService';
 
 // App Store Review test account — OTP is always 123456 for this number
@@ -96,11 +96,17 @@ export const sendOTP = async (req: Request, res: Response) => {
         let family = await Family.findOne({ tenantId, houseName: 'App Store Test House' });
         if (!family) family = await Family.create({ tenantId, houseName: 'App Store Test House', familyHead: 'Test User', status: 'approved' });
         let member = await Member.findOne({ phone: { $in: testVariants } });
-        if (!member) member = await Member.create({ tenantId, name: 'Test User (Member)', familyId: (family as any)._id, familyName: 'App Store Test House', phone: testLocalPhone, gender: 'male', status: 'active' });
+        if (!member) member = await Member.create({ tenantId, name: 'Test User (Member)', familyId: (family as any)._id, familyName: 'App Store Test House', phone: testLocalPhone, gender: 'male', status: 'active', isFamilyHead: true });
         await User.create({ name: 'Test User (Member)', phone: testLocalPhone, role: 'member', tenantId, memberId: (member as any)._id, status: 'active', isSuperAdmin: false, permissions: fullPerms, password: hashedPw });
 
         console.info('[OTP] App Store test accounts auto-created');
       }
+      // Among members only a family head signs in, so the review member has to be one (the account
+      // may have been created before that rule).
+      await Member.updateOne(
+        { phone: { $in: testVariants }, name: 'Test User (Member)', isFamilyHead: { $ne: true } },
+        { $set: { isFamilyHead: true } }
+      );
       // Existing test accounts previously had a super_admin created for them
       // here on every sign-in. Same reason as above: a fixed OTP must never
       // reach a cross-tenant account.
@@ -125,49 +131,29 @@ export const sendOTP = async (req: Request, res: Response) => {
     );
 
     // Check if any user account exists with this phone
-    let users = await User.find({ phone: { $in: phoneVariants } });
+    const accounts = await User.find({ phone: { $in: phoneVariants } });
+    // An OTP is for staff accounts. A family head signs in with their password only, and no other
+    // member signs in at all, so a member account is never offered an OTP.
+    let users = accounts.filter((account) => account.role !== 'member');
+    if (accounts.length > 0 && users.length === 0) {
+      let headAmongThem = false;
+      for (const account of accounts) {
+        if (await maySignIn(account)) headAmongThem = true;
+      }
+      return res.status(403).json({ success: false, message: headAmongThem ? HEAD_PASSWORD_ONLY_MESSAGE : HEAD_ONLY_MESSAGE });
+    }
     let user: (typeof users)[0] | null = users.find(u => u.status === 'active') || users[0] || null;
 
     // If no user found, check if it's a member trying to login
     if (!user) {
       const member = await Member.findOne({ phone: { $in: phoneVariants } });
       if (member) {
-        // Check if member user account exists
-        let memberUser = await User.findOne({ memberId: member._id, role: 'member' });
-
-        if (!memberUser) {
-          // No shared default password: members sign in with an OTP to their own phone.
-          const hashedPassword = await randomUnusablePasswordHash();
-
-          try {
-            memberUser = await User.create({
-              name: member.name,
-              phone: localPhone,
-              role: 'member',
-              tenantId: member.tenantId,
-              memberId: member._id,
-              status: member.status === 'active' ? 'active' : 'inactive',
-              isSuperAdmin: false,
-              permissions: {
-                view: true,
-                add: false,
-                edit: false,
-                delete: false,
-              },
-              password: hashedPassword,
-            });
-          } catch (createError: any) {
-            if (createError?.code === 11000) {
-              memberUser = await User.findOne({ memberId: member._id, role: 'member' });
-            }
-
-            if (!memberUser) {
-              throw createError;
-            }
-          }
-        }
-        user = memberUser;
-        users = [memberUser!];
+        // A member's phone number with no staff account on it: a family head uses their password,
+        // any other member has no sign-in.
+        return res.status(403).json({
+          success: false,
+          message: mayMemberSignIn(member) ? HEAD_PASSWORD_ONLY_MESSAGE : HEAD_ONLY_MESSAGE,
+        });
       } else {
         return res.status(404).json({
           success: false,
@@ -347,7 +333,17 @@ export const verifyOTP = async (req: Request, res: Response) => {
     );
 
     // Find all users with this phone (multiple roles possible in same mahallu)
-    let users = await User.find({ phone: { $in: phoneVariants } });
+    const accounts = await User.find({ phone: { $in: phoneVariants } });
+    // An OTP opens staff accounts only: a family head signs in with their password. The one exception
+    // is the App Store review phone, whose fixed OTP has to reach its member test account too.
+    const reviewPhone = normalizedPhone === APP_STORE_TEST_PHONE;
+    let users: typeof accounts = [];
+    for (const account of accounts) {
+      if (account.role !== 'member' || (reviewPhone && (await maySignIn(account)))) users.push(account);
+    }
+    if (accounts.length > 0 && users.length === 0) {
+      return res.status(403).json({ success: false, message: HEAD_PASSWORD_ONLY_MESSAGE });
+    }
 
     // If no users found, check if it's a member trying to login
     if (users.length === 0) {
@@ -360,7 +356,10 @@ export const verifyOTP = async (req: Request, res: Response) => {
             message: "We couldn't find a member account for you. Please contact your Mahallu admin.",
           });
         }
-        users = [memberUser];
+        return res.status(403).json({
+          success: false,
+          message: (await maySignIn(memberUser)) ? HEAD_PASSWORD_ONLY_MESSAGE : HEAD_ONLY_MESSAGE,
+        });
       } else {
         return res.status(404).json({
           success: false,

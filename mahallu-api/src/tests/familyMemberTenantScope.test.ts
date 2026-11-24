@@ -2,6 +2,7 @@ import { describe, test, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import Family from '../models/Family';
 import Member from '../models/Member';
+import User from '../models/User';
 import {
   getAllFamilies,
   getFamilyById,
@@ -45,6 +46,7 @@ const INSTITUTE = oid();
 
 let families: Installed;
 let members: Installed;
+let users: Installed;
 beforeEach(() => {
   families = installFake(Family, [
     { _id: FAMILY_A, tenantId: A, mahallId: 'FID1', houseName: 'House A', status: 'approved' },
@@ -54,8 +56,11 @@ beforeEach(() => {
     { _id: MEMBER_A, tenantId: A, mahallId: 'FID1-1', name: 'Member A', familyId: FAMILY_A, gender: 'male', status: 'active' },
     { _id: MEMBER_B, tenantId: B, mahallId: 'FID1-1', name: 'Member B', familyId: FAMILY_B, gender: 'female', status: 'active' },
   ]);
+  // Saving a member keeps a family head's sign-in in step, which looks at the accounts.
+  users = installFake(User);
 });
 afterEach(() => {
+  users.restore();
   families.restore();
   members.restore();
 });

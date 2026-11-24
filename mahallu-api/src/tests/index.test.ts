@@ -29,6 +29,7 @@ import './counselling.test';
 import './dashboardDays.test';
 import './demoRequest.test';
 import './credentialManagement.test';
+import './familyHeadLogin.test';
 import './familyHeadMembers.test';
 import './nikahRegistration.test';
 import './demoRequestReview.test';

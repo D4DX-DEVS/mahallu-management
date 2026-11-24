@@ -3,6 +3,7 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import User from '../models/User';
 import { isTenantActive, TENANT_SUSPENDED_MESSAGE } from '../services/tenantStatusService';
+import { HEAD_ONLY_MESSAGE, maySignIn } from '../services/familyHeadLogin';
 
 export interface AuthRequest extends Request {
   user?: any;
@@ -133,6 +134,12 @@ export const authMiddleware = async (
     // This one session was signed out (logout). The user record is already loaded, so this costs no query.
     if (isTokenRevoked((user as any).revokedTokens, token)) {
       return res.status(401).json({ success: false, message: 'Your session has ended. Please sign in again to continue.' });
+    }
+
+    // Among members only the family head signs in. Checked on every request, so a member account
+    // from before that rule, or a head who was replaced, loses access at once.
+    if (user.role === 'member' && !decoded.imp && !(await maySignIn(user))) {
+      return res.status(403).json({ success: false, code: 'HEAD_ONLY', message: HEAD_ONLY_MESSAGE });
     }
 
     // A suspended (or deleted) Mahallu loses API access for all of its own users at once. Super

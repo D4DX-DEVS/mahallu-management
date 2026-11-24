@@ -10,6 +10,7 @@ import {
   bulkImportMembers,
 } from '../controllers/memberController';
 import { authMiddleware, allowRoles } from '../middleware/authMiddleware';
+import { getMemberCredentials, resetMemberPassword } from '../controllers/memberCredentialController';
 import { tenantMiddleware, tenantFilter } from '../middleware/tenantMiddleware';
 import { validationHandler } from '../middleware/validationHandler';
 import {
@@ -391,6 +392,10 @@ router.put('/:id', updateMemberValidation, validationHandler, updateMember);
  *       404:
  *         $ref: '#/components/responses/NotFound'
  */
+// A family head's sign-in details: only the Mahallu admin sees or resets the password.
+router.get('/:id/credentials', getMemberValidation, validationHandler, allowRoles(['mahall', 'super_admin']), getMemberCredentials);
+router.post('/:id/credentials/reset', getMemberValidation, validationHandler, allowRoles(['mahall', 'super_admin']), resetMemberPassword);
+
 router.put('/:id/status', [param('id').isMongoId().withMessage('Invalid member ID')], validationHandler, updateMemberStatus);
 
 /**

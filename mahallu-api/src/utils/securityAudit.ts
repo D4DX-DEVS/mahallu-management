@@ -11,7 +11,13 @@ import { AuthRequest } from '../middleware/authMiddleware';
  * token or a temporary secret: callers pass only identifiers and labels.
  */
 export interface SecurityEvent {
-  action: 'reset user password' | 'change user username' | 'create user with sign-in' | 'family member created';
+  action:
+    | 'reset user password'
+    | 'change user username'
+    | 'create user with sign-in'
+    | 'family member created'
+    | 'family head password viewed'
+    | 'family head password reset';
   target: { id: unknown; role?: string; tenantId?: unknown };
   details?: Record<string, string | number | boolean | null | undefined>;
 }

@@ -10,6 +10,7 @@ import jwt from 'jsonwebtoken';
 import { validationResult } from 'express-validator';
 
 import User from '../models/User';
+import Member from '../models/Member';
 import Tenant from '../models/Tenant';
 import { ActivityLog } from '../models/Social';
 import { login, changePassword } from '../controllers/authController';
@@ -266,12 +267,20 @@ test('an inactive account and a suspended Mahallu cannot sign in by username', a
   }
 });
 
-test('a member account cannot use a username to get around OTP-only sign-in', async () => {
-  await withWorld([staff({ role: 'member', username: 'sneaky.member', memberId: oid() })], async () => {
-    const reply = await signIn({ username: 'sneaky.member', password: PASSWORD });
-    assert.equal(reply.status, 403);
-    assert.equal(reply.body.data, undefined);
-  });
+test('a member account that is not a family head cannot sign in with a password', async () => {
+  const MEMBER = oid();
+  const members = installFake(Member, [{ _id: MEMBER, tenantId: TENANT_A, name: 'Ordinary Member', phone: '9000000001', status: 'active', isFamilyHead: false }]);
+  try {
+    await withWorld([staff({ role: 'member', username: 'sneaky.member', memberId: MEMBER })], async () => {
+      for (const body of [{ username: 'sneaky.member', password: PASSWORD }, { phone: '9000000001', password: PASSWORD }]) {
+        const reply = await signIn(body);
+        assert.equal(reply.status, 403);
+        assert.equal(reply.body.data, undefined);
+      }
+    });
+  } finally {
+    members.restore();
+  }
 });
 
 test('phone + password sign-in is unchanged', async () => {

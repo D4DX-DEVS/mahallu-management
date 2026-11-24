@@ -3,7 +3,7 @@ import Member from '../models/Member';
 import Family from '../models/Family';
 import User from '../models/User';
 import bcrypt from 'bcryptjs';
-import { randomUnusablePasswordHash } from '../utils/credentials';
+import { HEAD_PHONE_REQUIRED, syncHeadLogin } from '../services/familyHeadLogin';
 import { AuthRequest } from '../middleware/authMiddleware';
 import { getPaginationParams, createPaginationResponse } from '../utils/pagination';
 import { verifyTenantOwnership } from '../utils/tenantCheck';
@@ -223,7 +223,13 @@ export const createMember = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    if (memberData.phone) {
+    // Only the family head signs in, with their phone number as the sign-in name: a head needs one,
+    // and it must not already be another member's sign-in name in this Mahallu.
+    if (memberData.isFamilyHead) {
+      if (!memberData.phone) {
+        return res.status(400).json({ success: false, message: HEAD_PHONE_REQUIRED });
+      }
+
       const existingMemberUser = await User.findOne({
         phone: memberData.phone,
         tenantId: finalTenantId,
@@ -272,34 +278,11 @@ export const createMember = async (req: AuthRequest, res: Response) => {
       await Family.findByIdAndUpdate(family._id, { familyHead: member.name });
     }
 
-    let memberUserCreated = false;
-    let memberUserMessage = 'Member user not created because phone number is missing.';
-
-    if (member.phone) {
-      // No shared default password: the member signs in with an OTP to their own phone.
-      const hashedPassword = await randomUnusablePasswordHash();
-
-      const memberUser = new User({
-        name: member.name,
-        phone: member.phone,
-        role: 'member',
-        tenantId: finalTenantId,
-        memberId: member._id,
-        status: member.status === 'active' ? 'active' : 'inactive',
-        isSuperAdmin: false,
-        permissions: {
-          view: true,
-          add: false,
-          edit: false,
-          delete: false,
-        },
-        password: hashedPassword,
-      });
-
-      await memberUser.save();
-      memberUserCreated = true;
-      memberUserMessage = 'Linked member user account created successfully.';
-    }
+    // A family head gets a sign-in (phone number + generated password); no other member has one.
+    const { created: memberUserCreated } = await syncHeadLogin(member);
+    const memberUserMessage = memberUserCreated
+      ? 'Sign-in created for the family head. Open the member to see and share the sign-in details.'
+      : 'No sign-in was created: only the family head signs in.';
 
     const memberResponse = await Member.findById(member._id).populate('familyId', 'houseName mahallId');
     res.status(201).json({
@@ -357,6 +340,30 @@ export const updateMember = async (req: AuthRequest, res: Response) => {
       }
     }
 
+    // The family head signs in with their phone number, so a head cannot be left without one, and a
+    // new number must not already be another member's sign-in name in this Mahallu.
+    const willBeHead = 'isFamilyHead' in updateData ? updateData.isFamilyHead === true : existingMember.isFamilyHead === true;
+    const nextPhone = 'phone' in updateData ? updateData.phone : existingMember.phone;
+    if (willBeHead) {
+      if (!nextPhone) {
+        return res.status(400).json({ success: false, message: HEAD_PHONE_REQUIRED });
+      }
+      if (nextPhone !== existingMember.phone || !existingMember.isFamilyHead) {
+        const holder = await User.findOne({
+          phone: nextPhone,
+          tenantId: existingMember.tenantId,
+          role: 'member',
+          memberId: { $ne: existingMember._id },
+        });
+        if (holder) {
+          return res.status(400).json({
+            success: false,
+            message: 'A member with this phone number already exists in this Mahallu. Please use a different number.',
+          });
+        }
+      }
+    }
+
     const member = await Member.findByIdAndUpdate(
       req.params.id,
       { ...updateData, ...(familyId && { familyId }), ...(familyName && { familyName }) },
@@ -366,6 +373,9 @@ export const updateMember = async (req: AuthRequest, res: Response) => {
     if (!member) {
       return res.status(404).json({ success: false, message: "We couldn't find that member. It may have been removed." });
     }
+
+    // Keeps the head's sign-in on their current phone number and name.
+    await syncHeadLogin(member);
 
     res.json({ success: true, data: member });
   } catch (error: any) {
@@ -399,23 +409,8 @@ export const updateMemberStatus = async (req: AuthRequest, res: Response) => {
     member.status = status as 'active' | 'inactive' | 'deleted';
     await member.save();
 
-    // If status is set to deleted or inactive, also update linked user account status
-    if (status === 'deleted' || status === 'inactive') {
-      
-      const memberUser = await User.findOne({ memberId: member._id, role: 'member' });
-      if (memberUser) {
-        memberUser.status = 'inactive';
-        await memberUser.save();
-      }
-    } else if (status === 'active') {
-      // If activating member, also activate linked user account
-      
-      const memberUser = await User.findOne({ memberId: member._id, role: 'member' });
-      if (memberUser) {
-        memberUser.status = 'active';
-        await memberUser.save();
-      }
-    }
+    // The sign-in follows the member: off while inactive or deleted, back on for an active family head.
+    await syncHeadLogin(member);
     
     const updatedMember = await Member.findById(member._id)
       .populate('familyId', 'houseName mahallId');
@@ -447,13 +442,8 @@ export const deleteMember = async (req: AuthRequest, res: Response) => {
     member.status = 'deleted';
     await member.save();
 
-    // Also deactivate linked user account
-    
-    const memberUser = await User.findOne({ memberId: member._id, role: 'member' });
-    if (memberUser) {
-      memberUser.status = 'inactive';
-      await memberUser.save();
-    }
+    // Also switch off the linked sign-in
+    await syncHeadLogin(member);
     
     res.json({ 
       success: true, 

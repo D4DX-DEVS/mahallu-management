@@ -1,6 +1,6 @@
 /**
- * A Family Head adds people to their own family: ownership, approval, duplicates, and all-or-nothing
- * creation of the member and their OTP-only login account.
+ * A Family Head adds people to their own family: ownership, approval and duplicates. The people added
+ * get no sign-in of their own: among a family's members only the head signs in.
  *
  *   npm test
  */
@@ -94,11 +94,11 @@ const withWorld = async (
 
 const person = { name: 'Aisha Kallingal', gender: 'female', dateOfBirth: '2012-05-01', relationship: 'daughter', phone: '9000000002' };
 
-test('a Family Head adds a member to their own family and the member gets an OTP-only login account', async () => {
+test('a Family Head adds a member to their own family, and the member gets no sign-in', async () => {
   await withWorld({}, async ({ members, users }) => {
     const reply = await call(createFamilyMember, asHead(person));
     assert.equal(reply.status, 201);
-    assert.equal(reply.body.loginAccountCreated, true);
+    assert.equal(reply.body.loginAccountCreated, false);
 
     const added = members.store.find({ name: 'Aisha Kallingal' })[0];
     assert.equal(String(added.familyId), String(FAMILY));
@@ -108,12 +108,8 @@ test('a Family Head adds a member to their own family and the member gets an OTP
     assert.equal(added.isFamilyHead, false);
     assert.equal(added.status, 'active');
 
-    const account = users.store.find({ phone: '9000000002' })[0];
-    assert.equal(account.role, 'member');
-    assert.equal(String(account.memberId), String(added._id));
-    assert.equal(String(account.tenantId), String(TENANT));
-    assert.equal(account.username, undefined, 'members have no username');
-    assert.deepEqual({ ...account.permissions }, { view: true, add: false, edit: false, delete: false });
+    assert.equal(users.store.find({ phone: '9000000002' }).length, 0, 'no account for the new member');
+    assert.equal(users.store.find({}).length, 1, 'the head still has the only account');
   });
 });
 
@@ -123,17 +119,15 @@ test('no password is created, shown or returned for the new member', async () =>
     const text = JSON.stringify(reply.body);
     assert.doesNotMatch(text, /password/i);
     assert.doesNotMatch(reply.body.message, /password|sent/i);
-    // the stored secret is a hash of a random value nobody was told
-    assert.match(users.store.find({ phone: '9000000002' })[0].password, /^\$2[aby]\$/);
+    assert.equal(users.store.find({ phone: '9000000002' }).length, 0);
   });
 });
 
-test('a person without a phone number is added without a login account, and says so', async () => {
+test('a person without a phone number is added the same way', async () => {
   await withWorld({}, async ({ users }) => {
     const reply = await call(createFamilyMember, asHead({ name: 'Little One' }));
     assert.equal(reply.status, 201);
     assert.equal(reply.body.loginAccountCreated, false);
-    assert.match(reply.body.message, /no sign-in/i);
     assert.equal(users.store.find({}).length, 1);
   });
 });
@@ -189,7 +183,7 @@ test('an inactive head, a head of another Mahallu and a View As session are refu
   });
 });
 
-test('adding the same person twice, or retrying a request, creates one member and one account', async () => {
+test('adding the same person twice, or retrying a request, creates one member and no account', async () => {
   await withWorld({}, async ({ members, users }) => {
     const first = await call(createFamilyMember, asHead(person));
     assert.equal(first.status, 201);
@@ -201,41 +195,16 @@ test('adding the same person twice, or retrying a request, creates one member an
     assert.equal(shouted.status, 409);
 
     assert.equal(members.store.find({ name: 'Aisha Kallingal' }).length, 1);
-    assert.equal(users.store.find({ role: 'member' }).length, 2, 'head + one new member');
+    assert.equal(users.store.find({ role: 'member' }).length, 1, 'only the head has an account');
   });
 });
 
-test('two identical requests sent at once create exactly one member', async () => {
-  await withWorld({}, async ({ members }) => {
-    const replies = await Promise.all([call(createFamilyMember, asHead(person)), call(createFamilyMember, asHead(person))]);
-    const created = replies.filter((r) => r.status === 201).length;
-    assert.equal(created >= 1, true);
-    // the unique phone rule is the backstop for a true race; whatever happened, no second person with that number exists
-    assert.equal(members.store.find({ phone: '9000000002' }).length, 1);
-  });
-});
-
-test('a phone number that already has a member account in this Mahallu is refused', async () => {
-  await withWorld({}, async ({ members }) => {
-    const reply = await call(createFamilyMember, asHead({ ...person, phone: '9000000001' }));
-    assert.equal(reply.status, 409);
-    assert.match(reply.body.message, /phone number already exists/);
-    assert.equal(members.store.find({ name: 'Aisha Kallingal' }).length, 0);
-  });
-});
-
-test('if the login account cannot be created, the member is not left behind', async () => {
+test("a family member may be given the head's own phone number, and still gets no sign-in", async () => {
   await withWorld({}, async ({ members, users }) => {
-    users.store.failOn('User.save');
-    const reply = await call(createFamilyMember, asHead(person));
-    assert.equal(reply.status, 500);
-    assert.equal(members.store.find({ name: 'Aisha Kallingal' }).length, 0, 'the member was rolled back');
-    assert.equal(users.store.find({ phone: '9000000002' }).length, 0);
-
-    // and the same request works once the fault is gone
-    const retry = await call(createFamilyMember, asHead(person));
-    assert.equal(retry.status, 201);
+    const reply = await call(createFamilyMember, asHead({ ...person, phone: '9000000001' }));
+    assert.equal(reply.status, 201);
     assert.equal(members.store.find({ name: 'Aisha Kallingal' }).length, 1);
+    assert.equal(users.store.find({ phone: '9000000001' }).length, 1, "the head's account is the only one on that number");
   });
 });
 
@@ -304,7 +273,7 @@ const withAcceptedOtp = async (run: () => Promise<void>) => {
   }
 };
 
-test('end to end: the head adds a member, the admin and the head both see them, and they sign in by OTP', async () => {
+test('end to end: the head adds a member, the admin and the head both see them, and an OTP opens neither account', async () => {
   process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-secret';
   const tenants = installFake(Tenant, [{ _id: TENANT, name: 'Beypore', code: 'B', status: 'active' }]);
   invalidateTenantStatus();
@@ -325,16 +294,17 @@ test('end to end: the head adds a member, the admin and the head both see them, 
       assert.equal(headList.status, 200);
       assert.ok(headList.body.data.some((m: any) => String(m._id) === String(added._id)));
 
-      // 4. the new member signs in with an OTP to their own number and lands on THEIR account
+      // 4. the new member has no sign-in at all, and the head's opens with the password, not an OTP
       await withAcceptedOtp(async () => {
-        const signedIn = await call(verifyOTP, { body: { phone: '9000000002', otp: '123456' } });
-        assert.equal(signedIn.status, 200, JSON.stringify(signedIn.body));
-        const user = signedIn.body.data.user;
-        assert.equal(user.role, 'member');
-        assert.equal(String(user.memberId), String(added._id));
-        assert.equal(String(user.tenantId), String(TENANT));
-        assert.ok(signedIn.body.data.token);
-        assert.equal(users.store.find({ memberId: added._id }).length, 1, 'exactly one account for the member');
+        const refused = await call(verifyOTP, { body: { phone: '9000000002', otp: '123456' } });
+        assert.equal(refused.status >= 400, true, JSON.stringify(refused.body));
+        assert.equal(refused.body.data, undefined);
+        assert.equal(users.store.find({ memberId: added._id }).length, 0, 'no account was made for the member');
+
+        const head = await call(verifyOTP, { body: { phone: '9000000001', otp: '123456' } });
+        assert.equal(head.status, 403, JSON.stringify(head.body));
+        assert.match(head.body.message, /password/i);
+        assert.equal(head.body.data, undefined);
       });
     });
   } finally {

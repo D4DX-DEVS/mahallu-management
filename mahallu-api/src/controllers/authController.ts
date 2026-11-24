@@ -13,14 +13,20 @@ import { bearerToken, hashToken, tokenExpiry, MAX_REVOKED_TOKENS } from '../util
 import { signSessionToken, signImpersonationToken, toPublicUser } from '../utils/sessionToken';
 import { isTenantActive, TENANT_SUSPENDED_MESSAGE } from '../services/tenantStatusService';
 import { DUMMY_PASSWORD_HASH, normalizeUsername } from '../utils/credentials';
+import { HEAD_ONLY_MESSAGE, maySignIn } from '../services/familyHeadLogin';
 
 const WRONG_USERNAME_OR_PASSWORD = 'That username or password is incorrect. Please try again.';
 
 export const login = async (req: Request, res: Response) => {
   try {
-    const { phone, password } = req.body;
-    // A staff account may sign in by username instead of phone number.
-    const username = normalizeUsername(req.body.username);
+    const { password } = req.body;
+    // A staff account may sign in by username instead of phone number. A family head's sign-in name
+    // IS their phone number, so ten digits typed as a username are a phone number (a real username
+    // always has a letter, see USERNAME_PATTERN).
+    const typedName = normalizeUsername(req.body.username);
+    const nameIsPhone = /^[0-9]{10}$/.test(typedName);
+    const username = nameIsPhone ? '' : typedName;
+    const phone = nameIsPhone ? typedName : req.body.phone;
 
     if ((!phone && !username) || !password) {
       return res.status(400).json({
@@ -69,7 +75,19 @@ export const login = async (req: Request, res: Response) => {
     }
 
     // (A username sign-in has already had its password checked above.)
-    const isPasswordValid = username ? true : await bcrypt.compare(password, user.password);
+    let isPasswordValid = username ? true : await bcrypt.compare(password, user.password);
+    if (!isPasswordValid && !username) {
+      // One phone number can hold more than one account (a staff account and a family head's, say),
+      // each with its own password: the password picks the account.
+      const others = await User.find({ phone: { $in: phoneVariants }, _id: { $ne: user._id } }).select('+password');
+      for (const other of others) {
+        if (await bcrypt.compare(password, other.password)) {
+          user = other;
+          isPasswordValid = true;
+          break;
+        }
+      }
+    }
     if (!isPasswordValid) {
       return res.status(401).json({
         success: false,
@@ -84,11 +102,9 @@ export const login = async (req: Request, res: Response) => {
       });
     }
 
-    if (user.role === 'member') {
-      return res.status(403).json({
-        success: false,
-        message: 'Members sign in with an OTP. Please request an OTP to continue.',
-      });
+    // Among members only the family head signs in (phone number + the password the Mahallu issued).
+    if (!(await maySignIn(user))) {
+      return res.status(403).json({ success: false, message: HEAD_ONLY_MESSAGE });
     }
 
     // A suspended Mahallu cannot start new sessions either (super admins are platform staff).
@@ -98,7 +114,8 @@ export const login = async (req: Request, res: Response) => {
 
     // Task C5 — optional 2FA. The password checked out, but the token is
     // withheld until the caller completes the existing send-otp/verify-otp pair.
-    if (user.twoFactorEnabled) {
+    // (Not for a family head: their sign-in is the password only, and they are never sent an OTP.)
+    if (user.twoFactorEnabled && user.role !== 'member') {
       return res.json({
         success: true,
         data: { requiresOtp: true, phone: user.phone },
@@ -311,6 +328,10 @@ export const selectAccount = async (req: Request, res: Response) => {
       return res.status(403).json({ success: false, message: 'Your account is inactive. Please contact your Mahallu admin.' });
     }
 
+    if (!(await maySignIn(user))) {
+      return res.status(403).json({ success: false, message: HEAD_ONLY_MESSAGE });
+    }
+
     if (!user.isSuperAdmin && !(await isTenantActive(user.tenantId))) {
       return res.status(403).json({ success: false, code: 'TENANT_SUSPENDED', message: TENANT_SUSPENDED_MESSAGE });
     }
@@ -363,7 +384,7 @@ export const getAvailableAccounts = async (req: AuthRequest, res: Response) => {
     });
     const siblings: typeof candidates = [];
     for (const candidate of candidates) {
-      if (samePhone(candidate.phone, req.provenPhone) && (await isTenantActive(candidate.tenantId))) {
+      if (samePhone(candidate.phone, req.provenPhone) && (await isTenantActive(candidate.tenantId)) && (await maySignIn(candidate))) {
         siblings.push(candidate);
       }
     }
@@ -453,6 +474,10 @@ export const switchAccount = async (req: AuthRequest, res: Response) => {
       return res.status(403).json({ success: false, message: "You're not authorized to switch to that account." });
     }
 
+    if (!(await maySignIn(targetUser))) {
+      return res.status(403).json({ success: false, message: HEAD_ONLY_MESSAGE });
+    }
+
     if (!(await isTenantActive(targetUser.tenantId))) {
       return res.status(403).json({ success: false, code: 'TENANT_SUSPENDED', message: TENANT_SUSPENDED_MESSAGE });
     }
@@ -521,6 +546,8 @@ export const changePassword = async (req: AuthRequest, res: Response) => {
 
     user.password = await bcrypt.hash(newPassword, 10);
     user.passwordResetRequired = false;
+    // A family head who sets their own password leaves nothing for the Mahallu admin to read out.
+    user.issuedPassword = undefined;
     // Every other session of this account ends; the caller gets a fresh token so they are not signed out.
     user.tokenVersion = (user.tokenVersion ?? 0) + 1;
     await user.save();
