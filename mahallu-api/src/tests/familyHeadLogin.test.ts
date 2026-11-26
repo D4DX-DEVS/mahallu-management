@@ -395,11 +395,12 @@ test('an inactive head cannot sign in, and can again once active', async () => {
 test('a head who sets their own password leaves nothing for the admin to read', async () => {
   await withWorld({}, async (w) => {
     const { member, account, password } = await createHead(w);
-    const changed = await call(changePassword, { user: { _id: account._id }, body: { currentPassword: password, newPassword: 'Mine1password' } });
-    assert.equal(changed.status, 200, JSON.stringify(changed.body));
+    const changed = await call(changePassword, { user: { _id: account._id, role: 'member' }, body: { currentPassword: password, newPassword: 'Mine1password' } });
+    assert.equal(changed.status, 403, 'a family head cannot change the password the Mahallu issued');
 
     const view = await call(getMemberCredentials, admin({ params: { id: String(member._id) } }));
-    assert.deepEqual(view.body.data, { username: HEAD_PHONE, password: null });
-    assert.equal((await signIn({ phone: HEAD_PHONE, password: 'Mine1password' })).status, 200);
+    assert.deepEqual(view.body.data, { username: HEAD_PHONE, password }, 'the admin can still read it');
+    assert.equal((await signIn({ phone: HEAD_PHONE, password })).status, 200);
+    assert.equal((await signIn({ phone: HEAD_PHONE, password: 'Mine1password' })).status, 401);
   });
 });

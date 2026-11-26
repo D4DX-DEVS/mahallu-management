@@ -266,8 +266,9 @@ export const createUser = async (req: AuthRequest, res: Response) => {
         delete: false,
       },
       password: hashedPassword,
-      // The administrator typed this password, so the person is asked to replace it at first sign-in.
-      ...(username ? { username, passwordResetRequired: true } : {}),
+      // The administrator typed this password. A Mahallu admin is asked to replace it at first sign-in;
+      // a survey or institute user keeps it (they cannot change it, the administrator reissues it).
+      ...(username ? { username, passwordResetRequired: finalRole === 'mahall' } : {}),
     });
 
     try {
@@ -356,7 +357,8 @@ export const setUserUsername = async (req: AuthRequest, res: Response) => {
 // POST /api/users/:id/reset-password
 // Replaces the password. With no newPassword a one-time password is generated and returned ONCE in this
 // response (never stored in the clear, never logged, never retrievable later). Every session of the
-// account ends, and the person must choose a new password at their next password sign-in.
+// account ends. A Mahallu admin must then choose a new password at their next sign-in; other roles
+// cannot change their own password, so they keep the one issued here.
 // Nothing here messages the person: the administrator passes the password on, and the response says so.
 export const resetUserPassword = async (req: AuthRequest, res: Response) => {
   try {
@@ -375,7 +377,7 @@ export const resetUserPassword = async (req: AuthRequest, res: Response) => {
     const password = chosen ?? generateTemporaryPassword();
 
     await User.findByIdAndUpdate(target._id, {
-      $set: { password: await bcrypt.hash(password, 10), passwordResetRequired: true },
+      $set: { password: await bcrypt.hash(password, 10), passwordResetRequired: target.role === 'mahall' },
       $inc: { tokenVersion: 1 },
     });
 

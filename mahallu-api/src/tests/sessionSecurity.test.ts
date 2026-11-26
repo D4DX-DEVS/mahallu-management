@@ -173,7 +173,7 @@ test('REVOCATION: the revoked list is never sent to a client', () => {
 test('REVOCATION: changing the password ends other sessions and hands the caller a token at the new version', async () => {
   const original = User.findById;
   const hash = await bcrypt.hash('old-password-1', 4);
-  const doc: any = { _id: 'adminId', password: hash, tokenVersion: 2, isSuperAdmin: false, save: async function () {} };
+  const doc: any = { _id: 'adminId', role: 'mahall', password: hash, tokenVersion: 2, isSuperAdmin: false, save: async function () {} };
   (User as any).findById = () => ({ select: async () => doc });
   try {
     const { res, out } = makeRes();
@@ -192,7 +192,7 @@ test('REVOCATION: changing the password ends other sessions and hands the caller
 test('REVOCATION: a wrong current password changes nothing', async () => {
   const original = User.findById;
   const hash = await bcrypt.hash('old-password-1', 4);
-  const doc: any = { _id: 'adminId', password: hash, tokenVersion: 2, save: async () => { throw new Error('must not save'); } };
+  const doc: any = { _id: 'adminId', role: 'mahall', password: hash, tokenVersion: 2, save: async () => { throw new Error('must not save'); } };
   (User as any).findById = () => ({ select: async () => doc });
   try {
     const { res, out } = makeRes();

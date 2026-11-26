@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { FiShield } from 'react-icons/fi';
+import { FiKey, FiShield } from 'react-icons/fi';
 import Card from '@/components/ui/Card';
 import Pagination from '@/components/ui/Pagination';
 import { authService } from '@/services/authService';
@@ -9,6 +9,7 @@ import { formatDateTime } from '@/utils/format';
 import { errorMessage } from '@/utils/errors';
 import PageHeader from '@/components/layout/PageHeader';
 import ChangePasswordCard from '@/features/auth/components/ChangePasswordCard';
+import { canChangeOwnPassword } from '@/features/users/credentialRules';
 import SortableTh from '@/components/ui/SortableTh';
 import { useSortableRows } from '@/hooks/useSortableRows';
 
@@ -78,7 +79,22 @@ export default function Security() {
         <PageHeader title="Security" description="Your password, two-factor login and the access history for your account" />
       </div>
 
-      <ChangePasswordCard />
+      {canChangeOwnPassword(user?.role) ? (
+        <ChangePasswordCard />
+      ) : (
+        <Card>
+          <div className="flex gap-3">
+            <FiKey className="mt-1 h-5 w-5 text-primary-600" aria-hidden="true" />
+            <div>
+              <h2 className="font-semibold text-foreground">Password</h2>
+              <p className="mt-1 max-w-xl text-sm text-gray-600 dark:text-gray-400">
+                Your password is issued by your Mahallu admin, so you can&apos;t change it here. If you need a new one, ask
+                your Mahallu admin to reset it.
+              </p>
+            </div>
+          </div>
+        </Card>
+      )}
 
       <Card>
         <div className="flex flex-wrap items-start justify-between gap-3">
