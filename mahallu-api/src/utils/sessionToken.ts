@@ -75,5 +75,8 @@ export const toPublicUser = (user: any): any => {
   // Never selected by default; dropped here too so no query that did select it can leak it.
   delete plain.issuedPassword;
   if (plain.role === 'institute') plain.instituteId = instituteIdOf(plain);
+  // Only a Mahallu admin may replace an issued password, so a flag left on another role (set before this
+  // rule) must not make a client ask for a change that the server would refuse.
+  if (plain.role !== 'mahall') delete plain.passwordResetRequired;
   return plain;
 };

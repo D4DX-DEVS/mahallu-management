@@ -14,6 +14,7 @@ import Member from '../models/Member';
 import Tenant from '../models/Tenant';
 import { ActivityLog } from '../models/Social';
 import { login, changePassword } from '../controllers/authController';
+import { toPublicUser } from '../utils/sessionToken';
 import { createUser, getAllUsers, getUserById, resetUserPassword, setUserUsername, updateUser } from '../controllers/userController';
 import { decideCredentialAccess, widensPermissions } from '../utils/credentialAccess';
 import {
@@ -337,7 +338,7 @@ test('a Mahallu admin creates a user with a username and a hashed password', asy
     assert.equal(String(row.tenantId), String(TENANT_A), 'linked to the creating admin\'s Mahallu');
     assert.equal(await bcrypt.compare(PASSWORD, row.password), true);
     assert.notEqual(row.password, PASSWORD);
-    assert.equal(row.passwordResetRequired, true);
+    assert.notEqual(row.passwordResetRequired, true, 'a survey user cannot change it, so it is never forced');
     assert.equal(JSON.stringify(reply.body).includes(PASSWORD), false);
     assert.equal(reply.body.data.password, undefined);
   });
@@ -395,13 +396,13 @@ test('resetting a password issues a one-time password once, stores only its hash
     assert.equal(await bcrypt.compare(PASSWORD, row.password), false, 'the old one no longer does');
     assert.equal(row.password.includes(temporary), false);
     assert.equal(row.tokenVersion, 4, 'sessions are invalidated');
-    assert.equal(row.passwordResetRequired, true);
+    assert.notEqual(row.passwordResetRequired, true, 'a survey user cannot change it, so it is never forced');
     assert.doesNotMatch(reply.body.message, /sent|messag(ed|e)? (to )?them on/i, 'it must not claim delivery');
 
     // and the new password signs in
     const signedIn = await signIn({ username: 'asha.survey', password: temporary });
     assert.equal(signedIn.status, 200);
-    assert.equal(signedIn.body.data.user.passwordResetRequired, true);
+    assert.notEqual(signedIn.body.data.user.passwordResetRequired, true);
   });
 });
 
@@ -539,18 +540,54 @@ test('username changes follow the same permissions as password resets', async ()
 
 // ------------------------------------------------------------------ changing your own password
 
-test('choosing your own password clears the "administrator issued this" flag', async () => {
-  const target = staff({ username: 'asha.survey', passwordResetRequired: true });
+test('a Mahallu admin choosing their own password clears the "administrator issued this" flag', async () => {
+  const target = staff({ role: 'mahall', username: 'asha.admin', passwordResetRequired: true });
   await withWorld([target], async ({ users }) => {
     // changePassword reads the user with findById(...).select('+password') then save()
     const reply = await call(changePassword, {
-      user: { _id: target._id, role: 'survey' },
+      user: { _id: target._id, role: 'mahall' },
       body: { currentPassword: PASSWORD, newPassword: 'Another1password' },
     });
     assert.equal(reply.status, 200);
     const row = users.store.find({})[0];
     assert.notEqual(row.passwordResetRequired, true);
     assert.equal(await bcrypt.compare('Another1password', row.password), true);
+  });
+});
+
+test('a survey or institute user cannot change the password an administrator gave them', async () => {
+  for (const role of ['survey', 'institute']) {
+    const target = staff({ role, username: `asha.${role}` });
+    await withWorld([target], async ({ users }) => {
+      const reply = await call(changePassword, {
+        user: { _id: target._id, role },
+        body: { currentPassword: PASSWORD, newPassword: 'Another1password' },
+      });
+      assert.equal(reply.status, 403, role);
+      assert.match(reply.body.message, /ask them for a new one/i);
+      const row = users.store.find({})[0];
+      assert.equal(await bcrypt.compare(PASSWORD, row.password), true, 'the issued password is untouched');
+      assert.equal(row.tokenVersion ?? 0, target.tokenVersion ?? 0, 'no session was ended');
+    });
+  }
+});
+
+test('an issued password forces a change only for a Mahallu admin', async () => {
+  assert.equal(toPublicUser({ role: 'mahall', passwordResetRequired: true }).passwordResetRequired, true);
+  for (const role of ['survey', 'institute', 'member']) {
+    assert.equal(toPublicUser({ role, passwordResetRequired: true }).passwordResetRequired, undefined, role);
+  }
+});
+
+test('a Mahallu admin created with a username is asked to choose their own password', async () => {
+  await withWorld([], async ({ users }) => {
+    const reply = await call(createUser, {
+      ...admin(),
+      body: { name: 'Meera', phone: '9876543299', role: 'mahall', username: 'meera.admin', password: PASSWORD },
+    });
+    assert.equal(reply.status, 201, JSON.stringify(reply.body));
+    const [row] = users.store.find({});
+    assert.equal(row.passwordResetRequired, true);
   });
 });
 

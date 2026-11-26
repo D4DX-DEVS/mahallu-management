@@ -1,6 +1,6 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { canManageCredentials, isStrongPassword } from '../src/features/users/credentialRules.ts';
+import { canChangeOwnPassword, canManageCredentials, isStrongPassword } from '../src/features/users/credentialRules.ts';
 
 // Only id and role are read, so a partial account is enough.
 const account = (id: string, role: string) => ({ id, role }) as never;
@@ -44,5 +44,18 @@ describe('isStrongPassword mirrors the API rule', () => {
     assert.equal(isStrongPassword('onlyletters'), false);
     assert.equal(isStrongPassword('12345678'), false);
     assert.equal(isStrongPassword('a1'.repeat(65)), false, 'over 128');
+  });
+});
+
+describe('canChangeOwnPassword (only a Mahallu admin or Super Admin; the API enforces it)', () => {
+  test('a Mahallu admin and a Super Admin may', () => {
+    assert.equal(canChangeOwnPassword('mahall'), true);
+    assert.equal(canChangeOwnPassword('super_admin'), true);
+  });
+
+  test('survey, institute and member (family head) keep the password an administrator gave them', () => {
+    for (const role of ['survey', 'institute', 'member']) assert.equal(canChangeOwnPassword(role), false, role);
+    assert.equal(canChangeOwnPassword(undefined), false);
+    assert.equal(canChangeOwnPassword(null), false);
   });
 });

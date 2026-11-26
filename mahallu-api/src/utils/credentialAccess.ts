@@ -16,6 +16,16 @@
 
 export const STAFF_LOGIN_ROLES = ['mahall', 'survey', 'institute'] as const;
 
+/**
+ * Only a Mahallu admin or the Super Admin may change their OWN password. Everyone else (survey, institute,
+ * a family head) keeps the password an administrator gave them; the administrator issues a new one.
+ */
+export const canChangeOwnPassword = (user: { role?: string; isSuperAdmin?: boolean } | null | undefined): boolean =>
+  Boolean(user && (user.isSuperAdmin === true || user.role === 'mahall' || user.role === 'super_admin'));
+
+export const OWN_PASSWORD_REFUSED =
+  'Your password is issued by your Mahallu admin, so you can\'t change it here. Please ask them for a new one.';
+
 type PermissionSet = { view?: boolean; add?: boolean; edit?: boolean; delete?: boolean; sensitiveModules?: string[] } | undefined | null;
 
 /**

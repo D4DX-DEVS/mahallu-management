@@ -33,6 +33,14 @@ export const passwordsMatch = {
 };
 
 /**
+ * Only a Mahallu admin or the Super Admin changes their OWN password. Everyone else keeps the one an
+ * administrator issued and asks an administrator for a new one. The API enforces this (403); this only
+ * decides what the screens offer.
+ */
+export const canChangeOwnPassword = (role: string | undefined | null): boolean =>
+  role === 'mahall' || role === 'super_admin';
+
+/**
  * Whether the signed-in account is offered the credential actions for `target`. A convenience only: the
  * API decides (same rules as utils/credentialAccess.ts) and answers 403/404 whatever this says.
  */

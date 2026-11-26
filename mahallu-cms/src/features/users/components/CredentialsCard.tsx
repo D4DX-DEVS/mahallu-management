@@ -10,7 +10,7 @@ import { userService } from '@/services/userService';
 import { toast } from '@/store/toastStore';
 import { errorMessage } from '@/utils/errors';
 import type { User } from '@/types';
-import { PASSWORD_HINT, USERNAME_HINT, USERNAME_PATTERN, isStrongPassword, normalizeUsername } from '../credentialRules';
+import { PASSWORD_HINT, USERNAME_HINT, USERNAME_PATTERN, canChangeOwnPassword, isStrongPassword, normalizeUsername } from '../credentialRules';
 
 interface CredentialsCardProps {
   user: User;
@@ -87,8 +87,11 @@ export default function CredentialsCard({ user, canManage, onUserChanged }: Cred
               <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">Stored securely - it can&apos;t be viewed, only reset.</span>
             )}
           </p>
-          {user.passwordResetRequired && (
+          {user.passwordResetRequired && canChangeOwnPassword(user.role) && (
             <p className="mt-1 text-xs text-warning">Issued by an administrator - they will be asked to choose their own at next sign-in.</p>
+          )}
+          {!canChangeOwnPassword(user.role) && (
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">They can&apos;t change this password themselves - reset it here if they need a new one.</p>
           )}
         </div>
         <div>

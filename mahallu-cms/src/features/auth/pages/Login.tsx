@@ -30,6 +30,7 @@ import { ROUTES } from '@/constants/routes';
 import { errorMessage } from '@/utils/errors';
 import { peekAuthNotice, clearAuthNotice } from '@/utils/authNotice';
 import { toTitleCase } from '@/utils/format';
+import { canChangeOwnPassword } from '@/features/users/credentialRules';
 
 /* Login is India-only, so the country code is fixed and never typed by the
    user - the field itself holds the bare 10-digit national number. */
@@ -165,7 +166,7 @@ export default function Login() {
         .catch(() => {});
     }
 
-    if (auth.user.passwordResetRequired) {
+    if (auth.user.passwordResetRequired && canChangeOwnPassword(auth.user.role)) {
       navigate('/settings/security');
       return;
     }

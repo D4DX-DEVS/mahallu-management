@@ -13,6 +13,7 @@ import { bearerToken, hashToken, tokenExpiry, MAX_REVOKED_TOKENS } from '../util
 import { signSessionToken, signImpersonationToken, toPublicUser } from '../utils/sessionToken';
 import { isTenantActive, TENANT_SUSPENDED_MESSAGE } from '../services/tenantStatusService';
 import { DUMMY_PASSWORD_HASH, normalizeUsername } from '../utils/credentials';
+import { canChangeOwnPassword, OWN_PASSWORD_REFUSED } from '../utils/credentialAccess';
 import { HEAD_ONLY_MESSAGE, maySignIn } from '../services/familyHeadLogin';
 
 const WRONG_USERNAME_OR_PASSWORD = 'That username or password is incorrect. Please try again.';
@@ -534,6 +535,11 @@ export const changePassword = async (req: AuthRequest, res: Response) => {
 
     if (!user) {
       return res.status(404).json({ success: false, message: "We couldn't find that user. It may have been removed." });
+    }
+
+    // A password an administrator issued is changed by an administrator, not by its owner.
+    if (!canChangeOwnPassword(user)) {
+      return res.status(403).json({ success: false, message: OWN_PASSWORD_REFUSED });
     }
 
     const isPasswordValid = await bcrypt.compare(currentPassword, user.password);
